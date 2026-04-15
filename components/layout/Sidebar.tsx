@@ -1,29 +1,19 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { Plus, Coffee } from 'lucide-react'
-import { useSidebarStore } from '@/stores/sidebarStore'
-import { SidebarNavItem } from './SidebarNavItem'
-import {
-  mainNavItems,
-  analyticsNavItems,
-  footerNavItems,
-} from '@/lib/constants/nav'
-import { cn } from '@/lib/utils/cn'
+import Link from 'next/link';
+import { Plus, Coffee } from 'lucide-react';
+import { useSidebarStore } from '@/stores/sidebarStore';
+import { SidebarNavItem } from './SidebarNavItem';
+import { mainNavItems, analyticsNavItems, footerNavItems } from '@/lib/constants/nav';
+import { cn } from '@/lib/utils/cn';
 
 export function Sidebar() {
-  const { collapsed, mobileOpen, closeMobile } = useSidebarStore()
+  const { collapsed, mobileOpen, closeMobile } = useSidebarStore();
 
   return (
     <>
       {/* Mobile backdrop */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
-          onClick={closeMobile}
-          aria-hidden="true"
-        />
-      )}
+      {mobileOpen && <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={closeMobile} aria-hidden="true" />}
 
       <aside
         aria-label="Primary navigation"
@@ -35,7 +25,7 @@ export function Sidebar() {
           collapsed ? 'w-[60px]' : 'w-[220px]',
           // Mobile slide-in
           'lg:static lg:translate-x-0',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
         {/* ── Brand ─────────────────────────────────────────── */}
@@ -45,12 +35,8 @@ export function Sidebar() {
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="font-display text-base font-semibold leading-tight text-foreground">
-                DUMA
-              </p>
-              <p className="text-[10px] text-faint uppercase tracking-widest leading-none mt-0.5">
-                Coffee CRM
-              </p>
+              <p className="font-display text-base font-semibold leading-tight text-foreground">DUMA</p>
+              <p className="text-[10px] text-faint uppercase tracking-widest leading-none mt-0.5">Coffee CRM</p>
             </div>
           )}
         </div>
@@ -61,33 +47,13 @@ export function Sidebar() {
             <SidebarNavItem key={item.href} {...item} />
           ))}
 
-          {!collapsed && (
-            <p className="text-[10px] text-faint uppercase tracking-widest px-3 pt-4 pb-1 whitespace-nowrap">
-              Analytics
-            </p>
-          )}
+          {!collapsed && <p className="text-[10px] text-faint uppercase tracking-widest px-3 pt-4 pb-1 whitespace-nowrap">Analytics</p>}
           {collapsed && <div className="my-2 border-t border-divider" />}
 
           {analyticsNavItems.map((item) => (
             <SidebarNavItem key={item.href} {...item} />
           ))}
         </nav>
-
-        {/* ── New Order CTA ─────────────────────────────────── */}
-        <div className="px-3 pb-3 overflow-hidden">
-          <Link
-            href="/orders/new"
-            className={cn(
-              'flex items-center justify-center gap-2 w-full py-2 px-4',
-              'bg-primary text-white text-sm font-semibold rounded-lg',
-              'hover:bg-primary-hover active:bg-primary-active transition-colors',
-              'whitespace-nowrap overflow-hidden'
-            )}
-          >
-            <Plus size={15} strokeWidth={2.5} aria-hidden="true" />
-            {!collapsed && <span>New Order</span>}
-          </Link>
-        </div>
 
         {/* ── Footer ───────────────────────────────────────── */}
         <div className="px-3 pb-3 pt-3 border-t border-divider flex flex-col gap-1">
@@ -97,5 +63,5 @@ export function Sidebar() {
         </div>
       </aside>
     </>
-  )
+  );
 }

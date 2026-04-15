@@ -1,23 +1,23 @@
-import { create } from 'zustand'
+import { create } from 'zustand';
 
-type Theme = 'light' | 'dark'
+type Theme = 'light' | 'dark';
 
 interface ThemeStore {
-  theme:       Theme
-  toggleTheme: () => void
-  setTheme:    (theme: Theme) => void
+  theme: Theme;
+  toggleTheme: () => void;
+  setTheme: (theme: Theme) => void;
 }
 
 export const useThemeStore = create<ThemeStore>((set) => ({
   theme: 'light',
   toggleTheme: () =>
     set((s) => {
-      const next = s.theme === 'light' ? 'dark' : 'light'
-      document.documentElement.setAttribute('data-theme', next)
-      return { theme: next }
+      const next = s.theme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      return { theme: next };
     }),
   setTheme: (theme) => {
-    document.documentElement.setAttribute('data-theme', theme)
-    set({ theme })
+    document.documentElement.setAttribute('data-theme', theme);
+    set({ theme });
   },
-}))
+}));

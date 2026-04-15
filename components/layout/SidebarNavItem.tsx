@@ -18,13 +18,20 @@ export function SidebarNavItem({ href, label, icon: Icon }: NavItem) {
       title={collapsed ? label : undefined}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium',
-        'text-muted hover:bg-surface-offset hover:text-foreground',
+        // Base
+        'flex items-center rounded-md text-sm font-medium',
         'transition-colors duration-150',
-        isActive && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15 border-r-4 border-primary',
+        // Expanded — normal padded row
+        !collapsed && 'gap-3 px-3 py-2 w-full',
+        // Collapsed — fixed 36×36 centered square, no padding
+        collapsed && 'w-9 h-9 justify-center mx-auto',
+        // States
+        'text-muted-foreground hover:bg-surface-offset hover:text-foreground',
+        isActive && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15',
+        isActive && !collapsed && 'border-r-4 border-primary',
       )}
     >
-      <Icon size={18} className="shrink-0" aria-hidden="true" />
+      <Icon aria-hidden="true" className="shrink-0" size={18} />
 
       {!collapsed && <span className="flex-1 truncate">{label}</span>}
     </Link>
