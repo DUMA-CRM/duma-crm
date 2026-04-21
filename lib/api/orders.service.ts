@@ -3,13 +3,35 @@ import { apiFetch } from './client';
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'done' | 'cancelled';
 export type OrderSource = 'pos' | 'mobile';
 
+export interface OrderItemModifier {
+  modifierId: string;
+  name: string;
+  priceAdjust: string;
+}
+
 export interface OrderItem {
   id: string;
   menuItemId: string;
   name: string;
   quantity: number;
-  unitPrice: number;
-  totalPrice: number;
+  unitPrice: string;
+  subtotal: string;
+  modifiers?: OrderItemModifier[];
+}
+
+export interface OrderDetail {
+  id: string;
+  tenantId?: string;
+  locationId: string;
+  customerId?: string;
+  status: OrderStatus;
+  source: OrderSource;
+  totalAmount: string;
+  paymentMethod: 'cash' | 'card';
+  notes?: string;
+  items: OrderItem[];
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Order {
@@ -19,7 +41,7 @@ export interface Order {
   customerId?: string;
   status: OrderStatus;
   source: OrderSource;
-  total_amount: number;
+  totalAmount: number;
   notes?: string;
   items?: OrderItem[];
   createdAt: string;
@@ -67,6 +89,8 @@ export interface CreateOrderPayload {
   notes?: string;
   items: CreateOrderItem[];
 }
+
+export const getOrder = (id: string) => apiFetch<OrderDetail>(`/orders/${id}`);
 
 export const createOrder = (data: CreateOrderPayload) => apiFetch<Order>('/orders', { method: 'POST', body: JSON.stringify(data) });
 

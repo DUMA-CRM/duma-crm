@@ -22,7 +22,7 @@ export function ProductCard({ item, isSelected, onSelect }: ProductCardProps) {
       </div>
 
       <p className="text-sm font-semibold text-foreground leading-snug">{item.name}</p>
-      <p className="text-base font-bold text-primary tabular-nums mt-1">₴{item.price}</p>
+      <p className="text-base font-bold text-primary tabular-nums mt-1">£{(item.price / 100).toFixed(2)}</p>
     </button>
   );
 }

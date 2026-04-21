@@ -292,8 +292,8 @@ function OrderRow({ order }: { order: Order }) {
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
         <span className={cn('text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md', s.className)}>{s.label}</span>
-        {order.total_amount != null && (
-          <span className="text-xs font-semibold text-foreground tabular-nums">£{(order.total_amount / 100).toFixed(2)}</span>
+        {order.totalAmount != null && (
+          <span className="text-xs font-semibold text-foreground tabular-nums">£{(order.totalAmount / 1).toFixed(2)}</span>
         )}
       </div>
     </div>
@@ -455,7 +455,7 @@ export function CustomerPanel({ customer, onCustomerUpdate }: CustomerPanelProps
               <div className="px-5 flex flex-col gap-4 pb-6">
                 {/* Stats */}
                 <div className="flex gap-3">
-                  <StatCard label="Total Spent" value={customer.totalSpent != null ? `£${(customer.totalSpent / 100).toFixed(2)}` : '—'} />
+                  <StatCard label="Total Spent" value={customer.totalSpent != null ? `£${(customer.totalSpent / 1).toFixed(2)}` : '—'} />
                   <StatCard label="Visits" value={(customer.totalVisits ?? 0).toLocaleString()} />
                 </div>
 
