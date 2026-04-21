@@ -292,8 +292,8 @@ function OrderRow({ order }: { order: Order }) {
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
         <span className={cn('text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md', s.className)}>{s.label}</span>
-        {order.total != null && (
-          <span className="text-xs font-semibold text-foreground tabular-nums">£{(order.total / 100).toFixed(2)}</span>
+        {order.total_amount != null && (
+          <span className="text-xs font-semibold text-foreground tabular-nums">£{(order.total_amount / 100).toFixed(2)}</span>
         )}
       </div>
     </div>
