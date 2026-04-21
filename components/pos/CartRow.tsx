@@ -10,7 +10,7 @@ interface CartRowProps {
 
 function Chip({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
       {label}
     </span>
   );
@@ -20,25 +20,29 @@ export function CartRow({ cartItem, onQty }: CartRowProps) {
   const total = cartItemTotal(cartItem);
   const isLastQty = cartItem.quantity === 1;
 
-  const chips = [
-    cartItem.size?.label,
-    cartItem.milk?.label !== 'Standard' ? cartItem.milk?.label : null,
-    cartItem.syrup?.label !== 'None' ? cartItem.syrup?.label : null,
-  ].filter(Boolean) as string[];
+  const chips = Object.values(cartItem.selections)
+    .filter((opt): opt is NonNullable<typeof opt> => !!opt)
+    .map((opt) => opt.label);
 
   return (
-    <div className="flex items-center gap-3 py-3 px-1">
+    <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-xl bg-card">
       {/* Thumbnail */}
-      <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted shrink-0">
-        <img src={cartItem.item.image} alt={cartItem.item.name} className="w-full h-full object-cover" />
+      <div className="w-11 h-11 rounded-lg overflow-hidden bg-muted shrink-0">
+        {cartItem.item.image ? (
+          <img src={cartItem.item.image} alt={cartItem.item.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-base font-bold text-muted-foreground opacity-30 select-none">
+            {cartItem.item.name[0]?.toUpperCase()}
+          </div>
+        )}
       </div>
 
       {/* Name + price + chips */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-foreground leading-snug truncate">{cartItem.item.name}</p>
-        <p className="text-sm font-semibold text-primary tabular-nums mt-0.5">₴{total.toFixed(2)}</p>
+        <p className="text-sm font-semibold text-foreground leading-snug truncate">{cartItem.item.name}</p>
+        <p className="text-sm font-bold text-primary tabular-nums mt-0.5">£{(total / 100).toFixed(2)}</p>
         {chips.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1.5">
+          <div className="flex flex-wrap gap-1 mt-1">
             {chips.map((chip) => (
               <Chip key={chip} label={chip} />
             ))}
@@ -46,27 +50,25 @@ export function CartRow({ cartItem, onQty }: CartRowProps) {
         )}
       </div>
 
-      {/* Qty pill — right aligned */}
-      <div className="flex items-center gap-0 rounded-xl bg-muted shrink-0 p-1">
+      {/* Qty controls */}
+      <div className="flex items-center gap-0.5 shrink-0">
         <button
           onClick={() => onQty(cartItem.cartId, -1)}
           aria-label={isLastQty ? 'Remove item' : 'Decrease quantity'}
           className={cn(
-            'w-9 h-9 rounded-lg flex items-center justify-center transition-colors active:scale-95',
-            isLastQty ? 'text-destructive active:bg-destructive/15' : 'text-foreground active:bg-background',
+            'w-7 h-7 rounded-md border flex items-center justify-center transition-colors active:scale-95',
+            isLastQty ? 'border-destructive/40 text-destructive hover:bg-destructive/10' : 'border-border text-foreground hover:bg-muted',
           )}
         >
-          {isLastQty ? <Trash2 size={14} /> : <Minus size={14} />}
+          {isLastQty ? <Trash2 size={13} /> : <Minus size={13} />}
         </button>
-
         <span className="w-7 text-center text-sm font-bold tabular-nums select-none text-foreground">{cartItem.quantity}</span>
-
         <button
           onClick={() => onQty(cartItem.cartId, 1)}
           aria-label="Increase quantity"
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-foreground transition-colors active:scale-95 active:bg-background"
+          className="w-7 h-7 rounded-md border border-border flex items-center justify-center text-foreground hover:bg-muted transition-colors active:scale-95"
         >
-          <Plus size={14} />
+          <Plus size={13} />
         </button>
       </div>
     </div>

@@ -1,0 +1,3140 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Duma CRM API",
+    "description": "## Welcome to the Duma CRM API\n\nThe Duma CRM API powers the backend for a multi-tenant café franchise platform — handling order management, real-time stock tracking, customer loyalty, staff shifts, and analytics across multiple brands and locations.\n\n---\n\n## Authentication\n\nAll endpoints except `/health` and `/auth/*` require a valid session cookie. Sign in at `POST /auth/sign-in/email` and the cookie is set automatically by the browser.\n\n---\n\n## Role & Scope Model\n\nAccess is controlled by a **role** + **scope** combination on each staff profile.\n\n| Role | Rank | Description |\n|---|---|---|\n| `super_admin` | 100 | Full access across all tenants |\n| `franchise_owner` | 80 | Full access within their tenant |\n| `store_manager` | 60 | Manage their assigned locations |\n| `hr_manager` / `marketing_manager` / `auditor` | 40 | Read-only access in specific domains |\n| `barista` | 20 | Create orders, clock in/out |\n\n| Scope | Description |\n|---|---|\n| `global` | All locations within the tenant |\n| `franchise` | Full franchise-wide access |\n| `location` | Only explicitly assigned location IDs |\n\nEndpoints that say **\"store_manager+\"** use `requireMinRole` — any role with rank ≥ 60 passes.\n\n---\n\n## Key Concepts\n\n- **Tenants** — Franchise brands. Each tenant owns locations, menu items, modifiers, and stock items.\n- **Locations** — Physical outlets. Menu items and modifiers are enabled per-location with optional price overrides.\n- **Orders** — Created from POS (`pos`) or mobile (`mobile`). Placing an order auto-deducts stock; cancelling refunds it. Completing awards loyalty points. Supports pagination, bulk status updates (`PATCH /orders/bulk-status`), soft delete (`DELETE /orders/:id`), and CSV/JSON export (`GET /orders/export`). Customers can view their own orders at `GET /orders/my`.\n- **Stock** — Tracked at tenant level and per-location. Low-stock alerts are returned alongside each order response. Bulk-update up to 50 location stock quantities in one request via `PATCH /location-stock/bulk`. Query all rows below threshold via `GET /location-stock/alerts`. View paginated movement history per item at `GET /stock-items/:id/movements`.\n- **Customers** — End consumers who can self-register via `POST /customers/me`, which links their account to an existing POS record matched by phone number.\n- **Shifts** — Staff clock in/out per location. Active shifts are queryable in real time. Store managers and above can list all shifts with an optional `?locationId` filter.\n- **Analytics** — All analytics endpoints require `store_manager+` and accept `from`, `to` (ISO 8601), and `locationId` query parameters. Date range defaults to the last 30 days. Responses include `Cache-Control` headers (60–300 s).\n- **Audit Logs** — The following actions write an immutable audit row: order create/cancel/status change, bulk status update, staff creation, stock adjust/transfer/bulk update, data export, tenant delete, location delete. Query via `GET /audit-logs` (`franchise_owner+`, paginated).\n- **Pagination** — `GET /orders` and `GET /audit-logs` support `?page` and `?limit` and return `{ data, total, page, limit, pages }`.",
+    "version": "1.0.0"
+  },
+  "servers": [{ "url": "http://localhost:3000", "description": "Local v1" }],
+  "components": { "securitySchemes": { "cookieAuth": { "type": "apiKey", "in": "cookie", "name": "session" } } },
+  "security": [{ "cookieAuth": [] }],
+  "paths": {
+    "/v1/auth/sign-up/email": {
+      "post": {
+        "operationId": "postV1AuthSignUpEmail",
+        "tags": ["Auth"],
+        "summary": "Sign up with email & password",
+        "description": "Creates a new user account. Returns the user object and sets a session cookie.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "name"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "jane@example.com" },
+                  "password": { "type": "string", "minLength": 8, "example": "secret123" },
+                  "name": { "type": "string", "example": "Jane Smith" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "User created and session cookie set" },
+          "422": { "description": "Email already in use or validation error" }
+        }
+      }
+    },
+    "/v1/auth/sign-in/email": {
+      "post": {
+        "operationId": "postV1AuthSignInEmail",
+        "tags": ["Auth"],
+        "summary": "Sign in with email & password",
+        "description": "Authenticates an existing user. Returns the session object and sets a session cookie.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "jane@example.com" },
+                  "password": { "type": "string", "example": "secret123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Session created and cookie set" }, "401": { "description": "Invalid credentials" } }
+      }
+    },
+    "/v1/auth/get-session": {
+      "get": {
+        "operationId": "getV1AuthGetSession",
+        "tags": ["Auth"],
+        "summary": "Get current session",
+        "description": "Returns the authenticated user and session details from the session cookie. Returns `null` if not signed in.",
+        "responses": { "200": { "description": "`{ session, user }` or `null`" } }
+      }
+    },
+    "/v1/auth/sign-out": {
+      "post": {
+        "operationId": "postV1AuthSignOut",
+        "tags": ["Auth"],
+        "summary": "Sign out",
+        "description": "Invalidates the current session and clears the session cookie.",
+        "responses": { "200": { "description": "Session invalidated" } }
+      }
+    },
+    "/v1/staff": {
+      "post": {
+        "operationId": "postV1Staff",
+        "tags": ["Staff"],
+        "summary": "Create staff member",
+        "description": "Creates a Better Auth user and attaches a staff profile with role, scope, and optional location assignments. Writes an audit log.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "name", "password", "tenantId", "role", "scope"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "name": { "type": "string", "minLength": 2 },
+                  "password": { "type": "string", "minLength": 8 },
+                  "tenantId": { "type": "string", "format": "uuid" },
+                  "role": {
+                    "type": "string",
+                    "enum": ["super_admin", "franchise_owner", "store_manager", "barista", "hr_manager", "marketing_manager", "auditor"]
+                  },
+                  "scope": { "type": "string", "enum": ["global", "franchise", "location"] },
+                  "locationIds": { "type": "array", "items": { "type": "string", "format": "uuid" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Staff member and profile created" }, "400": { "description": "Failed to create user" } }
+      },
+      "get": {
+        "operationId": "getV1Staff",
+        "tags": ["Staff"],
+        "summary": "List staff",
+        "description": "Returns all staff profiles for the tenant. super_admin sees all tenants. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by tenant — super_admin only."
+          }
+        ],
+        "responses": { "200": { "description": "Array of staff profile objects" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/staff/me": {
+      "get": {
+        "operationId": "getV1StaffMe",
+        "tags": ["Staff"],
+        "summary": "Get my staff profile",
+        "description": "Returns the staff profile for the authenticated user including role, scope, and assigned locations.",
+        "responses": { "200": { "description": "Staff profile object" }, "404": { "description": "No staff profile found" } }
+      }
+    },
+    "/v1/staff/{userId}": {
+      "get": {
+        "operationId": "getV1StaffByUserId",
+        "tags": ["Staff"],
+        "summary": "Get staff profile by user ID",
+        "description": "Returns a staff profile by user ID. store_manager+ only.",
+        "responses": {
+          "200": { "description": "Staff profile object" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "userId", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1StaffByUserId",
+        "tags": ["Staff"],
+        "summary": "Update staff profile",
+        "description": "Updates role, scope, location assignments, or active status. super_admin only. Writes an audit log.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": ["super_admin", "franchise_owner", "store_manager", "barista", "hr_manager", "marketing_manager", "auditor"]
+                  },
+                  "scope": { "type": "string", "enum": ["global", "franchise", "location"] },
+                  "locationIds": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+                  "isActive": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated staff profile" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "userId", "required": true }]
+      }
+    },
+    "/v1/customers": {
+      "post": {
+        "operationId": "postV1Customers",
+        "tags": ["Customers"],
+        "summary": "Create customer",
+        "description": "Creates a new customer record for a tenant. Staff use only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tenantId", "phone", "firstName", "lastName"],
+                "properties": {
+                  "tenantId": { "type": "string", "format": "uuid" },
+                  "phone": { "type": "string", "example": "+447911123456" },
+                  "firstName": { "type": "string", "maxLength": 100 },
+                  "lastName": { "type": "string", "maxLength": 100 },
+                  "email": { "type": "string", "format": "email" },
+                  "dob": { "type": "string", "format": "date-time" },
+                  "notes": { "type": "string" },
+                  "userId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Customer created" },
+          "409": { "description": "Phone number already exists for this tenant" }
+        }
+      },
+      "get": {
+        "operationId": "getV1Customers",
+        "tags": ["Customers"],
+        "summary": "List customers",
+        "description": "Paginated customer list. Super admin sees all tenants; others see their own tenant only. Supports free-text search across name, phone, and email, plus optional tier filter.",
+        "parameters": [
+          { "name": "page", "in": "query", "required": false, "schema": { "type": "integer", "default": 1 }, "description": "Page number" },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 20 },
+            "description": "Items per page, max 100"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Search by first name, last name, phone, or email"
+          },
+          {
+            "name": "phoneNumber",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Exact phone number match"
+          },
+          {
+            "name": "tier",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["bronze", "silver", "gold", "vip"] },
+            "description": "Filter by loyalty tier"
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by tenant — super_admin only"
+          }
+        ],
+        "responses": { "200": { "description": "{ data: Customer[], total, page, limit, pages }" }, "403": { "description": "Forbidden" } }
+      }
+    },
+    "/v1/customers/me": {
+      "get": {
+        "operationId": "getV1CustomersMe",
+        "tags": ["Customers"],
+        "summary": "Get my customer profile",
+        "description": "Returns the customer profile linked to the authenticated user.",
+        "responses": { "200": { "description": "Customer profile" }, "404": { "description": "Customer profile not found" } }
+      },
+      "post": {
+        "operationId": "postV1CustomersMe",
+        "tags": ["Customers"],
+        "summary": "Self-register or link customer profile",
+        "description": "Creates a new customer profile or links the authenticated user to an existing POS customer matched by phone number.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["firstName", "lastName", "phone", "tenantId"],
+                "properties": {
+                  "firstName": { "type": "string", "maxLength": 100 },
+                  "lastName": { "type": "string", "maxLength": 100 },
+                  "phone": { "type": "string", "example": "+447911123456" },
+                  "tenantId": { "type": "string", "format": "uuid" },
+                  "email": { "type": "string", "format": "email" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Linked to existing POS customer" },
+          "201": { "description": "New customer profile created" },
+          "409": { "description": "Profile already exists or phone linked to another account" }
+        }
+      }
+    },
+    "/v1/customers/{id}/points": {
+      "patch": {
+        "operationId": "patchV1CustomersByIdPoints",
+        "tags": ["Customers"],
+        "summary": "Adjust loyalty points",
+        "description": "Manually add or remove loyalty points. Positive delta adds, negative removes. Floors at 0. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["delta"],
+                "properties": {
+                  "delta": { "type": "number", "description": "Positive to add, negative to deduct. Must be non-zero." },
+                  "reason": { "type": "string", "maxLength": 255, "description": "Optional reason shown in audit context" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated customer with new pointsBalance" },
+          "400": { "description": "Delta must be non-zero" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Customer not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/customers/{id}": {
+      "get": {
+        "operationId": "getV1CustomersById",
+        "tags": ["Customers"],
+        "summary": "Get customer by ID",
+        "responses": { "200": { "description": "Customer object" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1CustomersById",
+        "tags": ["Customers"],
+        "summary": "Update customer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": { "type": "string" },
+                  "firstName": { "type": "string", "maxLength": 100 },
+                  "lastName": { "type": "string", "maxLength": 100 },
+                  "email": { "type": "string", "format": "email" },
+                  "dob": { "type": "string", "format": "date-time" },
+                  "notes": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated customer" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/tenants": {
+      "post": {
+        "operationId": "postV1Tenants",
+        "tags": ["Tenants"],
+        "summary": "Create tenant",
+        "description": "Creates a new tenant (franchise brand). Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "slug"],
+                "properties": {
+                  "name": { "type": "string", "minLength": 2, "maxLength": 100, "example": "Brew & Co" },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 50,
+                    "example": "brew-and-co",
+                    "description": "Lowercase, numbers and hyphens only"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Tenant created" }, "409": { "description": "Slug already exists" } }
+      },
+      "get": {
+        "operationId": "getV1Tenants",
+        "tags": ["Tenants"],
+        "summary": "List tenants",
+        "description": "Returns all tenants ordered by name. Super admin only.",
+        "responses": { "200": { "description": "Array of tenants" } }
+      }
+    },
+    "/v1/tenants/{id}": {
+      "get": {
+        "operationId": "getV1TenantsById",
+        "tags": ["Tenants"],
+        "summary": "Get tenant by ID",
+        "responses": { "200": { "description": "Tenant object" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1TenantsById",
+        "tags": ["Tenants"],
+        "summary": "Update tenant",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+                  "slug": { "type": "string", "minLength": 2, "maxLength": 50 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated tenant" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1TenantsById",
+        "tags": ["Tenants"],
+        "summary": "Delete tenant",
+        "description": "Hard deletes a tenant. Locations cascade if FK is configured. Super admin only. Writes an audit log.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/locations": {
+      "post": {
+        "operationId": "postV1Locations",
+        "tags": ["Locations"],
+        "summary": "Create location",
+        "description": "Creates a new physical location for a tenant. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tenantId", "name", "address", "timezone"],
+                "properties": {
+                  "tenantId": { "type": "string", "format": "uuid" },
+                  "name": { "type": "string", "minLength": 2, "maxLength": 100, "example": "Camden High Street" },
+                  "address": { "type": "string", "example": "42 High St, London NW1" },
+                  "timezone": { "type": "string", "example": "Europe/London" },
+                  "phone": { "type": "string", "maxLength": 30 },
+                  "isActive": { "type": "boolean", "default": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Location created" } }
+      },
+      "get": {
+        "operationId": "getV1Locations",
+        "tags": ["Locations"],
+        "summary": "List locations",
+        "description": "Super admin sees all locations. Franchise-scoped staff see their tenant's locations. Location-scoped staff see only their assigned locations.",
+        "responses": { "200": { "description": "Array of locations" }, "403": { "description": "Forbidden" } }
+      }
+    },
+    "/v1/locations/tenant/{tenantId}": {
+      "get": {
+        "operationId": "getV1LocationsTenantByTenantId",
+        "tags": ["Locations"],
+        "summary": "List locations by tenant",
+        "description": "Returns all locations for a given tenant. Non-super_admin staff can only query their own tenant.",
+        "responses": { "200": { "description": "Array of locations" }, "403": { "description": "Forbidden" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "tenantId", "required": true }]
+      }
+    },
+    "/v1/locations/{id}": {
+      "get": {
+        "operationId": "getV1LocationsById",
+        "tags": ["Locations"],
+        "summary": "Get location by ID",
+        "responses": {
+          "200": { "description": "Location object" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1LocationsById",
+        "tags": ["Locations"],
+        "summary": "Update location",
+        "description": "Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+                  "address": { "type": "string" },
+                  "timezone": { "type": "string" },
+                  "phone": { "type": "string", "maxLength": 30 },
+                  "isActive": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated location" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1LocationsById",
+        "tags": ["Locations"],
+        "summary": "Delete location",
+        "description": "Super admin only. Writes an audit log.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/locations/{id}/active": {
+      "patch": {
+        "operationId": "patchV1LocationsByIdActive",
+        "tags": ["Locations"],
+        "summary": "Toggle location active status",
+        "description": "Activates or deactivates a location. store_manager+ only (less restrictive than full PATCH which is super_admin only).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "required": ["isActive"], "properties": { "isActive": { "type": "boolean" } } }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated location" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/menu-items": {
+      "post": {
+        "operationId": "postV1MenuItems",
+        "tags": ["Menu Items"],
+        "summary": "Create menu item",
+        "description": "Creates a new menu item for a tenant. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tenantId", "name", "category", "basePrice"],
+                "properties": {
+                  "tenantId": { "type": "string", "format": "uuid" },
+                  "name": { "type": "string", "minLength": 2, "maxLength": 255, "example": "Flat White" },
+                  "description": { "type": "string" },
+                  "category": { "type": "string", "enum": ["coffee", "other-hot-drinks", "coffee-over-ice", "tea", "snacks"] },
+                  "basePrice": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$", "example": "3.50" },
+                  "isAvailable": { "type": "boolean", "default": true },
+                  "imageUrl": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Menu item created" } }
+      },
+      "get": {
+        "operationId": "getV1MenuItems",
+        "tags": ["Menu Items"],
+        "summary": "List menu items",
+        "description": "Super admin sees all. Others see only their tenant's menu items.",
+        "responses": { "200": { "description": "Array of menu items" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/menu-items/{id}": {
+      "get": {
+        "operationId": "getV1MenuItemsById",
+        "tags": ["Menu Items"],
+        "summary": "Get menu item by ID",
+        "responses": {
+          "200": { "description": "Menu item object" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1MenuItemsById",
+        "tags": ["Menu Items"],
+        "summary": "Update menu item",
+        "description": "Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 2, "maxLength": 255 },
+                  "description": { "type": "string" },
+                  "category": { "type": "string", "enum": ["coffee", "other-hot-drinks", "coffee-over-ice", "tea", "snacks"] },
+                  "basePrice": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$" },
+                  "isAvailable": { "type": "boolean" },
+                  "imageUrl": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated menu item" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1MenuItemsById",
+        "tags": ["Menu Items"],
+        "summary": "Delete menu item",
+        "description": "Super admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/modifier-groups": {
+      "post": {
+        "operationId": "postV1ModifierGroups",
+        "tags": ["Modifier Groups"],
+        "summary": "Create modifier group",
+        "description": "Creates a new modifier group (e.g. \"Milk\", \"Size\"). Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tenantId", "name"],
+                "properties": {
+                  "tenantId": { "type": "string", "format": "uuid" },
+                  "name": { "type": "string", "minLength": 2, "maxLength": 100, "example": "Milk Type" },
+                  "required": { "type": "boolean", "default": false },
+                  "multiSelect": { "type": "boolean", "default": false },
+                  "sortOrder": { "type": "integer", "default": 0 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Modifier group created" } }
+      },
+      "get": {
+        "operationId": "getV1ModifierGroups",
+        "tags": ["Modifier Groups"],
+        "summary": "List modifier groups",
+        "description": "Super admin sees all. Others see only their tenant's modifier groups, ordered by sortOrder.",
+        "responses": { "200": { "description": "Array of modifier groups" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/modifier-groups/{id}": {
+      "get": {
+        "operationId": "getV1ModifierGroupsById",
+        "tags": ["Modifier Groups"],
+        "summary": "Get modifier group by ID",
+        "responses": {
+          "200": { "description": "Modifier group object" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1ModifierGroupsById",
+        "tags": ["Modifier Groups"],
+        "summary": "Update modifier group",
+        "description": "Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+                  "required": { "type": "boolean" },
+                  "multiSelect": { "type": "boolean" },
+                  "sortOrder": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated modifier group" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1ModifierGroupsById",
+        "tags": ["Modifier Groups"],
+        "summary": "Delete modifier group",
+        "description": "Super admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/modifiers": {
+      "post": {
+        "operationId": "postV1Modifiers",
+        "tags": ["Modifiers"],
+        "summary": "Create modifier",
+        "description": "Creates a new modifier within a modifier group (e.g. \"Oat Milk\", \"Large\"). Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tenantId", "groupId", "type", "name"],
+                "properties": {
+                  "tenantId": { "type": "string", "format": "uuid" },
+                  "groupId": { "type": "string", "format": "uuid" },
+                  "type": { "type": "string", "enum": ["size", "milk", "syrup", "extra", "remove"] },
+                  "name": { "type": "string", "maxLength": 100, "example": "Oat Milk" },
+                  "priceAdjust": { "type": "string", "pattern": "^-?\\d+(\\.\\d{1,2})?$", "example": "0.50" },
+                  "isDefault": { "type": "boolean", "default": false },
+                  "isAvailable": { "type": "boolean", "default": true },
+                  "sortOrder": { "type": "integer", "default": 0 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Modifier created" } }
+      },
+      "get": {
+        "operationId": "getV1Modifiers",
+        "tags": ["Modifiers"],
+        "summary": "List modifiers",
+        "description": "Super admin sees all. Others see only their tenant's modifiers, ordered by sortOrder.",
+        "responses": { "200": { "description": "Array of modifiers" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/modifiers/group/{groupId}": {
+      "get": {
+        "operationId": "getV1ModifiersGroupByGroupId",
+        "tags": ["Modifiers"],
+        "summary": "List modifiers by group",
+        "description": "Returns all modifiers for a given modifier group, filtered to the caller's tenant.",
+        "responses": { "200": { "description": "Array of modifiers" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "groupId", "required": true }]
+      }
+    },
+    "/v1/modifiers/{id}": {
+      "get": {
+        "operationId": "getV1ModifiersById",
+        "tags": ["Modifiers"],
+        "summary": "Get modifier by ID",
+        "responses": {
+          "200": { "description": "Modifier object" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1ModifiersById",
+        "tags": ["Modifiers"],
+        "summary": "Update modifier",
+        "description": "Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "enum": ["size", "milk", "syrup", "extra", "remove"] },
+                  "name": { "type": "string", "maxLength": 100 },
+                  "priceAdjust": { "type": "string" },
+                  "isDefault": { "type": "boolean" },
+                  "isAvailable": { "type": "boolean" },
+                  "sortOrder": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated modifier" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1ModifiersById",
+        "tags": ["Modifiers"],
+        "summary": "Delete modifier",
+        "description": "Super admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/menu-item-modifier-groups": {
+      "post": {
+        "operationId": "postV1MenuItemModifierGroups",
+        "tags": ["Menu Item Modifiers"],
+        "summary": "Link modifier group to menu item",
+        "description": "Attaches a modifier group to a menu item. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["menuItemId", "modifierGroupId"],
+                "properties": {
+                  "menuItemId": { "type": "string", "format": "uuid" },
+                  "modifierGroupId": { "type": "string", "format": "uuid" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Link created" } }
+      }
+    },
+    "/v1/menu-item-modifier-groups/menu-item/{menuItemId}": {
+      "get": {
+        "operationId": "getV1MenuItemModifierGroupsMenuItemByMenuItemId",
+        "tags": ["Menu Item Modifiers"],
+        "summary": "List modifier groups for a menu item",
+        "description": "Returns all modifier group links for the given menu item ID.",
+        "responses": { "200": { "description": "Array of menu-item–modifier-group links" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "menuItemId", "required": true }]
+      }
+    },
+    "/v1/menu-item-modifier-groups/{id}": {
+      "get": {
+        "operationId": "getV1MenuItemModifierGroupsById",
+        "tags": ["Menu Item Modifiers"],
+        "summary": "Get menu-item–modifier-group link by ID",
+        "responses": { "200": { "description": "Link object" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1MenuItemModifierGroupsById",
+        "tags": ["Menu Item Modifiers"],
+        "summary": "Remove modifier group from menu item",
+        "description": "Super admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/location-menu-items": {
+      "post": {
+        "operationId": "postV1LocationMenuItems",
+        "tags": ["Location Menu Items"],
+        "summary": "Add menu item to location",
+        "description": "Enables a menu item at a specific location with an optional price override. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["locationId", "menuItemId"],
+                "properties": {
+                  "locationId": { "type": "string", "format": "uuid" },
+                  "menuItemId": { "type": "string", "format": "uuid" },
+                  "priceOverride": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$", "example": "4.00" },
+                  "isAvailable": { "type": "boolean", "default": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Link created" } }
+      }
+    },
+    "/v1/location-menu-items/location/{locationId}": {
+      "get": {
+        "operationId": "getV1LocationMenuItemsLocationByLocationId",
+        "tags": ["Location Menu Items"],
+        "summary": "List menu items for a location",
+        "description": "Returns all menu item links for the given location. Location-scoped staff can only query their assigned locations.",
+        "responses": { "200": { "description": "Array of location-menu-item links" }, "403": { "description": "Forbidden" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "locationId", "required": true }]
+      }
+    },
+    "/v1/location-menu-items/{id}": {
+      "get": {
+        "operationId": "getV1LocationMenuItemsById",
+        "tags": ["Location Menu Items"],
+        "summary": "Get location-menu-item link by ID",
+        "responses": { "200": { "description": "Link object" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1LocationMenuItemsById",
+        "tags": ["Location Menu Items"],
+        "summary": "Update location menu item",
+        "description": "Update availability or price override for a menu item at a location. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "priceOverride": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$" },
+                  "isAvailable": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated link" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1LocationMenuItemsById",
+        "tags": ["Location Menu Items"],
+        "summary": "Remove menu item from location",
+        "description": "Super admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/location-modifiers": {
+      "post": {
+        "operationId": "postV1LocationModifiers",
+        "tags": ["Location Modifiers"],
+        "summary": "Add modifier to location",
+        "description": "Enables a modifier at a specific location with an optional price override. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["locationId", "modifierId"],
+                "properties": {
+                  "locationId": { "type": "string", "format": "uuid" },
+                  "modifierId": { "type": "string", "format": "uuid" },
+                  "priceOverride": { "type": "string", "pattern": "^-?\\d+(\\.\\d{1,2})?$", "example": "0.50" },
+                  "isAvailable": { "type": "boolean", "default": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Link created" } }
+      }
+    },
+    "/v1/location-modifiers/location/{locationId}": {
+      "get": {
+        "operationId": "getV1LocationModifiersLocationByLocationId",
+        "tags": ["Location Modifiers"],
+        "summary": "List modifiers for a location",
+        "description": "Returns all modifier links for the given location. Location-scoped staff can only query their assigned locations.",
+        "responses": { "200": { "description": "Array of location-modifier links" }, "403": { "description": "Forbidden" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "locationId", "required": true }]
+      }
+    },
+    "/v1/location-modifiers/{id}": {
+      "get": {
+        "operationId": "getV1LocationModifiersById",
+        "tags": ["Location Modifiers"],
+        "summary": "Get location-modifier link by ID",
+        "responses": { "200": { "description": "Link object" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1LocationModifiersById",
+        "tags": ["Location Modifiers"],
+        "summary": "Update location modifier",
+        "description": "Update availability or price override for a modifier at a location. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "properties": { "priceOverride": { "type": "string" }, "isAvailable": { "type": "boolean" } } }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated link" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1LocationModifiersById",
+        "tags": ["Location Modifiers"],
+        "summary": "Remove modifier from location",
+        "description": "Super admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/orders/bulk-status": {
+      "patch": {
+        "operationId": "patchV1OrdersBulkStatus",
+        "tags": ["Orders"],
+        "summary": "Bulk update order status",
+        "description": "Update the status of up to 100 orders at once. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["ids", "status"],
+                "properties": {
+                  "ids": { "type": "array", "items": { "type": "string", "format": "uuid" }, "minItems": 1, "maxItems": 100 },
+                  "status": { "type": "string", "enum": ["pending", "preparing", "ready", "done", "cancelled"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "{ updated: number, ids: string[] }" },
+          "400": { "description": "Validation error" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "No matching orders" }
+        }
+      }
+    },
+    "/v1/orders/{id}": {
+      "delete": {
+        "operationId": "deleteV1OrdersById",
+        "tags": ["Orders"],
+        "summary": "Soft delete order",
+        "description": "Sets deletedAt — record retained for audit. store_manager+ only.",
+        "responses": {
+          "200": { "description": "{ success: true, deletedAt: string }" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "get": {
+        "operationId": "getV1OrdersById",
+        "tags": ["Orders"],
+        "summary": "Get order by ID",
+        "description": "Returns a full order with items and modifiers.",
+        "responses": {
+          "200": { "description": "Order with items and modifiers" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/orders/export": {
+      "get": {
+        "operationId": "getV1OrdersExport",
+        "tags": ["Orders"],
+        "summary": "Export orders as CSV or JSON",
+        "description": "Returns a downloadable file. Supports ?from, ?to, ?status, ?locationId, ?format=(csv|json). store_manager+ only.",
+        "parameters": [
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "locationId", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["pending", "preparing", "ready", "done", "cancelled"] }
+          },
+          { "name": "format", "in": "query", "schema": { "type": "string", "enum": ["csv", "json"], "default": "csv" } }
+        ],
+        "responses": { "200": { "description": "File download (CSV or JSON)" }, "403": { "description": "Forbidden" } }
+      }
+    },
+    "/v1/orders": {
+      "post": {
+        "operationId": "postV1Orders",
+        "tags": ["Orders"],
+        "summary": "Create order",
+        "description": "Creates a new order, deducts inventory, and returns low-stock alerts. Writes an audit log.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["locationId", "source", "totalAmount", "items"],
+                "properties": {
+                  "locationId": { "type": "string", "format": "uuid" },
+                  "customerId": { "type": "string", "format": "uuid" },
+                  "source": { "type": "string", "enum": ["pos", "mobile"] },
+                  "totalAmount": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$", "example": "7.50" },
+                  "notes": { "type": "string" },
+                  "paymentMethod": { "type": "string", "maxLength": 50, "example": "card" },
+                  "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": ["menuItemId", "name", "quantity", "unitPrice", "subtotal"],
+                      "properties": {
+                        "menuItemId": { "type": "string", "format": "uuid" },
+                        "name": { "type": "string", "example": "Flat White" },
+                        "quantity": { "type": "integer", "minimum": 1 },
+                        "unitPrice": { "type": "string", "example": "3.50" },
+                        "subtotal": { "type": "string", "example": "7.00" },
+                        "notes": { "type": "string" },
+                        "modifiers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": ["modifierId", "name"],
+                            "properties": {
+                              "modifierId": { "type": "string", "format": "uuid" },
+                              "name": { "type": "string", "example": "Oat Milk" },
+                              "priceAdjust": { "type": "string", "example": "0.50" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Order created with lowStockAlerts array" },
+          "400": { "description": "Item or modifier unavailable at location" },
+          "403": { "description": "Forbidden — wrong location or no tenant" }
+        }
+      },
+      "get": {
+        "operationId": "getV1Orders",
+        "tags": ["Orders"],
+        "summary": "List orders",
+        "description": "Returns paginated orders scoped to the caller's role. Super admin sees all; franchise/location staff see their own locations.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 1 },
+            "description": "Page number (default: 1)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 20 },
+            "description": "Items per page, max 100 (default: 20)"
+          },
+          {
+            "name": "customerId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by customer"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["pending", "preparing", "ready", "done", "cancelled"] },
+            "description": "Filter by order status"
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by location"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["pos", "mobile"] },
+            "description": "Filter by order source"
+          },
+          {
+            "name": "createdBy",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by staff user ID"
+          },
+          {
+            "name": "paymentMethod",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Filter by payment method"
+          }
+        ],
+        "responses": {
+          "200": { "description": "{ data: Order[], total: number, page: number, limit: number, pages: number }" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/orders/my": {
+      "get": {
+        "operationId": "getV1OrdersMy",
+        "tags": ["Orders"],
+        "summary": "Get my orders",
+        "description": "Returns all orders for the authenticated customer, with items and modifiers.",
+        "responses": {
+          "200": { "description": "Array of orders with items and modifiers" },
+          "404": { "description": "Customer profile not found" }
+        }
+      }
+    },
+    "/v1/orders/{id}/status": {
+      "patch": {
+        "operationId": "patchV1OrdersByIdStatus",
+        "tags": ["Orders"],
+        "summary": "Update order status",
+        "description": "Transitions an order to a new status. Cancelling refunds inventory; completing awards loyalty points. Writes an audit log.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": { "status": { "type": "string", "enum": ["pending", "preparing", "ready", "done", "cancelled"] } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated order" },
+          "400": { "description": "Invalid status transition" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/stock-items": {
+      "post": {
+        "operationId": "postV1StockItems",
+        "tags": ["Stock Items"],
+        "summary": "Create stock item",
+        "description": "Creates a new trackable stock item (e.g. \"Oat Milk\", \"Espresso Shots\"). Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tenantId", "name", "unit"],
+                "properties": {
+                  "tenantId": { "type": "string", "format": "uuid" },
+                  "name": { "type": "string", "maxLength": 255, "example": "Oat Milk" },
+                  "unit": { "type": "string", "maxLength": 20, "example": "ml", "description": "e.g. ml, g, shots, units" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Stock item created" } }
+      },
+      "get": {
+        "operationId": "getV1StockItems",
+        "tags": ["Stock Items"],
+        "summary": "List stock items",
+        "description": "Super admin sees all. Others see only their tenant's stock items, ordered by name.",
+        "responses": { "200": { "description": "Array of stock items" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/stock-items/{id}/movements": {
+      "get": {
+        "operationId": "getV1StockItemsByIdMovements",
+        "tags": ["Stock Items"],
+        "summary": "Stock movement history",
+        "description": "Paginated audit trail of all stock movements for a specific stock item. store_manager+ only.",
+        "parameters": [
+          { "name": "page", "in": "query", "required": false, "schema": { "type": "integer", "default": 1 }, "description": "Page number" },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 20 },
+            "description": "Items per page, max 100"
+          },
+          { "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }
+        ],
+        "responses": {
+          "200": { "description": "{ data: StockMovement[], total, page, limit, pages }" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Stock item not found" }
+        }
+      }
+    },
+    "/v1/stock-items/{id}": {
+      "get": {
+        "operationId": "getV1StockItemsById",
+        "tags": ["Stock Items"],
+        "summary": "Get stock item by ID",
+        "responses": {
+          "200": { "description": "Stock item object" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1StockItemsById",
+        "tags": ["Stock Items"],
+        "summary": "Update stock item",
+        "description": "Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "name": { "type": "string", "maxLength": 255 }, "unit": { "type": "string", "maxLength": 20 } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated stock item" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1StockItemsById",
+        "tags": ["Stock Items"],
+        "summary": "Delete stock item",
+        "description": "Super admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/location-stock/bulk": {
+      "patch": {
+        "operationId": "patchV1LocationStockBulk",
+        "tags": ["Stock"],
+        "summary": "Bulk update location stock quantities",
+        "description": "Update up to 50 stock quantities. Each logs a stock_movement row. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["updates"],
+                "properties": {
+                  "updates": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "required": ["locationStockId", "quantity"],
+                      "properties": {
+                        "locationStockId": { "type": "string", "format": "uuid" },
+                        "quantity": { "type": "number", "minimum": 0 },
+                        "notes": { "type": "string", "maxLength": 500 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "{ updated: number, alerts: LowStockAlert[] }" },
+          "400": { "description": "Validation error or stock row not found" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/location-stock": {
+      "post": {
+        "operationId": "postV1LocationStock",
+        "tags": ["Location Stock"],
+        "summary": "Add stock item to location",
+        "description": "Starts tracking a stock item at a specific location. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["locationId", "stockItemId", "lowThreshold"],
+                "properties": {
+                  "locationId": { "type": "string", "format": "uuid" },
+                  "stockItemId": { "type": "string", "format": "uuid" },
+                  "quantity": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$", "default": "0" },
+                  "lowThreshold": {
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d{1,2})?$",
+                    "example": "50",
+                    "description": "Alert threshold"
+                  },
+                  "isAvailable": { "type": "boolean", "default": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Location stock row created" },
+          "409": { "description": "Stock item already assigned to this location" }
+        }
+      }
+    },
+    "/v1/location-stock/{id}/adjust": {
+      "post": {
+        "operationId": "postV1LocationStockByIdAdjust",
+        "tags": ["Location Stock"],
+        "summary": "Adjust location stock quantity",
+        "description": "Applies a positive or negative delta to the current quantity. Floors at 0 and updates isAvailable. Super admin only. Writes an audit log.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["delta"],
+                "properties": {
+                  "delta": { "type": "number", "example": -10, "description": "Positive to add, negative to remove. Must be non-zero." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated row with previousQuantity, delta, and newQuantity" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/location-stock/{id}/transfer": {
+      "post": {
+        "operationId": "postV1LocationStockByIdTransfer",
+        "tags": ["Location Stock"],
+        "summary": "Transfer stock between locations",
+        "description": "Moves a quantity of a stock item from one location to another. The destination must already track the stock item. Super admin only. Writes an audit log.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["toLocationId", "quantity"],
+                "properties": {
+                  "toLocationId": { "type": "string", "format": "uuid", "description": "Destination location ID" },
+                  "quantity": { "type": "number", "example": 20, "description": "Positive amount to transfer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Transfer summary with from/to quantities" },
+          "400": { "description": "Insufficient stock or destination not seeded" },
+          "404": { "description": "Source stock row not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/location-stock/{id}/receive": {
+      "post": {
+        "operationId": "postV1LocationStockByIdReceive",
+        "tags": ["Location Stock"],
+        "summary": "Receive stock from tenant warehouse",
+        "description": "Moves a quantity from the tenant-level (warehouse) stock into this location. Fails if tenant stock is insufficient. Super admin only. Writes an audit log.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["quantity"],
+                "properties": {
+                  "quantity": { "type": "number", "example": 50, "description": "Amount to move from warehouse to location" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Transfer summary with warehouse and location quantities" },
+          "400": { "description": "Insufficient tenant stock" },
+          "404": { "description": "Location stock row or tenant stock not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/location-stock/alerts": {
+      "get": {
+        "operationId": "getV1LocationStockAlerts",
+        "tags": ["Location Stock"],
+        "summary": "Low stock alerts",
+        "description": "Returns all location stock rows where quantity ≤ lowThreshold. Scoped by role: location staff see their assigned locations only, others see their tenant. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by a specific location UUID."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Array of low-stock location stock rows with stock item and location details" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/location-stock/location/{locationId}": {
+      "get": {
+        "operationId": "getV1LocationStockLocationByLocationId",
+        "tags": ["Location Stock"],
+        "summary": "List stock for a location",
+        "description": "Returns all stock items at a location with their quantities. Location-scoped staff can only query their assigned locations.",
+        "responses": {
+          "200": { "description": "Array of location stock rows with stock item details" },
+          "403": { "description": "Forbidden" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "locationId", "required": true }]
+      }
+    },
+    "/v1/location-stock/{id}": {
+      "get": {
+        "operationId": "getV1LocationStockById",
+        "tags": ["Location Stock"],
+        "summary": "Get location stock row by ID",
+        "responses": {
+          "200": { "description": "Location stock row with stock item details" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1LocationStockById",
+        "tags": ["Location Stock"],
+        "summary": "Update location stock",
+        "description": "Updates quantity, lowThreshold, or availability for a location stock row. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "quantity": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$" },
+                  "lowThreshold": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$" },
+                  "isAvailable": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated location stock row" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1LocationStockById",
+        "tags": ["Location Stock"],
+        "summary": "Remove stock item from location tracking",
+        "description": "Super admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/menu-item-stock": {
+      "get": {
+        "operationId": "getV1MenuItemStock",
+        "tags": ["Menu Item Stock"],
+        "summary": "List menu item stock links for tenant",
+        "description": "Returns all stock consumption links for every menu item belonging to the caller's tenant.",
+        "responses": {
+          "200": { "description": "Array of menu-item-stock links with menu item and stock item details" },
+          "403": { "description": "No tenant assigned" }
+        }
+      },
+      "post": {
+        "operationId": "postV1MenuItemStock",
+        "tags": ["Menu Item Stock"],
+        "summary": "Link stock item to menu item",
+        "description": "Records how much of a stock item is consumed when a menu item is ordered. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["menuItemId", "stockItemId", "quantity"],
+                "properties": {
+                  "menuItemId": { "type": "string", "format": "uuid" },
+                  "stockItemId": { "type": "string", "format": "uuid" },
+                  "quantity": {
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d{1,2})?$",
+                    "example": "200",
+                    "description": "Amount consumed per order (e.g. 200 ml)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Link created" }, "409": { "description": "Stock item already linked to this menu item" } }
+      }
+    },
+    "/v1/menu-item-stock/{menuItemId}": {
+      "get": {
+        "operationId": "getV1MenuItemStockByMenuItemId",
+        "tags": ["Menu Item Stock"],
+        "summary": "Get stock links for a menu item",
+        "description": "Returns all stock items consumed when the given menu item is ordered, including stock item details.",
+        "responses": { "200": { "description": "Array of menu-item-stock links" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "menuItemId", "required": true }]
+      }
+    },
+    "/v1/menu-item-stock/{id}": {
+      "patch": {
+        "operationId": "patchV1MenuItemStockById",
+        "tags": ["Menu Item Stock"],
+        "summary": "Update menu item stock quantity",
+        "description": "Updates the consumption quantity for a menu-item-stock link. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["quantity"],
+                "properties": { "quantity": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$" } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated link" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1MenuItemStockById",
+        "tags": ["Menu Item Stock"],
+        "summary": "Remove stock link from menu item",
+        "description": "Super admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/modifier-stock": {
+      "post": {
+        "operationId": "postV1ModifierStock",
+        "tags": ["Modifier Stock"],
+        "summary": "Link stock item to modifier",
+        "description": "Records how much of a stock item is consumed when a modifier is applied (e.g. 30ml vanilla syrup). Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["modifierId", "stockItemId", "quantity"],
+                "properties": {
+                  "modifierId": { "type": "string", "format": "uuid" },
+                  "stockItemId": { "type": "string", "format": "uuid" },
+                  "quantity": {
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d{1,2})?$",
+                    "example": "30",
+                    "description": "Amount consumed per use (e.g. 30 ml)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Link created" }, "409": { "description": "Stock item already linked to this modifier" } }
+      }
+    },
+    "/v1/modifier-stock/{modifierId}": {
+      "get": {
+        "operationId": "getV1ModifierStockByModifierId",
+        "tags": ["Modifier Stock"],
+        "summary": "Get stock links for a modifier",
+        "description": "Returns all stock items consumed by the given modifier, including stock item details.",
+        "responses": { "200": { "description": "Array of modifier-stock links with stock item details" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "modifierId", "required": true }]
+      }
+    },
+    "/v1/modifier-stock/{id}": {
+      "patch": {
+        "operationId": "patchV1ModifierStockById",
+        "tags": ["Modifier Stock"],
+        "summary": "Update modifier stock quantity",
+        "description": "Updates the consumption quantity for a modifier-stock link. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["quantity"],
+                "properties": { "quantity": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$" } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated link" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1ModifierStockById",
+        "tags": ["Modifier Stock"],
+        "summary": "Remove stock link from modifier",
+        "description": "Super admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/tenant-stock": {
+      "get": {
+        "operationId": "getV1TenantStock",
+        "tags": ["Tenant Stock"],
+        "summary": "List tenant-level stock",
+        "description": "Returns all stock items tracked at tenant level with their current quantities.",
+        "responses": {
+          "200": { "description": "Array of tenant stock rows with stock item details" },
+          "403": { "description": "No tenant assigned" }
+        }
+      },
+      "post": {
+        "operationId": "postV1TenantStock",
+        "tags": ["Tenant Stock"],
+        "summary": "Add stock item to tenant",
+        "description": "Starts tracking a stock item at the tenant level. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["stockItemId", "quantity"],
+                "properties": {
+                  "stockItemId": { "type": "string", "format": "uuid" },
+                  "quantity": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$", "example": "1000" },
+                  "lowThreshold": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$", "default": "0" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tenant stock row created" },
+          "403": { "description": "No tenant assigned" },
+          "409": { "description": "Stock item already tracked at tenant level" }
+        }
+      }
+    },
+    "/v1/tenant-stock/{id}/adjust": {
+      "post": {
+        "operationId": "postV1TenantStockByIdAdjust",
+        "tags": ["Tenant Stock"],
+        "summary": "Adjust tenant stock quantity",
+        "description": "Applies a positive or negative delta to the current quantity. Floors at 0. Super admin only. Writes an audit log.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["delta"],
+                "properties": {
+                  "delta": { "type": "number", "example": -50, "description": "Positive to add, negative to remove. Must be non-zero." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated row with previousQuantity, delta, and newQuantity" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/tenant-stock/{stockItemId}": {
+      "get": {
+        "operationId": "getV1TenantStockByStockItemId",
+        "tags": ["Tenant Stock"],
+        "summary": "Get tenant stock for a stock item",
+        "description": "Returns the tenant-level stock row plus a per-location breakdown for the given stock item.",
+        "responses": {
+          "200": { "description": "Object with global tenant row and location breakdown array" },
+          "403": { "description": "No tenant assigned" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "stockItemId", "required": true }]
+      }
+    },
+    "/v1/tenant-stock/{id}": {
+      "patch": {
+        "operationId": "patchV1TenantStockById",
+        "tags": ["Tenant Stock"],
+        "summary": "Update tenant stock",
+        "description": "Updates quantity and/or lowThreshold for a tenant stock row. Super admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "quantity": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$" },
+                  "lowThreshold": { "type": "string", "pattern": "^\\d+(\\.\\d{1,2})?$" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated tenant stock row" },
+          "400": { "description": "At least one field required" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1TenantStockById",
+        "tags": ["Tenant Stock"],
+        "summary": "Remove stock item from tenant tracking",
+        "description": "Super admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/shifts/clock-in": {
+      "post": {
+        "operationId": "postV1ShiftsClockIn",
+        "tags": ["Shifts"],
+        "summary": "Clock in",
+        "description": "Starts a shift for the authenticated user at the given location. Returns 409 if already clocked in.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["locationId"],
+                "properties": { "locationId": { "type": "string", "format": "uuid" } }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Shift started" }, "409": { "description": "Already clocked in" } }
+      }
+    },
+    "/v1/shifts/clock-out": {
+      "post": {
+        "operationId": "postV1ShiftsClockOut",
+        "tags": ["Shifts"],
+        "summary": "Clock out",
+        "description": "Ends the active shift for the authenticated user at the given location. Returns the shift with durationMinutes.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["locationId"],
+                "properties": { "locationId": { "type": "string", "format": "uuid" } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Shift ended with durationMinutes" }, "404": { "description": "No active shift found" } }
+      }
+    },
+    "/v1/shifts/active": {
+      "get": {
+        "operationId": "getV1ShiftsActive",
+        "tags": ["Shifts"],
+        "summary": "List active shifts",
+        "description": "Returns all currently clocked-in shifts. Location-scoped staff see only their first assigned location.",
+        "responses": { "200": { "description": "Array of active shifts with staff and location details" } }
+      }
+    },
+    "/v1/shifts/my": {
+      "get": {
+        "operationId": "getV1ShiftsMy",
+        "tags": ["Shifts"],
+        "summary": "Get my shift history",
+        "description": "Returns all shifts for the authenticated user, ordered by most recent first.",
+        "responses": { "200": { "description": "Array of shifts with location details" } }
+      }
+    },
+    "/v1/shifts": {
+      "get": {
+        "operationId": "getV1Shifts",
+        "tags": ["Shifts"],
+        "summary": "List all shifts",
+        "description": "Returns all shifts ordered by most recent first. Super admin only.",
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter shifts by location"
+          }
+        ],
+        "responses": { "200": { "description": "Array of shifts with staff and location details" } }
+      }
+    },
+    "/v1/analytics/orders": {
+      "get": {
+        "operationId": "getV1AnalyticsOrders",
+        "tags": ["Analytics"],
+        "summary": "Order analytics",
+        "description": "Revenue, order count, avg order value, breakdown by status and source, plus daily revenue.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by location UUID."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Object with summary, byStatus, bySource, and daily arrays" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/analytics/top-items": {
+      "get": {
+        "operationId": "getV1AnalyticsTopItems",
+        "tags": ["Analytics"],
+        "summary": "Top selling menu items",
+        "description": "Best selling menu items by quantity and revenue within the date range.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by location UUID."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 10 },
+            "description": "Number of items to return. Defaults to 10."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Array of top items with totalQuantity, totalRevenue, and orderCount" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/analytics/stock/movements": {
+      "get": {
+        "operationId": "getV1AnalyticsStockMovements",
+        "tags": ["Analytics"],
+        "summary": "Stock movement audit trail",
+        "description": "Full audit log of stock deductions and restocks with staff, location, and order context.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by location UUID."
+          },
+          {
+            "name": "stockItemId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by stock item UUID."
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["deduction", "restock"] },
+            "description": "Filter by movement type."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 100 },
+            "description": "Number of movements to return. Defaults to 100."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Array of stock movements with stock item, location, order, and user details" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/analytics/stock/summary": {
+      "get": {
+        "operationId": "getV1AnalyticsStockSummary",
+        "tags": ["Analytics"],
+        "summary": "Stock movement summary",
+        "description": "Total deducted vs restocked per stock item in the date range, grouped by type.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by location UUID."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Array of { stockItemId, type, totalQty, movementCount }" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/analytics/inventory-forecast": {
+      "get": {
+        "operationId": "getV1AnalyticsInventoryForecast",
+        "tags": ["Analytics"],
+        "summary": "Inventory forecast",
+        "description": "Predicts stock needs per location based on historical deduction patterns. Returns average daily consumption, days of stock remaining, predicted stockout date, and recommended reorder quantity. Items with no observed consumption return null for time-based fields. Results are sorted: critical items first (≤ 3 days remaining), then ascending by days remaining. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by a specific location UUID."
+          },
+          {
+            "name": "lookbackDays",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 30, "minimum": 7, "maximum": 90 },
+            "description": "Days of movement history used to compute avg daily consumption. Defaults to 30."
+          },
+          {
+            "name": "forecastDays",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 14, "minimum": 1, "maximum": 90 },
+            "description": "Days ahead to cover when computing recommendedReorderQuantity. Defaults to 14."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of { locationStockId, stockItemName, unit, currentQuantity, avgDailyConsumption, daysOfStockRemaining, predictedStockoutDate, recommendedReorderQuantity, isLow, isCritical }"
+          },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/analytics/revenue-by-location": {
+      "get": {
+        "operationId": "getV1AnalyticsRevenueByLocation",
+        "tags": ["Analytics"],
+        "summary": "Revenue per location",
+        "description": "Total revenue and order count grouped by location for the given date range. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by location UUID."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Array of { locationId, locationName, totalRevenue, orderCount }" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/analytics/hourly-volume": {
+      "get": {
+        "operationId": "getV1AnalyticsHourlyVolume",
+        "tags": ["Analytics"],
+        "summary": "Hourly order volume",
+        "description": "Order count and revenue grouped by hour of day (0–23) for the given date range. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by location UUID."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Array of { hour, orderCount, totalRevenue } for hours 0–23" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/analytics/staff-hours": {
+      "get": {
+        "operationId": "getV1AnalyticsStaffHours",
+        "tags": ["Analytics"],
+        "summary": "Staff hours worked",
+        "description": "Total hours worked per staff member within the date range, derived from completed shifts. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by location UUID."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Array of { userId, userName, totalShifts, totalMinutes, totalHours }" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/analytics/customer-retention": {
+      "get": {
+        "operationId": "getV1AnalyticsCustomerRetention",
+        "tags": ["Analytics"],
+        "summary": "Customer retention",
+        "description": "New vs returning customers within the date range. A customer is \"new\" if their first-ever order falls within the window. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by location UUID."
+          }
+        ],
+        "responses": {
+          "200": { "description": "{ newCustomers, returningCustomers, totalWithOrders, repeatRate }" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/audit-logs": {
+      "get": {
+        "operationId": "getV1AuditLogs",
+        "tags": ["Audit"],
+        "summary": "List audit logs",
+        "description": "Paginated audit log. franchise_owner+ only.",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50 } },
+          { "name": "userId", "in": "query", "schema": { "type": "string" } },
+          { "name": "action", "in": "query", "schema": { "type": "string" } },
+          { "name": "resourceType", "in": "query", "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } }
+        ],
+        "responses": { "200": { "description": "{ data, total, page, limit, pages }" }, "403": { "description": "Forbidden" } }
+      }
+    },
+    "/v1/receipts/{id}/receipt": {
+      "get": {
+        "operationId": "getV1ReceiptsByIdReceipt",
+        "tags": ["Orders"],
+        "summary": "Generate or retrieve a PDF receipt for an order",
+        "description": "Returns a PDF receipt. Generates and caches on first call. ?type=invoice for invoice format. ?download=false for JSON.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["receipt", "invoice"], "default": "receipt" }
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["true", "false"], "default": "true" }
+          }
+        ],
+        "responses": { "200": { "description": "PDF binary or JSON receipt data" }, "404": { "description": "Order not found" } }
+      }
+    },
+    "/v1/hr/employees/me": {
+      "get": {
+        "operationId": "getV1HrEmployeesMe",
+        "tags": ["HR - Employees"],
+        "summary": "Get my employee profile",
+        "description": "Returns the authenticated user's HR record including personal info, emergency contacts, and employment details.",
+        "responses": { "200": { "description": "Employee details object" }, "404": { "description": "Employee profile not found" } }
+      },
+      "patch": {
+        "operationId": "patchV1HrEmployeesMe",
+        "tags": ["HR - Employees"],
+        "summary": "Update my employee profile",
+        "description": "Employees can update their own address, emergency contacts, and bank/NI details.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "address": { "type": "string", "maxLength": 1000 },
+                  "emergencyContactName": { "type": "string", "maxLength": 255 },
+                  "emergencyContactPhone": { "type": "string", "maxLength": 30 },
+                  "emergencyContactRelation": { "type": "string", "maxLength": 100 },
+                  "bankAccountName": { "type": "string" },
+                  "bankAccountNumber": { "type": "string" },
+                  "bankSortCode": { "type": "string" },
+                  "nationalInsuranceNumber": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated employee details" }, "404": { "description": "Employee profile not found" } }
+      }
+    },
+    "/v1/hr/employees": {
+      "post": {
+        "operationId": "postV1HrEmployees",
+        "tags": ["HR - Employees"],
+        "summary": "Create employee profile",
+        "description": "Creates an HR profile for a staff member in the manager's tenant. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["userId", "jobTitle", "employmentType", "startDate"],
+                "properties": {
+                  "userId": { "type": "string" },
+                  "jobTitle": { "type": "string", "maxLength": 255 },
+                  "department": { "type": "string", "maxLength": 100 },
+                  "employmentType": { "type": "string", "enum": ["full_time", "part_time", "contractor", "zero_hours"] },
+                  "startDate": { "type": "string", "format": "date", "description": "YYYY-MM-DD" },
+                  "dateOfBirth": { "type": "string", "format": "date" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Employee profile created" },
+          "403": { "description": "No tenant assigned" },
+          "409": { "description": "Profile already exists for this user" }
+        }
+      },
+      "get": {
+        "operationId": "getV1HrEmployees",
+        "tags": ["HR - Employees"],
+        "summary": "List employees",
+        "description": "Returns all HR employee profiles for the tenant. store_manager+ only.",
+        "responses": { "200": { "description": "Array of employee detail objects" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/hr/employees/{userId}": {
+      "get": {
+        "operationId": "getV1HrEmployeesByUserId",
+        "tags": ["HR - Employees"],
+        "summary": "Get employee by user ID",
+        "description": "Returns HR details for a specific staff member. store_manager+ only.",
+        "responses": {
+          "200": { "description": "Employee details object" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "userId", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1HrEmployeesByUserId",
+        "tags": ["HR - Employees"],
+        "summary": "Update employee HR details",
+        "description": "Updates job-related fields (title, department, employment type, dates). store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "jobTitle": { "type": "string", "maxLength": 255 },
+                  "department": { "type": "string", "maxLength": 100 },
+                  "employmentType": { "type": "string", "enum": ["full_time", "part_time", "contractor", "zero_hours"] },
+                  "startDate": { "type": "string", "format": "date" },
+                  "dateOfBirth": { "type": "string", "format": "date" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated employee details" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "userId", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1HrEmployeesByUserId",
+        "tags": ["HR - Employees"],
+        "summary": "Delete employee profile",
+        "description": "Removes the HR profile for an employee (offboarding). store_manager+ only.",
+        "responses": {
+          "200": { "description": "Deleted successfully" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "userId", "required": true }]
+      }
+    },
+    "/v1/hr/leave-types": {
+      "get": {
+        "operationId": "getV1HrLeaveTypes",
+        "tags": ["HR - Leave"],
+        "summary": "List leave types",
+        "description": "Returns all leave types configured for the tenant. Visible to all authenticated staff.",
+        "responses": { "200": { "description": "Array of leave type objects" }, "403": { "description": "No tenant assigned" } }
+      },
+      "post": {
+        "operationId": "postV1HrLeaveTypes",
+        "tags": ["HR - Leave"],
+        "summary": "Create leave type",
+        "description": "Creates a new leave category for the tenant. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string", "maxLength": 100, "example": "Annual Leave" },
+                  "isPaid": { "type": "boolean", "default": true },
+                  "requiresApproval": { "type": "boolean", "default": true },
+                  "defaultAllowanceDays": { "type": "string", "example": "25.0", "description": "Default days when creating entitlements" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Leave type created" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/hr/leave-types/{id}": {
+      "patch": {
+        "operationId": "patchV1HrLeaveTypesById",
+        "tags": ["HR - Leave"],
+        "summary": "Update leave type",
+        "description": "Updates a leave type configuration. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "maxLength": 100 },
+                  "isPaid": { "type": "boolean" },
+                  "requiresApproval": { "type": "boolean" },
+                  "defaultAllowanceDays": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated leave type" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1HrLeaveTypesById",
+        "tags": ["HR - Leave"],
+        "summary": "Delete leave type",
+        "description": "Removes a leave type. store_manager+ only.",
+        "responses": {
+          "200": { "description": "Deleted successfully" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/hr/entitlements/me": {
+      "get": {
+        "operationId": "getV1HrEntitlementsMe",
+        "tags": ["HR - Leave"],
+        "summary": "Get my leave entitlements",
+        "description": "Returns all leave entitlements for the authenticated user. Optionally filter by year.",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer" },
+            "description": "Filter by year (e.g. 2026). Defaults to current year."
+          }
+        ],
+        "responses": { "200": { "description": "Array of entitlement objects with leaveType details" } }
+      }
+    },
+    "/v1/hr/entitlements": {
+      "get": {
+        "operationId": "getV1HrEntitlements",
+        "tags": ["HR - Leave"],
+        "summary": "List all entitlements",
+        "description": "Returns leave entitlements for all staff in the tenant. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer" },
+            "description": "Filter by year. Defaults to current year."
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Filter by a specific user ID."
+          }
+        ],
+        "responses": { "200": { "description": "Array of entitlement objects" }, "403": { "description": "No tenant assigned" } }
+      },
+      "post": {
+        "operationId": "postV1HrEntitlements",
+        "tags": ["HR - Leave"],
+        "summary": "Create leave entitlement",
+        "description": "Assigns a leave allowance to an employee for a specific year and leave type. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["userId", "leaveTypeId", "year", "totalDays"],
+                "properties": {
+                  "userId": { "type": "string" },
+                  "leaveTypeId": { "type": "string", "format": "uuid" },
+                  "year": { "type": "integer", "example": 2026 },
+                  "totalDays": { "type": "string", "example": "25.0" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Entitlement created" },
+          "403": { "description": "No tenant assigned" },
+          "409": { "description": "Entitlement already exists for this user/type/year" }
+        }
+      }
+    },
+    "/v1/hr/entitlements/{id}": {
+      "patch": {
+        "operationId": "patchV1HrEntitlementsById",
+        "tags": ["HR - Leave"],
+        "summary": "Update leave entitlement",
+        "description": "Adjusts totalDays or usedDays for an entitlement. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "totalDays": { "type": "string", "example": "28.0" }, "usedDays": { "type": "string", "example": "5.0" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated entitlement" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/hr/leave-requests/my": {
+      "get": {
+        "operationId": "getV1HrLeaveRequestsMy",
+        "tags": ["HR - Leave"],
+        "summary": "Get my leave requests",
+        "description": "Returns all leave requests submitted by the authenticated user, most recent first.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["pending", "approved", "declined", "cancelled"] },
+            "description": "Filter by status."
+          }
+        ],
+        "responses": { "200": { "description": "Array of leave request objects with leaveType details" } }
+      }
+    },
+    "/v1/hr/leave-requests": {
+      "post": {
+        "operationId": "postV1HrLeaveRequests",
+        "tags": ["HR - Leave"],
+        "summary": "Submit leave request",
+        "description": "Submits a leave request. Auto-approved if the leave type has requiresApproval = false. Returns 422 if the employee has insufficient entitlement.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["leaveTypeId", "startDate", "endDate", "totalDays"],
+                "properties": {
+                  "leaveTypeId": { "type": "string", "format": "uuid" },
+                  "startDate": { "type": "string", "format": "date", "description": "YYYY-MM-DD" },
+                  "endDate": { "type": "string", "format": "date", "description": "YYYY-MM-DD" },
+                  "totalDays": { "type": "string", "example": "3.0" },
+                  "notes": { "type": "string", "maxLength": 1000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Leave request created" },
+          "403": { "description": "No tenant assigned" },
+          "404": { "description": "Leave type not found" },
+          "422": { "description": "Insufficient leave entitlement" }
+        }
+      },
+      "get": {
+        "operationId": "getV1HrLeaveRequests",
+        "tags": ["HR - Leave"],
+        "summary": "List leave requests",
+        "description": "Returns all leave requests for the tenant. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["pending", "approved", "declined", "cancelled"] },
+            "description": "Filter by status. Defaults to pending."
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Filter by a specific user."
+          }
+        ],
+        "responses": { "200": { "description": "Array of leave request objects" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/hr/leave-requests/{id}/review": {
+      "patch": {
+        "operationId": "patchV1HrLeaveRequestsByIdReview",
+        "tags": ["HR - Leave"],
+        "summary": "Approve or decline a leave request",
+        "description": "Managers approve or decline a pending leave request. On approval, the entitlement usedDays is incremented. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["approved", "declined"] },
+                  "reviewNotes": { "type": "string", "maxLength": 500 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated leave request" },
+          "400": { "description": "Request is not pending" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/hr/leave-requests/{id}": {
+      "get": {
+        "operationId": "getV1HrLeaveRequestsById",
+        "tags": ["HR - Leave"],
+        "summary": "Get leave request by ID",
+        "description": "Returns a single leave request. Employees can only view their own.",
+        "responses": {
+          "200": { "description": "Leave request object with leaveType details" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1HrLeaveRequestsById",
+        "tags": ["HR - Leave"],
+        "summary": "Edit pending leave request",
+        "description": "Employees can update dates and notes on their own pending requests.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "startDate": { "type": "string", "format": "date" },
+                  "endDate": { "type": "string", "format": "date" },
+                  "totalDays": { "type": "string", "example": "3.0" },
+                  "notes": { "type": "string", "maxLength": 1000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated leave request" },
+          "400": { "description": "Only pending requests can be edited" },
+          "403": { "description": "Can only edit your own requests" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/hr/leave-requests/{id}/cancel": {
+      "patch": {
+        "operationId": "patchV1HrLeaveRequestsByIdCancel",
+        "tags": ["HR - Leave"],
+        "summary": "Cancel leave request",
+        "description": "Employees can cancel their own pending leave requests.",
+        "responses": {
+          "200": { "description": "Cancelled leave request" },
+          "400": { "description": "Only pending requests can be cancelled" },
+          "403": { "description": "Can only cancel your own requests" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/hr/absence-logs/my": {
+      "get": {
+        "operationId": "getV1HrAbsenceLogsMy",
+        "tags": ["HR - Leave"],
+        "summary": "Get my absence history",
+        "description": "Returns all absence log entries for the authenticated user.",
+        "responses": { "200": { "description": "Array of absence log objects" } }
+      }
+    },
+    "/v1/hr/absence-logs": {
+      "get": {
+        "operationId": "getV1HrAbsenceLogs",
+        "tags": ["HR - Leave"],
+        "summary": "List absence logs",
+        "description": "Returns all absence records for the tenant. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Filter by a specific employee."
+          }
+        ],
+        "responses": { "200": { "description": "Array of absence log objects" }, "403": { "description": "No tenant assigned" } }
+      },
+      "post": {
+        "operationId": "postV1HrAbsenceLogs",
+        "tags": ["HR - Leave"],
+        "summary": "Log an absence",
+        "description": "Managers log an unplanned absence retroactively for an employee. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["userId", "date"],
+                "properties": {
+                  "userId": { "type": "string" },
+                  "leaveTypeId": { "type": "string", "format": "uuid", "description": "Usually a sick leave type" },
+                  "date": { "type": "string", "format": "date", "description": "YYYY-MM-DD" },
+                  "isHalfDay": { "type": "boolean", "default": false },
+                  "reason": { "type": "string", "maxLength": 500 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Absence logged" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/hr/absence-logs/{id}": {
+      "delete": {
+        "operationId": "deleteV1HrAbsenceLogsById",
+        "tags": ["HR - Leave"],
+        "summary": "Delete absence log",
+        "description": "Removes an absence record. store_manager+ only.",
+        "responses": {
+          "200": { "description": "Deleted successfully" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/hr/payslips/my": {
+      "get": {
+        "operationId": "getV1HrPayslipsMy",
+        "tags": ["HR - Payroll"],
+        "summary": "Get my payslips",
+        "description": "Returns all finalised payslips for the authenticated user, most recent first.",
+        "responses": { "200": { "description": "Array of payslip objects" } }
+      }
+    },
+    "/v1/hr/payslips": {
+      "get": {
+        "operationId": "getV1HrPayslips",
+        "tags": ["HR - Payroll"],
+        "summary": "List all payslips",
+        "description": "Returns all payslips for the tenant including drafts. franchise_owner+ only.",
+        "parameters": [
+          { "name": "userId", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Filter by employee." },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["draft", "finalised"] },
+            "description": "Filter by status."
+          }
+        ],
+        "responses": { "200": { "description": "Array of payslip objects" }, "403": { "description": "No tenant assigned" } }
+      },
+      "post": {
+        "operationId": "postV1HrPayslips",
+        "tags": ["HR - Payroll"],
+        "summary": "Create payslip",
+        "description": "Creates a draft payslip for an employee. super_admin only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["userId", "payPeriodStart", "payPeriodEnd", "grossPay", "netPay", "taxDeducted"],
+                "properties": {
+                  "userId": { "type": "string" },
+                  "payPeriodStart": { "type": "string", "format": "date" },
+                  "payPeriodEnd": { "type": "string", "format": "date" },
+                  "grossPay": { "type": "string", "example": "2500.00" },
+                  "netPay": { "type": "string", "example": "1980.00" },
+                  "taxDeducted": { "type": "string", "example": "400.00" },
+                  "nationalInsurance": { "type": "string", "example": "120.00" },
+                  "pensionDeduction": { "type": "string", "example": "0.00" },
+                  "otherDeductions": { "type": "string" },
+                  "currency": { "type": "string", "default": "GBP" },
+                  "documentUrl": { "type": "string", "format": "uri" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Draft payslip created" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/hr/payslips/{id}": {
+      "get": {
+        "operationId": "getV1HrPayslipsById",
+        "tags": ["HR - Payroll"],
+        "summary": "Get payslip by ID",
+        "description": "Returns a single payslip. Employees can only retrieve their own finalised payslips.",
+        "responses": {
+          "200": { "description": "Payslip object" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1HrPayslipsById",
+        "tags": ["HR - Payroll"],
+        "summary": "Update payslip",
+        "description": "Updates a draft payslip. super_admin only. Cannot edit finalised payslips.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "grossPay": { "type": "string" },
+                  "netPay": { "type": "string" },
+                  "taxDeducted": { "type": "string" },
+                  "nationalInsurance": { "type": "string" },
+                  "pensionDeduction": { "type": "string" },
+                  "otherDeductions": { "type": "string" },
+                  "documentUrl": { "type": "string", "format": "uri" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated payslip" },
+          "400": { "description": "Cannot edit a finalised payslip" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/hr/payslips/{id}/finalise": {
+      "patch": {
+        "operationId": "patchV1HrPayslipsByIdFinalise",
+        "tags": ["HR - Payroll"],
+        "summary": "Finalise payslip",
+        "description": "Marks a draft payslip as finalised, making it visible to the employee. Irreversible. super_admin only.",
+        "responses": {
+          "200": { "description": "Finalised payslip" },
+          "400": { "description": "Already finalised" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/hr/documents": {
+      "get": {
+        "operationId": "getV1HrDocuments",
+        "tags": ["HR - Documents"],
+        "summary": "List accessible documents",
+        "description": "Returns company-wide documents plus any documents assigned specifically to the authenticated user.",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["contract", "handbook", "policy", "certificate", "other"] },
+            "description": "Filter by document type."
+          }
+        ],
+        "responses": { "200": { "description": "Array of document objects" }, "403": { "description": "No tenant assigned" } }
+      },
+      "post": {
+        "operationId": "postV1HrDocuments",
+        "tags": ["HR - Documents"],
+        "summary": "Upload document",
+        "description": "Adds a document record. Omit userId to make it company-wide. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["type", "name", "fileUrl"],
+                "properties": {
+                  "userId": { "type": "string", "description": "Omit for company-wide documents" },
+                  "type": { "type": "string", "enum": ["contract", "handbook", "policy", "certificate", "other"] },
+                  "name": { "type": "string", "maxLength": 255 },
+                  "fileUrl": { "type": "string", "format": "uri" },
+                  "expiresAt": { "type": "string", "format": "date-time", "description": "For certificates, visas, etc." }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Document record created" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/hr/documents/all": {
+      "get": {
+        "operationId": "getV1HrDocumentsAll",
+        "tags": ["HR - Documents"],
+        "summary": "List all tenant documents",
+        "description": "Returns every document for the tenant regardless of assignment. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["contract", "handbook", "policy", "certificate", "other"] }
+          }
+        ],
+        "responses": { "200": { "description": "Array of document objects" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/hr/documents/{id}": {
+      "get": {
+        "operationId": "getV1HrDocumentsById",
+        "tags": ["HR - Documents"],
+        "summary": "Get document by ID",
+        "description": "Returns a document. Employees can only access company-wide docs or their own.",
+        "responses": {
+          "200": { "description": "Document object" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1HrDocumentsById",
+        "tags": ["HR - Documents"],
+        "summary": "Delete document",
+        "description": "Removes a document record. super_admin only.",
+        "responses": { "200": { "description": "Deleted successfully" }, "404": { "description": "Not found" } },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/hr/expense-claims/my": {
+      "get": {
+        "operationId": "getV1HrExpenseClaimsMy",
+        "tags": ["HR - Expenses"],
+        "summary": "Get my expense claims",
+        "description": "Returns all expense claims submitted by the authenticated user.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["pending", "approved", "declined", "paid"] }
+          }
+        ],
+        "responses": { "200": { "description": "Array of expense claim objects" } }
+      }
+    },
+    "/v1/hr/expense-claims": {
+      "post": {
+        "operationId": "postV1HrExpenseClaims",
+        "tags": ["HR - Expenses"],
+        "summary": "Submit expense claim",
+        "description": "Submits a new expense claim for manager approval.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["description", "amount"],
+                "properties": {
+                  "description": { "type": "string", "maxLength": 1000 },
+                  "amount": { "type": "string", "example": "24.99" },
+                  "currency": { "type": "string", "default": "GBP" },
+                  "category": { "type": "string", "maxLength": 100, "example": "travel" },
+                  "receiptUrl": { "type": "string", "format": "uri" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Expense claim submitted" }, "403": { "description": "No tenant assigned" } }
+      },
+      "get": {
+        "operationId": "getV1HrExpenseClaims",
+        "tags": ["HR - Expenses"],
+        "summary": "List expense claims",
+        "description": "Returns expense claims for the tenant. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["pending", "approved", "declined", "paid"] },
+            "description": "Filter by status. Defaults to pending."
+          },
+          { "name": "userId", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Filter by employee." }
+        ],
+        "responses": { "200": { "description": "Array of expense claim objects" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/hr/expense-claims/{id}/review": {
+      "patch": {
+        "operationId": "patchV1HrExpenseClaimsByIdReview",
+        "tags": ["HR - Expenses"],
+        "summary": "Review expense claim",
+        "description": "Approve, decline, or mark an expense as paid. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["approved", "declined", "paid"] },
+                  "reviewNotes": { "type": "string", "maxLength": 500 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated expense claim" },
+          "400": { "description": "Claim is not in a reviewable state" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/hr/expense-claims/{id}/cancel": {
+      "patch": {
+        "operationId": "patchV1HrExpenseClaimsByIdCancel",
+        "tags": ["HR - Expenses"],
+        "summary": "Cancel expense claim",
+        "description": "Employees can cancel their own pending expense claims.",
+        "responses": {
+          "200": { "description": "Cancelled expense claim" },
+          "400": { "description": "Only pending claims can be cancelled" },
+          "403": { "description": "Can only cancel your own claims" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    }
+  }
+}

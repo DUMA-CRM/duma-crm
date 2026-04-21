@@ -10,6 +10,8 @@ import {
   Star,
   Settings,
   HelpCircle,
+  Building2,
+  UtensilsCrossed,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -23,9 +25,11 @@ export const mainNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Customers', href: '/customers', icon: Users },
   { label: 'POS Terminal', href: '/pos', icon: Monitor },
+  { label: 'Menu', href: '/menu', icon: UtensilsCrossed },
   { label: 'Inventory', href: '/inventory', icon: Package },
   { label: 'Orders', href: '/orders', icon: ShoppingBag },
   { label: 'Staff', href: '/staff', icon: Users2 },
+  { label: 'Workspaces', href: '/workspaces', icon: Building2 },
 ];
 
 export const analyticsNavItems: NavItem[] = [

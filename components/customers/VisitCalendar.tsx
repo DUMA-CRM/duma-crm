@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils/cn';
-import type { Visit } from '@/types/customers';
+interface Visit {
+  date: string;
+  spend: number;
+}
 
 interface VisitCalendarProps {
   visits: Visit[];
@@ -112,10 +115,10 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
             {/* ── Month labels ─────────────────────────────────
                 gap-1.5 MUST match the week-columns gap below    */}
             <div className="flex gap-1.5 mb-2 ml-7">
-              {weeks.map((_, i) => {
+              {weeks.map((week, i) => {
                 const m = monthLabels.find((m) => m.col === i);
                 return (
-                  <div key={i} className="w-5 shrink-0">
+                  <div key={week[0].date.toISOString().slice(0, 10)} className="w-5 shrink-0">
                     {m && <span className="text-[10px] font-semibold text-muted-foreground/80 whitespace-nowrap">{m.label}</span>}
                   </div>
                 );
@@ -134,13 +137,13 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
               </div>
 
               {/* Week columns */}
-              {weeks.map((week, wi) => (
-                <div key={wi} className="flex flex-col gap-1">
-                  {week.map((cell, di) => {
+              {weeks.map((week) => (
+                <div key={week[0].date.toISOString().slice(0, 10)} className="flex flex-col gap-1">
+                  {week.map((cell) => {
                     const isFuture = cell.date > today;
                     return (
                       <div
-                        key={di}
+                        key={cell.date.toISOString().slice(0, 10)}
                         className="w-5 h-5 flex items-center justify-center cursor-default"
                         onMouseEnter={(e) => handleEnter(e, cell)}
                         onMouseLeave={() => setTip(null)}
@@ -164,8 +167,8 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
         {/* Legend */}
         <div className="flex items-center gap-2 mt-3">
           <span className="text-[10px] text-muted-foreground">Less</span>
-          {[undefined, 50, 100, 160, 220].map((spend, i) => (
-            <div key={i} className="w-4 h-4 flex items-center justify-center">
+          {[undefined, 50, 100, 160, 220].map((spend) => (
+            <div key={spend ?? 'none'} className="w-4 h-4 flex items-center justify-center">
               <div className={cn(getDot(spend, false))} />
             </div>
           ))}

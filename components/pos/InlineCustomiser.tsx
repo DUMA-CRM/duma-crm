@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { OptionBtn } from './OptionBtn';
 import type { MenuItem, PendingOptions } from '@/types/pos';
@@ -12,7 +11,8 @@ interface InlineCustomiserProps {
 }
 
 export function InlineCustomiser({ item, pending, setPending, onAdd, onCancel }: InlineCustomiserProps) {
-  const price = item.price + (pending.size?.price ?? 0) + (pending.milk?.price ?? 0) + (pending.syrup?.price ?? 0);
+  const optionsTotal = Object.values(pending).reduce((sum, opt) => sum + (opt?.price ?? 0), 0);
+  const price = item.price + optionsTotal;
 
   return (
     <div className="px-5 pt-5">
@@ -20,7 +20,13 @@ export function InlineCustomiser({ item, pending, setPending, onAdd, onCancel }:
         {/* Item header */}
         <div className="flex gap-3 mb-4">
           <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
-            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+            {item.image ? (
+              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-lg font-bold text-muted-foreground opacity-30 select-none">
+                {item.name[0]?.toUpperCase()}
+              </div>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
@@ -32,65 +38,58 @@ export function InlineCustomiser({ item, pending, setPending, onAdd, onCancel }:
                 <X size={13} />
               </button>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">₴{item.price} base</p>
+            <p className="text-xs text-muted-foreground mt-0.5">£{(item.price / 100).toFixed(2)} base</p>
           </div>
         </div>
 
-        {/* Options */}
-        <div className="space-y-3 border-t border-border/60 pt-3">
-          {item.sizes && (
-            <OptionGroup label="Size">
-              {item.sizes.map((opt) => (
-                <OptionBtn
-                  key={opt.label}
-                  label={opt.price > 0 ? `${opt.label} (+₴${opt.price})` : opt.label}
-                  active={pending.size?.label === opt.label}
-                  onClick={() => setPending((p) => ({ ...p, size: opt }))}
-                />
-              ))}
-            </OptionGroup>
-          )}
+        {/* Dynamic modifier groups */}
+        {item.modifierGroups.length > 0 && (
+          <div className="space-y-3 border-t border-border/60 pt-3">
+            {item.modifierGroups.map((group) => {
+              const selected = pending[group.groupId];
+              const selectOpt = (label: string | null) =>
+                setPending((p) => ({
+                  ...p,
+                  [group.groupId]: label === null ? null : (group.options.find((o) => o.label === label) ?? null),
+                }));
 
-          {item.milk && (
-            <OptionGroup label="Milk Choice">
-              {item.milk.map((opt) => (
-                <OptionBtn
-                  key={opt.label}
-                  label={opt.price > 0 ? `${opt.label} (+₴${opt.price})` : opt.label}
-                  active={pending.milk?.label === opt.label}
-                  onClick={() => setPending((p) => ({ ...p, milk: opt }))}
-                />
-              ))}
-            </OptionGroup>
-          )}
+              return (
+                <OptionGroup key={group.groupId} label={group.groupName} required={group.required}>
+                  {!group.required && <OptionBtn label="None" active={selected === null} onClick={() => selectOpt(null)} />}
+                  {group.options.map((opt) => (
+                    <OptionBtn
+                      key={opt.label}
+                      label={opt.price > 0 ? `${opt.label} (+£${(opt.price / 100).toFixed(2)})` : opt.label}
+                      active={selected?.label === opt.label}
+                      onClick={() => selectOpt(opt.label)}
+                    />
+                  ))}
+                </OptionGroup>
+              );
+            })}
+          </div>
+        )}
 
-          {item.syrups && (
-            <OptionGroup label="Syrups">
-              {item.syrups.map((opt) => (
-                <OptionBtn
-                  key={opt.label}
-                  label={opt.price > 0 ? `${opt.label} (+₴${opt.price})` : opt.label}
-                  active={pending.syrup?.label === opt.label}
-                  onClick={() => setPending((p) => ({ ...p, syrup: opt }))}
-                />
-              ))}
-            </OptionGroup>
-          )}
-
-          <Button className="w-full bg-primary hover:bg-primary/90 text-white font-semibold h-12" onClick={onAdd}>
-            Add to Order — ₴{price}
-          </Button>
-        </div>
+        <button
+          onClick={onAdd}
+          className="w-full h-10 rounded-lg bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold transition-colors mt-3"
+        >
+          Add to Order — £{(price / 100).toFixed(2)}
+        </button>
       </div>
     </div>
   );
 }
 
-// Small helper — avoids repeating label + flex-wrap wrapper
-function OptionGroup({ label, children }: { label: string; children: React.ReactNode }) {
+function OptionGroup({ label, required, children }: { label: string; required: boolean; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">{label}</p>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
+        {required && (
+          <span className="text-[9px] font-bold uppercase tracking-widest px-1 py-0.5 rounded bg-warning/10 text-warning">Required</span>
+        )}
+      </div>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );

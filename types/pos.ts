@@ -1,8 +1,17 @@
 export type Category = 'all' | 'coffee' | 'other-hot-drinks' | 'coffee-over-ice' | 'tea' | 'snacks';
 
 export interface MenuOption {
+  id?: string;
   label: string;
   price: number;
+}
+
+export interface PosModifierGroup {
+  groupId: string;
+  groupName: string;
+  required: boolean;
+  multiSelect: boolean;
+  options: MenuOption[];
 }
 
 export interface MenuItem {
@@ -11,22 +20,15 @@ export interface MenuItem {
   category: Exclude<Category, 'all'>;
   price: number;
   image: string;
-  sizes?: MenuOption[];
-  milk?: MenuOption[];
-  syrups?: MenuOption[];
+  modifierGroups: PosModifierGroup[];
 }
+
+// groupId → selected option (null = none selected)
+export type PendingOptions = Record<string, MenuOption | null>;
 
 export interface CartItem {
   cartId: string;
   item: MenuItem;
   quantity: number;
-  size: MenuOption | null;
-  milk: MenuOption | null;
-  syrup: MenuOption | null;
-}
-
-export interface PendingOptions {
-  size: MenuOption | null;
-  milk: MenuOption | null;
-  syrup: MenuOption | null;
+  selections: PendingOptions;
 }

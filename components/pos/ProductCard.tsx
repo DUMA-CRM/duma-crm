@@ -12,19 +12,17 @@ export function ProductCard({ item, isSelected, onSelect }: ProductCardProps) {
     <button
       onClick={() => onSelect(item)}
       className={cn(
-        'group text-left rounded-2xl overflow-hidden bg-white p-4',
-        'hover:border hover:border-primary/40 transition-all duration-200',
-        isSelected && 'border border-primary shadow-md',
+        'text-left rounded-2xl bg-card p-3 border-2 transition-all duration-200',
+        'shadow-[0_1px_2px_0_rgb(30_27_22/0.04)]',
+        isSelected ? 'border-primary shadow-md' : 'border-transparent hover:border-primary/30',
       )}
     >
-      <div className="aspect-[4/3] rounded-xl overflow-hidden">
+      <div className="aspect-square rounded-xl overflow-hidden bg-muted mb-2.5">
         <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover" />
       </div>
 
-      <div className="p-4 flex flex-col gap-2">
-        <p className="font-semibold text-foreground">{item.name}</p>
-        <p className="text-xl font-bold text-foreground">₴{item.price}</p>
-      </div>
+      <p className="text-sm font-semibold text-foreground leading-snug">{item.name}</p>
+      <p className="text-base font-bold text-primary tabular-nums mt-1">₴{item.price}</p>
     </button>
   );
 }

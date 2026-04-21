@@ -1,17 +1,20 @@
 import type { CartItem, MenuItem, PendingOptions } from '@/types/pos';
 
 export function cartItemTotal(c: CartItem): number {
-  return (c.item.price + (c.size?.price ?? 0) + (c.milk?.price ?? 0) + (c.syrup?.price ?? 0)) * c.quantity;
+  const optionsPrice = Object.values(c.selections).reduce((sum, opt) => sum + (opt?.price ?? 0), 0);
+  return (c.item.price + optionsPrice) * c.quantity;
 }
 
 export function getDefaultOptions(item: MenuItem): PendingOptions {
-  return {
-    size: item.sizes?.[1] ?? item.sizes?.[0] ?? null,
-    milk: item.milk?.[0] ?? null,
-    syrup: item.syrups?.[0] ?? null,
-  };
+  return Object.fromEntries(
+    item.modifierGroups.map((group) => {
+      const defaultOpt = group.options.find((o) => (o as any).isDefault);
+      const selected = defaultOpt ?? (group.required ? (group.options[0] ?? null) : null);
+      return [group.groupId, selected];
+    }),
+  );
 }
 
 export function formatPrice(n: number): string {
-  return `₴${n.toFixed(2)}`;
+  return `£${n.toFixed(2)}`;
 }
