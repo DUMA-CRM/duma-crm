@@ -1,8 +1,9 @@
-import { createApiClient } from '@duma-crm/api-client';
+import { hc } from 'hono/client';
+import type { AppType } from '@duma-crm/api';
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/v1`;
 
-export const apiClient = createApiClient(API_BASE);
+export const apiClient = hc<AppType>(API_BASE, { init: { credentials: 'include' } });
 
 // ---------------------------------------------------------------------------
 // Low-level fetch wrapper used by service modules.

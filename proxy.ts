@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const SESSION_COOKIE = 'better-auth.session_token';
 
 // Routes that are accessible without a session.
-const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password'];
+const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', "/"];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
