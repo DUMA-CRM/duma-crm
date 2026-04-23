@@ -1,27 +1,27 @@
 'use client';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Layers, Pencil, Plus, SlidersHorizontal } from 'lucide-react';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, Layers, SlidersHorizontal } from 'lucide-react';
-import {
-  getModifierGroups,
-  createModifierGroup,
-  updateModifierGroup,
-  deleteModifierGroup,
-  getModifiersByGroup,
-  createModifier,
-  updateModifier,
-  deleteModifier,
-  type ModifierGroup,
-  type ModifierGroupPayload,
-  type Modifier,
-  type ModifierPayload,
-} from '@/lib/api/menu.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
-import { Modal } from '@/components/shared/Modal';
+
 import { EmptyState } from '@/components/shared/EmptyState';
-import { MODIFIER_TYPE_OPTIONS, inputClass, selectClass, FormActions } from './shared';
+import { Modal } from '@/components/shared/Modal';
+
+import {
+  createModifier,
+  createModifierGroup,
+  deleteModifier,
+  deleteModifierGroup,
+  getModifierGroups,
+  getModifiersByGroup,
+  updateModifier,
+  updateModifierGroup,
+} from '@/lib/api/menu.service';
 import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { Modifier, ModifierGroup, ModifierGroupPayload, ModifierPayload } from '@/types/menu';
+
+import { FormActions, MODIFIER_TYPE_OPTIONS, inputClass, selectClass } from './shared';
 
 // ── Top-level modifier form (includes group picker) ──────────────────────────
 

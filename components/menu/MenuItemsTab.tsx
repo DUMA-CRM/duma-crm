@@ -1,30 +1,31 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, UtensilsCrossed, MapPin, ImageOff } from 'lucide-react';
-import {
-  getMenuItems,
-  createMenuItem,
-  updateMenuItem,
-  deleteMenuItem,
-  getLocationMenuItems,
-  addLocationMenuItem,
-  updateLocationMenuItem,
-  removeLocationMenuItem,
-  getModifierGroups,
-  getMenuItemModifierGroups,
-  type MenuItem,
-  type MenuItemPayload,
-  type LocationMenuItem,
-} from '@/lib/api/menu.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
-import { Modal } from '@/components/shared/Modal';
-import { ModifierGroupLinker } from './ModifierGroupLinker';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ImageOff, MapPin, Pencil, Plus, UtensilsCrossed } from 'lucide-react';
+import { useMemo, useState } from 'react';
+
 import { StockLinker } from '@/components/inventory/StockLinker';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { CATEGORY_LABELS, CATEGORY_OPTIONS, CATEGORY_COLORS, inputClass, selectClass, FormActions } from './shared';
+import { Modal } from '@/components/shared/Modal';
+
+import {
+  addLocationMenuItem,
+  createMenuItem,
+  deleteMenuItem,
+  getLocationMenuItems,
+  getMenuItemModifierGroups,
+  getMenuItems,
+  getModifierGroups,
+  removeLocationMenuItem,
+  updateLocationMenuItem,
+  updateMenuItem,
+} from '@/lib/api/menu.service';
 import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { LocationMenuItem, MenuItem, MenuItemPayload } from '@/types/menu';
+
+import { ModifierGroupLinker } from './ModifierGroupLinker';
+import { CATEGORY_COLORS, CATEGORY_LABELS, CATEGORY_OPTIONS, FormActions, inputClass, selectClass } from './shared';
 
 // ── Toggle switch ─────────────────────────────────────────────────────────────
 
@@ -482,38 +483,12 @@ export function MenuItemsTab() {
     <div className="h-full flex flex-col">
       {/* Toolbar */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
-        <div className="flex gap-1 bg-muted p-1 rounded-xl flex-wrap">
-          <button
-            onClick={() => setCategoryFilter('all')}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors',
-              categoryFilter === 'all' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            All
-          </button>
-          {CATEGORY_OPTIONS.map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => setCategoryFilter(value)}
-              className={cn(
-                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors',
-                categoryFilter === value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {locationId && (
+        {locationId ? (
           <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
             <MapPin size={13} aria-hidden="true" />
             <span>Location pricing mode</span>
           </div>
-        )}
-
-        {!locationId && (
+        ) : (
           <button
             onClick={() => setModal({ mode: 'create' })}
             className="ml-auto h-9 px-3 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-lg flex items-center gap-1.5 transition-colors shrink-0"

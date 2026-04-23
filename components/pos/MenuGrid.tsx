@@ -1,8 +1,10 @@
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { ProductCard } from './ProductCard';
-import { EmptyState } from '@/components/shared/EmptyState';
-import type { MenuItem } from '@/types/pos';
 import { UtensilsCrossed } from 'lucide-react';
+
+import { ProductCard } from '@/components/pos/ProductCard';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+import type { MenuItem } from '@/types/pos';
 
 interface MenuGridProps {
   items: MenuItem[];

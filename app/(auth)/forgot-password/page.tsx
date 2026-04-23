@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import { Input } from '@/components/ui/input';
+
 export default function ForgotPasswordPage() {
   return (
     <>
@@ -10,19 +12,7 @@ export default function ForgotPasswordPage() {
       </div>
 
       <form className="space-y-4">
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5" htmlFor="email">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150"
-          />
-        </div>
-
+        <Input label="Email" type="email" autoComplete="email" placeholder="you@example.com" />
         <button
           type="submit"
           className="w-full h-11 mt-2 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl transition-colors"

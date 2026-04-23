@@ -1,5 +1,9 @@
 import { X } from 'lucide-react';
-import { OptionBtn } from './OptionBtn';
+import Image from 'next/image';
+
+import { OptionBtn, OptionGroup } from '@/components/pos/Option';
+import { Button } from '@/components/ui/button';
+
 import type { MenuItem, PendingOptions } from '@/types/pos';
 
 interface InlineCustomiserProps {
@@ -18,10 +22,10 @@ export function InlineCustomiser({ item, pending, setPending, onAdd, onCancel }:
     <div className="px-5 pt-5">
       <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
         {/* Item header */}
-        <div className="flex gap-3 mb-4">
+        <div className="flex gap-3 mb-4 items-center">
           <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
             {item.image ? (
-              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+              <Image width={48} height={48} src={item.image} alt={item.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-lg font-bold text-muted-foreground opacity-30 select-none">
                 {item.name[0]?.toUpperCase()}
@@ -30,15 +34,14 @@ export function InlineCustomiser({ item, pending, setPending, onAdd, onCancel }:
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-semibold text-foreground">{item.name}</p>
-              <button
-                onClick={onCancel}
-                className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
-              >
+              <div>
+                <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">£{(item.price / 100).toFixed(2)} base</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={onCancel}>
                 <X size={13} />
-              </button>
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">£{(item.price / 100).toFixed(2)} base</p>
           </div>
         </div>
 
@@ -70,27 +73,10 @@ export function InlineCustomiser({ item, pending, setPending, onAdd, onCancel }:
           </div>
         )}
 
-        <button
-          onClick={onAdd}
-          className="w-full h-10 rounded-lg bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold transition-colors mt-3"
-        >
+        <Button size="lg" onClick={onAdd} className="mt-3 w-full">
           Add to Order — £{(price / 100).toFixed(2)}
-        </button>
+        </Button>
       </div>
-    </div>
-  );
-}
-
-function OptionGroup({ label, required, children }: { label: string; required: boolean; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
-        {required && (
-          <span className="text-[9px] font-bold uppercase tracking-widest px-1 py-0.5 rounded bg-warning/10 text-warning">Required</span>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );
 }

@@ -1,7 +1,10 @@
 'use client';
 
+// TODO: This compoent is not yet uded anywhere, but will be used in the future to show customer's visit history in a compact calendar view.
 import { useMemo, useState } from 'react';
+
 import { cn } from '@/lib/utils/cn';
+
 interface Visit {
   date: string;
   spend: number;

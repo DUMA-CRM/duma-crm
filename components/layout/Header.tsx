@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Bell, History, RotateCcw } from 'lucide-react';
+import { Bell, History, RotateCcw, Search } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { SearchBar } from './SearchBar';
 import { ThemeToggle } from './ThemeToggle';
 import { SidebarToggle } from './SidebarToggle';
 import { LocationPicker } from './LocationPicker';
 import { AuditDrawer } from './AuditDrawer';
 import { cn } from '@/lib/utils/cn';
+import { Input } from '../ui/input';
 
 export function Header() {
   const [auditOpen, setAuditOpen] = useState(false);
@@ -25,7 +25,12 @@ export function Header() {
     <>
       <header className="h-14 shrink-0 bg-surface border-b border-divider flex items-center gap-3 px-6 sticky top-0 z-20">
         <SidebarToggle />
-        <SearchBar />
+        <Input
+          leftIcon={<Search size={16} />}
+          type="search"
+          placeholder="Search orders, roast profiles, or customers…"
+          className="max-w-120"
+        />
         <div className="flex-1" />
 
         <div className="flex items-center gap-2">

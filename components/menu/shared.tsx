@@ -1,6 +1,5 @@
 // Shared constants and small helpers for menu components.
-
-import type { MenuCategory, ModifierType } from '@/lib/api/menu.service';
+import { MenuCategory, ModifierType } from '@/types/menu';
 
 export const CATEGORY_COLORS: Record<MenuCategory, string> = {
   coffee: 'bg-warning/10 text-warning',

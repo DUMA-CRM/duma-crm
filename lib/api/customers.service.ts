@@ -1,62 +1,20 @@
 import { apiFetch } from './client';
-import type { Tier } from '@/types/customers';
-
-export interface Customer {
-  id: string;
-  tenantId: string;
-  userId?: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  email?: string;
-  dob?: string;
-  notes?: string;
-  tier: Tier;
-  pointsBalance: number;
-  totalVisits: number;
-  totalSpent: number;
-  lastVisitAt?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CustomersResponse {
-  data: Customer[];
-  total: number;
-  page: number;
-  limit: number;
-  pages: number;
-}
-
-export interface CustomersParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  tier?: Tier | 'all';
-  tenantId?: string;
-  phoneNumber?: string;
-}
-
-export interface CustomerPayload {
-  tenantId: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  email?: string;
-  dob?: string;
-  notes?: string;
-}
+import type { Customer, CustomerPayload, CustomersParams, CustomersResponse } from '@/types/customers';
 
 export const getCustomers = (params: CustomersParams = {}) => {
   const qs = new URLSearchParams();
+
   if (params.page) qs.set('page', String(params.page));
   if (params.limit) qs.set('limit', String(params.limit));
   if (params.search) qs.set('search', params.search);
   if (params.tier && params.tier !== 'all') qs.set('tier', params.tier);
   if (params.tenantId) qs.set('tenantId', params.tenantId);
   if (params.phoneNumber) qs.set('phoneNumber', params.phoneNumber);
-  const q = qs.toString();
-  return apiFetch<CustomersResponse>(`/customers${q ? `?${q}` : ''}`);
+
+  const queryString = qs.toString();
+  const queryPart = queryString ? '?' + queryString : '';
+
+  return apiFetch<CustomersResponse>('/customers' + queryPart);
 };
 
 export const getCustomer = (id: string) => apiFetch<Customer>(`/customers/${id}`);

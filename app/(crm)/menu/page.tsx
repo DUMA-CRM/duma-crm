@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+
 import { PageLayout } from '@/components/layout/PageLayout';
+import { LocationPricingTab } from '@/components/menu/LocationPricingTab';
 import { MenuItemsTab } from '@/components/menu/MenuItemsTab';
 import { ModifiersSidebar } from '@/components/menu/ModifiersSidebar';
-import { LocationPricingTab } from '@/components/menu/LocationPricingTab';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 
 const TABS = [

@@ -1,31 +1,30 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MapPin, Save } from 'lucide-react';
+import { useState } from 'react';
+
+import { EmptyState } from '@/components/shared/EmptyState';
+
 import {
-  getMenuItems,
-  getLocationMenuItems,
   addLocationMenuItem,
-  updateLocationMenuItem,
-  removeLocationMenuItem,
-  getAllModifiers,
-  getModifierGroups,
-  getLocationModifiers,
   addLocationModifier,
-  updateLocationModifier,
+  getAllModifiers,
+  getLocationMenuItems,
+  getLocationModifiers,
+  getMenuItems,
+  getModifierGroups,
+  removeLocationMenuItem,
   removeLocationModifier,
-  type MenuItem,
-  type LocationMenuItem,
-  type Modifier,
-  type LocationModifier,
-  type ModifierGroup,
+  updateLocationMenuItem,
+  updateLocationModifier,
 } from '@/lib/api/menu.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
-import { EmptyState } from '@/components/shared/EmptyState';
-import { CATEGORY_LABELS, MODIFIER_TYPE_LABELS } from './shared';
 import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { LocationMenuItem, LocationModifier, MenuItem, Modifier, ModifierGroup } from '@/types/menu';
+
+import { CATEGORY_LABELS, MODIFIER_TYPE_LABELS } from './shared';
 
 // ── Shared row shell ──────────────────────────────────────────────────────────
 

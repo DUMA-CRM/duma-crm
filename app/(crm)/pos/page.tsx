@@ -1,33 +1,31 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useQuery, useQueries, useMutation } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
+import { Building2, MapPin } from 'lucide-react';
+import { useMemo, useState } from 'react';
+
+import { PageLayout } from '@/components/layout/PageLayout';
 import { MenuGrid } from '@/components/pos/MenuGrid';
 import { OrderPanel } from '@/components/pos/OrderPanel';
-import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { CATEGORIES } from '@/lib/constants/pos';
-import { getDefaultOptions, cartItemTotal } from '@/lib/utils/pos';
-import {
-  getMenuItems,
-  getLocationMenuItems,
-  getMenuItemModifierGroups,
-  getModifierGroups,
-  getModifiersByGroup,
-  getLocationModifiers,
-} from '@/lib/api/menu.service';
-import { createOrder } from '@/lib/api/orders.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
-import type { Category, CartItem, MenuItem, MenuOption, PendingOptions, PosModifierGroup } from '@/types/pos';
-import type {
-  MenuItem as ApiMenuItem,
-  Modifier as ApiModifier,
-  ModifierGroup as ApiModifierGroup,
-  LocationMenuItem,
-} from '@/lib/api/menu.service';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
-import { Building2, MapPin } from 'lucide-react';
+
+import {
+  getLocationMenuItems,
+  getLocationModifiers,
+  getMenuItemModifierGroups,
+  getMenuItems,
+  getModifierGroups,
+  getModifiersByGroup,
+} from '@/lib/api/menu.service';
+import { createOrder } from '@/lib/api/orders.service';
+import { CATEGORIES } from '@/lib/constants/pos';
+import { cartItemTotal, getDefaultOptions } from '@/lib/utils/pos';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { Customer } from '@/types/customers';
+import type { MenuItem as ApiMenuItem, Modifier as ApiModifier, ModifierGroup as ApiModifierGroup, LocationMenuItem } from '@/types/menu';
+import type { CartItem, Category, MenuItem, MenuOption, PendingOptions, PosModifierGroup } from '@/types/pos';
 
 // ── API → POS type mapping ────────────────────────────────────────────────────
 
@@ -80,7 +78,7 @@ export default function POSPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [pending, setPending] = useState<PendingOptions>({});
-  const [selectedCustomer, setSelectedCustomer] = useState<import('@/lib/api/customers.service').Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   function addToast(type: ToastMessage['type'], message: string) {

@@ -14,7 +14,7 @@ interface SegmentedControlProps<T extends string = string> {
 
 export function SegmentedControl<T extends string>({ options, value, onChange, className }: SegmentedControlProps<T>) {
   return (
-    <div className={cn('flex gap-0.5 bg-muted w-fit p-1 rounded-xl border border-border', className)}>
+    <div className={cn('flex gap-0.5 bg-muted w-fit px-1 py-0.75 rounded-xl border border-border', className)}>
       {options.map((opt) => (
         <button
           key={opt.value}

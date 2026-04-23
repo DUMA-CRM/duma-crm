@@ -1,29 +1,29 @@
 'use client';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronDown, Layers, Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, ChevronDown, Layers, SlidersHorizontal } from 'lucide-react';
+
 import { StockLinker } from '@/components/inventory/StockLinker';
-import {
-  getModifierGroups,
-  createModifierGroup,
-  updateModifierGroup,
-  deleteModifierGroup,
-  getModifiersByGroup,
-  createModifier,
-  updateModifier,
-  deleteModifier,
-  type ModifierGroup,
-  type ModifierGroupPayload,
-  type Modifier,
-  type ModifierPayload,
-} from '@/lib/api/menu.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
-import { Modal } from '@/components/shared/Modal';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { MODIFIER_TYPE_OPTIONS, MODIFIER_TYPE_LABELS, inputClass, selectClass, FormActions } from './shared';
-import { cn } from '@/lib/utils/cn';
+import { Modal } from '@/components/shared/Modal';
 import { ScrollArea } from '@/components/ui/scroll-area';
+
+import {
+  createModifier,
+  createModifierGroup,
+  deleteModifier,
+  deleteModifierGroup,
+  getModifierGroups,
+  getModifiersByGroup,
+  updateModifier,
+  updateModifierGroup,
+} from '@/lib/api/menu.service';
+import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { Modifier, ModifierGroup, ModifierGroupPayload, ModifierPayload } from '@/types/menu';
+
+import { FormActions, MODIFIER_TYPE_LABELS, MODIFIER_TYPE_OPTIONS, inputClass, selectClass } from './shared';
 
 // ── Group form ────────────────────────────────────────────────────────────────
 

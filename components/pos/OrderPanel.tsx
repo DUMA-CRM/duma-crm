@@ -1,15 +1,18 @@
 'use client';
 
-import { useState } from 'react';
 import { ShoppingCart } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { CustomerLoyalty } from './CustomerLoyalty';
-import { InlineCustomiser } from './InlineCustomiser';
-import { CartRow } from './CartRow';
-import { OrderSummary } from './OrderSummary';
+import { useState } from 'react';
+
+import { CartRow } from '@/components/pos/CartRow';
+import { CustomerLoyalty } from '@/components/pos/CustomerLoyalty';
+import { InlineCustomiser } from '@/components/pos/InlineCustomiser';
+import { OrderSummary } from '@/components/pos/OrderSummary';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+import { Customer } from '@/types/customers';
 import type { CartItem, MenuItem, PendingOptions } from '@/types/pos';
-import type { Customer } from '@/lib/api/customers.service';
 
 interface OrderPanelProps {
   cart: CartItem[];
@@ -59,12 +62,9 @@ export function OrderPanel({
       <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
         <p className="font-semibold text-foreground">Current Order</p>
         {cart.length > 0 && (
-          <button
-            onClick={handleClearCart}
-            className="text-xs font-bold text-primary hover:text-primary/70 transition-colors uppercase tracking-wide"
-          >
-            Clear All
-          </button>
+          <Button variant="ghost" onClick={handleClearCart} className="text-xs text-primary hover:text-primary">
+            CLEAR ALL
+          </Button>
         )}
       </div>
 

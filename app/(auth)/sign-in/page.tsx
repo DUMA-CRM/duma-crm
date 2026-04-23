@@ -2,6 +2,9 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+
+import { Input } from '@/components/ui/input';
+
 import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function SignInPage() {
@@ -23,43 +26,24 @@ export default function SignInPage() {
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         {error && <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>}
-
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5" htmlFor="email">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150"
-          />
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest" htmlFor="password">
-              Password
-            </label>
-            <Link href="/forgot-password" className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
-              Forgot password?
-            </Link>
-          </div>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150"
-          />
-        </div>
+        <Input
+          label="Email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Input
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
 
         <button
           type="submit"

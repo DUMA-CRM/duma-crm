@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import { Input } from '@/components/ui/input';
+
 export default function SignUpPage() {
   return (
     <>
@@ -9,44 +11,9 @@ export default function SignUpPage() {
       </div>
 
       <form className="space-y-4">
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5" htmlFor="name">
-            Full name
-          </label>
-          <input
-            id="name"
-            type="text"
-            autoComplete="name"
-            placeholder="Jordan Walker"
-            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5" htmlFor="email">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5" htmlFor="password">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            placeholder="••••••••"
-            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150"
-          />
-        </div>
+        <Input label="Full name" type="text" autoComplete="name" placeholder="Jordan Walker" />
+        <Input label="Email" type="email" autoComplete="email" placeholder="you@example.com" />
+        <Input label="Password" type="password" autoComplete="new-password" placeholder="••••••••" />
 
         <button
           type="submit"

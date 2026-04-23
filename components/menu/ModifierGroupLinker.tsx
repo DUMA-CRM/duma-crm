@@ -1,8 +1,9 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Plus } from 'lucide-react';
-import { getModifierGroups, getMenuItemModifierGroups, linkModifierGroup, unlinkModifierGroup } from '@/lib/api/menu.service';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus, X } from 'lucide-react';
+
+import { getMenuItemModifierGroups, getModifierGroups, linkModifierGroup, unlinkModifierGroup } from '@/lib/api/menu.service';
 
 interface Props {
   menuItemId: string;

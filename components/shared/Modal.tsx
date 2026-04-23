@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { Button } from '../ui/button';
 
 interface ModalProps {
   title: string;
@@ -28,12 +29,9 @@ export function Modal({ title, onClose, children, className }: ModalProps) {
       >
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border shrink-0">
           <h2 className="text-base font-semibold text-foreground">{title}</h2>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-offset transition-colors"
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
+					<Button variant="ghost" size="icon" onClick={onClose}>
+						<X size={16} aria-hidden="true" />
+					</Button>
         </div>
         <div className="px-6 py-5 overflow-y-auto">{children}</div>
       </div>
