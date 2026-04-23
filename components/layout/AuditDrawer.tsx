@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X, History, ExternalLink, Clock } from 'lucide-react';
+import { Clock, ExternalLink, History, X } from 'lucide-react';
 import Link from 'next/link';
-import { getAuditLogs, type AuditLog } from '@/lib/api/audit.service';
+import { useEffect, useRef } from 'react';
+
+import { type AuditLog, getAuditLogs } from '@/lib/api/audit.service';
 import { cn } from '@/lib/utils/cn';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

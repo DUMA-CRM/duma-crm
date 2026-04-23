@@ -1,7 +1,8 @@
-import { cn } from '@/lib/utils/cn';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { StatCard } from '@/components/shared/StatCard';
 import type { StatCardProps } from '@/components/shared/StatCard';
+
+import { cn } from '@/lib/utils/cn';
 
 const KPIS: StatCardProps[] = [
   {

@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+
 import type { NavItem } from '@/lib/constants/nav';
-import { useSidebarStore } from '@/stores/sidebarStore';
 import { cn } from '@/lib/utils/cn';
+import { useSidebarStore } from '@/stores/sidebarStore';
 
 export function SidebarNavItem({ href, label, icon: Icon }: NavItem) {
   const pathname = usePathname();

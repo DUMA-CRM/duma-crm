@@ -40,8 +40,7 @@ export const getStaff = (tenantId?: string) => {
 
 export const getStaffMember = (userId: string) => apiFetch<StaffProfile>(`/staff/${userId}`);
 
-export const createStaff = (data: CreateStaffPayload) =>
-  apiFetch<StaffProfile>('/staff', { method: 'POST', body: JSON.stringify(data) });
+export const createStaff = (data: CreateStaffPayload) => apiFetch<StaffProfile>('/staff', { method: 'POST', body: JSON.stringify(data) });
 
 export const updateStaff = (userId: string, data: UpdateStaffPayload) =>
   apiFetch<StaffProfile>(`/staff/${userId}`, { method: 'PATCH', body: JSON.stringify(data) });

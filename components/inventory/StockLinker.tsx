@@ -1,19 +1,20 @@
 'use client';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Check, Package, Pencil, Plus, X } from 'lucide-react';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Plus, Pencil, Check, Package } from 'lucide-react';
+
 import {
-  getStockItems,
-  getMenuItemStock,
-  linkMenuItemStock,
-  updateMenuItemStock,
-  removeMenuItemStock,
-  getModifierStock,
-  linkModifierStock,
-  updateModifierStock,
-  removeModifierStock,
   type StockItem,
+  getMenuItemStock,
+  getModifierStock,
+  getStockItems,
+  linkMenuItemStock,
+  linkModifierStock,
+  removeMenuItemStock,
+  removeModifierStock,
+  updateMenuItemStock,
+  updateModifierStock,
 } from '@/lib/api/inventory.service';
 
 interface LinkRow {

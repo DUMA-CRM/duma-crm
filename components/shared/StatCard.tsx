@@ -1,20 +1,21 @@
 'use client';
 
-import { useState } from 'react';
 import {
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  ShoppingBag,
-  Tag,
-  UserPlus,
-  Star,
   CalendarDays,
-  Repeat,
-  Receipt,
-  Users,
   Coffee,
+  Receipt,
+  Repeat,
+  ShoppingBag,
+  Star,
+  Tag,
+  TrendingDown,
+  TrendingUp,
+  UserPlus,
+  Users,
+  Wallet,
 } from 'lucide-react';
+import { useState } from 'react';
+
 import { cn } from '@/lib/utils/cn';
 
 // ── Icon name → component map (resolved client-side) ─────────────

@@ -1,20 +1,22 @@
 'use client';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Building2, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MapPin, Plus, Pencil, Trash2, Building2 } from 'lucide-react';
-import {
-  getLocationsByTenant,
-  createLocation,
-  updateLocation,
-  deleteLocation,
-  type Location,
-  type LocationPayload,
-} from '@/lib/api/workspace.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
+
+import {
+  type Location,
+  type LocationPayload,
+  createLocation,
+  deleteLocation,
+  getLocationsByTenant,
+  updateLocation,
+} from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Form ─────────────────────────────────────────────────────────────────────
 

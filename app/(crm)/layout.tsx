@@ -1,9 +1,11 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/api/auth.service';
-import { AuthInitializer } from '@/components/providers/AuthInitializer';
-import { Sidebar } from '@/components/layout/Sidebar';
+
 import { Header } from '@/components/layout/Header';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { AuthInitializer } from '@/components/providers/AuthInitializer';
+
+import { getSession } from '@/lib/api/auth.service';
 
 // Server Component — runs on every navigation to a CRM page.
 // Validates the session with the API (not just a cookie existence check).

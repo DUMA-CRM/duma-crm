@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useEffect } from 'react';
+
 import { cn } from '@/lib/utils/cn';
+
 import { Button } from '../ui/button';
 
 interface ModalProps {
@@ -29,9 +31,9 @@ export function Modal({ title, onClose, children, className }: ModalProps) {
       >
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border shrink-0">
           <h2 className="text-base font-semibold text-foreground">{title}</h2>
-					<Button variant="ghost" size="icon" onClick={onClose}>
-						<X size={16} aria-hidden="true" />
-					</Button>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X size={16} aria-hidden="true" />
+          </Button>
         </div>
         <div className="px-6 py-5 overflow-y-auto">{children}</div>
       </div>

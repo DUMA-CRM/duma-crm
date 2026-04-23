@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useState } from 'react';
+
 import { LoadingToast } from '@/components/shared/LoadingToast';
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {

@@ -1,11 +1,13 @@
 'use client';
 
 import { Coffee, LogOut } from 'lucide-react';
-import { useSidebarStore } from '@/stores/sidebarStore';
+
+import { analyticsNavItems, footerNavItems, mainNavItems } from '@/lib/constants/nav';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { SidebarNavItem } from './SidebarNavItem';
-import { mainNavItems, analyticsNavItems, footerNavItems } from '@/lib/constants/nav';
 import { cn } from '@/lib/utils/cn';
+import { useSidebarStore } from '@/stores/sidebarStore';
+
+import { SidebarNavItem } from './SidebarNavItem';
 
 export function Sidebar() {
   const { collapsed, mobileOpen, closeMobile } = useSidebarStore();

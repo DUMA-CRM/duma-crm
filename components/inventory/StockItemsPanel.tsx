@@ -1,25 +1,27 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, Package, MapPin, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, ChevronDown, ChevronUp, MapPin, Package, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Modal } from '@/components/shared/Modal';
+
 import {
-  getStockItems,
+  type LocationStock,
+  type StockItem,
+  addLocationStock,
+  adjustLocationStock,
   createStockItem,
-  updateStockItem,
   deleteStockItem,
   getLocationStock,
-  addLocationStock,
-  updateLocationStock,
+  getStockItems,
   removeLocationStock,
-  adjustLocationStock,
-  type StockItem,
-  type LocationStock,
+  updateLocationStock,
+  updateStockItem,
 } from '@/lib/api/inventory.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
-import { Modal } from '@/components/shared/Modal';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Shared form styles ────────────────────────────────────────────────────────
 

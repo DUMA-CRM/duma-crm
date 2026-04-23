@@ -1,7 +1,8 @@
 'use client';
 
+import { CheckCircle2, X, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
-import { CheckCircle2, XCircle, X } from 'lucide-react';
+
 import { cn } from '@/lib/utils/cn';
 
 export interface ToastMessage {

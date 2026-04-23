@@ -2,9 +2,9 @@
 
 // Interface Segregation: components import only this hook — they never
 // touch the service or store directly.
-
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+
 import { signIn, signOut } from '@/lib/api/auth.service';
 import { useAuthStore } from '@/stores/authStore';
 

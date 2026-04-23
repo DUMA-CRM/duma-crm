@@ -1,7 +1,10 @@
-import { Tier } from '@/types/customers';
-import { OrderStatus } from '../api/orders.service';
-import { badgeVariants } from '@/components/ui/badge';
 import { VariantProps } from 'class-variance-authority';
+
+import { badgeVariants } from '@/components/ui/badge';
+
+import { Tier } from '@/types/customers';
+
+import { OrderStatus } from '../api/orders.service';
 
 type BadgeVariant = VariantProps<typeof badgeVariants>['variant'];
 

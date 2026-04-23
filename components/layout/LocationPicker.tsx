@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MapPin, ChevronDown, Check } from 'lucide-react';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { Check, ChevronDown, MapPin } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 export function LocationPicker() {
   const { tenantId, locationId, setLocationId } = useWorkspaceStore();

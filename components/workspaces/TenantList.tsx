@@ -1,13 +1,15 @@
 'use client';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Building2, Pencil, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Building2, Plus, Search, Pencil } from 'lucide-react';
-import { getTenants, createTenant, updateTenant, type Tenant, type TenantPayload } from '@/lib/api/workspace.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
+
+import { type Tenant, type TenantPayload, createTenant, getTenants, updateTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Form ─────────────────────────────────────────────────────────────────────
 

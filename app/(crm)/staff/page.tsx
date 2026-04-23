@@ -1,35 +1,37 @@
 'use client';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Eye, EyeOff, Plus, Users } from 'lucide-react';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Users, Eye, EyeOff } from 'lucide-react';
+
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
+
 import {
-  getStaff,
-  createStaff,
-  updateStaff,
+  type CreateStaffPayload,
   type StaffProfile,
   type StaffRole,
   type StaffScope,
-  type CreateStaffPayload,
   type UpdateStaffPayload,
+  createStaff,
+  getStaff,
+  updateStaff,
 } from '@/lib/api/staff.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Role / scope config ───────────────────────────────────────────────────────
 
 const ROLE_CONFIG: Record<StaffRole, { label: string; bg: string; text: string; border: string }> = {
-  super_admin:        { label: 'Super Admin',        bg: 'bg-destructive/10',  text: 'text-destructive',       border: 'border-destructive/30' },
-  franchise_owner:    { label: 'Franchise Owner',    bg: 'bg-warning/10',      text: 'text-warning',           border: 'border-warning/30' },
-  store_manager:      { label: 'Store Manager',      bg: 'bg-primary/10',      text: 'text-primary',           border: 'border-primary/30' },
-  barista:            { label: 'Barista',            bg: 'bg-success/10',      text: 'text-success',           border: 'border-success/30' },
-  hr_manager:         { label: 'HR Manager',         bg: 'bg-violet-500/10',   text: 'text-violet-500',        border: 'border-violet-500/30' },
-  marketing_manager:  { label: 'Marketing Manager',  bg: 'bg-orange-500/10',   text: 'text-orange-500',        border: 'border-orange-500/30' },
-  auditor:            { label: 'Auditor',            bg: 'bg-muted',           text: 'text-muted-foreground',  border: 'border-border' },
+  super_admin: { label: 'Super Admin', bg: 'bg-destructive/10', text: 'text-destructive', border: 'border-destructive/30' },
+  franchise_owner: { label: 'Franchise Owner', bg: 'bg-warning/10', text: 'text-warning', border: 'border-warning/30' },
+  store_manager: { label: 'Store Manager', bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/30' },
+  barista: { label: 'Barista', bg: 'bg-success/10', text: 'text-success', border: 'border-success/30' },
+  hr_manager: { label: 'HR Manager', bg: 'bg-violet-500/10', text: 'text-violet-500', border: 'border-violet-500/30' },
+  marketing_manager: { label: 'Marketing Manager', bg: 'bg-orange-500/10', text: 'text-orange-500', border: 'border-orange-500/30' },
+  auditor: { label: 'Auditor', bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-border' },
 };
 
 const ROLES: StaffRole[] = ['super_admin', 'franchise_owner', 'store_manager', 'barista', 'hr_manager', 'marketing_manager', 'auditor'];
@@ -66,8 +68,7 @@ function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onClose: ()
   const [scope, setScope] = useState<StaffScope>('location');
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: () =>
-      createStaff({ name, email, password, tenantId, role, scope }),
+    mutationFn: () => createStaff({ name, email, password, tenantId, role, scope }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['staff'] });
       onClose();
@@ -84,11 +85,26 @@ function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onClose: ()
     >
       <div>
         <label className={lbl}>Full name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} placeholder="Jane Smith" className={inp} autoFocus />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          minLength={2}
+          placeholder="Jane Smith"
+          className={inp}
+          autoFocus
+        />
       </div>
       <div>
         <label className={lbl}>Email</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="jane@example.com" className={inp} />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          placeholder="jane@example.com"
+          className={inp}
+        />
       </div>
       <div>
         <label className={lbl}>Password</label>
@@ -116,7 +132,9 @@ function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onClose: ()
           <label className={lbl}>Role</label>
           <select value={role} onChange={(e) => setRole(e.target.value as StaffRole)} className={sel}>
             {ROLES.map((r) => (
-              <option key={r} value={r}>{ROLE_CONFIG[r].label}</option>
+              <option key={r} value={r}>
+                {ROLE_CONFIG[r].label}
+              </option>
             ))}
           </select>
         </div>
@@ -124,7 +142,9 @@ function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onClose: ()
           <label className={lbl}>Scope</label>
           <select value={scope} onChange={(e) => setScope(e.target.value as StaffScope)} className={sel}>
             {SCOPES.map((s) => (
-              <option key={s} value={s} className="capitalize">{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              <option key={s} value={s} className="capitalize">
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </option>
             ))}
           </select>
         </div>
@@ -133,10 +153,18 @@ function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onClose: ()
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
 
       <div className="flex gap-2 pt-1">
-        <button type="button" onClick={onClose} className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors"
+        >
           Cancel
         </button>
-        <button type="submit" disabled={isPending} className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60"
+        >
           {isPending ? 'Creating…' : 'Create'}
         </button>
       </div>
@@ -146,7 +174,15 @@ function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onClose: ()
 
 // ── Edit staff modal ──────────────────────────────────────────────────────────
 
-function EditStaffModal({ member, locations, onClose }: { member: StaffProfile; locations: { id: string; name: string }[]; onClose: () => void }) {
+function EditStaffModal({
+  member,
+  locations,
+  onClose,
+}: {
+  member: StaffProfile;
+  locations: { id: string; name: string }[];
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const [role, setRole] = useState<StaffRole>(member.role);
   const [scope, setScope] = useState<StaffScope>(member.scope);
@@ -165,8 +201,7 @@ function EditStaffModal({ member, locations, onClose }: { member: StaffProfile; 
     },
   });
 
-  const toggleLoc = (id: string) =>
-    setSelectedLocs((prev) => (prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]));
+  const toggleLoc = (id: string) => setSelectedLocs((prev) => (prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]));
 
   return (
     <form
@@ -190,7 +225,9 @@ function EditStaffModal({ member, locations, onClose }: { member: StaffProfile; 
           <label className={lbl}>Role</label>
           <select value={role} onChange={(e) => setRole(e.target.value as StaffRole)} className={sel}>
             {ROLES.map((r) => (
-              <option key={r} value={r}>{ROLE_CONFIG[r].label}</option>
+              <option key={r} value={r}>
+                {ROLE_CONFIG[r].label}
+              </option>
             ))}
           </select>
         </div>
@@ -198,7 +235,9 @@ function EditStaffModal({ member, locations, onClose }: { member: StaffProfile; 
           <label className={lbl}>Scope</label>
           <select value={scope} onChange={(e) => setScope(e.target.value as StaffScope)} className={sel}>
             {SCOPES.map((s) => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              <option key={s} value={s}>
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </option>
             ))}
           </select>
         </div>
@@ -209,7 +248,10 @@ function EditStaffModal({ member, locations, onClose }: { member: StaffProfile; 
           <label className={lbl}>Assigned locations</label>
           <div className="flex flex-col gap-1.5 mt-1">
             {locations.map((loc) => (
-              <label key={loc.id} className="flex items-center gap-2.5 cursor-pointer select-none px-3 py-2 rounded-lg hover:bg-muted transition-colors">
+              <label
+                key={loc.id}
+                className="flex items-center gap-2.5 cursor-pointer select-none px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+              >
                 <input
                   type="checkbox"
                   checked={selectedLocs.includes(loc.id)}
@@ -236,10 +278,18 @@ function EditStaffModal({ member, locations, onClose }: { member: StaffProfile; 
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
 
       <div className="flex gap-2 pt-1">
-        <button type="button" onClick={onClose} className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors"
+        >
           Cancel
         </button>
-        <button type="submit" disabled={isPending} className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60"
+        >
           {isPending ? 'Saving…' : 'Save'}
         </button>
       </div>
@@ -249,7 +299,15 @@ function EditStaffModal({ member, locations, onClose }: { member: StaffProfile; 
 
 // ── Staff row ─────────────────────────────────────────────────────────────────
 
-function StaffRow({ member, locations, onEdit }: { member: StaffProfile; locations: { id: string; name: string }[]; onEdit: (m: StaffProfile) => void }) {
+function StaffRow({
+  member,
+  locations,
+  onEdit,
+}: {
+  member: StaffProfile;
+  locations: { id: string; name: string }[];
+  onEdit: (m: StaffProfile) => void;
+}) {
   const rc = ROLE_CONFIG[member.role];
   const assignedNames = (member.locationIds ?? []).map((id) => locations.find((l) => l.id === id)?.name).filter(Boolean);
 
@@ -268,7 +326,14 @@ function StaffRow({ member, locations, onEdit }: { member: StaffProfile; locatio
         </div>
       </td>
       <td className="px-5 py-3.5">
-        <span className={cn('inline-flex items-center px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide', rc.bg, rc.text, rc.border)}>
+        <span
+          className={cn(
+            'inline-flex items-center px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
+            rc.bg,
+            rc.text,
+            rc.border,
+          )}
+        >
           {rc.label}
         </span>
       </td>
@@ -279,7 +344,9 @@ function StaffRow({ member, locations, onEdit }: { member: StaffProfile; locatio
         {assignedNames.length > 0 ? (
           <div className="flex flex-wrap gap-1">
             {assignedNames.map((n) => (
-              <span key={n} className="text-[11px] bg-muted border border-border rounded-md px-2 py-px text-muted-foreground">{n}</span>
+              <span key={n} className="text-[11px] bg-muted border border-border rounded-md px-2 py-px text-muted-foreground">
+                {n}
+              </span>
             ))}
           </div>
         ) : (
@@ -290,9 +357,7 @@ function StaffRow({ member, locations, onEdit }: { member: StaffProfile; locatio
         <span
           className={cn(
             'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
-            member.isActive
-              ? 'bg-success/10 text-success border-success/30'
-              : 'bg-muted text-muted-foreground border-border',
+            member.isActive ? 'bg-success/10 text-success border-success/30' : 'bg-muted text-muted-foreground border-border',
           )}
         >
           <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', member.isActive ? 'bg-success' : 'bg-muted-foreground')} />
@@ -357,9 +422,13 @@ export default function StaffPage() {
                     <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Member</th>
                     <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Role</th>
                     <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Scope</th>
-                    <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Locations</th>
+                    <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Locations
+                    </th>
                     <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
-                    <th className="px-5 py-3.5 pr-6 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Joined</th>
+                    <th className="px-5 py-3.5 pr-6 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Joined
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -402,8 +471,7 @@ export default function StaffPage() {
             {staff.length > 0 && (
               <div className="px-5 py-3 border-t border-border shrink-0">
                 <p className="text-xs text-muted-foreground">
-                  {staff.length} {staff.length === 1 ? 'member' : 'members'} ·{' '}
-                  {staff.filter((s) => s.isActive).length} active
+                  {staff.length} {staff.length === 1 ? 'member' : 'members'} · {staff.filter((s) => s.isActive).length} active
                 </p>
               </div>
             )}

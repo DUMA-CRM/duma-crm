@@ -1,5 +1,6 @@
-import { apiFetch } from './client';
 import type { Customer, CustomerPayload, CustomersParams, CustomersResponse } from '@/types/customers';
+
+import { apiFetch } from './client';
 
 export const getCustomers = (params: CustomersParams = {}) => {
   const qs = new URLSearchParams();

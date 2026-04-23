@@ -1,14 +1,16 @@
 'use client';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Banknote, ChevronDown, CreditCard, Monitor, ShoppingBag, Smartphone } from 'lucide-react';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ShoppingBag, Monitor, Smartphone, Banknote, CreditCard } from 'lucide-react';
+
 import { PageLayout } from '@/components/layout/PageLayout';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { getOrders, getOrder, updateOrderStatus, type Order, type OrderStatus, type OrderDetail } from '@/lib/api/orders.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
+
+import { type Order, type OrderDetail, type OrderStatus, getOrder, getOrders, updateOrderStatus } from '@/lib/api/orders.service';
 import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -162,10 +164,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
               {item.modifiers && item.modifiers.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
                   {item.modifiers.map((m, i) => (
-                    <span
-                      key={i}
-                      className="text-[11px] text-muted-foreground bg-card border border-border rounded-md px-1.5 py-px"
-                    >
+                    <span key={i} className="text-[11px] text-muted-foreground bg-card border border-border rounded-md px-1.5 py-px">
                       {m.name}
                       {parseFloat(m.priceAdjust) !== 0 && (
                         <span className="text-primary ml-1">+£{parseFloat(m.priceAdjust).toFixed(2)}</span>
@@ -175,9 +174,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
                 </div>
               )}
             </div>
-            <span className="text-xs font-semibold text-foreground tabular-nums shrink-0">
-              £{parseFloat(item.subtotal).toFixed(2)}
-            </span>
+            <span className="text-xs font-semibold text-foreground tabular-nums shrink-0">£{parseFloat(item.subtotal).toFixed(2)}</span>
           </div>
         ))}
       </div>
@@ -188,9 +185,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
           {data.paymentMethod === 'cash' ? <Banknote size={11} /> : <CreditCard size={11} />}
           {data.paymentMethod === 'cash' ? 'Cash' : 'Card'}
         </span>
-        {data.notes && (
-          <p className="text-[11px] text-muted-foreground italic max-w-48 text-right">{data.notes}</p>
-        )}
+        {data.notes && <p className="text-[11px] text-muted-foreground italic max-w-48 text-right">{data.notes}</p>}
       </div>
     </div>
   );
@@ -212,10 +207,7 @@ function OrderRow({ order }: { order: Order }) {
         onClick={() => setOpen((v) => !v)}
       >
         <td className="px-5 py-4 w-8">
-          <ChevronDown
-            size={13}
-            className={cn('text-muted-foreground transition-transform duration-150 shrink-0', open && 'rotate-180')}
-          />
+          <ChevronDown size={13} className={cn('text-muted-foreground transition-transform duration-150 shrink-0', open && 'rotate-180')} />
         </td>
         <td className="px-5 py-4">
           <span className="font-mono text-xs font-medium text-muted-foreground">#{order.id.slice(0, 8)}</span>
@@ -305,7 +297,9 @@ export default function OrdersPage() {
                   <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Notes</th>
                   <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
                   <th className="px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total</th>
-                  <th className="px-5 py-3.5 pr-6 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Time</th>
+                  <th className="px-5 py-3.5 pr-6 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Time
+                  </th>
                 </tr>
               </thead>
               <tbody>

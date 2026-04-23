@@ -1,6 +1,7 @@
 'use client';
 
 import { Menu } from 'lucide-react';
+
 import { useSidebarStore } from '@/stores/sidebarStore';
 
 export function SidebarToggle() {

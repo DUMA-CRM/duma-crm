@@ -3,7 +3,6 @@
 // Uses better-auth's standard REST endpoints.
 // The server sets/clears the session cookie automatically — we never touch
 // tokens directly, which keeps the client XSS-safe.
-
 import { apiFetch } from './client';
 
 // ---------------------------------------------------------------------------

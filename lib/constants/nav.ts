@@ -1,18 +1,18 @@
 import {
+  BarChart3,
+  Building2,
+  Coffee,
+  HelpCircle,
   LayoutDashboard,
-  Users,
+  type LucideIcon,
   Monitor,
   Package,
-  ShoppingBag,
-  Users2,
-  BarChart3,
-  Coffee,
-  Star,
   Settings,
-  HelpCircle,
-  Building2,
+  ShoppingBag,
+  Star,
+  Users,
+  Users2,
   UtensilsCrossed,
-  type LucideIcon,
 } from 'lucide-react';
 
 export interface NavItem {

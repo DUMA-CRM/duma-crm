@@ -1,11 +1,13 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, TrendingDown, MapPin, Package } from 'lucide-react';
-import { getLowStockAlerts, getInventoryForecast } from '@/lib/api/inventory.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { AlertTriangle, MapPin, Package, TrendingDown } from 'lucide-react';
+
 import { ScrollArea } from '@/components/ui/scroll-area';
+
+import { getInventoryForecast, getLowStockAlerts } from '@/lib/api/inventory.service';
 import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 export function AlertsSidebar() {
   const { locationId } = useWorkspaceStore();

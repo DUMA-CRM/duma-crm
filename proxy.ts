@@ -7,14 +7,13 @@
 // Why two layers?
 //   Proxy = cheap redirect, zero API calls, runs on the edge.
 //   CRM layout = validates the session is still active/not expired.
-
 import { NextRequest, NextResponse } from 'next/server';
 
 // Cookie name set by better-auth on the server.
 const SESSION_COOKIE = 'better-auth.session_token';
 
 // Routes that are accessible without a session.
-const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', "/"];
+const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/'];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

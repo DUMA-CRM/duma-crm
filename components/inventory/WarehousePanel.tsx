@@ -1,26 +1,28 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, ChevronDown, Package, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowRightLeft, ChevronDown, Package, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Modal } from '@/components/shared/Modal';
+
 import {
+  type TenantStock,
+  type TenantStockDetail,
+  addTenantStock,
+  adjustTenantStock,
   getStockItems,
   getTenantStock,
   getTenantStockItem,
-  addTenantStock,
-  updateTenantStock,
-  removeTenantStock,
-  adjustTenantStock,
-  transferLocationStock,
   receiveLocationStock,
-  type TenantStock,
-  type TenantStockDetail,
+  removeTenantStock,
+  transferLocationStock,
+  updateTenantStock,
 } from '@/lib/api/inventory.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
-import { Modal } from '@/components/shared/Modal';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const inputClass =
   'w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';

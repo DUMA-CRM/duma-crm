@@ -1,5 +1,6 @@
-import Link from 'next/link';
 import { ArrowRight, Coffee, ShieldCheck, Sparkles, Zap } from 'lucide-react';
+import Link from 'next/link';
+
 import { Button } from '@/components/ui/button';
 
 const highlights = [
