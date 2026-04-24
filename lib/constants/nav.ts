@@ -12,6 +12,7 @@ import {
   Star,
   Users,
   Users2,
+  Utensils,
   UtensilsCrossed,
 } from 'lucide-react';
 
@@ -19,13 +20,21 @@ export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  children?: Omit<NavItem, 'children'>[];
 }
 
 export const mainNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Customers', href: '/customers', icon: Users },
   { label: 'POS Terminal', href: '/pos', icon: Monitor },
-  { label: 'Menu', href: '/menu', icon: UtensilsCrossed },
+  {
+    label: 'Menu',
+    href: '/menu',
+    icon: UtensilsCrossed,
+    children: [
+      { href: '/menu/location-pricing', label: 'Location Pricing', icon: Utensils },
+    ],
+  },
   { label: 'Inventory', href: '/inventory', icon: Package },
   { label: 'Orders', href: '/orders', icon: ShoppingBag },
   { label: 'Staff', href: '/staff', icon: Users2 },

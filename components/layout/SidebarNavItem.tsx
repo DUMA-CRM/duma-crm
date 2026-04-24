@@ -7,39 +7,151 @@ import type { NavItem } from '@/lib/constants/nav';
 import { cn } from '@/lib/utils/cn';
 import { useSidebarStore } from '@/stores/sidebarStore';
 
-export function SidebarNavItem({ href, label, icon: Icon }: NavItem) {
+function isActivePath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function AccentBar({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'absolute top-1.5 bottom-1.5 w-0.75 bg-primary rounded-l-sm pointer-events-none',
+        className,
+      )}
+    />
+  );
+}
+
+function CollapsedNavItem({ href, label, icon: Icon, children }: NavItem) {
   const pathname = usePathname();
-  const { collapsed, closeMobile } = useSidebarStore();
-  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+  const { closeMobile } = useSidebarStore();
+
+  const active = isActivePath(pathname, href);
+  const childActive = children?.some((c) => isActivePath(pathname, c.href)) ?? false;
+  const open = active || childActive;
+  const parentHighlighted = active && !childActive;
 
   return (
-    // Wrapper spans full nav width so the accent span's right-0 = sidebar right edge
-    <div className="relative">
+    <div className="flex flex-col items-center">
       <Link
         href={href}
         onClick={closeMobile}
-        title={collapsed ? label : undefined}
-        aria-current={isActive ? 'page' : undefined}
+        title={label}
+        aria-current={parentHighlighted ? 'page' : undefined}
         className={cn(
-          'flex items-center rounded-lg text-[13px] font-medium transition-colors duration-150',
-          // Expanded: visual side margins via mx-3
-          !collapsed && 'gap-2.5 px-3 py-[9px] mx-3',
-          // Collapsed: fixed centred square
-          collapsed && 'w-9 h-9 justify-center mx-auto',
-          // Default
-          'text-muted-foreground hover:bg-surface-offset hover:text-foreground',
-          // Active
-          isActive && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15',
+          'w-9 h-9 flex items-center justify-center rounded-lg mx-auto',
+          'text-muted-foreground transition-colors duration-150',
+          !childActive && !parentHighlighted && 'hover:bg-surface-offset hover:text-foreground',
+          parentHighlighted && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15',
+          childActive && 'bg-muted/50 text-foreground hover:bg-muted!',
+          open && children?.length && 'rounded-b-none',
         )}
       >
         <Icon aria-hidden="true" className="shrink-0" size={18} />
-        {!collapsed && <span className="flex-1 truncate">{label}</span>}
       </Link>
 
-      {/* Accent bar — absolutely positioned to wrapper's right edge = sidebar border */}
-      {isActive && !collapsed && (
-        <span aria-hidden="true" className="absolute right-0 top-1.5 bottom-1.5 w-[3px] bg-primary rounded-l-sm pointer-events-none" />
+      {open && !!children?.length && (
+        <div className="rounded-b-lg bg-muted/50 overflow-hidden flex flex-col">
+          {children.map((child) => {
+            const isChildActive = isActivePath(pathname, child.href);
+            const ChildIcon = child.icon;
+
+            return (
+              <Link
+                key={child.href}
+                href={child.href}
+                onClick={closeMobile}
+                title={child.label}
+                aria-current={isChildActive ? 'page' : undefined}
+                className={cn(
+                  'w-9 h-9 flex items-center justify-center rounded-lg',
+                  'text-muted-foreground transition-colors duration-150',
+                  'hover:rounded-none!',
+                  !isChildActive && 'hover:bg-surface-offset hover:text-foreground',
+                  isChildActive && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15 rounded-none!',
+                )}
+              >
+                <ChildIcon aria-hidden="true" className="shrink-0" size={18} />
+              </Link>
+            );
+          })}
+        </div>
       )}
     </div>
   );
+}
+
+function ExpandedNavItem({ href, label, icon: Icon, children }: NavItem) {
+  const pathname = usePathname();
+  const { closeMobile } = useSidebarStore();
+
+  const active = isActivePath(pathname, href);
+  const childActive = children?.some((c) => isActivePath(pathname, c.href)) ?? false;
+  const open = active || childActive;
+  const hasChildren = !!children?.length;
+  const parentHighlighted = active && !childActive;
+  const leafHighlighted = active && !hasChildren;
+
+  return (
+    <div>
+      <div className="relative">
+        <Link
+          href={href}
+          onClick={closeMobile}
+          aria-current={parentHighlighted || leafHighlighted ? 'page' : undefined}
+          className={cn(
+            'flex items-center gap-2.5 px-3 py-[9px] mx-3 rounded-lg',
+            'text-[13px] font-medium transition-colors duration-150',
+            !parentHighlighted && !childActive && 'text-muted-foreground hover:bg-surface-offset hover:text-foreground',
+            (parentHighlighted || leafHighlighted) && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15',
+            childActive && 'bg-muted/50 text-foreground hover:bg-muted!',
+            open && hasChildren && 'rounded-b-none',
+          )}
+        >
+          <Icon aria-hidden="true" className="shrink-0" size={18} />
+          <span className="flex-1 truncate">{label}</span>
+        </Link>
+
+        {(parentHighlighted || leafHighlighted) && <AccentBar className="right-0" />}
+      </div>
+
+      {open && hasChildren && (
+        <div className="mx-3 rounded-b-lg bg-muted/50 flex flex-col">
+          {children!.map((child, index) => {
+            const isChildActive = isActivePath(pathname, child.href);
+            const ChildIcon = child.icon;
+            const isLast = index === children!.length - 1;
+
+            return (
+              <div key={child.href} className="relative">
+                <Link
+                  href={child.href}
+                  onClick={closeMobile}
+                  aria-current={isChildActive ? 'page' : undefined}
+                  className={cn(
+                    'flex items-center gap-2.5 px-3 py-[9px] rounded-none',
+                    'text-[13px] font-medium transition-colors duration-150',
+                    isLast && 'rounded-b-lg',
+                    !isChildActive && 'text-muted-foreground hover:bg-surface-offset hover:text-foreground',
+                    isChildActive && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15',
+                  )}
+                >
+                  <ChildIcon aria-hidden="true" className="shrink-0" size={18} />
+                  <span className="flex-1 truncate">{child.label}</span>
+                </Link>
+
+                {isChildActive && <AccentBar className="-right-3" />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function SidebarNavItem(props: NavItem) {
+  const { collapsed } = useSidebarStore();
+  return collapsed ? <CollapsedNavItem {...props} /> : <ExpandedNavItem {...props} />;
 }
