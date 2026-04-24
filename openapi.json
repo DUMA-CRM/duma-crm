@@ -1837,6 +1837,392 @@
         "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
       }
     },
+    "/v1/loss-log": {
+      "get": {
+        "operationId": "getV1LossLog",
+        "tags": ["Loss Log"],
+        "summary": "List waste/loss movements",
+        "description": "Paginated list of stock movements where type = \"waste\". Scoped to tenant; location staff see their assigned locations only. store_manager+ only.",
+        "parameters": [
+          { "name": "locationId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "stockItemId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO 8601 start date"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO 8601 end date"
+          },
+          { "name": "page", "in": "query", "required": false, "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "{ data: StockMovement[], total, page, limit, pages }" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/transfers": {
+      "get": {
+        "operationId": "getV1Transfers",
+        "tags": ["Transfers"],
+        "summary": "List stock transfer movements",
+        "description": "Paginated list of stock movements where type = \"transfer\". Scoped to tenant; location staff see their assigned locations only. store_manager+ only.",
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter by source location"
+          },
+          { "name": "stockItemId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO 8601 start date"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO 8601 end date"
+          },
+          { "name": "page", "in": "query", "required": false, "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "{ data: StockMovement[], total, page, limit, pages }" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/demand-forecast": {
+      "get": {
+        "operationId": "getV1DemandForecast",
+        "tags": ["Demand Forecast"],
+        "summary": "Demand forecast per stock item / location",
+        "description": "Analyses historical deduction movements over the lookback window and projects average daily usage forward.\nReturns one row per (stockItem, location) pair with:\n- `avgDailyUsage` — average units consumed per day\n- `projectedUsage` — avgDailyUsage × forecastDays\n- `currentQuantity` — current stock level at the location\n- `daysUntilStockout` — estimated days before stock hits 0 (null if no usage)\nstore_manager+ only.",
+        "parameters": [
+          { "name": "locationId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "stockItemId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } },
+          {
+            "name": "lookbackDays",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 30, "minimum": 7, "maximum": 365 },
+            "description": "Days of history to analyse"
+          },
+          {
+            "name": "forecastDays",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 7, "minimum": 1, "maximum": 90 },
+            "description": "Days ahead to project"
+          }
+        ],
+        "responses": { "200": { "description": "Array of forecast rows" }, "403": { "description": "Forbidden" } }
+      }
+    },
+    "/v1/supplier-management": {
+      "post": {
+        "operationId": "postV1SupplierManagement",
+        "tags": ["Supplier Management"],
+        "summary": "Create supplier",
+        "description": "Creates a new supplier for a tenant. franchise_owner+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tenantId", "name"],
+                "properties": {
+                  "tenantId": { "type": "string", "format": "uuid" },
+                  "name": { "type": "string", "maxLength": 255 },
+                  "contactName": { "type": "string", "maxLength": 255 },
+                  "email": { "type": "string", "format": "email" },
+                  "phone": { "type": "string", "maxLength": 50 },
+                  "address": { "type": "string", "maxLength": 500 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Supplier created" }, "403": { "description": "Forbidden" } }
+      },
+      "get": {
+        "operationId": "getV1SupplierManagement",
+        "tags": ["Supplier Management"],
+        "summary": "List suppliers",
+        "description": "Super admin sees all. Others see their tenant's suppliers, ordered by name. store_manager+ only.",
+        "responses": { "200": { "description": "Array of suppliers" }, "403": { "description": "No tenant assigned" } }
+      }
+    },
+    "/v1/supplier-management/{id}": {
+      "get": {
+        "operationId": "getV1SupplierManagementById",
+        "tags": ["Supplier Management"],
+        "summary": "Get supplier by ID",
+        "responses": {
+          "200": { "description": "Supplier row" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1SupplierManagementById",
+        "tags": ["Supplier Management"],
+        "summary": "Update supplier",
+        "description": "franchise_owner+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "maxLength": 255 },
+                  "contactName": { "type": "string", "maxLength": 255 },
+                  "email": { "type": "string", "format": "email" },
+                  "phone": { "type": "string", "maxLength": 50 },
+                  "address": { "type": "string", "maxLength": 500 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated supplier" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1SupplierManagementById",
+        "tags": ["Supplier Management"],
+        "summary": "Delete supplier",
+        "description": "franchise_owner+ only.",
+        "responses": {
+          "200": { "description": "Deleted successfully" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/delivery-log": {
+      "post": {
+        "operationId": "postV1DeliveryLog",
+        "tags": ["Delivery Log"],
+        "summary": "Create delivery record",
+        "description": "Logs an incoming delivery for a location. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tenantId", "locationId"],
+                "properties": {
+                  "tenantId": { "type": "string", "format": "uuid" },
+                  "locationId": { "type": "string", "format": "uuid" },
+                  "supplierId": { "type": "string", "format": "uuid" },
+                  "status": { "type": "string", "enum": ["pending", "received", "partial"], "default": "pending" },
+                  "notes": { "type": "string", "maxLength": 1000 },
+                  "deliveredAt": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Delivery record created" }, "403": { "description": "Forbidden" } }
+      },
+      "get": {
+        "operationId": "getV1DeliveryLog",
+        "tags": ["Delivery Log"],
+        "summary": "List deliveries",
+        "description": "Paginated list of delivery records. Scoped to tenant and location access. store_manager+ only.",
+        "parameters": [
+          { "name": "locationId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "supplierId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["pending", "received", "partial"] }
+          },
+          { "name": "page", "in": "query", "required": false, "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": { "200": { "description": "{ data: Delivery[], total, page, limit, pages }" }, "403": { "description": "Forbidden" } }
+      }
+    },
+    "/v1/delivery-log/{id}": {
+      "get": {
+        "operationId": "getV1DeliveryLogById",
+        "tags": ["Delivery Log"],
+        "summary": "Get delivery by ID",
+        "responses": {
+          "200": { "description": "Delivery row with supplier and location details" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1DeliveryLogById",
+        "tags": ["Delivery Log"],
+        "summary": "Update delivery record",
+        "description": "store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "supplierId": { "type": "string", "format": "uuid" },
+                  "status": { "type": "string", "enum": ["pending", "received", "partial"] },
+                  "notes": { "type": "string", "maxLength": 1000 },
+                  "deliveredAt": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated delivery" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1DeliveryLogById",
+        "tags": ["Delivery Log"],
+        "summary": "Delete delivery record",
+        "description": "franchise_owner+ only.",
+        "responses": {
+          "200": { "description": "Deleted successfully" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
+    "/v1/restock-requests": {
+      "post": {
+        "operationId": "postV1RestockRequests",
+        "tags": ["Restock Requests"],
+        "summary": "Create restock request",
+        "description": "Raises a request to restock a stock item at a location. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["stockItemId", "locationId", "requestedQty"],
+                "properties": {
+                  "stockItemId": { "type": "string", "format": "uuid" },
+                  "locationId": { "type": "string", "format": "uuid" },
+                  "requestedQty": { "type": "integer", "minimum": 1 },
+                  "notes": { "type": "string", "maxLength": 1000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Restock request created" }, "403": { "description": "Forbidden" } }
+      },
+      "get": {
+        "operationId": "getV1RestockRequests",
+        "tags": ["Restock Requests"],
+        "summary": "List restock requests",
+        "description": "Paginated list. Scoped to location access. store_manager+ only.",
+        "parameters": [
+          { "name": "locationId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "stockItemId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" } },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["pending", "approved", "fulfilled", "rejected"] }
+          },
+          { "name": "page", "in": "query", "required": false, "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "{ data: RestockRequest[], total, page, limit, pages }" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/restock-requests/{id}": {
+      "get": {
+        "operationId": "getV1RestockRequestsById",
+        "tags": ["Restock Requests"],
+        "summary": "Get restock request by ID",
+        "responses": {
+          "200": { "description": "Restock request with stock item and location details" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "patch": {
+        "operationId": "patchV1RestockRequestsById",
+        "tags": ["Restock Requests"],
+        "summary": "Update restock request",
+        "description": "Update status, quantity, or notes. store_manager+ only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": { "type": "string", "enum": ["pending", "approved", "fulfilled", "rejected"] },
+                  "requestedQty": { "type": "integer", "minimum": 1 },
+                  "notes": { "type": "string", "maxLength": 1000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated restock request" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      },
+      "delete": {
+        "operationId": "deleteV1RestockRequestsById",
+        "tags": ["Restock Requests"],
+        "summary": "Delete restock request",
+        "description": "franchise_owner+ only.",
+        "responses": {
+          "200": { "description": "Deleted successfully" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        },
+        "parameters": [{ "schema": { "type": "string" }, "in": "path", "name": "id", "required": true }]
+      }
+    },
     "/v1/shifts/clock-in": {
       "post": {
         "operationId": "postV1ShiftsClockIn",
