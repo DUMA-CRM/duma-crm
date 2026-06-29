@@ -1,6 +1,5 @@
 'use client';
 
-// TODO: This compoent is not yet uded anywhere, but will be used in the future to show customer's visit history in a compact calendar view.
 import { useMemo, useState } from 'react';
 
 import { cn } from '@/lib/utils/cn';
@@ -90,7 +89,7 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
     setTip({
       x: rect.left + rect.width / 2,
       y: rect.top,
-      label: `₴${cell.spend.toFixed(0)} · ${cell.date.toLocaleDateString('en-GB', {
+      label: `£${cell.spend.toFixed(0)} · ${cell.date.toLocaleDateString('en-GB', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',

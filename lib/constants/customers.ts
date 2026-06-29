@@ -6,6 +6,13 @@ import { Tier } from '@/types/customers';
 
 import { OrderStatus } from '../api/orders.service';
 
+export const TIER_THRESHOLDS: Record<Tier, { from: number; to: number; nextTier: string; fromLabel: string }> = {
+  bronze: { from: 0, to: 100, nextTier: 'Silver', fromLabel: 'None' },
+  silver: { from: 100, to: 300, nextTier: 'Gold', fromLabel: 'Bronze' },
+  gold: { from: 300, to: 800, nextTier: 'VIP', fromLabel: 'Silver' },
+  vip: { from: 800, to: 2000, nextTier: 'Platinum', fromLabel: 'Gold' },
+};
+
 type BadgeVariant = VariantProps<typeof badgeVariants>['variant'];
 
 export const TIER_CONFIG: Record<Tier, { label: string; variant: BadgeVariant; dot: string }> = {

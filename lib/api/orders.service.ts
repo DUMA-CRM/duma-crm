@@ -19,17 +19,28 @@ export interface OrderItem {
   modifiers?: OrderItemModifier[];
 }
 
+export interface StatusHistoryEntry {
+  id: string;
+  orderId: string;
+  status: OrderStatus;
+  changedBy: string;
+  createdAt: string;
+}
+
 export interface OrderDetail {
   id: string;
   tenantId?: string;
   locationId: string;
   customerId?: string;
+	createdBy: string;
   status: OrderStatus;
   source: OrderSource;
   totalAmount: string;
   paymentMethod: 'cash' | 'card';
   notes?: string;
   items: OrderItem[];
+  discountAmount?: string;
+  statusHistory?: StatusHistoryEntry[];
   createdAt: string;
   updatedAt?: string;
 }

@@ -1,14 +1,43 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Banknote, ChevronDown, CreditCard, Monitor, ShoppingBag, Smartphone } from 'lucide-react';
-import { useState } from 'react';
+import {
+  Banknote,
+  Bell,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  CreditCard,
+  Eye,
+  Flame,
+  Mail,
+  MapPin,
+  MessageSquare,
+  Monitor,
+  ShoppingBag,
+  Smartphone,
+  User,
+  XCircle,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { StatCard } from '@/components/shared/StatCard';
+import { Button } from '@/components/ui/button';
 
-import { type Order, type OrderDetail, type OrderStatus, getOrder, getOrders, updateOrderStatus } from '@/lib/api/orders.service';
+import {
+  type Order,
+  type OrderDetail as OrderDetailType,
+  type OrderStatus,
+  getOrder,
+  getOrders,
+  updateOrderStatus,
+} from '@/lib/api/orders.service';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -49,9 +78,20 @@ const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
   cancelled: [],
 };
 
+const LIVE_STATUSES: OrderStatus[] = ['pending', 'preparing', 'ready'];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function timeAgo(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  return `${Math.floor(diff / 3600)}h ago`;
+}
+
 // ── Status badge + inline picker ─────────────────────────────────────────────
 
-function StatusBadge({ order }: { order: Order }) {
+function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boolean }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const s = STATUS_CONFIG[order.status];
@@ -61,32 +101,33 @@ function StatusBadge({ order }: { order: Order }) {
     mutationFn: (status: OrderStatus) => updateOrderStatus(order.id, status),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['orders-all'] });
       qc.invalidateQueries({ queryKey: ['order', order.id] });
       setOpen(false);
     },
   });
 
-  if (nexts.length === 0) {
-    return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
-          s.bg,
-          s.text,
-          s.border,
-        )}
-      >
-        <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', s.dot)} />
-        {s.label}
-      </span>
-    );
-  }
+  const badge = (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
+        s.bg,
+        s.text,
+        s.border,
+      )}
+    >
+      <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', s.dot)} />
+      {s.label}
+    </span>
+  );
+
+  if (nexts.length === 0) return badge;
 
   return (
     <div className="relative">
       <button
         onClick={(e) => {
-          e.stopPropagation();
+          if (stopProp) e.stopPropagation();
           setOpen((v) => !v);
         }}
         disabled={isPending}
@@ -132,60 +173,252 @@ function StatusBadge({ order }: { order: Order }) {
   );
 }
 
-// ── Order detail (expanded row) ───────────────────────────────────────────────
+// ── Live ticket card ──────────────────────────────────────────────────────────
 
-function OrderDetail({ orderId }: { orderId: string }) {
-  const { data, isLoading } = useQuery<OrderDetail>({
+function LiveTicket({ order, active, onClick }: { order: Order; active: boolean; onClick: () => void }) {
+  const s = STATUS_CONFIG[order.status];
+  const preview = order.items?.slice(0, 2).map((i) => `${i.quantity}× ${i.name}`).join(', ') ?? '—';
+  const hasMore = (order.items?.length ?? 0) > 2;
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex flex-col gap-2 p-3 rounded-xl border w-52 shrink-0 text-left transition-all',
+        active ? 'border-primary/60 bg-primary/5 shadow-sm' : 'border-border bg-card hover:bg-surface-offset',
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono text-[11px] font-semibold text-muted-foreground">#{order.id.slice(0, 8)}</span>
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-bold uppercase tracking-wide',
+            s.bg,
+            s.text,
+            s.border,
+          )}
+        >
+          <span className={cn('w-1 h-1 rounded-full shrink-0', s.dot)} />
+          {s.label}
+        </span>
+      </div>
+      <p className="text-[11px] text-foreground font-medium leading-snug line-clamp-2">
+        {preview}
+        {hasMore && <span className="text-muted-foreground"> +{(order.items?.length ?? 0) - 2} more</span>}
+      </p>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] text-muted-foreground">{timeAgo(order.createdAt)}</span>
+        <span className="text-xs font-semibold tabular-nums">£{Number(order.totalAmount).toFixed(2)}</span>
+      </div>
+    </button>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const STATUS_ICONS: Record<OrderStatus, React.ElementType> = {
+  pending: Clock,
+  preparing: Flame,
+  ready: Bell,
+  done: CheckCircle2,
+  cancelled: XCircle,
+};
+
+function formatDuration(ms: number) {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s} sec`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  if (m < 60) return rem > 0 ? `${m} min ${rem} sec` : `${m} min`;
+  const h = Math.floor(m / 60);
+  const remM = m % 60;
+  return remM > 0 ? `${h} hr ${remM} min` : `${h} hr`;
+}
+
+// ── Order detail panel ────────────────────────────────────────────────────────
+
+function OrderDetailPanel({ orderId }: { orderId: string }) {
+  const { data, isLoading } = useQuery<OrderDetailType>({
     queryKey: ['order', orderId],
     queryFn: () => getOrder(orderId),
   });
 
   if (isLoading || !data) {
     return (
-      <div className="flex flex-col gap-2 py-1">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="h-10 bg-muted rounded-lg animate-pulse" />
+      <div className="flex gap-4 py-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="flex-1 h-24 bg-muted rounded-xl animate-pulse" />
         ))}
       </div>
     );
   }
 
+  const history = data.statusHistory ?? [];
+
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+
   return (
-    <div className="flex gap-8">
-      {/* Items list */}
-      <div className="flex-1 flex flex-col gap-1.5">
-        {data.items.map((item) => (
-          <div key={item.id} className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <span className="text-xs font-semibold text-foreground">
-                <span className="text-muted-foreground mr-1.5">{item.quantity}x</span>
-                {item.name}
-              </span>
+    <div className="flex gap-5">
+      {/* ── Receipt (left) ── */}
+      <div className="w-80 shrink-0 bg-background border border-dashed border-border rounded-xl px-5 py-4 font-mono">
+        <div className="text-center mb-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Receipt</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">#{data.id.slice(0, 8).toUpperCase()}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {new Date(data.createdAt).toLocaleString('en-GB', {
+              day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+            })}
+          </p>
+        </div>
+
+        <div className="border-t border-dashed border-border pt-3 flex flex-col gap-1.5">
+          {data.items.map((item) => (
+            <div key={item.id}>
+              <div className="flex justify-between gap-2">
+                <span className="text-[11px] text-foreground">
+                  <span className="text-muted-foreground">{item.quantity}×</span> {item.name}
+                </span>
+                <span className="text-[11px] font-semibold tabular-nums shrink-0">£{parseFloat(item.subtotal).toFixed(2)}</span>
+              </div>
               {item.modifiers && item.modifiers.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
+                <div className="pl-4 flex flex-col gap-0.5 mt-0.5">
                   {item.modifiers.map((m, i) => (
-                    <span key={i} className="text-[11px] text-muted-foreground bg-card border border-border rounded-md px-1.5 py-px">
-                      {m.name}
+                    <div key={i} className="flex justify-between gap-2">
+                      <span className="text-[10px] text-muted-foreground">+ {m.name}</span>
                       {parseFloat(m.priceAdjust) !== 0 && (
-                        <span className="text-primary ml-1">+£{parseFloat(m.priceAdjust).toFixed(2)}</span>
+                        <span className="text-[10px] text-muted-foreground tabular-nums">£{parseFloat(m.priceAdjust).toFixed(2)}</span>
                       )}
-                    </span>
+                    </div>
                   ))}
                 </div>
               )}
             </div>
-            <span className="text-xs font-semibold text-foreground tabular-nums shrink-0">£{parseFloat(item.subtotal).toFixed(2)}</span>
+          ))}
+        </div>
+
+        <div className="border-t border-dashed border-border mt-3 pt-3 flex flex-col gap-1">
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>Items</span>
+            <span>{data.items.reduce((s, i) => s + i.quantity, 0)}</span>
           </div>
-        ))}
+          {data.discountAmount && parseFloat(data.discountAmount) !== 0 && (
+            <div className="flex justify-between text-[11px] text-success">
+              <span>Discount</span>
+              <span className="tabular-nums">−£{parseFloat(data.discountAmount).toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-[12px] font-bold text-foreground">
+            <span>Total</span>
+            <span className="tabular-nums">£{parseFloat(data.totalAmount).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
+            <span>Payment</span>
+            <span className="inline-flex items-center gap-1">
+              {data.paymentMethod === 'cash' ? <Banknote size={10} /> : <CreditCard size={10} />}
+              {data.paymentMethod === 'cash' ? 'Cash' : 'Card'}
+            </span>
+          </div>
+        </div>
+
+        {data.notes && (
+          <div className="border-t border-dashed border-border mt-3 pt-3">
+            <p className="text-[10px] text-muted-foreground italic text-center">{data.notes}</p>
+          </div>
+        )}
       </div>
 
-      {/* Right meta column */}
-      <div className="flex flex-col gap-2 items-end shrink-0">
-        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border bg-card text-[11px] font-medium text-muted-foreground">
-          {data.paymentMethod === 'cash' ? <Banknote size={11} /> : <CreditCard size={11} />}
-          {data.paymentMethod === 'cash' ? 'Cash' : 'Card'}
-        </span>
-        {data.notes && <p className="text-[11px] text-muted-foreground italic max-w-48 text-right">{data.notes}</p>}
+      {/* ── Right section ── */}
+      <div className="flex-1 flex flex-col gap-4 min-w-0">
+        {/* Timeline + Details side by side */}
+        <div className="grid grid-cols-2 gap-5">
+          {/* Timeline */}
+          <div className="flex flex-col gap-1">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Timeline</p>
+            {history.length > 0 ? (
+              <div className="flex flex-col">
+                {history.map((entry, idx) => {
+                  const s = STATUS_CONFIG[entry.status];
+                  const Icon = STATUS_ICONS[entry.status];
+                  const isLast = idx === history.length - 1;
+                  const prev = idx > 0 ? history[idx - 1] : null;
+                  const duration = prev
+                    ? formatDuration(new Date(entry.createdAt).getTime() - new Date(prev.createdAt).getTime())
+                    : null;
+
+                  return (
+                    <div key={entry.id} className="flex gap-3.5">
+                      <div className="flex flex-col items-center">
+                        <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0 border', s.bg, s.border)}>
+                          <Icon size={15} className={s.text} />
+                        </div>
+                        {!isLast && <div className="w-px flex-1 bg-border my-1.5" />}
+                      </div>
+                      <div className={cn('flex flex-col gap-0.5 pt-1', isLast ? 'pb-0' : 'pb-4')}>
+                        <p className={cn('text-xs font-semibold leading-none', s.text)}>{s.label}</p>
+                        <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                          {new Date(entry.createdAt).toLocaleString('en-GB', {
+                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                          })}
+                          {entry.changedBy && <span className="ml-1">· {entry.changedBy}</span>}
+                        </p>
+                        {duration && (
+                          <p className="text-[10px] text-muted-foreground/60 italic">{duration} since previous</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">No history available.</p>
+            )}
+          </div>
+
+          {/* Details */}
+          <div className="flex flex-col gap-3">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Details</p>
+            <InfoGroup>
+              <InfoRow
+                icon={data.paymentMethod === 'cash' ? Banknote : CreditCard}
+                label="Payment"
+                value={data.paymentMethod === 'cash' ? 'Cash' : 'Card'}
+              />
+              <InfoRow
+                icon={data.source === 'pos' ? Monitor : Smartphone}
+                label="Source"
+                value={data.source === 'pos' ? 'POS' : 'Mobile'}
+              />
+              <InfoRow
+                icon={CalendarDays}
+                label="Created"
+                value={new Date(data.createdAt).toLocaleString('en-GB', {
+                  day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                })}
+              />
+              {data.customerId && (
+                <InfoRow icon={User} label="Customer ID" value={data.customerId} copyable />
+              )}
+							<InfoRow icon={User} label="Staff ID" value={data.createdBy} copyable />
+              <InfoRow icon={MapPin} label="Location ID" value={data.locationId} copyable />
+            </InfoGroup>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => window.open(`${API_BASE}/v1/receipts/${data.id}/receipt`, '_blank')}>
+            <Eye />
+            View / Download Receipt
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => console.log('Send receipt email', data.id)}>
+            <Mail />
+            Send Receipt by Email
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => console.log('Send feedback email', data.id)}>
+            <MessageSquare />
+            Send Feedback Email
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -193,21 +426,32 @@ function OrderDetail({ orderId }: { orderId: string }) {
 
 // ── Order row ─────────────────────────────────────────────────────────────────
 
-function OrderRow({ order }: { order: Order }) {
-  const [open, setOpen] = useState(false);
+function OrderRow({ order, isOpen: controlledOpen, onOpenChange }: { order: Order; isOpen?: boolean; onOpenChange?: (id: string, open: boolean) => void }) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+
+  function toggle() {
+    const next = !open;
+    setInternalOpen(next);
+    onOpenChange?.(order.id, next);
+  }
 
   return (
     <>
       <tr
+        id={`order-row-${order.id}`}
         className={cn(
           'group border-b border-border/50 transition-colors hover:bg-surface-offset cursor-pointer',
           open && 'bg-surface-offset',
           !open && 'last:border-0',
         )}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
       >
         <td className="px-5 py-4 w-8">
-          <ChevronDown size={13} className={cn('text-muted-foreground transition-transform duration-150 shrink-0', open && 'rotate-180')} />
+          <ChevronRight
+            size={13}
+            className={cn('text-muted-foreground transition-transform duration-150 shrink-0', open && 'rotate-90')}
+          />
         </td>
         <td className="px-5 py-4">
           <span className="font-mono text-xs font-medium text-muted-foreground">#{order.id.slice(0, 8)}</span>
@@ -222,7 +466,7 @@ function OrderRow({ order }: { order: Order }) {
           <span className="text-xs text-muted-foreground truncate block">{order.notes ?? '—'}</span>
         </td>
         <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
-          <StatusBadge order={order} />
+          <StatusBadge order={order} stopProp />
         </td>
         <td className="px-5 py-4 text-right">
           <span className="text-sm font-semibold text-foreground tabular-nums">
@@ -238,8 +482,8 @@ function OrderRow({ order }: { order: Order }) {
 
       {open && (
         <tr className="border-b border-border/50 bg-surface-offset/50">
-          <td colSpan={7} className="px-8 pt-3 pb-4">
-            <OrderDetail orderId={order.id} />
+          <td colSpan={7} className="px-8 pt-3 pb-5">
+            <OrderDetailPanel orderId={order.id} />
           </td>
         </tr>
       )}
@@ -253,7 +497,49 @@ export default function OrdersPage() {
   const { locationId } = useWorkspaceStore();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [page, setPage] = useState(1);
+  const [activeTicket, setActiveTicket] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
+  // Broad query for stats + live tickets
+  const { data: allData } = useQuery({
+    queryKey: ['orders-all', locationId],
+    queryFn: () => getOrders({ limit: 200, locationId: locationId ?? undefined }),
+    refetchInterval: 30_000,
+  });
+
+  const allOrders = allData?.data ?? [];
+
+  const today = new Date().toDateString();
+  const todayOrders = useMemo(() => allOrders.filter((o) => new Date(o.createdAt).toDateString() === today), [allOrders, today]);
+
+  const totalOrders = todayOrders.length;
+  const revenue = todayOrders.reduce((s, o) => s + Number(o.totalAmount), 0);
+  const liveCount = allOrders.filter((o) => LIVE_STATUSES.includes(o.status)).length;
+  const cancelledCount = todayOrders.filter((o) => o.status === 'cancelled').length;
+
+  const week7 = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const key = d.toDateString();
+      const dateLabel = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const dayOrders = allOrders.filter((o) => new Date(o.createdAt).toDateString() === key);
+      return {
+        dateLabel,
+        orders: dayOrders.length,
+        revenue: dayOrders.reduce((s, o) => s + Number(o.totalAmount), 0),
+        live: dayOrders.filter((o) => LIVE_STATUSES.includes(o.status)).length,
+        cancelled: dayOrders.filter((o) => o.status === 'cancelled').length,
+      };
+    });
+  }, [allOrders]);
+
+  const liveTickets = useMemo(
+    () => allOrders.filter((o) => LIVE_STATUSES.includes(o.status)).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    [allOrders],
+  );
+
+  // Paginated query for table
   const { data, isLoading } = useQuery({
     queryKey: ['orders', page, statusFilter, locationId],
     queryFn: () =>
@@ -268,11 +554,22 @@ export default function OrdersPage() {
   const orders = data?.data ?? [];
   const totalPages = data?.pages ?? 1;
 
+  function handleTicketClick(id: string) {
+    setActiveTicket((prev) => (prev === id ? null : id));
+    setExpandedOrderId(id);
+    setTimeout(() => {
+      document.getElementById(`order-row-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  }
+
+  function handleRowOpenChange(id: string, open: boolean) {
+    setExpandedOrderId(open ? id : null);
+  }
+
   return (
     <PageLayout
       eyebrow="Operations"
       title="Orders"
-      fullHeight
       headerBorder={false}
       headerSlot={
         <SegmentedControl
@@ -285,9 +582,49 @@ export default function OrdersPage() {
         />
       }
     >
-      <div className="flex flex-col h-full gap-4">
-        <div className="flex-1 min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-auto">
+      <div className="flex flex-col gap-4">
+        {/* Stats */}
+        <div className="flex gap-3 shrink-0">
+          <StatCard
+            label="Orders today"
+            value={String(totalOrders)}
+            icon="ShoppingBag"
+            iconVariant="primary"
+            footer={{ type: 'bars', values: week7.map((d) => d.orders), labels: week7.map((d) => String(d.orders)), titleLabels: week7.map((d) => `Orders (${d.dateLabel})`) }}
+          />
+          <StatCard
+            label="Revenue"
+            value={`£${revenue.toFixed(0)}`}
+            icon="Wallet"
+            iconVariant="success"
+            footer={{ type: 'bars', values: week7.map((d) => d.revenue), labels: week7.map((d) => `£${d.revenue.toFixed(0)}`), titleLabels: week7.map((d) => `Revenue (${d.dateLabel})`) }}
+          />
+          <StatCard label="Open / Preparing" value={String(liveCount)} icon="Tag" iconVariant="gold" />
+          <StatCard label="Cancelled" value={String(cancelledCount)} icon="Receipt" iconVariant="info" />
+        </div>
+
+        {/* Live tickets */}
+        {liveTickets.length > 0 && (
+          <div className="shrink-0">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
+              Live tickets · {liveTickets.length}
+            </p>
+            <div className="flex gap-2.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {liveTickets.map((order) => (
+                <LiveTicket
+                  key={order.id}
+                  order={order}
+                  active={activeTicket === order.id}
+                  onClick={() => handleTicketClick(order.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Orders table */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div>
             <table className="w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-muted/40">
@@ -328,7 +665,14 @@ export default function OrdersPage() {
                     </td>
                   </tr>
                 ) : (
-                  orders.map((order) => <OrderRow key={order.id} order={order} />)
+                  orders.map((order) => (
+                    <OrderRow
+                      key={order.id}
+                      order={order}
+                      isOpen={expandedOrderId === order.id}
+                      onOpenChange={handleRowOpenChange}
+                    />
+                  ))
                 )}
               </tbody>
             </table>

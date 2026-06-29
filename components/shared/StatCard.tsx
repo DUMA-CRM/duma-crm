@@ -14,7 +14,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -46,8 +46,8 @@ const ICON_CLASS: Record<IconVariant, string> = {
 
 // ── Footer variants ───────────────────────────────────────────────
 export type StatCardFooter =
-  | { type: 'sparkline'; points: number[] }
-  | { type: 'bars'; values: number[]; labels?: string[] }
+  | { type: 'sparkline'; points: number[]; labels?: string[]; titleLabels?: string[] }
+  | { type: 'bars'; values: number[]; labels?: string[]; titleLabels?: string[] }
   | { type: 'progress'; pct: number; from: string; to: string }
   | { type: 'ring'; pct: number; sub: string };
 
@@ -70,16 +70,21 @@ export interface StatCardProps {
 const W = 200;
 const H = 40;
 
-function sparkPaths(points: number[]) {
-  if (points.length < 2) return { line: '', area: '' };
+function sparkCoords(points: number[]) {
+  if (points.length < 2) return [];
   const min = Math.min(...points);
   const range = Math.max(...points) - min || 1;
-  const coords = points.map((p, i) => ({
+  return points.map((p, i) => ({
     x: (i / (points.length - 1)) * W,
     y: H - ((p - min) / range) * (H - 6) - 3,
   }));
+}
+
+function sparkPaths(points: number[]) {
+  const coords = sparkCoords(points);
+  if (!coords.length) return { line: '', area: '', coords: [] };
   const line = coords.map(({ x, y }, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-  return { line, area: `${line} L${W},${H} L0,${H} Z` };
+  return { line, area: `${line} L${W},${H} L0,${H} Z`, coords };
 }
 
 // ── Ring constants ────────────────────────────────────────────────
@@ -99,12 +104,34 @@ export function StatCard({
   className,
 }: StatCardProps) {
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
+  const [hoveredSpark, setHoveredSpark] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const Icon = iconName ? ICON_MAP[iconName] : null;
   const isRing = footer?.type === 'ring';
 
   const displayValue =
-    footer?.type === 'bars' && hoveredBar !== null ? (footer.labels?.[hoveredBar] ?? String(footer.values[hoveredBar])) : value;
+    footer?.type === 'sparkline' && hoveredSpark !== null
+      ? (footer.labels?.[hoveredSpark] ?? String(footer.points[hoveredSpark]))
+      : footer?.type === 'bars' && hoveredBar !== null
+      ? (footer.labels?.[hoveredBar] ?? String(footer.values[hoveredBar]))
+      : value;
+
+  const displayLabel =
+    footer?.type === 'sparkline' && hoveredSpark !== null && footer.titleLabels
+      ? footer.titleLabels[hoveredSpark]
+      : footer?.type === 'bars' && hoveredBar !== null && footer.titleLabels
+      ? footer.titleLabels[hoveredBar]
+      : label;
+
+  function handleSparkMove(e: React.MouseEvent<SVGSVGElement>) {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const xPct = (e.clientX - rect.left) / rect.width;
+    const pts = (footer as { type: 'sparkline'; points: number[] }).points;
+    const idx = Math.max(0, Math.min(pts.length - 1, Math.round(xPct * (pts.length - 1))));
+    setHoveredSpark(idx);
+  }
 
   return (
     <div className={cn('flex-1 bg-card border border-border rounded-2xl p-4 flex flex-col gap-3', className)}>
@@ -116,7 +143,7 @@ export function StatCard({
               <Icon size={16} strokeWidth={2} />
             </span>
           )}
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">{label}</p>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">{displayLabel}</p>
         </div>
 
         {delta && (
@@ -146,10 +173,19 @@ export function StatCard({
       {/* ── Sparkline ── */}
       {footer?.type === 'sparkline' &&
         (() => {
-          const { line, area } = sparkPaths(footer.points);
+          const { line, area, coords } = sparkPaths(footer.points);
           const gradId = `spark-${label.replace(/[^a-zA-Z0-9]/g, '-')}`;
+          const hov = hoveredSpark !== null ? coords[hoveredSpark] : null;
           return (
-            <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-10 text-primary" preserveAspectRatio="none" aria-hidden="true">
+            <svg
+              ref={svgRef}
+              viewBox={`0 0 ${W} ${H}`}
+              className="w-full h-10 text-primary cursor-crosshair"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+              onMouseMove={handleSparkMove}
+              onMouseLeave={() => setHoveredSpark(null)}
+            >
               <defs>
                 <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
                   <stop offset="0" stopColor="currentColor" stopOpacity="0.22" />
@@ -158,6 +194,15 @@ export function StatCard({
               </defs>
               <path d={area} fill={`url(#${gradId})`} />
               <path d={line} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              {hov && (
+                <>
+                  <line
+                    x1={hov.x} y1={0} x2={hov.x} y2={H}
+                    stroke="currentColor" strokeWidth="1" strokeDasharray="3 3" strokeOpacity="0.4"
+                  />
+                  <circle cx={hov.x} cy={hov.y} r="3" fill="currentColor" />
+                </>
+              )}
             </svg>
           );
         })()}

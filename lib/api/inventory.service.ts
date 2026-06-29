@@ -26,6 +26,34 @@ export const updateStockItem = (id: string, data: Partial<Pick<StockItemPayload,
 
 export const deleteStockItem = (id: string) => apiFetch<void>(`/stock-items/${id}`, { method: 'DELETE' });
 
+export interface StockMovement {
+  id: string;
+  stockItemId: string;
+  locationId?: string;
+  type: string;
+  delta: number;
+  previousQuantity: string;
+  newQuantity: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface StockMovementsResponse {
+  data: StockMovement[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+export const getStockItemMovements = (id: string, params?: { page?: number; limit?: number }) => {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiFetch<StockMovementsResponse>(`/stock-items/${id}/movements${qs ? `?${qs}` : ''}`);
+};
+
 // ── Location Stock ────────────────────────────────────────────────────────────
 
 export interface LocationStock {
@@ -80,7 +108,7 @@ export interface TenantStock {
 }
 
 export interface TenantStockDetail extends TenantStock {
-  locations: LocationStock[];
+  locations?: LocationStock[];
 }
 
 export const getTenantStock = () => apiFetch<TenantStock[]>('/tenant-stock');
@@ -157,7 +185,9 @@ export interface LowStockAlert {
   stockItemId: string;
   quantity: string;
   lowThreshold: string;
+  isAvailable: boolean;
   stockItem?: StockItem;
+  location?: { id: string; name: string };
 }
 
 export const getLowStockAlerts = (locationId?: string) => {
@@ -169,6 +199,9 @@ export const getLowStockAlerts = (locationId?: string) => {
 
 export interface InventoryForecast {
   locationStockId: string;
+  locationId?: string;
+  locationName?: string;
+  location?: { id: string; name: string };
   stockItemName: string;
   unit: string;
   currentQuantity: string;
@@ -179,6 +212,47 @@ export interface InventoryForecast {
   isLow: boolean;
   isCritical: boolean;
 }
+
+// ── Transfers ─────────────────────────────────────────────────────────────────
+
+export interface TransferRecord {
+  id: string;
+  stockItemId: string;
+  locationId: string;
+  type: string;
+  quantity: number;
+  quantityBefore: number;
+  quantityAfter: number;
+  orderId: string | null;
+  userId: string;
+  notes: string | null;
+  relatedLocationId: string | null;
+  createdAt: string;
+  stockItem?: { id: string; name: string; unit: string };
+  location?: { id: string; name: string };
+  relatedLocation?: { id: string; name: string } | null;
+}
+
+export const getTransfers = (params?: {
+  tenantId?: string;
+  locationId?: string;
+  stockItemId?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}) => {
+  const query = new URLSearchParams();
+  if (params?.tenantId) query.set('tenantId', params.tenantId);
+  if (params?.locationId) query.set('locationId', params.locationId);
+  if (params?.stockItemId) query.set('stockItemId', params.stockItemId);
+  if (params?.from) query.set('from', params.from);
+  if (params?.to) query.set('to', params.to);
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiFetch<TransferRecord[]>(`/transfers${qs ? `?${qs}` : ''}`);
+};
 
 export const getInventoryForecast = (locationId?: string, lookbackDays = 30) => {
   const params = new URLSearchParams({ lookbackDays: String(lookbackDays) });
