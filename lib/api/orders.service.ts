@@ -76,29 +76,34 @@ export interface OrdersParams {
   source?: OrderSource;
 }
 
+// Order creation sends IDs only. Item names, unit prices and the order total are
+// computed server-side from the catalogue; loyalty is applied server-side too.
 export interface CreateOrderModifier {
   modifierId: string;
-  name: string;
-  priceAdjust: string;
 }
 
 export interface CreateOrderItem {
   menuItemId: string;
-  name: string;
   quantity: number;
-  unitPrice: string;
-  subtotal: string;
+  notes?: string;
   modifiers?: CreateOrderModifier[];
+}
+
+// Explicit stock to deduct from the location for this order (optional). There is
+// no recipe model — only what you list here is deducted.
+export interface CreateOrderStockDeduction {
+  stockItemId: string;
+  quantity: number;
 }
 
 export interface CreateOrderPayload {
   locationId: string;
   customerId?: string;
   source: 'pos' | 'mobile';
-  totalAmount: string;
-  paymentMethod: 'cash' | 'card';
+  paymentMethod?: string;
   notes?: string;
   items: CreateOrderItem[];
+  stockDeductions?: CreateOrderStockDeduction[];
 }
 
 export const getOrder = (id: string) => apiFetch<OrderDetail>(`/orders/${id}`);

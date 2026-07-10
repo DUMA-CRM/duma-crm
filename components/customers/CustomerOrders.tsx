@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import { type Order, getOrders } from '@/lib/api/orders.service';
@@ -16,7 +17,10 @@ function OrderRow({ order }: { order: Order }) {
   const status = STATUS_CONFIG[order.status];
 
   return (
-    <div className="flex items-center gap-4 py-2.5 border-b border-border/50 last:border-0">
+    <Link
+      href={`/orders?order=${order.id}`}
+      className="flex items-center gap-4 py-2.5 -mx-3 px-3 border-b border-border/50 last:border-0 transition-colors hover:bg-surface-offset"
+    >
       <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
         <ShoppingBag size={13} className="text-muted-foreground" aria-hidden="true" />
       </div>
@@ -32,7 +36,7 @@ function OrderRow({ order }: { order: Order }) {
           <span className="text-xs font-semibold text-foreground tabular-nums">£{(order.totalAmount / 1).toFixed(2)}</span>
         )}
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -61,7 +65,7 @@ export function CustomerOrders({ customerId }: { customerId: string }) {
         {data && <span className="text-xs text-muted-foreground">{data.total} total</span>}
       </div>
 
-      <div className="bg-background rounded-2xl border border-border px-3 py-1">
+      <div className="bg-background rounded-2xl border border-border px-3 py-1 overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col gap-3 py-3">
             {[0, 1, 2].map((i) => (

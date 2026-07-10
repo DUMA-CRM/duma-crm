@@ -4,7 +4,6 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { cn } from '@/lib/utils/cn';
 import { cartItemTotal } from '@/lib/utils/pos';
 import type { CartItem } from '@/types/pos';
 
@@ -17,9 +16,7 @@ export function CartRow({ cartItem, onQty }: CartRowProps) {
   const total = cartItemTotal(cartItem);
   const isLastQty = cartItem.quantity === 1;
 
-  const chips = Object.values(cartItem.selections)
-    .filter((opt): opt is NonNullable<typeof opt> => !!opt)
-    .map((opt) => opt.label);
+  const chips = cartItem.selected.map((opt) => opt.label);
 
   return (
     <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-xl bg-card">

@@ -372,7 +372,7 @@ export function DataTable<T>({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-muted/40">
+            <tr className="border-b border-border bg-muted">
               {selectable && (
                 <th className="w-10 px-4 py-2.5">
                   <Checkbox

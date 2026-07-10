@@ -1,17 +1,36 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { Coffee, LogOut } from 'lucide-react';
 
-import { analyticsNavItems, footerNavItems, mainNavItems } from '@/lib/constants/nav';
+import { getOrders } from '@/lib/api/orders.service';
+import type { StaffRole } from '@/lib/api/staff.service';
+import { analyticsNavItems, filterNavByRole, footerNavItems, mainNavItems } from '@/lib/constants/nav';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
 import { useSidebarStore } from '@/stores/sidebarStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { SidebarNavItem } from './SidebarNavItem';
 
-export function Sidebar() {
+export function Sidebar({ role }: { role: StaffRole | null }) {
   const { collapsed, mobileOpen, closeMobile } = useSidebarStore();
   const { logout } = useAuth();
+  const { locationId } = useWorkspaceStore();
+
+  const mainItems = filterNavByRole(mainNavItems, role);
+  const analyticsItems = filterNavByRole(analyticsNavItems, role);
+
+  // Badge the Orders nav item with the number of active (not done/cancelled) orders.
+  const showOrders = mainItems.some((item) => item.href === '/orders');
+  const { data: ordersData } = useQuery({
+    queryKey: ['orders-active-count', locationId],
+    queryFn: () => getOrders({ limit: 200, locationId: locationId ?? undefined }),
+    enabled: showOrders,
+    refetchInterval: 60_000,
+  });
+  const activeOrders = (ordersData?.data ?? []).filter((o) => o.status !== 'done' && o.status !== 'cancelled').length;
+  const badges: Record<string, number> = { '/orders': activeOrders };
 
   return (
     <>
@@ -24,7 +43,7 @@ export function Sidebar() {
           'fixed top-0 left-0 h-screen z-50 flex flex-col shrink-0',
           'bg-card border-r border-border overflow-x-clip overflow-y-hidden',
           'transition-[width,transform] duration-300 ease-out',
-          collapsed ? 'w-[60px]' : 'w-[220px]',
+          collapsed ? 'w-15' : 'w-55',
           'lg:static lg:translate-x-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
@@ -44,20 +63,20 @@ export function Sidebar() {
 
         {/* ── Navigation ───────────────────────────────────── */}
         <nav className="flex-1 py-3 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden">
-          {mainNavItems.map((item) => (
-            <SidebarNavItem key={item.href} {...item} />
+          {mainItems.map((item) => (
+            <SidebarNavItem key={item.href} {...item} badge={badges[item.href]} />
           ))}
 
-          {/* Analytics section divider */}
-          {!collapsed ? (
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 pt-5 pb-1.5 whitespace-nowrap">
-              Analytics
-            </p>
-          ) : (
-            <div className="mx-3 my-2 border-t border-border" />
-          )}
+          {analyticsItems.length > 0 &&
+            (!collapsed ? (
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 pt-5 pb-1.5 whitespace-nowrap">
+                Analytics
+              </p>
+            ) : (
+              <div className="mx-3 my-2 border-t border-border" />
+            ))}
 
-          {analyticsNavItems.map((item) => (
+          {analyticsItems.map((item) => (
             <SidebarNavItem key={item.href} {...item} />
           ))}
         </nav>

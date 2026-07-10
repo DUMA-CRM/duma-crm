@@ -6,7 +6,8 @@ export interface MenuItem {
   name: string;
   description?: string;
   category: MenuCategory;
-  basePrice: string;
+  // Brand-wide price (decimal string, e.g. "3.20"). There is no per-location pricing.
+  price: string;
   isAvailable: boolean;
   imageUrl?: string;
   createdAt: string;
@@ -16,74 +17,26 @@ export interface MenuItemPayload {
   tenantId: string;
   name: string;
   category: MenuCategory;
-  basePrice: string;
+  price: string;
   description?: string;
   isAvailable?: boolean;
   imageUrl?: string;
 }
 
-export interface ModifierGroup {
-  id: string;
-  tenantId: string;
-  name: string;
-  required: boolean;
-  multiSelect: boolean;
-  sortOrder: number;
-  createdAt: string;
-}
-
-export interface ModifierGroupPayload {
-  tenantId: string;
-  name: string;
-  required?: boolean;
-  multiSelect?: boolean;
-  sortOrder?: number;
-}
-
-export type ModifierType = 'size' | 'milk' | 'syrup' | 'extra' | 'remove';
-
+// Reusable modifier (e.g. "Oat Milk" +0.50, "Large" +0.60). Flat — no groups.
+// Attach to menu items via /menu-item-modifiers.
 export interface Modifier {
   id: string;
   tenantId: string;
-  groupId: string;
-  type: ModifierType;
   name: string;
   priceAdjust?: string;
-  isDefault: boolean;
   isAvailable: boolean;
-  sortOrder: number;
   createdAt: string;
 }
 
 export interface ModifierPayload {
   tenantId: string;
-  groupId: string;
-  type: ModifierType;
   name: string;
   priceAdjust?: string;
-  isDefault?: boolean;
   isAvailable?: boolean;
-  sortOrder?: number;
-}
-
-export interface MenuItemModifierGroupLink {
-  id: string;
-  menuItemId: string;
-  modifierGroupId: string;
-}
-
-export interface LocationMenuItem {
-  id: string;
-  locationId: string;
-  menuItemId: string;
-  priceOverride?: string;
-  isAvailable: boolean;
-}
-
-export interface LocationModifier {
-  id: string;
-  locationId: string;
-  modifierId: string;
-  priceOverride?: string;
-  isAvailable: boolean;
 }

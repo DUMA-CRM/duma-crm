@@ -2,14 +2,17 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
+import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
 
 import {
   type Location,
   type LocationPayload,
+  type OpeningHours,
+  WEEKDAYS,
   createLocation,
   deleteLocation,
   getLocationsByTenant,
@@ -17,6 +20,19 @@ import {
 } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+
+// Sensible starting point for a new location: open Mon–Fri 09:00–17:00, weekend closed.
+function defaultHours(): OpeningHours {
+  const weekday = { open: '09:00', close: '17:00' };
+  return { mon: { ...weekday }, tue: { ...weekday }, wed: { ...weekday }, thu: { ...weekday }, fri: { ...weekday }, sat: null, sun: null };
+}
+
+// Guarantee all 7 keys exist (API may omit or store null for the whole field).
+function normaliseHours(h?: OpeningHours | null): OpeningHours {
+  const base = defaultHours();
+  if (!h) return base;
+  return { mon: h.mon ?? null, tue: h.tue ?? null, wed: h.wed ?? null, thu: h.thu ?? null, fri: h.fri ?? null, sat: h.sat ?? null, sun: h.sun ?? null };
+}
 
 // ── Form ─────────────────────────────────────────────────────────────────────
 
@@ -37,16 +53,26 @@ function LocationForm({
   const [address, setAddress] = useState(initial?.address ?? '');
   const [timezone, setTimezone] = useState(initial?.timezone ?? 'Europe/London');
   const [phone, setPhone] = useState(initial?.phone ?? '');
+  const [hours, setHours] = useState<OpeningHours>(normaliseHours(initial?.openingHours));
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
 
   const inputClass =
     'w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  const timeClass =
+    'h-9 bg-background border border-border rounded-lg px-2 text-sm text-foreground tabular-nums outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150 disabled:opacity-40';
+
+  const toggleDay = (key: keyof OpeningHours, open: boolean) =>
+    setHours((h) => ({ ...h, [key]: open ? { open: '09:00', close: '17:00' } : null }));
+  const setDayTime = (key: keyof OpeningHours, field: 'open' | 'close', value: string) =>
+    setHours((h) => ({ ...h, [key]: { ...(h[key] ?? { open: '09:00', close: '17:00' }), [field]: value } }));
+  const copyMondayToAll = () =>
+    setHours((h) => (h.mon ? { mon: h.mon, tue: { ...h.mon }, wed: { ...h.mon }, thu: { ...h.mon }, fri: { ...h.mon }, sat: { ...h.mon }, sun: { ...h.mon } } : h));
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit({ tenantId, name, address, timezone, phone: phone || undefined, isActive });
+        onSubmit({ tenantId, name, address, timezone, phone: phone || undefined, openingHours: hours, isActive });
       }}
       className="space-y-4"
     >
@@ -71,28 +97,53 @@ function LocationForm({
           className={inputClass}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Timezone</label>
-          <input
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-            required
-            placeholder="Europe/London"
-            className={inputClass}
-          />
+      <div>
+        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Timezone</label>
+        <TimezoneSelect value={timezone} onChange={setTimezone} required inputClassName={inputClass} placeholder="Search timezone…" />
+      </div>
+      <div>
+        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Phone</label>
+        <input
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+44 20 1234 5678"
+          maxLength={30}
+          className={inputClass}
+        />
+      </div>
+      {/* Working hours */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest">Working hours</label>
+          <button type="button" onClick={copyMondayToAll} className="text-[11px] font-semibold text-primary hover:underline disabled:opacity-40" disabled={!hours.mon}>
+            Copy Monday to all
+          </button>
         </div>
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Phone</label>
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+44 20 1234 5678"
-            maxLength={30}
-            className={inputClass}
-          />
+        <div className="flex flex-col gap-1.5 rounded-xl border border-border p-2.5">
+          {WEEKDAYS.map(({ key, label }) => {
+            const day = hours[key];
+            const open = day !== null;
+            return (
+              <div key={key} className="flex items-center gap-2">
+                <label className="flex items-center gap-2 w-28 shrink-0 cursor-pointer select-none">
+                  <input type="checkbox" checked={open} onChange={(e) => toggleDay(key, e.target.checked)} className="w-4 h-4 rounded accent-primary" />
+                  <span className="text-sm text-foreground">{label}</span>
+                </label>
+                {open ? (
+                  <div className="flex items-center gap-1.5">
+                    <input type="time" value={day.open} onChange={(e) => setDayTime(key, 'open', e.target.value)} className={timeClass} />
+                    <span className="text-xs text-muted-foreground">–</span>
+                    <input type="time" value={day.close} onChange={(e) => setDayTime(key, 'close', e.target.value)} className={timeClass} />
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground italic">Closed</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
+
       <label className="flex items-center gap-2.5 cursor-pointer select-none">
         <input
           type="checkbox"
@@ -169,11 +220,21 @@ export function LocationPanel() {
   const { tenantId, locationId, setLocationId } = useWorkspaceStore();
   const [modal, setModal] = useState<ModalState | null>(null);
 
-  const { data: locations = [], isLoading } = useQuery({
+  const { data: locations = [], isLoading, isSuccess } = useQuery({
     queryKey: ['locations', tenantId],
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });
+
+  // Reconcile stale persisted selection: if the active location no longer
+  // exists under this workspace (deleted, or left over from a previous
+  // session), clear it so POS/orders/inventory don't send an invalid id.
+  // Guarded on isSuccess so we never clear during the loading/empty flash.
+  useEffect(() => {
+    if (isSuccess && locationId && !locations.some((l) => l.id === locationId)) {
+      setLocationId(null);
+    }
+  }, [isSuccess, locations, locationId, setLocationId]);
 
   const createMutation = useMutation({
     mutationFn: createLocation,
@@ -206,19 +267,24 @@ export function LocationPanel() {
     <aside className="w-100 shrink-0 border-l border-border flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-6 pt-8 pb-4 border-b border-border shrink-0">
-        <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">{tenantId ? 'Locations' : 'Select a workspace'}</p>
-        <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Step 2 · Location</p>
+        <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-foreground">Locations</h2>
           {tenantId && (
             <button
               onClick={() => setModal({ mode: 'create' })}
-              className="h-8 px-3 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors"
+              className="h-8 px-3 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shrink-0"
             >
               <Plus size={13} aria-hidden="true" />
               New
             </button>
           )}
         </div>
+        <p className="text-xs text-muted-foreground mt-1.5">
+          {tenantId
+            ? 'Pick a location to make it active — it drives POS, orders and inventory. Click again to clear.'
+            : 'Select a workspace first to see its locations.'}
+        </p>
       </div>
 
       {/* Body */}
@@ -244,9 +310,19 @@ export function LocationPanel() {
               return (
                 <div
                   key={loc.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isSelected}
                   onClick={() => setLocationId(isSelected ? null : loc.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setLocationId(isSelected ? null : loc.id);
+                    }
+                  }}
                   className={cn(
                     'group px-4 py-3 rounded-xl border cursor-pointer transition-colors duration-150',
+                    'outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                     isSelected ? 'bg-primary/10 border-primary' : 'bg-card border-border hover:border-primary/30 hover:bg-surface-offset',
                   )}
                 >

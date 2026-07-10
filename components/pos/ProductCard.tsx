@@ -19,7 +19,13 @@ export function ProductCard({ item, isSelected, onSelect }: ProductCardProps) {
         isSelected ? 'border-primary shadow-md' : 'border-primary/10 hover:border-primary/30',
       )}
     >
-      <Image width={300} height={300} src={item.image} alt={item.name} loading="lazy" className="object-cover rounded-xl bg-muted" />
+      {item.image ? (
+        <Image width={300} height={300} src={item.image} alt={item.name} loading="lazy" className="object-cover rounded-xl bg-muted aspect-square w-full" />
+      ) : (
+        <div className="rounded-xl bg-muted aspect-square w-full flex items-center justify-center text-4xl font-bold text-muted-foreground/30 select-none">
+          {item.name[0]?.toUpperCase()}
+        </div>
+      )}
 
       <p className="text-sm font-semibold text-foreground leading-snug mt-3">{item.name}</p>
       <p className="text-base font-bold text-primary tabular-nums mt-1">£{(item.price / 100).toFixed(2)}</p>

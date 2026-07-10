@@ -5,7 +5,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { signIn, signOut } from '@/lib/api/auth.service';
+import { signIn, signOut, signUp } from '@/lib/api/auth.service';
 import { useAuthStore } from '@/stores/authStore';
 
 export function useAuth() {
@@ -28,11 +28,25 @@ export function useAuth() {
     }
   }
 
+  async function register(name: string, email: string, password: string) {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { user: created } = await signUp(name, email, password);
+      setUser(created);
+      router.push('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create your account. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function logout() {
     await signOut().catch(() => {}); // best-effort — clear client state regardless
     setUser(null);
     router.push('/sign-in');
   }
 
-  return { user, login, logout, isLoading, error };
+  return { user, login, register, logout, isLoading, error };
 }

@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Pencil, Plus, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
@@ -82,10 +82,20 @@ export function TenantList() {
   const [query, setQuery] = useState('');
   const [modal, setModal] = useState<ModalState | null>(null);
 
-  const { data: tenants = [], isLoading } = useQuery({
+  const { data: tenants = [], isLoading, isSuccess } = useQuery({
     queryKey: ['tenants'],
     queryFn: getTenants,
   });
+
+  // Reconcile stale persisted selection: if the active workspace no longer
+  // exists (deleted, or a different user signed in), clear it so downstream
+  // pages don't silently send an invalid tenantId. Only act once the list has
+  // actually loaded, never on the transient empty/loading state.
+  useEffect(() => {
+    if (isSuccess && tenantId && !tenants.some((t) => t.id === tenantId)) {
+      setTenantId(null);
+    }
+  }, [isSuccess, tenants, tenantId, setTenantId]);
 
   const createMutation = useMutation({
     mutationFn: createTenant,
@@ -145,6 +155,7 @@ export function TenantList() {
                 key={tenant.id}
                 role="button"
                 tabIndex={0}
+                aria-pressed={isSelected}
                 onClick={() => setTenantId(isSelected ? null : tenant.id)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -154,6 +165,7 @@ export function TenantList() {
                 }}
                 className={cn(
                   'w-full flex items-center gap-3 px-4 py-3 text-left rounded-xl border transition-colors duration-150 cursor-pointer',
+                  'outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                   isSelected ? 'bg-primary/10 border-primary' : 'bg-card border-border hover:border-primary/30 hover:bg-surface-offset',
                 )}
               >

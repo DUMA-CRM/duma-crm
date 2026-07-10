@@ -1,11 +1,10 @@
-import { Banknote, CreditCard, FileText, Loader2, Tag } from 'lucide-react';
+import { Banknote, CreditCard, FileText, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 
-import { LOYALTY_DISCOUNT } from '@/lib/constants/pos';
 import { cartItemTotal } from '@/lib/utils/pos';
 import type { CartItem } from '@/types/pos';
 
@@ -15,13 +14,11 @@ interface OrderSummaryProps {
   onNotesChange: (v: string) => void;
   onPay: (method: 'cash' | 'card') => void;
   isPaying?: boolean;
-  hasCustomer?: boolean;
 }
 
-export function OrderSummary({ cart, notes, onNotesChange, onPay, isPaying = false, hasCustomer = false }: OrderSummaryProps) {
+export function OrderSummary({ cart, notes, onNotesChange, onPay, isPaying = false }: OrderSummaryProps) {
+  // Estimate only — the API computes the authoritative total and applies loyalty server-side.
   const subtotal = cart.reduce((sum, c) => sum + cartItemTotal(c), 0);
-  const discount = hasCustomer ? subtotal * LOYALTY_DISCOUNT : 0;
-  const total = subtotal - discount;
 
   return (
     <div className="border-t border-border p-5 shrink-0 space-y-2.5">
@@ -33,25 +30,11 @@ export function OrderSummary({ cart, notes, onNotesChange, onPay, isPaying = fal
         placeholder="Order notes… (e.g. Extra hot)"
       />
 
-      <div className="flex justify-between">
-        <Label>SUBTOTAL</Label>
-        <Label className="tabular-nums text-black">£{(subtotal / 100).toFixed(2)}</Label>
-      </div>
-
-      {hasCustomer && (
-        <div className="flex justify-between">
-          <Label className="flex gap-1 item-center uppercase">
-            <Tag size={13} className="text-primary" /> Loyalty Discount (-5%)
-          </Label>
-          <Label className="text-success tabular-nums">£{(discount / 100).toFixed(2)}</Label>
-        </div>
-      )}
-
       <Separator />
 
       <div className="flex items-center justify-between">
-        <Label>TOTAL AMOUNT</Label>
-        <Label className="text-2xl text-primary tabular-nums">£{(total / 100).toFixed(2)}</Label>
+        <Label>ESTIMATED TOTAL</Label>
+        <Label className="text-2xl text-primary tabular-nums">£{(subtotal / 100).toFixed(2)}</Label>
       </div>
 
       <div className="grid grid-cols-2 gap-2 pt-1">

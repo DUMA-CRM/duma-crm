@@ -12,13 +12,13 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 import { Customer } from '@/types/customers';
-import type { CartItem, MenuItem, PendingOptions } from '@/types/pos';
+import type { CartItem, MenuItem, MenuOption } from '@/types/pos';
 
 interface OrderPanelProps {
   cart: CartItem[];
   selectedItem: MenuItem | null;
-  pending: PendingOptions;
-  setPending: React.Dispatch<React.SetStateAction<PendingOptions>>;
+  pending: MenuOption[];
+  setPending: React.Dispatch<React.SetStateAction<MenuOption[]>>;
   onAddToCart: () => void;
   onCancelItem: () => void;
   onQty: (cartId: string, delta: number) => void;
@@ -86,14 +86,7 @@ export function OrderPanel({
       </ScrollArea>
 
       {cart.length > 0 && (
-        <OrderSummary
-          cart={cart}
-          notes={notes}
-          onNotesChange={setNotes}
-          onPay={handlePay}
-          isPaying={isPaying}
-          hasCustomer={!!selectedCustomer}
-        />
+        <OrderSummary cart={cart} notes={notes} onNotesChange={setNotes} onPay={handlePay} isPaying={isPaying} />
       )}
     </div>
   );

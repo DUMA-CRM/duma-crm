@@ -1,433 +1,332 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Bell, ClipboardList, Package, PackageMinus, TrendingUp, Truck } from 'lucide-react';
-import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Boxes, Package, Plus, Search, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
+import { StockDetailSidebar } from '@/components/inventory/stock/StockDetailSidebar';
+import { AddItemModal, AdjustModal, EditStockItemModal, EditThresholdModal, LogLossModal, RestockModal } from '@/components/inventory/stock/StockModals';
+import {
+  STATUS_BAR,
+  STATUS_ICON_BG,
+  STATUS_ICON_FG,
+  STATUS_LABEL,
+  STATUS_VARIANT,
+  type StockRow,
+  daysColor,
+  fmtQty,
+  getStatus,
+  normaliseArray,
+  stockPct,
+} from '@/components/inventory/stock/shared';
 import { PageLayout } from '@/components/layout/PageLayout';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { StatCard } from '@/components/shared/StatCard';
+import { Toast, type ToastMessage } from '@/components/shared/Toast';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
-import { type DeliveryRecord, getDeliveryLog } from '@/lib/api/delivery.service';
 import {
   type InventoryForecast,
   type LocationStock,
-  type TenantStock,
   getInventoryForecast,
   getLocationStock,
-  getLowStockAlerts,
-  getTenantStock,
+  removeLocationStock,
+  updateLocationStock,
 } from '@/lib/api/inventory.service';
-import { type LossRecord, getLossLog } from '@/lib/api/loss.service';
-import { type RestockRequest, type RestockRequestsResponse, decodeNotes, getRestockRequests } from '@/lib/api/restock.service';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const GRID = 'grid-cols-[2fr_1fr_1fr_1.6fr_1fr_0.9fr]';
 
-function normaliseArray<T>(raw: unknown): T[] {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw as T[];
-  const r = raw as { data?: T[] };
-  if (Array.isArray(r.data)) return r.data;
-  return Object.values(raw as object) as T[];
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const m = Math.floor(diff / 60_000);
-  const h = Math.floor(diff / 3_600_000);
-  const d = Math.floor(diff / 86_400_000);
-  if (m < 2) return 'Just now';
-  if (m < 60) return `${m}m ago`;
-  if (h < 24) return `${h}h ago`;
-  return `${d}d ago`;
-}
-
-function stockPct(qty: string, threshold: string): number {
-  const q = parseFloat(qty);
-  const t = parseFloat(threshold);
-  if (t <= 0) return 100;
-  return Math.min((q / t) * 100, 100);
-}
-
-const LOSS_REASON_LABELS: Record<string, string> = {
-  waste: 'Waste', spoilage: 'Spoilage', theft: 'Theft',
-  damage: 'Damage', expiry: 'Expiry', other: 'Other',
-};
-
-// ── Stat tile ─────────────────────────────────────────────────────────────────
-
-function StatTile({
-  label, value, sub, accent,
-}: {
-  label: string; value: string | number; sub?: string; accent?: 'red' | 'amber' | 'green' | 'blue';
-}) {
-  const valueClass = {
-    red: 'text-destructive', amber: 'text-amber-500', green: 'text-success', blue: 'text-primary',
-  }[accent ?? 'blue'];
-
-  return (
-    <div className="flex flex-col gap-0.5 px-5 py-4 rounded-xl border border-border bg-card">
-      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
-      <p className={cn('text-2xl font-bold tabular-nums', valueClass)}>{value}</p>
-      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-    </div>
-  );
-}
-
-// ── Section card ──────────────────────────────────────────────────────────────
-
-function SectionCard({
-  icon: Icon, title, badge, href, linkLabel = 'View all', children, empty,
-}: {
-  icon: React.ElementType;
-  title: string;
-  badge?: number;
-  href: string;
-  linkLabel?: string;
-  children: React.ReactNode;
-  empty?: boolean;
-}) {
-  return (
-    <section className="rounded-2xl border border-border bg-card overflow-hidden flex flex-col">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
-        <div className="flex items-center gap-2">
-          <Icon size={14} className="text-muted-foreground" />
-          <p className="text-sm font-semibold text-foreground">{title}</p>
-          {badge !== undefined && badge > 0 && (
-            <Badge variant="destructive" className="text-[10px] px-1.5">{badge}</Badge>
-          )}
-        </div>
-        <Link href={href} className="flex items-center gap-1 text-xs text-primary hover:underline">
-          {linkLabel} <ArrowRight size={11} />
-        </Link>
-      </div>
-      <div className="px-5 flex-1">
-        {empty ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">Nothing to show.</p>
-        ) : children}
-      </div>
-    </section>
-  );
-}
-
-// ── Alert row ─────────────────────────────────────────────────────────────────
-
-function AlertRow({ name, qty, threshold, unit, isCritical }: {
-  name: string; qty: string; threshold: string; unit?: string; isCritical: boolean;
-}) {
-  const pct = stockPct(qty, threshold);
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0">
-      <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', isCritical ? 'bg-destructive' : 'bg-amber-400')} />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{name}</p>
-        <div className="flex items-center gap-2 mt-1">
-          <div className="flex-1 h-1 rounded-full bg-border overflow-hidden">
-            <div className={cn('h-full rounded-full', isCritical ? 'bg-destructive' : 'bg-amber-400')} style={{ width: `${pct}%` }} />
-          </div>
-          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-            {parseFloat(qty)}{unit ? ` ${unit}` : ''} / {parseFloat(threshold)}{unit ? ` ${unit}` : ''}
-          </span>
-        </div>
-      </div>
-      <Badge variant={isCritical ? 'destructive' : 'amber'} className="shrink-0 text-[10px]">
-        {isCritical ? 'Critical' : 'Low'}
-      </Badge>
-    </div>
-  );
-}
-
-// ── Forecast row ──────────────────────────────────────────────────────────────
-
-function ForecastRow({ item }: { item: InventoryForecast }) {
-  const days = Math.round(item.daysOfStockRemaining);
-  const color = days <= 7 ? 'text-destructive' : days <= 14 ? 'text-warning' : 'text-amber-500';
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0">
-      <Package size={13} className={cn('shrink-0', item.isCritical ? 'text-destructive' : 'text-amber-500')} />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{item.stockItemName}</p>
-        <p className="text-xs text-muted-foreground">
-          {item.avgDailyConsumption.toFixed(1)} / day · reorder {item.recommendedReorderQuantity} {item.unit}
-          {item.locationName && <span className="ml-1">· {item.locationName}</span>}
-        </p>
-      </div>
-      <div className="text-right shrink-0">
-        <p className={cn('text-sm font-bold tabular-nums', color)}>{days}d</p>
-        <p className="text-[11px] text-muted-foreground">left</p>
-      </div>
-    </div>
-  );
-}
-
-// ── Delivery row ──────────────────────────────────────────────────────────────
-
-function DeliveryRow({ delivery }: { delivery: DeliveryRecord }) {
-  const variant =
-    delivery.status === 'received' ? 'success' :
-    delivery.status === 'pending' ? 'warning' :
-    delivery.status === 'partial' ? 'primary' : 'muted';
-  const itemCount = delivery.items?.length ?? 0;
-
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0">
-      <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-        <Truck size={12} className="text-primary" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{delivery.supplier?.name ?? 'Unknown supplier'}</p>
-        <p className="text-xs text-muted-foreground truncate">
-          {delivery.location?.name ?? '—'}
-          {itemCount > 0 && <span className="ml-1">· {itemCount} {itemCount === 1 ? 'item' : 'items'}</span>}
-        </p>
-      </div>
-      <div className="text-right shrink-0 space-y-0.5">
-        <div><Badge variant={variant} className="text-[10px]">{delivery.status}</Badge></div>
-        <p className="text-[11px] text-muted-foreground">{formatDate(delivery.createdAt)}</p>
-      </div>
-    </div>
-  );
-}
-
-// ── Loss row ──────────────────────────────────────────────────────────────────
-
-function LossRow({ loss }: { loss: LossRecord }) {
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0">
-      <div className="w-7 h-7 rounded-md bg-destructive/10 flex items-center justify-center shrink-0">
-        <PackageMinus size={12} className="text-destructive" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{loss.stockItem?.name ?? '—'}</p>
-        <p className="text-xs text-muted-foreground">
-          {LOSS_REASON_LABELS[loss.type] ?? loss.type}
-          {loss.location?.name && <span className="ml-1">· {loss.location.name}</span>}
-          <span className="ml-1">· {timeAgo(loss.createdAt)}</span>
-        </p>
-      </div>
-      <p className="text-sm font-semibold text-destructive tabular-nums shrink-0">
-        -{Math.abs(loss.quantity)} {loss.stockItem?.unit ?? ''}
-      </p>
-    </div>
-  );
-}
-
-// ── Restock row ───────────────────────────────────────────────────────────────
-
-function RestockRow({ req }: { req: RestockRequest }) {
-  const { priority } = decodeNotes(req.notes);
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0">
-      <div className="w-7 h-7 rounded-md bg-warning/10 flex items-center justify-center shrink-0">
-        <ClipboardList size={12} className="text-warning" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{req.stockItem?.name ?? req.stockItemId.slice(0, 8)}</p>
-        <p className="text-xs text-muted-foreground">{formatDate(req.createdAt)} · qty {req.requestedQty} {req.stockItem?.unit ?? ''}</p>
-      </div>
-      <Badge variant={priority === 'urgent' ? 'destructive' : 'warning'} className="shrink-0 text-[10px]">
-        {priority === 'urgent' ? 'Urgent' : 'Standard'}
-      </Badge>
-    </div>
-  );
-}
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
-export default function InventoryDashboard() {
+export default function InventoryPage() {
   const { tenantId, locationId } = useWorkspaceStore();
+  const queryClient = useQueryClient();
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
-  const { data: rawAlerts } = useQuery({
-    queryKey: ['low-stock-alerts', locationId],
-    queryFn: () => getLowStockAlerts(locationId ?? undefined),
-  });
+  const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const { data: rawLocationStock } = useQuery({
+  // Modal targets
+  const [adjustTarget, setAdjustTarget] = useState<LocationStock | null>(null);
+  const [thresholdTarget, setThresholdTarget] = useState<LocationStock | null>(null);
+  const [restockTarget, setRestockTarget] = useState<LocationStock | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [editItemTarget, setEditItemTarget] = useState<StockRow | null>(null);
+  const [lossModal, setLossModal] = useState<{ locationId?: string; stockItemId?: string } | null>(null);
+
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const addToast = (type: 'success' | 'error', message: string) => setToasts((prev) => [...prev, { id: Date.now(), type, message }]);
+  const removeToast = (id: number) => setToasts((prev) => prev.filter((t) => t.id !== id));
+
+  function invalidateStock() {
+    void queryClient.invalidateQueries({ queryKey: ['location-stock', locationId] });
+    void queryClient.invalidateQueries({ queryKey: ['inventory-forecast', locationId] });
+  }
+
+  const { data: rawStock, isLoading } = useQuery({
     queryKey: ['location-stock', locationId],
     queryFn: () => getLocationStock(locationId!),
     enabled: !!locationId,
   });
 
-  const { data: rawTenantStock } = useQuery({
-    queryKey: ['tenant-stock'],
-    queryFn: getTenantStock,
-    enabled: !locationId,
-  });
-
   const { data: rawForecast } = useQuery({
-    queryKey: ['inventory-forecast', locationId, 30],
-    queryFn: () => getInventoryForecast(locationId ?? undefined, 30),
+    queryKey: ['inventory-forecast', locationId],
+    queryFn: () => getInventoryForecast(locationId!),
+    enabled: !!locationId,
   });
 
-  const { data: rawDeliveries } = useQuery({
-    queryKey: ['delivery-log', locationId ?? tenantId],
-    queryFn: () => getDeliveryLog({ ...(locationId ? { locationId } : { tenantId: tenantId! }), limit: 8 }),
-    enabled: !!(locationId || tenantId),
+  const { mutate: toggleAvailable } = useMutation({
+    mutationFn: (item: LocationStock) => updateLocationStock(item.id, { isAvailable: !item.isAvailable }),
+    onSuccess: () => { invalidateStock(); addToast('success', 'Availability updated.'); },
+    onError: () => addToast('error', 'Failed to update availability.'),
   });
 
-  const { data: rawLoss } = useQuery({
-    queryKey: ['loss-log', locationId ?? tenantId],
-    queryFn: () => getLossLog({ ...(locationId ? { locationId } : { tenantId: tenantId! }), limit: 6 }),
-    enabled: !!(locationId || tenantId),
+  const { mutate: removeItem } = useMutation({
+    mutationFn: (id: string) => removeLocationStock(id),
+    onSuccess: () => { setSelectedId(null); invalidateStock(); addToast('success', 'Item removed.'); },
+    onError: () => addToast('error', 'Failed to remove item.'),
   });
 
-  const { data: restockData } = useQuery({
-    queryKey: ['restock-requests', 'pending', locationId],
-    queryFn: () => getRestockRequests({ status: 'pending', ...(locationId ? { locationId } : {}), limit: 20 }),
-  });
+  const allStock = useMemo(() => normaliseArray<LocationStock>(rawStock), [rawStock]);
 
-  // ── Derived data ───────────────────────────────────────────────────────────
-  const alerts = useMemo(() => normaliseArray<{ id: string; stockItem?: { name: string; unit: string }; quantity: string; lowThreshold: string; isAvailable: boolean }>(rawAlerts), [rawAlerts]);
-  const locationStock = useMemo(() => normaliseArray<LocationStock>(rawLocationStock), [rawLocationStock]);
-  const tenantStock = useMemo(() => normaliseArray<TenantStock>(rawTenantStock), [rawTenantStock]);
-  const forecast = useMemo(() => normaliseArray<InventoryForecast>(rawForecast), [rawForecast]);
-  const deliveries = useMemo(() => normaliseArray<DeliveryRecord>(rawDeliveries), [rawDeliveries]);
-  const lossEntries = useMemo(() => normaliseArray<LossRecord>(rawLoss), [rawLoss]);
-  const pendingRestocks = useMemo<RestockRequest[]>(() => {
-    const r = restockData as RestockRequestsResponse | RestockRequest[] | null | undefined;
-    if (!r) return [];
-    if (Array.isArray(r)) return r;
-    return r.data ?? [];
-  }, [restockData]);
+  const forecastMap = useMemo(() => {
+    const m = new Map<string, InventoryForecast>();
+    normaliseArray<InventoryForecast>(rawForecast).forEach((f) => m.set(f.locationStockId, f));
+    return m;
+  }, [rawForecast]);
 
-  const stock = locationId ? locationStock : tenantStock;
-  const totalItems = stock.length;
-  const criticalAlerts = alerts.filter((a) => parseFloat(a.quantity) <= parseFloat(a.lowThreshold) * 0.5).length;
-  const lowAlerts = alerts.length - criticalAlerts;
-  const stockoutSoon = forecast.filter((f) => f.daysOfStockRemaining <= 7).length;
-  const urgentRestocks = pendingRestocks.filter((r) => decodeNotes(r.notes).priority === 'urgent').length;
-  const urgentForecast = [...forecast.filter((f) => f.isCritical), ...forecast.filter((f) => f.isLow && !f.isCritical)].slice(0, 6);
+  const enriched = useMemo<StockRow[]>(
+    () => allStock.map((s) => ({
+      ...s,
+      status: getStatus(s),
+      qty: parseFloat(s.quantity),
+      threshold: parseFloat(s.lowThreshold),
+      forecast: forecastMap.get(s.id),
+    })),
+    [allStock, forecastMap],
+  );
 
-  // Deliveries this week
-  const weekAgo = Date.now() - 7 * 86_400_000;
-  const deliveriesThisWeek = deliveries.filter((d) => new Date(d.createdAt).getTime() > weekAgo).length;
-  const pendingDeliveries = deliveries.filter((d) => d.status === 'pending').length;
+  const filtered = useMemo(() => enriched.filter((s) => {
+    if (search && !(s.stockItem?.name ?? '').toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  }), [enriched, search]);
 
-  const scopeLabel = locationId ? 'This location' : 'All locations';
+  const selectedItem = useMemo(() => enriched.find((s) => s.id === selectedId) ?? null, [enriched, selectedId]);
+  const existingIds = useMemo(() => new Set(allStock.map((s) => s.stockItemId)), [allStock]);
+
+  const outCount = enriched.filter((s) => s.status === 'out').length;
+  const attentionCount = enriched.filter((s) => s.status === 'low' || s.status === 'critical' || s.status === 'out').length;
+  const soonCount = enriched.filter((s) => s.forecast && s.forecast.daysOfStockRemaining <= 7).length;
+
+  const hasFilters = !!search;
+
+  const sidebar = (
+    <StockDetailSidebar
+      item={selectedItem}
+      tenantId={tenantId}
+      onClose={() => setSelectedId(null)}
+      onAdjust={setAdjustTarget}
+      onEditThreshold={setThresholdTarget}
+      onToggleAvailable={(i) => toggleAvailable(i)}
+      onRemove={(i) => removeItem(i.id)}
+      onRestock={setRestockTarget}
+      onLogLoss={(i) => setLossModal({ locationId: i.locationId, stockItemId: i.stockItemId })}
+      onEditItem={setEditItemTarget}
+    />
+  );
 
   return (
-    <PageLayout eyebrow="Inventory" title="Overview" headerBorder={false}>
-      {/* Scope indicator */}
-      <div className="flex items-center gap-2 mb-6">
-        <div
-          className={cn(
-            'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border',
-            locationId ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-surface-offset border-border text-muted-foreground',
+    <PageLayout eyebrow="Operations" title="Inventory" headerBorder={false} sidebar={sidebar}>
+      <div className="flex flex-col h-full">
+        {/* Toolbar */}
+        <div className="mb-4 shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-full">
+              <Input
+                placeholder="Search items…"
+                leftIcon={<Search size={14} />}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                rightAction={search ? <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground transition-colors"><X size={14} /></button> : undefined}
+              />
+            </div>
+            {locationId && (
+              <Button size="sm" onClick={() => setShowAdd(true)} className="ml-auto gap-1.5">
+                <Plus size={14} /> Add Item
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Stats */}
+        {locationId && (
+          <div className="flex gap-3 mb-4 shrink-0">
+            <StatCard label="Total Items" value={String(enriched.length)} icon="ShoppingBag" iconVariant="primary" />
+            <StatCard
+              label="Out of Stock"
+              value={String(outCount)}
+              icon="Repeat"
+              iconVariant="gold"
+              delta={outCount > 0 ? String(outCount) : undefined}
+              deltaDirection={outCount > 0 ? 'down' : undefined}
+            />
+            <StatCard
+              label="Needs Attention"
+              value={String(attentionCount)}
+              icon="Tag"
+              iconVariant="gold"
+              delta={attentionCount > 0 ? String(attentionCount) : undefined}
+              deltaDirection={attentionCount > 0 ? 'down' : undefined}
+            />
+            <StatCard label="Low Soon" value={String(soonCount)} icon="CalendarDays" iconVariant="info" />
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="flex flex-col min-h-0 overflow-hidden rounded-2xl border border-border bg-card">
+          {!locationId ? (
+            <EmptyState icon={Boxes} title="No location selected" description="Select a location from the header to view and manage its stock." />
+          ) : (
+            <>
+              <div className={cn('grid gap-4 px-4 py-2.5 border-b border-border bg-surface-offset/50 shrink-0', GRID)}>
+                {['Item', 'Quantity', 'Threshold', 'Stock Level', 'Days Left', 'Status'].map((h) => (
+                  <span key={h} className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{h}</span>
+                ))}
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-16"><p className="text-sm text-muted-foreground">Loading stock…</p></div>
+                ) : filtered.length === 0 ? (
+                  <EmptyState
+                    icon={Package}
+                    title={hasFilters ? 'No items match your filters' : 'No stock items at this location'}
+                    description={hasFilters ? 'Try adjusting your filters.' : 'Add items using the button above.'}
+                  />
+                ) : (
+                  filtered.map((s) => {
+                    const pct = stockPct(s.qty, s.threshold);
+                    const selected = selectedId === s.id;
+                    const days = s.forecast?.daysOfStockRemaining;
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() => setSelectedId((prev) => (prev === s.id ? null : s.id))}
+                        className={cn(
+                          'grid gap-4 px-4 py-3 border-b border-border/50 last:border-0 cursor-pointer transition-colors hover:bg-surface-offset/40',
+                          GRID,
+                          selected && 'bg-primary/5 border-l-2 border-l-primary',
+                        )}
+                      >
+                        {/* Item */}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={cn('w-7 h-7 rounded-md flex items-center justify-center shrink-0', STATUS_ICON_BG[s.status])}>
+                            <Package size={13} className={STATUS_ICON_FG[s.status]} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{s.stockItem?.name ?? s.stockItemId.slice(0, 8)}</p>
+                            {s.stockItem?.unit && <p className="text-[11px] text-muted-foreground">{s.stockItem.unit}</p>}
+                          </div>
+                        </div>
+
+                        {/* Quantity */}
+                        <div className="flex items-center">
+                          <span className={cn('text-sm font-semibold tabular-nums', (s.status === 'critical' || s.status === 'out') && 'text-destructive')}>
+                            {fmtQty(s.qty)}
+                          </span>
+                        </div>
+
+                        {/* Threshold */}
+                        <div className="flex items-center text-sm text-muted-foreground tabular-nums">{fmtQty(s.threshold)}</div>
+
+                        {/* Stock level */}
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
+                            <div className={cn('h-full rounded-full transition-all', STATUS_BAR[s.status])} style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-xs text-muted-foreground tabular-nums w-8 text-right shrink-0">{Math.round(pct)}%</span>
+                        </div>
+
+                        {/* Days left */}
+                        <div className="flex items-center">
+                          {days === undefined ? (
+                            <span className="text-xs text-muted-foreground/40">—</span>
+                          ) : (
+                            <span className={cn('text-sm font-medium tabular-nums', daysColor(days))}>{Math.round(days)}d</span>
+                          )}
+                        </div>
+
+                        {/* Status */}
+                        <div className="flex items-center">
+                          <Badge variant={STATUS_VARIANT[s.status]}>{STATUS_LABEL[s.status]}</Badge>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {filtered.length > 0 && (
+                <div className="px-4 py-2 border-t border-border shrink-0">
+                  <p className="text-xs text-muted-foreground">
+                    {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
+                    {hasFilters && enriched.length !== filtered.length && ` of ${enriched.length} total`}
+                  </p>
+                </div>
+              )}
+            </>
           )}
-        >
-          <div className={cn('w-1.5 h-1.5 rounded-full', locationId ? 'bg-primary' : 'bg-muted-foreground')} />
-          {locationId ? 'Location view' : 'Tenant-wide view — select a location for details'}
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-6 gap-3 mb-4">
-        <StatTile label="Total Items" value={totalItems} sub={scopeLabel} accent="blue" />
-        <StatTile
-          label="Critical Stock"
-          value={criticalAlerts}
-          sub={criticalAlerts > 0 ? 'Needs action now' : 'All clear'}
-          accent={criticalAlerts > 0 ? 'red' : 'green'}
+      {/* Modals */}
+      {showAdd && locationId && (
+        <AddItemModal
+          locationId={locationId}
+          existingIds={existingIds}
+          onClose={() => setShowAdd(false)}
+          onSuccess={() => { invalidateStock(); addToast('success', 'Item added.'); }}
         />
-        <StatTile
-          label="Low Stock"
-          value={lowAlerts}
-          sub={lowAlerts > 0 ? 'Below threshold' : 'All healthy'}
-          accent={lowAlerts > 0 ? 'amber' : 'green'}
+      )}
+      {editItemTarget?.stockItem && (
+        <EditStockItemModal
+          item={editItemTarget.stockItem}
+          onClose={() => setEditItemTarget(null)}
+          onSuccess={() => {
+            void queryClient.invalidateQueries({ queryKey: ['stock-items'] });
+            invalidateStock();
+            addToast('success', 'Stock item updated.');
+          }}
         />
-        <StatTile
-          label="Stockout ≤ 7 days"
-          value={stockoutSoon}
-          sub="Based on 30-day avg"
-          accent={stockoutSoon > 0 ? 'red' : 'green'}
+      )}
+      {adjustTarget && (
+        <AdjustModal item={adjustTarget} onClose={() => setAdjustTarget(null)} onSuccess={() => { invalidateStock(); addToast('success', 'Stock adjusted.'); }} />
+      )}
+      {thresholdTarget && (
+        <EditThresholdModal item={thresholdTarget} onClose={() => setThresholdTarget(null)} onSuccess={() => { invalidateStock(); addToast('success', 'Threshold updated.'); }} />
+      )}
+      {restockTarget && (
+        <RestockModal
+          item={restockTarget}
+          onClose={() => setRestockTarget(null)}
+          onSuccess={() => { addToast('success', 'Restock request submitted.'); void queryClient.invalidateQueries({ queryKey: ['restock-requests'] }); }}
         />
-        <StatTile
-          label="Pending Restocks"
-          value={pendingRestocks.length}
-          sub={urgentRestocks > 0 ? `${urgentRestocks} urgent` : 'No urgent'}
-          accent={urgentRestocks > 0 ? 'red' : pendingRestocks.length > 0 ? 'amber' : 'blue'}
+      )}
+      {lossModal && (
+        <LogLossModal
+          defaultLocationId={lossModal.locationId}
+          defaultStockItemId={lossModal.stockItemId}
+          onClose={() => setLossModal(null)}
+          onSuccess={() => {
+            invalidateStock();
+            void queryClient.invalidateQueries({ queryKey: ['loss-log'] });
+            addToast('success', 'Loss entry recorded.');
+          }}
         />
-        <StatTile
-          label="Deliveries this week"
-          value={deliveriesThisWeek}
-          sub={pendingDeliveries > 0 ? `${pendingDeliveries} pending` : 'All received'}
-          accent={pendingDeliveries > 0 ? 'amber' : 'blue'}
-        />
-      </div>
+      )}
 
-      {/* Main sections */}
-      <div className="grid grid-cols-3 gap-4 mb-4">
-        {/* Low stock alerts */}
-        <SectionCard
-          icon={Bell}
-          title="Low Stock Alerts"
-          badge={alerts.length}
-          href="/inventory/low-stock-alerts"
-          empty={alerts.length === 0}
-        >
-          {alerts.slice(0, 6).map((a) => (
-            <AlertRow
-              key={a.id}
-              name={a.stockItem?.name ?? 'Unknown'}
-              qty={a.quantity}
-              threshold={a.lowThreshold}
-              unit={a.stockItem?.unit}
-              isCritical={parseFloat(a.quantity) <= parseFloat(a.lowThreshold) * 0.5}
-            />
-          ))}
-        </SectionCard>
-
-        {/* Demand forecast */}
-        <SectionCard
-          icon={TrendingUp}
-          title="Running Low Soon"
-          href="/inventory/demand-forecast"
-          linkLabel="Full forecast"
-          empty={urgentForecast.length === 0}
-        >
-          {urgentForecast.map((f) => <ForecastRow key={f.locationStockId} item={f} />)}
-        </SectionCard>
-
-        {/* Pending restock requests */}
-        <SectionCard
-          icon={ClipboardList}
-          title="Pending Restocks"
-          badge={urgentRestocks}
-          href="/inventory/restock-requests"
-          empty={pendingRestocks.length === 0}
-        >
-          {pendingRestocks.slice(0, 6).map((r) => <RestockRow key={r.id} req={r} />)}
-        </SectionCard>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        {/* Recent deliveries */}
-        <SectionCard
-          icon={Truck}
-          title="Recent Deliveries"
-          href="/inventory/delivery-log"
-          empty={deliveries.length === 0}
-        >
-          {deliveries.slice(0, 5).map((d) => <DeliveryRow key={d.id} delivery={d} />)}
-        </SectionCard>
-
-        {/* Recent losses */}
-        <SectionCard
-          icon={PackageMinus}
-          title="Recent Losses"
-          href="/inventory/loss-log"
-          empty={lossEntries.length === 0}
-        >
-          {lossEntries.slice(0, 5).map((l) => <LossRow key={l.id} loss={l} />)}
-        </SectionCard>
-      </div>
+      <Toast toasts={toasts} onDismiss={removeToast} />
     </PageLayout>
   );
 }

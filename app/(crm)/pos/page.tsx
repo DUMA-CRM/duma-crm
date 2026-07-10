@@ -11,21 +11,15 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
 
-import {
-  getLocationMenuItems,
-  getLocationModifiers,
-  getMenuItemModifierGroups,
-  getMenuItems,
-  getModifierGroups,
-  getModifiersByGroup,
-} from '@/lib/api/menu.service';
+import { getMenuItemModifiers, getMenuItems } from '@/lib/api/menu.service';
 import { createOrder } from '@/lib/api/orders.service';
 import { CATEGORIES } from '@/lib/constants/pos';
-import { cartItemTotal, getDefaultOptions } from '@/lib/utils/pos';
+import { parseModifierName } from '@/lib/utils/modifiers';
+import { selectionKey } from '@/lib/utils/pos';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { Customer } from '@/types/customers';
-import type { MenuItem as ApiMenuItem, Modifier as ApiModifier, ModifierGroup as ApiModifierGroup, LocationMenuItem } from '@/types/menu';
-import type { CartItem, Category, MenuItem, MenuOption, PendingOptions, PosModifierGroup } from '@/types/pos';
+import type { MenuItem as ApiMenuItem, Modifier as ApiModifier } from '@/types/menu';
+import type { CartItem, Category, MenuItem, MenuOption } from '@/types/pos';
 
 // ── API → POS type mapping ────────────────────────────────────────────────────
 
@@ -33,40 +27,19 @@ function pence(decimal: string): number {
   return Math.round(Number.parseFloat(decimal) * 100);
 }
 
-function toPosItem(
-  api: ApiMenuItem,
-  linkedGroupIds: string[],
-  allGroupMeta: Map<string, ApiModifierGroup>,
-  modifiersByGroup: Map<string, ApiModifier[]>,
-  locationLink?: LocationMenuItem,
-  availableModifierIds?: Set<string>,
-): MenuItem {
-  const price = locationLink?.priceOverride ? pence(locationLink.priceOverride) : pence(api.basePrice);
-
-  const modifierGroups: PosModifierGroup[] = linkedGroupIds
-    .map((gid) => {
-      const meta = allGroupMeta.get(gid);
-      const modifiers = modifiersByGroup.get(gid) ?? [];
-      if (!meta || modifiers.length === 0) return null;
-      return {
-        groupId: gid,
-        groupName: meta.name,
-        required: meta.required,
-        multiSelect: meta.multiSelect,
-        options: modifiers
-          .filter((m) => m.isAvailable && (!availableModifierIds || availableModifierIds.has(m.id)))
-          .map((m): MenuOption => ({ id: m.id, label: m.name, price: m.priceAdjust ? pence(m.priceAdjust) : 0 })),
-      };
-    })
-    .filter((g): g is PosModifierGroup => g !== null && g.options.length > 0);
-
+function toPosItem(api: ApiMenuItem, modifiers: ApiModifier[]): MenuItem {
   return {
     id: api.id,
     name: api.name,
     category: api.category,
-    price,
+    price: pence(api.price),
     image: api.imageUrl ?? '',
-    modifierGroups,
+    modifiers: modifiers
+      .filter((m) => m.isAvailable)
+      .map((m): MenuOption => {
+        const { category, label } = parseModifierName(m.name);
+        return { id: m.id, label, price: m.priceAdjust ? pence(m.priceAdjust) : 0, category: category ?? undefined };
+      }),
   };
 }
 
@@ -77,7 +50,7 @@ export default function POSPage() {
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-  const [pending, setPending] = useState<PendingOptions>({});
+  const [pending, setPending] = useState<MenuOption[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -94,90 +67,22 @@ export default function POSPage() {
     enabled: !!tenantId,
   });
 
-  const { data: allGroupMeta = [], isLoading: groupMetaLoading } = useQuery({
-    queryKey: ['modifier-groups'],
-    queryFn: getModifierGroups,
-    enabled: !!tenantId,
-  });
-
-  const { data: locationLinks = [] } = useQuery({
-    queryKey: ['location-menu-items', locationId],
-    queryFn: () => getLocationMenuItems(locationId ?? ''),
-    enabled: !!locationId,
-  });
-
-  const { data: locationModifiers = [] } = useQuery({
-    queryKey: ['location-modifiers', locationId],
-    queryFn: () => getLocationModifiers(locationId ?? ''),
-    enabled: !!locationId,
-  });
-
-  const availableModifierIds = useMemo(
-    () => new Set(locationModifiers.filter((m) => m.isAvailable).map((m) => m.modifierId)),
-    [locationModifiers],
-  );
-
-  // Per-item modifier group links
-  const itemGroupQueries = useQueries({
+  // Each item's attached modifiers (flat add-ons). One query per item.
+  const modifierQueries = useQueries({
     queries: apiItems.map((item) => ({
-      queryKey: ['menu-item-modifier-groups', item.id],
-      queryFn: () => getMenuItemModifierGroups(item.id),
-      enabled: !!tenantId && apiItems.length > 0,
+      queryKey: ['menu-item-modifiers', item.id],
+      queryFn: () => getMenuItemModifiers(item.id),
+      enabled: apiItems.length > 0,
     })),
   });
 
-  // Collect all unique group IDs across all items
-  const allGroupIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const q of itemGroupQueries) {
-      for (const link of q.data ?? []) ids.add(link.modifierGroupId);
-    }
-    return Array.from(ids);
-  }, [itemGroupQueries]);
-
-  // Fetch modifiers for each unique group in parallel
-  const groupModifierQueries = useQueries({
-    queries: allGroupIds.map((groupId) => ({
-      queryKey: ['modifiers-by-group', groupId],
-      queryFn: () => getModifiersByGroup(groupId),
-      enabled: allGroupIds.length > 0,
-    })),
-  });
-
-  const groupMetaMap = useMemo(() => new Map(allGroupMeta.map((g) => [g.id, g])), [allGroupMeta]);
-
-  const modifiersByGroupMap = useMemo(() => {
-    const map = new Map<string, ApiModifier[]>();
-    allGroupIds.forEach((id, i) => map.set(id, groupModifierQueries[i]?.data ?? []));
-    return map;
-  }, [allGroupIds, groupModifierQueries]);
-
-  const posItems = useMemo<MenuItem[]>(() => {
-    if (!apiItems.length) return [];
-
-    const linkMap = Object.fromEntries(locationLinks.map((l) => [l.menuItemId, l]));
-
-    return apiItems
-      .filter((item) => {
-        if (!item.isAvailable) return false;
-        if (locationId && locationLinks.length > 0) {
-          const link = linkMap[item.id];
-          return link ? link.isAvailable : false;
-        }
-        return true;
-      })
-      .map((item, i) => {
-        const groupIds = (itemGroupQueries[i]?.data ?? []).map((l) => l.modifierGroupId);
-        return toPosItem(
-          item,
-          groupIds,
-          groupMetaMap,
-          modifiersByGroupMap,
-          locationId ? linkMap[item.id] : undefined,
-          availableModifierIds.size > 0 ? availableModifierIds : undefined,
-        );
-      });
-  }, [apiItems, locationLinks, locationId, itemGroupQueries, groupMetaMap, modifiersByGroupMap]);
+  const posItems = useMemo<MenuItem[]>(
+    () =>
+      apiItems
+        .filter((item) => item.isAvailable)
+        .map((item, i) => toPosItem(item, modifierQueries[i]?.data ?? [])),
+    [apiItems, modifierQueries],
+  );
 
   const filtered = useMemo(
     () => (activeCategory === 'all' ? posItems : posItems.filter((i) => i.category === activeCategory)),
@@ -186,55 +91,43 @@ export default function POSPage() {
 
   function handleSelectItem(item: MenuItem) {
     setSelectedItem(item);
-    setPending(getDefaultOptions(item));
+    setPending([]);
   }
 
   function handleAddToCart() {
     if (!selectedItem) return;
-    setCart((prev) => [...prev, { cartId: `${selectedItem.id}-${Date.now()}`, item: selectedItem, quantity: 1, selections: pending }]);
+    const key = selectionKey(pending);
+    setCart((prev) => {
+      // Merge into an existing line with the same item + same modifiers.
+      const existing = prev.find((c) => c.item.id === selectedItem.id && selectionKey(c.selected) === key);
+      if (existing) {
+        return prev.map((c) => (c.cartId === existing.cartId ? { ...c, quantity: c.quantity + 1 } : c));
+      }
+      return [...prev, { cartId: `${selectedItem.id}-${Date.now()}`, item: selectedItem, quantity: 1, selected: pending }];
+    });
     setSelectedItem(null);
+    setPending([]);
   }
 
   function handleQty(cartId: string, delta: number) {
     setCart((prev) => prev.map((c) => (c.cartId === cartId ? { ...c, quantity: c.quantity + delta } : c)).filter((c) => c.quantity > 0));
   }
 
+  // Prices, item names and the order total are computed server-side. We send IDs only.
   const { mutate: submitOrder, isPending: isPaying } = useMutation({
-    mutationFn: ({ method, notes }: { method: 'cash' | 'card'; notes: string }) => {
-      const subtotal = cart.reduce((sum, c) => sum + cartItemTotal(c), 0);
-      // only apply loyalty discount when a customer is linked
-      const total = selectedCustomer ? subtotal * 0.95 : subtotal;
-      const payload = {
+    mutationFn: ({ method, notes }: { method: 'cash' | 'card'; notes: string }) =>
+      createOrder({
         locationId: locationId!,
         ...(selectedCustomer ? { customerId: selectedCustomer.id } : {}),
-        source: 'pos' as const,
-        totalAmount: (total / 100).toFixed(2),
-        notes: notes || undefined,
+        source: 'pos',
         paymentMethod: method,
-        items: cart.map((c) => {
-          const unitPrice = c.item.price / 100;
-          // only include modifiers that have a valid modifier ID
-          const mods = Object.entries(c.selections)
-            .filter(([, opt]) => opt != null && !!opt.id)
-            .map(([, opt]) => ({
-              modifierId: opt!.id!,
-              name: opt!.label,
-              priceAdjust: (opt!.price / 100).toFixed(2),
-            }));
-          const itemTotal = (unitPrice + mods.reduce((s, m) => s + Number.parseFloat(m.priceAdjust), 0)) * c.quantity;
-          return {
-            menuItemId: c.item.id,
-            name: c.item.name,
-            quantity: c.quantity,
-            unitPrice: unitPrice.toFixed(2),
-            subtotal: itemTotal.toFixed(2),
-            ...(mods.length > 0 ? { modifiers: mods } : {}),
-          };
-        }),
-      };
-      console.log('[POS] createOrder payload', JSON.stringify(payload, null, 2));
-      return createOrder(payload);
-    },
+        notes: notes || undefined,
+        items: cart.map((c) => ({
+          menuItemId: c.item.id,
+          quantity: c.quantity,
+          ...(c.selected.length > 0 ? { modifiers: c.selected.map((o) => ({ modifierId: o.id })) } : {}),
+        })),
+      }),
     onSuccess: () => {
       setCart([]);
       setSelectedCustomer(null);
@@ -245,8 +138,7 @@ export default function POSPage() {
     },
   });
 
-  const isLoading =
-    itemsLoading || groupMetaLoading || itemGroupQueries.some((q) => q.isLoading) || groupModifierQueries.some((q) => q.isLoading);
+  const isLoading = itemsLoading || modifierQueries.some((q) => q.isLoading);
 
   return (
     <>

@@ -1,7 +1,5 @@
 import type { Category } from '@/types/pos';
 
-export const LOYALTY_DISCOUNT = 0.05;
-
 export const CATEGORIES: { value: Category; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'coffee', label: 'Coffee' },

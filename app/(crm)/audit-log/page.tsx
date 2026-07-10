@@ -1,14 +1,55 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Clock, History, X } from 'lucide-react';
+import {
+  Building2,
+  ChevronDown,
+  Clock,
+  Fingerprint,
+  Globe,
+  History,
+  Link2,
+  Mail,
+  Monitor,
+  Route,
+  Shield,
+  ShieldCheck,
+  Timer,
+  User,
+  X,
+} from 'lucide-react';
 import { useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 
-import { getAuditLogs } from '@/lib/api/audit.service';
+import { type AuditLog, getAuditLogs, parseAuditMeta } from '@/lib/api/audit.service';
 import { cn } from '@/lib/utils/cn';
+
+const ROLE_LABEL: Record<string, string> = {
+  super_admin: 'Super Admin',
+  franchise_owner: 'Franchise Owner',
+  store_manager: 'Store Manager',
+  barista: 'Barista',
+  hr_manager: 'HR Manager',
+  marketing_manager: 'Marketing',
+  auditor: 'Auditor',
+};
+
+function fmtDuration(ms?: number | null) {
+  if (ms == null) return null;
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`;
+}
+
+function statusColor(code?: number | null) {
+  if (code == null) return 'bg-muted text-muted-foreground';
+  if (code < 300) return 'bg-success/10 text-success';
+  if (code < 400) return 'bg-primary/10 text-primary';
+  if (code < 500) return 'bg-warning/10 text-warning';
+  return 'bg-destructive/10 text-destructive';
+}
+
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -34,57 +75,129 @@ function formatDate(iso: string) {
   });
 }
 
-// ── Log row ───────────────────────────────────────────────────────────────────
+// ── Detail panel (details + metadata) ──────────────────────────────────────────
 
-function LogRow({
-  log,
-}: {
-  log: ReturnType<typeof useQuery<Awaited<ReturnType<typeof getAuditLogs>>>>['data'] extends { data: (infer T)[] } | undefined ? T : never;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const hasMeta = log.meta && Object.keys(log.meta).length > 0;
+function AuditDetailPanel({ log }: { log: AuditLog }) {
+  const meta = parseAuditMeta(log.metadata);
+  const response = parseAuditMeta(log.response);
+  const duration = fmtDuration(log.durationMs);
 
   return (
-    <tr
-      className={cn('group border-b border-border/50 transition-colors', hasMeta && 'cursor-pointer hover:bg-surface-offset')}
-      onClick={() => hasMeta && setExpanded((v) => !v)}
-    >
-      <td className="py-3.5 pr-4 w-36 align-top">
-        <span
-          className={cn(
-            'inline-block text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md border whitespace-nowrap',
-            actionColor(log.action),
-          )}
-        >
-          {humanise(log.action)}
-        </span>
-      </td>
-      <td className="py-3.5 pr-4 align-top">
-        <p className="text-sm font-medium text-foreground leading-snug">{humanise(log.resourceType)}</p>
-        {log.resourceId && <p className="text-xs text-muted-foreground font-mono mt-0.5 opacity-60">{log.resourceId}</p>}
-        {expanded && hasMeta && (
-          <pre className="mt-2 text-xs text-muted-foreground bg-muted rounded-xl px-3 py-2.5 overflow-x-auto whitespace-pre-wrap break-all border border-border">
-            {JSON.stringify(log.meta, null, 2)}
+    <div className="grid grid-cols-2 gap-5 items-start">
+      {/* Details */}
+      <div className="flex flex-col gap-3">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Details</p>
+        <InfoGroup>
+          <InfoRow icon={User} label="Actor" value={log.userName ?? 'System / anonymous'} />
+          {log.userRole && <InfoRow icon={Shield} label="Role" value={ROLE_LABEL[log.userRole] ?? log.userRole} />}
+          {log.userEmail && <InfoRow icon={Mail} label="Email" value={log.userEmail} copyable />}
+          {log.method && <InfoRow icon={Route} label="Method" value={log.method} />}
+          {log.path && <InfoRow icon={Link2} label="Path" value={log.path} copyable />}
+          {log.statusCode != null && <InfoRow icon={ShieldCheck} label="Status" value={String(log.statusCode)} />}
+          {duration && <InfoRow icon={Timer} label="Duration" value={duration} />}
+          {log.tenantId && <InfoRow icon={Building2} label="Tenant" value={log.tenantId} copyable />}
+          {log.resourceId && <InfoRow icon={Link2} label="Resource ID" value={log.resourceId} copyable />}
+          {log.ipAddress && <InfoRow icon={Globe} label="IP address" value={log.ipAddress} copyable />}
+          {log.requestId && <InfoRow icon={Fingerprint} label="Request ID" value={log.requestId} copyable />}
+          {log.userAgent && <InfoRow icon={Monitor} label="User agent" value={log.userAgent} />}
+        </InfoGroup>
+      </div>
+
+      {/* Metadata + response */}
+      <div className="flex flex-col gap-3">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Metadata</p>
+        {meta ? (
+          <pre className="text-xs text-muted-foreground bg-background border border-border rounded-xl px-3 py-2.5 overflow-x-auto whitespace-pre-wrap break-all">
+            {JSON.stringify(meta, null, 2)}
           </pre>
-        )}
-      </td>
-      <td className="py-3.5 pr-4 w-44 align-top">
-        {log.user?.name ? (
-          <>
-            <p className="text-sm text-foreground leading-snug">{log.user.name}</p>
-            <p className="text-xs text-muted-foreground truncate max-w-40 mt-0.5">{log.user.email}</p>
-          </>
         ) : (
-          <span className="text-sm text-muted-foreground">—</span>
+          <p className="text-[11px] text-muted-foreground">No metadata.</p>
         )}
-      </td>
-      <td className="py-3.5 w-44 align-top">
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
-          <Clock size={11} aria-hidden="true" className="shrink-0" />
-          {formatDate(log.createdAt)}
-        </span>
-      </td>
-    </tr>
+
+        {response && (
+          <>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Response</p>
+            <pre className="text-xs text-muted-foreground bg-background border border-border rounded-xl px-3 py-2.5 overflow-x-auto whitespace-pre-wrap break-all">
+              {JSON.stringify(response, null, 2)}
+            </pre>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Log row ───────────────────────────────────────────────────────────────────
+
+function LogRow({ log }: { log: AuditLog }) {
+  const [open, setOpen] = useState(false);
+  const duration = fmtDuration(log.durationMs);
+
+  return (
+    <>
+      <tr
+        className="group border-b border-border/50 transition-colors align-top cursor-pointer hover:bg-surface-offset"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <td className="px-5 py-4 w-6 align-top">
+          <ChevronDown size={14} className={cn('text-muted-foreground transition-transform duration-150 mt-0.5', open && 'rotate-180')} aria-hidden="true" />
+        </td>
+        <td className="px-5 py-4 w-40 align-top">
+          <span
+            className={cn(
+              'inline-block text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md border whitespace-nowrap',
+              actionColor(log.action),
+            )}
+          >
+            {humanise(log.action)}
+          </span>
+        </td>
+        <td className="px-5 py-4 align-top">
+          <p className="text-sm font-medium text-foreground leading-snug">{humanise(log.resourceType)}</p>
+          {(log.method || log.path) && (
+            <p className="text-xs text-muted-foreground font-mono mt-0.5 opacity-70 truncate max-w-md">
+              {log.method && <span className="font-semibold">{log.method}</span>} {log.path}
+            </p>
+          )}
+        </td>
+        <td className="px-5 py-4 w-48 align-top">
+          {log.userName || log.userEmail ? (
+            <>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm text-foreground leading-snug truncate max-w-36">{log.userName ?? '—'}</p>
+                {log.userRole && (
+                  <span className="text-[9px] font-bold uppercase tracking-wide px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                    {ROLE_LABEL[log.userRole] ?? log.userRole}
+                  </span>
+                )}
+              </div>
+              {log.userEmail && <p className="text-xs text-muted-foreground truncate max-w-44 mt-0.5">{log.userEmail}</p>}
+            </>
+          ) : (
+            <span className="text-sm text-muted-foreground">System / anonymous</span>
+          )}
+        </td>
+        <td className="px-5 py-4 pr-6 w-44 align-top">
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
+            <Clock size={11} aria-hidden="true" className="shrink-0" />
+            {formatDate(log.createdAt)}
+          </span>
+          <div className="flex items-center gap-1.5 mt-1">
+            {log.statusCode != null && (
+              <span className={cn('text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md', statusColor(log.statusCode))}>{log.statusCode}</span>
+            )}
+            {duration && <span className="text-[11px] text-muted-foreground tabular-nums">{duration}</span>}
+          </div>
+        </td>
+      </tr>
+      {open && (
+        <tr className="border-b border-border/50 bg-surface-offset/50">
+          <td colSpan={5} className="px-8 pt-3 pb-5">
+            <AuditDetailPanel log={log} />
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -185,71 +298,71 @@ export default function AuditLogPage() {
   return (
     <PageLayout eyebrow="System" title="Audit Log" headerSlot={filterBar} headerBorder fullHeight>
       <div className="h-full flex flex-col">
-        {/* Table */}
-        <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
-            <div className="flex flex-col gap-2 pt-1">
-              {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-                <div key={i} className="h-14 bg-muted rounded-xl animate-pulse" />
-              ))}
-            </div>
-          ) : logs.length === 0 ? (
-            <EmptyState
-              icon={History}
-              title="No audit logs found"
-              description={hasFilters ? 'Try adjusting your filters.' : 'Actions performed in the system will appear here.'}
-            />
-          ) : (
-            <table className="w-full border-collapse">
-              <thead className="sticky top-0 bg-card z-10">
-                <tr className="border-b border-border">
-                  <th className="text-left pb-2.5 pr-4 w-36">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Action</span>
-                  </th>
-                  <th className="text-left pb-2.5 pr-4">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Resource</span>
-                  </th>
-                  <th className="text-left pb-2.5 pr-4 w-44">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">User</span>
-                  </th>
-                  <th className="text-left pb-2.5 w-44">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Time</span>
-                  </th>
+        {/* Audit table */}
+        <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-border bg-muted">
+                  <th className="px-5 py-3.5 w-6" />
+                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-40">Action</th>
+                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Resource</th>
+                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-48">User</th>
+                  <th className="px-5 py-3.5 pr-6 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-44">Time</th>
                 </tr>
               </thead>
               <tbody>
-                {logs.map((log) => (
-                  <LogRow key={log.id} log={log} />
-                ))}
+                {isLoading ? (
+                  Array.from({ length: 10 }).map((_, i) => (
+                    <tr key={i} className="border-b border-border/50">
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <td key={j} className="px-5 py-4">
+                          <div className="h-4 bg-muted rounded animate-pulse" style={{ width: `${45 + ((i * 13 + j * 17) % 40)}%` }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-24">
+                      <EmptyState
+                        icon={History}
+                        title="No audit logs found"
+                        description={hasFilters ? 'Try adjusting your filters.' : 'Actions performed in the system will appear here.'}
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  logs.map((log) => <LogRow key={log.id} log={log} />)
+                )}
               </tbody>
             </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+              <p className="text-xs text-muted-foreground tabular-nums">
+                Page {page} of {totalPages} · {(data?.total ?? 0).toLocaleString()} entries
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="h-7 px-3 text-xs font-medium border border-border rounded-lg text-muted-foreground hover:bg-surface-offset transition-colors disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="h-7 px-3 text-xs font-medium border border-border rounded-lg text-muted-foreground hover:bg-surface-offset transition-colors disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           )}
         </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 pb-1 shrink-0 border-t border-border mt-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="h-8 px-3 flex items-center gap-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-surface-offset transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft size={14} aria-hidden="true" />
-              Prev
-            </button>
-            <span className="text-xs text-muted-foreground">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="h-8 px-3 flex items-center gap-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-surface-offset transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-              <ChevronRight size={14} aria-hidden="true" />
-            </button>
-          </div>
-        )}
       </div>
     </PageLayout>
   );

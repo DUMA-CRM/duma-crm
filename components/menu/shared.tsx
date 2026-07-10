@@ -1,5 +1,5 @@
 // Shared constants and small helpers for menu components.
-import { MenuCategory, ModifierType } from '@/types/menu';
+import { MenuCategory } from '@/types/menu';
 
 export const CATEGORY_COLORS: Record<MenuCategory, string> = {
   coffee: 'bg-warning/10 text-warning',
@@ -19,21 +19,13 @@ export const CATEGORY_LABELS: Record<MenuCategory, string> = {
 
 export const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS) as [MenuCategory, string][];
 
-export const MODIFIER_TYPE_LABELS: Record<ModifierType, string> = {
-  size: 'Size',
-  milk: 'Milk',
-  syrup: 'Syrup',
-  extra: 'Extra',
-  remove: 'Remove',
-};
-
-export const MODIFIER_TYPE_OPTIONS = Object.entries(MODIFIER_TYPE_LABELS) as [ModifierType, string][];
-
 export const inputClass =
   'w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
 export const selectClass =
   'w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150 cursor-pointer';
+
+export const labelClass = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
 export function FormActions({ onClose, isPending, isEdit }: { onClose: () => void; isPending: boolean; isEdit?: boolean }) {
   return (

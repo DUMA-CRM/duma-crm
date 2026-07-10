@@ -11,6 +11,8 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+type NavItemProps = NavItem & { badge?: number };
+
 function AccentBar({ className }: { className?: string }) {
   return (
     <span
@@ -23,7 +25,7 @@ function AccentBar({ className }: { className?: string }) {
   );
 }
 
-function CollapsedNavItem({ href, label, icon: Icon, children }: NavItem) {
+function CollapsedNavItem({ href, label, icon: Icon, children, badge }: NavItemProps) {
   const pathname = usePathname();
   const { closeMobile } = useSidebarStore();
 
@@ -37,10 +39,10 @@ function CollapsedNavItem({ href, label, icon: Icon, children }: NavItem) {
       <Link
         href={href}
         onClick={closeMobile}
-        title={label}
+        title={badge ? `${label} (${badge})` : label}
         aria-current={parentHighlighted ? 'page' : undefined}
         className={cn(
-          'w-9 h-9 flex items-center justify-center rounded-lg mx-auto',
+          'relative w-9 h-9 flex items-center justify-center rounded-lg mx-auto',
           'text-muted-foreground transition-colors duration-150',
           !childActive && !parentHighlighted && 'hover:bg-surface-offset hover:text-foreground',
           parentHighlighted && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15',
@@ -49,6 +51,11 @@ function CollapsedNavItem({ href, label, icon: Icon, children }: NavItem) {
         )}
       >
         <Icon aria-hidden="true" className="shrink-0" size={18} />
+        {!!badge && (
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-primary text-white text-[9px] font-bold tabular-nums ring-2 ring-card">
+            {badge > 9 ? '9+' : badge}
+          </span>
+        )}
       </Link>
 
       {open && !!children?.length && (
@@ -82,7 +89,7 @@ function CollapsedNavItem({ href, label, icon: Icon, children }: NavItem) {
   );
 }
 
-function ExpandedNavItem({ href, label, icon: Icon, children }: NavItem) {
+function ExpandedNavItem({ href, label, icon: Icon, children, badge }: NavItemProps) {
   const pathname = usePathname();
   const { closeMobile } = useSidebarStore();
 
@@ -111,6 +118,11 @@ function ExpandedNavItem({ href, label, icon: Icon, children }: NavItem) {
         >
           <Icon aria-hidden="true" className="shrink-0" size={18} />
           <span className="flex-1 truncate">{label}</span>
+          {!!badge && (
+            <span className="shrink-0 flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full bg-primary text-white text-[10px] font-bold tabular-nums">
+              {badge > 99 ? '99+' : badge}
+            </span>
+          )}
         </Link>
 
         {(parentHighlighted || leafHighlighted) && <AccentBar className="right-0" />}
@@ -151,7 +163,7 @@ function ExpandedNavItem({ href, label, icon: Icon, children }: NavItem) {
   );
 }
 
-export function SidebarNavItem(props: NavItem) {
+export function SidebarNavItem(props: NavItemProps) {
   const { collapsed } = useSidebarStore();
   return collapsed ? <CollapsedNavItem {...props} /> : <ExpandedNavItem {...props} />;
 }

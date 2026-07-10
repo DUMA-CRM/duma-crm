@@ -1,10 +1,12 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { Bell, History, RotateCcw, Search } from 'lucide-react';
+import { History, RotateCcw, Search } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
+import { roleAtLeast } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
+import { useAuthStore } from '@/stores/authStore';
 
 import { Input } from '../ui/input';
 
@@ -17,6 +19,8 @@ export function Header() {
   const [auditOpen, setAuditOpen] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const qc = useQueryClient();
+  // Audit log is franchise_owner+ (matches the API); hide the button otherwise.
+  const canViewAudit = roleAtLeast(useAuthStore((s) => s.role), 'franchise_owner');
 
   const handleReload = useCallback(async () => {
     setSpinning(true);
@@ -37,15 +41,6 @@ export function Header() {
         <div className="flex-1" />
 
         <div className="flex items-center gap-2">
-          {/* Notifications */}
-          <button
-            aria-label="Notifications"
-            className="relative w-9 h-9 rounded-md flex items-center justify-center hover:bg-surface-offset hover:text-foreground transition-colors"
-          >
-            <Bell size={18} aria-hidden="true" />
-            <span aria-hidden="true" className="absolute top-1.5 right-1.5 w-1.75 h-1.75 bg-primary rounded-full border-2 border-surface" />
-          </button>
-
           {/* Reload */}
           <button
             onClick={handleReload}
@@ -55,14 +50,16 @@ export function Header() {
             <RotateCcw size={18} aria-hidden="true" className={cn('transition-transform duration-500', spinning && 'rotate-180')} />
           </button>
 
-          {/* History */}
-          <button
-            onClick={() => setAuditOpen(true)}
-            aria-label="Activity history"
-            className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-surface-offset hover:text-foreground transition-colors"
-          >
-            <History size={18} aria-hidden="true" />
-          </button>
+          {/* History / audit — franchise_owner+ only */}
+          {canViewAudit && (
+            <button
+              onClick={() => setAuditOpen(true)}
+              aria-label="Activity history"
+              className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-surface-offset hover:text-foreground transition-colors"
+            >
+              <History size={18} aria-hidden="true" />
+            </button>
+          )}
 
           {/* Divider */}
           <div className="w-px h-6 bg-divider mx-1" aria-hidden="true" />
@@ -70,18 +67,10 @@ export function Header() {
           <LocationPicker />
 
           <ThemeToggle />
-
-          {/* Avatar */}
-          <button
-            aria-label="Open user menu"
-            className="w-9 h-9 rounded-full bg-linear-to-br from-primary to-primary-hover flex items-center justify-center text-white font-bold border-2 border-surface ring-1 ring-border"
-          >
-            MD
-          </button>
         </div>
       </header>
 
-      <AuditDrawer open={auditOpen} onClose={() => setAuditOpen(false)} />
+      {canViewAudit && <AuditDrawer open={auditOpen} onClose={() => setAuditOpen(false)} />}
     </>
   );
 }

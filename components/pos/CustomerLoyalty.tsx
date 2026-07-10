@@ -1,6 +1,6 @@
 'use client';
 
-import { Phone, QrCode, UserCircle2, UserPlus, X } from 'lucide-react';
+import { Phone, QrCode, UserCircle2, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { NewCustomerForm } from '@/components/pos/NewCustomerForm';
@@ -22,15 +22,18 @@ interface CustomerLoyaltyProps {
 
 export function CustomerLoyalty({ selectedCustomer, onCustomerSelect }: CustomerLoyaltyProps) {
   const [mode, setMode] = useState<'idle' | 'search' | 'new'>('idle');
+  const [newPhone, setNewPhone] = useState('');
 
   function handleSelect(c: Customer) {
     onCustomerSelect(c);
     setMode('idle');
+    setNewPhone('');
   }
 
   function handleClear() {
     onCustomerSelect(null);
     setMode('idle');
+    setNewPhone('');
   }
 
   return (
@@ -69,18 +72,6 @@ export function CustomerLoyalty({ selectedCustomer, onCustomerSelect }: Customer
         </div>
       )}
 
-      {mode === 'idle' && !selectedCustomer && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setMode('new')}
-          className="w-full border-dashed hover:border-primary/40 hover:text-primary hover:bg-primary/5 gap-2"
-        >
-          <UserPlus size={13} />
-          New Customer
-        </Button>
-      )}
-
       {mode === 'idle' && selectedCustomer && (
         <Button onClick={() => setMode('search')} variant="outline" size="sm" className="w-full gap-2">
           <UserCircle2 size={13} />
@@ -89,10 +80,16 @@ export function CustomerLoyalty({ selectedCustomer, onCustomerSelect }: Customer
       )}
 
       {/* Search panel */}
-      {mode === 'search' && <PhoneSearch onSelect={handleSelect} onClose={() => setMode('idle')} />}
+      {mode === 'search' && (
+        <PhoneSearch
+          onSelect={handleSelect}
+          onCreate={(phone) => { setNewPhone(phone); setMode('new'); }}
+          onClose={() => setMode('idle')}
+        />
+      )}
 
-      {/* New customer form */}
-      {mode === 'new' && <NewCustomerForm onCreated={handleSelect} onClose={() => setMode('idle')} />}
+      {/* New customer form (phone pre-filled from the search) */}
+      {mode === 'new' && <NewCustomerForm defaultPhone={newPhone} onCreated={handleSelect} onClose={() => setMode('idle')} />}
     </div>
   );
 }

@@ -1,6 +1,11 @@
 import { apiFetch } from './client';
 
+// Reasons that may appear on historical records (incl. legacy values).
 export type LossReason = 'waste' | 'spoilage' | 'theft' | 'damage' | 'expiry' | 'other';
+
+// Reasons the API accepts when *creating* a loss entry. The movement type is
+// hardcoded to "waste" server-side; this `reason` is what the API validates.
+export type LossCreateReason = 'expiry' | 'damage' | 'theft' | 'other';
 
 export interface LossRecord {
   id: string;
@@ -23,7 +28,7 @@ export interface CreateLossPayload {
   stockItemId: string;
   locationId: string;
   quantity: number;
-  type: LossReason;
+  reason: LossCreateReason;
   notes?: string;
 }
 
@@ -50,6 +55,3 @@ export const getLossLog = (params?: {
 
 export const createLossEntry = (data: CreateLossPayload) =>
   apiFetch<LossRecord>('/loss-log', { method: 'POST', body: JSON.stringify(data) });
-
-export const deleteLossEntry = (id: string) =>
-  apiFetch<void>(`/loss-log/${id}`, { method: 'DELETE' });

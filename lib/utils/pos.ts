@@ -1,18 +1,16 @@
-import type { CartItem, MenuItem, PendingOptions } from '@/types/pos';
+import type { CartItem, MenuOption } from '@/types/pos';
 
-export function cartItemTotal(c: CartItem): number {
-  const optionsPrice = Object.values(c.selections).reduce((sum, opt) => sum + (opt?.price ?? 0), 0);
-  return (c.item.price + optionsPrice) * c.quantity;
+/** Order-independent key for a set of chosen modifiers, used to merge identical cart lines. */
+export function selectionKey(selected: MenuOption[]): string {
+  return selected
+    .map((o) => o.id)
+    .sort()
+    .join(',');
 }
 
-export function getDefaultOptions(item: MenuItem): PendingOptions {
-  return Object.fromEntries(
-    item.modifierGroups.map((group) => {
-      const defaultOpt = group.options.find((o) => (o as any).isDefault);
-      const selected = defaultOpt ?? (group.required ? (group.options[0] ?? null) : null);
-      return [group.groupId, selected];
-    }),
-  );
+export function cartItemTotal(c: CartItem): number {
+  const addOns = c.selected.reduce((sum, opt) => sum + opt.price, 0);
+  return (c.item.price + addOns) * c.quantity;
 }
 
 export function formatPrice(n: number): string {

@@ -3,8 +3,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, ArrowRight, ClipboardList, Monitor, ShoppingBag, Smartphone, Users } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
+import { MyDashboard } from '@/components/dashboard/MyDashboard';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { StatCard } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +14,9 @@ import { getCustomers } from '@/lib/api/customers.service';
 import { getLowStockAlerts } from '@/lib/api/inventory.service';
 import { type Order, getOrders } from '@/lib/api/orders.service';
 import { decodeNotes, getRestockRequests } from '@/lib/api/restock.service';
-import { getStaff } from '@/lib/api/staff.service';
+import { getStaff, roleAtLeast } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { Customer } from '@/types/customers';
 
@@ -98,7 +100,7 @@ function CustomerRow({ customer }: { customer: Customer }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function DashboardPage() {
+function StoreDashboard() {
   const { tenantId, locationId } = useWorkspaceStore();
 
   // ── Queries ────────────────────────────────────────────────────────────────
@@ -167,8 +169,8 @@ export default function DashboardPage() {
   // ── Derived: customers ─────────────────────────────────────────────────────
   const customers: Customer[] = customersData?.data ?? [];
   const totalCustomers = customersData?.total ?? 0;
-  const weekAgo = Date.now() - 7 * 86_400_000;
-  const newThisWeek = customers.filter((c) => new Date(c.createdAt).getTime() > weekAgo).length;
+  const [weekAgo] = useState(() => Date.now() - 7 * 86_400_000);
+  const newThisWeek = useMemo(() => customers.filter((c) => new Date(c.createdAt).getTime() > weekAgo).length, [customers, weekAgo]);
   const topCustomers = useMemo(
     () => [...customers].sort((a, b) => Number(b.totalSpent) - Number(a.totalSpent)).slice(0, 5),
     [customers],
@@ -404,4 +406,10 @@ export default function DashboardPage() {
       </div>
     </PageLayout>
   );
+}
+
+// Managers get the store overview; everyone else gets their personal day view.
+export default function DashboardPage() {
+  const isManager = roleAtLeast(useAuthStore((s) => s.role), 'store_manager');
+  return isManager ? <StoreDashboard /> : <MyDashboard />;
 }

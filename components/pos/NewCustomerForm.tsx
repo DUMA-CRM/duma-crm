@@ -8,12 +8,12 @@ import { createCustomer } from '@/lib/api/customers.service';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { Customer } from '@/types/customers';
 
-export function NewCustomerForm({ onCreated, onClose }: { onCreated: (c: Customer) => void; onClose: () => void }) {
+export function NewCustomerForm({ defaultPhone = '', onCreated, onClose }: { defaultPhone?: string; onCreated: (c: Customer) => void; onClose: () => void }) {
   const { tenantId } = useWorkspaceStore();
   const qc = useQueryClient();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(defaultPhone);
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: () => createCustomer({ tenantId: tenantId!, firstName, lastName, phone }),

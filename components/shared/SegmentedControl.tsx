@@ -14,13 +14,13 @@ interface SegmentedControlProps<T extends string = string> {
 
 export function SegmentedControl<T extends string>({ options, value, onChange, className }: SegmentedControlProps<T>) {
   return (
-    <div className={cn('flex gap-0.5 bg-muted w-fit px-1 py-0.75 rounded-xl border border-border', className)}>
+    <div className={cn('flex items-center gap-0.5 bg-muted w-fit max-w-full min-w-0 px-1 h-9 rounded-xl border border-border overflow-x-auto', className)}>
       {options.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
-            'rounded-lg text-xs font-bold tracking-widest uppercase px-4 h-8 transition-colors',
+            'shrink-0 rounded-lg text-xs font-bold tracking-widest uppercase px-4 h-7 transition-colors',
             value === opt.value ? 'bg-card text-primary shadow-sm' : 'bg-transparent text-muted-foreground hover:text-foreground',
           )}
         >

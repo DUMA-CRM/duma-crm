@@ -44,6 +44,16 @@ export async function signIn(email: string, password: string): Promise<AuthSessi
   });
 }
 
+// Sign up with name + email + password.
+// better-auth creates the user and (with autoSignIn on) sets the session cookie,
+// returning the new user — so the client is signed in immediately.
+export async function signUp(name: string, email: string, password: string): Promise<{ user: User }> {
+  return apiFetch<{ user: User }>('/auth/sign-up/email', {
+    method: 'POST',
+    body: JSON.stringify({ name, email, password }),
+  });
+}
+
 // Sign out — the server clears the session cookie.
 export async function signOut(): Promise<void> {
   return apiFetch<void>('/auth/sign-out', { method: 'POST' });

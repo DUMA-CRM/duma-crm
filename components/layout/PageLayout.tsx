@@ -25,7 +25,7 @@ export function PageLayout({ eyebrow, title, headerSlot, sidebar, headerBorder =
             <h1 className="text-3xl font-semibold text-foreground mb-5">{title}</h1>
             {headerSlot}
           </div>
-          <div className={cn('flex-1 min-h-0 overflow-hidden px-8 pt-6', className)}>{children}</div>
+          <div className={cn('flex-1 min-h-0 overflow-auto px-8 pt-6', className)}>{children}</div>
         </div>
         {sidebar}
       </div>
@@ -37,6 +37,7 @@ export function PageLayout({ eyebrow, title, headerSlot, sidebar, headerBorder =
       <div>
         {eyebrow && <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">{eyebrow}</p>}
         <h1 className="text-3xl font-semibold text-foreground">{title}</h1>
+        {headerSlot && <div className="mt-5">{headerSlot}</div>}
       </div>
       {children}
     </div>

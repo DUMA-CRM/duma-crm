@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Clock,
   CreditCard,
+  Download,
   Eye,
   Flame,
   Mail,
@@ -21,11 +22,12 @@ import {
   User,
   XCircle,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
+import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { StatCard } from '@/components/shared/StatCard';
 import { Button } from '@/components/ui/button';
@@ -235,9 +237,75 @@ function formatDuration(ms: number) {
   return remM > 0 ? `${h} hr ${remM} min` : `${h} hr`;
 }
 
+// ── Receipt modal ──────────────────────────────────────────────────────────────
+
+function ReceiptModal({ orderId, apiBase, onClose }: { orderId: string; apiBase: string; onClose: () => void }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${apiBase}/v1/receipts/${orderId}/receipt`, { credentials: 'include' });
+        if (!res.ok) throw new Error(`Couldn’t load the receipt (${res.status}).`);
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      } catch (e) {
+        if (!cancelled) setError((e as Error).message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [orderId, apiBase]);
+
+  function download() {
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `receipt-${orderId.slice(0, 8)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  return (
+    <Modal title="Receipt" onClose={onClose} className="max-w-2xl">
+      <div className="flex flex-col gap-4">
+        <div className="h-[70vh] rounded-lg border border-border overflow-hidden bg-muted">
+          {loading ? (
+            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Loading receipt…</div>
+          ) : error ? (
+            <div className="h-full flex items-center justify-center px-6 text-center text-sm text-destructive">{error}</div>
+          ) : url ? (
+            <iframe src={url} title="Receipt" className="w-full h-full" />
+          ) : null}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button onClick={download} disabled={!url}>
+            <Download />
+            Download PDF
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ── Order detail panel ────────────────────────────────────────────────────────
 
 function OrderDetailPanel({ orderId }: { orderId: string }) {
+  const [showReceipt, setShowReceipt] = useState(false);
+
   const { data, isLoading } = useQuery<OrderDetailType>({
     queryKey: ['order', orderId],
     queryFn: () => getOrder(orderId),
@@ -406,7 +474,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
 
         {/* Action buttons */}
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => window.open(`${API_BASE}/v1/receipts/${data.id}/receipt`, '_blank')}>
+          <Button variant="outline" size="sm" onClick={() => setShowReceipt(true)}>
             <Eye />
             View / Download Receipt
           </Button>
@@ -420,6 +488,8 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
           </Button>
         </div>
       </div>
+
+      {showReceipt && <ReceiptModal orderId={data.id} apiBase={API_BASE} onClose={() => setShowReceipt(false)} />}
     </div>
   );
 }
@@ -499,6 +569,7 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1);
   const [activeTicket, setActiveTicket] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
 
   // Broad query for stats + live tickets
   const { data: allData } = useQuery({
@@ -553,6 +624,26 @@ export default function OrdersPage() {
 
   const orders = data?.data ?? [];
   const totalPages = data?.pages ?? 1;
+
+  // Deep link: /orders?order=<id> (e.g. from a customer's order list) opens the
+  // page with that order expanded and scrolled into view.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('order');
+    if (!id) return;
+    setExpandedOrderId(id);
+    setActiveTicket(id);
+    setPendingScrollId(id);
+  }, []);
+
+  // Scroll to the deep-linked row once it renders (i.e. once orders have loaded).
+  useEffect(() => {
+    if (!pendingScrollId) return;
+    const el = document.getElementById(`order-row-${pendingScrollId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPendingScrollId(null);
+    }
+  }, [orders, pendingScrollId]);
 
   function handleTicketClick(id: string) {
     setActiveTicket((prev) => (prev === id ? null : id));
@@ -627,7 +718,7 @@ export default function OrdersPage() {
           <div>
             <table className="w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
-                <tr className="border-b border-border bg-muted/40">
+                <tr className="border-b border-border bg-muted">
                   <th className="px-5 py-3.5 w-8" />
                   <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Order</th>
                   <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Source</th>

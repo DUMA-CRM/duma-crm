@@ -24,7 +24,7 @@ export function OptionBtn({ label, active, onClick }: OptionBtnProps) {
   );
 }
 
-export function OptionGroup({ label, required, children }: { label: string; required: boolean; children: React.ReactNode }) {
+export function OptionGroup({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-1.5">

@@ -1,34 +1,28 @@
 export type Category = 'all' | 'coffee' | 'other-hot-drinks' | 'coffee-over-ice' | 'tea' | 'snacks';
 
+// A reusable modifier presented as a toggleable add-on in the POS. Price in pence.
 export interface MenuOption {
-  id?: string;
+  id: string;
   label: string;
   price: number;
-}
-
-export interface PosModifierGroup {
-  groupId: string;
-  groupName: string;
-  required: boolean;
-  multiSelect: boolean;
-  options: MenuOption[];
+  // Optional grouping label (e.g. "Milk", "Size"); undefined = uncategorised.
+  category?: string;
 }
 
 export interface MenuItem {
   id: string;
   name: string;
   category: Exclude<Category, 'all'>;
-  price: number;
+  price: number; // pence
   image: string;
-  modifierGroups: PosModifierGroup[];
+  // Flat list of add-ons attached to this item (multi-select).
+  modifiers: MenuOption[];
 }
-
-// groupId → selected option (null = none selected)
-export type PendingOptions = Record<string, MenuOption | null>;
 
 export interface CartItem {
   cartId: string;
   item: MenuItem;
   quantity: number;
-  selections: PendingOptions;
+  // Chosen add-ons for this line.
+  selected: MenuOption[];
 }

@@ -1,17 +1,17 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, MapPin, Package, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { STATUS_BAR, STATUS_LABEL, STATUS_VARIANT, fmtQty, getStatus, stockPct } from '@/components/inventory/stock/shared';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 
-import { getLocationStock } from '@/lib/api/inventory.service';
+import { type LocationStock, getLocationStock } from '@/lib/api/inventory.service';
 import { type RestockPriority, createRestockRequest, decodeNotes, encodeNotes, getRestockRequests } from '@/lib/api/restock.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
@@ -30,7 +30,6 @@ const PRIORITY_OPTIONS = [
 ] as const;
 
 interface FormErrors {
-  location?: string;
   stockItem?: string;
   qty?: string;
 }
@@ -50,11 +49,50 @@ function StatCard({ label, value, valueClass }: StatCardProps) {
   );
 }
 
+/** Live stock context for the picked item — current level vs threshold + a suggested order. */
+function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSuggestion: (qty: number) => void }) {
+  const qty = parseFloat(ls.quantity);
+  const threshold = parseFloat(ls.lowThreshold);
+  const status = getStatus(ls);
+  const pct = stockPct(qty, threshold);
+  const unit = ls.stockItem?.unit ?? 'units';
+  // Suggest topping up to twice the threshold (a sensible reorder target).
+  const target = threshold > 0 ? threshold * 2 : qty + 1;
+  const suggested = Math.max(Math.ceil(target - qty), 1);
+
+  return (
+    <div className="rounded-xl border border-border bg-surface-offset p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-foreground truncate">{ls.stockItem?.name}</p>
+        <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
+      </div>
+      <div>
+        <div className="h-2 rounded-full bg-border overflow-hidden">
+          <div className={cn('h-full rounded-full transition-all', STATUS_BAR[status])} style={{ width: `${pct}%` }} />
+        </div>
+        <div className="flex items-center justify-between mt-1.5 text-xs text-muted-foreground">
+          <span><span className="font-semibold text-foreground tabular-nums">{fmtQty(qty)}</span> {unit} in stock</span>
+          <span>threshold {fmtQty(threshold)}</span>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onUseSuggestion(suggested)}
+        className="w-full flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 hover:bg-primary/10 transition-colors"
+      >
+        <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <Sparkles size={12} className="text-primary" /> Suggested order
+        </span>
+        <span className="text-sm font-bold text-primary tabular-nums">+{suggested} {unit}</span>
+      </button>
+    </div>
+  );
+}
+
 export function RestockRequestForm() {
-  const { tenantId, locationId: storeLocationId } = useWorkspaceStore();
+  const { tenantId, locationId } = useWorkspaceStore();
   const queryClient = useQueryClient();
 
-  const [locationId, setLocationId] = useState(storeLocationId ?? '');
   const [stockItemId, setStockItemId] = useState('');
   const [qty, setQty] = useState('');
   const [priority, setPriority] = useState<RestockPriority>('standard');
@@ -73,7 +111,7 @@ export function RestockRequestForm() {
 
   const { data: locationStock = [], isLoading: loadingStock } = useQuery({
     queryKey: ['location-stock', locationId],
-    queryFn: () => getLocationStock(locationId),
+    queryFn: () => getLocationStock(locationId!),
     enabled: !!locationId,
   });
 
@@ -83,18 +121,14 @@ export function RestockRequestForm() {
     queryFn: () => getRestockRequests({ limit: 100 }),
   });
 
-  // Sync with store location on mount
-  useEffect(() => {
-    if (storeLocationId) setLocationId(storeLocationId);
-  }, [storeLocationId]);
-
-  // Reset stock item when location changes
+  // Reset stock item when the active location changes
   useEffect(() => {
     setStockItemId('');
   }, [locationId]);
 
   const availableItems = locationStock.filter((ls) => ls.isAvailable && ls.stockItem);
   const selectedItem = availableItems.find((ls) => ls.stockItemId === stockItemId);
+  const locationName = locations.find((l) => l.id === locationId)?.name;
 
   const requests = statsResponse?.data ?? [];
   const statPending = requests.filter((r) => r.status === 'pending').length;
@@ -118,8 +152,11 @@ export function RestockRequestForm() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!locationId) {
+      addToast('error', 'Select a location in the top bar first.');
+      return;
+    }
     const errs: FormErrors = {};
-    if (!locationId) errs.location = 'Please select a location.';
     if (!stockItemId) errs.stockItem = 'Please select an item.';
     const qtyNum = parseInt(qty, 10);
     if (!qty || isNaN(qtyNum) || qtyNum < 1) errs.qty = 'Enter a valid quantity (min 1).';
@@ -136,31 +173,20 @@ export function RestockRequestForm() {
   }
 
   return (
-    <div className="h-full overflow-y-auto pb-8 grid gap-4 grid-cols-2">
+    <div className="h-full overflow-y-auto pb-8 grid gap-8 grid-cols-[minmax(0,26rem)_1fr] items-start">
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Location */}
+        {/* Location (set from the top bar) */}
         <div className="flex flex-col gap-1.5">
           <Label uppercase>Location</Label>
-          <div className="relative">
-            <select
-              value={locationId}
-              onChange={(e) => {
-                setLocationId(e.target.value);
-                setErrors((prev) => ({ ...prev, location: undefined }));
-              }}
-              className={cn(selectClass, errors.location && 'border-destructive/60 focus:border-destructive focus:ring-destructive/15')}
-            >
-              <option value="">Select location…</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <div className="h-9 px-3 bg-surface-offset rounded-lg flex items-center gap-2 text-sm">
+            <MapPin size={14} className="text-muted-foreground shrink-0" />
+            {locationName ? (
+              <span className="font-medium text-foreground truncate">{locationName}</span>
+            ) : (
+              <span className="text-muted-foreground">No location selected — choose one in the top bar</span>
+            )}
           </div>
-          {errors.location && <p className="text-xs text-destructive">{errors.location}</p>}
         </div>
 
         {/* Stock Item */}
@@ -187,15 +213,15 @@ export function RestockRequestForm() {
             </select>
             <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           </div>
-          {!locationId && <p className="text-xs text-muted-foreground">Select a location first.</p>}
+          {!locationId && <p className="text-xs text-muted-foreground">Select a location in the top bar first.</p>}
           {errors.stockItem && <p className="text-xs text-destructive">{errors.stockItem}</p>}
         </div>
 
         {/* Quantity + Unit */}
-        <div className="flex gap-3 items-end">
-          <div className="flex-1">
-            <Input
-              label="QUANTITY"
+        <div className="flex flex-col gap-1.5">
+          <Label uppercase>Quantity</Label>
+          <div className="flex gap-3 items-center">
+            <input
               type="number"
               min={1}
               value={qty}
@@ -204,18 +230,23 @@ export function RestockRequestForm() {
                 setErrors((prev) => ({ ...prev, qty: undefined }));
               }}
               placeholder="0"
-              error={errors.qty}
+              className={cn(
+                'flex-1 h-9 px-3 bg-surface-offset border border-transparent rounded-lg text-sm text-foreground',
+                'placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15',
+                'transition-[border-color,box-shadow] duration-150',
+                errors.qty && 'border-destructive/60 focus:border-destructive focus:ring-destructive/15',
+              )}
             />
+            <div
+              className={cn(
+                'h-9 px-3 bg-surface-offset rounded-lg flex items-center text-sm font-medium shrink-0 border border-transparent',
+                selectedItem?.stockItem?.unit ? 'text-foreground' : 'text-muted-foreground',
+              )}
+            >
+              {selectedItem?.stockItem?.unit ?? 'unit'}
+            </div>
           </div>
-          <div
-            className={cn(
-              'h-9 px-3 bg-surface-offset rounded-lg flex items-center text-sm font-medium shrink-0',
-              'border border-transparent',
-              selectedItem?.stockItem?.unit ? 'text-foreground' : 'text-muted-foreground',
-            )}
-          >
-            {selectedItem?.stockItem?.unit ?? 'unit'}
-          </div>
+          {errors.qty && <p className="text-xs text-destructive">{errors.qty}</p>}
         </div>
 
         {/* Priority */}
@@ -245,19 +276,40 @@ export function RestockRequestForm() {
           />
         </div>
 
-        <Button type="submit" disabled={isPending} size="lg" className="w-full">
+        <Button type="submit" disabled={isPending || !locationId} size="lg" className="w-full">
           {isPending ? 'Submitting…' : 'Submit Request'}
         </Button>
       </form>
 
-      <div>
-        <Label uppercase className='mb-1.5'>Stats</Label>
+      <div className="space-y-5">
+        {/* Live context for the selected item */}
+        <div className="flex flex-col gap-1.5">
+          <Label uppercase>Item stock</Label>
+          {selectedItem ? (
+            <StockContextCard
+              ls={selectedItem}
+              onUseSuggestion={(q) => {
+                setQty(String(q));
+                setErrors((prev) => ({ ...prev, qty: undefined }));
+              }}
+            />
+          ) : (
+            <div className="rounded-xl border border-dashed border-border p-5 text-center">
+              <Package size={20} className="mx-auto mb-2 text-muted-foreground/40" />
+              <p className="text-xs text-muted-foreground">Pick an item to see its current stock level and a suggested order amount.</p>
+            </div>
+          )}
+        </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-7 h-fit">
-          <StatCard label="Pending" value={statPending} valueClass={statPending > 0 ? 'text-warning' : undefined} />
-          <StatCard label="Urgent" value={statUrgent} valueClass={statUrgent > 0 ? 'text-destructive' : undefined} />
-          <StatCard label="Approved" value={statApproved} valueClass={statApproved > 0 ? 'text-primary' : undefined} />
-          <StatCard label="Fulfilled" value={statFulfilled} valueClass={statFulfilled > 0 ? 'text-success' : undefined} />
+        {/* Request pipeline */}
+        <div className="flex flex-col gap-1.5">
+          <Label uppercase>Request pipeline</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label="Pending" value={statPending} valueClass={statPending > 0 ? 'text-warning' : undefined} />
+            <StatCard label="Urgent" value={statUrgent} valueClass={statUrgent > 0 ? 'text-destructive' : undefined} />
+            <StatCard label="Approved" value={statApproved} valueClass={statApproved > 0 ? 'text-primary' : undefined} />
+            <StatCard label="Fulfilled" value={statFulfilled} valueClass={statFulfilled > 0 ? 'text-success' : undefined} />
+          </div>
         </div>
       </div>
 

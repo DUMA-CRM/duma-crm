@@ -50,7 +50,7 @@ function LogRow({ log }: { log: AuditLog }) {
         <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 leading-none">
           <Clock size={10} aria-hidden="true" className="shrink-0" />
           {formatTime(log.createdAt)}
-          {log.user?.name && <span className="truncate">· {log.user.name}</span>}
+          {log.userName && <span className="truncate">· {log.userName}</span>}
         </p>
       </div>
     </div>
