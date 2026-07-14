@@ -7,6 +7,8 @@ export interface MenuOption {
   price: number;
   // Optional grouping label (e.g. "Milk", "Size"); undefined = uncategorised.
   category?: string;
+  // Pre-selected as the item's default variant when the customiser opens.
+  isDefault?: boolean;
 }
 
 export interface MenuItem {

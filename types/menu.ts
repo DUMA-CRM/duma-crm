@@ -40,3 +40,9 @@ export interface ModifierPayload {
   priceAdjust?: string;
   isAvailable?: boolean;
 }
+
+// A modifier as returned for a specific menu item: the reusable modifier record
+// plus the per-item link flag marking it as the pre-selected default variant.
+export interface AttachedModifier extends Modifier {
+  isDefault: boolean;
+}

@@ -1,4 +1,4 @@
-import { MenuItem, MenuItemPayload, Modifier, ModifierPayload } from '@/types/menu';
+import { AttachedModifier, MenuItem, MenuItemPayload, Modifier, ModifierPayload } from '@/types/menu';
 
 import { apiFetch } from './client';
 
@@ -29,12 +29,19 @@ export const deleteModifier = (id: string) => apiFetch<void>(`/modifiers/${id}`,
 // ── Menu Item ↔ Modifier links ────────────────────────────────────────────────
 // Attach reusable modifiers to a menu item so they can be chosen when ordering it.
 
-export const getMenuItemModifiers = (menuItemId: string) => apiFetch<Modifier[]>(`/menu-item-modifiers/menu-item/${menuItemId}`);
+export const getMenuItemModifiers = (menuItemId: string) => apiFetch<AttachedModifier[]>(`/menu-item-modifiers/menu-item/${menuItemId}`);
 
-export const attachModifier = (menuItemId: string, modifierId: string) =>
-  apiFetch<{ id: string; menuItemId: string; modifierId: string }>('/menu-item-modifiers', {
+export const attachModifier = (menuItemId: string, modifierId: string, isDefault = false) =>
+  apiFetch<{ id: string; menuItemId: string; modifierId: string; isDefault: boolean }>('/menu-item-modifiers', {
     method: 'POST',
-    body: JSON.stringify({ menuItemId, modifierId }),
+    body: JSON.stringify({ menuItemId, modifierId, isDefault }),
+  });
+
+// Mark (or unmark) an already-attached modifier as the item's default variant.
+export const setModifierDefault = (menuItemId: string, modifierId: string, isDefault: boolean) =>
+  apiFetch<{ id: string; menuItemId: string; modifierId: string; isDefault: boolean }>('/menu-item-modifiers', {
+    method: 'PATCH',
+    body: JSON.stringify({ menuItemId, modifierId, isDefault }),
   });
 
 export const detachModifier = (menuItemId: string, modifierId: string) =>

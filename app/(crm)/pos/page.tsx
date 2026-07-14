@@ -18,7 +18,7 @@ import { parseModifierName } from '@/lib/utils/modifiers';
 import { selectionKey } from '@/lib/utils/pos';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { Customer } from '@/types/customers';
-import type { MenuItem as ApiMenuItem, Modifier as ApiModifier } from '@/types/menu';
+import type { AttachedModifier, MenuItem as ApiMenuItem } from '@/types/menu';
 import type { CartItem, Category, MenuItem, MenuOption } from '@/types/pos';
 
 // ── API → POS type mapping ────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ function pence(decimal: string): number {
   return Math.round(Number.parseFloat(decimal) * 100);
 }
 
-function toPosItem(api: ApiMenuItem, modifiers: ApiModifier[]): MenuItem {
+function toPosItem(api: ApiMenuItem, modifiers: AttachedModifier[]): MenuItem {
   return {
     id: api.id,
     name: api.name,
@@ -38,7 +38,7 @@ function toPosItem(api: ApiMenuItem, modifiers: ApiModifier[]): MenuItem {
       .filter((m) => m.isAvailable)
       .map((m): MenuOption => {
         const { category, label } = parseModifierName(m.name);
-        return { id: m.id, label, price: m.priceAdjust ? pence(m.priceAdjust) : 0, category: category ?? undefined };
+        return { id: m.id, label, price: m.priceAdjust ? pence(m.priceAdjust) : 0, category: category ?? undefined, isDefault: m.isDefault };
       }),
   };
 }
@@ -91,7 +91,9 @@ export default function POSPage() {
 
   function handleSelectItem(item: MenuItem) {
     setSelectedItem(item);
-    setPending([]);
+    // Pre-select the item's default variants (one per category is enforced by the
+    // single-select rule in the customiser, so this respects that too).
+    setPending(item.modifiers.filter((o) => o.isDefault));
   }
 
   function handleAddToCart() {

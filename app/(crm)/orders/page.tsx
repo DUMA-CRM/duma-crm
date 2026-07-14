@@ -40,6 +40,7 @@ import {
   getOrders,
   updateOrderStatus,
 } from '@/lib/api/orders.service';
+import { API_PREFIX } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -323,8 +324,6 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
 
   const history = data.statusHistory ?? [];
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-
   return (
     <div className="flex gap-5">
       {/* ── Receipt (left) ── */}
@@ -489,7 +488,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
         </div>
       </div>
 
-      {showReceipt && <ReceiptModal orderId={data.id} apiBase={API_BASE} onClose={() => setShowReceipt(false)} />}
+      {showReceipt && <ReceiptModal orderId={data.id} apiBase={API_PREFIX} onClose={() => setShowReceipt(false)} />}
     </div>
   );
 }

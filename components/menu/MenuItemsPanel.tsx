@@ -16,6 +16,7 @@ import {
   getMenuItemModifiers,
   getMenuItems,
   getModifiers,
+  setModifierDefault,
   updateMenuItem,
 } from '@/lib/api/menu.service';
 import { cn } from '@/lib/utils/cn';
@@ -37,12 +38,18 @@ function ItemModifiersEditor({ menuItemId }: { menuItemId: string }) {
   const { data: all = [] } = useQuery({ queryKey: ['modifiers'], queryFn: getModifiers });
 
   const attachedIds = new Set(attached.map((m) => m.id));
+  const defaultIds = new Set(attached.filter((m) => m.isDefault).map((m) => m.id));
 
   const toggle = useMutation({
     mutationFn: async ({ modifierId, on }: { modifierId: string; on: boolean }) => {
       if (on) await attachModifier(menuItemId, modifierId);
       else await detachModifier(menuItemId, modifierId);
     },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['menu-item-modifiers', menuItemId] }),
+  });
+
+  const toggleDefault = useMutation({
+    mutationFn: ({ modifierId, isDefault }: { modifierId: string; isDefault: boolean }) => setModifierDefault(menuItemId, modifierId, isDefault),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['menu-item-modifiers', menuItemId] }),
   });
 
@@ -58,19 +65,39 @@ function ItemModifiersEditor({ menuItemId }: { menuItemId: string }) {
           {groups.map((group) => (
             <div key={group.category}>
               <p className="px-1 pb-0.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{group.category}</p>
-              {group.items.map((m) => (
-                <label key={m.id} className="flex items-center gap-2.5 cursor-pointer select-none px-3 py-2 rounded-lg hover:bg-muted transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={attachedIds.has(m.id)}
-                    disabled={toggle.isPending}
-                    onChange={(e) => toggle.mutate({ modifierId: m.id, on: e.target.checked })}
-                    className="w-4 h-4 rounded accent-primary"
-                  />
-                  <span className="text-sm text-foreground flex-1">{parseModifierName(m.name).label}</span>
-                  {adjust(m.priceAdjust) && <span className="text-xs text-muted-foreground tabular-nums">{adjust(m.priceAdjust)}</span>}
-                </label>
-              ))}
+              {group.items.map((m) => {
+                const isAttached = attachedIds.has(m.id);
+                return (
+                  <div key={m.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted transition-colors">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none flex-1 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={isAttached}
+                        disabled={toggle.isPending}
+                        onChange={(e) => toggle.mutate({ modifierId: m.id, on: e.target.checked })}
+                        className="w-4 h-4 rounded accent-primary"
+                      />
+                      <span className="text-sm text-foreground truncate">{parseModifierName(m.name).label}</span>
+                      {adjust(m.priceAdjust) && <span className="text-xs text-muted-foreground tabular-nums">{adjust(m.priceAdjust)}</span>}
+                    </label>
+                    {isAttached && (
+                      <label
+                        className="flex items-center gap-1.5 cursor-pointer select-none text-[11px] font-medium text-muted-foreground shrink-0"
+                        title="Pre-select this as the default variant in the POS"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={defaultIds.has(m.id)}
+                          disabled={toggleDefault.isPending}
+                          onChange={(e) => toggleDefault.mutate({ modifierId: m.id, isDefault: e.target.checked })}
+                          className="w-3.5 h-3.5 rounded accent-primary"
+                        />
+                        Default
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
