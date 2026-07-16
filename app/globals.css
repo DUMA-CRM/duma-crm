@@ -73,6 +73,12 @@
   --header-height: 56px;
 }
 
+/* Kiosk mode (KDS full screen): the header is hidden, so full-height pages
+   reclaim its space. Set via stores/chromeStore.ts. */
+html[data-chrome-hidden] {
+  --header-height: 0px;
+}
+
 .dark {
   --primary: oklch(0.68 0.17 38);
   --primary-hover: oklch(0.74 0.16 38);

@@ -2,6 +2,7 @@ import {
   BarChart3,
   Building2,
   CalendarDays,
+  ChefHat,
   Coffee,
   GraduationCap,
   HelpCircle,
@@ -14,7 +15,6 @@ import {
   ShoppingBag,
   Star,
   Users,
-  Users2,
   UsersRound,
   UtensilsCrossed,
 } from 'lucide-react';
@@ -35,24 +35,21 @@ export const mainNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Customers', href: '/customers', icon: Users, minRole: 'store_manager' },
   { label: 'POS Terminal', href: '/pos', icon: Monitor },
+  { label: 'KDS Terminal', href: '/kds', icon: ChefHat },
   { label: 'Menu', href: '/menu', icon: UtensilsCrossed, minRole: 'store_manager' },
   {
     label: 'Inventory',
     href: '/inventory',
     icon: Package,
     minRole: 'store_manager',
-    children: [
-      { href: '/inventory/restock-requests', label: 'Restock', icon: PackagePlus, minRole: 'store_manager' },
-    ],
+    children: [{ href: '/inventory/restock-requests', label: 'Restock', icon: PackagePlus, minRole: 'store_manager' }],
   },
   { label: 'Orders', href: '/orders', icon: ShoppingBag, minRole: 'store_manager' },
   {
     label: 'Staff',
     href: '/staff',
     icon: UsersRound,
-    children: [
-      { href: '/scheduling', label: 'Schedule', icon: CalendarDays },
-    ],
+    children: [{ href: '/scheduling', label: 'Schedule', icon: CalendarDays }],
   },
   { label: 'Training', href: '/training', icon: GraduationCap },
   { label: 'Workspaces', href: '/workspaces', icon: Building2, minRole: 'franchise_owner' },
