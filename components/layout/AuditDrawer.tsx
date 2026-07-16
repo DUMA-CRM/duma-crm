@@ -104,7 +104,7 @@ export function AuditDrawer({ open, onClose }: AuditDrawerProps) {
     <div
       ref={panelRef}
       className={cn(
-        'fixed top-14 right-4 z-50 w-96 max-h-[calc(100vh-5rem)]',
+        'fixed top-14 right-4 z-50 w-96 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-5rem)]',
         'bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden',
         'animate-in fade-in slide-in-from-top-2 duration-150',
       )}

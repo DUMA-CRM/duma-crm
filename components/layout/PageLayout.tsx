@@ -1,5 +1,7 @@
 import { cn } from '@/lib/utils/cn';
 
+import { PageSidebar } from './PageSidebar';
+
 interface PageLayoutProps {
   eyebrow?: string;
   title: string;
@@ -18,16 +20,16 @@ interface PageLayoutProps {
 export function PageLayout({ eyebrow, title, headerSlot, sidebar, headerBorder = true, fullHeight, children, className }: PageLayoutProps) {
   if (sidebar || fullHeight) {
     return (
-      <div className="flex -m-8 h-[calc(100vh-var(--header-height))]">
+      <div className="flex -m-4 md:-m-8 h-[calc(100vh-var(--header-height))]">
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          <div className={cn('px-8 pt-8 pb-4 shrink-0', headerBorder && 'border-b border-border')}>
+          <div className={cn('px-4 pt-5 md:px-8 md:pt-8 pb-4 shrink-0', headerBorder && 'border-b border-border')}>
             {eyebrow && <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">{eyebrow}</p>}
-            <h1 className="text-3xl font-semibold text-foreground mb-5">{title}</h1>
+            <h1 className="text-2xl md:text-3xl font-semibold text-foreground mb-4 md:mb-5">{title}</h1>
             {headerSlot}
           </div>
-          <div className={cn('flex-1 min-h-0 overflow-auto px-8 pt-6', className)}>{children}</div>
+          <div className={cn('flex-1 min-h-0 overflow-auto px-4 md:px-8 pt-6', className)}>{children}</div>
         </div>
-        {sidebar}
+        {sidebar && <PageSidebar>{sidebar}</PageSidebar>}
       </div>
     );
   }
@@ -36,7 +38,7 @@ export function PageLayout({ eyebrow, title, headerSlot, sidebar, headerBorder =
     <div className={cn('space-y-6', className)}>
       <div>
         {eyebrow && <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">{eyebrow}</p>}
-        <h1 className="text-3xl font-semibold text-foreground">{title}</h1>
+        <h1 className="text-2xl md:text-3xl font-semibold text-foreground">{title}</h1>
         {headerSlot && <div className="mt-5">{headerSlot}</div>}
       </div>
       {children}

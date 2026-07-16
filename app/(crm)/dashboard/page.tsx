@@ -42,7 +42,10 @@ const TIER_STYLE: Record<string, string> = {
 };
 
 const TIER_DOT: Record<string, string> = {
-  vip: 'bg-primary', gold: 'bg-amber-400', silver: 'bg-slate-400', bronze: 'bg-orange-400',
+  vip: 'bg-primary',
+  gold: 'bg-amber-400',
+  silver: 'bg-slate-400',
+  bronze: 'bg-orange-400',
 };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -62,7 +65,11 @@ function OrderRow({ order }: { order: Order }) {
   return (
     <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-muted/50 transition-colors">
       <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-        {order.source === 'pos' ? <Monitor size={13} className="text-muted-foreground" /> : <Smartphone size={13} className="text-muted-foreground" />}
+        {order.source === 'pos' ? (
+          <Monitor size={13} className="text-muted-foreground" />
+        ) : (
+          <Smartphone size={13} className="text-muted-foreground" />
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-foreground leading-tight font-mono">#{order.id.slice(0, 8)}</p>
@@ -70,11 +77,20 @@ function OrderRow({ order }: { order: Order }) {
       </div>
       <div className="text-right shrink-0">
         <p className="text-sm font-bold tabular-nums text-foreground">£{Number(order.totalAmount).toFixed(2)}</p>
-        <p className={cn('text-[10px] font-bold uppercase tracking-wide',
-          order.status === 'done' ? 'text-success' :
-          order.status === 'cancelled' ? 'text-destructive' :
-          order.status === 'preparing' ? 'text-warning' : 'text-muted-foreground',
-        )}>{order.status}</p>
+        <p
+          className={cn(
+            'text-[10px] font-bold uppercase tracking-wide',
+            order.status === 'done'
+              ? 'text-success'
+              : order.status === 'cancelled'
+                ? 'text-destructive'
+                : order.status === 'preparing'
+                  ? 'text-warning'
+                  : 'text-muted-foreground',
+          )}
+        >
+          {order.status}
+        </p>
       </div>
     </div>
   );
@@ -88,8 +104,12 @@ function CustomerRow({ customer }: { customer: Customer }) {
         {initials}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground truncate">{customer.firstName} {customer.lastName}</p>
-        <p className="text-xs text-muted-foreground">{customer.totalVisits} visits · £{Number(customer.totalSpent).toFixed(0)} spent</p>
+        <p className="text-sm font-semibold text-foreground truncate">
+          {customer.firstName} {customer.lastName}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {customer.totalVisits} visits · £{Number(customer.totalSpent).toFixed(0)} spent
+        </p>
       </div>
       <span className={cn('text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md', TIER_STYLE[customer.tier])}>
         {customer.tier}
@@ -143,10 +163,7 @@ function StoreDashboard() {
   const pendingCount = allOrders.filter((o) => ['pending', 'preparing', 'ready'].includes(o.status)).length;
   const cancelledToday = todayOrders.filter((o) => o.status === 'cancelled').length;
 
-  const recentOrders = useMemo(
-    () => [...allOrders].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6),
-    [allOrders],
-  );
+  const recentOrders = useMemo(() => [...allOrders].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6), [allOrders]);
 
   const week14 = useMemo(() => {
     return Array.from({ length: 14 }, (_, i) => {
@@ -171,29 +188,24 @@ function StoreDashboard() {
   const totalCustomers = customersData?.total ?? 0;
   const [weekAgo] = useState(() => Date.now() - 7 * 86_400_000);
   const newThisWeek = useMemo(() => customers.filter((c) => new Date(c.createdAt).getTime() > weekAgo).length, [customers, weekAgo]);
-  const topCustomers = useMemo(
-    () => [...customers].sort((a, b) => Number(b.totalSpent) - Number(a.totalSpent)).slice(0, 5),
-    [customers],
-  );
+  const topCustomers = useMemo(() => [...customers].sort((a, b) => Number(b.totalSpent) - Number(a.totalSpent)).slice(0, 5), [customers]);
   const tierCounts = useMemo(() => {
     const counts: Record<string, number> = { vip: 0, gold: 0, silver: 0, bronze: 0 };
-    customers.forEach((c) => { if (c.tier in counts) counts[c.tier]++; });
+    customers.forEach((c) => {
+      if (c.tier in counts) counts[c.tier]++;
+    });
     return counts;
   }, [customers]);
 
   // ── Derived: inventory ─────────────────────────────────────────────────────
   const alerts = Array.isArray(rawAlerts) ? rawAlerts : [];
-  const criticalAlerts = alerts.filter((a: { quantity: string; lowThreshold: string }) =>
-    parseFloat(a.quantity) <= parseFloat(a.lowThreshold) * 0.5,
+  const criticalAlerts = alerts.filter(
+    (a: { quantity: string; lowThreshold: string }) => parseFloat(a.quantity) <= parseFloat(a.lowThreshold) * 0.5,
   ).length;
 
   // ── Derived: restocks ──────────────────────────────────────────────────────
-  const pendingRestocks = Array.isArray(restockData)
-    ? restockData
-    : (restockData as { data?: unknown[] } | null)?.data ?? [];
-  const urgentRestocks = (pendingRestocks as Array<{ notes?: string }>).filter(
-    (r) => decodeNotes(r.notes).priority === 'urgent',
-  ).length;
+  const pendingRestocks = Array.isArray(restockData) ? restockData : ((restockData as { data?: unknown[] } | null)?.data ?? []);
+  const urgentRestocks = (pendingRestocks as Array<{ notes?: string }>).filter((r) => decodeNotes(r.notes).priority === 'urgent').length;
 
   // ── Derived: staff ─────────────────────────────────────────────────────────
   const activeStaff = (staffList ?? []).filter((s) => s.isActive).length;
@@ -201,7 +213,7 @@ function StoreDashboard() {
   return (
     <PageLayout eyebrow="At a Glance" title="Dashboard">
       {/* ── KPI cards ──────────────────────────────────────── */}
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard
           label="Revenue Today"
           value={fmtGbp(revenueToday)}
@@ -220,7 +232,12 @@ function StoreDashboard() {
           icon="ShoppingBag"
           iconVariant="info"
           delta={pendingCount > 0 ? `${pendingCount} live` : undefined}
-          footer={{ type: 'bars', values: week7.map((d) => d.count), labels: week7.map((d) => String(d.count)), titleLabels: week7.map((d) => `Orders (${d.label})`) }}
+          footer={{
+            type: 'bars',
+            values: week7.map((d) => d.count),
+            labels: week7.map((d) => String(d.count)),
+            titleLabels: week7.map((d) => `Orders (${d.label})`),
+          }}
         />
         <StatCard
           label="Avg Ticket"
@@ -230,19 +247,8 @@ function StoreDashboard() {
           delta={cancelledToday > 0 ? `${cancelledToday} cancelled` : undefined}
           deltaDirection={cancelledToday > 0 ? 'down' : undefined}
         />
-        <StatCard
-          label="New Customers"
-          value={String(newThisWeek)}
-          icon="UserPlus"
-          iconVariant="gold"
-          delta="this week"
-        />
-        <StatCard
-          label="Total Customers"
-          value={String(totalCustomers)}
-          icon="Users"
-          iconVariant="primary"
-        />
+        <StatCard label="Total Customers" value={String(totalCustomers)} icon="Users" iconVariant="primary" />
+        <StatCard label="New Customers" value={String(newThisWeek)} icon="UserPlus" iconVariant="gold" delta="this week" />
         <StatCard
           label="Stock Alerts"
           value={String(alerts.length)}
@@ -260,15 +266,11 @@ function StoreDashboard() {
           <div className="flex items-start justify-between gap-4 mb-5">
             <div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Revenue — Last 14 Days</p>
-              <p className="text-3xl font-bold text-foreground tabular-nums mt-1">
-                {fmtGbp(week14.reduce((s, d) => s + d.revenue, 0))}
-              </p>
+              <p className="text-3xl font-bold text-foreground tabular-nums mt-1">{fmtGbp(week14.reduce((s, d) => s + d.revenue, 0))}</p>
             </div>
             <div className="text-right shrink-0">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Orders</p>
-              <p className="text-xl font-bold text-foreground tabular-nums mt-1">
-                {week14.reduce((s, d) => s + d.count, 0)}
-              </p>
+              <p className="text-xl font-bold text-foreground tabular-nums mt-1">{week14.reduce((s, d) => s + d.count, 0)}</p>
             </div>
           </div>
 
@@ -281,9 +283,7 @@ function StoreDashboard() {
                   <div
                     className={cn(
                       'w-full rounded-t-sm transition-opacity',
-                      isToday
-                        ? 'bg-linear-to-t from-primary to-amber-400'
-                        : 'bg-surface-offset group-hover:bg-muted-foreground/30',
+                      isToday ? 'bg-linear-to-t from-primary to-amber-400' : 'bg-surface-offset group-hover:bg-muted-foreground/30',
                     )}
                     style={{ height: `${Math.max(pct, 2)}%` }}
                   />
@@ -307,7 +307,9 @@ function StoreDashboard() {
             <p className="text-sm text-muted-foreground text-center py-8">No orders yet.</p>
           ) : (
             <div className="flex flex-col gap-0.5">
-              {recentOrders.map((o) => <OrderRow key={o.id} order={o} />)}
+              {recentOrders.map((o) => (
+                <OrderRow key={o.id} order={o} />
+              ))}
             </div>
           )}
         </div>
@@ -322,7 +324,9 @@ function StoreDashboard() {
             <p className="text-sm text-muted-foreground text-center py-8">No customers yet.</p>
           ) : (
             <div className="flex flex-col gap-0.5">
-              {topCustomers.map((c) => <CustomerRow key={c.id} customer={c} />)}
+              {topCustomers.map((c) => (
+                <CustomerRow key={c.id} customer={c} />
+              ))}
             </div>
           )}
         </div>
@@ -356,9 +360,24 @@ function StoreDashboard() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: 'Active Staff', value: activeStaff, icon: Users, color: 'text-primary' },
-                { label: 'Pending Restocks', value: pendingRestocks.length, icon: ClipboardList, color: urgentRestocks > 0 ? 'text-destructive' : 'text-warning' },
-                { label: 'Stock Alerts', value: alerts.length, icon: AlertTriangle, color: criticalAlerts > 0 ? 'text-destructive' : 'text-amber-500' },
-                { label: 'Cancelled Today', value: cancelledToday, icon: ShoppingBag, color: cancelledToday > 0 ? 'text-destructive' : 'text-muted-foreground' },
+                {
+                  label: 'Pending Restocks',
+                  value: pendingRestocks.length,
+                  icon: ClipboardList,
+                  color: urgentRestocks > 0 ? 'text-destructive' : 'text-warning',
+                },
+                {
+                  label: 'Stock Alerts',
+                  value: alerts.length,
+                  icon: AlertTriangle,
+                  color: criticalAlerts > 0 ? 'text-destructive' : 'text-amber-500',
+                },
+                {
+                  label: 'Cancelled Today',
+                  value: cancelledToday,
+                  icon: ShoppingBag,
+                  color: cancelledToday > 0 ? 'text-destructive' : 'text-muted-foreground',
+                },
               ].map(({ label, value, icon: Icon, color }) => (
                 <div key={label} className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
@@ -381,7 +400,15 @@ function StoreDashboard() {
             <p className="text-sm text-muted-foreground text-center py-8">No pending restocks.</p>
           ) : (
             <div className="flex flex-col gap-1.5">
-              {(pendingRestocks as Array<{ id: string; notes?: string; stockItem?: { name: string; unit: string }; requestedQty: number; createdAt: string }>)
+              {(
+                pendingRestocks as Array<{
+                  id: string;
+                  notes?: string;
+                  stockItem?: { name: string; unit: string };
+                  requestedQty: number;
+                  createdAt: string;
+                }>
+              )
                 .slice(0, 6)
                 .map((r) => {
                   const { priority } = decodeNotes(r.notes);
@@ -392,7 +419,9 @@ function StoreDashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{r.stockItem?.name ?? r.id.slice(0, 8)}</p>
-                        <p className="text-xs text-muted-foreground">qty {r.requestedQty} {r.stockItem?.unit ?? ''} · {timeAgo(r.createdAt)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          qty {r.requestedQty} {r.stockItem?.unit ?? ''} · {timeAgo(r.createdAt)}
+                        </p>
                       </div>
                       <Badge variant={priority === 'urgent' ? 'destructive' : 'warning'} className="text-[10px] shrink-0">
                         {priority}
@@ -410,6 +439,9 @@ function StoreDashboard() {
 
 // Managers get the store overview; everyone else gets their personal day view.
 export default function DashboardPage() {
-  const isManager = roleAtLeast(useAuthStore((s) => s.role), 'store_manager');
+  const isManager = roleAtLeast(
+    useAuthStore((s) => s.role),
+    'store_manager',
+  );
   return isManager ? <StoreDashboard /> : <MyDashboard />;
 }

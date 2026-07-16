@@ -5,7 +5,14 @@ import { Boxes, Package, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { StockDetailSidebar } from '@/components/inventory/stock/StockDetailSidebar';
-import { AddItemModal, AdjustModal, EditStockItemModal, EditThresholdModal, LogLossModal, RestockModal } from '@/components/inventory/stock/StockModals';
+import {
+  AddItemModal,
+  AdjustModal,
+  EditStockItemModal,
+  EditThresholdModal,
+  LogLossModal,
+  RestockModal,
+} from '@/components/inventory/stock/StockModals';
 import {
   STATUS_BAR,
   STATUS_ICON_BG,
@@ -36,6 +43,7 @@ import {
   updateLocationStock,
 } from '@/lib/api/inventory.service';
 import { cn } from '@/lib/utils/cn';
+import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const GRID = 'grid-cols-[2fr_1fr_1fr_1.6fr_1fr_0.9fr]';
@@ -78,13 +86,20 @@ export default function InventoryPage() {
 
   const { mutate: toggleAvailable } = useMutation({
     mutationFn: (item: LocationStock) => updateLocationStock(item.id, { isAvailable: !item.isAvailable }),
-    onSuccess: () => { invalidateStock(); addToast('success', 'Availability updated.'); },
+    onSuccess: () => {
+      invalidateStock();
+      addToast('success', 'Availability updated.');
+    },
     onError: () => addToast('error', 'Failed to update availability.'),
   });
 
   const { mutate: removeItem } = useMutation({
     mutationFn: (id: string) => removeLocationStock(id),
-    onSuccess: () => { setSelectedId(null); invalidateStock(); addToast('success', 'Item removed.'); },
+    onSuccess: () => {
+      setSelectedId(null);
+      invalidateStock();
+      addToast('success', 'Item removed.');
+    },
     onError: () => addToast('error', 'Failed to remove item.'),
   });
 
@@ -97,20 +112,25 @@ export default function InventoryPage() {
   }, [rawForecast]);
 
   const enriched = useMemo<StockRow[]>(
-    () => allStock.map((s) => ({
-      ...s,
-      status: getStatus(s),
-      qty: parseFloat(s.quantity),
-      threshold: parseFloat(s.lowThreshold),
-      forecast: forecastMap.get(s.id),
-    })),
+    () =>
+      allStock.map((s) => ({
+        ...s,
+        status: getStatus(s),
+        qty: parseFloat(s.quantity),
+        threshold: parseFloat(s.lowThreshold),
+        forecast: forecastMap.get(s.id),
+      })),
     [allStock, forecastMap],
   );
 
-  const filtered = useMemo(() => enriched.filter((s) => {
-    if (search && !(s.stockItem?.name ?? '').toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  }), [enriched, search]);
+  const filtered = useMemo(
+    () =>
+      enriched.filter((s) => {
+        if (search && !(s.stockItem?.name ?? '').toLowerCase().includes(search.toLowerCase())) return false;
+        return true;
+      }),
+    [enriched, search],
+  );
 
   const selectedItem = useMemo(() => enriched.find((s) => s.id === selectedId) ?? null, [enriched, selectedId]);
   const existingIds = useMemo(() => new Set(allStock.map((s) => s.stockItemId)), [allStock]);
@@ -125,7 +145,10 @@ export default function InventoryPage() {
     <StockDetailSidebar
       item={selectedItem}
       tenantId={tenantId}
-      onClose={() => setSelectedId(null)}
+      onClose={() => {
+        setSelectedId(null);
+        usePageSidebarStore.getState().setOpen(false);
+      }}
       onAdjust={setAdjustTarget}
       onEditThreshold={setThresholdTarget}
       onToggleAvailable={(i) => toggleAvailable(i)}
@@ -148,7 +171,13 @@ export default function InventoryPage() {
                 leftIcon={<Search size={14} />}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                rightAction={search ? <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground transition-colors"><X size={14} /></button> : undefined}
+                rightAction={
+                  search ? (
+                    <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-foreground transition-colors">
+                      <X size={14} />
+                    </button>
+                  ) : undefined
+                }
               />
             </div>
             {locationId && (
@@ -161,7 +190,7 @@ export default function InventoryPage() {
 
         {/* Stats */}
         {locationId && (
-          <div className="flex gap-3 mb-4 shrink-0">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4 shrink-0">
             <StatCard label="Total Items" value={String(enriched.length)} icon="ShoppingBag" iconVariant="primary" />
             <StatCard
               label="Out of Stock"
@@ -186,85 +215,113 @@ export default function InventoryPage() {
         {/* Table */}
         <div className="flex flex-col min-h-0 overflow-hidden rounded-2xl border border-border bg-card">
           {!locationId ? (
-            <EmptyState icon={Boxes} title="No location selected" description="Select a location from the header to view and manage its stock." />
+            <EmptyState
+              icon={Boxes}
+              title="No location selected"
+              description="Select a location from the header to view and manage its stock."
+            />
           ) : (
             <>
-              <div className={cn('grid gap-4 px-4 py-2.5 border-b border-border bg-surface-offset/50 shrink-0', GRID)}>
-                {['Item', 'Quantity', 'Threshold', 'Stock Level', 'Days Left', 'Status'].map((h) => (
-                  <span key={h} className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{h}</span>
-                ))}
-              </div>
+              {/* Horizontal scroll on narrow screens — header and rows scroll together */}
+              <div className="flex-1 min-h-0 overflow-x-auto flex flex-col">
+                <div className="min-w-160 flex-1 min-h-0 flex flex-col">
+                  <div className={cn('grid gap-4 px-4 py-2.5 border-b border-border bg-surface-offset/50 shrink-0', GRID)}>
+                    {['Item', 'Quantity', 'Threshold', 'Stock Level', 'Days Left', 'Status'].map((h) => (
+                      <span key={h} className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        {h}
+                      </span>
+                    ))}
+                  </div>
 
-              <div className="flex-1 overflow-y-auto">
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-16"><p className="text-sm text-muted-foreground">Loading stock…</p></div>
-                ) : filtered.length === 0 ? (
-                  <EmptyState
-                    icon={Package}
-                    title={hasFilters ? 'No items match your filters' : 'No stock items at this location'}
-                    description={hasFilters ? 'Try adjusting your filters.' : 'Add items using the button above.'}
-                  />
-                ) : (
-                  filtered.map((s) => {
-                    const pct = stockPct(s.qty, s.threshold);
-                    const selected = selectedId === s.id;
-                    const days = s.forecast?.daysOfStockRemaining;
-                    return (
-                      <div
-                        key={s.id}
-                        onClick={() => setSelectedId((prev) => (prev === s.id ? null : s.id))}
-                        className={cn(
-                          'grid gap-4 px-4 py-3 border-b border-border/50 last:border-0 cursor-pointer transition-colors hover:bg-surface-offset/40',
-                          GRID,
-                          selected && 'bg-primary/5 border-l-2 border-l-primary',
-                        )}
-                      >
-                        {/* Item */}
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className={cn('w-7 h-7 rounded-md flex items-center justify-center shrink-0', STATUS_ICON_BG[s.status])}>
-                            <Package size={13} className={STATUS_ICON_FG[s.status]} />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{s.stockItem?.name ?? s.stockItemId.slice(0, 8)}</p>
-                            {s.stockItem?.unit && <p className="text-[11px] text-muted-foreground">{s.stockItem.unit}</p>}
-                          </div>
-                        </div>
-
-                        {/* Quantity */}
-                        <div className="flex items-center">
-                          <span className={cn('text-sm font-semibold tabular-nums', (s.status === 'critical' || s.status === 'out') && 'text-destructive')}>
-                            {fmtQty(s.qty)}
-                          </span>
-                        </div>
-
-                        {/* Threshold */}
-                        <div className="flex items-center text-sm text-muted-foreground tabular-nums">{fmtQty(s.threshold)}</div>
-
-                        {/* Stock level */}
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
-                            <div className={cn('h-full rounded-full transition-all', STATUS_BAR[s.status])} style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="text-xs text-muted-foreground tabular-nums w-8 text-right shrink-0">{Math.round(pct)}%</span>
-                        </div>
-
-                        {/* Days left */}
-                        <div className="flex items-center">
-                          {days === undefined ? (
-                            <span className="text-xs text-muted-foreground/40">—</span>
-                          ) : (
-                            <span className={cn('text-sm font-medium tabular-nums', daysColor(days))}>{Math.round(days)}d</span>
-                          )}
-                        </div>
-
-                        {/* Status */}
-                        <div className="flex items-center">
-                          <Badge variant={STATUS_VARIANT[s.status]}>{STATUS_LABEL[s.status]}</Badge>
-                        </div>
+                  <div className="flex-1 overflow-y-auto">
+                    {isLoading ? (
+                      <div className="flex items-center justify-center py-16">
+                        <p className="text-sm text-muted-foreground">Loading stock…</p>
                       </div>
-                    );
-                  })
-                )}
+                    ) : filtered.length === 0 ? (
+                      <EmptyState
+                        icon={Package}
+                        title={hasFilters ? 'No items match your filters' : 'No stock items at this location'}
+                        description={hasFilters ? 'Try adjusting your filters.' : 'Add items using the button above.'}
+                      />
+                    ) : (
+                      filtered.map((s) => {
+                        const pct = stockPct(s.qty, s.threshold);
+                        const selected = selectedId === s.id;
+                        const days = s.forecast?.daysOfStockRemaining;
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => {
+                              const next = selected ? null : s.id;
+                              setSelectedId(next);
+                              // On small screens the panel is a drawer — open it with the selection.
+                              usePageSidebarStore.getState().setOpen(next !== null);
+                            }}
+                            className={cn(
+                              'grid gap-4 px-4 py-3 border-b border-border/50 last:border-0 cursor-pointer transition-colors hover:bg-surface-offset/40',
+                              GRID,
+                              selected && 'bg-primary/5 border-l-2 border-l-primary',
+                            )}
+                          >
+                            {/* Item */}
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={cn('w-7 h-7 rounded-md flex items-center justify-center shrink-0', STATUS_ICON_BG[s.status])}>
+                                <Package size={13} className={STATUS_ICON_FG[s.status]} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {s.stockItem?.name ?? s.stockItemId.slice(0, 8)}
+                                </p>
+                                {s.stockItem?.unit && <p className="text-[11px] text-muted-foreground">{s.stockItem.unit}</p>}
+                              </div>
+                            </div>
+
+                            {/* Quantity */}
+                            <div className="flex items-center">
+                              <span
+                                className={cn(
+                                  'text-sm font-semibold tabular-nums',
+                                  (s.status === 'critical' || s.status === 'out') && 'text-destructive',
+                                )}
+                              >
+                                {fmtQty(s.qty)}
+                              </span>
+                            </div>
+
+                            {/* Threshold */}
+                            <div className="flex items-center text-sm text-muted-foreground tabular-nums">{fmtQty(s.threshold)}</div>
+
+                            {/* Stock level */}
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
+                                <div
+                                  className={cn('h-full rounded-full transition-all', STATUS_BAR[s.status])}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground tabular-nums w-8 text-right shrink-0">{Math.round(pct)}%</span>
+                            </div>
+
+                            {/* Days left */}
+                            <div className="flex items-center">
+                              {days === undefined ? (
+                                <span className="text-xs text-muted-foreground/40">—</span>
+                              ) : (
+                                <span className={cn('text-sm font-medium tabular-nums', daysColor(days))}>{Math.round(days)}d</span>
+                              )}
+                            </div>
+
+                            {/* Status */}
+                            <div className="flex items-center">
+                              <Badge variant={STATUS_VARIANT[s.status]}>{STATUS_LABEL[s.status]}</Badge>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
 
               {filtered.length > 0 && (
@@ -286,7 +343,10 @@ export default function InventoryPage() {
           locationId={locationId}
           existingIds={existingIds}
           onClose={() => setShowAdd(false)}
-          onSuccess={() => { invalidateStock(); addToast('success', 'Item added.'); }}
+          onSuccess={() => {
+            invalidateStock();
+            addToast('success', 'Item added.');
+          }}
         />
       )}
       {editItemTarget?.stockItem && (
@@ -301,16 +361,33 @@ export default function InventoryPage() {
         />
       )}
       {adjustTarget && (
-        <AdjustModal item={adjustTarget} onClose={() => setAdjustTarget(null)} onSuccess={() => { invalidateStock(); addToast('success', 'Stock adjusted.'); }} />
+        <AdjustModal
+          item={adjustTarget}
+          onClose={() => setAdjustTarget(null)}
+          onSuccess={() => {
+            invalidateStock();
+            addToast('success', 'Stock adjusted.');
+          }}
+        />
       )}
       {thresholdTarget && (
-        <EditThresholdModal item={thresholdTarget} onClose={() => setThresholdTarget(null)} onSuccess={() => { invalidateStock(); addToast('success', 'Threshold updated.'); }} />
+        <EditThresholdModal
+          item={thresholdTarget}
+          onClose={() => setThresholdTarget(null)}
+          onSuccess={() => {
+            invalidateStock();
+            addToast('success', 'Threshold updated.');
+          }}
+        />
       )}
       {restockTarget && (
         <RestockModal
           item={restockTarget}
           onClose={() => setRestockTarget(null)}
-          onSuccess={() => { addToast('success', 'Restock request submitted.'); void queryClient.invalidateQueries({ queryKey: ['restock-requests'] }); }}
+          onSuccess={() => {
+            addToast('success', 'Restock request submitted.');
+            void queryClient.invalidateQueries({ queryKey: ['restock-requests'] });
+          }}
         />
       )}
       {lossModal && (

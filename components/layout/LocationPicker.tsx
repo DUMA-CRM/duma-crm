@@ -8,7 +8,7 @@ import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-export function LocationPicker() {
+export function LocationPicker({ align = 'right' }: { align?: 'left' | 'right' }) {
   const { tenantId, locationId, setLocationId } = useWorkspaceStore();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -41,7 +41,7 @@ export function LocationPicker() {
         )}
       >
         <MapPin size={15} className={current ? 'text-primary' : 'text-muted-foreground'} aria-hidden="true" />
-        <span className="hidden sm:inline max-w-[160px] truncate">{current ? current.name : 'No location'}</span>
+        <span className="max-w-40 truncate">{current ? current.name : 'No location'}</span>
         <ChevronDown
           size={14}
           className={cn('text-muted-foreground transition-transform duration-150', open && 'rotate-180')}
@@ -50,7 +50,12 @@ export function LocationPicker() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 w-56 bg-surface border border-border rounded-xl shadow-lg py-1 z-50">
+        <div
+          className={cn(
+            'absolute top-full mt-1.5 w-56 bg-surface border border-border rounded-xl shadow-lg py-1 z-50',
+            align === 'right' ? 'right-0' : 'left-0',
+          )}
+        >
           <p className="px-3 pt-1.5 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Location</p>
 
           {/* No location option */}

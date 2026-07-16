@@ -31,7 +31,15 @@ function defaultHours(): OpeningHours {
 function normaliseHours(h?: OpeningHours | null): OpeningHours {
   const base = defaultHours();
   if (!h) return base;
-  return { mon: h.mon ?? null, tue: h.tue ?? null, wed: h.wed ?? null, thu: h.thu ?? null, fri: h.fri ?? null, sat: h.sat ?? null, sun: h.sun ?? null };
+  return {
+    mon: h.mon ?? null,
+    tue: h.tue ?? null,
+    wed: h.wed ?? null,
+    thu: h.thu ?? null,
+    fri: h.fri ?? null,
+    sat: h.sat ?? null,
+    sun: h.sun ?? null,
+  };
 }
 
 // ── Form ─────────────────────────────────────────────────────────────────────
@@ -66,7 +74,11 @@ function LocationForm({
   const setDayTime = (key: keyof OpeningHours, field: 'open' | 'close', value: string) =>
     setHours((h) => ({ ...h, [key]: { ...(h[key] ?? { open: '09:00', close: '17:00' }), [field]: value } }));
   const copyMondayToAll = () =>
-    setHours((h) => (h.mon ? { mon: h.mon, tue: { ...h.mon }, wed: { ...h.mon }, thu: { ...h.mon }, fri: { ...h.mon }, sat: { ...h.mon }, sun: { ...h.mon } } : h));
+    setHours((h) =>
+      h.mon
+        ? { mon: h.mon, tue: { ...h.mon }, wed: { ...h.mon }, thu: { ...h.mon }, fri: { ...h.mon }, sat: { ...h.mon }, sun: { ...h.mon } }
+        : h,
+    );
 
   return (
     <form
@@ -115,7 +127,12 @@ function LocationForm({
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest">Working hours</label>
-          <button type="button" onClick={copyMondayToAll} className="text-[11px] font-semibold text-primary hover:underline disabled:opacity-40" disabled={!hours.mon}>
+          <button
+            type="button"
+            onClick={copyMondayToAll}
+            className="text-[11px] font-semibold text-primary hover:underline disabled:opacity-40"
+            disabled={!hours.mon}
+          >
             Copy Monday to all
           </button>
         </div>
@@ -126,7 +143,12 @@ function LocationForm({
             return (
               <div key={key} className="flex items-center gap-2">
                 <label className="flex items-center gap-2 w-28 shrink-0 cursor-pointer select-none">
-                  <input type="checkbox" checked={open} onChange={(e) => toggleDay(key, e.target.checked)} className="w-4 h-4 rounded accent-primary" />
+                  <input
+                    type="checkbox"
+                    checked={open}
+                    onChange={(e) => toggleDay(key, e.target.checked)}
+                    className="w-4 h-4 rounded accent-primary"
+                  />
                   <span className="text-sm text-foreground">{label}</span>
                 </label>
                 {open ? (
@@ -220,7 +242,11 @@ export function LocationPanel() {
   const { tenantId, locationId, setLocationId } = useWorkspaceStore();
   const [modal, setModal] = useState<ModalState | null>(null);
 
-  const { data: locations = [], isLoading, isSuccess } = useQuery({
+  const {
+    data: locations = [],
+    isLoading,
+    isSuccess,
+  } = useQuery({
     queryKey: ['locations', tenantId],
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
@@ -264,7 +290,7 @@ export function LocationPanel() {
   const isPending = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   return (
-    <aside className="w-100 shrink-0 border-l border-border flex flex-col overflow-hidden">
+    <aside className="w-100 max-w-full shrink-0 border-l border-border flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-6 pt-8 pb-4 border-b border-border shrink-0">
         <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Step 2 · Location</p>

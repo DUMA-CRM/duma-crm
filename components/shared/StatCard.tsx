@@ -134,7 +134,14 @@ export function StatCard({
   }
 
   return (
-    <div className={cn('flex-1 bg-card border border-border rounded-2xl p-4 flex flex-col gap-3', className)}>
+    <div
+      className={cn(
+        'flex-1 bg-card border border-border rounded-2xl p-4 flex flex-col gap-3',
+        // In 2-col phone grids a badge crowds the label, so badged cards take the full row.
+        delta && 'max-sm:col-span-2',
+        className,
+      )}
+    >
       {/* ── Header: icon + label | delta badge ── */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -143,7 +150,9 @@ export function StatCard({
               <Icon size={16} strokeWidth={2} />
             </span>
           )}
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">{displayLabel}</p>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none truncate" title={displayLabel}>
+            {displayLabel}
+          </p>
         </div>
 
         {delta && (

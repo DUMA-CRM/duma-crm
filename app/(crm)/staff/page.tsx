@@ -5,10 +5,10 @@ import { Plus, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
-import { PersonSidebar } from '@/components/people/PersonSidebar';
-import { CreateStaffModal, EditEmployeeModal, EditStaffModal, EnrollEmployeeModal } from '@/components/people/PeopleModals';
-import { Avatar, EMPLOYMENT_CONFIG, ROLE_CONFIG, fmtDate } from '@/components/people/shared';
 import { PageLayout } from '@/components/layout/PageLayout';
+import { CreateStaffModal, EditEmployeeModal, EditStaffModal, EnrollEmployeeModal } from '@/components/people/PeopleModals';
+import { PersonSidebar } from '@/components/people/PersonSidebar';
+import { Avatar, EMPLOYMENT_CONFIG, ROLE_CONFIG, fmtDate } from '@/components/people/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ import { type StaffProfile, getStaff, roleAtLeast } from '@/lib/api/staff.servic
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
+import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 type ModalState =
@@ -71,10 +72,15 @@ export default function PeoplePage() {
       member={selectedMember}
       employee={selectedMember ? empByUser.get(selectedMember.userId) : undefined}
       locations={locations}
-      onClose={() => setSelectedUserId(null)}
+      onClose={() => {
+        setSelectedUserId(null);
+        usePageSidebarStore.getState().setOpen(false);
+      }}
       onEditAccess={(m) => setModal({ type: 'editStaff', member: m })}
       onEnroll={(m) => setModal({ type: 'enroll', member: m })}
-      onEditEmployment={(emp) => setModal({ type: 'editEmployee', employee: emp, name: selectedMember?.name ?? selectedMember?.email ?? emp.userId })}
+      onEditEmployment={(emp) =>
+        setModal({ type: 'editEmployee', employee: emp, name: selectedMember?.name ?? selectedMember?.email ?? emp.userId })
+      }
     />
   );
 
@@ -106,7 +112,10 @@ export default function PeoplePage() {
                   {['Member', 'Role', 'Employment', 'Type', 'Status', 'Joined'].map((h, i) => (
                     <th
                       key={h}
-                      className={cn('px-5 py-3.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest', i === 5 ? 'text-right pr-6' : 'text-left')}
+                      className={cn(
+                        'px-5 py-3.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest',
+                        i === 5 ? 'text-right pr-6' : 'text-left',
+                      )}
                     >
                       {h}
                     </th>
@@ -144,7 +153,12 @@ export default function PeoplePage() {
                     return (
                       <tr
                         key={member.userId}
-                        onClick={() => setSelectedUserId((prev) => (prev === member.userId ? null : member.userId))}
+                        onClick={() => {
+                          const next = selected ? null : member.userId;
+                          setSelectedUserId(next);
+                          // On small screens the panel is a drawer — open it with the selection.
+                          usePageSidebarStore.getState().setOpen(next !== null);
+                        }}
                         className={cn(
                           'group border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors cursor-pointer',
                           selected && 'bg-primary/5 hover:bg-primary/5',
@@ -160,7 +174,14 @@ export default function PeoplePage() {
                           </div>
                         </td>
                         <td className="px-5 py-3.5">
-                          <span className={cn('inline-flex items-center px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide', rc.bg, rc.text, rc.border)}>
+                          <span
+                            className={cn(
+                              'inline-flex items-center px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
+                              rc.bg,
+                              rc.text,
+                              rc.border,
+                            )}
+                          >
                             {rc.label}
                           </span>
                         </td>
@@ -176,7 +197,9 @@ export default function PeoplePage() {
                         </td>
                         <td className="px-5 py-3.5">
                           {emp ? (
-                            <Badge variant={EMPLOYMENT_CONFIG[emp.employmentType].variant}>{EMPLOYMENT_CONFIG[emp.employmentType].label}</Badge>
+                            <Badge variant={EMPLOYMENT_CONFIG[emp.employmentType].variant}>
+                              {EMPLOYMENT_CONFIG[emp.employmentType].label}
+                            </Badge>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
@@ -185,10 +208,14 @@ export default function PeoplePage() {
                           <span
                             className={cn(
                               'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
-                              member.isActive ? 'bg-success/10 text-success border-success/30' : 'bg-muted text-muted-foreground border-border',
+                              member.isActive
+                                ? 'bg-success/10 text-success border-success/30'
+                                : 'bg-muted text-muted-foreground border-border',
                             )}
                           >
-                            <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', member.isActive ? 'bg-success' : 'bg-muted-foreground')} />
+                            <span
+                              className={cn('w-1.5 h-1.5 rounded-full shrink-0', member.isActive ? 'bg-success' : 'bg-muted-foreground')}
+                            />
                             {member.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </td>
@@ -206,7 +233,8 @@ export default function PeoplePage() {
           {staff.length > 0 && (
             <div className="px-5 py-3 border-t border-border shrink-0">
               <p className="text-xs text-muted-foreground">
-                {staff.length} {staff.length === 1 ? 'person' : 'people'} · {staff.filter((s) => s.isActive).length} active · {enrolledCount} enrolled
+                {staff.length} {staff.length === 1 ? 'person' : 'people'} · {staff.filter((s) => s.isActive).length} active ·{' '}
+                {enrolledCount} enrolled
               </p>
             </div>
           )}

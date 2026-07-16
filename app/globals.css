@@ -264,6 +264,16 @@
     color: var(--foreground);
   }
 
+  /* Hide scrollbars everywhere — scrolling still works via touch/wheel/keys. */
+  * {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* legacy Edge/IE */
+  }
+
+  *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

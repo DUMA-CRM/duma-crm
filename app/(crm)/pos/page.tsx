@@ -16,9 +16,10 @@ import { createOrder } from '@/lib/api/orders.service';
 import { CATEGORIES } from '@/lib/constants/pos';
 import { parseModifierName } from '@/lib/utils/modifiers';
 import { selectionKey } from '@/lib/utils/pos';
+import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { Customer } from '@/types/customers';
-import type { AttachedModifier, MenuItem as ApiMenuItem } from '@/types/menu';
+import type { MenuItem as ApiMenuItem, AttachedModifier } from '@/types/menu';
 import type { CartItem, Category, MenuItem, MenuOption } from '@/types/pos';
 
 // ── API → POS type mapping ────────────────────────────────────────────────────
@@ -38,7 +39,13 @@ function toPosItem(api: ApiMenuItem, modifiers: AttachedModifier[]): MenuItem {
       .filter((m) => m.isAvailable)
       .map((m): MenuOption => {
         const { category, label } = parseModifierName(m.name);
-        return { id: m.id, label, price: m.priceAdjust ? pence(m.priceAdjust) : 0, category: category ?? undefined, isDefault: m.isDefault };
+        return {
+          id: m.id,
+          label,
+          price: m.priceAdjust ? pence(m.priceAdjust) : 0,
+          category: category ?? undefined,
+          isDefault: m.isDefault,
+        };
       }),
   };
 }
@@ -77,10 +84,7 @@ export default function POSPage() {
   });
 
   const posItems = useMemo<MenuItem[]>(
-    () =>
-      apiItems
-        .filter((item) => item.isAvailable)
-        .map((item, i) => toPosItem(item, modifierQueries[i]?.data ?? [])),
+    () => apiItems.filter((item) => item.isAvailable).map((item, i) => toPosItem(item, modifierQueries[i]?.data ?? [])),
     [apiItems, modifierQueries],
   );
 
@@ -91,6 +95,8 @@ export default function POSPage() {
 
   function handleSelectItem(item: MenuItem) {
     setSelectedItem(item);
+    // On small screens the order panel is a drawer — open it so the customiser is visible.
+    usePageSidebarStore.getState().setOpen(true);
     // Pre-select the item's default variants (one per category is enforced by the
     // single-select rule in the customiser, so this respects that too).
     setPending(item.modifiers.filter((o) => o.isDefault));

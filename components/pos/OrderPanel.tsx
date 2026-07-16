@@ -55,7 +55,7 @@ export function OrderPanel({
   }
 
   return (
-    <div className="w-100 shrink-0 border-l border-border bg-card flex flex-col overflow-hidden">
+    <div className="w-100 max-w-full shrink-0 border-l border-border bg-card flex flex-col overflow-hidden">
       <CustomerLoyalty selectedCustomer={selectedCustomer} onCustomerSelect={onCustomerSelect} />
 
       {/* Order header */}
@@ -85,9 +85,7 @@ export function OrderPanel({
         )}
       </ScrollArea>
 
-      {cart.length > 0 && (
-        <OrderSummary cart={cart} notes={notes} onNotesChange={setNotes} onPay={handlePay} isPaying={isPaying} />
-      )}
+      {cart.length > 0 && <OrderSummary cart={cart} notes={notes} onNotesChange={setNotes} onPay={handlePay} isPaying={isPaying} />}
     </div>
   );
 }

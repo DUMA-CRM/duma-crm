@@ -1,12 +1,13 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { History, RotateCcw, Search } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { History, PanelRight, RotateCcw, Search, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { roleAtLeast } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
+import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 
 import { Input } from '../ui/input';
 
@@ -15,12 +16,21 @@ import { LocationPicker } from './LocationPicker';
 import { SidebarToggle } from './SidebarToggle';
 import { ThemeToggle } from './ThemeToggle';
 
+const iconButton = 'w-9 h-9 rounded-md flex items-center justify-center hover:bg-surface-offset hover:text-foreground transition-colors';
+
 export function Header() {
   const [auditOpen, setAuditOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [spinning, setSpinning] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
   const qc = useQueryClient();
   // Audit log is franchise_owner+ (matches the API); hide the button otherwise.
-  const canViewAudit = roleAtLeast(useAuthStore((s) => s.role), 'franchise_owner');
+  const canViewAudit = roleAtLeast(
+    useAuthStore((s) => s.role),
+    'franchise_owner',
+  );
+  // Only pages that render a right-hand panel get the drawer toggle.
+  const { present: hasPageSidebar, toggle: togglePageSidebar, open: pageSidebarOpen } = usePageSidebarStore();
 
   const handleReload = useCallback(async () => {
     setSpinning(true);
@@ -28,46 +38,99 @@ export function Header() {
     setTimeout(() => setSpinning(false), 600);
   }, [qc]);
 
+  // Close the mobile tools menu on outside click (same pattern as LocationPicker).
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      if (headerRef.current && !headerRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [menuOpen]);
+
+  const reloadButton = (className?: string) => (
+    <button onClick={handleReload} aria-label="Reload data" className={cn(iconButton, className)}>
+      <RotateCcw size={18} aria-hidden="true" className={cn('transition-transform duration-500', spinning && 'rotate-180')} />
+    </button>
+  );
+
+  const auditButton = (className?: string) =>
+    canViewAudit ? (
+      <button
+        onClick={() => {
+          setAuditOpen(true);
+          setMenuOpen(false);
+        }}
+        aria-label="Activity history"
+        className={cn(iconButton, className)}
+      >
+        <History size={18} aria-hidden="true" />
+      </button>
+    ) : null;
+
   return (
     <>
-      <header className="h-14 shrink-0 bg-surface border-b border-divider flex items-center gap-3 px-6 sticky top-0 z-20">
+      <header
+        ref={headerRef}
+        className="h-14 shrink-0 bg-surface border-b border-divider flex items-center gap-2 md:gap-3 px-3 md:px-6 sticky top-0 z-20"
+      >
         <SidebarToggle />
-        <Input
-          leftIcon={<Search size={16} />}
-          type="search"
-          placeholder="Search orders, roast profiles, or customers…"
-          className="max-w-120"
-        />
+
+        {/* Inline search — md+ only; collapses into the tools menu below */}
+        <div className="hidden md:block w-full max-w-120">
+          <Input leftIcon={<Search size={16} />} type="search" placeholder="Search orders, roast profiles, or customers…" />
+        </div>
         <div className="flex-1" />
 
-        <div className="flex items-center gap-2">
-          {/* Reload */}
-          <button
-            onClick={handleReload}
-            aria-label="Reload data"
-            className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-surface-offset hover:text-foreground transition-colors"
-          >
-            <RotateCcw size={18} aria-hidden="true" className={cn('transition-transform duration-500', spinning && 'rotate-180')} />
-          </button>
+        {/* Mobile: centred tools-menu trigger */}
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="Search and tools"
+          aria-expanded={menuOpen}
+          className={cn(iconButton, 'md:hidden', menuOpen && 'bg-surface-offset text-foreground')}
+        >
+          {menuOpen ? <X size={18} aria-hidden="true" /> : <Search size={18} aria-hidden="true" />}
+        </button>
+        <div className="flex-1 md:hidden" />
 
-          {/* History / audit — franchise_owner+ only */}
-          {canViewAudit && (
-            <button
-              onClick={() => setAuditOpen(true)}
-              aria-label="Activity history"
-              className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-surface-offset hover:text-foreground transition-colors"
-            >
-              <History size={18} aria-hidden="true" />
-            </button>
-          )}
+        <div className="flex items-center gap-1 md:gap-2">
+          {reloadButton('hidden md:flex')}
+          {auditButton('hidden md:flex')}
 
           {/* Divider */}
-          <div className="w-px h-6 bg-divider mx-1" aria-hidden="true" />
+          <div className="hidden md:block w-px h-6 bg-divider mx-1" aria-hidden="true" />
 
-          <LocationPicker />
+          <div className="hidden md:block">
+            <LocationPicker />
+          </div>
 
           <ThemeToggle />
+
+          {/* Page sidebar (right panel) toggle — drawer mode below lg only */}
+          {hasPageSidebar && (
+            <button
+              onClick={togglePageSidebar}
+              aria-label="Toggle page panel"
+              aria-expanded={pageSidebarOpen}
+              className={cn(iconButton, 'lg:hidden', pageSidebarOpen && 'bg-surface-offset text-primary')}
+            >
+              <PanelRight size={18} aria-hidden="true" />
+            </button>
+          )}
         </div>
+
+        {/* Mobile tools menu — search, location, reload, audit */}
+        {menuOpen && (
+          <div className="absolute top-full inset-x-0 z-30 md:hidden bg-surface border-b border-divider shadow-lg p-3 flex flex-col gap-3">
+            <Input leftIcon={<Search size={16} />} type="search" placeholder="Search orders, roast profiles, or customers…" />
+            <div className="flex items-center gap-2">
+              <LocationPicker align="left" />
+              <div className="flex-1" />
+              {reloadButton()}
+              {auditButton()}
+            </div>
+          </div>
+        )}
       </header>
 
       {canViewAudit && <AuditDrawer open={auditOpen} onClose={() => setAuditOpen(false)} />}

@@ -42,8 +42,7 @@ export function CustomerPanel({ customer, onCustomerUpdate }: CustomerPanelProps
     spend: Number(o.totalAmount),
   }));
 
-  const avgTicket =
-    visits.length > 0 ? visits.reduce((s, v) => s + v.spend, 0) / visits.length : 0;
+  const avgTicket = visits.length > 0 ? visits.reduce((s, v) => s + v.spend, 0) / visits.length : 0;
 
   function handleSaved(updated: Customer) {
     qc.invalidateQueries({ queryKey: ['customers'] });
@@ -53,7 +52,7 @@ export function CustomerPanel({ customer, onCustomerUpdate }: CustomerPanelProps
   const tier = customer ? TIER_CONFIG[customer.tier] : null;
 
   return (
-    <div className="w-100 shrink-0 border-l border-border bg-card flex flex-col overflow-hidden h-full">
+    <div className="w-100 max-w-full shrink-0 border-l border-border bg-card flex flex-col overflow-hidden h-full">
       {!customer ? (
         <EmptyState icon={UserCircle2} title="No customer selected" description="Select a customer from the list to view their profile" />
       ) : (
@@ -88,21 +87,15 @@ export function CustomerPanel({ customer, onCustomerUpdate }: CustomerPanelProps
                 {/* KPI row */}
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-background rounded-xl border border-border px-3 py-2.5 text-center">
-                    <p className="text-lg font-bold tabular-nums text-foreground">
-                      £{Number(customer.totalSpent).toFixed(0)}
-                    </p>
+                    <p className="text-lg font-bold tabular-nums text-foreground">£{Number(customer.totalSpent).toFixed(0)}</p>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Spent</p>
                   </div>
                   <div className="bg-background rounded-xl border border-border px-3 py-2.5 text-center">
-                    <p className="text-lg font-bold tabular-nums text-foreground">
-                      {customer.totalVisits}
-                    </p>
+                    <p className="text-lg font-bold tabular-nums text-foreground">{customer.totalVisits}</p>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Visits</p>
                   </div>
                   <div className="bg-background rounded-xl border border-border px-3 py-2.5 text-center">
-                    <p className="text-lg font-bold tabular-nums text-foreground">
-                      £{avgTicket.toFixed(0)}
-                    </p>
+                    <p className="text-lg font-bold tabular-nums text-foreground">£{avgTicket.toFixed(0)}</p>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Avg Order</p>
                   </div>
                 </div>

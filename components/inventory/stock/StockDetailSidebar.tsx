@@ -25,6 +25,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 import { type StockMovement, getStockItemMovements } from '@/lib/api/inventory.service';
 import { getLossLog } from '@/lib/api/loss.service';
+import type { LossRecord } from '@/lib/api/loss.service';
 import { cn } from '@/lib/utils/cn';
 
 import {
@@ -41,9 +42,8 @@ import {
   stockPct,
   timeAgo,
 } from './shared';
-import type { LossRecord } from '@/lib/api/loss.service';
 
-const WIDTH = 'w-100';
+const WIDTH = 'w-100 max-w-full';
 
 // ── Small labelled stat used in the forecast block ────────────────────────────
 
@@ -194,7 +194,9 @@ export function StockDetailSidebar({
             </div>
             {lossesLoading ? (
               <div className="bg-surface-offset rounded-xl overflow-hidden">
-                {[1, 2, 3].map((i) => <div key={i} className="h-14 border-b border-border last:border-0 animate-pulse" />)}
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-14 border-b border-border last:border-0 animate-pulse" />
+                ))}
               </div>
             ) : losses.length === 0 ? (
               <div className="bg-surface-offset rounded-xl p-4 text-center">
@@ -214,7 +216,9 @@ export function StockDetailSidebar({
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5">Recent Activity</p>
             {movementsLoading ? (
               <div className="bg-surface-offset rounded-xl overflow-hidden">
-                {[1, 2, 3].map((i) => <div key={i} className="h-14 border-b border-border last:border-0 animate-pulse" />)}
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-14 border-b border-border last:border-0 animate-pulse" />
+                ))}
               </div>
             ) : movements.length === 0 ? (
               <div className="bg-surface-offset rounded-xl p-4 text-center">
@@ -222,7 +226,9 @@ export function StockDetailSidebar({
               </div>
             ) : (
               <div className="bg-surface-offset rounded-xl divide-y divide-border overflow-hidden">
-                {movements.map((m) => <MovementRow key={m.id} movement={m} unit={unit} />)}
+                {movements.map((m) => (
+                  <MovementRow key={m.id} movement={m} unit={unit} />
+                ))}
               </div>
             )}
           </section>
@@ -297,16 +303,23 @@ function MovementRow({ movement, unit }: { movement: StockMovement; unit: string
   const isPositive = movement.delta > 0;
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0', isPositive ? 'bg-success/10' : 'bg-destructive/10')}>
+      <div
+        className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0', isPositive ? 'bg-success/10' : 'bg-destructive/10')}
+      >
         {isPositive ? <TrendingUp size={13} className="text-success" /> : <TrendingDown size={13} className="text-destructive" />}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-foreground">{label}</p>
-        {movement.notes && <p className="text-[11px] text-muted-foreground truncate" title={movement.notes}>{movement.notes}</p>}
+        {movement.notes && (
+          <p className="text-[11px] text-muted-foreground truncate" title={movement.notes}>
+            {movement.notes}
+          </p>
+        )}
       </div>
       <div className="text-right shrink-0">
         <p className={cn('text-xs font-bold tabular-nums', isPositive ? 'text-success' : 'text-destructive')}>
-          {isPositive ? '+' : ''}{movement.delta} {unit}
+          {isPositive ? '+' : ''}
+          {movement.delta} {unit}
         </p>
         <p className="text-[11px] text-muted-foreground">{timeAgo(movement.createdAt)}</p>
       </div>
@@ -327,10 +340,16 @@ function SidebarLossRow({ loss, unit }: { loss: LossRecord; unit: string }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-foreground">{REASON_LABELS[displayReason] ?? displayReason}</p>
-        {notes && <p className="text-[11px] text-muted-foreground truncate" title={notes}>{notes}</p>}
+        {notes && (
+          <p className="text-[11px] text-muted-foreground truncate" title={notes}>
+            {notes}
+          </p>
+        )}
       </div>
       <div className="text-right shrink-0">
-        <p className="text-xs font-bold tabular-nums text-destructive">-{fmtQty(Math.abs(loss.quantity))} {unit}</p>
+        <p className="text-xs font-bold tabular-nums text-destructive">
+          -{fmtQty(Math.abs(loss.quantity))} {unit}
+        </p>
         <p className="text-[11px] text-muted-foreground">{timeAgo(loss.createdAt)}</p>
       </div>
     </div>

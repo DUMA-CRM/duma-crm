@@ -1,7 +1,28 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Activity, BriefcaseBusiness, Building2, Cake, CalendarDays, CheckCircle2, Clock, Globe, MapPin, Pencil, Receipt, ShieldCheck, Smartphone, Store, Timer, TrendingUp, UserPlus, Users, X, XCircle } from 'lucide-react';
+import {
+  Activity,
+  BriefcaseBusiness,
+  Building2,
+  Cake,
+  CalendarDays,
+  CheckCircle2,
+  Clock,
+  Globe,
+  MapPin,
+  Pencil,
+  Receipt,
+  ShieldCheck,
+  Smartphone,
+  Store,
+  Timer,
+  TrendingUp,
+  UserPlus,
+  Users,
+  X,
+  XCircle,
+} from 'lucide-react';
 import { useState } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -15,7 +36,7 @@ import { cn } from '@/lib/utils/cn';
 
 import { Avatar, EMPLOYMENT_CONFIG, ROLE_CONFIG, fmtDate } from './shared';
 
-const WIDTH = 'w-100';
+const WIDTH = 'w-100 max-w-full';
 
 export function PersonSidebar({
   member,
@@ -56,10 +77,22 @@ export function PersonSidebar({
               <p className="text-base font-semibold text-foreground leading-snug truncate">{member.name ?? '—'}</p>
               <p className="text-xs text-muted-foreground truncate">{member.email ?? '—'}</p>
               <div className="flex items-center gap-2 mt-1.5">
-                <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase tracking-wide', rc.bg, rc.text, rc.border)}>
+                <span
+                  className={cn(
+                    'inline-flex items-center px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase tracking-wide',
+                    rc.bg,
+                    rc.text,
+                    rc.border,
+                  )}
+                >
                   {rc.label}
                 </span>
-                <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium', member.isActive ? 'text-success' : 'text-muted-foreground')}>
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 text-[11px] font-medium',
+                    member.isActive ? 'text-success' : 'text-muted-foreground',
+                  )}
+                >
                   <span className={cn('w-1.5 h-1.5 rounded-full', member.isActive ? 'bg-success' : 'bg-muted-foreground')} />
                   {member.isActive ? 'Active' : 'Inactive'}
                 </span>
@@ -78,7 +111,10 @@ export function PersonSidebar({
           <section>
             <div className="flex items-center justify-between mb-2">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Access &amp; role</p>
-              <button onClick={() => onEditAccess(member)} className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary-hover transition-colors">
+              <button
+                onClick={() => onEditAccess(member)}
+                className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary-hover transition-colors"
+              >
                 <Pencil size={11} /> Edit
               </button>
             </div>
@@ -95,7 +131,10 @@ export function PersonSidebar({
             <div className="flex items-center justify-between mb-2">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Employment</p>
               {employee && (
-                <button onClick={() => onEditEmployment(employee)} className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary-hover transition-colors">
+                <button
+                  onClick={() => onEditEmployment(employee)}
+                  className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary-hover transition-colors"
+                >
                   <Pencil size={11} /> Edit
                 </button>
               )}
@@ -195,7 +234,12 @@ function PerformanceSection({ userId }: { userId: string }) {
       ) : (
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
-            <StatTile icon={Receipt} label="Orders" value={String(w.totalOrders)} hint={`${w.activeDays} active ${w.activeDays === 1 ? 'day' : 'days'}`} />
+            <StatTile
+              icon={Receipt}
+              label="Orders"
+              value={String(w.totalOrders)}
+              hint={`${w.activeDays} active ${w.activeDays === 1 ? 'day' : 'days'}`}
+            />
             <StatTile icon={TrendingUp} label="Revenue" value={fmtMoney(w.totalRevenue)} hint="excl. cancelled" />
             <StatTile icon={Store} label="Avg order" value={fmtMoney(w.avgOrderValue)} />
             <StatTile icon={CalendarDays} label="Orders / day" value={String(w.avgOrdersPerActiveDay)} hint="per active day" />
@@ -209,7 +253,9 @@ function PerformanceSection({ userId }: { userId: string }) {
             <InfoRow icon={Smartphone} label="Mobile orders" value={String(w.bySource.mobile)} />
           </InfoGroup>
           {w.prepTime.measuredOrders === 0 && (
-            <p className="text-[11px] text-muted-foreground px-1">No orders reached “ready” in this window, so prep time can’t be measured.</p>
+            <p className="text-[11px] text-muted-foreground px-1">
+              No orders reached “ready” in this window, so prep time can’t be measured.
+            </p>
           )}
         </div>
       )}

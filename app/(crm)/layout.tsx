@@ -37,7 +37,7 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
       <Sidebar role={profile?.role ?? null} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-8">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
       </div>
     </div>
   );

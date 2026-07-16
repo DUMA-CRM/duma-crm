@@ -71,7 +71,9 @@ function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSug
           <div className={cn('h-full rounded-full transition-all', STATUS_BAR[status])} style={{ width: `${pct}%` }} />
         </div>
         <div className="flex items-center justify-between mt-1.5 text-xs text-muted-foreground">
-          <span><span className="font-semibold text-foreground tabular-nums">{fmtQty(qty)}</span> {unit} in stock</span>
+          <span>
+            <span className="font-semibold text-foreground tabular-nums">{fmtQty(qty)}</span> {unit} in stock
+          </span>
           <span>threshold {fmtQty(threshold)}</span>
         </div>
       </div>
@@ -83,7 +85,9 @@ function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSug
         <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Sparkles size={12} className="text-primary" /> Suggested order
         </span>
-        <span className="text-sm font-bold text-primary tabular-nums">+{suggested} {unit}</span>
+        <span className="text-sm font-bold text-primary tabular-nums">
+          +{suggested} {unit}
+        </span>
       </button>
     </div>
   );
@@ -173,7 +177,7 @@ export function RestockRequestForm() {
   }
 
   return (
-    <div className="h-full overflow-y-auto pb-8 grid gap-8 grid-cols-[minmax(0,26rem)_1fr] items-start">
+    <div className="h-full overflow-y-auto pb-8 grid gap-8 grid-cols-1 xl:grid-cols-[minmax(0,26rem)_1fr] items-start">
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Location (set from the top bar) */}

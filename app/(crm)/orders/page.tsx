@@ -32,6 +32,7 @@ import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { StatCard } from '@/components/shared/StatCard';
 import { Button } from '@/components/ui/button';
 
+import { API_PREFIX } from '@/lib/api/client';
 import {
   type Order,
   type OrderDetail as OrderDetailType,
@@ -40,7 +41,6 @@ import {
   getOrders,
   updateOrderStatus,
 } from '@/lib/api/orders.service';
-import { API_PREFIX } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -180,7 +180,11 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
 
 function LiveTicket({ order, active, onClick }: { order: Order; active: boolean; onClick: () => void }) {
   const s = STATUS_CONFIG[order.status];
-  const preview = order.items?.slice(0, 2).map((i) => `${i.quantity}× ${i.name}`).join(', ') ?? '—';
+  const preview =
+    order.items
+      ?.slice(0, 2)
+      .map((i) => `${i.quantity}× ${i.name}`)
+      .join(', ') ?? '—';
   const hasMore = (order.items?.length ?? 0) > 2;
 
   return (
@@ -291,7 +295,9 @@ function ReceiptModal({ orderId, apiBase, onClose }: { orderId: string; apiBase:
           ) : null}
         </div>
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
           <Button onClick={download} disabled={!url}>
             <Download />
             Download PDF
@@ -325,15 +331,19 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
   const history = data.statusHistory ?? [];
 
   return (
-    <div className="flex gap-5">
+    <div className="flex flex-col lg:flex-row gap-5">
       {/* ── Receipt (left) ── */}
-      <div className="w-80 shrink-0 bg-background border border-dashed border-border rounded-xl px-5 py-4 font-mono">
+      <div className="w-full lg:w-80 shrink-0 bg-background border border-dashed border-border rounded-xl px-5 py-4 font-mono">
         <div className="text-center mb-3">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Receipt</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">#{data.id.slice(0, 8).toUpperCase()}</p>
           <p className="text-[10px] text-muted-foreground">
             {new Date(data.createdAt).toLocaleString('en-GB', {
-              day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
             })}
           </p>
         </div>
@@ -397,7 +407,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
       {/* ── Right section ── */}
       <div className="flex-1 flex flex-col gap-4 min-w-0">
         {/* Timeline + Details side by side */}
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Timeline */}
           <div className="flex flex-col gap-1">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Timeline</p>
@@ -408,9 +418,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                   const Icon = STATUS_ICONS[entry.status];
                   const isLast = idx === history.length - 1;
                   const prev = idx > 0 ? history[idx - 1] : null;
-                  const duration = prev
-                    ? formatDuration(new Date(entry.createdAt).getTime() - new Date(prev.createdAt).getTime())
-                    : null;
+                  const duration = prev ? formatDuration(new Date(entry.createdAt).getTime() - new Date(prev.createdAt).getTime()) : null;
 
                   return (
                     <div key={entry.id} className="flex gap-3.5">
@@ -424,13 +432,14 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                         <p className={cn('text-xs font-semibold leading-none', s.text)}>{s.label}</p>
                         <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
                           {new Date(entry.createdAt).toLocaleString('en-GB', {
-                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
                           })}
                           {entry.changedBy && <span className="ml-1">· {entry.changedBy}</span>}
                         </p>
-                        {duration && (
-                          <p className="text-[10px] text-muted-foreground/60 italic">{duration} since previous</p>
-                        )}
+                        {duration && <p className="text-[10px] text-muted-foreground/60 italic">{duration} since previous</p>}
                       </div>
                     </div>
                   );
@@ -459,20 +468,22 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                 icon={CalendarDays}
                 label="Created"
                 value={new Date(data.createdAt).toLocaleString('en-GB', {
-                  day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
                 })}
               />
-              {data.customerId && (
-                <InfoRow icon={User} label="Customer ID" value={data.customerId} copyable />
-              )}
-							<InfoRow icon={User} label="Staff ID" value={data.createdBy} copyable />
+              {data.customerId && <InfoRow icon={User} label="Customer ID" value={data.customerId} copyable />}
+              <InfoRow icon={User} label="Staff ID" value={data.createdBy} copyable />
               <InfoRow icon={MapPin} label="Location ID" value={data.locationId} copyable />
             </InfoGroup>
           </div>
         </div>
 
         {/* Action buttons */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowReceipt(true)}>
             <Eye />
             View / Download Receipt
@@ -495,7 +506,15 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
 
 // ── Order row ─────────────────────────────────────────────────────────────────
 
-function OrderRow({ order, isOpen: controlledOpen, onOpenChange }: { order: Order; isOpen?: boolean; onOpenChange?: (id: string, open: boolean) => void }) {
+function OrderRow({
+  order,
+  isOpen: controlledOpen,
+  onOpenChange,
+}: {
+  order: Order;
+  isOpen?: boolean;
+  onOpenChange?: (id: string, open: boolean) => void;
+}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
 
@@ -516,33 +535,30 @@ function OrderRow({ order, isOpen: controlledOpen, onOpenChange }: { order: Orde
         )}
         onClick={toggle}
       >
-        <td className="px-5 py-4 w-8">
-          <ChevronRight
-            size={13}
-            className={cn('text-muted-foreground transition-transform duration-150 shrink-0', open && 'rotate-90')}
-          />
+        <td className="px-3 md:px-5 py-4 w-8">
+          <ChevronRight size={13} className={cn('text-muted-foreground transition-transform duration-150 shrink-0', open && 'rotate-90')} />
         </td>
-        <td className="px-5 py-4">
+        <td className="px-3 md:px-5 py-4">
           <span className="font-mono text-xs font-medium text-muted-foreground">#{order.id.slice(0, 8)}</span>
         </td>
-        <td className="px-5 py-4">
+        <td className="hidden md:table-cell px-5 py-4">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             {order.source === 'pos' ? <Monitor size={12} className="shrink-0" /> : <Smartphone size={12} className="shrink-0" />}
             {order.source === 'pos' ? 'POS' : 'Mobile'}
           </span>
         </td>
-        <td className="px-5 py-4 max-w-xs">
+        <td className="hidden md:table-cell px-5 py-4 max-w-xs">
           <span className="text-xs text-muted-foreground truncate block">{order.notes ?? '—'}</span>
         </td>
-        <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
+        <td className="px-3 md:px-5 py-4" onClick={(e) => e.stopPropagation()}>
           <StatusBadge order={order} stopProp />
         </td>
-        <td className="px-5 py-4 text-right">
+        <td className="px-3 md:px-5 py-4 text-right">
           <span className="text-sm font-semibold text-foreground tabular-nums">
             {order.totalAmount != null ? `£${Number(order.totalAmount).toFixed(2)}` : '—'}
           </span>
         </td>
-        <td className="px-5 py-4 pr-6 text-right">
+        <td className="px-3 md:px-5 py-4 pr-4 md:pr-6 text-right">
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {new Date(order.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </span>
@@ -551,7 +567,7 @@ function OrderRow({ order, isOpen: controlledOpen, onOpenChange }: { order: Orde
 
       {open && (
         <tr className="border-b border-border/50 bg-surface-offset/50">
-          <td colSpan={7} className="px-8 pt-3 pb-5">
+          <td colSpan={7} className="px-4 md:px-8 pt-3 pb-5">
             <OrderDetailPanel orderId={order.id} />
           </td>
         </tr>
@@ -674,20 +690,30 @@ export default function OrdersPage() {
     >
       <div className="flex flex-col gap-4">
         {/* Stats */}
-        <div className="flex gap-3 shrink-0">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 shrink-0">
           <StatCard
             label="Orders today"
             value={String(totalOrders)}
             icon="ShoppingBag"
             iconVariant="primary"
-            footer={{ type: 'bars', values: week7.map((d) => d.orders), labels: week7.map((d) => String(d.orders)), titleLabels: week7.map((d) => `Orders (${d.dateLabel})`) }}
+            footer={{
+              type: 'bars',
+              values: week7.map((d) => d.orders),
+              labels: week7.map((d) => String(d.orders)),
+              titleLabels: week7.map((d) => `Orders (${d.dateLabel})`),
+            }}
           />
           <StatCard
             label="Revenue"
             value={`£${revenue.toFixed(0)}`}
             icon="Wallet"
             iconVariant="success"
-            footer={{ type: 'bars', values: week7.map((d) => d.revenue), labels: week7.map((d) => `£${d.revenue.toFixed(0)}`), titleLabels: week7.map((d) => `Revenue (${d.dateLabel})`) }}
+            footer={{
+              type: 'bars',
+              values: week7.map((d) => d.revenue),
+              labels: week7.map((d) => `£${d.revenue.toFixed(0)}`),
+              titleLabels: week7.map((d) => `Revenue (${d.dateLabel})`),
+            }}
           />
           <StatCard label="Open / Preparing" value={String(liveCount)} icon="Tag" iconVariant="gold" />
           <StatCard label="Cancelled" value={String(cancelledCount)} icon="Receipt" iconVariant="info" />
@@ -701,12 +727,7 @@ export default function OrdersPage() {
             </p>
             <div className="flex gap-2.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {liveTickets.map((order) => (
-                <LiveTicket
-                  key={order.id}
-                  order={order}
-                  active={activeTicket === order.id}
-                  onClick={() => handleTicketClick(order.id)}
-                />
+                <LiveTicket key={order.id} order={order} active={activeTicket === order.id} onClick={() => handleTicketClick(order.id)} />
               ))}
             </div>
           </div>
@@ -719,12 +740,16 @@ export default function OrdersPage() {
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-muted">
                   <th className="px-5 py-3.5 w-8" />
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Order</th>
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Source</th>
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Notes</th>
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
-                  <th className="px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total</th>
-                  <th className="px-5 py-3.5 pr-6 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Order</th>
+                  <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Source
+                  </th>
+                  <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Notes
+                  </th>
+                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
+                  <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total</th>
+                  <th className="px-3 md:px-5 py-3.5 pr-4 md:pr-6 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Time
                   </th>
                 </tr>
@@ -734,7 +759,7 @@ export default function OrdersPage() {
                   Array.from({ length: 10 }).map((_, i) => (
                     <tr key={i} className="border-b border-border/50">
                       {Array.from({ length: 7 }).map((_, j) => (
-                        <td key={j} className="px-5 py-4">
+                        <td key={j} className={cn('px-3 md:px-5 py-4', (j === 2 || j === 3) && 'hidden md:table-cell')}>
                           <div className="h-4 bg-muted rounded animate-pulse" style={{ width: `${45 + ((i * 13 + j * 17) % 40)}%` }} />
                         </td>
                       ))}
@@ -756,12 +781,7 @@ export default function OrdersPage() {
                   </tr>
                 ) : (
                   orders.map((order) => (
-                    <OrderRow
-                      key={order.id}
-                      order={order}
-                      isOpen={expandedOrderId === order.id}
-                      onOpenChange={handleRowOpenChange}
-                    />
+                    <OrderRow key={order.id} order={order} isOpen={expandedOrderId === order.id} onOpenChange={handleRowOpenChange} />
                   ))
                 )}
               </tbody>

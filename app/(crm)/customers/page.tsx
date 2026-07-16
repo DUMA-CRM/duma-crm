@@ -11,6 +11,7 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { Modal } from '@/components/shared/Modal';
 
 import { getCustomers } from '@/lib/api/customers.service';
+import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { Customer, FilterOption } from '@/types/customers';
 
@@ -47,9 +48,15 @@ export default function CustomersPage() {
 
   const customers = data?.data ?? [];
 
-  const handleSelect = useCallback((c: Customer) => {
-    setSelected((prev) => (prev?.id === c.id ? null : c));
-  }, []);
+  const handleSelect = useCallback(
+    (c: Customer) => {
+      const next = selected?.id === c.id ? null : c;
+      setSelected(next);
+      // On small screens the panel is a drawer — open it with the selection.
+      usePageSidebarStore.getState().setOpen(next !== null);
+    },
+    [selected],
+  );
 
   const headerSlot = (
     <CustomerSearch

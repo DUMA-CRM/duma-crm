@@ -50,7 +50,6 @@ function statusColor(code?: number | null) {
   return 'bg-destructive/10 text-destructive';
 }
 
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function actionColor(action: string) {
@@ -83,7 +82,7 @@ function AuditDetailPanel({ log }: { log: AuditLog }) {
   const duration = fmtDuration(log.durationMs);
 
   return (
-    <div className="grid grid-cols-2 gap-5 items-start">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
       {/* Details */}
       <div className="flex flex-col gap-3">
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Details</p>
@@ -140,7 +139,11 @@ function LogRow({ log }: { log: AuditLog }) {
         onClick={() => setOpen((v) => !v)}
       >
         <td className="px-5 py-4 w-6 align-top">
-          <ChevronDown size={14} className={cn('text-muted-foreground transition-transform duration-150 mt-0.5', open && 'rotate-180')} aria-hidden="true" />
+          <ChevronDown
+            size={14}
+            className={cn('text-muted-foreground transition-transform duration-150 mt-0.5', open && 'rotate-180')}
+            aria-hidden="true"
+          />
         </td>
         <td className="px-5 py-4 w-40 align-top">
           <span
@@ -184,7 +187,9 @@ function LogRow({ log }: { log: AuditLog }) {
           </span>
           <div className="flex items-center gap-1.5 mt-1">
             {log.statusCode != null && (
-              <span className={cn('text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md', statusColor(log.statusCode))}>{log.statusCode}</span>
+              <span className={cn('text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md', statusColor(log.statusCode))}>
+                {log.statusCode}
+              </span>
             )}
             {duration && <span className="text-[11px] text-muted-foreground tabular-nums">{duration}</span>}
           </div>
@@ -305,10 +310,14 @@ export default function AuditLogPage() {
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-muted">
                   <th className="px-5 py-3.5 w-6" />
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-40">Action</th>
+                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-40">
+                    Action
+                  </th>
                   <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Resource</th>
                   <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-48">User</th>
-                  <th className="px-5 py-3.5 pr-6 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-44">Time</th>
+                  <th className="px-5 py-3.5 pr-6 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-44">
+                    Time
+                  </th>
                 </tr>
               </thead>
               <tbody>
