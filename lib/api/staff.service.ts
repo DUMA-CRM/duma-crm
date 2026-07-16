@@ -74,7 +74,7 @@ export interface UpdateStaffPayload {
 }
 
 export const getStaff = async (tenantId?: string) => {
-  const qs = tenantId ? `?tenantId=${tenantId}` : '';
+  const qs = tenantId ? `?${new URLSearchParams({ tenantId })}` : '';
   const rows = await apiFetch<StaffProfile[]>(`/staff${qs}`);
   return rows.map(normalizeStaff);
 };
@@ -137,5 +137,4 @@ export interface StaffPerformance {
   windows: Record<StaffPerfWindowKey, StaffPerfWindow>;
 }
 
-export const getStaffPerformance = (userId: string) =>
-  apiFetch<StaffPerformance>(`/staff/${userId}/performance`);
+export const getStaffPerformance = (userId: string) => apiFetch<StaffPerformance>(`/staff/${userId}/performance`);

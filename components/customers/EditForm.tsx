@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { updateCustomer } from '@/lib/api/customers.service';
+import { toast } from '@/stores/toastStore';
 import { Customer } from '@/types/customers';
 
 export function EditForm({ customer, onClose, onSaved }: { customer: Customer; onClose: () => void; onSaved: (c: Customer) => void }) {
@@ -30,7 +31,9 @@ export function EditForm({ customer, onClose, onSaved }: { customer: Customer; o
     onSuccess: (updated) => {
       onSaved(updated);
       onClose();
+      toast('success', 'Customer updated.');
     },
+    onError: (err) => toast('error', err.message || 'Failed to save the customer.'),
   });
 
   return (

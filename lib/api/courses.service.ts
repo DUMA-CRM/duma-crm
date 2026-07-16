@@ -34,18 +34,16 @@ export interface UpdateCoursePayload {
 
 // List courses for a tenant, ordered by sortOrder then title.
 export const getCourses = (tenantId?: string) => {
-  const qs = tenantId ? `?tenantId=${tenantId}` : '';
+  const qs = tenantId ? `?${new URLSearchParams({ tenantId })}` : '';
   return apiFetch<Course[]>(`/courses${qs}`);
 };
 
 export const getCourse = (id: string) => apiFetch<Course>(`/courses/${id}`);
 
 // Create a course (store_manager+). Published immediately.
-export const createCourse = (data: CreateCoursePayload) =>
-  apiFetch<Course>('/courses', { method: 'POST', body: JSON.stringify(data) });
+export const createCourse = (data: CreateCoursePayload) => apiFetch<Course>('/courses', { method: 'POST', body: JSON.stringify(data) });
 
 export const updateCourse = (id: string, data: UpdateCoursePayload) =>
   apiFetch<Course>(`/courses/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 
-export const deleteCourse = (id: string) =>
-  apiFetch<{ success: boolean; id: string }>(`/courses/${id}`, { method: 'DELETE' });
+export const deleteCourse = (id: string) => apiFetch<{ success: boolean; id: string }>(`/courses/${id}`, { method: 'DELETE' });

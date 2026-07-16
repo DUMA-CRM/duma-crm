@@ -2,7 +2,9 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Calendar, Check, Coins, FileText, Mail, Pencil, Phone, ShoppingBag, Star, UserCircle2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import QRCode from 'react-qr-code';
 
 import { CustomerOrders } from '@/components/customers/CustomerOrders';
 import { EditForm } from '@/components/customers/EditForm';
@@ -20,6 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 import { getOrders } from '@/lib/api/orders.service';
 import { TIER_CONFIG } from '@/lib/constants/customers';
+import { customerQrValue } from '@/lib/utils/customer-qr';
 import type { Customer } from '@/types/customers';
 
 interface CustomerPanelProps {
@@ -29,6 +32,7 @@ interface CustomerPanelProps {
 
 export function CustomerPanel({ customer, onCustomerUpdate }: CustomerPanelProps) {
   const qc = useQueryClient();
+  const router = useRouter();
   const [modal, setModal] = useState<'edit' | 'points' | null>(null);
 
   const { data: ordersData } = useQuery({
@@ -102,6 +106,33 @@ export function CustomerPanel({ customer, onCustomerUpdate }: CustomerPanelProps
 
                 {/* Loyalty progress */}
                 <LoyaltyProgress customer={customer} />
+
+                {/* Loyalty QR — encodes the customer id for scanning at the POS */}
+                <div>
+                  <Label className="mb-2">LOYALTY QR</Label>
+                  <div className="bg-background rounded-2xl border border-border p-4 flex flex-col items-center gap-2.5">
+                    {/* Always on white so it scans in dark mode too */}
+                    <div className="bg-white p-2.5 rounded-xl border border-border">
+                      <QRCode
+                        value={customerQrValue(customer.id)}
+                        size={132}
+                        bgColor="#ffffff"
+                        fgColor="#1e1b16"
+                        aria-label="Customer loyalty QR code"
+                      />
+                    </div>
+                    <p className="text-[10px] font-mono font-semibold text-muted-foreground tracking-widest uppercase">
+                      {customer.id.slice(0, 8)}
+                    </p>
+                    <button
+                      onClick={() => router.push(`/pos?customer=${customer.id}`)}
+                      className="w-full h-9 px-3 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <ShoppingBag size={14} aria-hidden="true" />
+                      Open in POS with this customer
+                    </button>
+                  </div>
+                </div>
 
                 {/* Visit calendar */}
                 {visits.length > 0 && (

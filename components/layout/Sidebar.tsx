@@ -22,9 +22,11 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
   const analyticsItems = filterNavByRole(analyticsNavItems, role);
 
   // Badge the Orders nav item with the number of active (not done/cancelled) orders.
+  // Shares the ['orders-all', locationId] cache entry with the dashboard and
+  // orders pages so the same 200-row list isn't fetched three times.
   const showOrders = mainItems.some((item) => item.href === '/orders');
   const { data: ordersData } = useQuery({
-    queryKey: ['orders-active-count', locationId],
+    queryKey: ['orders-all', locationId],
     queryFn: () => getOrders({ limit: 200, locationId: locationId ?? undefined }),
     enabled: showOrders,
     refetchInterval: 60_000,

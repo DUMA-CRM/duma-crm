@@ -29,7 +29,7 @@ export function CustomerSearch({ query, filter, onQuery, onFilter, onClick, tena
       <div className="flex items-center gap-2 justify-between">
         <SegmentedControl options={TIER_FILTERS} value={filter} onChange={onFilter} />
         {tenantId && (
-          <Button onClick={onClick} size="lg">
+          <Button onClick={onClick}>
             <Plus size={16} aria-hidden="true" />
             New
           </Button>

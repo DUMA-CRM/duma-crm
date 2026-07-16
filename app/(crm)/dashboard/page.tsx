@@ -16,19 +16,12 @@ import { type Order, getOrders } from '@/lib/api/orders.service';
 import { decodeNotes, getRestockRequests } from '@/lib/api/restock.service';
 import { getStaff, roleAtLeast } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
+import { timeAgo } from '@/lib/utils/format';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { Customer } from '@/types/customers';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function timeAgo(iso: string) {
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
 
 function fmtGbp(n: number) {
   return `£${n.toFixed(0)}`;
@@ -213,7 +206,7 @@ function StoreDashboard() {
   return (
     <PageLayout eyebrow="At a Glance" title="Dashboard">
       {/* ── KPI cards ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard
           label="Revenue Today"
           value={fmtGbp(revenueToday)}

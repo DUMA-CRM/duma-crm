@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Building2, Check, MapPin, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Building2, Check, type LucideIcon, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
 import { getLocationsByTenant, getTenants } from '@/lib/api/workspace.service';
@@ -37,7 +37,7 @@ export function WorkspaceContextBar() {
       {ready ? (
         <Link
           href="/pos"
-          className="h-9 px-4 shrink-0 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+          className="h-9 px-3 shrink-0 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors"
         >
           Start taking orders
           <ArrowRight size={15} aria-hidden="true" />

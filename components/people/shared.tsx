@@ -13,7 +13,15 @@ export const ROLE_CONFIG: Record<StaffRole, { label: string; bg: string; text: s
   auditor: { label: 'Auditor', bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-border' },
 };
 
-export const ROLES: StaffRole[] = ['super_admin', 'franchise_owner', 'store_manager', 'barista', 'hr_manager', 'marketing_manager', 'auditor'];
+export const ROLES: StaffRole[] = [
+  'super_admin',
+  'franchise_owner',
+  'store_manager',
+  'barista',
+  'hr_manager',
+  'marketing_manager',
+  'auditor',
+];
 export const SCOPES: StaffScope[] = ['global', 'franchise', 'location'];
 
 // ── Employment type config ────────────────────────────────────────────────────
@@ -30,7 +38,7 @@ export const EMPLOYMENT_CONFIG: Record<EmploymentType, { label: string; variant:
 // ── Shared form styles ────────────────────────────────────────────────────────
 
 export const inp =
-  'w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 export const sel = inp + ' cursor-pointer';
 export const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
@@ -46,7 +54,9 @@ export function Avatar({ name, size = 'md' }: { name?: string; size?: 'md' | 'lg
   const initials = parts.length >= 2 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : parts[0].slice(0, 2);
   const dim = size === 'lg' ? 'w-12 h-12 text-sm' : 'w-9 h-9 text-xs';
   return (
-    <div className={`${dim} rounded-full bg-linear-to-br from-primary to-primary-hover flex items-center justify-center text-white font-bold shrink-0 select-none uppercase`}>
+    <div
+      className={`${dim} rounded-full bg-linear-to-br from-primary to-primary-hover flex items-center justify-center text-white font-bold shrink-0 select-none uppercase`}
+    >
       {initials}
     </div>
   );

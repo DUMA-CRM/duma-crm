@@ -177,7 +177,7 @@ export function RestockRequestForm() {
   }
 
   return (
-    <div className="h-full overflow-y-auto pb-8 grid gap-8 grid-cols-1 xl:grid-cols-[minmax(0,26rem)_1fr] items-start">
+    <div className="h-full overflow-y-auto pb-8 grid gap-6 grid-cols-1 xl:grid-cols-[minmax(0,26rem)_1fr] items-start">
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Location (set from the top bar) */}

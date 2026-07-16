@@ -48,7 +48,7 @@ export default function SignInPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full h-11 mt-2 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full h-10 mt-2 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Signing in…' : 'Sign in'}
         </button>

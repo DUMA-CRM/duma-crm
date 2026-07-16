@@ -49,7 +49,7 @@ export function CustomerList({ customers, selectedId, onSelect, isLoading, page,
           </span>
           <Button variant="outline" size="sm" onClick={() => onPage(page + 1)} disabled={page === totalPages}>
             Next
-            <ChevronRight size={13} aria-hidden="true" />
+            <ChevronRight size={16} aria-hidden="true" />
           </Button>
         </div>
       )}

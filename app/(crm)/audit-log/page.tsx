@@ -18,14 +18,17 @@ import {
   User,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 
 import { type AuditLog, getAuditLogs, parseAuditMeta } from '@/lib/api/audit.service';
+import { roleAtLeast } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
+import { useAuthStore } from '@/stores/authStore';
 
 const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Super Admin',
@@ -138,14 +141,14 @@ function LogRow({ log }: { log: AuditLog }) {
         className="group border-b border-border/50 transition-colors align-top cursor-pointer hover:bg-surface-offset"
         onClick={() => setOpen((v) => !v)}
       >
-        <td className="px-5 py-4 w-6 align-top">
+        <td className="px-3 md:px-5 py-4 w-6 align-top">
           <ChevronDown
             size={14}
             className={cn('text-muted-foreground transition-transform duration-150 mt-0.5', open && 'rotate-180')}
             aria-hidden="true"
           />
         </td>
-        <td className="px-5 py-4 w-40 align-top">
+        <td className="px-3 md:px-5 py-4 w-40 align-top">
           <span
             className={cn(
               'inline-block text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md border whitespace-nowrap',
@@ -155,7 +158,7 @@ function LogRow({ log }: { log: AuditLog }) {
             {humanise(log.action)}
           </span>
         </td>
-        <td className="px-5 py-4 align-top">
+        <td className="px-3 md:px-5 py-4 align-top">
           <p className="text-sm font-medium text-foreground leading-snug">{humanise(log.resourceType)}</p>
           {(log.method || log.path) && (
             <p className="text-xs text-muted-foreground font-mono mt-0.5 opacity-70 truncate max-w-md">
@@ -163,7 +166,7 @@ function LogRow({ log }: { log: AuditLog }) {
             </p>
           )}
         </td>
-        <td className="px-5 py-4 w-48 align-top">
+        <td className="hidden lg:table-cell px-5 py-4 w-48 align-top">
           {log.userName || log.userEmail ? (
             <>
               <div className="flex items-center gap-1.5">
@@ -180,7 +183,7 @@ function LogRow({ log }: { log: AuditLog }) {
             <span className="text-sm text-muted-foreground">System / anonymous</span>
           )}
         </td>
-        <td className="px-5 py-4 pr-6 w-44 align-top">
+        <td className="hidden md:table-cell px-5 py-4 pr-6 w-44 align-top">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
             <Clock size={11} aria-hidden="true" className="shrink-0" />
             {formatDate(log.createdAt)}
@@ -197,7 +200,7 @@ function LogRow({ log }: { log: AuditLog }) {
       </tr>
       {open && (
         <tr className="border-b border-border/50 bg-surface-offset/50">
-          <td colSpan={5} className="px-8 pt-3 pb-5">
+          <td colSpan={5} className="px-4 md:px-8 pt-3 pb-5">
             <AuditDetailPanel log={log} />
           </td>
         </tr>
@@ -214,6 +217,14 @@ const inputClass =
   'h-8 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
 export default function AuditLogPage() {
+  const router = useRouter();
+  // Same gate as the header's audit drawer — franchise_owner and above only.
+  const role = useAuthStore((s) => s.role);
+  const canView = roleAtLeast(role, 'franchise_owner');
+  useEffect(() => {
+    if (role && !canView) router.replace('/dashboard');
+  }, [role, canView, router]);
+
   const [page, setPage] = useState(1);
   const [action, setAction] = useState('');
   const [resourceType, setResourceType] = useState('');
@@ -233,6 +244,7 @@ export default function AuditLogPage() {
         from: from ? new Date(from).toISOString() : undefined,
         to: to ? new Date(to).toISOString() : undefined,
       }),
+    enabled: canView,
   });
 
   const logs = data?.data ?? [];
@@ -309,13 +321,17 @@ export default function AuditLogPage() {
             <table className="w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-muted">
-                  <th className="px-5 py-3.5 w-6" />
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-40">
+                  <th className="px-3 md:px-5 py-3.5 w-6" />
+                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-40">
                     Action
                   </th>
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Resource</th>
-                  <th className="px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-48">User</th>
-                  <th className="px-5 py-3.5 pr-6 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-44">
+                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Resource
+                  </th>
+                  <th className="hidden lg:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-48">
+                    User
+                  </th>
+                  <th className="hidden md:table-cell px-5 py-3.5 pr-6 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-44">
                     Time
                   </th>
                 </tr>
@@ -325,7 +341,10 @@ export default function AuditLogPage() {
                   Array.from({ length: 10 }).map((_, i) => (
                     <tr key={i} className="border-b border-border/50">
                       {Array.from({ length: 5 }).map((_, j) => (
-                        <td key={j} className="px-5 py-4">
+                        <td
+                          key={j}
+                          className={cn('px-3 md:px-5 py-4', j === 3 && 'hidden lg:table-cell', j === 4 && 'hidden md:table-cell')}
+                        >
                           <div className="h-4 bg-muted rounded animate-pulse" style={{ width: `${45 + ((i * 13 + j * 17) % 40)}%` }} />
                         </td>
                       ))}

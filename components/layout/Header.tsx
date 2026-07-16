@@ -2,6 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { History, PanelRight, RotateCcw, Search, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { roleAtLeast } from '@/lib/api/staff.service';
@@ -17,6 +18,33 @@ import { SidebarToggle } from './SidebarToggle';
 import { ThemeToggle } from './ThemeToggle';
 
 const iconButton = 'w-9 h-9 rounded-md flex items-center justify-center hover:bg-surface-offset hover:text-foreground transition-colors';
+
+/** Header search — submits to the customers list with the query prefilled. */
+function HeaderSearch({ onSubmitted }: { onSubmitted?: () => void }) {
+  const router = useRouter();
+  const [q, setQ] = useState('');
+  return (
+    <form
+      role="search"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const query = q.trim();
+        if (!query) return;
+        router.push(`/customers?q=${encodeURIComponent(query)}`);
+        setQ('');
+        onSubmitted?.();
+      }}
+    >
+      <Input
+        leftIcon={<Search size={16} />}
+        type="search"
+        placeholder="Search customers… (press Enter)"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
+    </form>
+  );
+}
 
 export function Header() {
   const [auditOpen, setAuditOpen] = useState(false);
@@ -78,7 +106,7 @@ export function Header() {
 
         {/* Inline search — md+ only; collapses into the tools menu below */}
         <div className="hidden md:block w-full max-w-120">
-          <Input leftIcon={<Search size={16} />} type="search" placeholder="Search orders, roast profiles, or customers…" />
+          <HeaderSearch />
         </div>
         <div className="flex-1" />
 
@@ -122,7 +150,7 @@ export function Header() {
         {/* Mobile tools menu — search, location, reload, audit */}
         {menuOpen && (
           <div className="absolute top-full inset-x-0 z-30 md:hidden bg-surface border-b border-divider shadow-lg p-3 flex flex-col gap-3">
-            <Input leftIcon={<Search size={16} />} type="search" placeholder="Search orders, roast profiles, or customers…" />
+            <HeaderSearch onSubmitted={() => setMenuOpen(false)} />
             <div className="flex items-center gap-2">
               <LocationPicker align="left" />
               <div className="flex-1" />

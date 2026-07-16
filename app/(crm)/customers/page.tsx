@@ -15,10 +15,13 @@ import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { Customer, FilterOption } from '@/types/customers';
 
+// Deep link: /customers?q=<query> (from the header search) opens pre-filtered.
+const initialQuery = () => (typeof window === 'undefined' ? '' : (new URLSearchParams(window.location.search).get('q') ?? ''));
+
 export default function CustomersPage() {
   const { tenantId } = useWorkspaceStore();
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [search, setSearch] = useState(initialQuery);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialQuery);
   const [filter, setFilter] = useState<FilterOption>('all');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Customer | null>(null);

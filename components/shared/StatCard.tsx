@@ -114,15 +114,15 @@ export function StatCard({
     footer?.type === 'sparkline' && hoveredSpark !== null
       ? (footer.labels?.[hoveredSpark] ?? String(footer.points[hoveredSpark]))
       : footer?.type === 'bars' && hoveredBar !== null
-      ? (footer.labels?.[hoveredBar] ?? String(footer.values[hoveredBar]))
-      : value;
+        ? (footer.labels?.[hoveredBar] ?? String(footer.values[hoveredBar]))
+        : value;
 
   const displayLabel =
     footer?.type === 'sparkline' && hoveredSpark !== null && footer.titleLabels
       ? footer.titleLabels[hoveredSpark]
       : footer?.type === 'bars' && hoveredBar !== null && footer.titleLabels
-      ? footer.titleLabels[hoveredBar]
-      : label;
+        ? footer.titleLabels[hoveredBar]
+        : label;
 
   function handleSparkMove(e: React.MouseEvent<SVGSVGElement>) {
     if (!svgRef.current) return;
@@ -146,7 +146,7 @@ export function StatCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
           {Icon && (
-            <span className={cn('w-8 h-8 rounded-md flex items-center justify-center shrink-0', ICON_CLASS[iconVariant])}>
+            <span className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', ICON_CLASS[iconVariant])}>
               <Icon size={16} strokeWidth={2} />
             </span>
           )}
@@ -206,8 +206,14 @@ export function StatCard({
               {hov && (
                 <>
                   <line
-                    x1={hov.x} y1={0} x2={hov.x} y2={H}
-                    stroke="currentColor" strokeWidth="1" strokeDasharray="3 3" strokeOpacity="0.4"
+                    x1={hov.x}
+                    y1={0}
+                    x2={hov.x}
+                    y2={H}
+                    stroke="currentColor"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                    strokeOpacity="0.4"
                   />
                   <circle cx={hov.x} cy={hov.y} r="3" fill="currentColor" />
                 </>

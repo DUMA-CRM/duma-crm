@@ -28,7 +28,7 @@ function TenantForm({
   const [slug, setSlug] = useState(initial?.slug ?? '');
 
   const inputClass =
-    'w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+    'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
   return (
     <form
@@ -82,7 +82,11 @@ export function TenantList() {
   const [query, setQuery] = useState('');
   const [modal, setModal] = useState<ModalState | null>(null);
 
-  const { data: tenants = [], isLoading, isSuccess } = useQuery({
+  const {
+    data: tenants = [],
+    isLoading,
+    isSuccess,
+  } = useQuery({
     queryKey: ['tenants'],
     queryFn: getTenants,
   });

@@ -131,7 +131,7 @@ export function StockDetailSidebar({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="px-5 py-5 space-y-6">
           {/* Stock level */}
           <section>

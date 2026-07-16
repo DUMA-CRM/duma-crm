@@ -21,6 +21,16 @@ import { useAuthStore } from '@/stores/authStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+// Secondary columns hide on smaller screens so the table stays usable on mobile.
+const STAFF_COLUMNS = [
+  { label: 'Member', className: '' },
+  { label: 'Role', className: '' },
+  { label: 'Employment', className: 'hidden md:table-cell' },
+  { label: 'Type', className: 'hidden lg:table-cell' },
+  { label: 'Status', className: '' },
+  { label: 'Joined', className: 'hidden lg:table-cell' },
+];
+
 type ModalState =
   | { type: 'createStaff' }
   | { type: 'editStaff'; member: StaffProfile }
@@ -109,15 +119,16 @@ export default function PeoplePage() {
             <table className="w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-muted">
-                  {['Member', 'Role', 'Employment', 'Type', 'Status', 'Joined'].map((h, i) => (
+                  {STAFF_COLUMNS.map(({ label, className }, i) => (
                     <th
-                      key={h}
+                      key={label}
                       className={cn(
-                        'px-5 py-3.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest',
-                        i === 5 ? 'text-right pr-6' : 'text-left',
+                        'px-3 md:px-5 py-3.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest',
+                        i === STAFF_COLUMNS.length - 1 ? 'text-right pr-4 md:pr-6' : 'text-left',
+                        className,
                       )}
                     >
-                      {h}
+                      {label}
                     </th>
                   ))}
                 </tr>
@@ -127,7 +138,7 @@ export default function PeoplePage() {
                   Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="border-b border-border/50">
                       {Array.from({ length: 6 }).map((_, j) => (
-                        <td key={j} className="px-5 py-4">
+                        <td key={j} className={cn('px-3 md:px-5 py-4', STAFF_COLUMNS[j].className)}>
                           <div className="h-4 bg-muted rounded animate-pulse" style={{ width: `${50 + ((i * 11 + j * 19) % 35)}%` }} />
                         </td>
                       ))}
@@ -164,7 +175,7 @@ export default function PeoplePage() {
                           selected && 'bg-primary/5 hover:bg-primary/5',
                         )}
                       >
-                        <td className="px-5 py-3.5">
+                        <td className="px-3 md:px-5 py-3.5">
                           <div className="flex items-center gap-3">
                             <Avatar name={member.name} />
                             <div className="min-w-0">
@@ -173,7 +184,7 @@ export default function PeoplePage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-3.5">
+                        <td className="px-3 md:px-5 py-3.5">
                           <span
                             className={cn(
                               'inline-flex items-center px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
@@ -185,7 +196,7 @@ export default function PeoplePage() {
                             {rc.label}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5">
+                        <td className="hidden md:table-cell px-5 py-3.5">
                           {emp ? (
                             <div className="min-w-0">
                               <p className="text-sm text-foreground truncate">{emp.jobTitle}</p>
@@ -195,7 +206,7 @@ export default function PeoplePage() {
                             <span className="text-xs text-muted-foreground/60">Not enrolled</span>
                           )}
                         </td>
-                        <td className="px-5 py-3.5">
+                        <td className="hidden lg:table-cell px-5 py-3.5">
                           {emp ? (
                             <Badge variant={EMPLOYMENT_CONFIG[emp.employmentType].variant}>
                               {EMPLOYMENT_CONFIG[emp.employmentType].label}
@@ -204,7 +215,7 @@ export default function PeoplePage() {
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </td>
-                        <td className="px-5 py-3.5">
+                        <td className="px-3 md:px-5 py-3.5">
                           <span
                             className={cn(
                               'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
@@ -219,7 +230,7 @@ export default function PeoplePage() {
                             {member.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 pr-6 text-right">
+                        <td className="hidden lg:table-cell px-5 py-3.5 pr-6 text-right">
                           <span className="text-xs text-muted-foreground whitespace-nowrap">{fmtDate(member.createdAt)}</span>
                         </td>
                       </tr>

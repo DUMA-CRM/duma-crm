@@ -27,6 +27,7 @@ import {
   stockPct,
 } from '@/components/inventory/stock/shared';
 import { PageLayout } from '@/components/layout/PageLayout';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { StatCard } from '@/components/shared/StatCard';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
@@ -62,6 +63,7 @@ export default function InventoryPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editItemTarget, setEditItemTarget] = useState<StockRow | null>(null);
   const [lossModal, setLossModal] = useState<{ locationId?: string; stockItemId?: string } | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<LocationStock | null>(null);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const addToast = (type: 'success' | 'error', message: string) => setToasts((prev) => [...prev, { id: Date.now(), type, message }]);
@@ -93,10 +95,11 @@ export default function InventoryPage() {
     onError: () => addToast('error', 'Failed to update availability.'),
   });
 
-  const { mutate: removeItem } = useMutation({
+  const { mutate: removeItem, isPending: removePending } = useMutation({
     mutationFn: (id: string) => removeLocationStock(id),
     onSuccess: () => {
       setSelectedId(null);
+      setRemoveTarget(null);
       invalidateStock();
       addToast('success', 'Item removed.');
     },
@@ -152,7 +155,7 @@ export default function InventoryPage() {
       onAdjust={setAdjustTarget}
       onEditThreshold={setThresholdTarget}
       onToggleAvailable={(i) => toggleAvailable(i)}
-      onRemove={(i) => removeItem(i.id)}
+      onRemove={(i) => setRemoveTarget(i)}
       onRestock={setRestockTarget}
       onLogLoss={(i) => setLossModal({ locationId: i.locationId, stockItemId: i.stockItemId })}
       onEditItem={setEditItemTarget}
@@ -400,6 +403,23 @@ export default function InventoryPage() {
             void queryClient.invalidateQueries({ queryKey: ['loss-log'] });
             addToast('success', 'Loss entry recorded.');
           }}
+        />
+      )}
+
+      {removeTarget && (
+        <ConfirmModal
+          title="Remove Stock Item"
+          message={
+            <>
+              Remove <span className="font-semibold text-foreground">{removeTarget.stockItem?.name ?? 'this item'}</span> from this
+              location? Its stock history stays, but the item disappears from the list.
+            </>
+          }
+          confirmLabel="Remove"
+          pendingLabel="Removing…"
+          isPending={removePending}
+          onConfirm={() => removeItem(removeTarget.id)}
+          onClose={() => setRemoveTarget(null)}
         />
       )}
 

@@ -32,9 +32,20 @@ export function LocationPicker({ align = 'right' }: { align?: 'left' | 'right' }
   if (!tenantId) return null;
 
   return (
-    <div ref={ref} className="relative">
+    <div
+      ref={ref}
+      className="relative"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && open) {
+          e.stopPropagation();
+          setOpen(false);
+        }
+      }}
+    >
       <button
         onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className={cn(
           'flex items-center gap-1.5 h-9 px-3 rounded-md border text-sm font-medium transition-colors',
           open ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-transparent text-foreground hover:bg-surface-offset',

@@ -104,7 +104,7 @@ export interface LowStockAlert {
 }
 
 export const getLowStockAlerts = (locationId?: string) => {
-  const qs = locationId ? `?locationId=${locationId}` : '';
+  const qs = locationId ? `?${new URLSearchParams({ locationId })}` : '';
   return apiFetch<LowStockAlert[]>(`/location-stock/alerts${qs}`);
 };
 

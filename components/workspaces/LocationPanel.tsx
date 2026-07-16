@@ -65,7 +65,7 @@ function LocationForm({
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
 
   const inputClass =
-    'w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+    'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
   const timeClass =
     'h-9 bg-background border border-border rounded-lg px-2 text-sm text-foreground tabular-nums outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150 disabled:opacity-40';
 
@@ -290,16 +290,16 @@ export function LocationPanel() {
   const isPending = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   return (
-    <aside className="w-100 max-w-full shrink-0 border-l border-border flex flex-col overflow-hidden">
+    <aside className="w-100 max-w-full shrink-0 border-l border-border bg-card flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-6 pt-8 pb-4 border-b border-border shrink-0">
+      <div className="px-5 pt-5 md:pt-8 pb-4 border-b border-border shrink-0">
         <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Step 2 · Location</p>
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-foreground">Locations</h2>
           {tenantId && (
             <button
               onClick={() => setModal({ mode: 'create' })}
-              className="h-8 px-3 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shrink-0"
+              className="h-9 px-3 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shrink-0"
             >
               <Plus size={13} aria-hidden="true" />
               New
@@ -314,7 +314,7 @@ export function LocationPanel() {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
         {!tenantId ? (
           <EmptyState
             icon={Building2}
@@ -376,27 +376,27 @@ export function LocationPanel() {
                       <p className="text-xs text-muted-foreground truncate">{loc.address}</p>
                       {loc.phone && <p className="text-xs text-muted-foreground/70 truncate">{loc.phone}</p>}
                     </div>
-                    {/* Actions — visible on hover */}
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    {/* Actions — always visible on touch, hover-revealed on desktop */}
+                    <div className="flex gap-1 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setModal({ mode: 'edit', location: loc });
                         }}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-offset hover:text-foreground transition-colors"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-offset hover:text-foreground transition-colors"
                         aria-label={`Edit ${loc.name}`}
                       >
-                        <Pencil size={12} aria-hidden="true" />
+                        <Pencil size={13} aria-hidden="true" />
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setModal({ mode: 'delete', location: loc });
                         }}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                         aria-label={`Delete ${loc.name}`}
                       >
-                        <Trash2 size={12} aria-hidden="true" />
+                        <Trash2 size={13} aria-hidden="true" />
                       </button>
                     </div>
                   </div>

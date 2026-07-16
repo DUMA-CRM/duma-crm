@@ -13,9 +13,7 @@ import {
   Download,
   Eye,
   Flame,
-  Mail,
   MapPin,
-  MessageSquare,
   Monitor,
   ShoppingBag,
   Smartphone,
@@ -42,6 +40,8 @@ import {
   updateOrderStatus,
 } from '@/lib/api/orders.service';
 import { cn } from '@/lib/utils/cn';
+import { timeAgo } from '@/lib/utils/format';
+import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -85,13 +85,6 @@ const LIVE_STATUSES: OrderStatus[] = ['pending', 'preparing', 'ready'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function timeAgo(iso: string) {
-  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  return `${Math.floor(diff / 3600)}h ago`;
-}
-
 // ── Status badge + inline picker ─────────────────────────────────────────────
 
 function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boolean }) {
@@ -108,6 +101,7 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
       qc.invalidateQueries({ queryKey: ['order', order.id] });
       setOpen(false);
     },
+    onError: (err) => toast('error', err.message || 'Failed to update the order status.'),
   });
 
   const badge = (
@@ -127,12 +121,22 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
   if (nexts.length === 0) return badge;
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && open) {
+          e.stopPropagation();
+          setOpen(false);
+        }
+      }}
+    >
       <button
         onClick={(e) => {
           if (stopProp) e.stopPropagation();
           setOpen((v) => !v);
         }}
+        aria-haspopup="menu"
+        aria-expanded={open}
         disabled={isPending}
         className={cn(
           'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide transition-opacity disabled:opacity-60 hover:opacity-80',
@@ -484,17 +488,10 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-2">
+          {/* Email actions removed until the API supports them — they were console.log stubs. */}
           <Button variant="outline" size="sm" onClick={() => setShowReceipt(true)}>
             <Eye />
             View / Download Receipt
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => console.log('Send receipt email', data.id)}>
-            <Mail />
-            Send Receipt by Email
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => console.log('Send feedback email', data.id)}>
-            <MessageSquare />
-            Send Feedback Email
           </Button>
         </div>
       </div>
@@ -739,16 +736,22 @@ export default function OrdersPage() {
             <table className="w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-muted">
-                  <th className="px-5 py-3.5 w-8" />
-                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Order</th>
+                  <th className="px-3 md:px-5 py-3.5 w-8" />
+                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Order
+                  </th>
                   <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Source
                   </th>
                   <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Notes
                   </th>
-                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
-                  <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total</th>
+                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Status
+                  </th>
+                  <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Total
+                  </th>
                   <th className="px-3 md:px-5 py-3.5 pr-4 md:pr-6 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Time
                   </th>

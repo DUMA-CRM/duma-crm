@@ -1,9 +1,12 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { LoadingToast } from '@/components/shared/LoadingToast';
+import { GlobalToaster } from '@/components/shared/Toast';
+
+import { toast } from '@/stores/toastStore';
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   // One QueryClient per browser session — created inside useState so it's
@@ -11,6 +14,15 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
+        // Failed background reads used to be completely silent — pages rendered
+        // empty states indistinguishable from "no data". Surface every query
+        // failure as one toast (the store dedupes identical messages).
+        queryCache: new QueryCache({
+          onError: (error, query) => {
+            if (query.meta?.silentError) return;
+            toast('error', error instanceof Error && error.message ? error.message : 'Something went wrong loading data.');
+          },
+        }),
         defaultOptions: {
           queries: {
             // Data is fresh for 60 s — won't refetch on every component mount.
@@ -26,6 +38,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       {children}
       <LoadingToast />
+      <GlobalToaster />
     </QueryClientProvider>
   );
 }

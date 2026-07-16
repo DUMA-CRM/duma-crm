@@ -34,11 +34,12 @@ export function isVideoFile(url: string): boolean {
   return FILE_RE.test(url);
 }
 
-// URL suitable for an <iframe src> (YouTube/Vimeo fallback).
-export function videoEmbedUrl(url: string): string {
+// URL suitable for an <iframe src>. Only known providers are embeddable —
+// returning an author-supplied URL verbatim would iframe arbitrary content.
+export function videoEmbedUrl(url: string): string | null {
   const yt = youtubeId(url);
   if (yt) return `https://www.youtube.com/embed/${yt}`;
   const vm = vimeoId(url);
   if (vm) return `https://player.vimeo.com/video/${vm}`;
-  return url;
+  return null;
 }

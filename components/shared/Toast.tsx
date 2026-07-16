@@ -4,6 +4,7 @@ import { CheckCircle2, X, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { cn } from '@/lib/utils/cn';
+import { useToastStore } from '@/stores/toastStore';
 
 export interface ToastMessage {
   id: number;
@@ -16,9 +17,25 @@ interface ToastProps {
   onDismiss: (id: number) => void;
 }
 
+/**
+ * App-wide toast stack backed by the toast store. Mounted once in
+ * QueryProvider — anywhere in the app can call `toast('success', '…')`.
+ * (The store only imports the ToastMessage *type* from this file, so there
+ * is no runtime import cycle.)
+ */
+export function GlobalToaster() {
+  const toasts = useToastStore((s) => s.toasts);
+  const dismiss = useToastStore((s) => s.dismiss);
+  return <Toast toasts={toasts} onDismiss={dismiss} />;
+}
+
 export function Toast({ toasts, onDismiss }: ToastProps) {
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-5 left-4 right-4 sm:left-auto sm:right-5 z-50 flex flex-col gap-2 items-end pointer-events-none"
+    >
       {toasts.map((t) => (
         <ToastItem key={t.id} toast={t} onDismiss={onDismiss} />
       ))}
@@ -35,7 +52,7 @@ function ToastItem({ toast, onDismiss }: { toast: ToastMessage; onDismiss: (id: 
   return (
     <div
       className={cn(
-        'pointer-events-auto flex items-start gap-3 px-4 py-3 bg-card border rounded-xl shadow-lg max-w-sm animate-in fade-in slide-in-from-bottom-2 duration-200',
+        'pointer-events-auto flex items-start gap-3 px-4 py-3 bg-card border rounded-xl shadow-lg w-full sm:w-auto sm:max-w-sm animate-in fade-in slide-in-from-bottom-2 duration-200',
         toast.type === 'success' ? 'border-success/30' : 'border-destructive/30',
       )}
     >

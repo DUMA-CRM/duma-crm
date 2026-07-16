@@ -42,10 +42,23 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
     } else {
       const label = token.slice(1, token.indexOf(']'));
       const href = token.slice(token.indexOf('(') + 1, -1);
+      // Only allow safe link schemes — authored content must not produce
+      // javascript:/data: URLs. Unsafe links render as plain text.
+      const safe = /^(https?:|mailto:|\/)/i.test(href.trim());
       out.push(
-        <a key={key} href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:no-underline">
-          {label}
-        </a>,
+        safe ? (
+          <a
+            key={key}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline underline-offset-2 hover:no-underline"
+          >
+            {label}
+          </a>
+        ) : (
+          <span key={key}>{label}</span>
+        ),
       );
     }
     rest = rest.slice(m.index + token.length);
@@ -84,7 +97,10 @@ export function Markdown({ content, className }: { content: string; className?: 
       while (i < lines.length && !lines[i].trim().startsWith('```')) code.push(lines[i++]);
       i++; // closing fence
       blocks.push(
-        <pre key={`pre-${key++}`} className="overflow-x-auto rounded-xl border border-border bg-muted px-4 py-3 text-xs font-mono text-foreground">
+        <pre
+          key={`pre-${key++}`}
+          className="overflow-x-auto rounded-xl border border-border bg-muted px-4 py-3 text-xs font-mono text-foreground"
+        >
           <code>{code.join('\n')}</code>
         </pre>,
       );
@@ -112,7 +128,7 @@ export function Markdown({ content, className }: { content: string; className?: 
       flushParagraph(para);
       const level = h[1].length;
       const size = level === 1 ? 'text-xl' : level === 2 ? 'text-lg' : 'text-base';
-      const Tag = (`h${level}` as 'h1' | 'h2' | 'h3' | 'h4');
+      const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4';
       blocks.push(
         <Tag key={`h-${key++}`} className={`${size} font-semibold text-foreground mt-2`}>
           {renderInline(h[2], `h-${key}`)}

@@ -16,7 +16,7 @@ export function OptionBtn({ label, active, onClick }: OptionBtnProps) {
       className={
         active
           ? 'border-primary text-primary bg-primary/10'
-          : 'border-border text-muted-foreground ver:border-primary/40 hover:text-foreground'
+          : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
       }
     >
       {label}

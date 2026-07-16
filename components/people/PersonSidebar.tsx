@@ -105,7 +105,7 @@ export function PersonSidebar({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="px-5 py-5 space-y-6">
           {/* Access & role */}
           <section>
@@ -113,7 +113,7 @@ export function PersonSidebar({
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Access &amp; role</p>
               <button
                 onClick={() => onEditAccess(member)}
-                className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary-hover transition-colors"
+                className="flex items-center gap-1 px-1.5 py-1.5 -my-1.5 -mr-1.5 rounded-md text-[11px] font-medium text-primary hover:text-primary-hover transition-colors"
               >
                 <Pencil size={11} /> Edit
               </button>
@@ -133,7 +133,7 @@ export function PersonSidebar({
               {employee && (
                 <button
                   onClick={() => onEditEmployment(employee)}
-                  className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary-hover transition-colors"
+                  className="flex items-center gap-1 px-1.5 py-1.5 -my-1.5 -mr-1.5 rounded-md text-[11px] font-medium text-primary hover:text-primary-hover transition-colors"
                 >
                   <Pencil size={11} /> Edit
                 </button>
@@ -210,7 +210,7 @@ function PerformanceSection({ userId }: { userId: string }) {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={cn(
-                'px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors',
+                'px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-colors',
                 tab === t.key ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground',
               )}
             >

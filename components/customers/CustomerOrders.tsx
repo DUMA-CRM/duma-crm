@@ -33,7 +33,7 @@ function OrderRow({ order }: { order: Order }) {
       <div className="flex flex-col items-end gap-1 shrink-0">
         <Badge variant={status.variant}>{status.label}</Badge>
         {order.totalAmount != null && (
-          <span className="text-xs font-semibold text-foreground tabular-nums">£{(order.totalAmount / 1).toFixed(2)}</span>
+          <span className="text-xs font-semibold text-foreground tabular-nums">£{Number(order.totalAmount).toFixed(2)}</span>
         )}
       </div>
     </Link>

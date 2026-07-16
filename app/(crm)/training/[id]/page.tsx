@@ -17,7 +17,11 @@ export default function CourseWatchPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
-  const { data: course, isLoading, isError } = useQuery({
+  const {
+    data: course,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['course', id],
     queryFn: () => getCourse(id),
     enabled: !!id,
@@ -31,7 +35,10 @@ export default function CourseWatchPage() {
       headerBorder={false}
       headerSlot={
         <div className="flex flex-wrap items-center gap-3">
-          <Link href="/training" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <Link
+            href="/training"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
             <ArrowLeft size={15} />
             Back to Training
           </Link>
@@ -45,7 +52,7 @@ export default function CourseWatchPage() {
       }
     >
       {isLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 h-full">
           <div className="aspect-video rounded-2xl bg-muted animate-pulse" />
           <div className="rounded-2xl bg-muted animate-pulse" />
         </div>
@@ -58,13 +65,30 @@ export default function CourseWatchPage() {
           {/* Video (left) */}
           <div className="min-w-0">
             <div className="aspect-video w-full rounded-2xl overflow-hidden bg-black border border-border">
-              <iframe
-                src={videoEmbedUrl(course.videoUrl)}
-                title={course.title}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
+              {videoEmbedUrl(course.videoUrl) ? (
+                <iframe
+                  src={videoEmbedUrl(course.videoUrl)!}
+                  title={course.title}
+                  className="w-full h-full"
+                  sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center px-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    This video is hosted on an unsupported provider.
+                    {/^https?:/i.test(course.videoUrl) && (
+                      <>
+                        {' '}
+                        <a href={course.videoUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                          Open it in a new tab.
+                        </a>
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

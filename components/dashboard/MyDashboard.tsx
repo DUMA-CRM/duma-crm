@@ -44,7 +44,7 @@ function startOfWeek(): Date {
 }
 
 const inp =
-  'w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
 // ── Component ───────────────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ export function MyDashboard() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">My day</p>
-            <h1 className="text-3xl font-semibold text-foreground">
+            <h1 className="text-2xl md:text-3xl font-semibold text-foreground">
               {greeting(now.getHours())}
               {user?.name ? `, ${user.name.split(' ')[0]}` : ''}
             </h1>
@@ -116,7 +116,7 @@ export function MyDashboard() {
         </div>
 
         {/* Clock in / out card */}
-        <div className="bg-card border border-border rounded-2xl p-6">
+        <div className="bg-card border border-border rounded-2xl p-4 md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4 min-w-0">
               <div
@@ -129,7 +129,8 @@ export function MyDashboard() {
                   <>
                     <p className="text-sm font-semibold text-success">On shift</p>
                     <p className="text-sm text-muted-foreground">
-                      Clocked in at {fmtTime(active.clockedIn)} · {fmtDur(Math.max(0, (now.getTime() - new Date(active.clockedIn).getTime()) / 60000))} elapsed
+                      Clocked in at {fmtTime(active.clockedIn)} ·{' '}
+                      {fmtDur(Math.max(0, (now.getTime() - new Date(active.clockedIn).getTime()) / 60000))} elapsed
                     </p>
                   </>
                 ) : (
@@ -147,7 +148,7 @@ export function MyDashboard() {
               <button
                 onClick={() => clockOutM.mutate()}
                 disabled={busy}
-                className="h-14 px-8 rounded-2xl bg-destructive hover:bg-destructive/90 active:translate-y-px text-white text-base font-bold flex items-center gap-2.5 transition-colors disabled:opacity-60"
+                className="h-14 px-5 md:px-8 rounded-2xl bg-destructive hover:bg-destructive/90 active:translate-y-px text-white text-base font-bold flex items-center gap-2.5 transition-colors disabled:opacity-60"
               >
                 <LogOut size={20} />
                 {clockOutM.isPending ? 'Clocking out…' : 'Clock Out'}
@@ -156,7 +157,7 @@ export function MyDashboard() {
               <button
                 onClick={() => clockInM.mutate()}
                 disabled={busy || !locationId}
-                className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary-hover active:translate-y-px text-white text-base font-bold flex items-center gap-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-14 px-5 md:px-8 rounded-2xl bg-primary hover:bg-primary-hover active:translate-y-px text-white text-base font-bold flex items-center gap-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <LogIn size={20} />
                 {clockInM.isPending ? 'Clocking in…' : 'Clock In'}
@@ -165,7 +166,7 @@ export function MyDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* My rota this week */}
           <section className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
@@ -281,9 +282,7 @@ function SuggestShiftCard({
             <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} required className={inp} />
           </div>
         </div>
-        {end && start && durationMins <= 0 && (
-          <p className="text-xs text-destructive">End time must be after the start time.</p>
-        )}
+        {end && start && durationMins <= 0 && <p className="text-xs text-destructive">End time must be after the start time.</p>}
         <div>
           <label className={lbl}>Notes (optional)</label>
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the manager should know" className={inp} />

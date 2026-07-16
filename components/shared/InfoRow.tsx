@@ -44,7 +44,7 @@ export function InfoRow({ icon: Icon, label, value, copyable = false }: InfoRowP
           type="button"
           onClick={handleCopy}
           aria-label={copied ? 'Copied' : `Copy ${label}`}
-          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          className="shrink-0 w-9 h-9 -my-1 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           {copied ? <Check size={13} className="text-primary" /> : <Copy size={13} />}
         </button>

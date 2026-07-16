@@ -4,11 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, ChevronLeft, ChevronRight, LogIn, LogOut } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { useAuth } from '@/lib/hooks/useAuth';
-
 import { type ScheduledShift, getMyScheduledShifts } from '@/lib/api/scheduling.service';
 import { clockIn, clockOut, getActiveShifts } from '@/lib/api/shifts.service';
 import { type OpeningHours, type Weekday, getLocations } from '@/lib/api/workspace.service';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -111,10 +110,11 @@ export function MyRota() {
   const [startHour, endHour] = useMemo(() => {
     let openMin = Infinity;
     let closeMax = -Infinity;
-    for (const wins of openWindowsByDay) for (const w of wins) {
-      openMin = Math.min(openMin, w.open);
-      closeMax = Math.max(closeMax, w.close);
-    }
+    for (const wins of openWindowsByDay)
+      for (const w of wins) {
+        openMin = Math.min(openMin, w.open);
+        closeMax = Math.max(closeMax, w.close);
+      }
     let lo = openMin <= closeMax ? openMin - 60 : 8 * 60;
     let hi = openMin <= closeMax ? closeMax + 60 : 18 * 60;
     for (const s of shifts) {
@@ -141,7 +141,8 @@ export function MyRota() {
 
   const totalMins = useMemo(() => shifts.reduce((sum, s) => sum + durationMin(new Date(s.startsAt), new Date(s.endsAt)), 0), [shifts]);
   const weekLabel = `${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${addDays(weekStart, 6).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
-  const navBtn = 'h-8 w-8 inline-flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-surface-offset transition-colors';
+  const navBtn =
+    'h-9 w-9 inline-flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-surface-offset transition-colors';
 
   return (
     <div className="flex flex-col h-full gap-4">
@@ -149,9 +150,18 @@ export function MyRota() {
       <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setOffset((o) => o - 1)} className={navBtn} aria-label="Previous week"><ChevronLeft size={16} /></button>
-            <button onClick={() => setOffset(0)} className="h-8 px-3 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-surface-offset transition-colors">Today</button>
-            <button onClick={() => setOffset((o) => o + 1)} className={navBtn} aria-label="Next week"><ChevronRight size={16} /></button>
+            <button onClick={() => setOffset((o) => o - 1)} className={navBtn} aria-label="Previous week">
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => setOffset(0)}
+              className="h-9 px-3 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-surface-offset transition-colors"
+            >
+              Today
+            </button>
+            <button onClick={() => setOffset((o) => o + 1)} className={navBtn} aria-label="Next week">
+              <ChevronRight size={16} />
+            </button>
           </div>
           <p className="text-sm font-semibold text-foreground tabular-nums">{weekLabel}</p>
           <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 rounded-full px-2.5 py-1">
@@ -162,7 +172,11 @@ export function MyRota() {
         {/* Time clock */}
         <div className="flex items-center gap-3">
           <p className="text-xs text-muted-foreground">
-            {!locationId ? 'Select a location to clock in' : myActive ? `Clocked in ${fmtClock(myActive.clockedIn)} · ${fmtHrs(clockedMins)}` : 'Not clocked in'}
+            {!locationId
+              ? 'Select a location to clock in'
+              : myActive
+                ? `Clocked in ${fmtClock(myActive.clockedIn)} · ${fmtHrs(clockedMins)}`
+                : 'Not clocked in'}
           </p>
           {myActive ? (
             <button
@@ -190,7 +204,9 @@ export function MyRota() {
       <div className="min-h-0 overflow-auto bg-card border border-border rounded-2xl p-4">
         {isLoading ? (
           <div className="space-y-2">
-            {Array.from({ length: 7 }).map((_, i) => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />
+            ))}
           </div>
         ) : (
           <div className="min-w-[640px]">
@@ -199,7 +215,11 @@ export function MyRota() {
               <div className="w-24 shrink-0" />
               <div className="relative flex-1 h-5">
                 {hourTicks.map((h) => (
-                  <span key={h} className="absolute -translate-x-1/2 text-[10px] font-medium text-muted-foreground tabular-nums" style={{ left: `${pct(h * 60)}%` }}>
+                  <span
+                    key={h}
+                    className="absolute -translate-x-1/2 text-[10px] font-medium text-muted-foreground tabular-nums"
+                    style={{ left: `${pct(h * 60)}%` }}
+                  >
                     {String(h).padStart(2, '0')}
                   </span>
                 ))}
@@ -211,7 +231,11 @@ export function MyRota() {
               {/* Now indicator — spans every lane */}
               {todayInWeek && nowInRange && (
                 <div className="pointer-events-none absolute inset-y-0 left-24 right-0">
-                  <div className="absolute top-0 bottom-0 z-10 w-0.5 -translate-x-1/2 bg-destructive shadow-[0_0_0_1px_rgba(255,255,255,0.85)]" style={{ left: `${pct(nowMin)}%` }} title={`Now · ${fmtTime(new Date(now))}`}>
+                  <div
+                    className="absolute top-0 bottom-0 z-10 w-0.5 -translate-x-1/2 bg-destructive shadow-[0_0_0_1px_rgba(255,255,255,0.85)]"
+                    style={{ left: `${pct(nowMin)}%` }}
+                    title={`Now · ${fmtTime(new Date(now))}`}
+                  >
                     <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-destructive ring-2 ring-white" />
                   </div>
                 </div>
@@ -223,12 +247,31 @@ export function MyRota() {
                 return (
                   <div key={i} className="flex items-stretch">
                     <div className={cn('w-24 shrink-0 flex flex-col justify-center pr-3', isToday && 'text-primary')}>
-                      <p className={cn('text-[10px] font-bold uppercase tracking-widest', isToday ? 'text-primary' : 'text-muted-foreground')}>{DAY_LABELS[i]}</p>
-                      <p className={cn('text-sm font-semibold tabular-nums', isToday ? 'text-primary' : 'text-foreground')}>{date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                      <p
+                        className={cn(
+                          'text-[10px] font-bold uppercase tracking-widest',
+                          isToday ? 'text-primary' : 'text-muted-foreground',
+                        )}
+                      >
+                        {DAY_LABELS[i]}
+                      </p>
+                      <p className={cn('text-sm font-semibold tabular-nums', isToday ? 'text-primary' : 'text-foreground')}>
+                        {date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </p>
                     </div>
-                    <div className={cn('relative flex-1 h-14 rounded-lg border border-border overflow-hidden bg-muted/60', isToday && 'ring-1 ring-inset ring-primary/40')}>
+                    <div
+                      className={cn(
+                        'relative flex-1 h-14 rounded-lg border border-border overflow-hidden bg-muted/60',
+                        isToday && 'ring-1 ring-inset ring-primary/40',
+                      )}
+                    >
                       {openWins.map((w, wi) => (
-                        <div key={wi} className="absolute inset-y-0 bg-success/20 border-x-2 border-success/50" style={{ left: `${pct(w.open)}%`, width: `${Math.max(0, pct(w.close) - pct(w.open))}%` }} title="Working hours" />
+                        <div
+                          key={wi}
+                          className="absolute inset-y-0 bg-success/20 border-x-2 border-success/50"
+                          style={{ left: `${pct(w.open)}%`, width: `${Math.max(0, pct(w.close) - pct(w.open))}%` }}
+                          title="Working hours"
+                        />
                       ))}
                       {hourTicks.map((h) => (
                         <div key={h} className="absolute top-0 bottom-0 border-l border-border/40" style={{ left: `${pct(h * 60)}%` }} />
@@ -241,9 +284,19 @@ export function MyRota() {
                         const left = pct(startMin);
                         const width = Math.max(3, pct(endMin) - left);
                         return (
-                          <div key={s.id} className="absolute top-0 bottom-0 bg-primary px-1.5 py-1 overflow-hidden" style={{ left: `${left}%`, width: `${width}%` }} title={`${fmtTime(a)}–${fmtTime(b)} · ${s.location?.name ?? ''}${s.role ? ` · ${s.role}` : ''}`}>
-                            <p className="text-[11px] font-semibold text-white tabular-nums leading-tight truncate">{fmtTime(a)}–{fmtTime(b)}</p>
-                            <p className="text-[10px] text-white/80 truncate leading-tight">{s.location?.name}{s.role ? ` · ${s.role}` : ''}</p>
+                          <div
+                            key={s.id}
+                            className="absolute top-0 bottom-0 bg-primary px-1.5 py-1 overflow-hidden"
+                            style={{ left: `${left}%`, width: `${width}%` }}
+                            title={`${fmtTime(a)}–${fmtTime(b)} · ${s.location?.name ?? ''}${s.role ? ` · ${s.role}` : ''}`}
+                          >
+                            <p className="text-[11px] font-semibold text-white tabular-nums leading-tight truncate">
+                              {fmtTime(a)}–{fmtTime(b)}
+                            </p>
+                            <p className="text-[10px] text-white/80 truncate leading-tight">
+                              {s.location?.name}
+                              {s.role ? ` · ${s.role}` : ''}
+                            </p>
                           </div>
                         );
                       })}
@@ -255,14 +308,22 @@ export function MyRota() {
 
             {/* Legend */}
             <div className="flex items-center gap-4 mt-3 pl-24">
-              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="w-3 h-3 rounded-sm bg-success/20 border border-success/50" /> Working hours</span>
-              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="w-3 h-3 rounded-sm bg-muted/60 border border-border" /> Closed / outside hours</span>
-              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="w-3 h-3 rounded-sm bg-primary" /> Shift</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="w-3 h-3 rounded-sm bg-success/20 border border-success/50" /> Working hours
+              </span>
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="w-3 h-3 rounded-sm bg-muted/60 border border-border" /> Closed / outside hours
+              </span>
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="w-3 h-3 rounded-sm bg-primary" /> Shift
+              </span>
             </div>
 
             {shifts.length === 0 && (
               <div className="flex flex-col items-center justify-center text-center py-10">
-                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3"><CalendarClock size={26} className="text-muted-foreground" /></div>
+                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+                  <CalendarClock size={26} className="text-muted-foreground" />
+                </div>
                 <p className="text-sm font-semibold text-muted-foreground">No shifts scheduled</p>
                 <p className="text-xs text-muted-foreground/60 mt-1">Published shifts for this week will appear on the timeline.</p>
               </div>

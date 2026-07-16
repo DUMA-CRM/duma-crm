@@ -10,7 +10,8 @@ export function LoadingToast() {
   if (!active) return null;
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 px-4 py-2.5 bg-card border border-border rounded-xl shadow-lg">
+    // Anchored bottom-left so it never overlaps the Toast stack (bottom-right).
+    <div className="fixed bottom-5 left-5 z-50 flex items-center gap-2.5 px-4 py-2.5 bg-card border border-border rounded-xl shadow-lg">
       {/* Pulse dots */}
       <div className="flex items-center gap-1">
         <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style={{ animationDelay: '0ms' }} />

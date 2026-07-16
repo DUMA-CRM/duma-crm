@@ -1,6 +1,3 @@
-import type { AppType } from '@duma-crm/api';
-import { hc } from 'hono/client';
-
 // The deployed API lives on a DIFFERENT host than the app (e.g. api.dudych.cc
 // vs. localhost / the app's own domain). Cookies are scoped by host, so a
 // session cookie set directly by the API host can never be read by our app's
@@ -19,8 +16,6 @@ const isServer = typeof window === 'undefined';
 export const API_PREFIX = isServer ? API_ORIGIN : '/be';
 const API_BASE = `${API_PREFIX}/v1`;
 
-export const apiClient = hc<AppType>(API_BASE, { init: { credentials: 'include' } });
-
 // ---------------------------------------------------------------------------
 // Low-level fetch wrapper used by service modules.
 //
@@ -33,6 +28,38 @@ interface FetchOptions extends RequestInit {
   // Pass this when calling from a Server Component so the session cookie
   // is forwarded to the API (browsers do this automatically client-side).
   cookieHeader?: string;
+}
+
+/** Error thrown for non-2xx API responses — carries the HTTP status so callers can special-case 401/403/404. */
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly code?: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+// Pull a human-readable message out of an error response body. The API sends
+// JSON ({ message } / { error }); anything else (HTML error pages, plain text)
+// falls back to the status text rather than dumping markup into toasts.
+async function extractErrorMessage(res: Response): Promise<{ message: string; code?: string }> {
+  const fallback = `${res.status} ${res.statusText}`.trim();
+  try {
+    const text = await res.text();
+    if (!text) return { message: fallback };
+    try {
+      const body = JSON.parse(text) as { message?: string; error?: string; code?: string };
+      return { message: body.message ?? body.error ?? fallback, code: body.code };
+    } catch {
+      // Plain-text body: use it only if it doesn't look like an HTML page.
+      return { message: text.startsWith('<') ? fallback : text.slice(0, 300) };
+    }
+  } catch {
+    return { message: fallback };
+  }
 }
 
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
@@ -51,8 +78,8 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   });
 
   if (!res.ok) {
-    const message = await res.text().catch(() => res.statusText);
-    throw new Error(message);
+    const { message, code } = await extractErrorMessage(res);
+    throw new ApiError(res.status, message, code);
   }
 
   // 204 No Content — return undefined cast as T

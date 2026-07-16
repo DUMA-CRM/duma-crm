@@ -15,7 +15,7 @@ export default function ForgotPasswordPage() {
         <Input label="Email" type="email" autoComplete="email" placeholder="you@example.com" />
         <button
           type="submit"
-          className="w-full h-11 mt-2 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl transition-colors"
+          className="w-full h-10 mt-2 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl transition-colors"
         >
           Send reset link
         </button>

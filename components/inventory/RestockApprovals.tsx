@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
 import {
   type RestockPriority,
   type RestockRequest,
@@ -21,21 +22,17 @@ import {
 } from '@/lib/api/restock.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
+import { timeAgo } from '@/lib/utils/format';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function timeAgo(iso: string) {
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
-
 const STATUS_ORDER: RestockStatus[] = ['pending', 'approved', 'rejected', 'fulfilled'];
 
-const STATUS_META: Record<RestockStatus, { label: string; variant: 'warning' | 'success' | 'destructive' | 'muted'; iconBg: string; iconFg: string }> = {
+const STATUS_META: Record<
+  RestockStatus,
+  { label: string; variant: 'warning' | 'success' | 'destructive' | 'muted'; iconBg: string; iconFg: string }
+> = {
   pending: { label: 'Pending', variant: 'warning', iconBg: 'bg-warning/10', iconFg: 'text-warning' },
   approved: { label: 'Approved', variant: 'success', iconBg: 'bg-success/10', iconFg: 'text-success' },
   rejected: { label: 'Rejected', variant: 'destructive', iconBg: 'bg-destructive/10', iconFg: 'text-destructive' },
@@ -101,7 +98,12 @@ function RequestRow({
   }
 
   return (
-    <div className={cn('px-4 py-4 border-b border-border/50 last:border-0 transition-opacity', statusPending && 'opacity-50 pointer-events-none')}>
+    <div
+      className={cn(
+        'px-4 py-4 border-b border-border/50 last:border-0 transition-opacity',
+        statusPending && 'opacity-50 pointer-events-none',
+      )}
+    >
       <div className="flex items-start gap-4">
         {/* Icon */}
         <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5', meta.iconBg)}>
@@ -114,8 +116,14 @@ function RequestRow({
             <p className="text-sm font-semibold text-foreground">
               {request.stockItem?.name ?? <span className="font-mono text-xs">{request.id.slice(0, 8)}</span>}
             </p>
-            {priority === 'urgent' && <Badge variant="destructive" className="text-[10px]">Urgent</Badge>}
-            <Badge variant={meta.variant} className="text-[10px]">{meta.label}</Badge>
+            {priority === 'urgent' && (
+              <Badge variant="destructive" className="text-[10px]">
+                Urgent
+              </Badge>
+            )}
+            <Badge variant={meta.variant} className="text-[10px]">
+              {meta.label}
+            </Badge>
           </div>
 
           <div className="flex items-center gap-4 mt-1.5 flex-wrap">
@@ -194,8 +202,12 @@ function RequestRow({
             className={textareaClass}
           />
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setMode('view')}>Cancel</Button>
-            <Button size="sm" onClick={save} disabled={savePending}>{savePending ? 'Saving…' : 'Save changes'}</Button>
+            <Button variant="outline" size="sm" onClick={() => setMode('view')}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={save} disabled={savePending}>
+              {savePending ? 'Saving…' : 'Save changes'}
+            </Button>
           </div>
         </div>
       )}
@@ -205,7 +217,9 @@ function RequestRow({
         <div className="mt-3 flex items-center gap-3 rounded-lg bg-destructive/5 border border-destructive/10 px-3 py-2.5">
           <AlertTriangle size={14} className="text-destructive shrink-0" />
           <p className="text-xs text-destructive flex-1">Delete this request? This can’t be undone.</p>
-          <Button variant="ghost" size="sm" onClick={() => setMode('view')}>Cancel</Button>
+          <Button variant="ghost" size="sm" onClick={() => setMode('view')}>
+            Cancel
+          </Button>
           <Button
             size="sm"
             className="bg-destructive/10 text-destructive hover:bg-destructive hover:text-white"
@@ -259,8 +273,11 @@ export function RestockApprovals() {
     onSuccess: invalidate,
   });
 
-  const all: RestockRequest[] = Array.isArray(data) ? data : (data as { data?: RestockRequest[] } | null)?.data ?? [];
-  const counts = Object.fromEntries(STATUS_ORDER.map((s) => [s, all.filter((r) => r.status === s).length])) as Record<RestockStatus, number>;
+  const all: RestockRequest[] = Array.isArray(data) ? data : ((data as { data?: RestockRequest[] } | null)?.data ?? []);
+  const counts = Object.fromEntries(STATUS_ORDER.map((s) => [s, all.filter((r) => r.status === s).length])) as Record<
+    RestockStatus,
+    number
+  >;
   const requests = all.filter((r) => r.status === activeTab);
   const urgentCount = requests.filter((r) => decodeNotes(r.notes).priority === 'urgent').length;
 
@@ -297,7 +314,9 @@ export function RestockApprovals() {
           <div className="py-16 text-center">
             <ClipboardList size={32} className="mx-auto text-muted-foreground/30 mb-3" />
             <p className="text-sm text-muted-foreground">No {STATUS_META[activeTab].label.toLowerCase()} requests.</p>
-            {activeTab === 'pending' && <p className="text-xs text-muted-foreground/70 mt-1">New requests submitted from the form will appear here.</p>}
+            {activeTab === 'pending' && (
+              <p className="text-xs text-muted-foreground/70 mt-1">New requests submitted from the form will appear here.</p>
+            )}
           </div>
         ) : (
           <div>

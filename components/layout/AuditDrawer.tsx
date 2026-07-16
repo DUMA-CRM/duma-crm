@@ -120,14 +120,14 @@ export function AuditDrawer({ open, onClose }: AuditDrawerProps) {
           <Link
             href="/audit-log"
             onClick={onClose}
-            className="h-7 px-2.5 flex items-center gap-1 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+            className="h-8 px-2.5 flex items-center gap-1 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
           >
             <ExternalLink size={11} aria-hidden="true" />
             View all
           </Link>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-offset transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-offset transition-colors"
             aria-label="Close"
           >
             <X size={14} aria-hidden="true" />
@@ -169,7 +169,7 @@ export function AuditDrawer({ open, onClose }: AuditDrawerProps) {
           <Link
             href="/audit-log"
             onClick={onClose}
-            className="flex items-center justify-center gap-2 w-full h-8 rounded-xl bg-surface-offset hover:bg-muted text-sm font-medium text-foreground transition-colors"
+            className="flex items-center justify-center gap-2 w-full h-9 rounded-xl bg-surface-offset hover:bg-muted text-sm font-medium text-foreground transition-colors"
           >
             Open full audit log
             <ExternalLink size={13} aria-hidden="true" />

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { adjustPoints } from '@/lib/api/customers.service';
+import { toast } from '@/stores/toastStore';
 import { Customer } from '@/types/customers';
 
 export function PointsForm({ customer, onClose, onSaved }: { customer: Customer; onClose: () => void; onSaved: (c: Customer) => void }) {
@@ -18,7 +19,9 @@ export function PointsForm({ customer, onClose, onSaved }: { customer: Customer;
     onSuccess: (updated) => {
       onSaved(updated);
       onClose();
+      toast('success', 'Points balance updated.');
     },
+    onError: (err) => toast('error', err.message || 'Failed to adjust points.'),
   });
 
   return (

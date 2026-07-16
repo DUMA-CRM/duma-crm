@@ -26,7 +26,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 // ── Shared form styles ────────────────────────────────────────────────────────
 
 const inp =
-  'w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 const primaryBtn =
   'h-9 px-3 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-lg flex items-center gap-1.5 transition-colors';
@@ -46,9 +46,7 @@ function CourseForm({ tenantId, course, onClose }: { tenantId: string; course?: 
   const { mutate, isPending, error } = useMutation({
     mutationFn: () => {
       const base = { title, description: description || undefined, category: category || undefined, videoUrl, sortOrder };
-      return isEdit
-        ? updateCourse(course.id, base as UpdateCoursePayload)
-        : createCourse({ tenantId, ...base } as CreateCoursePayload);
+      return isEdit ? updateCourse(course.id, base as UpdateCoursePayload) : createCourse({ tenantId, ...base } as CreateCoursePayload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['courses'] });
@@ -66,9 +64,17 @@ function CourseForm({ tenantId, course, onClose }: { tenantId: string; course?: 
     >
       <div>
         <label className={lbl}>Title</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} required minLength={2} placeholder="Pulling the perfect shot" className={inp} autoFocus />
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          minLength={2}
+          placeholder="Pulling the perfect shot"
+          className={inp}
+          autoFocus
+        />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={lbl}>Category</label>
           <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Barista Basics" className={inp} />
@@ -80,7 +86,13 @@ function CourseForm({ tenantId, course, onClose }: { tenantId: string; course?: 
       </div>
       <div>
         <label className={lbl}>Video URL</label>
-        <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} required placeholder="https://youtube.com/watch?v=…" className={inp} />
+        <input
+          value={videoUrl}
+          onChange={(e) => setVideoUrl(e.target.value)}
+          required
+          placeholder="https://youtube.com/watch?v=…"
+          className={inp}
+        />
       </div>
       <div>
         <label className={lbl}>Description · Markdown supported</label>
@@ -96,10 +108,18 @@ function CourseForm({ tenantId, course, onClose }: { tenantId: string; course?: 
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
 
       <div className="flex gap-2 pt-1">
-        <button type="button" onClick={onClose} className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors"
+        >
           Cancel
         </button>
-        <button type="submit" disabled={isPending} className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60"
+        >
           {isPending ? 'Saving…' : isEdit ? 'Update' : 'Create'}
         </button>
       </div>
@@ -124,10 +144,17 @@ function DeleteCourseModal({ course, onClose }: { course: Course; onClose: () =>
         Delete <span className="font-semibold text-foreground">{course.title}</span>? This cannot be undone.
       </p>
       <div className="flex gap-2">
-        <button onClick={onClose} className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors">
+        <button
+          onClick={onClose}
+          className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors"
+        >
           Cancel
         </button>
-        <button onClick={() => mutate()} disabled={isPending} className="flex-1 h-10 bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
+        <button
+          onClick={() => mutate()}
+          disabled={isPending}
+          className="flex-1 h-10 bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60"
+        >
           {isPending ? 'Deleting…' : 'Delete'}
         </button>
       </div>
@@ -163,16 +190,22 @@ function CourseCard({
         )}
         {/* Manager actions */}
         {isManager && (
-          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute top-2 right-2 flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <button
-              onClick={(e) => { e.preventDefault(); onEdit(course); }}
+              onClick={(e) => {
+                e.preventDefault();
+                onEdit(course);
+              }}
               title="Edit"
               className="w-7 h-7 flex items-center justify-center rounded-lg bg-black/60 text-white hover:bg-black/80 transition-colors"
             >
               <Pencil size={13} />
             </button>
             <button
-              onClick={(e) => { e.preventDefault(); onDelete(course); }}
+              onClick={(e) => {
+                e.preventDefault();
+                onDelete(course);
+              }}
               title="Delete"
               className="w-7 h-7 flex items-center justify-center rounded-lg bg-black/60 text-white hover:bg-destructive transition-colors"
             >
@@ -181,7 +214,9 @@ function CourseCard({
           </div>
         )}
       </div>
-      <p className="text-sm font-semibold text-foreground mt-2 leading-snug line-clamp-2 group-hover:text-primary transition-colors">{course.title}</p>
+      <p className="text-sm font-semibold text-foreground mt-2 leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+        {course.title}
+      </p>
     </Link>
   );
 }
@@ -192,7 +227,10 @@ type ModalState = { type: 'create' } | { type: 'edit'; course: Course } | { type
 
 export default function TrainingPage() {
   const { tenantId } = useWorkspaceStore();
-  const isManager = roleAtLeast(useAuthStore((s) => s.role), 'store_manager');
+  const isManager = roleAtLeast(
+    useAuthStore((s) => s.role),
+    'store_manager',
+  );
   const [modal, setModal] = useState<ModalState | null>(null);
   const close = () => setModal(null);
 
@@ -247,10 +285,14 @@ export default function TrainingPage() {
             </div>
           ) : courses.length === 0 ? (
             <div className="py-24">
-              <EmptyState icon={GraduationCap} title="No courses yet" description={isManager ? 'Click "New Course" to add your first training video.' : 'Training videos will appear here.'} />
+              <EmptyState
+                icon={GraduationCap}
+                title="No courses yet"
+                description={isManager ? 'Click "New Course" to add your first training video.' : 'Training videos will appear here.'}
+              />
             </div>
           ) : (
-            <div className="space-y-8">
+            <div className="space-y-6">
               {groups.map(([category, list]) => (
                 <section key={category}>
                   <h2 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
