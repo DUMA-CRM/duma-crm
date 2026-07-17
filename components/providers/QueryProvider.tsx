@@ -3,6 +3,8 @@
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { OfflineOrderSync } from '@/components/providers/OfflineOrderSync';
+import { ServiceWorkerRegistrar } from '@/components/providers/ServiceWorkerRegistrar';
 import { LoadingToast } from '@/components/shared/LoadingToast';
 import { GlobalToaster } from '@/components/shared/Toast';
 
@@ -39,6 +41,8 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       {children}
       <LoadingToast />
       <GlobalToaster />
+      <OfflineOrderSync />
+      <ServiceWorkerRegistrar />
     </QueryClientProvider>
   );
 }

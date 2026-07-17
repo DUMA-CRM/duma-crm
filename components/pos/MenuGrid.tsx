@@ -13,11 +13,15 @@ interface MenuGridProps {
   isLoading?: boolean;
 }
 
+// auto-fill: as many ~128px+ cards as fit the container — 2-3 on a phone,
+// ~5 on a tablet, and it self-adjusts around the 400px order panel on desktop.
+const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-3 pr-4 pb-4';
+
 export function MenuGrid({ items, selectedId, onSelectItem, isLoading }: MenuGridProps) {
   return (
     <ScrollArea className="flex-1 -mr-4 min-h-0">
       {isLoading ? (
-        <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4 pr-4 pb-4">
+        <div className={GRID}>
           {Array.from({ length: 10 }).map((_, i) => (
             <div key={i} className="rounded-2xl bg-muted animate-pulse aspect-3/4" />
           ))}
@@ -25,7 +29,7 @@ export function MenuGrid({ items, selectedId, onSelectItem, isLoading }: MenuGri
       ) : items.length === 0 ? (
         <EmptyState icon={UtensilsCrossed} title="No items found" description="Try selecting a different category" />
       ) : (
-        <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4 pr-4 pb-4">
+        <div className={GRID}>
           {items.map((item) => (
             <ProductCard key={item.id} item={item} isSelected={selectedId === item.id} onSelect={onSelectItem} />
           ))}

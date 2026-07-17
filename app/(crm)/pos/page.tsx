@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Clock, LogIn, MapPin } from 'lucide-react';
+import { Building2, Clock, CloudUpload, LogIn, MapPin, WifiOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
@@ -11,13 +11,16 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
 
+import { ApiError } from '@/lib/api/client';
 import { getCustomer } from '@/lib/api/customers.service';
 import { getMenuItemModifiers, getMenuItems } from '@/lib/api/menu.service';
-import { createOrder } from '@/lib/api/orders.service';
+import { type CreateOrderPayload, createOrder } from '@/lib/api/orders.service';
 import { clockIn, getMyShifts } from '@/lib/api/shifts.service';
 import { CATEGORIES } from '@/lib/constants/pos';
+import { cn } from '@/lib/utils/cn';
 import { parseModifierName } from '@/lib/utils/modifiers';
 import { selectionKey } from '@/lib/utils/pos';
+import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { Customer } from '@/types/customers';
@@ -161,20 +164,26 @@ export default function POSPage() {
   }
 
   // Prices, item names and the order total are computed server-side. We send IDs only.
+  const buildOrderPayload = (method: 'cash' | 'card', notes: string): CreateOrderPayload => ({
+    locationId: locationId!,
+    ...(selectedCustomer ? { customerId: selectedCustomer.id } : {}),
+    source: 'pos',
+    paymentMethod: method,
+    notes: notes || undefined,
+    items: cart.map((c) => ({
+      menuItemId: c.item.id,
+      quantity: c.quantity,
+      ...(c.selected.length > 0 ? { modifiers: c.selected.map((o) => ({ modifierId: o.id })) } : {}),
+    })),
+  });
+
   const { mutate: submitOrder, isPending: isPaying } = useMutation({
-    mutationFn: ({ method, notes }: { method: 'cash' | 'card'; notes: string }) =>
-      createOrder({
-        locationId: locationId!,
-        ...(selectedCustomer ? { customerId: selectedCustomer.id } : {}),
-        source: 'pos',
-        paymentMethod: method,
-        notes: notes || undefined,
-        items: cart.map((c) => ({
-          menuItemId: c.item.id,
-          quantity: c.quantity,
-          ...(c.selected.length > 0 ? { modifiers: c.selected.map((o) => ({ modifierId: o.id })) } : {}),
-        })),
-      }),
+    mutationFn: ({ method, notes }: { method: 'cash' | 'card'; notes: string }) => {
+      // Known-offline: don't even attempt the request — fail straight into the
+      // offline-queue path instead of waiting out a timeout.
+      if (!navigator.onLine) return Promise.reject(new Error('offline'));
+      return createOrder(buildOrderPayload(method, notes));
+    },
     onSuccess: () => {
       setCart([]);
       setSelectedCustomer(null);
@@ -186,7 +195,17 @@ export default function POSPage() {
       }
       if (selectedCustomer) void qc.invalidateQueries({ queryKey: ['customer-visits', selectedCustomer.id] });
     },
-    onError: (err) => {
+    onError: (err, { method, notes }) => {
+      // Queue when the API never really answered: fetch/abort failures, and
+      // 502/503/504 which are the proxy saying the API is unreachable.
+      const unreachable = !(err instanceof ApiError) || err.status === 502 || err.status === 503 || err.status === 504;
+      if (unreachable) {
+        useOfflineOrdersStore.getState().enqueue(buildOrderPayload(method, notes));
+        setCart([]);
+        setSelectedCustomer(null);
+        addToast('info', 'No connection — order saved offline and will send automatically.');
+        return;
+      }
       addToast('error', err.message || 'Failed to place order. Please try again.');
     },
   });
@@ -194,6 +213,20 @@ export default function POSPage() {
   // Only the item list gates the grid — waiting on all N modifier queries
   // blocked the whole POS behind the slowest one.
   const isLoading = itemsLoading;
+
+  // Offline awareness: banner while disconnected, queued-order count until synced.
+  const queuedCount = useOfflineOrdersStore((s) => s.queue.length);
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener('online', up);
+    window.addEventListener('offline', down);
+    return () => {
+      window.removeEventListener('online', up);
+      window.removeEventListener('offline', down);
+    };
+  }, []);
 
   return (
     <>
@@ -221,6 +254,25 @@ export default function POSPage() {
           )
         }
       >
+        {/* Offline / sync status */}
+        {(!online || queuedCount > 0) && (
+          <div
+            className={cn(
+              'mb-4 flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm font-medium',
+              online ? 'border-primary/30 bg-primary/5 text-primary' : 'border-warning/40 bg-warning/10 text-warning',
+            )}
+          >
+            {online ? (
+              <CloudUpload size={16} className="shrink-0" aria-hidden="true" />
+            ) : (
+              <WifiOff size={16} className="shrink-0" aria-hidden="true" />
+            )}
+            {!online
+              ? `You're offline — orders are saved locally${queuedCount > 0 ? ` (${queuedCount} waiting)` : ''} and will send when the connection returns.`
+              : `${queuedCount} ${queuedCount === 1 ? 'order' : 'orders'} waiting to sync…`}
+          </div>
+        )}
+
         {tenantId && locationId && onShift && (
           <MenuGrid items={filtered} selectedId={selectedItem?.id ?? null} onSelectItem={handleSelectItem} isLoading={isLoading} />
         )}

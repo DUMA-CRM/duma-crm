@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, X, XCircle } from 'lucide-react';
+import { CheckCircle2, Info, X, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { cn } from '@/lib/utils/cn';
@@ -8,7 +8,7 @@ import { useToastStore } from '@/stores/toastStore';
 
 export interface ToastMessage {
   id: number;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'info';
   message: string;
 }
 
@@ -53,11 +53,15 @@ function ToastItem({ toast, onDismiss }: { toast: ToastMessage; onDismiss: (id: 
     <div
       className={cn(
         'pointer-events-auto flex items-start gap-3 px-4 py-3 bg-card border rounded-xl shadow-lg w-full sm:w-auto sm:max-w-sm animate-in fade-in slide-in-from-bottom-2 duration-200',
-        toast.type === 'success' ? 'border-success/30' : 'border-destructive/30',
+        toast.type === 'success' && 'border-success/30',
+        toast.type === 'error' && 'border-destructive/30',
+        toast.type === 'info' && 'border-primary/30',
       )}
     >
       {toast.type === 'success' ? (
         <CheckCircle2 size={16} className="text-success shrink-0 mt-0.5" />
+      ) : toast.type === 'info' ? (
+        <Info size={16} className="text-primary shrink-0 mt-0.5" />
       ) : (
         <XCircle size={16} className="text-destructive shrink-0 mt-0.5" />
       )}

@@ -28,6 +28,9 @@ interface FetchOptions extends RequestInit {
   // Pass this when calling from a Server Component so the session cookie
   // is forwarded to the API (browsers do this automatically client-side).
   cookieHeader?: string;
+  // Abort the request after this many ms. Important for the POS: behind the
+  // same-origin proxy an unreachable API doesn't fail fast — it hangs.
+  timeoutMs?: number;
 }
 
 /** Error thrown for non-2xx API responses — carries the HTTP status so callers can special-case 401/403/404. */
@@ -63,11 +66,12 @@ async function extractErrorMessage(res: Response): Promise<{ message: string; co
 }
 
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
-  const { cookieHeader, headers, ...rest } = options;
+  const { cookieHeader, headers, timeoutMs, ...rest } = options;
 
   const res = await fetch(`${API_BASE}${path}`, {
     // Include credentials so the browser sends the session cookie on client-side calls.
     credentials: 'include',
+    ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
     headers: {
       'Content-Type': 'application/json',
       // Server-side: forward the full cookie header from the incoming Next.js request.

@@ -1,10 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Building2, LogOut, MapPin, Monitor, Moon, Sun } from 'lucide-react';
+import { Building2, CheckCircle2, Download, LogOut, MapPin, Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
@@ -14,6 +14,7 @@ import { getLocationsByTenant, getTenants } from '@/lib/api/workspace.service';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
+import { usePwaStore } from '@/stores/pwaStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const ROLE_LABEL: Record<string, string> = {
@@ -32,6 +33,59 @@ const THEMES = [
   { value: 'system', label: 'System', icon: Monitor },
 ] as const;
 
+/** Detects whether the app is already running as an installed PWA. */
+function isStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && navigator.standalone === true);
+}
+
+function InstallAppSection() {
+  const installPrompt = usePwaStore((s) => s.installPrompt);
+  const installed = usePwaStore((s) => s.installed);
+  const [standalone] = useState(isStandalone);
+  const isIos = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+  async function install() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') usePwaStore.getState().setInstalled(true);
+    // The prompt is single-use either way.
+    usePwaStore.getState().setInstallPrompt(null);
+  }
+
+  return (
+    <Section title="App">
+      {installed || standalone ? (
+        <p className="flex items-center gap-2 text-sm text-success font-medium">
+          <CheckCircle2 size={16} aria-hidden="true" />
+          Installed — DUMA is running as an app.
+        </p>
+      ) : installPrompt ? (
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={install}
+            className="w-fit h-9 px-3 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-lg flex items-center gap-1.5 transition-colors"
+          >
+            <Download size={15} aria-hidden="true" />
+            Install DUMA app
+          </button>
+          <p className="text-xs text-muted-foreground">
+            Installs to the home screen / desktop and runs full-screen — ideal for POS and barista tablets, and keeps working through Wi-Fi
+            blips.
+          </p>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          {isIos
+            ? 'On iPhone/iPad: open the Share menu and choose "Add to Home Screen" to install DUMA as an app.'
+            : 'Installation isn’t available right now — use Chrome or Edge over HTTPS, and the install option appears here (or in the browser’s address bar).'}
+        </p>
+      )}
+    </Section>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="bg-card border border-border rounded-2xl p-5">
@@ -49,8 +103,12 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
 
   // next-themes is undefined until mounted — avoid a hydration mismatch.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // (useSyncExternalStore: false during SSR/hydration, true right after.)
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const { data: tenants = [] } = useQuery({
     queryKey: ['tenants'],
@@ -134,6 +192,9 @@ export default function SettingsPage() {
             </Link>
           </div>
         </Section>
+
+        {/* Install as app (PWA) */}
+        <InstallAppSection />
 
         {/* Session */}
         <Section title="Session">
