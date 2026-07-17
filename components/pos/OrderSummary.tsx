@@ -1,4 +1,4 @@
-import { Banknote, CreditCard, FileText, Loader2 } from 'lucide-react';
+import { FileText } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,11 +12,11 @@ interface OrderSummaryProps {
   cart: CartItem[];
   notes: string;
   onNotesChange: (v: string) => void;
-  onPay: (method: 'cash' | 'card') => void;
-  isPaying?: boolean;
+  /** Opens the full-screen checkout flow (method → confirm → receipt). */
+  onCharge: () => void;
 }
 
-export function OrderSummary({ cart, notes, onNotesChange, onPay, isPaying = false }: OrderSummaryProps) {
+export function OrderSummary({ cart, notes, onNotesChange, onCharge }: OrderSummaryProps) {
   // Estimate only — the API computes the authoritative total and applies loyalty server-side.
   const subtotal = cart.reduce((sum, c) => sum + cartItemTotal(c), 0);
 
@@ -37,16 +37,9 @@ export function OrderSummary({ cart, notes, onNotesChange, onPay, isPaying = fal
         <Label className="text-2xl text-primary tabular-nums">£{(subtotal / 100).toFixed(2)}</Label>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 pt-1">
-        <Button size="lg" variant="outline" onClick={() => onPay('cash')} disabled={isPaying} className="flex-1 h-20">
-          {isPaying ? <Loader2 size={16} className="animate-spin" /> : <Banknote size={18} />}
-          Cash
-        </Button>
-        <Button size="lg" onClick={() => onPay('card')} disabled={isPaying} className="flex-1 h-20">
-          {isPaying ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={18} />}
-          Pay Card
-        </Button>
-      </div>
+      <Button size="lg" onClick={onCharge} className="w-full h-16 text-base mt-1">
+        Charge £{(subtotal / 100).toFixed(2)}
+      </Button>
     </div>
   );
 }

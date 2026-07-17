@@ -18,9 +18,11 @@ import { Customer } from '@/types/customers';
 interface CustomerLoyaltyProps {
   selectedCustomer: Customer | null;
   onCustomerSelect: (c: Customer | null) => void;
+  /** Opens the QR scan view (a full-panel takeover owned by OrderPanel). */
+  onScan: () => void;
 }
 
-export function CustomerLoyalty({ selectedCustomer, onCustomerSelect }: CustomerLoyaltyProps) {
+export function CustomerLoyalty({ selectedCustomer, onCustomerSelect, onScan }: CustomerLoyaltyProps) {
   const [mode, setMode] = useState<'idle' | 'search' | 'new'>('idle');
   const [newPhone, setNewPhone] = useState('');
 
@@ -66,7 +68,7 @@ export function CustomerLoyalty({ selectedCustomer, onCustomerSelect }: Customer
           <Button onClick={() => setMode('search')} variant="outline" className="gap-2">
             <Phone size={15} /> Find by Phone
           </Button>
-          <Button>
+          <Button onClick={onScan}>
             <QrCode size={15} /> Scan Code
           </Button>
         </div>

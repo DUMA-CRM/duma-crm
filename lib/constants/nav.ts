@@ -57,8 +57,6 @@ export const mainNavItems: NavItem[] = [
 
 export const analyticsNavItems: NavItem[] = [
   { label: 'Reports', href: '/reports', icon: BarChart3, minRole: 'store_manager' },
-  { label: 'Roast Profiles', href: '/roast-profiles', icon: Coffee, minRole: 'store_manager' },
-  { label: 'Loyalty', href: '/loyalty', icon: Star, minRole: 'store_manager' },
 ];
 
 export const footerNavItems: NavItem[] = [

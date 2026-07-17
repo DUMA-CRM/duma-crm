@@ -1,7 +1,21 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Building2, CheckCircle2, Download, LogOut, MapPin, Monitor, Moon, Sun } from 'lucide-react';
+import {
+  Building2,
+  Camera,
+  CheckCircle2,
+  Download,
+  EyeOff,
+  LogOut,
+  MapPin,
+  Monitor,
+  Moon,
+  ScanLine,
+  Sun,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { useState, useSyncExternalStore } from 'react';
@@ -12,8 +26,12 @@ import { Badge } from '@/components/ui/badge';
 
 import { getLocationsByTenant, getTenants } from '@/lib/api/workspace.service';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { chime } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
+import { useKdsStore } from '@/stores/kdsStore';
+import { usePosSettingsStore } from '@/stores/posSettingsStore';
+import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { usePwaStore } from '@/stores/pwaStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -31,6 +49,11 @@ const THEMES = [
   { value: 'light', label: 'Light', icon: Sun },
   { value: 'dark', label: 'Dark', icon: Moon },
   { value: 'system', label: 'System', icon: Monitor },
+] as const;
+
+const SCANNER_MODES = [
+  { value: 'camera', label: 'Tablet camera', icon: Camera },
+  { value: 'external', label: 'External scanner', icon: ScanLine },
 ] as const;
 
 /** Detects whether the app is already running as an installed PWA. */
@@ -101,6 +124,9 @@ export default function SettingsPage() {
   const { logout } = useAuth();
   const { tenantId, locationId } = useWorkspaceStore();
   const { theme, setTheme } = useTheme();
+  const { scannerMode, setScannerMode } = usePosSettingsStore();
+  const { soundOn, setSoundOn } = useKdsStore();
+  const { hidePageTitles, setHidePageTitles } = useUiSettingsStore();
 
   // next-themes is undefined until mounted — avoid a hydration mismatch.
   // (useSyncExternalStore: false during SSR/hydration, true right after.)
@@ -164,6 +190,26 @@ export default function SettingsPage() {
               </button>
             ))}
           </div>
+
+          <div className="mt-4 pt-4 border-t border-border">
+            <button
+              onClick={() => setHidePageTitles(!hidePageTitles)}
+              aria-pressed={mounted && hidePageTitles}
+              className={cn(
+                'h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors',
+                mounted && hidePageTitles
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:bg-surface-offset',
+              )}
+            >
+              <EyeOff size={15} aria-hidden="true" />
+              Hide page titles
+            </button>
+            <p className="text-xs text-muted-foreground mt-3">
+              Hides the page title header (e.g. “Service Mode / Barista Display”) on every page to give content more room — handy on
+              tablets. Search bars and tabs stay visible. Saved per device.
+            </p>
+          </div>
         </Section>
 
         {/* Workspace */}
@@ -191,6 +237,59 @@ export default function SettingsPage() {
               Manage workspaces & locations →
             </Link>
           </div>
+        </Section>
+
+        {/* POS (per-device) */}
+        <Section title="POS">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Loyalty QR scanner</p>
+          <div className="flex flex-wrap gap-2">
+            {SCANNER_MODES.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                onClick={() => setScannerMode(value)}
+                aria-pressed={mounted && scannerMode === value}
+                className={cn(
+                  'h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors',
+                  mounted && scannerMode === value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:text-foreground hover:bg-surface-offset',
+                )}
+              >
+                <Icon size={15} aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            How the POS reads customer loyalty codes. External scanner supports USB/Bluetooth scanners that type like a keyboard. This
+            setting is saved per device.
+          </p>
+        </Section>
+
+        {/* Barista display (per-device) */}
+        <Section title="Barista Display">
+          <button
+            onClick={() => {
+              const next = !soundOn;
+              setSoundOn(next);
+              // The click is our user gesture — unlock the AudioContext now and
+              // play a confirmation chime so the barista hears that it works.
+              if (next) chime();
+            }}
+            aria-pressed={mounted && soundOn}
+            className={cn(
+              'h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors',
+              mounted && soundOn
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:text-foreground hover:bg-surface-offset',
+            )}
+          >
+            {mounted && soundOn ? <Volume2 size={15} aria-hidden="true" /> : <VolumeX size={15} aria-hidden="true" />}
+            New-order chime
+          </button>
+          <p className="text-xs text-muted-foreground mt-3">
+            Plays a chime on the barista display when a new order arrives. Saved per device.
+          </p>
         </Section>
 
         {/* Install as app (PWA) */}

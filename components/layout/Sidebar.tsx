@@ -8,7 +8,6 @@ import type { StaffRole } from '@/lib/api/staff.service';
 import { analyticsNavItems, filterNavByRole, footerNavItems, mainNavItems } from '@/lib/constants/nav';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
-import { useChromeStore } from '@/stores/chromeStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -34,10 +33,6 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
   });
   const activeOrders = (ordersData?.data ?? []).filter((o) => o.status !== 'done' && o.status !== 'cancelled').length;
   const badges: Record<string, number> = { '/orders': activeOrders };
-
-  // Kiosk mode (e.g. KDS full screen) hides the whole sidebar.
-  const chromeHidden = useChromeStore((s) => s.hidden);
-  if (chromeHidden) return null;
 
   return (
     <>

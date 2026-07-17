@@ -5,6 +5,8 @@ import { Building2, Clock, CloudUpload, LogIn, MapPin, WifiOff } from 'lucide-re
 import { useEffect, useMemo, useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
+import { CartBar } from '@/components/pos/CartBar';
+import { CheckoutFlow, type CheckoutStep } from '@/components/pos/CheckoutFlow';
 import { MenuGrid } from '@/components/pos/MenuGrid';
 import { OrderPanel } from '@/components/pos/OrderPanel';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -19,7 +21,7 @@ import { clockIn, getMyShifts } from '@/lib/api/shifts.service';
 import { CATEGORIES } from '@/lib/constants/pos';
 import { cn } from '@/lib/utils/cn';
 import { parseModifierName } from '@/lib/utils/modifiers';
-import { selectionKey } from '@/lib/utils/pos';
+import { cartItemTotal, selectionKey } from '@/lib/utils/pos';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -33,13 +35,14 @@ function pence(decimal: string): number {
   return Math.round(Number.parseFloat(decimal) * 100);
 }
 
-function toPosItem(api: ApiMenuItem, modifiers: AttachedModifier[]): MenuItem {
+function toPosItem(api: ApiMenuItem, modifiers: AttachedModifier[], modifiersLoaded: boolean): MenuItem {
   return {
     id: api.id,
     name: api.name,
     category: api.category,
     price: pence(api.price),
     image: api.imageUrl ?? '',
+    modifiersLoaded,
     modifiers: modifiers
       .filter((m) => m.isAvailable)
       .map((m): MenuOption => {
@@ -65,7 +68,15 @@ export default function POSPage() {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [pending, setPending] = useState<MenuOption[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [notes, setNotes] = useState('');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Full-screen checkout flow. Total and customer email are snapshotted when it
+  // opens — the cart and customer are cleared as soon as the order succeeds.
+  const [checkout, setCheckout] = useState<CheckoutStep | 'closed'>('closed');
+  const [checkoutTotal, setCheckoutTotal] = useState(0);
+  const [checkoutEmail, setCheckoutEmail] = useState<string | undefined>();
+  const [checkoutQueued, setCheckoutQueued] = useState(false);
 
   function addToast(type: ToastMessage['type'], message: string) {
     setToasts((prev) => [...prev, { id: Date.now(), type, message }]);
@@ -125,8 +136,15 @@ export default function POSPage() {
     })),
   });
 
+  // Pair each item with its query BEFORE filtering — modifierQueries is
+  // positional against the unfiltered apiItems, so filtering first would shift
+  // every item after an unavailable one onto the wrong modifier set.
   const posItems = useMemo<MenuItem[]>(
-    () => apiItems.filter((item) => item.isAvailable).map((item, i) => toPosItem(item, modifierQueries[i]?.data ?? [])),
+    () =>
+      apiItems
+        .map((item, i) => ({ item, query: modifierQueries[i] }))
+        .filter(({ item }) => item.isAvailable)
+        .map(({ item, query }) => toPosItem(item, query?.data ?? [], query?.isSuccess ?? false)),
     [apiItems, modifierQueries],
   );
 
@@ -135,7 +153,48 @@ export default function POSPage() {
     [posItems, activeCategory],
   );
 
+  // selectedItem is a snapshot from tap time — resolve it against the latest
+  // posItems so modifiers that stream in after the customiser opened still appear.
+  const liveSelectedItem = useMemo(
+    () => (selectedItem ? (posItems.find((i) => i.id === selectedItem.id) ?? selectedItem) : null),
+    [selectedItem, posItems],
+  );
+
+  // If the item was tapped before its modifiers loaded, apply the default
+  // pre-selection once they arrive. Render-phase adjustment (not an effect) —
+  // upgrading the snapshot to the loaded item makes this run only once.
+  if (selectedItem && !selectedItem.modifiersLoaded && liveSelectedItem?.modifiersLoaded) {
+    setSelectedItem(liveSelectedItem);
+    setPending(liveSelectedItem.modifiers.filter((o) => o.isDefault));
+  }
+
+  function addLine(item: MenuItem, selected: MenuOption[]) {
+    const key = selectionKey(selected);
+    setCart((prev) => {
+      // Merge into an existing line with the same item + same modifiers.
+      const existing = prev.find((c) => c.item.id === item.id && selectionKey(c.selected) === key);
+      if (existing) {
+        return prev.map((c) => (c.cartId === existing.cartId ? { ...c, quantity: c.quantity + 1 } : c));
+      }
+      return [...prev, { cartId: `${item.id}-${Date.now()}`, item, quantity: 1, selected }];
+    });
+  }
+
   function handleSelectItem(item: MenuItem) {
+    // Nothing to customise — add in one tap and stay on the menu. Only trust an
+    // empty modifier list once it has actually loaded. Any customisation in
+    // progress for another item is abandoned, mirroring the tap-to-switch below.
+    if (item.modifiersLoaded && item.modifiers.length === 0) {
+      addLine(item, []);
+      setSelectedItem(null);
+      setPending([]);
+      return;
+    }
+    // Tapping the already-selected item again toggles its customiser off.
+    if (selectedItem?.id === item.id) {
+      handleCancelItem();
+      return;
+    }
     setSelectedItem(item);
     // On small screens the order panel is a drawer — open it so the customiser is visible.
     usePageSidebarStore.getState().setOpen(true);
@@ -145,18 +204,26 @@ export default function POSPage() {
   }
 
   function handleAddToCart() {
-    if (!selectedItem) return;
-    const key = selectionKey(pending);
-    setCart((prev) => {
-      // Merge into an existing line with the same item + same modifiers.
-      const existing = prev.find((c) => c.item.id === selectedItem.id && selectionKey(c.selected) === key);
-      if (existing) {
-        return prev.map((c) => (c.cartId === existing.cartId ? { ...c, quantity: c.quantity + 1 } : c));
-      }
-      return [...prev, { cartId: `${selectedItem.id}-${Date.now()}`, item: selectedItem, quantity: 1, selected: pending }];
-    });
+    if (!liveSelectedItem) return;
+    addLine(liveSelectedItem, pending);
     setSelectedItem(null);
     setPending([]);
+    // On small screens the drawer covered the menu — close it so the next item
+    // is one tap away. No-op on lg+ where the panel is inline.
+    usePageSidebarStore.getState().setOpen(false);
+  }
+
+  function handleCancelItem() {
+    setSelectedItem(null);
+    setPending([]);
+    usePageSidebarStore.getState().setOpen(false);
+  }
+
+  function handleClearCart() {
+    setCart([]);
+    setNotes('');
+    // Also discard any customisation in progress — "Clear All" means start over.
+    handleCancelItem();
   }
 
   function handleQty(cartId: string, delta: number) {
@@ -177,21 +244,30 @@ export default function POSPage() {
     })),
   });
 
+  // Shared post-order cleanup: clear the order and advance the checkout flow
+  // to the confirmation screen (which then flows into the receipt question).
+  function finishOrder(queued: boolean) {
+    setCart([]);
+    setSelectedCustomer(null);
+    setNotes('');
+    setCheckoutQueued(queued);
+    setCheckout('confirm');
+    usePageSidebarStore.getState().setOpen(false);
+  }
+
   const { mutate: submitOrder, isPending: isPaying } = useMutation({
     // CRITICAL: React Query's default networkMode 'online' PAUSES mutations
     // while offline — mutationFn never runs, isPending spins forever, and our
     // queueing logic below is unreachable. 'always' hands control to us.
     networkMode: 'always',
-    mutationFn: ({ method, notes }: { method: 'cash' | 'card'; notes: string }) => {
+    mutationFn: (method: 'cash' | 'card') => {
       // Known-offline: don't even attempt the request — fail straight into the
       // offline-queue path instead of waiting out a timeout.
       if (!navigator.onLine) return Promise.reject(new Error('offline'));
       return createOrder(buildOrderPayload(method, notes));
     },
     onSuccess: () => {
-      setCart([]);
-      setSelectedCustomer(null);
-      addToast('success', 'Order placed successfully.');
+      finishOrder(false);
       // Refresh exactly what an order touches — invalidating the whole cache
       // refetched every list in the app after every sale.
       for (const key of ['orders', 'orders-all', 'location-stock', 'inventory-forecast', 'low-stock-alerts', 'customers']) {
@@ -199,20 +275,37 @@ export default function POSPage() {
       }
       if (selectedCustomer) void qc.invalidateQueries({ queryKey: ['customer-visits', selectedCustomer.id] });
     },
-    onError: (err, { method, notes }) => {
+    onError: (err, method) => {
       // Queue when the API never really answered: fetch/abort failures, and
       // 502/503/504 which are the proxy saying the API is unreachable.
       const unreachable = !(err instanceof ApiError) || err.status === 502 || err.status === 503 || err.status === 504;
       if (unreachable) {
-        useOfflineOrdersStore.getState().enqueue(buildOrderPayload(method, notes));
-        setCart([]);
-        setSelectedCustomer(null);
-        addToast('info', 'No connection — order saved offline and will send automatically.');
+        // Stamp the order so it's still traceable after it syncs — the synced
+        // order's createdAt is the sync time, not when it was actually taken.
+        const takenAt = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const offlineNote = `Taken offline at ${takenAt}`;
+        useOfflineOrdersStore.getState().enqueue(buildOrderPayload(method, notes ? `${notes} · ${offlineNote}` : offlineNote));
+        finishOrder(true);
         return;
       }
+      // Real API rejection — stay on the method screen so the cashier can retry.
       addToast('error', err.message || 'Failed to place order. Please try again.');
     },
   });
+
+  function handleCharge() {
+    setCheckoutTotal(cart.reduce((sum, c) => sum + cartItemTotal(c), 0));
+    setCheckoutEmail(selectedCustomer?.email);
+    setCheckoutQueued(false);
+    setCheckout('method');
+  }
+
+  function handleReceipt(choice: 'email' | 'print' | 'none') {
+    // TODO: no receipt endpoint exists yet — these only acknowledge the choice.
+    if (choice === 'email') addToast('success', `Receipt will be emailed to ${checkoutEmail}.`);
+    if (choice === 'print') addToast('info', 'Receipt sent to the printer.');
+    setCheckout('closed');
+  }
 
   // Only the item list gates the grid — waiting on all N modifier queries
   // blocked the whole POS behind the slowest one.
@@ -237,23 +330,24 @@ export default function POSPage() {
       <PageLayout
         eyebrow="Service Mode"
         title="Roastery Menu"
-        headerSlot={<SegmentedControl options={CATEGORIES} value={activeCategory} onChange={setActiveCategory} />}
+        headerSlot={<SegmentedControl options={CATEGORIES} value={activeCategory} onChange={setActiveCategory} size="lg" />}
         headerBorder={false}
         sidebar={
           !(tenantId && locationId && onShift) ? undefined : (
             <OrderPanel
               cart={cart}
-              selectedItem={selectedItem}
+              selectedItem={liveSelectedItem}
               pending={pending}
               setPending={setPending}
               onAddToCart={handleAddToCart}
-              onCancelItem={() => setSelectedItem(null)}
+              onCancelItem={handleCancelItem}
               onQty={handleQty}
-              onClearCart={() => setCart([])}
+              onClearCart={handleClearCart}
               selectedCustomer={selectedCustomer}
               onCustomerSelect={setSelectedCustomer}
-              onPay={(method, notes) => submitOrder({ method, notes })}
-              isPaying={isPaying}
+              notes={notes}
+              onNotesChange={setNotes}
+              onCharge={handleCharge}
             />
           )
         }
@@ -278,7 +372,10 @@ export default function POSPage() {
         )}
 
         {tenantId && locationId && onShift && (
-          <MenuGrid items={filtered} selectedId={selectedItem?.id ?? null} onSelectItem={handleSelectItem} isLoading={isLoading} />
+          <>
+            <MenuGrid items={filtered} selectedId={selectedItem?.id ?? null} onSelectItem={handleSelectItem} isLoading={isLoading} />
+            <CartBar cart={cart} onOpen={() => usePageSidebarStore.getState().setOpen(true)} />
+          </>
         )}
         {/* Locked: staff must clock in before taking orders */}
         {tenantId && locationId && !onShift && !shiftsLoading && (
@@ -305,6 +402,19 @@ export default function POSPage() {
           <EmptyState icon={MapPin} title="No location selected" description="Select a location from the header to start taking orders." />
         )}
       </PageLayout>
+      {checkout !== 'closed' && (
+        <CheckoutFlow
+          step={checkout}
+          total={checkoutTotal}
+          isPaying={isPaying}
+          queued={checkoutQueued}
+          customerEmail={checkoutEmail}
+          onSelectMethod={submitOrder}
+          onConfirmDone={() => setCheckout('receipt')}
+          onReceipt={handleReceipt}
+          onCancel={() => setCheckout('closed')}
+        />
+      )}
       <Toast toasts={toasts} onDismiss={dismissToast} />
     </>
   );

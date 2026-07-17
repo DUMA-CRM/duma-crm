@@ -1,18 +1,18 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronDown, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
-import { FormActions, inputClass, labelClass } from '@/components/menu/shared';
+import { AvailabilityToggle, FormActions, inputClass, labelClass } from '@/components/menu/shared';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 
 import { createModifier, deleteModifier, getModifiers, updateModifier } from '@/lib/api/menu.service';
 import { cn } from '@/lib/utils/cn';
-import { UNCATEGORISED_LABEL, encodeModifierName, groupByCategory, parseModifierName } from '@/lib/utils/modifiers';
+import { encodeModifierName, groupByCategory, parseModifierName } from '@/lib/utils/modifiers';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { Modifier } from '@/types/menu';
@@ -162,6 +162,7 @@ function ModifierForm({
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['modifiers'] });
+      toast('success', modifier ? 'Modifier updated.' : 'Modifier created.');
       onClose();
     },
   });
@@ -225,6 +226,7 @@ export function ModifiersPanel({ createOpen, onCreateOpenChange }: { createOpen:
   const { tenantId } = useWorkspaceStore();
   const [editModifier, setEditModifier] = useState<Modifier | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ modifier: Modifier; label: string } | null>(null);
+  const [search, setSearch] = useState('');
   const closeCreate = () => onCreateOpenChange(false);
 
   const { data: modifiers = [], isLoading } = useQuery({
@@ -243,10 +245,20 @@ export function ModifiersPanel({ createOpen, onCreateOpenChange }: { createOpen:
     onError: (err) => toast('error', err.message || 'Failed to delete the modifier.'),
   });
 
+  // One-tap availability from the table row (e.g. oat milk ran out).
+  const availabilityMutation = useMutation({
+    mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => updateModifier(id, { isAvailable }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['modifiers'] }),
+    onError: (err) => toast('error', err.message || 'Failed to update availability.'),
+  });
+
   // Parse the category prefix out of each name, sort by category (uncategorised
-  // last) then label, then bucket into groups for the sectioned table.
+  // last) then label, then bucket into groups for the sectioned table. The name
+  // includes the category prefix, so searching matches labels and categories.
   const groups = useMemo(() => {
+    const q = search.trim().toLowerCase();
     const rows = modifiers
+      .filter((m) => !q || m.name.toLowerCase().includes(q))
       .map((m) => ({ modifier: m, ...parseModifierName(m.name) }))
       .sort((a, b) => {
         const ca = a.category ?? '￿';
@@ -254,12 +266,31 @@ export function ModifiersPanel({ createOpen, onCreateOpenChange }: { createOpen:
         return ca.localeCompare(cb) || a.label.localeCompare(b.label);
       });
     return groupByCategory(rows, (r) => r.category);
-  }, [modifiers]);
+  }, [modifiers, search]);
 
-  const categories = useMemo(() => groups.map((g) => g.category).filter((c) => c !== UNCATEGORISED_LABEL), [groups]);
+  const visibleCount = useMemo(() => groups.reduce((n, g) => n + g.items.length, 0), [groups]);
+
+  // The combobox needs every category, not just the ones matching the search.
+  const categories = useMemo(() => {
+    const all = new Set(modifiers.map((m) => parseModifierName(m.name).category).filter((c): c is string => !!c));
+    return [...all].sort((a, b) => a.localeCompare(b));
+  }, [modifiers]);
 
   return (
     <div className="flex flex-col h-full">
+      {/* Search */}
+      {tenantId && modifiers.length > 0 && (
+        <div className="mb-3 shrink-0 max-w-xs">
+          <Input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            leftIcon={<Search size={14} />}
+            placeholder="Search modifiers…"
+          />
+        </div>
+      )}
+
       <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
         <div className="flex-1 overflow-auto">
           <table className="w-full text-sm border-collapse">
@@ -308,6 +339,12 @@ export function ModifiersPanel({ createOpen, onCreateOpenChange }: { createOpen:
                     />
                   </td>
                 </tr>
+              ) : visibleCount === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-24">
+                    <EmptyState icon={Search} title="No matching modifiers" description="Try a different search." />
+                  </td>
+                </tr>
               ) : (
                 groups.map((group) => (
                   <Fragment key={group.category}>
@@ -327,16 +364,21 @@ export function ModifiersPanel({ createOpen, onCreateOpenChange }: { createOpen:
                       >
                         <td className="px-3 md:px-5 py-3.5 font-medium text-foreground">{label}</td>
                         <td className="px-3 md:px-5 py-3.5 tabular-nums text-muted-foreground">{formatAdjust(m.priceAdjust)}</td>
-                        <td className="px-3 md:px-5 py-3.5">
-                          <Badge variant={m.isAvailable ? 'success' : 'muted'}>{m.isAvailable ? 'Available' : 'Hidden'}</Badge>
+                        <td className="px-3 md:px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
+                          <AvailabilityToggle
+                            on={m.isAvailable}
+                            pending={availabilityMutation.isPending && availabilityMutation.variables?.id === m.id}
+                            onToggle={() => availabilityMutation.mutate({ id: m.id, isAvailable: !m.isAvailable })}
+                          />
                         </td>
                         <td className="px-3 md:px-5 py-3.5 pr-4 md:pr-6 text-right" onClick={(e) => e.stopPropagation()}>
+                          {/* Always visible — hover-reveal buttons don't exist on touch screens */}
                           <button
                             onClick={() => setDeleteTarget({ modifier: m, label })}
-                            className="w-7 h-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors md:opacity-0 md:group-hover:opacity-100"
+                            className="w-9 h-9 inline-flex items-center justify-center rounded-md text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
                             aria-label={`Delete ${label}`}
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={15} />
                           </button>
                         </td>
                       </tr>
@@ -350,6 +392,7 @@ export function ModifiersPanel({ createOpen, onCreateOpenChange }: { createOpen:
         {modifiers.length > 0 && (
           <div className="px-5 py-3 border-t border-border shrink-0">
             <p className="text-xs text-muted-foreground">
+              {visibleCount !== modifiers.length && `${visibleCount} of `}
               {modifiers.length} {modifiers.length === 1 ? 'modifier' : 'modifiers'} · {groups.length}{' '}
               {groups.length === 1 ? 'category' : 'categories'}
             </p>

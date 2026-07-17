@@ -27,6 +27,7 @@ export default function MenuPage() {
       title="Menu"
       fullHeight
       headerBorder={false}
+			className="pb-4 md:pb-8"
       headerSlot={
         <div className="flex items-center justify-between gap-3">
           <SegmentedControl options={TABS} value={tab} onChange={setTab} />

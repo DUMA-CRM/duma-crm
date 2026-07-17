@@ -46,19 +46,20 @@ export function CartRow({ cartItem, onQty }: CartRowProps) {
         )}
       </div>
 
-      {/* Qty controls */}
+      {/* Qty controls — size-11 (44px) keeps them comfortably tappable on tablets */}
       <div className="flex items-center gap-0.5 shrink-0">
         <Button
           onClick={() => onQty(cartItem.cartId, -1)}
           aria-label={isLastQty ? 'Remove item' : 'Decrease quantity'}
           size="icon"
           variant={isLastQty ? 'default' : 'outline'}
+          className="size-11"
         >
-          {isLastQty ? <Trash2 size={13} /> : <Minus size={13} />}
+          {isLastQty ? <Trash2 size={16} /> : <Minus size={16} />}
         </Button>
-        <span className="w-7 text-center text-sm font-bold tabular-nums select-none text-foreground">{cartItem.quantity}</span>
-        <Button onClick={() => onQty(cartItem.cartId, 1)} aria-label="Increase quantity" size="icon" variant="outline">
-          <Plus size={13} />
+        <span className="w-8 text-center text-sm font-bold tabular-nums select-none text-foreground">{cartItem.quantity}</span>
+        <Button onClick={() => onQty(cartItem.cartId, 1)} aria-label="Increase quantity" size="icon" variant="outline" className="size-11">
+          <Plus size={16} />
         </Button>
       </div>
     </div>

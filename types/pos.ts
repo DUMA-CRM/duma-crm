@@ -19,6 +19,9 @@ export interface MenuItem {
   image: string;
   // Flat list of add-ons attached to this item (multi-select).
   modifiers: MenuOption[];
+  // False while this item's modifier query is still streaming in — an empty
+  // `modifiers` array is only trustworthy once this is true.
+  modifiersLoaded?: boolean;
 }
 
 export interface CartItem {

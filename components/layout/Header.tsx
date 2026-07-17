@@ -8,7 +8,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { roleAtLeast } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
-import { useChromeStore } from '@/stores/chromeStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 
 import { Input } from '../ui/input';
@@ -77,9 +76,6 @@ export function Header() {
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [menuOpen]);
 
-  // Kiosk mode (e.g. KDS full screen) hides the whole header.
-  const chromeHidden = useChromeStore((s) => s.hidden);
-
   const reloadButton = (className?: string) => (
     <button onClick={handleReload} aria-label="Reload data" className={cn(iconButton, className)}>
       <RotateCcw size={18} aria-hidden="true" className={cn('transition-transform duration-500', spinning && 'rotate-180')} />
@@ -99,8 +95,6 @@ export function Header() {
         <History size={18} aria-hidden="true" />
       </button>
     ) : null;
-
-  if (chromeHidden) return null;
 
   return (
     <>

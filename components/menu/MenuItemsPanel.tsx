@@ -1,10 +1,11 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Trash2, UtensilsCrossed } from 'lucide-react';
-import { useState } from 'react';
+import { Search, Trash2, UtensilsCrossed } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import {
+  AvailabilityToggle,
   CATEGORY_COLORS,
   CATEGORY_LABELS,
   CATEGORY_OPTIONS,
@@ -16,6 +17,7 @@ import {
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
+import { Input } from '@/components/ui/input';
 
 import {
   attachModifier,
@@ -71,11 +73,10 @@ function ItemModifiersEditor({ menuItemId }: { menuItemId: string }) {
 
   return (
     <div>
-      <label className={labelClass}>Modifiers</label>
       {all.length === 0 ? (
         <p className="text-xs text-muted-foreground">No modifiers exist yet. Create some in the Modifiers tab first.</p>
       ) : (
-        <div className="flex flex-col gap-2 mt-1 max-h-52 overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2 max-h-100 overflow-y-auto pr-1">
           {groups.map((group) => (
             <div key={group.category}>
               <p className="px-1 pb-0.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{group.category}</p>
@@ -122,7 +123,19 @@ function ItemModifiersEditor({ menuItemId }: { menuItemId: string }) {
 
 // ── Create / edit form ──────────────────────────────────────────────────────
 
-function MenuItemForm({ tenantId, item, onClose }: { tenantId: string; item?: MenuItem; onClose: () => void }) {
+function MenuItemForm({
+  tenantId,
+  item,
+  onClose,
+  onCreated,
+}: {
+  tenantId: string;
+  item?: MenuItem;
+  onClose: () => void;
+  /** Called with the new item instead of onClose — the panel switches straight
+   *  to edit mode so modifiers can be attached without hunting for the row. */
+  onCreated?: (created: MenuItem) => void;
+}) {
   const qc = useQueryClient();
   const [name, setName] = useState(item?.name ?? '');
   const [category, setCategory] = useState<MenuCategory>(item?.category ?? 'coffee');
@@ -130,14 +143,21 @@ function MenuItemForm({ tenantId, item, onClose }: { tenantId: string; item?: Me
   const [description, setDescription] = useState(item?.description ?? '');
   const [imageUrl, setImageUrl] = useState(item?.imageUrl ?? '');
   const [isAvailable, setIsAvailable] = useState(item?.isAvailable ?? true);
+  const [imageBroken, setImageBroken] = useState(false);
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: () => {
       const payload = { name, category, price, description: description || undefined, imageUrl: imageUrl || undefined, isAvailable };
       return item ? updateMenuItem(item.id, payload) : createMenuItem({ tenantId, ...payload });
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
       qc.invalidateQueries({ queryKey: ['menu-items'] });
+      if (!item && onCreated) {
+        toast('success', 'Item created — you can attach modifiers now.');
+        onCreated(saved);
+        return;
+      }
+      toast('success', item ? 'Menu item updated.' : 'Menu item created.');
       onClose();
     },
   });
@@ -150,70 +170,107 @@ function MenuItemForm({ tenantId, item, onClose }: { tenantId: string; item?: Me
       }}
       className="space-y-4"
     >
-      <div>
-        <label className={labelClass}>Name</label>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          minLength={2}
-          placeholder="Flat White"
-          className={inputClass}
-          autoFocus
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={labelClass}>Category</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value as MenuCategory)} className={selectClass}>
-            {CATEGORY_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={labelClass}>Price (£)</label>
-          <input
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            required
-            pattern="^\d+(\.\d{1,2})?$"
-            placeholder="3.20"
-            className={inputClass}
-          />
-        </div>
-      </div>
-      <div>
-        <label className={labelClass}>Description</label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={2}
-          placeholder="Optional"
-          className={inputClass + ' h-auto py-2 resize-none'}
-        />
-      </div>
-      <div>
-        <label className={labelClass}>Image URL</label>
-        <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://…" className={inputClass} />
-      </div>
-      <label className="flex items-center gap-2.5 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={isAvailable}
-          onChange={(e) => setIsAvailable(e.target.checked)}
-          className="w-4 h-4 rounded accent-primary"
-        />
-        <span className="text-sm text-foreground">Available</span>
-      </label>
+      {/* Two cards side by side: a narrower item-details card and a wider
+          modifiers card — the modifier list is the denser of the two. */}
+      <div className="grid md:grid-cols-5 gap-4 items-start">
+        <section className="md:col-span-2 bg-surface-offset/40 border border-border rounded-xl p-4 space-y-4">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Item Details</p>
+          <div>
+            <label className={labelClass}>Name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              minLength={2}
+              placeholder="Flat White"
+              className={inputClass}
+              autoFocus
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Category</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value as MenuCategory)} className={selectClass}>
+                {CATEGORY_OPTIONS.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Price (£)</label>
+              <input
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                required
+                pattern="^\d+(\.\d{1,2})?$"
+                placeholder="3.20"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              placeholder="Optional"
+              className={inputClass + ' h-auto py-2 resize-none'}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Image URL</label>
+            <div className="flex items-start gap-3">
+              <input
+                value={imageUrl}
+                onChange={(e) => {
+                  setImageUrl(e.target.value);
+                  setImageBroken(false);
+                }}
+                placeholder="https://…"
+                className={inputClass}
+              />
+              {/* Live preview so a typo'd URL is obvious before saving */}
+              {imageUrl.trim() &&
+                (imageBroken ? (
+                  <div className="w-9 h-9 shrink-0 rounded-lg border border-dashed border-destructive/40 flex items-center justify-center text-[9px] font-semibold text-destructive/70 text-center leading-tight px-1">
+                    Can&apos;t load
+                  </div>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={imageUrl}
+                    alt="Preview"
+                    onError={() => setImageBroken(true)}
+                    className="w-9 h-9 shrink-0 rounded-lg object-cover border border-border bg-muted"
+                  />
+                ))}
+            </div>
+          </div>
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isAvailable}
+              onChange={(e) => setIsAvailable(e.target.checked)}
+              className="w-4 h-4 rounded accent-primary"
+            />
+            <span className="text-sm text-foreground">Available</span>
+          </label>
+        </section>
 
-      {item && (
-        <div className="border-t border-border pt-4">
-          <ItemModifiersEditor menuItemId={item.id} />
-        </div>
-      )}
+        <section className="md:col-span-3 bg-surface-offset/40 border border-border rounded-xl p-4">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Modifiers</p>
+          {item ? (
+            <ItemModifiersEditor menuItemId={item.id} />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Modifiers (milk, size, syrups…) can be attached right after creating the item.
+            </p>
+          )}
+        </section>
+      </div>
 
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
       <FormActions onClose={onClose} isPending={isPending} isEdit={!!item} />
@@ -228,6 +285,8 @@ export function MenuItemsPanel({ createOpen, onCreateOpenChange }: { createOpen:
   const { tenantId } = useWorkspaceStore();
   const [editItem, setEditItem] = useState<MenuItem | null>(null);
   const [deleteItem, setDeleteItem] = useState<MenuItem | null>(null);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | MenuCategory>('all');
   const closeCreate = () => onCreateOpenChange(false);
 
   const { data: items = [], isLoading } = useQuery({
@@ -235,6 +294,15 @@ export function MenuItemsPanel({ createOpen, onCreateOpenChange }: { createOpen:
     queryFn: getMenuItems,
     enabled: !!tenantId,
   });
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items.filter(
+      (i) =>
+        (categoryFilter === 'all' || i.category === categoryFilter) &&
+        (!q || i.name.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q)),
+    );
+  }, [items, search, categoryFilter]);
 
   const removeMutation = useMutation({
     mutationFn: deleteMenuItem,
@@ -246,9 +314,44 @@ export function MenuItemsPanel({ createOpen, onCreateOpenChange }: { createOpen:
     onError: (err) => toast('error', err.message || 'Failed to delete the menu item.'),
   });
 
+  // One-tap availability from the table row.
+  const availabilityMutation = useMutation({
+    mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => updateMenuItem(id, { isAvailable }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['menu-items'] }),
+    onError: (err) => toast('error', err.message || 'Failed to update availability.'),
+  });
+
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
+      {/* Search + category filter */}
+      {tenantId && items.length > 0 && (
+        <div className="flex items-center gap-2 mb-3 shrink-0">
+          <div className="flex-1 max-w-xs">
+            <Input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              leftIcon={<Search size={14} />}
+              placeholder="Search items…"
+            />
+          </div>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value as 'all' | MenuCategory)}
+            aria-label="Filter by category"
+            className={cn(selectClass, 'w-auto')}
+          >
+            <option value="all">All categories</option>
+            {CATEGORY_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
         <div className="flex-1 overflow-auto">
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
@@ -291,8 +394,14 @@ export function MenuItemsPanel({ createOpen, onCreateOpenChange }: { createOpen:
                     <EmptyState icon={UtensilsCrossed} title="No menu items" description='Click "New Item" to add your first product.' />
                   </td>
                 </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-24">
+                    <EmptyState icon={Search} title="No matching items" description="Try a different search or category filter." />
+                  </td>
+                </tr>
               ) : (
-                items.map((item) => (
+                filtered.map((item) => (
                   <tr
                     key={item.id}
                     className="group border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors cursor-pointer"
@@ -310,7 +419,7 @@ export function MenuItemsPanel({ createOpen, onCreateOpenChange }: { createOpen:
                         )}
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-foreground">{item.name}</p>
-                          {item.description && <p className="text-xs text-muted-foreground truncate max-w-xs">{item.description}</p>}
+                          {item.description && <p className="text-xs text-muted-foreground truncate max-w-md">{item.description}</p>}
                         </div>
                       </div>
                     </td>
@@ -325,28 +434,21 @@ export function MenuItemsPanel({ createOpen, onCreateOpenChange }: { createOpen:
                       </span>
                     </td>
                     <td className="px-3 md:px-5 py-3.5 text-right tabular-nums font-semibold text-foreground">{money(item.price)}</td>
-                    <td className="px-3 md:px-5 py-3.5">
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
-                          item.isAvailable
-                            ? 'bg-success/10 text-success border-success/30'
-                            : 'bg-muted text-muted-foreground border-border',
-                        )}
-                      >
-                        <span
-                          className={cn('w-1.5 h-1.5 rounded-full shrink-0', item.isAvailable ? 'bg-success' : 'bg-muted-foreground')}
-                        />
-                        {item.isAvailable ? 'Available' : 'Hidden'}
-                      </span>
+                    <td className="px-3 md:px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
+                      <AvailabilityToggle
+                        on={item.isAvailable}
+                        pending={availabilityMutation.isPending && availabilityMutation.variables?.id === item.id}
+                        onToggle={() => availabilityMutation.mutate({ id: item.id, isAvailable: !item.isAvailable })}
+                      />
                     </td>
                     <td className="px-3 md:px-5 py-3.5 pr-4 md:pr-6 text-right" onClick={(e) => e.stopPropagation()}>
+                      {/* Always visible — hover-reveal buttons don't exist on touch screens */}
                       <button
                         onClick={() => setDeleteItem(item)}
-                        className="w-7 h-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors md:opacity-0 md:group-hover:opacity-100"
+                        className="w-9 h-9 inline-flex items-center justify-center rounded-md text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
                         aria-label={`Delete ${item.name}`}
                       >
-                        <Trash2 size={13} />
+                        <Trash2 size={15} />
                       </button>
                     </td>
                   </tr>
@@ -358,6 +460,7 @@ export function MenuItemsPanel({ createOpen, onCreateOpenChange }: { createOpen:
         {items.length > 0 && (
           <div className="px-5 py-3 border-t border-border shrink-0">
             <p className="text-xs text-muted-foreground">
+              {filtered.length !== items.length && `${filtered.length} of `}
               {items.length} {items.length === 1 ? 'item' : 'items'} · {items.filter((i) => i.isAvailable).length} available
             </p>
           </div>
@@ -365,12 +468,19 @@ export function MenuItemsPanel({ createOpen, onCreateOpenChange }: { createOpen:
       </div>
 
       {createOpen && tenantId && (
-        <Modal title="New Menu Item" onClose={closeCreate}>
-          <MenuItemForm tenantId={tenantId} onClose={closeCreate} />
+        <Modal title="New Menu Item" onClose={closeCreate} className="max-w-4xl">
+          <MenuItemForm
+            tenantId={tenantId}
+            onClose={closeCreate}
+            onCreated={(created) => {
+              closeCreate();
+              setEditItem(created);
+            }}
+          />
         </Modal>
       )}
       {editItem && tenantId && (
-        <Modal title="Edit Menu Item" onClose={() => setEditItem(null)}>
+        <Modal title="Edit Menu Item" onClose={() => setEditItem(null)} className="max-w-4xl">
           <MenuItemForm tenantId={tenantId} item={editItem} onClose={() => setEditItem(null)} />
         </Modal>
       )}

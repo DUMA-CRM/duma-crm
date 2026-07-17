@@ -1,16 +1,16 @@
 'use client';
 
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, CheckCircle2, Coffee, Expand, Flame, MapPin, Monitor, Shrink, Smartphone, Volume2, VolumeX } from 'lucide-react';
+import { Bell, CheckCircle2, Coffee, Flame, MapPin, Monitor, Smartphone } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/shared/EmptyState';
 
 import { type Order, type OrderItem, type OrderStatus, getOrder, getOrders, updateOrderStatus } from '@/lib/api/orders.service';
+import { chime } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
 import { parseModifierName } from '@/lib/utils/modifiers';
-import { useChromeStore } from '@/stores/chromeStore';
 import { useKdsStore } from '@/stores/kdsStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -66,43 +66,6 @@ function ageClass(order: Order, now: number): string {
   if (mins >= 5) return 'bg-destructive/10 border-destructive/50 ring-2 ring-destructive/30';
   if (mins >= 2) return 'bg-warning/10 border-warning/50 ring-2 ring-warning/30';
   return 'bg-card';
-}
-
-// Short two-tone chime via WebAudio — no asset file needed.
-//
-// Browsers only allow an AudioContext created (or resumed) inside a user
-// gesture; one created later starts "suspended" and plays silence. So we keep
-// ONE context, unlock it when the barista toggles sound on (a click), and
-// reuse it for every chime.
-let audioCtx: AudioContext | null = null;
-
-function unlockAudio(): AudioContext | null {
-  try {
-    audioCtx ??= new AudioContext();
-    if (audioCtx.state === 'suspended') void audioCtx.resume();
-    return audioCtx;
-  } catch {
-    return null; // no audio device / unsupported — the visual queue still works
-  }
-}
-
-function chime() {
-  const ctx = unlockAudio();
-  if (!ctx) return;
-  const play = (freq: number, at: number) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime + at);
-    gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + at + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.5);
-    osc.start(ctx.currentTime + at);
-    osc.stop(ctx.currentTime + at + 0.55);
-  };
-  play(880, 0);
-  play(1174, 0.18);
 }
 
 // ── Order card ────────────────────────────────────────────────────────────────
@@ -197,10 +160,8 @@ function KdsCard({
 export default function KdsPage() {
   const qc = useQueryClient();
   const { locationId } = useWorkspaceStore();
-  // Persisted (localStorage) so it survives navigation and reloads.
+  // New-order chime preference — set in Settings → Barista display, persisted per device.
   const soundOn = useKdsStore((s) => s.soundOn);
-  const setSoundOn = useKdsStore((s) => s.setSoundOn);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [bumpingId, setBumpingId] = useState<string | null>(null);
 
   // Ticking clock for elapsed labels / urgency rings.
@@ -208,21 +169,6 @@ export default function KdsPage() {
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(t);
-  }, []);
-
-  // Sync kiosk mode (chrome hidden) with the browser's fullscreen state, so
-  // exiting with Esc also brings the sidebar/header back. Restore on unmount.
-  useEffect(() => {
-    const onFsChange = () => {
-      const fs = !!document.fullscreenElement;
-      setIsFullscreen(fs);
-      useChromeStore.getState().setHidden(fs);
-    };
-    document.addEventListener('fullscreenchange', onFsChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', onFsChange);
-      useChromeStore.getState().setHidden(false);
-    };
   }, []);
 
   // Shares the cache entry the sidebar badge / dashboard / orders page use,
@@ -281,45 +227,8 @@ export default function KdsPage() {
     onError: (err) => toast('error', err.message || 'Failed to update the order.'),
   });
 
-  // State + chrome visibility are synced by the fullscreenchange listener above.
-  function toggleFullscreen() {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen?.().catch(() => {});
-  }
-
-  const headerSlot = (
-    <div className="flex items-center gap-2">
-      <button
-        onClick={() => {
-          const next = !soundOn;
-          setSoundOn(next);
-          // The click is our user gesture — unlock the AudioContext now and
-          // play a confirmation chime so the barista hears that it works.
-          if (next) chime();
-        }}
-        aria-pressed={soundOn}
-        className={cn(
-          'h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors',
-          soundOn
-            ? 'border-primary bg-primary/10 text-primary'
-            : 'border-border text-muted-foreground hover:text-foreground hover:bg-surface-offset',
-        )}
-      >
-        {soundOn ? <Volume2 size={15} aria-hidden="true" /> : <VolumeX size={15} aria-hidden="true" />}
-        New-order chime
-      </button>
-      <button
-        onClick={toggleFullscreen}
-        className="h-9 px-3 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-offset flex items-center gap-1.5 transition-colors"
-      >
-        {isFullscreen ? <Shrink size={15} aria-hidden="true" /> : <Expand size={15} aria-hidden="true" />}
-        {isFullscreen ? 'Exit full screen' : 'Full screen'}
-      </button>
-    </div>
-  );
-
   return (
-    <PageLayout eyebrow="Service Mode" title="Barista Display" fullHeight headerBorder={false} headerSlot={headerSlot}>
+    <PageLayout eyebrow="Service Mode" title="Barista Display" fullHeight headerBorder={false}>
       {!locationId ? (
         <EmptyState icon={MapPin} title="No location selected" description="Select a location from the header to see its order queue." />
       ) : (

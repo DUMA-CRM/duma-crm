@@ -12,6 +12,7 @@ export function OptionBtn({ label, active, onClick }: OptionBtnProps) {
   return (
     <Button
       variant={active ? 'default' : 'ghost'}
+      size="lg"
       onClick={onClick}
       className={
         active

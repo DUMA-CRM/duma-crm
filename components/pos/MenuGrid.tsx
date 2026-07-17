@@ -15,7 +15,8 @@ interface MenuGridProps {
 
 // auto-fill: as many ~128px+ cards as fit the container — 2-3 on a phone,
 // ~5 on a tablet, and it self-adjusts around the 400px order panel on desktop.
-const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-3 pr-4 pb-4';
+// Extra bottom padding below lg clears the floating CartBar overlay.
+const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-3 pr-4 pb-24 lg:pb-4';
 
 export function MenuGrid({ items, selectedId, onSelectItem, isLoading }: MenuGridProps) {
   return (
