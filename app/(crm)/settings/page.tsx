@@ -79,7 +79,7 @@ function InstallAppSection() {
         <p className="text-xs text-muted-foreground">
           {isIos
             ? 'On iPhone/iPad: open the Share menu and choose "Add to Home Screen" to install DUMA as an app.'
-            : 'Installation isn’t available right now — use Chrome or Edge over HTTPS, and the install option appears here (or in the browser’s address bar).'}
+            : 'Installation isn’t available right now. If DUMA is already installed on this device, Chrome hides the option — otherwise use Chrome/Edge over HTTPS and check the install icon in the address bar.'}
         </p>
       )}
     </Section>

@@ -4,6 +4,13 @@ import { useEffect } from 'react';
 
 import { type BeforeInstallPromptEvent, usePwaStore } from '@/stores/pwaStore';
 
+declare global {
+  interface Window {
+    __pwaPrompt?: BeforeInstallPromptEvent | null;
+    __pwaInstalled?: boolean;
+  }
+}
+
 // Registers the offline service worker and captures the PWA install prompt.
 export function ServiceWorkerRegistrar() {
   // SW is production only — in dev it caches hot-reload chunks and causes
@@ -16,22 +23,27 @@ export function ServiceWorkerRegistrar() {
     });
   }, []);
 
-  // Stash the one-shot install prompt so Settings can offer an Install button.
+  // The inline script in the root layout captures beforeinstallprompt before
+  // hydration (Chrome often fires it that early on repeat visits). Here we
+  // adopt whatever it caught, and keep listening for late fires too.
   useEffect(() => {
     const store = usePwaStore.getState;
-    const onPrompt = (e: Event) => {
-      e.preventDefault();
-      store().setInstallPrompt(e as BeforeInstallPromptEvent);
+
+    const adopt = () => {
+      if (window.__pwaInstalled) store().setInstalled(true);
+      if (window.__pwaPrompt) store().setInstallPrompt(window.__pwaPrompt);
     };
     const onInstalled = () => {
       store().setInstalled(true);
       store().setInstallPrompt(null);
     };
-    window.addEventListener('beforeinstallprompt', onPrompt);
-    window.addEventListener('appinstalled', onInstalled);
+
+    adopt();
+    window.addEventListener('pwa:prompt-captured', adopt);
+    window.addEventListener('pwa:installed', onInstalled);
     return () => {
-      window.removeEventListener('beforeinstallprompt', onPrompt);
-      window.removeEventListener('appinstalled', onInstalled);
+      window.removeEventListener('pwa:prompt-captured', adopt);
+      window.removeEventListener('pwa:installed', onInstalled);
     };
   }, []);
 

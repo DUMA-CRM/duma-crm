@@ -22,6 +22,8 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
         queryCache: new QueryCache({
           onError: (error, query) => {
             if (query.meta?.silentError) return;
+            // Offline is expected, not an error — the POS banner covers it.
+            if (typeof navigator !== 'undefined' && !navigator.onLine) return;
             toast('error', error instanceof Error && error.message ? error.message : 'Something went wrong loading data.');
           },
         }),

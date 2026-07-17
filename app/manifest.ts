@@ -11,9 +11,13 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     background_color: '#f7f5f0',
     theme_color: '#e8590c',
+    // Chrome's installability check wants explicit 192/512 sizes; SVG scales
+    // to whatever size is declared, so the same file serves all entries.
     icons: [
       { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-      { src: '/icon-maskable.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+      { src: '/icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+      { src: '/icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+      { src: '/icon-maskable.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' },
     ],
   };
 }

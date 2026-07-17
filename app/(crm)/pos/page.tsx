@@ -178,6 +178,10 @@ export default function POSPage() {
   });
 
   const { mutate: submitOrder, isPending: isPaying } = useMutation({
+    // CRITICAL: React Query's default networkMode 'online' PAUSES mutations
+    // while offline — mutationFn never runs, isPending spins forever, and our
+    // queueing logic below is unreachable. 'always' hands control to us.
+    networkMode: 'always',
     mutationFn: ({ method, notes }: { method: 'cash' | 'card'; notes: string }) => {
       // Known-offline: don't even attempt the request — fail straight into the
       // offline-queue path instead of waiting out a timeout.
