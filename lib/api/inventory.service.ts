@@ -2,11 +2,64 @@ import { apiFetch } from './client';
 
 // ── Stock Items ───────────────────────────────────────────────────────────────
 
+/** UK FSA's 14 regulated allergens, stored as lowercase slugs. */
+export const FSA_ALLERGENS = [
+  'celery',
+  'gluten',
+  'crustaceans',
+  'eggs',
+  'fish',
+  'lupin',
+  'milk',
+  'molluscs',
+  'mustard',
+  'nuts',
+  'peanuts',
+  'sesame',
+  'soya',
+  'sulphites',
+] as const;
+export type Allergen = (typeof FSA_ALLERGENS)[number];
+
+/** What nutrition facts are declared per. kg/l stock quantities convert to g/ml. */
+export type NutritionBasis = 'per_100g' | 'per_100ml' | 'per_piece';
+
+/** UK food-label rows. kcal in kcal; everything else grams, per the item's nutritionBasis amount. All optional. */
+export interface NutritionFacts {
+  kcal?: number;
+  fat?: number;
+  saturates?: number;
+  carbs?: number;
+  sugars?: number;
+  fibre?: number;
+  protein?: number;
+  salt?: number;
+}
+
+export const NUTRITION_FIELDS: { key: keyof NutritionFacts; label: string; unit: string }[] = [
+  { key: 'kcal', label: 'Energy', unit: 'kcal' },
+  { key: 'fat', label: 'Fat', unit: 'g' },
+  { key: 'saturates', label: 'Saturates', unit: 'g' },
+  { key: 'carbs', label: 'Carbs', unit: 'g' },
+  { key: 'sugars', label: 'Sugars', unit: 'g' },
+  { key: 'fibre', label: 'Fibre', unit: 'g' },
+  { key: 'protein', label: 'Protein', unit: 'g' },
+  { key: 'salt', label: 'Salt', unit: 'g' },
+];
+
 export interface StockItem {
   id: string;
   tenantId: string;
   name: string;
   unit: string;
+  /** Last known cost per unit (GBP, decimal string) — set by goods receipts. Null until first known. */
+  costPerUnit?: string | null;
+  /** What the nutrition facts are declared per. Null = no nutrition set. */
+  nutritionBasis?: NutritionBasis | null;
+  /** Nutrition facts per the basis amount. Null = unknown. */
+  nutrition?: NutritionFacts | null;
+  /** FSA allergen slugs this ingredient contains. */
+  allergens?: string[] | null;
   createdAt: string;
 }
 
@@ -14,6 +67,9 @@ export interface StockItemPayload {
   tenantId: string;
   name: string;
   unit: string;
+  nutritionBasis?: NutritionBasis | null;
+  nutrition?: NutritionFacts | null;
+  allergens?: Allergen[] | null;
 }
 
 export const getStockItems = () => apiFetch<StockItem[]>('/stock-items');
@@ -21,7 +77,7 @@ export const getStockItems = () => apiFetch<StockItem[]>('/stock-items');
 export const createStockItem = (data: StockItemPayload) =>
   apiFetch<StockItem>('/stock-items', { method: 'POST', body: JSON.stringify(data) });
 
-export const updateStockItem = (id: string, data: Partial<Pick<StockItemPayload, 'name' | 'unit'>>) =>
+export const updateStockItem = (id: string, data: Partial<Omit<StockItemPayload, 'tenantId'>>) =>
   apiFetch<StockItem>(`/stock-items/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 
 export const deleteStockItem = (id: string) => apiFetch<void>(`/stock-items/${id}`, { method: 'DELETE' });

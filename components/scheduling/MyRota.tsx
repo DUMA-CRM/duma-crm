@@ -4,8 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, ChevronLeft, ChevronRight, LogIn, LogOut } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
+
 import { type ScheduledShift, getMyScheduledShifts } from '@/lib/api/scheduling.service';
-import { clockIn, clockOut, getActiveShifts } from '@/lib/api/shifts.service';
+import { clockIn, getActiveShifts } from '@/lib/api/shifts.service';
 import { type OpeningHours, type Weekday, getLocations } from '@/lib/api/workspace.service';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
@@ -77,8 +79,9 @@ export function MyRota() {
     qc.invalidateQueries({ queryKey: ['shifts'] });
   };
   const clockInM = useMutation({ mutationFn: () => clockIn({ locationId: locationId! }), onSuccess: invalidateClock });
-  const clockOutM = useMutation({ mutationFn: () => clockOut({ locationId: locationId! }), onSuccess: invalidateClock });
-  const clockError = (clockInM.error ?? clockOutM.error) as Error | undefined;
+  // Clock-out goes through the end-of-shift dialog (stock deduction reconciliation).
+  const [clockOutOpen, setClockOutOpen] = useState(false);
+  const clockError = clockInM.error as Error | undefined;
   const clockedMins = myActive ? Math.max(0, Math.floor((now - new Date(myActive.clockedIn).getTime()) / 60000)) : 0;
 
   const byDay = useMemo(() => {
@@ -180,11 +183,11 @@ export function MyRota() {
           </p>
           {myActive ? (
             <button
-              onClick={() => clockOutM.mutate()}
-              disabled={!locationId || clockOutM.isPending}
+              onClick={() => setClockOutOpen(true)}
+              disabled={!locationId}
               className="h-9 px-3 border border-border rounded-lg flex items-center gap-1.5 text-sm font-semibold text-foreground hover:bg-surface-offset transition-colors disabled:opacity-50"
             >
-              <LogOut size={15} /> {clockOutM.isPending ? 'Clocking out…' : 'Clock out'}
+              <LogOut size={15} /> Clock out
             </button>
           ) : (
             <button
@@ -331,6 +334,15 @@ export function MyRota() {
           </div>
         )}
       </div>
+
+      {clockOutOpen && locationId && (
+        <ClockOutDialog
+          locationId={locationId}
+          shiftId={myActive?.id}
+          onClose={() => setClockOutOpen(false)}
+          onClockedOut={invalidateClock}
+        />
+      )}
     </div>
   );
 }

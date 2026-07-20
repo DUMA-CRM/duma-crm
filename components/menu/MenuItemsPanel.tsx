@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Trash2, UtensilsCrossed } from 'lucide-react';
+import { ChefHat, Search, Trash2, UtensilsCrossed } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import {
@@ -14,9 +14,11 @@ import {
   labelClass,
   selectClass,
 } from '@/components/menu/shared';
+import { RecipeEditorPage, RecipeSummaryChips } from '@/components/menu/RecipeEditorPage';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import {
@@ -144,6 +146,8 @@ function MenuItemForm({
   const [imageUrl, setImageUrl] = useState(item?.imageUrl ?? '');
   const [isAvailable, setIsAvailable] = useState(item?.isAvailable ?? true);
   const [imageBroken, setImageBroken] = useState(false);
+  // Full-screen recipe editor takeover (renders above this modal).
+  const [recipeOpen, setRecipeOpen] = useState(false);
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: () => {
@@ -271,6 +275,28 @@ function MenuItemForm({
           )}
         </section>
       </div>
+
+      {/* Recipe / ingredients — drives usage recording, forecasts and COGS/margin */}
+      {item && (
+        <section className="bg-surface-offset/40 border border-border rounded-xl p-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Recipe &amp; Cost</p>
+            <Button type="button" size="sm" onClick={() => setRecipeOpen(true)} className="gap-1.5">
+              <ChefHat size={14} />
+              Edit Recipe
+            </Button>
+          </div>
+          <RecipeSummaryChips menuItemId={item.id} price={price || item.price} />
+          {recipeOpen && (
+            <RecipeEditorPage
+              menuItemId={item.id}
+              itemName={name || item.name}
+              price={price || item.price}
+              onClose={() => setRecipeOpen(false)}
+            />
+          )}
+        </section>
+      )}
 
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
       <FormActions onClose={onClose} isPending={isPending} isEdit={!!item} />

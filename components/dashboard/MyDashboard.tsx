@@ -7,10 +7,10 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
+import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
 
 import { createScheduledShift, getMyScheduledShifts } from '@/lib/api/scheduling.service';
-import { clockIn, clockOut, getMyShifts } from '@/lib/api/shifts.service';
-import { cn } from '@/lib/utils/cn';
+import { clockIn, getMyShifts } from '@/lib/api/shifts.service';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -90,12 +90,9 @@ export function MyDashboard() {
     onSuccess: invalidateShifts,
     onError: (e) => addToast('error', (e as Error).message || 'Could not clock in.'),
   });
-  const clockOutM = useMutation({
-    mutationFn: () => clockOut({ locationId: locationId! }),
-    onSuccess: invalidateShifts,
-    onError: (e) => addToast('error', (e as Error).message || 'Could not clock out.'),
-  });
-  const busy = clockInM.isPending || clockOutM.isPending;
+  // Clock-out goes through the end-of-shift dialog (stock deduction reconciliation).
+  const [clockOutOpen, setClockOutOpen] = useState(false);
+  const busy = clockInM.isPending;
 
   return (
     <>
@@ -146,12 +143,12 @@ export function MyDashboard() {
 
             {active ? (
               <button
-                onClick={() => clockOutM.mutate()}
+                onClick={() => setClockOutOpen(true)}
                 disabled={busy}
                 className="h-14 px-5 md:px-8 rounded-2xl bg-destructive hover:bg-destructive/90 active:translate-y-px text-white text-base font-bold flex items-center gap-2.5 transition-colors disabled:opacity-60"
               >
                 <LogOut size={20} />
-                {clockOutM.isPending ? 'Clocking out…' : 'Clock Out'}
+                Clock Out
               </button>
             ) : (
               <button
@@ -205,6 +202,14 @@ export function MyDashboard() {
           <SuggestShiftCard locationId={locationId} onDone={(msg) => addToast('success', msg)} onError={(msg) => addToast('error', msg)} />
         </div>
       </div>
+      {clockOutOpen && locationId && (
+        <ClockOutDialog
+          locationId={locationId}
+          shiftId={active?.id}
+          onClose={() => setClockOutOpen(false)}
+          onClockedOut={invalidateShifts}
+        />
+      )}
       <Toast toasts={toasts} onDismiss={dismissToast} />
     </>
   );

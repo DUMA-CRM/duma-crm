@@ -10,8 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import {
+  type Allergen,
+  FSA_ALLERGENS,
   type LocationStock,
   type LocationStockPayload,
+  NUTRITION_FIELDS,
+  type NutritionBasis,
+  type NutritionFacts,
   type StockItem,
   addLocationStock,
   adjustLocationStock,
@@ -28,6 +33,121 @@ import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { REASON_OPTIONS, fmtQty, selectClass } from './shared';
+
+// ── Nutrition fields (shared by create + edit item forms) ─────────────────────
+
+const NUTRITION_BASES: { value: NutritionBasis; label: string }[] = [
+  { value: 'per_100g', label: 'per 100 g' },
+  { value: 'per_100ml', label: 'per 100 ml' },
+  { value: 'per_piece', label: 'per piece' },
+];
+
+export interface NutritionDraft {
+  basis: NutritionBasis | '';
+  values: Record<keyof NutritionFacts, string>;
+}
+
+export const emptyNutritionDraft = (): NutritionDraft => ({
+  basis: '',
+  values: { kcal: '', fat: '', saturates: '', carbs: '', sugars: '', fibre: '', protein: '', salt: '' },
+});
+
+export function nutritionDraftFrom(basis?: NutritionBasis | null, facts?: NutritionFacts | null): NutritionDraft {
+  const d = emptyNutritionDraft();
+  d.basis = basis ?? '';
+  for (const { key } of NUTRITION_FIELDS) if (facts?.[key] != null) d.values[key] = String(facts[key]);
+  return d;
+}
+
+/** Draft → payload pieces. Nutrition is only sent when a basis and ≥1 value are set. */
+export function nutritionPayload(d: NutritionDraft): { nutritionBasis: NutritionBasis | null; nutrition: NutritionFacts | null } {
+  const facts: NutritionFacts = {};
+  for (const { key } of NUTRITION_FIELDS) {
+    const v = d.values[key].trim();
+    if (v !== '' && !Number.isNaN(Number(v))) facts[key] = Number(v);
+  }
+  if (!d.basis || Object.keys(facts).length === 0) return { nutritionBasis: null, nutrition: null };
+  return { nutritionBasis: d.basis, nutrition: facts };
+}
+
+function NutritionFields({
+  draft,
+  onChange,
+  allergens,
+  onAllergensChange,
+}: {
+  draft: NutritionDraft;
+  onChange: (d: NutritionDraft) => void;
+  allergens: Allergen[];
+  onAllergensChange: (v: Allergen[]) => void;
+}) {
+  const toggle = (a: Allergen) => onAllergensChange(allergens.includes(a) ? allergens.filter((x) => x !== a) : [...allergens, a]);
+  const setValue = (key: keyof NutritionFacts, v: string) => onChange({ ...draft, values: { ...draft.values, [key]: v } });
+
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <Label uppercase>Nutrition per</Label>
+        <div className="flex gap-1.5">
+          {NUTRITION_BASES.map((b) => (
+            <button
+              key={b.value}
+              type="button"
+              onClick={() => onChange({ ...draft, basis: draft.basis === b.value ? '' : b.value })}
+              aria-pressed={draft.basis === b.value}
+              className={cn(
+                'flex-1 h-9 rounded-lg border text-xs font-medium transition-colors',
+                draft.basis === b.value
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          As printed on the food label. Recipe amounts in kg/l convert automatically; “per piece” suits countable items.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5">
+        {NUTRITION_FIELDS.map((f) => (
+          <Input
+            key={f.key}
+            label={`${f.label} (${f.unit})`}
+            value={draft.values[f.key]}
+            onChange={(e) => setValue(f.key, e.target.value)}
+            inputMode="decimal"
+            placeholder="—"
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label uppercase>Allergens</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {FSA_ALLERGENS.map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => toggle(a)}
+              aria-pressed={allergens.includes(a)}
+              className={cn(
+                'px-2.5 h-8 rounded-lg border text-xs font-medium capitalize transition-colors',
+                allergens.includes(a)
+                  ? 'border-warning bg-warning/10 text-warning'
+                  : 'border-border text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
 
 // ── Add Stock Item ────────────────────────────────────────────────────────────
 
@@ -49,6 +169,8 @@ export function AddItemModal({
   const [stockItemId, setStockItemId] = useState('');
   const [newName, setNewName] = useState('');
   const [newUnit, setNewUnit] = useState('');
+  const [newNutrition, setNewNutrition] = useState<NutritionDraft>(emptyNutritionDraft);
+  const [newAllergens, setNewAllergens] = useState<Allergen[]>([]);
   const [quantity, setQuantity] = useState('0');
   const [lowThreshold, setLowThreshold] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -61,7 +183,13 @@ export function AddItemModal({
     mutationFn: async () => {
       let itemId = stockItemId;
       if (creatingNew) {
-        const created = await createStockItem({ tenantId: tenantId!, name: newName.trim(), unit: newUnit.trim() });
+        const created = await createStockItem({
+          tenantId: tenantId!,
+          name: newName.trim(),
+          unit: newUnit.trim(),
+          ...nutritionPayload(newNutrition),
+          allergens: newAllergens.length > 0 ? newAllergens : null,
+        });
         itemId = created.id;
       }
       const payload: LocationStockPayload = { locationId, stockItemId: itemId, quantity: quantity || '0', lowThreshold, isAvailable: true };
@@ -88,7 +216,7 @@ export function AddItemModal({
   }
 
   return (
-    <Modal title="Add Item" onClose={onClose} className="max-w-sm">
+    <Modal title="Add Item" onClose={onClose} className={cn(creatingNew ? 'max-w-lg' : 'max-w-sm')}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex flex-col gap-1.5">
           <Label uppercase>Item</Label>
@@ -125,6 +253,10 @@ export function AddItemModal({
               />
             </div>
           </div>
+        )}
+
+        {creatingNew && (
+          <NutritionFields draft={newNutrition} onChange={setNewNutrition} allergens={newAllergens} onAllergensChange={setNewAllergens} />
         )}
 
         <div className="flex gap-3">
@@ -547,20 +679,28 @@ export function EditStockItemModal({
   onClose,
   onSuccess,
 }: {
-  item: Pick<StockItem, 'id' | 'name' | 'unit'>;
+  item: Pick<StockItem, 'id' | 'name' | 'unit' | 'nutritionBasis' | 'nutrition' | 'allergens'>;
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const [name, setName] = useState(item.name);
   const [unit, setUnit] = useState(item.unit);
+  const [nutrition, setNutrition] = useState<NutritionDraft>(() => nutritionDraftFrom(item.nutritionBasis, item.nutrition));
+  const [allergens, setAllergens] = useState<Allergen[]>((item.allergens ?? []) as Allergen[]);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => updateStockItem(item.id, { name: name.trim(), unit: unit.trim() }),
+    mutationFn: () =>
+      updateStockItem(item.id, {
+        name: name.trim(),
+        unit: unit.trim(),
+        ...nutritionPayload(nutrition),
+        allergens: allergens.length > 0 ? allergens : null,
+      }),
     onSuccess: () => { onSuccess(); onClose(); },
   });
 
   return (
-    <Modal title={`Edit "${item.name}"`} onClose={onClose} className="max-w-sm">
+    <Modal title={`Edit "${item.name}"`} onClose={onClose} className="max-w-lg">
       <form onSubmit={(e) => { e.preventDefault(); mutate(); }} className="space-y-4">
         <Input label="NAME" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
         <Input
@@ -571,6 +711,7 @@ export function EditStockItemModal({
           required
           hint="Changing the unit affects every location tracking this item."
         />
+        <NutritionFields draft={nutrition} onChange={setNutrition} allergens={allergens} onAllergensChange={setAllergens} />
         <div className="flex gap-2 pt-1">
           <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button type="submit" className="flex-1" disabled={isPending || !name.trim() || !unit.trim()}>

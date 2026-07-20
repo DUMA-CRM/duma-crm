@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronDown, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
+import { ModifierRecipeEditor } from '@/components/menu/ModifierRecipeEditor';
 import { AvailabilityToggle, FormActions, inputClass, labelClass } from '@/components/menu/shared';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -406,8 +407,22 @@ export function ModifiersPanel({ createOpen, onCreateOpenChange }: { createOpen:
         </Modal>
       )}
       {editModifier && tenantId && (
-        <Modal title="Edit Modifier" onClose={() => setEditModifier(null)}>
-          <ModifierForm tenantId={tenantId} modifier={editModifier} categories={categories} onClose={() => setEditModifier(null)} />
+        <Modal title="Edit Modifier" onClose={() => setEditModifier(null)} className="max-w-4xl">
+          <div className="grid md:grid-cols-2 gap-4 items-start">
+            <section className="bg-surface-offset/40 border border-border rounded-xl p-4">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Details</p>
+              <ModifierForm tenantId={tenantId} modifier={editModifier} categories={categories} onClose={() => setEditModifier(null)} />
+            </section>
+            <section className="bg-surface-offset/40 border border-border rounded-xl p-4">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Recipe &amp; Nutrition</p>
+              <ModifierRecipeEditor
+                modifierId={editModifier.id}
+                sizes={modifiers
+                  .filter((m) => parseModifierName(m.name).category?.toLowerCase() === 'size')
+                  .map((m) => ({ id: m.id, label: parseModifierName(m.name).label, priceAdjust: m.priceAdjust }))}
+              />
+            </section>
+          </div>
         </Modal>
       )}
       {deleteTarget && (
