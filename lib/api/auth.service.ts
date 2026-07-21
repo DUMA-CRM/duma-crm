@@ -24,6 +24,11 @@ export interface Session {
   userId: string;
   token: string;
   expiresAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  // better-auth records these on the session when available.
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 export interface AuthSession {
@@ -57,6 +62,25 @@ export async function signUp(name: string, email: string, password: string): Pro
 // Sign out — the server clears the session cookie.
 export async function signOut(): Promise<void> {
   return apiFetch<void>('/auth/sign-out', { method: 'POST' });
+}
+
+// List every active session for the signed-in user (this device + others).
+// better-auth returns the raw session rows, including ipAddress/userAgent.
+export async function listSessions(): Promise<Session[]> {
+  return apiFetch<Session[]>('/auth/list-sessions');
+}
+
+// Revoke a single session by its token — signs that device out.
+export async function revokeSession(token: string): Promise<void> {
+  await apiFetch('/auth/revoke-session', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
+
+// Revoke every session except the current one — signs out all other devices.
+export async function revokeOtherSessions(): Promise<void> {
+  await apiFetch('/auth/revoke-other-sessions', { method: 'POST' });
 }
 
 // Get the current session.

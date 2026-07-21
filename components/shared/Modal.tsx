@@ -1,7 +1,8 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -18,6 +19,10 @@ const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [ta
 
 export function Modal({ title, onClose, children, className }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Portal to <body> so `fixed` positioning is relative to the viewport, not a
+  // transformed ancestor (e.g. the slide-in page sidebar). Mount-gate for SSR.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -56,7 +61,9 @@ export function Modal({ title, onClose, children, className }: ModalProps) {
     };
   }, [onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div
@@ -78,6 +85,7 @@ export function Modal({ title, onClose, children, className }: ModalProps) {
         </div>
         <div className="px-6 py-5 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

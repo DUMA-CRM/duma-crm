@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { Tooltip } from '@/components/shared/Tooltip';
 import type { NavItem } from '@/lib/constants/nav';
 import { cn } from '@/lib/utils/cn';
 import { useSidebarStore } from '@/stores/sidebarStore';
@@ -36,27 +37,28 @@ function CollapsedNavItem({ href, label, icon: Icon, children, badge }: NavItemP
 
   return (
     <div className="flex flex-col items-center">
-      <Link
-        href={href}
-        onClick={closeMobile}
-        title={badge ? `${label} (${badge})` : label}
-        aria-current={parentHighlighted ? 'page' : undefined}
-        className={cn(
-          'relative w-9 h-9 flex items-center justify-center rounded-lg mx-auto',
-          'text-muted-foreground transition-colors duration-150',
-          !childActive && !parentHighlighted && 'hover:bg-surface-offset hover:text-foreground',
-          parentHighlighted && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15',
-          childActive && 'bg-muted/50 text-foreground hover:bg-muted!',
-          open && children?.length && 'rounded-b-none',
-        )}
-      >
-        <Icon aria-hidden="true" className="shrink-0" size={18} />
-        {!!badge && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-primary text-white text-[9px] font-bold tabular-nums ring-2 ring-card">
-            {badge > 9 ? '9+' : badge}
-          </span>
-        )}
-      </Link>
+      <Tooltip label={badge ? `${label} (${badge})` : label}>
+        <Link
+          href={href}
+          onClick={closeMobile}
+          aria-current={parentHighlighted ? 'page' : undefined}
+          className={cn(
+            'relative w-9 h-9 flex items-center justify-center rounded-lg mx-auto',
+            'text-muted-foreground transition-colors duration-150',
+            !childActive && !parentHighlighted && 'hover:bg-surface-offset hover:text-foreground',
+            parentHighlighted && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15',
+            childActive && 'bg-muted/50 text-foreground hover:bg-muted!',
+            open && children?.length && 'rounded-b-none',
+          )}
+        >
+          <Icon aria-hidden="true" className="shrink-0" size={18} />
+          {!!badge && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-primary text-white text-[9px] font-bold tabular-nums ring-2 ring-card">
+              {badge > 9 ? '9+' : badge}
+            </span>
+          )}
+        </Link>
+      </Tooltip>
 
       {open && !!children?.length && (
         <div className="rounded-b-lg bg-muted/50 overflow-hidden flex flex-col">
@@ -65,22 +67,22 @@ function CollapsedNavItem({ href, label, icon: Icon, children, badge }: NavItemP
             const ChildIcon = child.icon;
 
             return (
-              <Link
-                key={child.href}
-                href={child.href}
-                onClick={closeMobile}
-                title={child.label}
-                aria-current={isChildActive ? 'page' : undefined}
-                className={cn(
-                  'w-9 h-9 flex items-center justify-center rounded-lg',
-                  'text-muted-foreground transition-colors duration-150',
-                  'hover:rounded-none!',
-                  !isChildActive && 'hover:bg-surface-offset hover:text-foreground',
-                  isChildActive && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15 rounded-none!',
-                )}
-              >
-                <ChildIcon aria-hidden="true" className="shrink-0" size={18} />
-              </Link>
+              <Tooltip key={child.href} label={child.label}>
+                <Link
+                  href={child.href}
+                  onClick={closeMobile}
+                  aria-current={isChildActive ? 'page' : undefined}
+                  className={cn(
+                    'w-9 h-9 flex items-center justify-center rounded-lg',
+                    'text-muted-foreground transition-colors duration-150',
+                    'hover:rounded-none!',
+                    !isChildActive && 'hover:bg-surface-offset hover:text-foreground',
+                    isChildActive && 'bg-primary/10 text-primary font-semibold hover:bg-primary/15 rounded-none!',
+                  )}
+                >
+                  <ChildIcon aria-hidden="true" className="shrink-0" size={18} />
+                </Link>
+              </Tooltip>
             );
           })}
         </div>

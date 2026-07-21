@@ -10,7 +10,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
         <div>
           <p className="font-semibold text-base leading-tight text-foreground tracking-tight">DUMA</p>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-none mt-0.5">Coffee CRM</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-none mt-0.5">All in one business app</p>
         </div>
       </div>
 

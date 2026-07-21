@@ -132,7 +132,7 @@ export default function HomePage() {
 
         <footer className="mt-10 border-t border-border/70 pt-6 text-xs text-muted-foreground">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p>© 2026 DUMA Coffee CRM</p>
+            <p>© 2026 DUMA — All in one business app</p>
             <div className="flex gap-4">
               <Link href="/sign-in" className="hover:text-foreground">
                 Sign In

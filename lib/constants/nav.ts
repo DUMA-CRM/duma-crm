@@ -1,11 +1,10 @@
 import {
-  ArrowLeftRight,
   BarChart3,
   Building2,
   CalendarDays,
+  Banknote,
   ChefHat,
   ClipboardCheck,
-  Coffee,
   GraduationCap,
   HelpCircle,
   LayoutDashboard,
@@ -16,7 +15,6 @@ import {
   Scale,
   Settings,
   ShoppingBag,
-  Star,
   Truck,
   Users,
   UsersRound,
@@ -32,6 +30,10 @@ export interface NavItem {
   // Minimum role required to see this item. Omit = visible to everyone (incl. barista).
   // Semantics mirror the API's requireMinRole (rank-based).
   minRole?: StaffRole;
+  // Explicit role allow-list (super_admin always included). Use when a rank
+  // threshold can't express the rule — e.g. money features that hr_manager and
+  // franchise_owner see but store_manager (which out-ranks hr_manager) must not.
+  roles?: StaffRole[];
   children?: Omit<NavItem, 'children'>[];
 }
 
@@ -50,7 +52,6 @@ export const mainNavItems: NavItem[] = [
       { href: '/inventory/restock-requests', label: 'Restock', icon: PackagePlus, minRole: 'store_manager' },
       { href: '/inventory/purchasing', label: 'Purchasing', icon: Truck, minRole: 'store_manager' },
       { href: '/inventory/stocktakes', label: 'Stocktakes', icon: ClipboardCheck, minRole: 'store_manager' },
-      { href: '/inventory/transfers', label: 'Transfers', icon: ArrowLeftRight, minRole: 'store_manager' },
       { href: '/inventory/usage', label: 'Usage', icon: Scale, minRole: 'store_manager' },
     ],
   },
@@ -59,7 +60,11 @@ export const mainNavItems: NavItem[] = [
     label: 'Staff',
     href: '/staff',
     icon: UsersRound,
-    children: [{ href: '/scheduling', label: 'Schedule', icon: CalendarDays }],
+    minRole: 'store_manager',
+    children: [
+      { href: '/scheduling', label: 'Schedule', icon: CalendarDays },
+      { href: '/staff/payroll', label: 'Payroll', icon: Banknote, roles: ['franchise_owner', 'hr_manager'] },
+    ],
   },
   { label: 'Training', href: '/training', icon: GraduationCap },
   { label: 'Workspaces', href: '/workspaces', icon: Building2, minRole: 'franchise_owner' },
@@ -78,15 +83,19 @@ export const footerNavItems: NavItem[] = [
 // visible if it (or any child) is accessible; if the parent's own page isn't
 // accessible its link is repointed to the first accessible child.
 export function filterNavByRole(items: NavItem[], role: StaffRole | null): NavItem[] {
-  const canSee = (min?: StaffRole) => !min || roleAtLeast(role, min);
+  // An explicit `roles` list wins over the rank threshold (super_admin always allowed).
+  const canSee = (item: Pick<NavItem, 'minRole' | 'roles'>) => {
+    if (item.roles) return role === 'super_admin' || (!!role && item.roles.includes(role));
+    return !item.minRole || roleAtLeast(role, item.minRole);
+  };
 
   return items.flatMap((item) => {
     if (item.children) {
-      const children = item.children.filter((c) => canSee(c.minRole));
-      const selfOk = canSee(item.minRole);
+      const children = item.children.filter(canSee);
+      const selfOk = canSee(item);
       if (children.length === 0) return selfOk ? [{ ...item, children: undefined }] : [];
       return [{ ...item, href: selfOk ? item.href : children[0].href, children }];
     }
-    return canSee(item.minRole) ? [item] : [];
+    return canSee(item) ? [item] : [];
   });
 }

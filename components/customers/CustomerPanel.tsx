@@ -75,7 +75,7 @@ export function CustomerPanel({ customer, onCustomerUpdate }: CustomerPanelProps
 
               {/* Avatar + name */}
               <div className="flex flex-col items-center px-6 pt-2 pb-5 text-center">
-                <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} size="lg" className="mb-4" />
+                <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} email={customer.email} size="lg" className="mb-4" />
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-2xl font-bold text-foreground leading-tight">
                     {customer.firstName} {customer.lastName}

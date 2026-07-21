@@ -22,7 +22,7 @@ export function CustomerRow({ customer, isSelected, onSelect }: CustomerRowProps
         isSelected ? 'bg-primary/10 border-primary' : 'bg-card border-border hover:border-primary/30 hover:bg-surface-offset',
       )}
     >
-      <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} />
+      <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} email={customer.email} />
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-foreground truncate leading-tight">

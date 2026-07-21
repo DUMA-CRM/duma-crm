@@ -180,7 +180,7 @@ export function EditStaffModal({
       className="space-y-4"
     >
       <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/40 border border-border rounded-xl">
-        <Avatar name={member.name} />
+        <Avatar name={member.name} email={member.email} />
         <div>
           <p className="text-sm font-semibold text-foreground">{member.name ?? '—'}</p>
           <p className="text-xs text-muted-foreground">{member.email ?? '—'}</p>
@@ -301,7 +301,7 @@ export function EnrollEmployeeModal({ member, onClose }: { member: StaffProfile;
       className="space-y-4"
     >
       <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/40 border border-border rounded-xl">
-        <Avatar name={member.name} />
+        <Avatar name={member.name} email={member.email} />
         <div>
           <p className="text-sm font-semibold text-foreground">{member.name ?? '—'}</p>
           <p className="text-xs text-muted-foreground">{member.email ?? '—'}</p>

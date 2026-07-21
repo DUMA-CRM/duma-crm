@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'DUMA — Premium Coffee CRM',
+  title: 'DUMA — All in one business app',
   description: 'Manage orders, customers, and roast profiles.',
 };
 

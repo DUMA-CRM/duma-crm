@@ -156,7 +156,7 @@ function StoreDashboard() {
   const pendingCount = allOrders.filter((o) => ['pending', 'preparing', 'ready'].includes(o.status)).length;
   const cancelledToday = todayOrders.filter((o) => o.status === 'cancelled').length;
 
-  const recentOrders = useMemo(() => [...allOrders].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6), [allOrders]);
+  const recentOrders = useMemo(() => [...allOrders].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4), [allOrders]);
 
   const week14 = useMemo(() => {
     return Array.from({ length: 14 }, (_, i) => {

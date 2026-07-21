@@ -3,27 +3,38 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowDownUp,
+  ArrowLeftRight,
   Boxes,
+  Candy,
   CalendarClock,
   CalendarDays,
+  CircleDot,
+  Droplet,
+  Droplets,
+  Egg,
+  Flame,
   Gauge,
+  type LucideIcon,
   Package,
   PackageMinus,
   PackagePlus,
   Pencil,
-  Plus,
+  Sprout,
+  TriangleAlert,
   TrendingDown,
   TrendingUp,
+  Wheat,
   X,
 } from 'lucide-react';
 
+import { ItemTransfersSection } from '@/components/inventory/transfers/TransferStock';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-import { type StockMovement, getStockItemMovements } from '@/lib/api/inventory.service';
+import { NUTRITION_FIELDS, type NutritionBasis, type StockMovement, getStockItemMovements } from '@/lib/api/inventory.service';
 import { getLossLog } from '@/lib/api/loss.service';
 import type { LossRecord } from '@/lib/api/loss.service';
 import { cn } from '@/lib/utils/cn';
@@ -44,6 +55,23 @@ import {
 } from './shared';
 
 const WIDTH = 'w-100 max-w-full';
+
+const BASIS_LABEL: Record<NutritionBasis, string> = {
+  per_100g: 'per 100 g',
+  per_100ml: 'per 100 ml',
+  per_piece: 'per piece',
+};
+
+const NUTRITION_ICONS: Record<string, LucideIcon> = {
+  kcal: Flame,
+  fat: Droplet,
+  saturates: Droplets,
+  carbs: Wheat,
+  sugars: Candy,
+  fibre: Sprout,
+  protein: Egg,
+  salt: CircleDot,
+};
 
 // ── Small labelled stat used in the forecast block ────────────────────────────
 
@@ -70,6 +98,7 @@ export function StockDetailSidebar({
   onRestock,
   onLogLoss,
   onEditItem,
+  onTransfer,
 }: {
   item: StockRow | null;
   tenantId: string | null;
@@ -81,6 +110,7 @@ export function StockDetailSidebar({
   onRestock: (i: StockRow) => void;
   onLogLoss: (i: StockRow) => void;
   onEditItem: (i: StockRow) => void;
+  onTransfer: (i: StockRow) => void;
 }) {
   const { data: rawLosses, isLoading: lossesLoading } = useQuery({
     queryKey: ['loss-log', 'item', item?.stockItemId, item?.locationId],
@@ -111,6 +141,14 @@ export function StockDetailSidebar({
   const { qty, threshold, status, forecast } = item;
   const pct = stockPct(qty, threshold);
   const unit = item.stockItem?.unit ?? '';
+
+  // Nutrition & allergens are declared on the underlying stock item (both optional).
+  const { nutritionBasis, nutrition } = item.stockItem ?? {};
+  const nutritionRows = nutrition
+    ? NUTRITION_FIELDS.filter((f) => nutrition[f.key] != null).map((f) => ({ ...f, value: nutrition[f.key] as number }))
+    : [];
+  const allergens = item.stockItem?.allergens ?? [];
+  const hasNutrition = nutritionRows.length > 0 || allergens.length > 0;
 
   return (
     <div className={cn(WIDTH, 'shrink-0 border-l border-border bg-card flex flex-col overflow-hidden')}>
@@ -187,27 +225,61 @@ export function StockDetailSidebar({
             )}
           </section>
 
+          {/* Nutrition & allergens — only when declared on the stock item */}
+          {hasNutrition && (
+            <section>
+              <div className="flex items-baseline justify-between mb-2.5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Nutrition</p>
+                {nutritionBasis && <span className="text-xs text-muted-foreground">{BASIS_LABEL[nutritionBasis]}</span>}
+              </div>
+              {nutritionRows.length > 0 && (
+                <InfoGroup>
+                  {nutritionRows.map((f) => (
+                    <InfoRow key={f.key} icon={NUTRITION_ICONS[f.key] ?? CircleDot} label={f.label} value={`${fmtQty(f.value)} ${f.unit}`} />
+                  ))}
+                </InfoGroup>
+              )}
+              {allergens.length > 0 && (
+                <div className={cn(nutritionRows.length > 0 && 'mt-2.5')}>
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
+                    <TriangleAlert size={11} aria-hidden="true" /> Allergens
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {allergens.map((a) => (
+                      <span
+                        key={a}
+                        className="px-2.5 h-7 inline-flex items-center rounded-lg border border-warning bg-warning/10 text-warning text-xs font-medium capitalize"
+                      >
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Loss history */}
           <section>
             <div className="flex items-center justify-between mb-2.5">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Loss History</p>
             </div>
             {lossesLoading ? (
-              <div className="bg-surface-offset rounded-xl overflow-hidden">
+              <div className="bg-background rounded-2xl border border-border overflow-hidden">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-14 border-b border-border last:border-0 animate-pulse" />
+                  <div key={i} className="h-13 border-b border-border/50 last:border-0 animate-pulse" />
                 ))}
               </div>
             ) : losses.length === 0 ? (
-              <div className="bg-surface-offset rounded-xl p-4 text-center">
+              <div className="bg-background rounded-2xl border border-border p-4 text-center">
                 <p className="text-sm text-muted-foreground">No losses recorded for this item yet</p>
               </div>
             ) : (
-              <div className="bg-surface-offset rounded-xl divide-y divide-border overflow-hidden">
+              <InfoGroup>
                 {losses.map((l) => (
                   <SidebarLossRow key={l.id} loss={l} unit={unit} />
                 ))}
-              </div>
+              </InfoGroup>
             )}
           </section>
 
@@ -215,23 +287,26 @@ export function StockDetailSidebar({
           <section>
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5">Recent Activity</p>
             {movementsLoading ? (
-              <div className="bg-surface-offset rounded-xl overflow-hidden">
+              <div className="bg-background rounded-2xl border border-border overflow-hidden">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-14 border-b border-border last:border-0 animate-pulse" />
+                  <div key={i} className="h-13 border-b border-border/50 last:border-0 animate-pulse" />
                 ))}
               </div>
             ) : movements.length === 0 ? (
-              <div className="bg-surface-offset rounded-xl p-4 text-center">
+              <div className="bg-background rounded-2xl border border-border p-4 text-center">
                 <p className="text-sm text-muted-foreground">No stock movements recorded yet</p>
               </div>
             ) : (
-              <div className="bg-surface-offset rounded-xl divide-y divide-border overflow-hidden">
+              <InfoGroup>
                 {movements.map((m) => (
                   <MovementRow key={m.id} movement={m} unit={unit} />
                 ))}
-              </div>
+              </InfoGroup>
             )}
           </section>
+
+          {/* Transfers involving this item */}
+          <ItemTransfersSection stockItemId={item.stockItemId} locationId={item.locationId} />
 
           {/* Details */}
           <section>
@@ -271,6 +346,9 @@ export function StockDetailSidebar({
             <PackageMinus size={13} /> Log Loss
           </Button>
         </div>
+        <Button variant="outline" className="w-full gap-1.5 text-xs" onClick={() => onTransfer(item)}>
+          <ArrowLeftRight size={13} /> Transfer to another location
+        </Button>
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1 text-xs" onClick={() => onToggleAvailable(item)}>
             {item.isAvailable ? 'Mark unavailable' : 'Mark available'}
@@ -298,11 +376,25 @@ const MOVEMENT_LABELS: Record<string, string> = {
   waste: 'Waste',
 };
 
+// Types that are unambiguously incoming/outgoing regardless of the stored delta sign.
+const INCOMING_TYPES = new Set(['restock']);
+const OUTGOING_TYPES = new Set(['deduction', 'waste']);
+
 function MovementRow({ movement, unit }: { movement: StockMovement; unit: string }) {
   const label = MOVEMENT_LABELS[movement.type] ?? movement.type;
-  const isPositive = movement.delta > 0;
+  // Signed change for the movement — fall back to (after − before) if `quantity` is missing.
+  const rawQty = Number(movement.quantity);
+  const derived = Number(movement.quantityAfter) - Number(movement.quantityBefore);
+  const delta = Number.isFinite(rawQty) ? rawQty : derived;
+  const hasDelta = Number.isFinite(delta);
+  // Prefer the movement type; fall back to the delta sign for transfers/adjustments.
+  const isPositive = INCOMING_TYPES.has(movement.type)
+    ? true
+    : OUTGOING_TYPES.has(movement.type)
+      ? false
+      : delta > 0;
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
+    <div className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0">
       <div
         className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0', isPositive ? 'bg-success/10' : 'bg-destructive/10')}
       >
@@ -318,8 +410,7 @@ function MovementRow({ movement, unit }: { movement: StockMovement; unit: string
       </div>
       <div className="text-right shrink-0">
         <p className={cn('text-xs font-bold tabular-nums', isPositive ? 'text-success' : 'text-destructive')}>
-          {isPositive ? '+' : ''}
-          {movement.delta} {unit}
+          {hasDelta ? `${isPositive ? '+' : '−'}${fmtQty(Math.abs(delta))} ${unit}` : '—'}
         </p>
         <p className="text-[11px] text-muted-foreground">{timeAgo(movement.createdAt)}</p>
       </div>
@@ -334,7 +425,7 @@ function SidebarLossRow({ loss, unit }: { loss: LossRecord; unit: string }) {
   const displayReason = (reason ?? loss.type) as keyof typeof REASON_LABELS;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
+    <div className="flex items-center gap-3 py-2 border-b border-border/50 last:border-0">
       <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-destructive/10">
         <TrendingDown size={13} className="text-destructive" />
       </div>

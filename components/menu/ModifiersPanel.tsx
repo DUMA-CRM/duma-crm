@@ -1,14 +1,15 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronDown, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Loader2, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
+import { EditorShell } from '@/components/menu/EditorShell';
 import { ModifierRecipeEditor } from '@/components/menu/ModifierRecipeEditor';
 import { AvailabilityToggle, FormActions, inputClass, labelClass } from '@/components/menu/shared';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Modal } from '@/components/shared/Modal';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { createModifier, deleteModifier, getModifiers, updateModifier } from '@/lib/api/menu.service';
@@ -141,11 +142,20 @@ function ModifierForm({
   modifier,
   categories,
   onClose,
+  formId,
+  hideActions,
+  onPendingChange,
 }: {
   tenantId: string;
   modifier?: Modifier;
   categories: string[];
   onClose: () => void;
+  /** When set, the <form> gets this id so a Save button in the page header can submit it. */
+  formId?: string;
+  /** Hide the built-in Cancel/Save row (the header owns Save in the page editor). */
+  hideActions?: boolean;
+  /** Reports the mutation's pending state so the header Save button can reflect it. */
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const qc = useQueryClient();
   const parsed = modifier ? parseModifierName(modifier.name) : { category: '', label: '' };
@@ -168,8 +178,11 @@ function ModifierForm({
     },
   });
 
+  useEffect(() => onPendingChange?.(isPending), [isPending, onPendingChange]);
+
   return (
     <form
+      id={formId}
       onSubmit={(e) => {
         e.preventDefault();
         mutate();
@@ -215,20 +228,86 @@ function ModifierForm({
       </label>
 
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
-      <FormActions onClose={onClose} isPending={isPending} isEdit={!!modifier} />
+      {!hideActions && <FormActions onClose={onClose} isPending={isPending} isEdit={!!modifier} />}
     </form>
+  );
+}
+
+// ── In-page editor ─────────────────────────────────────────────────────────────
+
+const MODIFIER_FORM_ID = 'modifier-editor-form';
+
+/** Full-page modifier create/edit (keeps the app sidebar + header visible). */
+export function ModifierEditorPage({ modifier, onClose }: { modifier?: Modifier; onClose: () => void }) {
+  const { tenantId } = useWorkspaceStore();
+  const [pending, setPending] = useState(false);
+
+  const { data: modifiers = [] } = useQuery({ queryKey: ['modifiers'], queryFn: getModifiers, enabled: !!tenantId });
+
+  const categories = useMemo(() => {
+    const all = new Set(modifiers.map((m) => parseModifierName(m.name).category).filter((c): c is string => !!c));
+    return [...all].sort((a, b) => a.localeCompare(b));
+  }, [modifiers]);
+
+  const sizes = useMemo(
+    () =>
+      modifiers
+        .filter((m) => parseModifierName(m.name).category?.toLowerCase() === 'size')
+        .map((m) => ({ id: m.id, label: parseModifierName(m.name).label, priceAdjust: m.priceAdjust })),
+    [modifiers],
+  );
+
+  if (!tenantId) return null;
+
+  const form = (
+    <ModifierForm
+      tenantId={tenantId}
+      modifier={modifier}
+      categories={categories}
+      onClose={onClose}
+      formId={MODIFIER_FORM_ID}
+      hideActions
+      onPendingChange={setPending}
+    />
+  );
+
+  return (
+    <EditorShell
+      eyebrow="Modifier"
+      title={modifier ? parseModifierName(modifier.name).label : 'New Modifier'}
+      onClose={onClose}
+      actions={
+        <Button type="submit" form={MODIFIER_FORM_ID} disabled={pending} className="h-11 px-6 gap-2">
+          {pending && <Loader2 size={15} className="animate-spin" />}
+          {pending ? 'Saving…' : modifier ? 'Update' : 'Create'}
+        </Button>
+      }
+    >
+      {modifier ? (
+        <div className="grid md:grid-cols-2 gap-4 items-start">
+          <section className="bg-surface-offset/40 border border-border rounded-xl p-4">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Details</p>
+            {form}
+          </section>
+          <section className="bg-surface-offset/40 border border-border rounded-xl p-4">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Recipe &amp; Nutrition</p>
+            <ModifierRecipeEditor modifierId={modifier.id} sizes={sizes} />
+          </section>
+        </div>
+      ) : (
+        form
+      )}
+    </EditorShell>
   );
 }
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
-export function ModifiersPanel({ createOpen, onCreateOpenChange }: { createOpen: boolean; onCreateOpenChange: (open: boolean) => void }) {
+export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => void }) {
   const qc = useQueryClient();
   const { tenantId } = useWorkspaceStore();
-  const [editModifier, setEditModifier] = useState<Modifier | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ modifier: Modifier; label: string } | null>(null);
   const [search, setSearch] = useState('');
-  const closeCreate = () => onCreateOpenChange(false);
 
   const { data: modifiers = [], isLoading } = useQuery({
     queryKey: ['modifiers'],
@@ -270,12 +349,6 @@ export function ModifiersPanel({ createOpen, onCreateOpenChange }: { createOpen:
   }, [modifiers, search]);
 
   const visibleCount = useMemo(() => groups.reduce((n, g) => n + g.items.length, 0), [groups]);
-
-  // The combobox needs every category, not just the ones matching the search.
-  const categories = useMemo(() => {
-    const all = new Set(modifiers.map((m) => parseModifierName(m.name).category).filter((c): c is string => !!c));
-    return [...all].sort((a, b) => a.localeCompare(b));
-  }, [modifiers]);
 
   return (
     <div className="flex flex-col h-full">
@@ -361,7 +434,7 @@ export function ModifiersPanel({ createOpen, onCreateOpenChange }: { createOpen:
                       <tr
                         key={m.id}
                         className="group border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors cursor-pointer"
-                        onClick={() => setEditModifier(m)}
+                        onClick={() => onEdit(m)}
                       >
                         <td className="px-3 md:px-5 py-3.5 font-medium text-foreground">{label}</td>
                         <td className="px-3 md:px-5 py-3.5 tabular-nums text-muted-foreground">{formatAdjust(m.priceAdjust)}</td>
@@ -401,30 +474,6 @@ export function ModifiersPanel({ createOpen, onCreateOpenChange }: { createOpen:
         )}
       </div>
 
-      {createOpen && tenantId && (
-        <Modal title="New Modifier" onClose={closeCreate}>
-          <ModifierForm tenantId={tenantId} categories={categories} onClose={closeCreate} />
-        </Modal>
-      )}
-      {editModifier && tenantId && (
-        <Modal title="Edit Modifier" onClose={() => setEditModifier(null)} className="max-w-4xl">
-          <div className="grid md:grid-cols-2 gap-4 items-start">
-            <section className="bg-surface-offset/40 border border-border rounded-xl p-4">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Details</p>
-              <ModifierForm tenantId={tenantId} modifier={editModifier} categories={categories} onClose={() => setEditModifier(null)} />
-            </section>
-            <section className="bg-surface-offset/40 border border-border rounded-xl p-4">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Recipe &amp; Nutrition</p>
-              <ModifierRecipeEditor
-                modifierId={editModifier.id}
-                sizes={modifiers
-                  .filter((m) => parseModifierName(m.name).category?.toLowerCase() === 'size')
-                  .map((m) => ({ id: m.id, label: parseModifierName(m.name).label, priceAdjust: m.priceAdjust }))}
-              />
-            </section>
-          </div>
-        </Modal>
-      )}
       {deleteTarget && (
         <ConfirmModal
           title="Delete Modifier"

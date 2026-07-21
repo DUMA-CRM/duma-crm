@@ -49,7 +49,7 @@ export function CustomerLoyalty({ selectedCustomer, onCustomerSelect, onScan }: 
       {/* Selected customer pill */}
       {selectedCustomer && mode === 'idle' && (
         <div className="flex items-center gap-2.5 mb-3 px-3 py-2 bg-primary/5 border border-primary/20 rounded-xl">
-          <InitialsAvatar firstName={selectedCustomer.firstName} lastName={selectedCustomer.lastName} size="sm" />
+          <InitialsAvatar firstName={selectedCustomer.firstName} lastName={selectedCustomer.lastName} email={selectedCustomer.email} size="sm" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground truncate">
               {selectedCustomer.firstName} {selectedCustomer.lastName}

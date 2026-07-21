@@ -68,6 +68,14 @@ async function extractErrorMessage(res: Response): Promise<{ message: string; co
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { cookieHeader, headers, timeoutMs, ...rest } = options;
 
+  // We always send `Content-Type: application/json`, and the API rejects a JSON
+  // content type with an empty body ("Invalid JSON in request body"). So for
+  // body-bearing methods with no explicit body (e.g. sign-out, revoke-other-
+  // sessions) default to an empty object rather than sending nothing.
+  const method = (rest.method ?? 'GET').toUpperCase();
+  const needsBody = method !== 'GET' && method !== 'HEAD';
+  const body = rest.body ?? (needsBody ? '{}' : undefined);
+
   const res = await fetch(`${API_BASE}${path}`, {
     // Include credentials so the browser sends the session cookie on client-side calls.
     credentials: 'include',
@@ -79,6 +87,7 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
       ...headers,
     },
     ...rest,
+    body,
   });
 
   if (!res.ok) {

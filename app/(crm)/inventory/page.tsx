@@ -5,6 +5,7 @@ import { Boxes, Package, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { StockDetailSidebar } from '@/components/inventory/stock/StockDetailSidebar';
+import { TransferStockModal } from '@/components/inventory/transfers/TransferStock';
 import {
   AddItemModal,
   AdjustModal,
@@ -64,6 +65,7 @@ export default function InventoryPage() {
   const [editItemTarget, setEditItemTarget] = useState<StockRow | null>(null);
   const [lossModal, setLossModal] = useState<{ locationId?: string; stockItemId?: string } | null>(null);
   const [removeTarget, setRemoveTarget] = useState<LocationStock | null>(null);
+  const [transferTarget, setTransferTarget] = useState<StockRow | null>(null);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const addToast = (type: 'success' | 'error', message: string) => setToasts((prev) => [...prev, { id: Date.now(), type, message }]);
@@ -159,6 +161,7 @@ export default function InventoryPage() {
       onRestock={setRestockTarget}
       onLogLoss={(i) => setLossModal({ locationId: i.locationId, stockItemId: i.stockItemId })}
       onEditItem={setEditItemTarget}
+      onTransfer={setTransferTarget}
     />
   );
 
@@ -403,6 +406,15 @@ export default function InventoryPage() {
             void queryClient.invalidateQueries({ queryKey: ['loss-log'] });
             addToast('success', 'Loss entry recorded.');
           }}
+        />
+      )}
+
+      {transferTarget && locationId && tenantId && (
+        <TransferStockModal
+          tenantId={tenantId}
+          locationId={locationId}
+          initialStockItemId={transferTarget.stockItemId}
+          onClose={() => setTransferTarget(null)}
         />
       )}
 

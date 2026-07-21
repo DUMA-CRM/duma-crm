@@ -6,7 +6,7 @@ export type ScannerMode = 'camera' | 'external';
 // Per-device POS preferences (localStorage) — a counter tablet keeps its own
 // scanner setup regardless of who signs in.
 interface PosSettingsStore {
-  /** How loyalty QR codes are read at the POS: the tablet camera, or a
+  /** How loyalty QR codes are read at the POS: the device camera, or a
    *  keyboard-wedge USB/Bluetooth scanner. */
   scannerMode: ScannerMode;
   setScannerMode: (mode: ScannerMode) => void;

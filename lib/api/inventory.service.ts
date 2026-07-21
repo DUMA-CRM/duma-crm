@@ -87,9 +87,10 @@ export interface StockMovement {
   stockItemId: string;
   locationId?: string;
   type: string;
-  delta: number;
-  previousQuantity: string;
-  newQuantity: string;
+  /** Signed change for this movement (negative for outgoing), matching the loss log's `quantity`. */
+  quantity: number;
+  quantityBefore?: number;
+  quantityAfter?: number;
   notes?: string;
   createdAt: string;
 }

@@ -1,29 +1,42 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Banknote,
   Building2,
+  Calculator,
   Camera,
   CheckCircle2,
+  CreditCard,
   Download,
   EyeOff,
+  Globe,
+  Loader2,
   LogOut,
+  Mail,
   MapPin,
   Monitor,
   Moon,
+  Printer,
   ScanLine,
+  Smartphone,
   Sun,
+  Tags,
   Volume2,
   VolumeX,
+  type LucideIcon,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { useState, useSyncExternalStore } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { Badge } from '@/components/ui/badge';
 
+import { getSession, listSessions, revokeOtherSessions, revokeSession, type Session } from '@/lib/api/auth.service';
+import { roleAtLeast } from '@/lib/api/staff.service';
 import { getLocationsByTenant, getTenants } from '@/lib/api/workspace.service';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { chime } from '@/lib/utils/chime';
@@ -52,7 +65,7 @@ const THEMES = [
 ] as const;
 
 const SCANNER_MODES = [
-  { value: 'camera', label: 'Tablet camera', icon: Camera },
+  { value: 'camera', label: 'Device camera', icon: Camera },
   { value: 'external', label: 'External scanner', icon: ScanLine },
 ] as const;
 
@@ -118,10 +131,218 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+interface Connector {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+}
+
+const CONNECTORS: Connector[] = [
+  {
+    icon: Banknote,
+    title: 'Payroll export',
+    description: 'Send finalised payroll runs to your provider (Xero, QuickBooks, BrightPay).',
+  },
+  {
+    icon: Printer,
+    title: 'Receipt printer',
+    description: 'Print order receipts to networked or Bluetooth thermal printers from the POS.',
+  },
+  {
+    icon: Calculator,
+    title: 'Accounting',
+    description: 'Sync sales, COGS and payroll to your accounting software.',
+  },
+  {
+    icon: CreditCard,
+    title: 'Card payments',
+    description: 'Take card payments through an integrated terminal (SumUp, Stripe Terminal).',
+  },
+  {
+    icon: Tags,
+    title: 'Label printer',
+    description: 'Print prep and allergen labels for food items.',
+  },
+  {
+    icon: Mail,
+    title: 'Email / SMS',
+    description: 'Send digital receipts and marketing via an email/SMS provider.',
+  },
+];
+
+function ConnectorCard({ icon: Icon, title, description }: Connector) {
+  return (
+    <div aria-disabled="true" className="bg-card border border-border rounded-2xl p-5 opacity-60 cursor-not-allowed select-none">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+          <Icon size={18} className="text-primary" aria-hidden="true" />
+        </div>
+        <Badge variant="muted" className="ml-auto shrink-0">
+          Coming soon
+        </Badge>
+      </div>
+      <p className="text-sm font-semibold text-foreground mt-4">{title}</p>
+      <p className="text-xs text-muted-foreground mt-1">{description}</p>
+    </div>
+  );
+}
+
+/** Best-effort "Chrome · macOS"-style label + a phone/desktop icon from a UA string. */
+function describeDevice(ua?: string | null): { label: string; icon: LucideIcon } {
+  if (!ua) return { label: 'Unknown device', icon: Globe };
+  const os = /Windows/i.test(ua)
+    ? 'Windows'
+    : /iPhone|iPad|iPod/i.test(ua)
+      ? 'iOS'
+      : /Mac OS X|Macintosh/i.test(ua)
+        ? 'macOS'
+        : /Android/i.test(ua)
+          ? 'Android'
+          : /Linux/i.test(ua)
+            ? 'Linux'
+            : '';
+  const browser = /Edg\//i.test(ua)
+    ? 'Edge'
+    : /OPR\/|Opera/i.test(ua)
+      ? 'Opera'
+      : /Firefox\//i.test(ua)
+        ? 'Firefox'
+        : /Chrome\//i.test(ua) && !/Chromium/i.test(ua)
+          ? 'Chrome'
+          : /Safari\//i.test(ua) && !/Chrome/i.test(ua)
+            ? 'Safari'
+            : 'Browser';
+  const isMobile = /Mobile|iPhone|iPod|Android/i.test(ua);
+  return { label: [browser, os].filter(Boolean).join(' · '), icon: isMobile ? Smartphone : Monitor };
+}
+
+/** "3 days ago" / "just now" from an ISO timestamp. Returns '' if unparseable. */
+function relativeTime(iso?: string): string {
+  if (!iso) return '';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const diffMs = Date.now() - then;
+  const mins = Math.round(diffMs / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+function SessionsSection() {
+  const { logout } = useAuth();
+  const qc = useQueryClient();
+
+  const { data: current } = useQuery({
+    queryKey: ['auth', 'current-session'],
+    queryFn: () => getSession(),
+  });
+  const {
+    data: sessions = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['auth', 'sessions'],
+    queryFn: listSessions,
+  });
+
+  const revoke = useMutation({
+    mutationFn: (token: string) => revokeSession(token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['auth', 'sessions'] }),
+  });
+  const revokeOthers = useMutation({
+    mutationFn: revokeOtherSessions,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['auth', 'sessions'] }),
+  });
+
+  const currentToken = current?.session.token;
+  // Current device first, then the rest by most-recently-active.
+  const sorted = [...sessions].sort((a, b) => {
+    if (a.token === currentToken) return -1;
+    if (b.token === currentToken) return 1;
+    return (b.updatedAt ?? b.createdAt ?? '').localeCompare(a.updatedAt ?? a.createdAt ?? '');
+  });
+  const hasOthers = sessions.some((s) => s.token !== currentToken);
+
+  return (
+    <Section title="Active sessions">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          {hasOthers && (
+            <button
+              onClick={() => revokeOthers.mutate()}
+              disabled={revokeOthers.isPending}
+              className="h-8 px-2.5 rounded-lg border border-destructive/30 text-destructive text-xs font-medium flex items-center gap-1.5 hover:bg-destructive/10 transition-colors disabled:opacity-50"
+            >
+              {revokeOthers.isPending ? (
+                <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <LogOut size={13} aria-hidden="true" />
+              )}
+              Sign out all others
+            </button>
+          )}
+        </div>
+
+        {isLoading ? (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+            Loading sessions…
+          </p>
+        ) : isError ? (
+          <p className="text-sm text-muted-foreground">Couldn’t load your other sessions.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {sorted.map((s: Session) => {
+              const { label, icon: Icon } = describeDevice(s.userAgent);
+              const isCurrent = s.token === currentToken;
+              const lastActive = relativeTime(s.updatedAt ?? s.createdAt);
+              const meta = [s.ipAddress || null, lastActive ? `Active ${lastActive}` : null].filter(Boolean).join(' · ');
+              return (
+                <li key={s.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface-offset/40 px-3 py-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <Icon size={15} className="text-muted-foreground" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-foreground truncate flex items-center gap-2">
+                      {label}
+                      {isCurrent && (
+                        <Badge variant="muted" className="shrink-0">
+                          This device
+                        </Badge>
+                      )}
+                    </p>
+                    {meta && <p className="text-xs text-muted-foreground truncate">{meta}</p>}
+                  </div>
+                  {isCurrent ? (
+                    <span className="text-xs text-muted-foreground shrink-0">Current</span>
+                  ) : (
+                    <button
+                      onClick={() => revoke.mutate(s.token)}
+                      disabled={revoke.isPending && revoke.variables === s.token}
+                      className="h-8 px-2.5 rounded-lg border border-destructive/30 text-destructive text-xs font-medium flex items-center gap-1.5 hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                    >
+                      {revoke.isPending && revoke.variables === s.token ? (
+                        <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+                      ) : (
+                        <LogOut size={13} aria-hidden="true" />
+                      )}
+                      Sign out
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+    </Section>
+  );
+}
+
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
   const role = useAuthStore((s) => s.role);
-  const { logout } = useAuth();
   const { tenantId, locationId } = useWorkspaceStore();
   const { theme, setTheme } = useTheme();
   const { scannerMode, setScannerMode } = usePosSettingsStore();
@@ -151,13 +372,31 @@ export default function SettingsPage() {
 
   const [firstName = '', lastName = ''] = (user?.name ?? '').split(' ');
 
+  // Connectors are franchise-owner+ only (mirrors the old nav gating). Build the
+  // tab list from what the current role can see so the segmented control never
+  // shows a tab the user can't use.
+  const showConnectors = roleAtLeast(role, 'franchise_owner');
+  const TABS = [
+    { value: 'general' as const, label: 'General' },
+    { value: 'devices' as const, label: 'Devices' },
+    ...(showConnectors ? [{ value: 'connectors' as const, label: 'Connectors' }] : []),
+  ];
+  const [tab, setTab] = useState<'general' | 'devices' | 'connectors'>('general');
+
   return (
-    <PageLayout eyebrow="Account" title="Settings">
-      <div className="max-w-2xl flex flex-col gap-4">
+    <PageLayout
+      eyebrow="Account"
+      title="Settings"
+      headerSlot={<SegmentedControl options={TABS} value={tab} onChange={setTab} />}
+    >
+      <div>
+        {tab === 'general' && (
+          <div className="grid gap-4 md:grid-cols-2 items-start">
         {/* Profile */}
+        <div className="md:col-span-2">
         <Section title="Profile">
           <div className="flex items-center gap-4">
-            <InitialsAvatar firstName={firstName} lastName={lastName} size="lg" />
+            <InitialsAvatar firstName={firstName} lastName={lastName} email={user?.email} size="lg" />
             <div className="min-w-0">
               <p className="text-base font-semibold text-foreground truncate">{user?.name ?? '—'}</p>
               <p className="text-sm text-muted-foreground truncate">{user?.email ?? '—'}</p>
@@ -169,6 +408,7 @@ export default function SettingsPage() {
             )}
           </div>
         </Section>
+        </div>
 
         {/* Appearance */}
         <Section title="Appearance">
@@ -239,6 +479,15 @@ export default function SettingsPage() {
           </div>
         </Section>
 
+        {/* Session — sign out + other active sessions */}
+        <div className="md:col-span-2">
+          <SessionsSection />
+        </div>
+          </div>
+        )}
+
+        {tab === 'devices' && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 items-start">
         {/* POS (per-device) */}
         <Section title="POS">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Loyalty QR scanner</p>
@@ -293,18 +542,29 @@ export default function SettingsPage() {
         </Section>
 
         {/* Install as app (PWA) */}
-        <InstallAppSection />
+        <div className="md:col-span-2 lg:col-span-1">
+          <InstallAppSection />
+        </div>
+          </div>
+        )}
 
-        {/* Session */}
-        <Section title="Session">
-          <button
-            onClick={logout}
-            className="h-9 px-3 rounded-lg border border-destructive/30 text-destructive text-sm font-medium flex items-center gap-1.5 hover:bg-destructive/10 transition-colors"
-          >
-            <LogOut size={15} aria-hidden="true" />
-            Sign out
-          </button>
-        </Section>
+        {tab === 'connectors' && showConnectors && (
+          <div className="flex flex-col gap-6">
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              Connect external services to automate payroll exports, receipt printing and accounting.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {CONNECTORS.map((connector) => (
+                <ConnectorCard key={connector.title} {...connector} />
+              ))}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Integrations are coming soon — this is where you&apos;ll connect hardware and services.
+            </p>
+          </div>
+        )}
       </div>
     </PageLayout>
   );

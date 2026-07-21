@@ -19,7 +19,7 @@ interface ScanCustomerProps {
 
 /**
  * Scan a customer's loyalty QR and attach them to the order. Reads via the
- * tablet camera or a keyboard-wedge scanner, per the POS setting (Settings →
+ * device camera or a keyboard-wedge scanner, per the POS setting (Settings →
  * POS). Either way the value flows through the same parse → lookup path.
  */
 export function ScanCustomer({ onSelect, onClose }: ScanCustomerProps) {

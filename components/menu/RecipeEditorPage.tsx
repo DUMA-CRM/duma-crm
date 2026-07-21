@@ -75,10 +75,10 @@ interface RecipeEditorPageProps {
 }
 
 /**
- * Full-screen recipe editor (checkout-style takeover): roomy per-ingredient
- * cards with a quantity input per size, and a sticky summary sidebar showing
- * cost, margin, energy and allergens for every size. Opens from the menu item
- * modal's Recipe & Cost card.
+ * In-page recipe editor (fills the content area, keeping the app chrome visible):
+ * roomy per-ingredient cards with a quantity input per size, and a sticky summary
+ * sidebar showing cost, margin, energy and allergens for every size. Opens from
+ * the menu item modal's Recipe & Cost card.
  */
 export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: RecipeEditorPageProps) {
   // Size columns = this item's attached modifiers in the "Size" category.
@@ -166,7 +166,9 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
   })();
 
   return (
-    <div className="fixed inset-0 z-[60] bg-background flex flex-col">
+    // In-page full-height panel (keeps the app sidebar + header visible). Negative
+    // margins cancel the <main> padding so it fills the content area edge-to-edge.
+    <div className="flex flex-col -m-4 md:-m-8 h-[calc(100vh-var(--header-height))] bg-background">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 px-4 md:px-8 py-3.5 border-b border-border shrink-0 bg-card">
         <div className="flex items-center gap-3 min-w-0">
@@ -193,7 +195,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
             <Loader2 size={22} className="animate-spin" />
           </div>
         ) : (
-          <div className="max-w-7xl mx-auto p-4 md:p-8 grid lg:grid-cols-[1fr_320px] gap-6 items-start">
+          <div className="max-w-8xl mx-auto p-4 md:p-8 grid lg:grid-cols-[1fr_320px] gap-6 items-start">
             {/* ── Ingredients ── */}
             <section className="space-y-3 min-w-0">
               <div className="flex items-center justify-between">

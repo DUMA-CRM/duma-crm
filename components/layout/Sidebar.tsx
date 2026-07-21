@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Coffee, LogOut } from 'lucide-react';
 
+import { Tooltip } from '@/components/shared/Tooltip';
 import { getOrders } from '@/lib/api/orders.service';
 import type { StaffRole } from '@/lib/api/staff.service';
 import { analyticsNavItems, filterNavByRole, footerNavItems, mainNavItems } from '@/lib/constants/nav';
@@ -58,7 +59,7 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
           {!collapsed && (
             <div className="min-w-0 overflow-hidden">
               <p className="text-base font-bold leading-tight text-foreground tracking-tight">DUMA</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-none mt-0.5 font-semibold">Coffee CRM</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-none mt-0.5 font-semibold">Business</p>
             </div>
           )}
         </div>
@@ -90,21 +91,25 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
           ))}
 
           {/* Sign out */}
-          <div className="relative">
+          {collapsed ? (
+            <Tooltip label="Sign out" className="mx-auto">
+              <button
+                onClick={logout}
+                aria-label="Sign out"
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors duration-150"
+              >
+                <LogOut aria-hidden="true" className="shrink-0" size={18} />
+              </button>
+            </Tooltip>
+          ) : (
             <button
               onClick={logout}
-              title={collapsed ? 'Sign out' : undefined}
-              className={cn(
-                'w-full flex items-center rounded-lg text-[13px] font-medium transition-colors duration-150',
-                'text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
-                !collapsed && 'gap-2.5 px-3 py-2.25 mx-3 w-[calc(100%-24px)]',
-                collapsed && 'w-9 h-9 justify-center mx-auto',
-              )}
+              className="w-[calc(100%-24px)] mx-3 flex items-center gap-2.5 px-3 py-2.25 rounded-lg text-[13px] font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors duration-150"
             >
               <LogOut aria-hidden="true" className="shrink-0" size={18} />
-              {!collapsed && <span className="flex-1 truncate text-left">Sign out</span>}
+              <span className="flex-1 truncate text-left">Sign out</span>
             </button>
-          </div>
+          )}
         </div>
       </aside>
     </>

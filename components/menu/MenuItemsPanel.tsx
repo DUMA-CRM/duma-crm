@@ -1,8 +1,8 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChefHat, Search, Trash2, UtensilsCrossed } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ChefHat, Loader2, Search, Trash2, UtensilsCrossed } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   AvailabilityToggle,
@@ -14,10 +14,10 @@ import {
   labelClass,
   selectClass,
 } from '@/components/menu/shared';
-import { RecipeEditorPage, RecipeSummaryChips } from '@/components/menu/RecipeEditorPage';
+import { EditorShell } from '@/components/menu/EditorShell';
+import { RecipeSummaryChips } from '@/components/menu/RecipeEditorPage';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -78,7 +78,7 @@ function ItemModifiersEditor({ menuItemId }: { menuItemId: string }) {
       {all.length === 0 ? (
         <p className="text-xs text-muted-foreground">No modifiers exist yet. Create some in the Modifiers tab first.</p>
       ) : (
-        <div className="flex flex-col gap-2 max-h-100 overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2 overflow-y-auto pr-1">
           {groups.map((group) => (
             <div key={group.category}>
               <p className="px-1 pb-0.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{group.category}</p>
@@ -125,18 +125,37 @@ function ItemModifiersEditor({ menuItemId }: { menuItemId: string }) {
 
 // ── Create / edit form ──────────────────────────────────────────────────────
 
+/** Identifies which item's recipe to open in the page-level Recipe & Cost editor. */
+export interface RecipeTarget {
+  menuItemId: string;
+  itemName: string;
+  price: string;
+}
+
 function MenuItemForm({
   tenantId,
   item,
   onClose,
   onCreated,
+  onOpenRecipe,
+  formId,
+  hideActions,
+  onPendingChange,
 }: {
   tenantId: string;
   item?: MenuItem;
   onClose: () => void;
-  /** Called with the new item instead of onClose — the panel switches straight
+  /** Called with the new item instead of onClose — the editor switches straight
    *  to edit mode so modifiers can be attached without hunting for the row. */
   onCreated?: (created: MenuItem) => void;
+  /** Opens the Recipe & Cost editor at the page level. */
+  onOpenRecipe: (target: RecipeTarget) => void;
+  /** When set, the <form> gets this id so a Save button in the page header can submit it. */
+  formId?: string;
+  /** Hide the built-in Cancel/Save row (the header owns Save in the page editor). */
+  hideActions?: boolean;
+  /** Reports the mutation's pending state so the header Save button can reflect it. */
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const qc = useQueryClient();
   const [name, setName] = useState(item?.name ?? '');
@@ -146,8 +165,6 @@ function MenuItemForm({
   const [imageUrl, setImageUrl] = useState(item?.imageUrl ?? '');
   const [isAvailable, setIsAvailable] = useState(item?.isAvailable ?? true);
   const [imageBroken, setImageBroken] = useState(false);
-  // Full-screen recipe editor takeover (renders above this modal).
-  const [recipeOpen, setRecipeOpen] = useState(false);
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: () => {
@@ -166,8 +183,11 @@ function MenuItemForm({
     },
   });
 
+  useEffect(() => onPendingChange?.(isPending), [isPending, onPendingChange]);
+
   return (
     <form
+      id={formId}
       onSubmit={(e) => {
         e.preventDefault();
         mutate();
@@ -176,57 +196,89 @@ function MenuItemForm({
     >
       {/* Two cards side by side: a narrower item-details card and a wider
           modifiers card — the modifier list is the denser of the two. */}
-      <div className="grid md:grid-cols-5 gap-4 items-start">
-        <section className="md:col-span-2 bg-surface-offset/40 border border-border rounded-xl p-4 space-y-4">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Item Details</p>
-          <div>
-            <label className={labelClass}>Name</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              minLength={2}
-              placeholder="Flat White"
-              className={inputClass}
-              autoFocus
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass}>Category</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value as MenuCategory)} className={selectClass}>
-                {CATEGORY_OPTIONS.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+      <div className="flex gap-4 items-stretch">
+        <section className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm flex flex-col max-w-md">
+          {/* Image hero — live preview doubles as the card banner; grows to fill the card height */}
+          <div className="relative flex-1 min-h-52 bg-linear-to-br from-primary/15 via-surface-offset to-surface-offset">
+            {imageUrl.trim() && !imageBroken ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl} alt="" onError={() => setImageBroken(true)} className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-muted-foreground/40 select-none">
+                <UtensilsCrossed size={30} aria-hidden="true" />
+                <span className="text-[11px] font-semibold">{imageBroken ? 'Image didn’t load' : 'No image yet'}</span>
+              </div>
+            )}
+            <span
+              className={cn(
+                'absolute top-3 left-3 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm',
+                CATEGORY_COLORS[category],
+              )}
+            >
+              {CATEGORY_LABELS[category]}
+            </span>
+            <div className="absolute top-3 right-3">
+              <AvailabilityToggle on={isAvailable} onToggle={() => setIsAvailable((v) => !v)} />
             </div>
+          </div>
+
+          <div className="p-4 space-y-4 shrink-0">
+            <div className="flex items-center gap-2">
+              <UtensilsCrossed size={13} className="text-primary" aria-hidden="true" />
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Item Details</p>
+            </div>
+
             <div>
-              <label className={labelClass}>Price (£)</label>
+              <label className={labelClass}>Name</label>
               <input
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 required
-                pattern="^\d+(\.\d{1,2})?$"
-                placeholder="3.20"
-                className={inputClass}
+                minLength={2}
+                placeholder="Flat White"
+                className={cn(inputClass, 'h-10 text-base font-medium')}
+                autoFocus
               />
             </div>
-          </div>
-          <div>
-            <label className={labelClass}>Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              placeholder="Optional"
-              className={inputClass + ' h-auto py-2 resize-none'}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Image URL</label>
-            <div className="flex items-start gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Category</label>
+                <select value={category} onChange={(e) => setCategory(e.target.value as MenuCategory)} className={selectClass}>
+                  {CATEGORY_OPTIONS.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Price</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">£</span>
+                  <input
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    required
+                    inputMode="decimal"
+                    pattern="^\d+(\.\d{1,2})?$"
+                    placeholder="3.20"
+                    className={cn(inputClass, 'pl-7 tabular-nums')}
+                  />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                placeholder="Optional — a short note shown to staff"
+                className={inputClass + ' h-auto py-2 resize-none'}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Image URL</label>
               <input
                 value={imageUrl}
                 onChange={(e) => {
@@ -236,35 +288,12 @@ function MenuItemForm({
                 placeholder="https://…"
                 className={inputClass}
               />
-              {/* Live preview so a typo'd URL is obvious before saving */}
-              {imageUrl.trim() &&
-                (imageBroken ? (
-                  <div className="w-9 h-9 shrink-0 rounded-lg border border-dashed border-destructive/40 flex items-center justify-center text-[9px] font-semibold text-destructive/70 text-center leading-tight px-1">
-                    Can&apos;t load
-                  </div>
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={imageUrl}
-                    alt="Preview"
-                    onError={() => setImageBroken(true)}
-                    className="w-9 h-9 shrink-0 rounded-lg object-cover border border-border bg-muted"
-                  />
-                ))}
+              <p className="mt-1.5 text-[11px] text-muted-foreground">Paste a link — the preview above updates as you type.</p>
             </div>
           </div>
-          <label className="flex items-center gap-2.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={isAvailable}
-              onChange={(e) => setIsAvailable(e.target.checked)}
-              className="w-4 h-4 rounded accent-primary"
-            />
-            <span className="text-sm text-foreground">Available</span>
-          </label>
         </section>
 
-        <section className="md:col-span-3 bg-surface-offset/40 border border-border rounded-xl p-4">
+        <section className="bg-surface-offset/40 border border-border rounded-xl p-4 flex-1 w-full">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Modifiers</p>
           {item ? (
             <ItemModifiersEditor menuItemId={item.id} />
@@ -281,39 +310,85 @@ function MenuItemForm({
         <section className="bg-surface-offset/40 border border-border rounded-xl p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Recipe &amp; Cost</p>
-            <Button type="button" size="sm" onClick={() => setRecipeOpen(true)} className="gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => onOpenRecipe({ menuItemId: item.id, itemName: name || item.name, price: price || item.price })}
+              className="gap-1.5"
+            >
               <ChefHat size={14} />
               Edit Recipe
             </Button>
           </div>
           <RecipeSummaryChips menuItemId={item.id} price={price || item.price} />
-          {recipeOpen && (
-            <RecipeEditorPage
-              menuItemId={item.id}
-              itemName={name || item.name}
-              price={price || item.price}
-              onClose={() => setRecipeOpen(false)}
-            />
-          )}
         </section>
       )}
 
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
-      <FormActions onClose={onClose} isPending={isPending} isEdit={!!item} />
+      {!hideActions && <FormActions onClose={onClose} isPending={isPending} isEdit={!!item} />}
     </form>
+  );
+}
+
+// ── In-page editor ─────────────────────────────────────────────────────────────
+
+const MENU_ITEM_FORM_ID = 'menu-item-editor-form';
+
+/** Full-page menu item create/edit (keeps the app sidebar + header visible). */
+export function MenuItemEditorPage({
+  item,
+  onClose,
+  onEditItem,
+  onOpenRecipe,
+}: {
+  item?: MenuItem;
+  onClose: () => void;
+  /** After creating, switch the editor to edit mode for the new item. */
+  onEditItem: (item: MenuItem) => void;
+  onOpenRecipe: (target: RecipeTarget) => void;
+}) {
+  const { tenantId } = useWorkspaceStore();
+  const [pending, setPending] = useState(false);
+  if (!tenantId) return null;
+
+  return (
+    <EditorShell
+      eyebrow="Menu Item"
+      title={item ? item.name : 'New Menu Item'}
+      onClose={onClose}
+      actions={
+        <Button type="submit" form={MENU_ITEM_FORM_ID} disabled={pending} className="h-11 px-6 gap-2">
+          {pending && <Loader2 size={15} className="animate-spin" />}
+          {pending ? 'Saving…' : item ? 'Update' : 'Create'}
+        </Button>
+      }
+    >
+      <MenuItemForm
+        tenantId={tenantId}
+        item={item}
+        onClose={onClose}
+        onCreated={onEditItem}
+        onOpenRecipe={onOpenRecipe}
+        formId={MENU_ITEM_FORM_ID}
+        hideActions
+        onPendingChange={setPending}
+      />
+    </EditorShell>
   );
 }
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
-export function MenuItemsPanel({ createOpen, onCreateOpenChange }: { createOpen: boolean; onCreateOpenChange: (open: boolean) => void }) {
+export function MenuItemsPanel({
+  onEdit,
+}: {
+  onEdit: (item: MenuItem) => void;
+}) {
   const qc = useQueryClient();
   const { tenantId } = useWorkspaceStore();
-  const [editItem, setEditItem] = useState<MenuItem | null>(null);
   const [deleteItem, setDeleteItem] = useState<MenuItem | null>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | MenuCategory>('all');
-  const closeCreate = () => onCreateOpenChange(false);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['menu-items'],
@@ -431,7 +506,7 @@ export function MenuItemsPanel({ createOpen, onCreateOpenChange }: { createOpen:
                   <tr
                     key={item.id}
                     className="group border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors cursor-pointer"
-                    onClick={() => setEditItem(item)}
+                    onClick={() => onEdit(item)}
                   >
                     <td className="px-3 md:px-5 py-3.5">
                       <div className="flex items-center gap-3">
@@ -493,23 +568,6 @@ export function MenuItemsPanel({ createOpen, onCreateOpenChange }: { createOpen:
         )}
       </div>
 
-      {createOpen && tenantId && (
-        <Modal title="New Menu Item" onClose={closeCreate} className="max-w-4xl">
-          <MenuItemForm
-            tenantId={tenantId}
-            onClose={closeCreate}
-            onCreated={(created) => {
-              closeCreate();
-              setEditItem(created);
-            }}
-          />
-        </Modal>
-      )}
-      {editItem && tenantId && (
-        <Modal title="Edit Menu Item" onClose={() => setEditItem(null)} className="max-w-4xl">
-          <MenuItemForm tenantId={tenantId} item={editItem} onClose={() => setEditItem(null)} />
-        </Modal>
-      )}
       {deleteItem && (
         <ConfirmModal
           title="Delete Menu Item"
