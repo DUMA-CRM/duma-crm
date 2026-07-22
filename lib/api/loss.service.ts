@@ -1,7 +1,6 @@
 import { apiFetch } from './client';
 
-// Reasons that may appear on historical records (incl. legacy values).
-export type LossReason = 'waste' | 'spoilage' | 'theft' | 'damage' | 'expiry' | 'other';
+export type LossReason = 'waste' | 'theft' | 'damage' | 'expiry' | 'other';
 
 // Reasons the API accepts when *creating* a loss entry. The movement type is
 // hardcoded to "waste" server-side; this `reason` is what the API validates.
@@ -11,7 +10,8 @@ export interface LossRecord {
   id: string;
   stockItemId: string;
   locationId: string;
-  type: LossReason;
+  type: 'waste';
+  reason?: string | null;
   quantity: number;       // negative (e.g. -100)
   quantityBefore: number;
   quantityAfter: number;

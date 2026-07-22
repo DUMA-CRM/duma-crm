@@ -2,7 +2,6 @@
 
 import { useQuery } from '@tanstack/react-query';
 import {
-  ArrowDownUp,
   ArrowLeftRight,
   Boxes,
   Candy,
@@ -26,6 +25,7 @@ import {
   Wheat,
   X,
 } from 'lucide-react';
+import Link from 'next/link';
 
 import { ItemTransfersSection } from '@/components/inventory/transfers/TransferStock';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -91,7 +91,6 @@ export function StockDetailSidebar({
   item,
   tenantId,
   onClose,
-  onAdjust,
   onEditThreshold,
   onToggleAvailable,
   onRemove,
@@ -103,7 +102,6 @@ export function StockDetailSidebar({
   item: StockRow | null;
   tenantId: string | null;
   onClose: () => void;
-  onAdjust: (i: StockRow) => void;
   onEditThreshold: (i: StockRow) => void;
   onToggleAvailable: (i: StockRow) => void;
   onRemove: (i: StockRow) => void;
@@ -132,7 +130,7 @@ export function StockDetailSidebar({
         <EmptyState
           icon={Boxes}
           title="Select an item"
-          description="Pick a row to see its stock level, demand forecast and loss history — and to adjust stock, edit thresholds or request a restock."
+          description="Pick a row to inspect its containers, demand forecast and loss history, or edit its reorder settings."
         />
       </div>
     );
@@ -330,10 +328,12 @@ export function StockDetailSidebar({
 
       {/* Actions */}
       <div className="px-5 py-4 border-t border-border shrink-0 space-y-2">
+        <Button asChild variant="outline" className="w-full gap-1.5 text-xs">
+          <Link href={`/inventory/items/${item.stockItemId}`}>
+            <Boxes size={13} /> View containers &amp; full ledger
+          </Link>
+        </Button>
         <div className="flex gap-2">
-          <Button className="flex-1 gap-1.5" onClick={() => onAdjust(item)}>
-            <ArrowDownUp size={13} /> Adjust Stock
-          </Button>
           <Button variant="outline" className="flex-1 gap-1.5" onClick={() => onEditThreshold(item)}>
             <Pencil size={13} /> Threshold
           </Button>
@@ -369,16 +369,16 @@ export function StockDetailSidebar({
 // ── A single stock movement in the sidebar ────────────────────────────────────
 
 const MOVEMENT_LABELS: Record<string, string> = {
-  deduction: 'Sale / deduction',
-  restock: 'Restock',
+  receive: 'Received',
+  consume: 'Consumed',
   transfer: 'Transfer',
-  adjustment: 'Adjustment',
+  adjust: 'Adjustment',
   waste: 'Waste',
 };
 
 // Types that are unambiguously incoming/outgoing regardless of the stored delta sign.
-const INCOMING_TYPES = new Set(['restock']);
-const OUTGOING_TYPES = new Set(['deduction', 'waste']);
+const INCOMING_TYPES = new Set(['receive']);
+const OUTGOING_TYPES = new Set(['consume', 'waste']);
 
 function MovementRow({ movement, unit }: { movement: StockMovement; unit: string }) {
   const label = MOVEMENT_LABELS[movement.type] ?? movement.type;

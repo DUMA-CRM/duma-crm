@@ -90,7 +90,7 @@ export function MyDashboard() {
     onSuccess: invalidateShifts,
     onError: (e) => addToast('error', (e as Error).message || 'Could not clock in.'),
   });
-  // Clock-out goes through the end-of-shift dialog (stock deduction reconciliation).
+  // Order completion already consumed recipe inventory; clock-out only ends the shift.
   const [clockOutOpen, setClockOutOpen] = useState(false);
   const busy = clockInM.isPending;
 

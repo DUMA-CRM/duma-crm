@@ -1,4 +1,4 @@
-import type { InventoryForecast, LocationStock } from '@/lib/api/inventory.service';
+import type { InventoryCategory, InventoryForecast, LocationStock } from '@/lib/api/inventory.service';
 import type { LossCreateReason, LossReason } from '@/lib/api/loss.service';
 import { cn } from '@/lib/utils/cn';
 
@@ -81,6 +81,10 @@ export type StockRow = LocationStock & {
   qty: number;
   threshold: number;
   forecast?: InventoryForecast;
+  category?: InventoryCategory;
+  activeUnitCount?: number;
+  earliestExpiryDate?: string | null;
+  needsReorder?: boolean;
 };
 
 // ── Loss reasons ──────────────────────────────────────────────────────────────
@@ -97,10 +101,9 @@ export function parseLossNotes(raw: string | null): { reason: string | null; not
   return { reason, notes };
 }
 
-// Broad set for display — includes legacy reasons that may exist on old records.
+// Canonical loss reasons recorded against physical stock units.
 export const REASON_LABELS: Record<LossReason, string> = {
   waste: 'Waste',
-  spoilage: 'Spoilage',
   theft: 'Theft',
   damage: 'Damage',
   expiry: 'Expiry',
@@ -117,7 +120,7 @@ export const REASON_OPTIONS: { value: LossCreateReason; label: string }[] = [
 
 export function reasonVariant(type: string): 'warning' | 'destructive' | 'muted' | 'amber' {
   if (type === 'theft') return 'destructive';
-  if (type === 'spoilage' || type === 'expiry') return 'warning';
+  if (type === 'expiry') return 'warning';
   if (type === 'damage') return 'amber';
   return 'muted';
 }

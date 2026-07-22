@@ -220,9 +220,14 @@ export default function KdsPage() {
     mutationFn: ({ id, next }: { id: string; next: OrderStatus }) => updateOrderStatus(id, next),
     onMutate: ({ id }) => setBumpingId(id),
     onSettled: () => setBumpingId(null),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ['orders-all'] });
       qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['inventory-overview'] });
+      qc.invalidateQueries({ queryKey: ['location-stock'] });
+      if (updated.inventoryWarnings?.length) {
+        toast('error', `Inventory shortfall: ${updated.inventoryWarnings.map((warning) => warning.name).join(', ')}.`);
+      }
     },
     onError: (err) => toast('error', err.message || 'Failed to update the order.'),
   });

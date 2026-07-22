@@ -35,7 +35,7 @@ export interface PurchaseOrderLine {
   quantityOrdered: string;
   unitCost: string;
   quantityReceived: string;
-  stockItem?: { id: string; name: string; unit: string };
+  stockItem?: { id: string; name: string; unit: string; isPerishable?: boolean; defaultContainerQuantity?: string | null; defaultShelfLifeDays?: number | null };
 }
 
 export interface GoodsReceipt {
@@ -127,8 +127,17 @@ export const createPurchaseOrder = (data: CreatePurchaseOrderPayload) =>
 export const updatePurchaseOrder = (id: string, data: UpdatePurchaseOrderPayload) =>
   apiFetch<PurchaseOrder>(`/purchase-orders/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 
-export const receivePurchaseOrder = (id: string, data: { notes?: string; lines: { purchaseOrderLineId: string; quantity: number }[] }) =>
-  apiFetch<{ receiptId: string; status: PurchaseOrderStatus }>(`/purchase-orders/${id}/receive`, {
+export interface ReceivePurchaseOrderLine {
+  purchaseOrderLineId: string;
+  containerCount?: number;
+  quantityPerContainer?: number;
+  expiryDate?: string | null;
+  lotNumber?: string | null;
+  units?: Array<{ initialQuantity: number; expiryDate?: string | null; lotNumber?: string | null; label?: string; barcode?: string }>;
+}
+
+export const receivePurchaseOrder = (id: string, data: { notes?: string; lines: ReceivePurchaseOrderLine[] }) =>
+  apiFetch<{ receiptId: string; status: PurchaseOrderStatus; createdUnitCount: number }>(`/purchase-orders/${id}/receive`, {
     method: 'POST',
     body: JSON.stringify(data),
   });

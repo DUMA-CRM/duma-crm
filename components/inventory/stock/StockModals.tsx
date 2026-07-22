@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, Minus, Plus } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
 import { Modal } from '@/components/shared/Modal';
@@ -19,7 +19,6 @@ import {
   type NutritionFacts,
   type StockItem,
   addLocationStock,
-  adjustLocationStock,
   createStockItem,
   getLocationStock,
   getStockItems,
@@ -32,7 +31,7 @@ import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { REASON_OPTIONS, fmtQty, selectClass } from './shared';
+import { REASON_OPTIONS, selectClass } from './shared';
 
 // ── Nutrition fields (shared by create + edit item forms) ─────────────────────
 
@@ -169,10 +168,14 @@ export function AddItemModal({
   const [stockItemId, setStockItemId] = useState('');
   const [newName, setNewName] = useState('');
   const [newUnit, setNewUnit] = useState('');
+  const [newCategory, setNewCategory] = useState<StockItem['category']>('SUPPLY');
+  const [newPerishable, setNewPerishable] = useState(false);
+  const [newShelfLife, setNewShelfLife] = useState('');
+  const [newContainerQty, setNewContainerQty] = useState('');
   const [newNutrition, setNewNutrition] = useState<NutritionDraft>(emptyNutritionDraft);
   const [newAllergens, setNewAllergens] = useState<Allergen[]>([]);
-  const [quantity, setQuantity] = useState('0');
   const [lowThreshold, setLowThreshold] = useState('');
+  const [reorderQuantity, setReorderQuantity] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: allItems = [] } = useQuery({ queryKey: ['stock-items'], queryFn: getStockItems });
@@ -187,12 +190,18 @@ export function AddItemModal({
           tenantId: tenantId!,
           name: newName.trim(),
           unit: newUnit.trim(),
+          category: newCategory,
+          isPerishable: newPerishable,
+          defaultShelfLifeDays: newShelfLife ? Number(newShelfLife) : null,
+          defaultContainerQuantity: newContainerQty ? Number(newContainerQty) : null,
+          defaultReorderLevel: Number(lowThreshold),
+          defaultReorderQuantity: reorderQuantity ? Number(reorderQuantity) : null,
           ...nutritionPayload(newNutrition),
           allergens: newAllergens.length > 0 ? newAllergens : null,
         });
         itemId = created.id;
       }
-      const payload: LocationStockPayload = { locationId, stockItemId: itemId, quantity: quantity || '0', lowThreshold, isAvailable: true };
+      const payload: LocationStockPayload = { locationId, stockItemId: itemId, lowThreshold, reorderQuantity: reorderQuantity || undefined, isAvailable: true };
       return addLocationStock(payload);
     },
     onSuccess: () => {
@@ -256,13 +265,29 @@ export function AddItemModal({
         )}
 
         {creatingNew && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label uppercase>Category</Label>
+              <select value={newCategory} onChange={(e) => setNewCategory(e.target.value as StockItem['category'])} className={selectClass}>
+                <option value="FOOD">Food</option><option value="BEVERAGE">Beverage</option><option value="SUPPLY">Supply</option><option value="MERCH">Merchandise</option>
+              </select>
+            </div>
+            <label className="flex items-center gap-2 self-end h-9 rounded-lg bg-surface-offset px-3 text-sm text-foreground">
+              <input type="checkbox" checked={newPerishable} onChange={(e) => setNewPerishable(e.target.checked)} /> Perishable
+            </label>
+            <Input label="CONTAINER QUANTITY" value={newContainerQty} onChange={(e) => setNewContainerQty(e.target.value)} placeholder="e.g. 1000" type="number" min={0} />
+            {newPerishable && <Input label="SHELF LIFE (DAYS)" value={newShelfLife} onChange={(e) => setNewShelfLife(e.target.value)} placeholder="e.g. 7" type="number" min={1} />}
+          </div>
+        )}
+
+        {creatingNew && (
           <NutritionFields draft={newNutrition} onChange={setNewNutrition} allergens={newAllergens} onAllergensChange={setNewAllergens} />
         )}
 
-        <div className="flex gap-3">
-          <div className="flex flex-col gap-1.5 flex-1">
-            <Label uppercase>Initial quantity</Label>
-            <input type="number" min={0} step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={selectClass} />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label uppercase>Reorder qty</Label>
+            <input type="number" min={0} step="any" placeholder="e.g. 500" value={reorderQuantity} onChange={(e) => setReorderQuantity(e.target.value)} className={selectClass} />
           </div>
           <div className="flex flex-col gap-1.5 flex-1">
             <Label uppercase>Low threshold</Label>
@@ -282,100 +307,6 @@ export function AddItemModal({
   );
 }
 
-// ── Adjust Stock ──────────────────────────────────────────────────────────────
-
-export function AdjustModal({
-  item,
-  onClose,
-  onSuccess,
-}: {
-  item: LocationStock;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [mode, setMode] = useState<'add' | 'remove'>('add');
-  const [amount, setAmount] = useState('');
-  const [error, setError] = useState('');
-
-  const { mutate, isPending } = useMutation({
-    mutationFn: (delta: number) => adjustLocationStock(item.id, delta),
-    onSuccess: () => { onSuccess(); onClose(); },
-    onError: () => setError('Adjustment failed. Please try again.'),
-  });
-
-  function handleSubmit(e: React.SyntheticEvent) {
-    e.preventDefault();
-    const n = parseFloat(amount);
-    if (!n || n <= 0) { setError('Enter a positive amount.'); return; }
-    mutate(mode === 'add' ? n : -n);
-  }
-
-  const currentQty = parseFloat(item.quantity);
-  const previewAmt = parseFloat(amount) || 0;
-  const preview = mode === 'add' ? currentQty + previewAmt : currentQty - previewAmt;
-  const unit = item.stockItem?.unit ?? '';
-
-  return (
-    <Modal title={`Adjust — ${item.stockItem?.name ?? 'Stock'}`} onClose={onClose} className="max-w-sm">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="rounded-xl bg-surface-offset px-4 py-3 flex items-center justify-between text-sm">
-          <div>
-            <p className="text-xs text-muted-foreground">Current stock</p>
-            <p className="text-lg font-semibold text-foreground">{currentQty} <span className="text-sm font-normal text-muted-foreground">{unit}</span></p>
-          </div>
-          {amount && (
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">After adjustment</p>
-              <p className={cn('text-lg font-semibold', preview < 0 ? 'text-destructive' : 'text-foreground')}>
-                {preview < 0 ? 0 : fmtQty(preview)} <span className="text-sm font-normal text-muted-foreground">{unit}</span>
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex rounded-lg bg-surface-offset p-1 gap-1">
-          {(['add', 'remove'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => { setMode(m); setError(''); }}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 h-8 rounded-md text-sm font-medium transition-colors',
-                mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {m === 'add' ? <Plus size={13} /> : <Minus size={13} />}
-              {m === 'add' ? 'Add stock' : 'Remove stock'}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label uppercase>Amount ({unit || 'units'})</Label>
-          <input
-            type="number"
-            min={0.01}
-            step="any"
-            placeholder="0"
-            value={amount}
-            onChange={(e) => { setAmount(e.target.value); setError(''); }}
-            className={cn(selectClass, error && 'border-destructive/60')}
-            autoFocus
-          />
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-
-        <div className="flex gap-2 pt-1">
-          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={isPending}>
-            {isPending ? 'Saving…' : 'Confirm'}
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
 // ── Edit Threshold ────────────────────────────────────────────────────────────
 
 export function EditThresholdModal({
@@ -388,10 +319,11 @@ export function EditThresholdModal({
   onSuccess: () => void;
 }) {
   const [threshold, setThreshold] = useState(item.lowThreshold);
+  const [reorderQuantity, setReorderQuantity] = useState(item.reorderQuantity ?? item.stockItem?.defaultReorderQuantity ?? '');
   const [error, setError] = useState('');
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (val: string) => updateLocationStock(item.id, { lowThreshold: val }),
+    mutationFn: (val: string) => updateLocationStock(item.id, { lowThreshold: val, reorderQuantity: reorderQuantity || null }),
     onSuccess: () => { onSuccess(); onClose(); },
   });
 
@@ -417,6 +349,11 @@ export function EditThresholdModal({
           />
           {error && <p className="text-xs text-destructive">{error}</p>}
           <p className="text-xs text-muted-foreground">Alert triggers when stock falls to or below this value.</p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label uppercase>Reorder quantity ({item.stockItem?.unit ?? 'units'})</Label>
+          <input type="number" min={0} step="any" value={reorderQuantity} onChange={(e) => setReorderQuantity(e.target.value)} className={selectClass} />
+          <p className="text-xs text-muted-foreground">Suggested purchase amount when stock reaches the threshold.</p>
         </div>
         <div className="flex gap-2 pt-1">
           <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
@@ -679,12 +616,18 @@ export function EditStockItemModal({
   onClose,
   onSuccess,
 }: {
-  item: Pick<StockItem, 'id' | 'name' | 'unit' | 'nutritionBasis' | 'nutrition' | 'allergens'>;
+  item: Pick<StockItem, 'id' | 'name' | 'unit' | 'category' | 'isPerishable' | 'defaultShelfLifeDays' | 'defaultContainerQuantity' | 'defaultReorderLevel' | 'defaultReorderQuantity' | 'nutritionBasis' | 'nutrition' | 'allergens'>;
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const [name, setName] = useState(item.name);
   const [unit, setUnit] = useState(item.unit);
+  const [category, setCategory] = useState(item.category);
+  const [isPerishable, setIsPerishable] = useState(item.isPerishable);
+  const [shelfLife, setShelfLife] = useState(item.defaultShelfLifeDays ? String(item.defaultShelfLifeDays) : '');
+  const [containerQuantity, setContainerQuantity] = useState(item.defaultContainerQuantity ?? '');
+  const [reorderLevel, setReorderLevel] = useState(item.defaultReorderLevel ?? '');
+  const [reorderQuantity, setReorderQuantity] = useState(item.defaultReorderQuantity ?? '');
   const [nutrition, setNutrition] = useState<NutritionDraft>(() => nutritionDraftFrom(item.nutritionBasis, item.nutrition));
   const [allergens, setAllergens] = useState<Allergen[]>((item.allergens ?? []) as Allergen[]);
 
@@ -693,6 +636,12 @@ export function EditStockItemModal({
       updateStockItem(item.id, {
         name: name.trim(),
         unit: unit.trim(),
+        category,
+        isPerishable,
+        defaultShelfLifeDays: shelfLife ? Number(shelfLife) : null,
+        defaultContainerQuantity: containerQuantity ? Number(containerQuantity) : null,
+        defaultReorderLevel: reorderLevel ? Number(reorderLevel) : null,
+        defaultReorderQuantity: reorderQuantity ? Number(reorderQuantity) : null,
         ...nutritionPayload(nutrition),
         allergens: allergens.length > 0 ? allergens : null,
       }),
@@ -711,6 +660,14 @@ export function EditStockItemModal({
           required
           hint="Changing the unit affects every location tracking this item."
         />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5"><Label uppercase>Category</Label><select value={category} onChange={(e) => setCategory(e.target.value as StockItem['category'])} className={selectClass}><option value="FOOD">Food</option><option value="BEVERAGE">Beverage</option><option value="SUPPLY">Supply</option><option value="MERCH">Merchandise</option></select></div>
+          <label className="flex items-center gap-2 self-end h-9 rounded-lg bg-surface-offset px-3 text-sm"><input type="checkbox" checked={isPerishable} onChange={(e) => setIsPerishable(e.target.checked)} /> Perishable</label>
+          <Input label="CONTAINER QUANTITY" value={containerQuantity} onChange={(e) => setContainerQuantity(e.target.value)} type="number" min={0} />
+          {isPerishable && <Input label="SHELF LIFE (DAYS)" value={shelfLife} onChange={(e) => setShelfLife(e.target.value)} type="number" min={1} />}
+          <Input label="DEFAULT REORDER LEVEL" value={reorderLevel} onChange={(e) => setReorderLevel(e.target.value)} type="number" min={0} />
+          <Input label="DEFAULT REORDER QUANTITY" value={reorderQuantity} onChange={(e) => setReorderQuantity(e.target.value)} type="number" min={0} />
+        </div>
         <NutritionFields draft={nutrition} onChange={setNutrition} allergens={allergens} onAllergensChange={setAllergens} />
         <div className="flex gap-2 pt-1">
           <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>

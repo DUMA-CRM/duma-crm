@@ -95,10 +95,15 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
 
   const { mutate, isPending } = useMutation({
     mutationFn: (status: OrderStatus) => updateOrderStatus(order.id, status),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['orders-all'] });
       qc.invalidateQueries({ queryKey: ['order', order.id] });
+      qc.invalidateQueries({ queryKey: ['inventory-overview'] });
+      qc.invalidateQueries({ queryKey: ['location-stock'] });
+      if (updated.inventoryWarnings?.length) {
+        toast('error', `Order completed with ${updated.inventoryWarnings.length} inventory shortfall${updated.inventoryWarnings.length === 1 ? '' : 's'}.`);
+      }
       setOpen(false);
     },
     onError: (err) => toast('error', err.message || 'Failed to update the order status.'),
@@ -590,7 +595,7 @@ export default function OrdersPage() {
     refetchInterval: 30_000,
   });
 
-  const allOrders = allData?.data ?? [];
+  const allOrders = useMemo(() => allData?.data ?? [], [allData?.data]);
 
   const today = new Date().toDateString();
   const todayOrders = useMemo(() => allOrders.filter((o) => new Date(o.createdAt).toDateString() === today), [allOrders, today]);
@@ -634,7 +639,7 @@ export default function OrdersPage() {
       }),
   });
 
-  const orders = data?.data ?? [];
+  const orders = useMemo(() => data?.data ?? [], [data?.data]);
   const totalPages = data?.pages ?? 1;
 
   // Deep link: /orders?order=<id> (e.g. from a customer's order list) opens the
@@ -642,9 +647,12 @@ export default function OrdersPage() {
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('order');
     if (!id) return;
-    setExpandedOrderId(id);
-    setActiveTicket(id);
-    setPendingScrollId(id);
+    const timer = window.setTimeout(() => {
+      setExpandedOrderId(id);
+      setActiveTicket(id);
+      setPendingScrollId(id);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // Scroll to the deep-linked row once it renders (i.e. once orders have loaded).
@@ -652,8 +660,11 @@ export default function OrdersPage() {
     if (!pendingScrollId) return;
     const el = document.getElementById(`order-row-${pendingScrollId}`);
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setPendingScrollId(null);
+      const frame = window.requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setPendingScrollId(null);
+      });
+      return () => window.cancelAnimationFrame(frame);
     }
   }, [orders, pendingScrollId]);
 

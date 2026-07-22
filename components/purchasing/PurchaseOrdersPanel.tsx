@@ -25,6 +25,12 @@ import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 
 const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—');
+const defaultExpiry = (shelfLifeDays?: number | null) => {
+  if (!shelfLifeDays) return '';
+  const date = new Date();
+  date.setDate(date.getDate() + shelfLifeDays);
+  return date.toISOString().slice(0, 10);
+};
 
 // ── Create PO ─────────────────────────────────────────────────────────────────
 
@@ -173,6 +179,9 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const { data: po } = useQuery({ queryKey: ['purchase-order', id], queryFn: () => getPurchaseOrder(id) });
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [receiveQty, setReceiveQty] = useState<Record<string, string>>({});
+  const [receiveContainers, setReceiveContainers] = useState<Record<string, string>>({});
+  const [receiveExpiry, setReceiveExpiry] = useState<Record<string, string>>({});
+  const [receiveLot, setReceiveLot] = useState<Record<string, string>>({});
   const [invoiceNumber, setInvoiceNumber] = useState<string | null>(null);
   const [invoiceAmount, setInvoiceAmount] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -198,12 +207,31 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
     mutationFn: () => {
       // Untouched inputs default to the outstanding amount — mirror exactly
       // what the form displays, otherwise unedited lines would submit as 0.
-      const lines = (po?.lines ?? [])
-        .map((l) => ({
+      const lines = (po?.lines ?? []).map((l) => {
+        const total = Number(receiveQty[l.id] ?? Math.max(0, Number(l.quantityOrdered) - Number(l.quantityReceived))) || 0;
+        if (total <= 0) return null;
+        const defaultContainer = Number(l.stockItem?.defaultContainerQuantity ?? 0);
+        const enteredCount = Math.max(0, Math.floor(Number(receiveContainers[l.id] ?? 0)));
+        const expiryDate = receiveExpiry[l.id] || defaultExpiry(l.stockItem?.defaultShelfLifeDays) || undefined;
+        const lotNumber = receiveLot[l.id] || undefined;
+        const quantities: number[] = [];
+        if (enteredCount > 0) {
+          const each = total / enteredCount;
+          for (let i = 0; i < enteredCount; i++) quantities.push(each);
+        } else if (defaultContainer > 0) {
+          const full = Math.floor(total / defaultContainer);
+          for (let i = 0; i < full; i++) quantities.push(defaultContainer);
+          const remainder = total - full * defaultContainer;
+          if (remainder > 0.0001) quantities.push(remainder);
+        } else {
+          quantities.push(total);
+        }
+        if (l.stockItem?.isPerishable && !expiryDate) throw new Error(`Enter an expiry date for ${l.stockItem.name}.`);
+        return {
           purchaseOrderLineId: l.id,
-          quantity: Number(receiveQty[l.id] ?? Math.max(0, Number(l.quantityOrdered) - Number(l.quantityReceived))) || 0,
-        }))
-        .filter((l) => l.quantity > 0);
+          units: quantities.map((initialQuantity) => ({ initialQuantity, expiryDate, lotNumber })),
+        };
+      }).filter((line): line is NonNullable<typeof line> => line !== null);
       if (lines.length === 0) return Promise.reject(new Error('Enter a received quantity for at least one line.'));
       return receivePurchaseOrder(id, { lines });
     },
@@ -211,6 +239,9 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
       invalidate();
       setReceiveOpen(false);
       setReceiveQty({});
+      setReceiveContainers({});
+      setReceiveExpiry({});
+      setReceiveLot({});
       toast('success', res.status === 'received' ? 'All goods received — PO complete.' : 'Delivery recorded.');
     },
     onError: (err) => toast('error', err.message || 'Failed to record the delivery.'),
@@ -282,16 +313,20 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
         <div className="border border-primary/30 bg-primary/5 rounded-xl p-3 space-y-2">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Receive delivery</p>
           {(po.lines ?? []).map((l) => (
-            <div key={l.id} className="flex items-center gap-2">
-              <span className="flex-1 text-sm text-foreground truncate">{l.stockItem?.name}</span>
-              <input
-                value={receiveQty[l.id] ?? String(outstanding(l))}
-                onChange={(e) => setReceiveQty((prev) => ({ ...prev, [l.id]: e.target.value }))}
-                inputMode="decimal"
-                aria-label={`Received ${l.stockItem?.name}`}
-                className={cn(inputClass, 'w-24 text-right tabular-nums')}
-              />
-              <span className="text-xs text-muted-foreground w-8">{l.stockItem?.unit}</span>
+            <div key={l.id} className="grid grid-cols-[1fr_6rem_4.5rem_8rem_7rem] items-end gap-2">
+              <span className="text-sm text-foreground truncate pb-2">{l.stockItem?.name}</span>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total
+                <input value={receiveQty[l.id] ?? String(outstanding(l))} onChange={(e) => setReceiveQty((prev) => ({ ...prev, [l.id]: e.target.value }))} inputMode="decimal" aria-label={`Received ${l.stockItem?.name}`} className={cn(inputClass, 'mt-1 w-full text-right tabular-nums')} />
+              </label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Units
+                <input value={receiveContainers[l.id] ?? ''} onChange={(e) => setReceiveContainers((prev) => ({ ...prev, [l.id]: e.target.value }))} inputMode="numeric" placeholder={l.stockItem?.defaultContainerQuantity ? 'Auto' : '1'} aria-label={`Containers of ${l.stockItem?.name}`} className={cn(inputClass, 'mt-1 w-full text-right tabular-nums')} />
+              </label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Expiry
+                <input type="date" value={receiveExpiry[l.id] ?? defaultExpiry(l.stockItem?.defaultShelfLifeDays)} onChange={(e) => setReceiveExpiry((prev) => ({ ...prev, [l.id]: e.target.value }))} aria-label={`Expiry of ${l.stockItem?.name}`} className={cn(inputClass, 'mt-1 w-full')} required={l.stockItem?.isPerishable} />
+              </label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Lot
+                <input value={receiveLot[l.id] ?? ''} onChange={(e) => setReceiveLot((prev) => ({ ...prev, [l.id]: e.target.value }))} placeholder="Optional" aria-label={`Lot of ${l.stockItem?.name}`} className={cn(inputClass, 'mt-1 w-full')} />
+              </label>
             </div>
           ))}
           <div className="flex gap-2 pt-1">

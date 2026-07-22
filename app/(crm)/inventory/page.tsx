@@ -8,14 +8,12 @@ import { StockDetailSidebar } from '@/components/inventory/stock/StockDetailSide
 import { TransferStockModal } from '@/components/inventory/transfers/TransferStock';
 import {
   AddItemModal,
-  AdjustModal,
   EditStockItemModal,
   EditThresholdModal,
   LogLossModal,
   RestockModal,
 } from '@/components/inventory/stock/StockModals';
 import {
-  STATUS_BAR,
   STATUS_ICON_BG,
   STATUS_ICON_FG,
   STATUS_LABEL,
@@ -25,7 +23,6 @@ import {
   fmtQty,
   getStatus,
   normaliseArray,
-  stockPct,
 } from '@/components/inventory/stock/shared';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -38,8 +35,10 @@ import { Input } from '@/components/ui/input';
 
 import {
   type InventoryForecast,
+  type InventoryOverviewRow,
   type LocationStock,
   getInventoryForecast,
+  getInventoryOverview,
   getLocationStock,
   removeLocationStock,
   updateLocationStock,
@@ -48,7 +47,7 @@ import { cn } from '@/lib/utils/cn';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-const GRID = 'grid-cols-[2fr_1fr_1fr_1.6fr_1fr_0.9fr]';
+const GRID = 'grid-cols-[2fr_0.9fr_0.7fr_0.9fr_1.15fr_0.8fr_0.9fr]';
 
 export default function InventoryPage() {
   const { tenantId, locationId } = useWorkspaceStore();
@@ -56,9 +55,9 @@ export default function InventoryPage() {
 
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [expiryCutoff] = useState(() => Date.now() + 7 * 86400000);
 
   // Modal targets
-  const [adjustTarget, setAdjustTarget] = useState<LocationStock | null>(null);
   const [thresholdTarget, setThresholdTarget] = useState<LocationStock | null>(null);
   const [restockTarget, setRestockTarget] = useState<LocationStock | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -73,6 +72,7 @@ export default function InventoryPage() {
 
   function invalidateStock() {
     void queryClient.invalidateQueries({ queryKey: ['location-stock', locationId] });
+    void queryClient.invalidateQueries({ queryKey: ['inventory-overview', locationId] });
     void queryClient.invalidateQueries({ queryKey: ['inventory-forecast', locationId] });
   }
 
@@ -85,6 +85,12 @@ export default function InventoryPage() {
   const { data: rawForecast } = useQuery({
     queryKey: ['inventory-forecast', locationId],
     queryFn: () => getInventoryForecast(locationId!),
+    enabled: !!locationId,
+  });
+
+  const { data: rawOverview } = useQuery({
+    queryKey: ['inventory-overview', locationId],
+    queryFn: () => getInventoryOverview(locationId!),
     enabled: !!locationId,
   });
 
@@ -116,16 +122,30 @@ export default function InventoryPage() {
     return m;
   }, [rawForecast]);
 
+  const overviewMap = useMemo(() => {
+    const map = new Map<string, InventoryOverviewRow>();
+    normaliseArray<InventoryOverviewRow>(rawOverview).forEach((row) => map.set(row.stockItemId, row));
+    return map;
+  }, [rawOverview]);
+
   const enriched = useMemo<StockRow[]>(
     () =>
-      allStock.map((s) => ({
-        ...s,
-        status: getStatus(s),
-        qty: parseFloat(s.quantity),
+      allStock.map((s) => {
+        const overview = overviewMap.get(s.stockItemId);
+        const projected = { ...s, quantity: overview?.totalOnHand ?? s.quantity };
+        return {
+        ...projected,
+        status: getStatus(projected),
+        qty: parseFloat(projected.quantity),
         threshold: parseFloat(s.lowThreshold),
         forecast: forecastMap.get(s.id),
-      })),
-    [allStock, forecastMap],
+        category: overview?.category,
+        activeUnitCount: overview?.activeUnitCount ?? 0,
+        earliestExpiryDate: overview?.earliestExpiryDate,
+        needsReorder: overview?.needsReorder,
+      };
+      }),
+    [allStock, forecastMap, overviewMap],
   );
 
   const filtered = useMemo(
@@ -143,6 +163,7 @@ export default function InventoryPage() {
   const outCount = enriched.filter((s) => s.status === 'out').length;
   const attentionCount = enriched.filter((s) => s.status === 'low' || s.status === 'critical' || s.status === 'out').length;
   const soonCount = enriched.filter((s) => s.forecast && s.forecast.daysOfStockRemaining <= 7).length;
+  const expiringCount = enriched.filter((s) => s.earliestExpiryDate && new Date(s.earliestExpiryDate).getTime() <= expiryCutoff).length;
 
   const hasFilters = !!search;
 
@@ -154,7 +175,6 @@ export default function InventoryPage() {
         setSelectedId(null);
         usePageSidebarStore.getState().setOpen(false);
       }}
-      onAdjust={setAdjustTarget}
       onEditThreshold={setThresholdTarget}
       onToggleAvailable={(i) => toggleAvailable(i)}
       onRemove={(i) => setRemoveTarget(i)}
@@ -214,7 +234,13 @@ export default function InventoryPage() {
               delta={attentionCount > 0 ? String(attentionCount) : undefined}
               deltaDirection={attentionCount > 0 ? 'down' : undefined}
             />
-            <StatCard label="Low Soon" value={String(soonCount)} icon="CalendarDays" iconVariant="info" />
+            <StatCard
+              label="Expiry Attention"
+              value={String(expiringCount)}
+              icon="CalendarDays"
+              iconVariant={expiringCount > 0 ? 'gold' : 'info'}
+              delta={soonCount > 0 ? `${soonCount} low soon` : undefined}
+            />
           </div>
         )}
 
@@ -232,7 +258,7 @@ export default function InventoryPage() {
               <div className="flex-1 min-h-0 overflow-x-auto flex flex-col">
                 <div className="min-w-160 flex-1 min-h-0 flex flex-col">
                   <div className={cn('grid gap-4 px-4 py-2.5 border-b border-border bg-surface-offset/50 shrink-0', GRID)}>
-                    {['Item', 'Quantity', 'Threshold', 'Stock Level', 'Days Left', 'Status'].map((h) => (
+                    {['Item', 'On Hand', 'Units', 'Reorder At', 'Earliest Expiry', 'Days Left', 'Status'].map((h) => (
                       <span key={h} className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         {h}
                       </span>
@@ -252,7 +278,6 @@ export default function InventoryPage() {
                       />
                     ) : (
                       filtered.map((s) => {
-                        const pct = stockPct(s.qty, s.threshold);
                         const selected = selectedId === s.id;
                         const days = s.forecast?.daysOfStockRemaining;
                         return (
@@ -279,7 +304,11 @@ export default function InventoryPage() {
                                 <p className="text-sm font-medium text-foreground truncate">
                                   {s.stockItem?.name ?? s.stockItemId.slice(0, 8)}
                                 </p>
-                                {s.stockItem?.unit && <p className="text-[11px] text-muted-foreground">{s.stockItem.unit}</p>}
+                                {s.stockItem?.unit && (
+                                  <p className="text-[11px] text-muted-foreground">
+                                    {s.category ? `${s.category} · ` : ''}{s.stockItem.unit}
+                                  </p>
+                                )}
                               </div>
                             </div>
 
@@ -295,18 +324,17 @@ export default function InventoryPage() {
                               </span>
                             </div>
 
+                            {/* Active physical containers */}
+                            <div className="flex items-center text-sm text-foreground tabular-nums">{s.activeUnitCount ?? 0}</div>
+
                             {/* Threshold */}
                             <div className="flex items-center text-sm text-muted-foreground tabular-nums">{fmtQty(s.threshold)}</div>
 
-                            {/* Stock level */}
-                            <div className="flex items-center gap-2.5">
-                              <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
-                                <div
-                                  className={cn('h-full rounded-full transition-all', STATUS_BAR[s.status])}
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-muted-foreground tabular-nums w-8 text-right shrink-0">{Math.round(pct)}%</span>
+                            {/* Earliest expiry */}
+                            <div className="flex flex-col justify-center min-w-0">
+                              <span className={cn('text-sm tabular-nums truncate', s.earliestExpiryDate && new Date(s.earliestExpiryDate) < new Date() ? 'text-destructive' : 'text-foreground')}>
+                                {s.earliestExpiryDate ? new Date(s.earliestExpiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}
+                              </span>
                             </div>
 
                             {/* Days left */}
@@ -363,16 +391,6 @@ export default function InventoryPage() {
             void queryClient.invalidateQueries({ queryKey: ['stock-items'] });
             invalidateStock();
             addToast('success', 'Stock item updated.');
-          }}
-        />
-      )}
-      {adjustTarget && (
-        <AdjustModal
-          item={adjustTarget}
-          onClose={() => setAdjustTarget(null)}
-          onSuccess={() => {
-            invalidateStock();
-            addToast('success', 'Stock adjusted.');
           }}
         />
       )}

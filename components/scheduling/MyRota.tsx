@@ -79,7 +79,7 @@ export function MyRota() {
     qc.invalidateQueries({ queryKey: ['shifts'] });
   };
   const clockInM = useMutation({ mutationFn: () => clockIn({ locationId: locationId! }), onSuccess: invalidateClock });
-  // Clock-out goes through the end-of-shift dialog (stock deduction reconciliation).
+  // Order completion already consumed recipe inventory; clock-out only ends the shift.
   const [clockOutOpen, setClockOutOpen] = useState(false);
   const clockError = clockInM.error as Error | undefined;
   const clockedMins = myActive ? Math.max(0, Math.floor((now - new Date(myActive.clockedIn).getTime()) / 60000)) : 0;

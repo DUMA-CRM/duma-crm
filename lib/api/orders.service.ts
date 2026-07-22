@@ -43,6 +43,16 @@ export interface OrderDetail {
   statusHistory?: StatusHistoryEntry[];
   createdAt: string;
   updatedAt?: string;
+  inventoryWarnings?: InventoryWarning[];
+}
+
+export interface InventoryWarning {
+  stockItemId: string;
+  name: string;
+  unit: string;
+  requiredQuantity: number;
+  consumedQuantity: number;
+  shortfallQuantity: number;
 }
 
 export interface Order {
@@ -57,6 +67,7 @@ export interface Order {
   items?: OrderItem[];
   createdAt: string;
   updatedAt: string;
+  inventoryWarnings?: InventoryWarning[];
 }
 
 export interface OrdersResponse {
@@ -89,13 +100,6 @@ export interface CreateOrderItem {
   modifiers?: CreateOrderModifier[];
 }
 
-// Explicit stock to deduct from the location for this order (optional). There is
-// no recipe model — only what you list here is deducted.
-export interface CreateOrderStockDeduction {
-  stockItemId: string;
-  quantity: number;
-}
-
 export interface CreateOrderPayload {
   locationId: string;
   customerId?: string;
@@ -103,7 +107,6 @@ export interface CreateOrderPayload {
   paymentMethod?: string;
   notes?: string;
   items: CreateOrderItem[];
-  stockDeductions?: CreateOrderStockDeduction[];
 }
 
 export const getOrder = (id: string) => apiFetch<OrderDetail>(`/orders/${id}`);
