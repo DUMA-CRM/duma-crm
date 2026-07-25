@@ -1,17 +1,17 @@
 import {
+  Banknote,
   BarChart3,
   Building2,
   CalendarDays,
-  Banknote,
   ChefHat,
   ClipboardCheck,
   GraduationCap,
   HelpCircle,
+  HeartHandshake,
   LayoutDashboard,
   type LucideIcon,
   Monitor,
   Package,
-  PackagePlus,
   Settings,
   ShoppingBag,
   Truck,
@@ -38,6 +38,7 @@ export interface NavItem {
 
 export const mainNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'My HR', href: '/my-hr', icon: HeartHandshake },
   { label: 'Customers', href: '/customers', icon: Users, minRole: 'store_manager' },
   { label: 'POS Terminal', href: '/pos', icon: Monitor },
   { label: 'KDS Terminal', href: '/kds', icon: ChefHat },
@@ -48,7 +49,6 @@ export const mainNavItems: NavItem[] = [
     icon: Package,
     minRole: 'store_manager',
     children: [
-      { href: '/inventory/restock-requests', label: 'Restock', icon: PackagePlus, minRole: 'store_manager' },
       { href: '/inventory/purchasing', label: 'Purchasing', icon: Truck, minRole: 'store_manager' },
       { href: '/inventory/stocktakes', label: 'Stocktakes', icon: ClipboardCheck, minRole: 'store_manager' },
     ],
@@ -58,9 +58,10 @@ export const mainNavItems: NavItem[] = [
     label: 'Staff',
     href: '/staff',
     icon: UsersRound,
-    minRole: 'store_manager',
+    roles: ['franchise_owner', 'store_manager', 'hr_manager'],
     children: [
       { href: '/scheduling', label: 'Schedule', icon: CalendarDays },
+      { href: '/staff/requests', label: 'HR inbox', icon: HeartHandshake, roles: ['franchise_owner', 'hr_manager'] },
       { href: '/staff/payroll', label: 'Payroll', icon: Banknote, roles: ['franchise_owner', 'hr_manager'] },
     ],
   },
@@ -68,9 +69,7 @@ export const mainNavItems: NavItem[] = [
   { label: 'Workspaces', href: '/workspaces', icon: Building2, minRole: 'franchise_owner' },
 ];
 
-export const analyticsNavItems: NavItem[] = [
-  { label: 'Reports', href: '/reports', icon: BarChart3, minRole: 'store_manager' },
-];
+export const analyticsNavItems: NavItem[] = [{ label: 'Reports', href: '/reports', icon: BarChart3, minRole: 'store_manager' }];
 
 export const footerNavItems: NavItem[] = [
   { label: 'Settings', href: '/settings', icon: Settings },

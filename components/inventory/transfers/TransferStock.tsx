@@ -9,6 +9,7 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 
 import { getLocationStock } from '@/lib/api/inventory.service';
 import {
@@ -93,16 +94,19 @@ function CreateTransferForm({
         </div>
         <div>
           <label className={labelClass}>To</label>
-          <select value={toLocationId} onChange={(e) => setToLocationId(e.target.value)} required className={selectClass}>
-            <option value="">Select…</option>
-            {locations
-              .filter((l) => l.id !== locationId)
-              .map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-          </select>
+          <Select
+            value={toLocationId}
+            onValueChange={setToLocationId}
+            options={[
+              { value: '', label: 'Select…' },
+              ...locations
+                .filter((location) => location.id !== locationId)
+                .map((location) => ({ value: location.id, label: location.name })),
+            ]}
+            ariaLabel="Destination location"
+            required
+            className={selectClass}
+          />
         </div>
       </div>
 
@@ -114,20 +118,23 @@ function CreateTransferForm({
             const over = line.stockItemId !== '' && Number(line.quantity) > available;
             return (
               <div key={i} className="flex items-center gap-2">
-                <select
+                <Select
                   value={line.stockItemId}
-                  onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, stockItemId: e.target.value } : l)))}
+                  onValueChange={(value) =>
+                    setLines(lines.map((draftLine, index) => (index === i ? { ...draftLine, stockItemId: value } : draftLine)))
+                  }
+                  options={[
+                    { value: '', label: 'Item…' },
+                    ...stockable
+                      .filter((item) => item.stockItemId === line.stockItemId || !chosen.has(item.stockItemId))
+                      .map((item) => ({
+                        value: item.stockItemId,
+                        label: `${item.stockItem!.name} — ${Number(item.quantity)} ${item.stockItem!.unit} available`,
+                      })),
+                  ]}
+                  ariaLabel={`Transfer item ${i + 1}`}
                   className={cn(selectClass, 'flex-1 min-w-0')}
-                >
-                  <option value="">Item…</option>
-                  {stockable
-                    .filter((s) => s.stockItemId === line.stockItemId || !chosen.has(s.stockItemId))
-                    .map((s) => (
-                      <option key={s.stockItemId} value={s.stockItemId}>
-                        {s.stockItem!.name} — {Number(s.quantity)} {s.stockItem!.unit} available
-                      </option>
-                    ))}
-                </select>
+                />
                 <input
                   value={line.quantity}
                   onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, quantity: e.target.value } : l)))}
@@ -168,7 +175,12 @@ function CreateTransferForm({
       </div>
 
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
-      <FormActions onClose={onClose} isPending={isPending} disabled={!toLocationId || validLines.length === 0} submitLabel="Create Transfer" />
+      <FormActions
+        onClose={onClose}
+        isPending={isPending}
+        disabled={!toLocationId || validLines.length === 0}
+        submitLabel="Create Transfer"
+      />
     </form>
   );
 }
@@ -274,7 +286,9 @@ export function ItemTransfersSection({ stockItemId, locationId }: { stockItemId:
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-1">
                   <p className="text-[11px] text-muted-foreground">
-                    <span className={cn('font-semibold', outgoing ? 'text-warning' : 'text-success')}>{outgoing ? 'Outgoing' : 'Incoming'}</span>
+                    <span className={cn('font-semibold', outgoing ? 'text-warning' : 'text-success')}>
+                      {outgoing ? 'Outgoing' : 'Incoming'}
+                    </span>
                     {qty != null && ` · ${Number(qty)} ${unit}`} · {fmtDateTime(t.createdAt)}
                   </p>
                   {t.status === 'pending' && (

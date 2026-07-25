@@ -73,6 +73,15 @@
   --header-height: 56px;
 }
 
+/* "Hide top bar" setting: the header is dropped on lg+, so full-height layouts
+   that subtract --header-height must reclaim that space. Toggled by the Header
+   component via a data attribute on <html>. */
+@media (min-width: 1024px) {
+  html[data-hide-header='true'] {
+    --header-height: 0px;
+  }
+}
+
 .dark {
   --primary: oklch(0.68 0.17 38);
   --primary-hover: oklch(0.74 0.16 38);

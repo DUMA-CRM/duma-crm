@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Truck } from 'lucide-react';
+import { Mail, MapPin, Phone, Truck } from 'lucide-react';
 import { useState } from 'react';
 
 import { FormActions, inputClass, labelClass } from '@/components/purchasing/shared';
@@ -58,7 +58,7 @@ function SupplierForm({ supplier, onClose }: { supplier?: Supplier; onClose: () 
         <label className={labelClass}>Name</label>
         <input value={form.name} onChange={(e) => set({ name: e.target.value })} required minLength={2} className={inputClass} autoFocus />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>Contact name</label>
           <input value={form.contactName ?? ''} onChange={(e) => set({ contactName: e.target.value })} className={inputClass} />
@@ -131,35 +131,44 @@ export function SuppliersPanel({
             <EmptyState icon={Truck} title="No suppliers" description='Click "New Supplier" to add your first supplier.' />
           </div>
         ) : (
-          <table className="w-full text-sm border-collapse">
-            <thead className="sticky top-0 z-10">
-              <tr className="border-b border-border bg-muted">
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Supplier</th>
-                <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Contact</th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {suppliers.map((s) => (
-                <tr
-                  key={s.id}
-                  onClick={() => setEditTarget(s)}
-                  className="border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors cursor-pointer"
-                >
-                  <td className="px-3 md:px-5 py-3.5">
-                    <p className="font-semibold text-foreground">{s.name}</p>
-                    {s.address && <p className="text-xs text-muted-foreground truncate max-w-xs">{s.address}</p>}
-                  </td>
-                  <td className="hidden md:table-cell px-5 py-3.5 text-muted-foreground">
-                    {[s.contactName, s.email, s.phone].filter(Boolean).join(' · ') || '—'}
-                  </td>
-                  <td className="px-3 md:px-5 py-3.5">
-                    <Badge variant={s.isActive ? 'success' : 'muted'}>{s.isActive ? 'Active' : 'Inactive'}</Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">
+            {suppliers.map((supplier) => (
+              <button
+                type="button"
+                key={supplier.id}
+                onClick={() => setEditTarget(supplier)}
+                className="group rounded-xl border border-border bg-background p-4 text-left transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Truck size={17} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{supplier.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{supplier.contactName || 'No contact assigned'}</p>
+                    </div>
+                  </div>
+                  <Badge variant={supplier.isActive ? 'success' : 'muted'}>{supplier.isActive ? 'Active' : 'Inactive'}</Badge>
+                </div>
+
+                <div className="mt-4 space-y-2 border-t border-border/60 pt-3">
+                  <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                    <Mail size={12} className="shrink-0" />
+                    <span className="truncate">{supplier.email || 'No email address'}</span>
+                  </p>
+                  <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                    <Phone size={12} className="shrink-0" />
+                    <span className="truncate">{supplier.phone || 'No phone number'}</span>
+                  </p>
+                  <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                    <MapPin size={12} className="shrink-0" />
+                    <span className="truncate">{supplier.address || 'No address'}</span>
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
         )}
       </div>
 

@@ -6,6 +6,7 @@ import { inputClass, selectClass } from '@/components/menu/shared';
 import { DEFAULT_COL, type SizeColumn, useRecipeDraft } from '@/components/menu/useRecipeDraft';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 
 import type { RecipeLine, RecipeLineInput } from '@/lib/api/recipes.service';
 import { cn } from '@/lib/utils/cn';
@@ -58,20 +59,18 @@ export function RecipeGrid({ queryKey, fetchLines, saveLines, sizes, basePrice, 
                 return (
                   <tr key={`${row.stockItemId}-${i}`}>
                     <td className="py-1 pr-1 min-w-40">
-                      <select
+                      <Select
                         value={row.stockItemId}
-                        onChange={(e) => edit(rows.map((r, j) => (j === i ? { ...r, stockItemId: e.target.value } : r)))}
+                        onValueChange={(value) => edit(rows.map((r, j) => (j === i ? { ...r, stockItemId: value } : r)))}
+                        options={[
+                          { value: '', label: 'Select ingredient…' },
+                          ...stockItems
+                            .filter((item) => item.id === row.stockItemId || !usedIds.has(item.id))
+                            .map((item) => ({ value: item.id, label: `${item.name} (${item.unit})` })),
+                        ]}
+                        ariaLabel="Select recipe ingredient"
                         className={cn(selectClass, 'min-w-0')}
-                      >
-                        <option value="">Select ingredient…</option>
-                        {stockItems
-                          .filter((s) => s.id === row.stockItemId || !usedIds.has(s.id))
-                          .map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name} ({s.unit})
-                            </option>
-                          ))}
-                      </select>
+                      />
                     </td>
                     {columns.map((c) => (
                       <td key={c.id} className="py-1 px-1">

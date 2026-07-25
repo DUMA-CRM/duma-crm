@@ -1,6 +1,6 @@
 import { GravatarImage } from '@/components/shared/GravatarImage';
 import type { EmploymentType, PayType } from '@/lib/api/hr.service';
-import { type StaffRole, type StaffScope, roleAtLeast } from '@/lib/api/staff.service';
+import { type StaffRole, type StaffScope } from '@/lib/api/staff.service';
 
 // ── Role / scope config ───────────────────────────────────────────────────────
 
@@ -52,7 +52,8 @@ export const PAY_CONFIG: Record<PayType, { label: string; variant: 'primary' | '
 export const MONEY_ROLES: StaffRole[] = ['super_admin', 'franchise_owner', 'hr_manager'];
 export const canSeeMoney = (role: StaffRole | null | undefined): boolean => !!role && MONEY_ROLES.includes(role);
 // Managing the team (view records, hours, onboard entry point) is store_manager+.
-export const canManageTeam = (role: StaffRole | null | undefined): boolean => roleAtLeast(role, 'store_manager');
+export const canManageTeam = (role: StaffRole | null | undefined): boolean =>
+  !!role && ['super_admin', 'franchise_owner', 'store_manager', 'hr_manager'].includes(role);
 
 export const fmtMoney = (v: string | number | null | undefined): string => {
   const n = typeof v === 'string' ? Number(v) : (v ?? 0);

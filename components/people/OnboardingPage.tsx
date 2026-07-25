@@ -5,24 +5,16 @@ import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { AddressFields } from '@/components/people/AddressFields';
-import {
-  EMPLOYMENT_TYPES,
-  EMPLOYMENT_CONFIG,
-  PAY_TYPES,
-  PAY_CONFIG,
-  ROLE_CONFIG,
-  SCOPES,
-  inp,
-  lbl,
-  sel,
-} from '@/components/people/shared';
+import { EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, PAY_CONFIG, PAY_TYPES, ROLE_CONFIG, SCOPES, inp, lbl, sel } from '@/components/people/shared';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 
 import { type OnboardPayload, onboardEmployee } from '@/lib/api/onboarding.service';
 import type { StaffRole } from '@/lib/api/staff.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // Roles selectable when onboarding (super_admin is never assigned this way).
@@ -54,6 +46,8 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; onCreated: (userId: string) => void }) {
   const qc = useQueryClient();
+  const actorRole = useAuthStore((state) => state.role);
+  const availableRoles = actorRole === 'hr_manager' ? ONBOARD_ROLES.filter((role) => role !== 'franchise_owner') : ONBOARD_ROLES;
   const { tenantId } = useWorkspaceStore();
   const { data: locations = [] } = useQuery({
     queryKey: ['locations', tenantId],
@@ -101,9 +95,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
   const stepValid = [
     f.email.includes('@') && f.name.trim().length >= 2 && f.password.length >= 8 && (f.scope !== 'location' || f.locationIds.length > 0),
     true, // personal is all optional
-    f.jobTitle.trim().length > 0 &&
-      !!f.startDate &&
-      (f.payType === 'hourly' ? Number(f.hourlyRate) > 0 : Number(f.annualSalary) > 0),
+    f.jobTitle.trim().length > 0 && !!f.startDate && (f.payType === 'hourly' ? Number(f.hourlyRate) > 0 : Number(f.annualSalary) > 0),
     true, // bank/statutory optional
   ];
   const canAdvance = stepValid[step];
@@ -160,30 +152,42 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
               </Field>
               <div className="grid md:grid-cols-2 gap-4">
                 <Field label="Email">
-                  <input className={inp} type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} placeholder="jane@cafe.co.uk" />
+                  <input
+                    className={inp}
+                    type="email"
+                    value={f.email}
+                    onChange={(e) => set({ email: e.target.value })}
+                    placeholder="jane@cafe.co.uk"
+                  />
                 </Field>
                 <Field label="Temporary password" hint="At least 8 characters; they can change it later.">
-                  <input className={inp} type="text" value={f.password} onChange={(e) => set({ password: e.target.value })} placeholder="••••••••" />
+                  <input
+                    className={inp}
+                    type="text"
+                    value={f.password}
+                    onChange={(e) => set({ password: e.target.value })}
+                    placeholder="••••••••"
+                  />
                 </Field>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <Field label="Role">
-                  <select className={sel} value={f.role} onChange={(e) => set({ role: e.target.value as Form['role'] })}>
-                    {ONBOARD_ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {ROLE_CONFIG[r].label}
-                      </option>
-                    ))}
-                  </select>
+                  <Select
+                    className={sel}
+                    value={f.role}
+                    onValueChange={(value) => set({ role: value as Form['role'] })}
+                    options={availableRoles.map((role) => ({ value: role, label: ROLE_CONFIG[role].label }))}
+                    ariaLabel="Role"
+                  />
                 </Field>
                 <Field label="Scope">
-                  <select className={sel} value={f.scope} onChange={(e) => set({ scope: e.target.value as Form['scope'] })}>
-                    {SCOPES.map((s) => (
-                      <option key={s} value={s}>
-                        {s[0].toUpperCase() + s.slice(1)}
-                      </option>
-                    ))}
-                  </select>
+                  <Select
+                    className={sel}
+                    value={f.scope}
+                    onValueChange={(value) => set({ scope: value as Form['scope'] })}
+                    options={SCOPES.map((scope) => ({ value: scope, label: scope[0].toUpperCase() + scope.slice(1) }))}
+                    ariaLabel="Scope"
+                  />
                 </Field>
               </div>
               {f.scope === 'location' && (
@@ -225,13 +229,25 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pt-2">Emergency contact</p>
               <div className="grid md:grid-cols-3 gap-4">
                 <Field label="Name">
-                  <input className={inp} value={f.emergencyContactName ?? ''} onChange={(e) => set({ emergencyContactName: e.target.value })} />
+                  <input
+                    className={inp}
+                    value={f.emergencyContactName ?? ''}
+                    onChange={(e) => set({ emergencyContactName: e.target.value })}
+                  />
                 </Field>
                 <Field label="Phone">
-                  <input className={inp} value={f.emergencyContactPhone ?? ''} onChange={(e) => set({ emergencyContactPhone: e.target.value })} />
+                  <input
+                    className={inp}
+                    value={f.emergencyContactPhone ?? ''}
+                    onChange={(e) => set({ emergencyContactPhone: e.target.value })}
+                  />
                 </Field>
                 <Field label="Relationship">
-                  <input className={inp} value={f.emergencyContactRelation ?? ''} onChange={(e) => set({ emergencyContactRelation: e.target.value })} />
+                  <input
+                    className={inp}
+                    value={f.emergencyContactRelation ?? ''}
+                    onChange={(e) => set({ emergencyContactRelation: e.target.value })}
+                  />
                 </Field>
               </div>
             </>
@@ -241,21 +257,32 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
             <>
               <div className="grid md:grid-cols-2 gap-4">
                 <Field label="Job title">
-                  <input className={inp} value={f.jobTitle} onChange={(e) => set({ jobTitle: e.target.value })} placeholder="Barista" autoFocus />
+                  <input
+                    className={inp}
+                    value={f.jobTitle}
+                    onChange={(e) => set({ jobTitle: e.target.value })}
+                    placeholder="Barista"
+                    autoFocus
+                  />
                 </Field>
                 <Field label="Department">
-                  <input className={inp} value={f.department ?? ''} onChange={(e) => set({ department: e.target.value })} placeholder="Front of house" />
+                  <input
+                    className={inp}
+                    value={f.department ?? ''}
+                    onChange={(e) => set({ department: e.target.value })}
+                    placeholder="Front of house"
+                  />
                 </Field>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <Field label="Employment type">
-                  <select className={sel} value={f.employmentType} onChange={(e) => set({ employmentType: e.target.value as Form['employmentType'] })}>
-                    {EMPLOYMENT_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {EMPLOYMENT_CONFIG[t].label}
-                      </option>
-                    ))}
-                  </select>
+                  <Select
+                    className={sel}
+                    value={f.employmentType}
+                    onValueChange={(value) => set({ employmentType: value as Form['employmentType'] })}
+                    options={EMPLOYMENT_TYPES.map((type) => ({ value: type, label: EMPLOYMENT_CONFIG[type].label }))}
+                    ariaLabel="Employment type"
+                  />
                 </Field>
                 <Field label="Start date">
                   <input className={inp} type="date" value={f.startDate} onChange={(e) => set({ startDate: e.target.value })} />
@@ -271,7 +298,9 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                     onClick={() => set({ payType: p })}
                     className={cn(
                       'flex-1 h-10 rounded-lg border text-sm font-medium transition-colors',
-                      f.payType === p ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground',
+                      f.payType === p
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground',
                     )}
                   >
                     {PAY_CONFIG[p].label}
@@ -281,18 +310,40 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
               <div className="grid md:grid-cols-3 gap-4">
                 {f.payType === 'hourly' ? (
                   <Field label="Hourly rate (£)">
-                    <input className={inp} inputMode="decimal" value={f.hourlyRate ?? ''} onChange={(e) => set({ hourlyRate: Number(e.target.value) })} placeholder="12.50" />
+                    <input
+                      className={inp}
+                      inputMode="decimal"
+                      value={f.hourlyRate ?? ''}
+                      onChange={(e) => set({ hourlyRate: Number(e.target.value) })}
+                      placeholder="12.50"
+                    />
                   </Field>
                 ) : (
                   <Field label="Annual salary (£)">
-                    <input className={inp} inputMode="decimal" value={f.annualSalary ?? ''} onChange={(e) => set({ annualSalary: Number(e.target.value) })} placeholder="26000" />
+                    <input
+                      className={inp}
+                      inputMode="decimal"
+                      value={f.annualSalary ?? ''}
+                      onChange={(e) => set({ annualSalary: Number(e.target.value) })}
+                      placeholder="26000"
+                    />
                   </Field>
                 )}
                 <Field label="Unpaid break (mins)">
-                  <input className={inp} inputMode="numeric" value={f.unpaidBreakMins ?? 0} onChange={(e) => set({ unpaidBreakMins: Number(e.target.value) })} />
+                  <input
+                    className={inp}
+                    inputMode="numeric"
+                    value={f.unpaidBreakMins ?? 0}
+                    onChange={(e) => set({ unpaidBreakMins: Number(e.target.value) })}
+                  />
                 </Field>
                 <Field label="Break after (mins)" hint="Break applies to shifts longer than this.">
-                  <input className={inp} inputMode="numeric" value={f.breakThresholdMins ?? 0} onChange={(e) => set({ breakThresholdMins: Number(e.target.value) })} />
+                  <input
+                    className={inp}
+                    inputMode="numeric"
+                    value={f.breakThresholdMins ?? 0}
+                    onChange={(e) => set({ breakThresholdMins: Number(e.target.value) })}
+                  />
                 </Field>
               </div>
             </>
@@ -303,10 +354,20 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">UK statutory</p>
               <div className="grid md:grid-cols-2 gap-4">
                 <Field label="National Insurance no." hint="Encrypted; visible only to HR/owners.">
-                  <input className={inp} value={f.niNumber ?? ''} onChange={(e) => set({ niNumber: e.target.value.toUpperCase() })} placeholder="QQ 12 34 56 C" />
+                  <input
+                    className={inp}
+                    value={f.niNumber ?? ''}
+                    onChange={(e) => set({ niNumber: e.target.value.toUpperCase() })}
+                    placeholder="QQ 12 34 56 C"
+                  />
                 </Field>
                 <Field label="Tax code">
-                  <input className={inp} value={f.taxCode ?? ''} onChange={(e) => set({ taxCode: e.target.value.toUpperCase() })} placeholder="1257L" />
+                  <input
+                    className={inp}
+                    value={f.taxCode ?? ''}
+                    onChange={(e) => set({ taxCode: e.target.value.toUpperCase() })}
+                    placeholder="1257L"
+                  />
                 </Field>
               </div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pt-2">Bank account (UK)</p>
@@ -318,13 +379,25 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                   <input className={inp} value={f.bankName ?? ''} onChange={(e) => set({ bankName: e.target.value })} />
                 </Field>
                 <Field label="Sort code" hint="Encrypted at rest.">
-                  <input className={inp} value={f.sortCode ?? ''} onChange={(e) => set({ sortCode: e.target.value })} placeholder="12-34-56" />
+                  <input
+                    className={inp}
+                    value={f.sortCode ?? ''}
+                    onChange={(e) => set({ sortCode: e.target.value })}
+                    placeholder="12-34-56"
+                  />
                 </Field>
                 <Field label="Account number" hint="Encrypted at rest.">
-                  <input className={inp} value={f.accountNumber ?? ''} onChange={(e) => set({ accountNumber: e.target.value })} placeholder="12345678" />
+                  <input
+                    className={inp}
+                    value={f.accountNumber ?? ''}
+                    onChange={(e) => set({ accountNumber: e.target.value })}
+                    placeholder="12345678"
+                  />
                 </Field>
               </div>
-              <p className="text-xs text-muted-foreground">Statutory and bank details are optional here — you can add them later on the employee record.</p>
+              <p className="text-xs text-muted-foreground">
+                Statutory and bank details are optional here — you can add them later on the employee record.
+              </p>
             </>
           )}
         </div>

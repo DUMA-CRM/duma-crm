@@ -1,12 +1,13 @@
 import { Fragment, type ReactNode } from 'react';
 
 // Minimal, dependency-free Markdown renderer for course descriptions.
-// Supports: # headings, **bold**, *italic*, `code`, [links](url), - / 1. lists,
-// > blockquotes, ``` code fences, --- rules, and paragraphs.
+// Supports: # headings, **bold**, *italic*, `code`, [links](url), images,
+// - / 1. lists, > blockquotes, ``` code fences, --- rules, and paragraphs.
 
 // ── Inline ─────────────────────────────────────────────────────────────────────
 
 const INLINE = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(\[[^\]]+\]\([^)]+\))/;
+const SAFE_RESOURCE_URL = /^(https?:|\/)/i;
 
 function renderInline(text: string, keyBase: string): ReactNode[] {
   const out: ReactNode[] = [];
@@ -118,6 +119,24 @@ export function Markdown({ content, className }: { content: string; className?: 
     if (/^\s*(-{3,}|\*{3,})\s*$/.test(line)) {
       flushParagraph(para);
       blocks.push(<hr key={`hr-${key++}`} className="my-4 border-border" />);
+      i++;
+      continue;
+    }
+
+    // Standalone image. Keeping it block-level gives authored screenshots the
+    // space they need and avoids treating image markdown as an ordinary link.
+    const image = line.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (image) {
+      flushParagraph(para);
+      const src = image[2].trim();
+      if (SAFE_RESOURCE_URL.test(src)) {
+        blocks.push(
+          <figure key={`img-${key++}`} className="my-5 overflow-hidden rounded-2xl border border-border bg-muted/30">
+            <img src={src} alt={image[1]} loading="lazy" className="h-auto w-full object-contain" />
+            {image[1] && <figcaption className="border-t border-border px-4 py-2.5 text-xs text-muted-foreground">{image[1]}</figcaption>}
+          </figure>,
+        );
+      }
       i++;
       continue;
     }

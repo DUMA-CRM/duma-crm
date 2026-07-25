@@ -8,6 +8,12 @@ interface UiSettingsStore {
    *  category tabs) stay visible. */
   hidePageTitles: boolean;
   setHidePageTitles: (hidePageTitles: boolean) => void;
+  /** Hide the top bar on large screens and move its tools (location, reload,
+   *  audit) into the sidebar — a chrome-light layout for tablets/kiosks.
+   *  Below `lg` the header stays put, since it's the only way to reach the
+   *  off-canvas sidebar there. */
+  hideHeader: boolean;
+  setHideHeader: (hideHeader: boolean) => void;
 }
 
 export const useUiSettingsStore = create<UiSettingsStore>()(
@@ -15,6 +21,8 @@ export const useUiSettingsStore = create<UiSettingsStore>()(
     (set) => ({
       hidePageTitles: false,
       setHidePageTitles: (hidePageTitles) => set({ hidePageTitles }),
+      hideHeader: false,
+      setHideHeader: (hideHeader) => set({ hideHeader }),
     }),
     { name: 'ui-settings' },
   ),

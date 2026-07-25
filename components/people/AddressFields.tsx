@@ -3,6 +3,8 @@
 import { useState } from 'react';
 
 import { inp, lbl, sel } from '@/components/people/shared';
+import { Select } from '@/components/ui/select';
+
 import { COUNTRIES, DEFAULT_COUNTRY } from '@/lib/constants/countries';
 
 // The DB stores a single `address` line, so we compose "line1, city, postcode,
@@ -19,11 +21,17 @@ export interface AddressParts {
 }
 
 export function combineAddress(p: AddressParts): string {
-  return [p.line1, p.city, p.postcode, p.country].map((s) => s.trim()).filter(Boolean).join(', ');
+  return [p.line1, p.city, p.postcode, p.country]
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(', ');
 }
 
 export function parseAddress(value: string | null | undefined): AddressParts {
-  const segs = (value ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const segs = (value ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (segs.length === 0) return { line1: '', city: '', postcode: '', country: '' };
   if (segs.length === 1) return { line1: segs[0], city: '', postcode: '', country: '' };
   const country = segs.pop() ?? '';
@@ -54,12 +62,7 @@ export function AddressFields({ value, onChange }: { value: string; onChange: (c
     <div className="space-y-3">
       <div>
         <label className={lbl}>Address line 1</label>
-        <input
-          className={inp}
-          value={parts.line1}
-          onChange={(e) => update({ line1: e.target.value })}
-          placeholder="123 High Street"
-        />
+        <input className={inp} value={parts.line1} onChange={(e) => update({ line1: e.target.value })} placeholder="123 High Street" />
       </div>
       <div className="grid sm:grid-cols-2 gap-3">
         <div>
@@ -73,17 +76,18 @@ export function AddressFields({ value, onChange }: { value: string; onChange: (c
       </div>
       <div>
         <label className={lbl}>Country</label>
-        <select className={sel} value={parts.country} onChange={(e) => update({ country: e.target.value })}>
-          {/* Keep a stored non-standard country selectable rather than silently dropping it. */}
-          {parts.country && !COUNTRIES.includes(parts.country as (typeof COUNTRIES)[number]) && (
-            <option value={parts.country}>{parts.country}</option>
-          )}
-          {COUNTRIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+        <Select
+          value={parts.country}
+          onValueChange={(country) => update({ country })}
+          options={[
+            ...(parts.country && !COUNTRIES.includes(parts.country as (typeof COUNTRIES)[number])
+              ? [{ value: parts.country, label: parts.country }]
+              : []),
+            ...COUNTRIES.map((country) => ({ value: country, label: country })),
+          ]}
+          ariaLabel="Country"
+          className={sel}
+        />
       </div>
     </div>
   );

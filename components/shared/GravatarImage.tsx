@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { gravatarUrl } from '@/lib/utils/gravatar';
 
@@ -22,14 +22,12 @@ export function GravatarImage({
   alt: string;
   fallback: ReactElement;
 }) {
-  const [failed, setFailed] = useState(false);
-
-  // Re-attempt when the email changes (e.g. a different row is rendered).
-  useEffect(() => {
-    setFailed(false);
-  }, [email]);
+  const [failedEmail, setFailedEmail] = useState<string | null>(null);
+  const failed = failedEmail === email;
 
   if (failed) return fallback;
 
-  return <img src={gravatarUrl(email, px)} alt={alt} onError={() => setFailed(true)} className={className} />;
+  // Gravatar's 404 fallback is intentional and the requested size is already optimised.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={gravatarUrl(email, px)} alt={alt} onError={() => setFailedEmail(email)} className={className} />;
 }

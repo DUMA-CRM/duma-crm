@@ -20,8 +20,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'DUMA — All in one business app',
-  description: 'Manage orders, customers, and roast profiles.',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://duma-coffee.vercel.app'),
+  title: 'DUMA — Your coffee business, clearly',
+  description: 'Run sales, customers, inventory, staffing, and day-to-day coffee operations from one connected workspace.',
+  openGraph: {
+    title: 'DUMA — Your coffee business, clearly',
+    description: 'One connected operating system for modern coffee businesses.',
+    type: 'website',
+    images: [{ url: '/og.png', width: 1731, height: 909, alt: 'DUMA coffee business dashboard' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'DUMA — Your coffee business, clearly',
+    description: 'One connected operating system for modern coffee businesses.',
+    images: ['/og.png'],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

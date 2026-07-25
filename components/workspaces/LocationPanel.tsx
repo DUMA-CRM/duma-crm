@@ -425,7 +425,10 @@ export function LocationPanel() {
             tenantId={tenantId}
             onClose={() => setModal(null)}
             isPending={isPending}
-            onSubmit={({ tenantId: _, ...data }) => updateMutation.mutate({ id: modal.location.id, data })}
+            onSubmit={({ tenantId: ignoredTenantId, ...data }) => {
+              void ignoredTenantId;
+              updateMutation.mutate({ id: modal.location.id, data });
+            }}
           />
         </Modal>
       )}

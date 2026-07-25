@@ -82,9 +82,14 @@ export interface OrdersParams {
   page?: number;
   limit?: number;
   customerId?: string;
+  customerPhone?: string;
   locationId?: string;
   status?: OrderStatus;
   source?: OrderSource;
+  createdBy?: string;
+  paymentMethod?: 'cash' | 'card';
+  from?: string;
+  to?: string;
 }
 
 // Order creation sends IDs only. Item names, unit prices and the order total are
@@ -124,9 +129,14 @@ export const getOrders = (params: OrdersParams = {}) => {
   if (params.page) qs.set('page', String(params.page));
   if (params.limit) qs.set('limit', String(params.limit));
   if (params.customerId) qs.set('customerId', params.customerId);
+  if (params.customerPhone) qs.set('customerPhone', params.customerPhone);
   if (params.locationId) qs.set('locationId', params.locationId);
   if (params.status) qs.set('status', params.status);
   if (params.source) qs.set('source', params.source);
+  if (params.createdBy) qs.set('createdBy', params.createdBy);
+  if (params.paymentMethod) qs.set('paymentMethod', params.paymentMethod);
+  if (params.from) qs.set('from', params.from);
+  if (params.to) qs.set('to', params.to);
   const q = qs.toString();
   return apiFetch<OrdersResponse>(`/orders${q ? `?${q}` : ''}`);
 };

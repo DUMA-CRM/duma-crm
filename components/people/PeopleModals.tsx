@@ -4,6 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Eye, EyeOff, UserMinus } from 'lucide-react';
 import { useState } from 'react';
 
+import { Select } from '@/components/ui/select';
+
 import {
   type CreateEmployeePayload,
   type EmploymentType,
@@ -98,23 +100,23 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={lbl}>Role</label>
-          <select value={role} onChange={(e) => setRole(e.target.value as StaffRole)} className={sel}>
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_CONFIG[r].label}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={role}
+            onValueChange={(value) => setRole(value as StaffRole)}
+            options={ROLES.map((nextRole) => ({ value: nextRole, label: ROLE_CONFIG[nextRole].label }))}
+            ariaLabel="Role"
+            className={sel}
+          />
         </div>
         <div>
           <label className={lbl}>Scope</label>
-          <select value={scope} onChange={(e) => setScope(e.target.value as StaffScope)} className={sel}>
-            {SCOPES.map((s) => (
-              <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={scope}
+            onValueChange={(value) => setScope(value as StaffScope)}
+            options={SCOPES.map((nextScope) => ({ value: nextScope, label: nextScope.charAt(0).toUpperCase() + nextScope.slice(1) }))}
+            ariaLabel="Scope"
+            className={sel}
+          />
         </div>
       </div>
 
@@ -190,23 +192,23 @@ export function EditStaffModal({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={lbl}>Role</label>
-          <select value={role} onChange={(e) => setRole(e.target.value as StaffRole)} className={sel}>
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_CONFIG[r].label}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={role}
+            onValueChange={(value) => setRole(value as StaffRole)}
+            options={ROLES.map((nextRole) => ({ value: nextRole, label: ROLE_CONFIG[nextRole].label }))}
+            ariaLabel="Role"
+            className={sel}
+          />
         </div>
         <div>
           <label className={lbl}>Scope</label>
-          <select value={scope} onChange={(e) => setScope(e.target.value as StaffScope)} className={sel}>
-            {SCOPES.map((s) => (
-              <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={scope}
+            onValueChange={(value) => setScope(value as StaffScope)}
+            options={SCOPES.map((nextScope) => ({ value: nextScope, label: nextScope.charAt(0).toUpperCase() + nextScope.slice(1) }))}
+            ariaLabel="Scope"
+            className={sel}
+          />
         </div>
       </div>
 
@@ -326,13 +328,13 @@ export function EnrollEmployeeModal({ member, onClose }: { member: StaffProfile;
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={lbl}>Employment type</label>
-          <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value as EmploymentType)} className={sel}>
-            {EMPLOYMENT_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {EMPLOYMENT_CONFIG[t].label}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={employmentType}
+            onValueChange={(value) => setEmploymentType(value as EmploymentType)}
+            options={EMPLOYMENT_TYPES.map((type) => ({ value: type, label: EMPLOYMENT_CONFIG[type].label }))}
+            ariaLabel="Employment type"
+            className={sel}
+          />
         </div>
         <div>
           <label className={lbl}>Start date</label>
@@ -428,13 +430,13 @@ export function EditEmployeeModal({ employee, name, onClose }: { employee: HrEmp
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={lbl}>Employment type</label>
-          <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value as EmploymentType)} className={sel}>
-            {EMPLOYMENT_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {EMPLOYMENT_CONFIG[t].label}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={employmentType}
+            onValueChange={(value) => setEmploymentType(value as EmploymentType)}
+            options={EMPLOYMENT_TYPES.map((type) => ({ value: type, label: EMPLOYMENT_CONFIG[type].label }))}
+            ariaLabel="Employment type"
+            className={sel}
+          />
         </div>
         <div>
           <label className={lbl}>Start date</label>

@@ -1,7 +1,18 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, MapPin, Package, Pencil, Trash2, XCircle } from 'lucide-react';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  MapPin,
+  Package,
+  Pencil,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
 import { useState } from 'react';
 
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
@@ -9,7 +20,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 
+import { getStockItems } from '@/lib/api/inventory.service';
 import {
   type RestockPriority,
   type RestockRequest,
@@ -20,14 +33,18 @@ import {
   getRestockRequests,
   updateRestockRequest,
 } from '@/lib/api/restock.service';
+import { roleAtLeast } from '@/lib/api/staff.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { timeAgo } from '@/lib/utils/format';
+import { useAuthStore } from '@/stores/authStore';
+import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const STATUS_ORDER: RestockStatus[] = ['pending', 'approved', 'rejected', 'fulfilled'];
+const PAGE_SIZE = 25;
 
 const STATUS_META: Record<
   RestockStatus,
@@ -36,7 +53,7 @@ const STATUS_META: Record<
   pending: { label: 'Pending', variant: 'warning', iconBg: 'bg-warning/10', iconFg: 'text-warning' },
   approved: { label: 'Approved', variant: 'success', iconBg: 'bg-success/10', iconFg: 'text-success' },
   rejected: { label: 'Rejected', variant: 'destructive', iconBg: 'bg-destructive/10', iconFg: 'text-destructive' },
-  fulfilled: { label: 'Fulfilled', variant: 'muted', iconBg: 'bg-muted', iconFg: 'text-muted-foreground' },
+  fulfilled: { label: 'Ordered', variant: 'muted', iconBg: 'bg-muted', iconFg: 'text-muted-foreground' },
 };
 
 const PRIORITY_OPTIONS = [
@@ -57,21 +74,27 @@ function RequestRow({
   locationName,
   onApprove,
   onReject,
+  onFulfill,
   onSave,
   onDelete,
   statusPending,
   savePending,
   deletePending,
+  canDelete,
+  fulfillLabel,
 }: {
   request: RestockRequest;
   locationName: string;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
+  onFulfill: (id: string) => void;
   onSave: (id: string, data: { requestedQty: number; notes?: string }) => void;
   onDelete: (id: string) => void;
   statusPending: boolean;
   savePending: boolean;
   deletePending: boolean;
+  canDelete: boolean;
+  fulfillLabel: string;
 }) {
   const { priority, notes } = decodeNotes(request.notes);
   const meta = STATUS_META[request.status];
@@ -104,7 +127,7 @@ function RequestRow({
         statusPending && 'opacity-50 pointer-events-none',
       )}
     >
-      <div className="flex items-start gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
         {/* Icon */}
         <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5', meta.iconBg)}>
           <ClipboardList size={15} className={meta.iconFg} />
@@ -144,9 +167,9 @@ function RequestRow({
           {notes && mode === 'view' && <p className="mt-1.5 text-xs text-muted-foreground italic line-clamp-2">{notes}</p>}
         </div>
 
-        {/* Actions (pending only) */}
+        {/* Actions */}
         {isPending && mode === 'view' && (
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5 self-end shrink-0">
             <button
               type="button"
               onClick={startEdit}
@@ -155,14 +178,16 @@ function RequestRow({
             >
               <Pencil size={13} />
             </button>
-            <button
-              type="button"
-              onClick={() => setMode('delete')}
-              aria-label="Delete request"
-              className="w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-            >
-              <Trash2 size={13} />
-            </button>
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => setMode('delete')}
+                aria-label="Delete request"
+                className="w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
             <div className="w-px h-5 bg-border mx-0.5" />
             <Button
               variant="outline"
@@ -178,6 +203,12 @@ function RequestRow({
               Approve
             </Button>
           </div>
+        )}
+        {request.status === 'approved' && mode === 'view' && (
+          <Button size="sm" onClick={() => onFulfill(request.id)} disabled={statusPending} className="shrink-0">
+            <CheckCircle2 size={13} />
+            {fulfillLabel}
+          </Button>
         )}
       </div>
 
@@ -236,14 +267,31 @@ function RequestRow({
 
 // ── View ──────────────────────────────────────────────────────────────────────
 
-export function RestockApprovals() {
+export function RestockApprovals({
+  onCreatePurchaseOrder,
+}: {
+  onCreatePurchaseOrder?: (request: RestockRequest) => void;
+} = {}) {
   const { tenantId } = useWorkspaceStore();
+  const role = useAuthStore((state) => state.role);
   const [activeTab, setActiveTab] = useState<RestockStatus>('pending');
+  const [locationFilter, setLocationFilter] = useState('all');
+  const [itemFilter, setItemFilter] = useState('all');
+  const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
+  const canDelete = roleAtLeast(role, 'franchise_owner');
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['restock-requests'],
-    queryFn: () => getRestockRequests({ limit: 100 }),
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
+    queryKey: ['restock-requests', 'list', activeTab, locationFilter, itemFilter, page],
+    queryFn: () =>
+      getRestockRequests({
+        status: activeTab,
+        locationId: locationFilter === 'all' ? undefined : locationFilter,
+        stockItemId: itemFilter === 'all' ? undefined : itemFilter,
+        page,
+        limit: PAGE_SIZE,
+      }),
+    placeholderData: (previous) => previous,
   });
 
   const { data: locations = [] } = useQuery({
@@ -251,49 +299,148 @@ export function RestockApprovals() {
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });
+  const { data: stockItems = [] } = useQuery({
+    queryKey: ['stock-items'],
+    queryFn: getStockItems,
+  });
+
+  const countQueries = useQueries({
+    queries: STATUS_ORDER.map((status) => ({
+      queryKey: ['restock-requests', 'count', status, locationFilter, itemFilter],
+      queryFn: () =>
+        getRestockRequests({
+          status,
+          locationId: locationFilter === 'all' ? undefined : locationFilter,
+          stockItemId: itemFilter === 'all' ? undefined : itemFilter,
+          limit: 1,
+        }),
+    })),
+  });
+
   const locationMap = Object.fromEntries(locations.map((l) => [l.id, l.name]));
-
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['restock-requests'] });
-    queryClient.invalidateQueries({ queryKey: ['restock-approvals'] });
-  };
-
-  const { mutate: changeStatus, isPending: statusPending } = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: RestockStatus }) => updateRestockRequest(id, { status }),
-    onSuccess: invalidate,
-  });
-
-  const { mutate: saveEdit, isPending: savePending } = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { requestedQty: number; notes?: string } }) => updateRestockRequest(id, data),
-    onSuccess: invalidate,
-  });
-
-  const { mutate: removeRequest, isPending: deletePending } = useMutation({
-    mutationFn: (id: string) => deleteRestockRequest(id),
-    onSuccess: invalidate,
-  });
-
-  const all: RestockRequest[] = Array.isArray(data) ? data : ((data as { data?: RestockRequest[] } | null)?.data ?? []);
-  const counts = Object.fromEntries(STATUS_ORDER.map((s) => [s, all.filter((r) => r.status === s).length])) as Record<
+  const counts = Object.fromEntries(STATUS_ORDER.map((status, index) => [status, countQueries[index].data?.total ?? 0])) as Record<
     RestockStatus,
     number
   >;
-  const requests = all.filter((r) => r.status === activeTab);
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ['restock-requests'] });
+  };
+
+  const {
+    mutate: changeStatus,
+    isPending: statusPending,
+    variables: statusVariables,
+  } = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: RestockStatus }) => updateRestockRequest(id, { status }),
+    onSuccess: (_request, variables) => {
+      invalidate();
+      const message =
+        variables.status === 'fulfilled'
+          ? 'Request marked as fulfilled.'
+          : variables.status === 'approved'
+            ? 'Request approved.'
+            : 'Request rejected.';
+      toast('success', message);
+    },
+    onError: (error: Error) => toast('error', error.message || 'Unable to update the request.'),
+  });
+
+  const {
+    mutate: saveEdit,
+    isPending: savePending,
+    variables: saveVariables,
+  } = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { requestedQty: number; notes?: string } }) => updateRestockRequest(id, data),
+    onSuccess: () => {
+      invalidate();
+      toast('success', 'Request updated.');
+    },
+    onError: (error: Error) => toast('error', error.message || 'Unable to save the request.'),
+  });
+
+  const {
+    mutate: removeRequest,
+    isPending: deletePending,
+    variables: deleteVariables,
+  } = useMutation({
+    mutationFn: (id: string) => deleteRestockRequest(id),
+    onSuccess: () => {
+      invalidate();
+      toast('success', 'Request deleted.');
+    },
+    onError: (error: Error) => toast('error', error.message || 'Unable to delete the request.'),
+  });
+
+  const requests = data?.data ?? [];
+  const totalPages = data?.pages ?? 1;
   const urgentCount = requests.filter((r) => decodeNotes(r.notes).priority === 'urgent').length;
+
+  function changeTab(status: RestockStatus) {
+    setActiveTab(status);
+    setPage(1);
+  }
+
+  function changeLocation(value: string) {
+    setLocationFilter(value);
+    setPage(1);
+  }
+
+  function changeItem(value: string) {
+    setItemFilter(value);
+    setPage(1);
+  }
 
   return (
     <div className="space-y-6 pb-8">
-      {/* ── Status tabs ────────────────────────────────────── */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <SegmentedControl
-          options={STATUS_ORDER.map((s) => ({
-            value: s,
-            label: counts[s] > 0 ? `${STATUS_META[s].label} ${counts[s]}` : STATUS_META[s].label,
-          }))}
-          value={activeTab}
-          onChange={setActiveTab}
-        />
-        {activeTab === 'pending' && urgentCount > 0 && <Badge variant="destructive">{urgentCount} urgent</Badge>}
+      {/* ── Filters ────────────────────────────────────────── */}
+      <div className="space-y-3 rounded-2xl border border-border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <SegmentedControl
+            options={STATUS_ORDER.map((status) => ({
+              value: status,
+              label: counts[status] > 0 ? `${STATUS_META[status].label} ${counts[status]}` : STATUS_META[status].label,
+            }))}
+            value={activeTab}
+            onChange={changeTab}
+          />
+          {activeTab === 'pending' && urgentCount > 0 && <Badge variant="destructive">{urgentCount} urgent on this page</Badge>}
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,16rem)_minmax(12rem,20rem)_1fr]">
+          <Select
+            value={locationFilter}
+            onValueChange={changeLocation}
+            ariaLabel="Filter requests by location"
+            icon={<MapPin />}
+            options={[
+              { value: 'all', label: 'All locations' },
+              ...locations
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((location) => ({ value: location.id, label: location.name })),
+            ]}
+            className="w-full"
+          />
+          <Select
+            value={itemFilter}
+            onValueChange={changeItem}
+            ariaLabel="Filter requests by stock item"
+            icon={<Package />}
+            options={[
+              { value: 'all', label: 'All items' },
+              ...stockItems
+                .filter((item) => item.isActive)
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((item) => ({ value: item.id, label: item.name })),
+            ]}
+            className="w-full"
+          />
+          <div className="flex items-center justify-end text-xs text-muted-foreground">
+            {isFetching && !isLoading ? 'Updating…' : `${data?.total ?? 0} request${data?.total === 1 ? '' : 's'}`}
+          </div>
+        </div>
       </div>
 
       {/* ── Request list ───────────────────────────────────── */}
@@ -310,11 +457,23 @@ export function RestockApprovals() {
               </div>
             ))}
           </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center py-16 text-center">
+            <AlertCircle size={32} className="mb-3 text-destructive/60" />
+            <p className="text-sm font-medium text-foreground">Couldn’t load restock requests</p>
+            <p className="mt-1 text-xs text-muted-foreground">Check your connection and try again.</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => void refetch()}>
+              Try again
+            </Button>
+          </div>
         ) : requests.length === 0 ? (
           <div className="py-16 text-center">
             <ClipboardList size={32} className="mx-auto text-muted-foreground/30 mb-3" />
             <p className="text-sm text-muted-foreground">No {STATUS_META[activeTab].label.toLowerCase()} requests.</p>
-            {activeTab === 'pending' && (
+            {(locationFilter !== 'all' || itemFilter !== 'all') && (
+              <p className="mt-1 text-xs text-muted-foreground/70">Try changing the location or item filter.</p>
+            )}
+            {activeTab === 'pending' && locationFilter === 'all' && itemFilter === 'all' && (
               <p className="text-xs text-muted-foreground/70 mt-1">New requests submitted from the form will appear here.</p>
             )}
           </div>
@@ -336,13 +495,38 @@ export function RestockApprovals() {
                 locationName={locationMap[r.locationId] ?? `${r.locationId.slice(0, 8)}…`}
                 onApprove={(id) => changeStatus({ id, status: 'approved' })}
                 onReject={(id) => changeStatus({ id, status: 'rejected' })}
+                onFulfill={(id) => {
+                  if (onCreatePurchaseOrder) {
+                    onCreatePurchaseOrder(r);
+                    return;
+                  }
+                  changeStatus({ id, status: 'fulfilled' });
+                }}
                 onSave={(id, dataToSave) => saveEdit({ id, data: dataToSave })}
                 onDelete={(id) => removeRequest(id)}
-                statusPending={statusPending}
-                savePending={savePending}
-                deletePending={deletePending}
+                statusPending={statusPending && statusVariables?.id === r.id}
+                savePending={savePending && saveVariables?.id === r.id}
+                deletePending={deletePending && deleteVariables === r.id}
+                canDelete={canDelete}
+                fulfillLabel={onCreatePurchaseOrder ? 'Create PO' : 'Mark fulfilled'}
               />
             ))}
+          </div>
+        )}
+
+        {!isLoading && !isError && totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3">
+            <p className="text-xs text-muted-foreground">
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page <= 1 || isFetching} onClick={() => setPage((value) => value - 1)}>
+                Previous
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages || isFetching} onClick={() => setPage((value) => value + 1)}>
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </div>

@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChefHat, Loader2, Search, Trash2, UtensilsCrossed } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { EditorShell } from '@/components/menu/EditorShell';
+import { RecipeSummaryChips } from '@/components/menu/RecipeEditorPage';
 import {
   AvailabilityToggle,
   CATEGORY_COLORS,
@@ -14,12 +16,11 @@ import {
   labelClass,
   selectClass,
 } from '@/components/menu/shared';
-import { EditorShell } from '@/components/menu/EditorShell';
-import { RecipeSummaryChips } from '@/components/menu/RecipeEditorPage';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 import {
   attachModifier,
@@ -243,13 +244,13 @@ function MenuItemForm({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelClass}>Category</label>
-                <select value={category} onChange={(e) => setCategory(e.target.value as MenuCategory)} className={selectClass}>
-                  {CATEGORY_OPTIONS.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  value={category}
+                  onValueChange={(value) => setCategory(value as MenuCategory)}
+                  options={CATEGORY_OPTIONS.map(([value, label]) => ({ value, label }))}
+                  ariaLabel="Menu item category"
+                  className={selectClass}
+                />
               </div>
               <div>
                 <label className={labelClass}>Price</label>
@@ -298,9 +299,7 @@ function MenuItemForm({
           {item ? (
             <ItemModifiersEditor menuItemId={item.id} />
           ) : (
-            <p className="text-xs text-muted-foreground">
-              Modifiers (milk, size, syrups…) can be attached right after creating the item.
-            </p>
+            <p className="text-xs text-muted-foreground">Modifiers (milk, size, syrups…) can be attached right after creating the item.</p>
           )}
         </section>
       </div>
@@ -379,11 +378,7 @@ export function MenuItemEditorPage({
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
-export function MenuItemsPanel({
-  onEdit,
-}: {
-  onEdit: (item: MenuItem) => void;
-}) {
+export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void }) {
   const qc = useQueryClient();
   const { tenantId } = useWorkspaceStore();
   const [deleteItem, setDeleteItem] = useState<MenuItem | null>(null);
@@ -436,19 +431,13 @@ export function MenuItemsPanel({
               placeholder="Search items…"
             />
           </div>
-          <select
+          <Select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value as 'all' | MenuCategory)}
-            aria-label="Filter by category"
+            onValueChange={(value) => setCategoryFilter(value as 'all' | MenuCategory)}
+            options={[{ value: 'all', label: 'All categories' }, ...CATEGORY_OPTIONS.map(([value, label]) => ({ value, label }))]}
+            ariaLabel="Filter by category"
             className={cn(selectClass, 'w-auto')}
-          >
-            <option value="all">All categories</option>
-            {CATEGORY_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       )}
 

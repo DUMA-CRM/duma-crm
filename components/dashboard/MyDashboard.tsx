@@ -1,15 +1,16 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, Clock, LogIn, LogOut, MapPin, Send } from 'lucide-react';
+import { BookOpenCheck, CalendarClock, ChevronDown, Clock, LogIn, LogOut, MapPin, Send } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
 import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
 
 import { createScheduledShift, getMyScheduledShifts } from '@/lib/api/scheduling.service';
+import { getMyTrainingAssignments } from '@/lib/api/courses.service';
 import { clockIn, getMyShifts } from '@/lib/api/shifts.service';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -54,12 +55,14 @@ export function MyDashboard() {
   const { locationId } = useWorkspaceStore();
   const qc = useQueryClient();
 
-  // Start unmounted so the first client render matches the server (no live time yet),
-  // then tick every second once mounted — avoids a hydration mismatch on the clock.
+  // Keep the live clock client-only so the first render matches the server.
   const [now, setNow] = useState(() => new Date());
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   useEffect(() => {
-    setMounted(true);
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
@@ -70,6 +73,9 @@ export function MyDashboard() {
 
   // My shifts → the active one (not clocked out).
   const { data: myShifts = [] } = useQuery({ queryKey: ['shifts-my'], queryFn: getMyShifts });
+  const { data: training = [] } = useQuery({ queryKey: ['training-assignments-me'], queryFn: getMyTrainingAssignments });
+  const overdueTraining = training.filter((item) => item.status === 'overdue').length;
+  const openTraining = training.filter((item) => item.status !== 'completed').length;
   const active = myShifts.find((s) => !s.clockedOut);
 
   // This week's published rota.
@@ -82,7 +88,9 @@ export function MyDashboard() {
       return getMyScheduledShifts({ from: week.toISOString(), to: end.toISOString() });
     },
   });
-  const upcoming = [...rota].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const upcoming = [...rota]
+    .filter((shift) => new Date(shift.endsAt).getTime() >= now.getTime())
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 
   const invalidateShifts = () => qc.invalidateQueries({ queryKey: ['shifts-my'] });
   const clockInM = useMutation({
@@ -201,6 +209,20 @@ export function MyDashboard() {
           {/* Suggest a shift */}
           <SuggestShiftCard locationId={locationId} onDone={(msg) => addToast('success', msg)} onError={(msg) => addToast('error', msg)} />
         </div>
+
+        <Link
+          href="/training"
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-surface"
+        >
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <BookOpenCheck size={18} aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">{overdueTraining ? `${overdueTraining} overdue training ${overdueTraining === 1 ? 'item' : 'items'}` : openTraining ? `${openTraining} training ${openTraining === 1 ? 'item' : 'items'} to complete` : 'Training and team resources'}</p>
+            <p className="text-xs text-muted-foreground">{overdueTraining ? 'Open your learning plan and catch up.' : openTraining ? 'Continue required courses and practical assessments.' : 'You’re up to date. Explore the course library.'}</p>
+          </div>
+          <span className="text-xs font-semibold text-primary">Open training</span>
+        </Link>
       </div>
       {clockOutOpen && locationId && (
         <ClockOutDialog
@@ -253,26 +275,27 @@ function SuggestShiftCard({
   const valid = !!(locationId && date && start && end && durationMins > 0);
 
   return (
-    <section className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
-      <div className="flex items-center justify-between gap-2 px-5 py-3.5 border-b border-border">
-        <div className="flex items-center gap-2">
-          <Send size={15} className="text-muted-foreground" />
-          <p className="text-sm font-semibold text-foreground">Suggest a shift</p>
+    <details className="group bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 hover:bg-muted/40">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <Send size={15} aria-hidden="true" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Suggest a shift</p>
+            <p className="text-xs text-muted-foreground">Propose availability for manager review.</p>
+          </div>
         </div>
-        {durationMins > 0 && (
-          <span className="text-[11px] font-semibold text-primary bg-primary/10 rounded-full px-2.5 py-1 tabular-nums">
-            {fmtDur(durationMins)}
-          </span>
-        )}
-      </div>
+        <ChevronDown size={16} className="text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+      </summary>
       <form
-        className="px-5 py-4 space-y-3.5"
+        className="border-t border-border px-5 py-4 space-y-3.5"
         onSubmit={(e) => {
           e.preventDefault();
           if (valid) mutate();
         }}
       >
-        <p className="text-xs text-muted-foreground">Propose when you can work. Your manager reviews and approves it onto the rota.</p>
+        {durationMins > 0 && <p className="text-xs font-semibold text-primary">Proposed shift: {fmtDur(durationMins)}</p>}
         <div>
           <label className={lbl}>Date</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className={inp} />
@@ -302,6 +325,6 @@ function SuggestShiftCard({
           {isPending ? 'Sending…' : 'Send suggestion'}
         </button>
       </form>
-    </section>
+    </details>
   );
 }

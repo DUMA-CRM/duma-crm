@@ -10,13 +10,14 @@ import { DEFAULT_COL, type SizeColumn, computeRecipeTotals, mergeNutrition, useR
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 
 import { NUTRITION_FIELDS, type NutritionFacts } from '@/lib/api/inventory.service';
 import { getMenuItemModifiers } from '@/lib/api/menu.service';
 import { getMenuItemRecipe, getModifierRecipe, setMenuItemRecipe } from '@/lib/api/recipes.service';
-import type { AttachedModifier } from '@/types/menu';
 import { cn } from '@/lib/utils/cn';
 import { parseModifierName } from '@/lib/utils/modifiers';
+import type { AttachedModifier } from '@/types/menu';
 
 /** Compact macro list (skips kcal — shown separately — and absent fields). */
 function MacroList({ nutrition, missing }: { nutrition: NutritionFacts; missing?: boolean }) {
@@ -121,9 +122,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
       next = selected.filter((id) => id !== m.id);
     } else if (category) {
       // Categorised modifiers (incl. Size) are single-select — replace siblings.
-      const siblings = new Set(
-        attached.filter((x) => parseModifierName(x.name).category === category).map((x) => x.id),
-      );
+      const siblings = new Set(attached.filter((x) => parseModifierName(x.name).category === category).map((x) => x.id));
       next = [...selected.filter((id) => !siblings.has(id)), m.id];
     } else {
       next = [...selected, m.id];
@@ -200,9 +199,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
             <section className="space-y-3 min-w-0">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Ingredients</h2>
-                {sizes.length > 0 && (
-                  <p className="text-[11px] text-muted-foreground">Blank size fields inherit the Default amount.</p>
-                )}
+                {sizes.length > 0 && <p className="text-[11px] text-muted-foreground">Blank size fields inherit the Default amount.</p>}
               </div>
 
               {rows.length === 0 && (
@@ -219,20 +216,18 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                 return (
                   <div key={`${row.stockItemId}-${i}`} className="bg-card border border-border rounded-2xl p-4">
                     <div className="flex items-center gap-2">
-                      <select
+                      <Select
                         value={row.stockItemId}
-                        onChange={(e) => edit(rows.map((r, j) => (j === i ? { ...r, stockItemId: e.target.value } : r)))}
+                        onValueChange={(value) => edit(rows.map((r, j) => (j === i ? { ...r, stockItemId: value } : r)))}
+                        options={[
+                          { value: '', label: 'Select ingredient…' },
+                          ...stockItems
+                            .filter((item) => item.id === row.stockItemId || !usedIds.has(item.id))
+                            .map((item) => ({ value: item.id, label: `${item.name} (${item.unit})` })),
+                        ]}
+                        ariaLabel="Select recipe ingredient"
                         className={cn(selectClass, 'flex-1 min-w-0 h-11')}
-                      >
-                        <option value="">Select ingredient…</option>
-                        {stockItems
-                          .filter((s) => s.id === row.stockItemId || !usedIds.has(s.id))
-                          .map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name} ({s.unit})
-                            </option>
-                          ))}
-                      </select>
+                      />
                       <Button
                         type="button"
                         variant="ghost"
@@ -535,11 +530,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
       {/* Modifier recipe editor overlay — same grid as the Modifiers tab.
           Rendered inside this page's stacking context, so it sits on top. */}
       {editTarget && (
-        <Modal
-          title={`${parseModifierName(editTarget.name).label} — Recipe`}
-          onClose={() => setEditTarget(null)}
-          className="max-w-xl"
-        >
+        <Modal title={`${parseModifierName(editTarget.name).label} — Recipe`} onClose={() => setEditTarget(null)} className="max-w-xl">
           <ModifierRecipeEditor modifierId={editTarget.id} sizes={sizes.filter((s) => s.id !== editTarget.id)} />
         </Modal>
       )}

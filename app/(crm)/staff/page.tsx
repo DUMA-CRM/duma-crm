@@ -8,13 +8,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmployeeRecordPage } from '@/components/people/EmployeeRecordPage';
 import { OnboardingPage } from '@/components/people/OnboardingPage';
-import { Avatar, EMPLOYMENT_CONFIG, ROLE_CONFIG, ROLES, canSeeMoney, fmtMoney, sel } from '@/components/people/shared';
+import { Avatar, EMPLOYMENT_CONFIG, ROLES, ROLE_CONFIG, canSeeMoney, fmtMoney, sel } from '@/components/people/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 import { type HrEmployee, getEmployees } from '@/lib/api/hr.service';
-import { type StaffRole, getStaff, roleAtLeast } from '@/lib/api/staff.service';
+import { type StaffRole, getStaff } from '@/lib/api/staff.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
@@ -23,7 +24,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 export default function PeoplePage() {
   const router = useRouter();
   const role = useAuthStore((s) => s.role);
-  const canManage = roleAtLeast(role, 'store_manager');
+  const canManage = !!role && ['super_admin', 'franchise_owner', 'store_manager', 'hr_manager'].includes(role);
   const money = canSeeMoney(role);
   // store_manager out-ranks hr_manager, so onboarding is an explicit allowlist.
   const canOnboard = money;
@@ -39,13 +40,14 @@ export default function PeoplePage() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | StaffRole>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
 
-  const { data: staff = [], isLoading } = useQuery({
+  const { data: staff = [], isLoading, isError: staffError } = useQuery({
     queryKey: ['staff', tenantId],
     queryFn: () => getStaff(tenantId ?? undefined),
     enabled: !!tenantId && canManage,
   });
-  const { data: employees = [] } = useQuery({
+  const { data: employees = [], isError: employeeError } = useQuery({
     queryKey: ['hr-employees', tenantId],
     queryFn: getEmployees,
     enabled: !!tenantId && canManage,
@@ -57,6 +59,7 @@ export default function PeoplePage() {
   });
 
   const empByUser = useMemo(() => new Map(employees.map((e) => [e.userId, e])), [employees]);
+  const departments = useMemo(() => [...new Set(employees.map((employee) => employee.department).filter(Boolean) as string[])].sort(), [employees]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -64,26 +67,20 @@ export default function PeoplePage() {
       if (roleFilter !== 'all' && m.role !== roleFilter) return false;
       if (statusFilter === 'active' && !m.isActive) return false;
       if (statusFilter === 'inactive' && m.isActive) return false;
-      if (q && !(`${m.name ?? ''} ${m.email ?? ''}`.toLowerCase().includes(q))) return false;
+      if (departmentFilter !== 'all' && empByUser.get(m.userId)?.department !== departmentFilter) return false;
+      if (q && !`${m.name ?? ''} ${m.email ?? ''}`.toLowerCase().includes(q)) return false;
       return true;
-    });
-  }, [staff, search, roleFilter, statusFilter]);
+    }).sort((a, b) => (a.name ?? a.email ?? '').localeCompare(b.name ?? b.email ?? ''));
+  }, [staff, search, roleFilter, statusFilter, departmentFilter, empByUser]);
 
   if (!canManage) return null;
 
   const enrolledCount = staff.filter((s) => empByUser.has(s.userId)).length;
-  const openMember = openUserId ? staff.find((s) => s.userId === openUserId) ?? null : null;
+  const openMember = openUserId ? (staff.find((s) => s.userId === openUserId) ?? null) : null;
 
   // Employee record renders as in-page content so the app sidebar + header stay visible.
   if (openUserId) {
-    return (
-      <EmployeeRecordPage
-        userId={openUserId}
-        member={openMember}
-        locations={locations}
-        onClose={() => setOpenUserId(null)}
-      />
-    );
+    return <EmployeeRecordPage userId={openUserId} member={openMember} locations={locations} onClose={() => setOpenUserId(null)} />;
   }
 
   return (
@@ -96,17 +93,33 @@ export default function PeoplePage() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className="flex-1 max-w-xs">
-              <Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} leftIcon={<Search size={14} />} placeholder="Search name or email…" />
+              <Input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                leftIcon={<Search size={14} />}
+                placeholder="Search name or email…"
+              />
             </div>
-            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as 'all' | StaffRole)} aria-label="Filter by role" className={cn(sel, 'w-auto')}>
-              <option value="all">All roles</option>
-              {ROLES.map((r) => <option key={r} value={r}>{ROLE_CONFIG[r].label}</option>)}
-            </select>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} aria-label="Filter by status" className={cn(sel, 'w-auto')}>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="all">All</option>
-            </select>
+            <Select
+              value={roleFilter}
+              onValueChange={(value) => setRoleFilter(value as 'all' | StaffRole)}
+              options={[{ value: 'all', label: 'All roles' }, ...ROLES.map((role) => ({ value: role, label: ROLE_CONFIG[role].label }))]}
+              ariaLabel="Filter by role"
+              className={cn(sel, 'w-auto')}
+            />
+            {departments.length > 0 && <Select value={departmentFilter} onValueChange={setDepartmentFilter} options={[{ value: 'all', label: 'All departments' }, ...departments.map((department) => ({ value: department, label: department }))]} ariaLabel="Filter by department" className={cn(sel, 'w-auto hidden lg:flex')} />}
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+                { value: 'all', label: 'All' },
+              ]}
+              ariaLabel="Filter by status"
+              className={cn(sel, 'w-auto')}
+            />
           </div>
           {canOnboard && (
             <button
@@ -126,16 +139,32 @@ export default function PeoplePage() {
             <table className="w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-muted">
-                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Member</th>
-                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Role</th>
-                  <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Employment</th>
-                  {money && <th className="hidden lg:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pay</th>}
-                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Onboarding</th>
-                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
+                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Member
+                  </th>
+                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Role
+                  </th>
+                  <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Employment
+                  </th>
+                  {money && (
+                    <th className="hidden lg:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Pay
+                    </th>
+                  )}
+                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Onboarding
+                  </th>
+                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {isLoading ? (
+                {staffError || employeeError ? (
+                  <tr><td colSpan={6} className="py-20 text-center"><p className="font-semibold text-destructive">Couldn’t load the staff directory</p><p className="text-sm text-muted-foreground mt-1">Refresh the page or try again shortly.</p></td></tr>
+                ) : isLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="border-b border-border/50">
                       {Array.from({ length: money ? 6 : 5 }).map((_, j) => (
@@ -146,9 +175,23 @@ export default function PeoplePage() {
                     </tr>
                   ))
                 ) : !tenantId ? (
-                  <tr><td colSpan={6} className="py-24"><EmptyState icon={Users} title="No workspace selected" description="Select a workspace to view people." /></td></tr>
+                  <tr>
+                    <td colSpan={6} className="py-24">
+                      <EmptyState icon={Users} title="No workspace selected" description="Select a workspace to view people." />
+                    </td>
+                  </tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="py-24"><EmptyState icon={staff.length === 0 ? Users : Search} title={staff.length === 0 ? 'No people yet' : 'No matches'} description={staff.length === 0 ? 'Click "Onboard" to add your first team member.' : 'Try a different search or filter.'} /></td></tr>
+                  <tr>
+                    <td colSpan={6} className="py-24">
+                      <EmptyState
+                        icon={staff.length === 0 ? Users : Search}
+                        title={staff.length === 0 ? 'No people yet' : 'No matches'}
+                        description={
+                          staff.length === 0 ? 'Click "Onboard" to add your first team member.' : 'Try a different search or filter.'
+                        }
+                      />
+                    </td>
+                  </tr>
                 ) : (
                   filtered.map((member) => {
                     const rc = ROLE_CONFIG[member.role];
@@ -156,7 +199,7 @@ export default function PeoplePage() {
                     return (
                       <tr
                         key={member.userId}
-                        onClick={() => setOpenUserId(member.userId)}
+                        onClick={() => router.push(`/staff/${member.userId}`)}
                         className="border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors cursor-pointer"
                       >
                         <td className="px-3 md:px-5 py-3.5">
@@ -169,7 +212,16 @@ export default function PeoplePage() {
                           </div>
                         </td>
                         <td className="px-3 md:px-5 py-3.5">
-                          <span className={cn('inline-flex items-center px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide', rc.bg, rc.text, rc.border)}>{rc.label}</span>
+                          <span
+                            className={cn(
+                              'inline-flex items-center px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
+                              rc.bg,
+                              rc.text,
+                              rc.border,
+                            )}
+                          >
+                            {rc.label}
+                          </span>
                         </td>
                         <td className="hidden md:table-cell px-5 py-3.5">
                           {emp ? (
@@ -196,8 +248,17 @@ export default function PeoplePage() {
                           {emp ? <OnboardBadge emp={emp} money={money} /> : <Badge variant="warning">Account only</Badge>}
                         </td>
                         <td className="px-3 md:px-5 py-3.5">
-                          <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide', member.isActive ? 'bg-success/10 text-success border-success/30' : 'bg-muted text-muted-foreground border-border')}>
-                            <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', member.isActive ? 'bg-success' : 'bg-muted-foreground')} />
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
+                              member.isActive
+                                ? 'bg-success/10 text-success border-success/30'
+                                : 'bg-muted text-muted-foreground border-border',
+                            )}
+                          >
+                            <span
+                              className={cn('w-1.5 h-1.5 rounded-full shrink-0', member.isActive ? 'bg-success' : 'bg-muted-foreground')}
+                            />
                             {member.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </td>
@@ -212,7 +273,8 @@ export default function PeoplePage() {
             <div className="px-5 py-3 border-t border-border shrink-0">
               <p className="text-xs text-muted-foreground">
                 {filtered.length !== staff.length && `${filtered.length} of `}
-                {staff.length} {staff.length === 1 ? 'person' : 'people'} · {staff.filter((s) => s.isActive).length} active · {enrolledCount} onboarded
+                {staff.length} {staff.length === 1 ? 'person' : 'people'} · {staff.filter((s) => s.isActive).length} active ·{' '}
+                {enrolledCount} onboarded
               </p>
             </div>
           )}
@@ -221,7 +283,13 @@ export default function PeoplePage() {
 
       {/* Full-screen onboarding */}
       {onboarding && tenantId && (
-        <OnboardingPage onClose={() => setOnboarding(false)} onCreated={(userId) => { setOnboarding(false); setOpenUserId(userId); }} />
+        <OnboardingPage
+          onClose={() => setOnboarding(false)}
+          onCreated={(userId) => {
+            setOnboarding(false);
+            setOpenUserId(userId);
+          }}
+        />
       )}
     </PageLayout>
   );

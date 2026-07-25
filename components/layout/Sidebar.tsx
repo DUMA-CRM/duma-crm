@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Coffee, LogOut } from 'lucide-react';
+import { useSyncExternalStore } from 'react';
 
 import { Tooltip } from '@/components/shared/Tooltip';
 import { getOrders } from '@/lib/api/orders.service';
@@ -10,14 +11,25 @@ import { analyticsNavItems, filterNavByRole, footerNavItems, mainNavItems } from
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
 import { useSidebarStore } from '@/stores/sidebarStore';
+import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { SidebarNavItem } from './SidebarNavItem';
+import { SidebarTools } from './SidebarTools';
 
 export function Sidebar({ role }: { role: StaffRole | null }) {
   const { collapsed, mobileOpen, closeMobile } = useSidebarStore();
   const { logout } = useAuth();
   const { locationId } = useWorkspaceStore();
+
+  // When "Hide top bar" is on, the header's tools live here instead (lg+ only).
+  // Gate on mounted so SSR and first client render agree (persisted store).
+  const hideHeader = useUiSettingsStore((s) => s.hideHeader);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const mainItems = filterNavByRole(mainNavItems, role);
   const analyticsItems = filterNavByRole(analyticsNavItems, role);
@@ -86,6 +98,13 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
 
         {/* ── Footer ───────────────────────────────────────── */}
         <div className="py-2 border-t border-border flex flex-col gap-0.5 shrink-0">
+          {/* Relocated top-bar tools (desktop only, when the header is hidden) */}
+          {mounted && hideHeader && (
+            <div className="hidden lg:block pb-1 mb-1 border-b border-border">
+              <SidebarTools />
+            </div>
+          )}
+
           {footerNavItems.map((item) => (
             <SidebarNavItem key={item.href} {...item} />
           ))}

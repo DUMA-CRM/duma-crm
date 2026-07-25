@@ -6,8 +6,6 @@
  * both server and client (no dependency, no async crypto.subtle dance).
  */
 
-/* eslint-disable no-bitwise */
-
 function md5cycle(x: number[], k: number[]) {
   let [a, b, c, d] = x;
 

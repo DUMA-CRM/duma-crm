@@ -66,8 +66,7 @@ function rangeQuery(params: AnalyticsRangeParams) {
   return query;
 }
 
-export const getOrderAnalytics = (params: AnalyticsRangeParams) =>
-  apiFetch<OrderAnalytics>(`/analytics/orders?${rangeQuery(params)}`);
+export const getOrderAnalytics = (params: AnalyticsRangeParams) => apiFetch<OrderAnalytics>(`/analytics/orders?${rangeQuery(params)}`);
 
 export const getTopItems = (params: AnalyticsRangeParams, limit = 6) => {
   const query = rangeQuery(params);
@@ -78,8 +77,7 @@ export const getTopItems = (params: AnalyticsRangeParams, limit = 6) => {
 export const getRevenueByLocation = (params: AnalyticsRangeParams) =>
   apiFetch<RevenueByLocation[]>(`/analytics/revenue-by-location?${rangeQuery(params)}`);
 
-export const getHourlyVolume = (params: AnalyticsRangeParams) =>
-  apiFetch<HourlyVolume[]>(`/analytics/hourly-volume?${rangeQuery(params)}`);
+export const getHourlyVolume = (params: AnalyticsRangeParams) => apiFetch<HourlyVolume[]>(`/analytics/hourly-volume?${rangeQuery(params)}`);
 
 export const getCustomerRetention = (params: AnalyticsRangeParams) =>
   apiFetch<CustomerRetention>(`/analytics/customer-retention?${rangeQuery(params)}`);

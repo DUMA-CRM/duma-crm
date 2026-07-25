@@ -17,6 +17,7 @@ import {
   MapPin,
   Monitor,
   Moon,
+  PanelTopClose,
   Printer,
   ScanLine,
   Smartphone,
@@ -38,7 +39,6 @@ import { Badge } from '@/components/ui/badge';
 import { getSession, listSessions, revokeOtherSessions, revokeSession, type Session } from '@/lib/api/auth.service';
 import { roleAtLeast } from '@/lib/api/staff.service';
 import { getLocationsByTenant, getTenants } from '@/lib/api/workspace.service';
-import { useAuth } from '@/lib/hooks/useAuth';
 import { chime } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
@@ -232,7 +232,6 @@ function relativeTime(iso?: string): string {
 }
 
 function SessionsSection() {
-  const { logout } = useAuth();
   const qc = useQueryClient();
 
   const { data: current } = useQuery({
@@ -347,7 +346,7 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { scannerMode, setScannerMode } = usePosSettingsStore();
   const { soundOn, setSoundOn } = useKdsStore();
-  const { hidePageTitles, setHidePageTitles } = useUiSettingsStore();
+  const { hidePageTitles, setHidePageTitles, hideHeader, setHideHeader } = useUiSettingsStore();
 
   // next-themes is undefined until mounted — avoid a hydration mismatch.
   // (useSyncExternalStore: false during SSR/hydration, true right after.)
@@ -448,6 +447,26 @@ export default function SettingsPage() {
             <p className="text-xs text-muted-foreground mt-3">
               Hides the page title header (e.g. “Service Mode / Barista Display”) on every page to give content more room — handy on
               tablets. Search bars and tabs stay visible. Saved per device.
+            </p>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-border">
+            <button
+              onClick={() => setHideHeader(!hideHeader)}
+              aria-pressed={mounted && hideHeader}
+              className={cn(
+                'h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors',
+                mounted && hideHeader
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:bg-surface-offset',
+              )}
+            >
+              <PanelTopClose size={15} aria-hidden="true" />
+              Hide top bar
+            </button>
+            <p className="text-xs text-muted-foreground mt-3">
+              Hides the top toolbar on large screens and moves its controls — location, reload and activity — into the sidebar for a
+              chrome-light layout. On phones the top bar stays, since it’s how you open the menu. Saved per device.
             </p>
           </div>
         </Section>

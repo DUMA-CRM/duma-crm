@@ -4,16 +4,29 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Plus, Trash2, Truck } from 'lucide-react';
 import { useState } from 'react';
 
-import { FormActions, STATUS_META, inputClass, labelClass, lineTotal, linesTotal, money, selectClass, unitMoney, fmtQty } from '@/components/purchasing/shared';
+import {
+  FormActions,
+  STATUS_META,
+  fmtQty,
+  inputClass,
+  labelClass,
+  lineTotal,
+  linesTotal,
+  money,
+  selectClass,
+  unitMoney,
+} from '@/components/purchasing/shared';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 
 import { getStockItems } from '@/lib/api/inventory.service';
 import {
   type PurchaseOrder,
+  type PurchaseOrderStatus,
   type Supplier,
   createPurchaseOrder,
   getPurchaseOrder,
@@ -21,6 +34,7 @@ import {
   receivePurchaseOrder,
   updatePurchaseOrder,
 } from '@/lib/api/purchasing.service';
+import { updateRestockRequest } from '@/lib/api/restock.service';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 
@@ -34,22 +48,42 @@ const defaultExpiry = (shelfLifeDays?: number | null) => {
 
 // ── Create PO ─────────────────────────────────────────────────────────────────
 
-interface DraftLine {
+export interface DraftLine {
   stockItemId: string;
   quantity: string;
   unitCost: string;
 }
 
-function CreatePoForm({ suppliers, locationId, onClose }: { suppliers: Supplier[]; locationId: string; onClose: () => void }) {
+export interface PurchaseOrderDraft {
+  locationId: string;
+  restockRequestId?: string;
+  notes?: string;
+  lines: DraftLine[];
+}
+
+function CreatePoForm({
+  suppliers,
+  locationId,
+  draft,
+  onClose,
+  onManageSuppliers,
+}: {
+  suppliers: Supplier[];
+  locationId: string;
+  draft?: PurchaseOrderDraft | null;
+  onClose: () => void;
+  onManageSuppliers?: () => void;
+}) {
   const qc = useQueryClient();
   const { data: stockItems = [] } = useQuery({ queryKey: ['stock-items'], queryFn: getStockItems });
   const [supplierId, setSupplierId] = useState('');
   const [expectedAt, setExpectedAt] = useState('');
-  const [notes, setNotes] = useState('');
-  const [lines, setLines] = useState<DraftLine[]>([{ stockItemId: '', quantity: '', unitCost: '' }]);
+  const [notes, setNotes] = useState(draft?.notes ?? '');
+  const [lines, setLines] = useState<DraftLine[]>(draft?.lines ?? [{ stockItemId: '', quantity: '', unitCost: '' }]);
 
   const validLines = lines.filter((l) => l.stockItemId && Number(l.quantity) > 0 && Number(l.unitCost) >= 0);
   const total = validLines.reduce((sum, l) => sum + Number(l.quantity) * Number(l.unitCost), 0);
+  const activeSuppliers = suppliers.filter((supplier) => supplier.isActive);
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: () =>
@@ -60,9 +94,19 @@ function CreatePoForm({ suppliers, locationId, onClose }: { suppliers: Supplier[
         notes: notes || undefined,
         lines: validLines.map((l) => ({ stockItemId: l.stockItemId, quantityOrdered: Number(l.quantity), unitCost: Number(l.unitCost) })),
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['purchase-orders'] });
-      toast('success', 'Purchase order created.');
+    onSuccess: async () => {
+      void qc.invalidateQueries({ queryKey: ['purchase-orders'] });
+      if (draft?.restockRequestId) {
+        try {
+          await updateRestockRequest(draft.restockRequestId, { status: 'fulfilled' });
+          void qc.invalidateQueries({ queryKey: ['restock-requests'] });
+          toast('success', 'Purchase order created and restock demand moved to ordered.');
+        } catch (error) {
+          toast('error', error instanceof Error ? error.message : 'Purchase order created, but the demand status could not be updated.');
+        }
+      } else {
+        toast('success', 'Purchase order created.');
+      }
       onClose();
     },
   });
@@ -77,19 +121,20 @@ function CreatePoForm({ suppliers, locationId, onClose }: { suppliers: Supplier[
       }}
       className="space-y-4"
     >
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>Supplier</label>
-          <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required className={selectClass}>
-            <option value="">Select…</option>
-            {suppliers
-              .filter((s) => s.isActive)
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-          </select>
+          <Select
+            value={supplierId}
+            onValueChange={setSupplierId}
+            options={[
+              { value: '', label: 'Select…' },
+              ...activeSuppliers.map((supplier) => ({ value: supplier.id, label: supplier.name })),
+            ]}
+            ariaLabel="Supplier"
+            required
+            className={selectClass}
+          />
         </div>
         <div>
           <label className={labelClass}>Expected delivery</label>
@@ -97,23 +142,31 @@ function CreatePoForm({ suppliers, locationId, onClose }: { suppliers: Supplier[
         </div>
       </div>
 
+      {activeSuppliers.length === 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-warning/20 bg-warning/5 px-3 py-2.5">
+          <p className="text-xs text-warning">Add an active supplier before creating a purchase order.</p>
+          {onManageSuppliers && (
+            <Button type="button" variant="outline" size="sm" onClick={onManageSuppliers}>
+              Add supplier
+            </Button>
+          )}
+        </div>
+      )}
+
       <div>
         <label className={labelClass}>Lines</label>
         <div className="space-y-2">
           {lines.map((line, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <select
+            <div key={i} className="grid grid-cols-[minmax(0,1fr)_4.5rem_2.5rem_5.5rem_2.25rem] items-center gap-2">
+              <Select
                 value={line.stockItemId}
-                onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, stockItemId: e.target.value } : l)))}
+                onValueChange={(value) =>
+                  setLines(lines.map((draftLine, index) => (index === i ? { ...draftLine, stockItemId: value } : draftLine)))
+                }
+                options={[{ value: '', label: 'Item…' }, ...stockItems.map((item) => ({ value: item.id, label: item.name }))]}
+                ariaLabel={`Item for purchase order line ${i + 1}`}
                 className={cn(selectClass, 'flex-1 min-w-0')}
-              >
-                <option value="">Item…</option>
-                {stockItems.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+              />
               <input
                 value={line.quantity}
                 onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, quantity: e.target.value } : l)))}
@@ -207,31 +260,33 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
     mutationFn: () => {
       // Untouched inputs default to the outstanding amount — mirror exactly
       // what the form displays, otherwise unedited lines would submit as 0.
-      const lines = (po?.lines ?? []).map((l) => {
-        const total = Number(receiveQty[l.id] ?? Math.max(0, Number(l.quantityOrdered) - Number(l.quantityReceived))) || 0;
-        if (total <= 0) return null;
-        const defaultContainer = Number(l.stockItem?.defaultContainerQuantity ?? 0);
-        const enteredCount = Math.max(0, Math.floor(Number(receiveContainers[l.id] ?? 0)));
-        const expiryDate = receiveExpiry[l.id] || defaultExpiry(l.stockItem?.defaultShelfLifeDays) || undefined;
-        const lotNumber = receiveLot[l.id] || undefined;
-        const quantities: number[] = [];
-        if (enteredCount > 0) {
-          const each = total / enteredCount;
-          for (let i = 0; i < enteredCount; i++) quantities.push(each);
-        } else if (defaultContainer > 0) {
-          const full = Math.floor(total / defaultContainer);
-          for (let i = 0; i < full; i++) quantities.push(defaultContainer);
-          const remainder = total - full * defaultContainer;
-          if (remainder > 0.0001) quantities.push(remainder);
-        } else {
-          quantities.push(total);
-        }
-        if (l.stockItem?.isPerishable && !expiryDate) throw new Error(`Enter an expiry date for ${l.stockItem.name}.`);
-        return {
-          purchaseOrderLineId: l.id,
-          units: quantities.map((initialQuantity) => ({ initialQuantity, expiryDate, lotNumber })),
-        };
-      }).filter((line): line is NonNullable<typeof line> => line !== null);
+      const lines = (po?.lines ?? [])
+        .map((l) => {
+          const total = Number(receiveQty[l.id] ?? Math.max(0, Number(l.quantityOrdered) - Number(l.quantityReceived))) || 0;
+          if (total <= 0) return null;
+          const defaultContainer = Number(l.stockItem?.defaultContainerQuantity ?? 0);
+          const enteredCount = Math.max(0, Math.floor(Number(receiveContainers[l.id] ?? 0)));
+          const expiryDate = receiveExpiry[l.id] || defaultExpiry(l.stockItem?.defaultShelfLifeDays) || undefined;
+          const lotNumber = receiveLot[l.id] || undefined;
+          const quantities: number[] = [];
+          if (enteredCount > 0) {
+            const each = total / enteredCount;
+            for (let i = 0; i < enteredCount; i++) quantities.push(each);
+          } else if (defaultContainer > 0) {
+            const full = Math.floor(total / defaultContainer);
+            for (let i = 0; i < full; i++) quantities.push(defaultContainer);
+            const remainder = total - full * defaultContainer;
+            if (remainder > 0.0001) quantities.push(remainder);
+          } else {
+            quantities.push(total);
+          }
+          if (l.stockItem?.isPerishable && !expiryDate) throw new Error(`Enter an expiry date for ${l.stockItem.name}.`);
+          return {
+            purchaseOrderLineId: l.id,
+            units: quantities.map((initialQuantity) => ({ initialQuantity, expiryDate, lotNumber })),
+          };
+        })
+        .filter((line): line is NonNullable<typeof line> => line !== null);
       if (lines.length === 0) return Promise.reject(new Error('Enter a received quantity for at least one line.'));
       return receivePurchaseOrder(id, { lines });
     },
@@ -315,17 +370,47 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
           {(po.lines ?? []).map((l) => (
             <div key={l.id} className="grid grid-cols-[1fr_6rem_4.5rem_8rem_7rem] items-end gap-2">
               <span className="text-sm text-foreground truncate pb-2">{l.stockItem?.name}</span>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total
-                <input value={receiveQty[l.id] ?? String(outstanding(l))} onChange={(e) => setReceiveQty((prev) => ({ ...prev, [l.id]: e.target.value }))} inputMode="decimal" aria-label={`Received ${l.stockItem?.name}`} className={cn(inputClass, 'mt-1 w-full text-right tabular-nums')} />
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Total
+                <input
+                  value={receiveQty[l.id] ?? String(outstanding(l))}
+                  onChange={(e) => setReceiveQty((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                  inputMode="decimal"
+                  aria-label={`Received ${l.stockItem?.name}`}
+                  className={cn(inputClass, 'mt-1 w-full text-right tabular-nums')}
+                />
               </label>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Units
-                <input value={receiveContainers[l.id] ?? ''} onChange={(e) => setReceiveContainers((prev) => ({ ...prev, [l.id]: e.target.value }))} inputMode="numeric" placeholder={l.stockItem?.defaultContainerQuantity ? 'Auto' : '1'} aria-label={`Containers of ${l.stockItem?.name}`} className={cn(inputClass, 'mt-1 w-full text-right tabular-nums')} />
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Units
+                <input
+                  value={receiveContainers[l.id] ?? ''}
+                  onChange={(e) => setReceiveContainers((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                  inputMode="numeric"
+                  placeholder={l.stockItem?.defaultContainerQuantity ? 'Auto' : '1'}
+                  aria-label={`Containers of ${l.stockItem?.name}`}
+                  className={cn(inputClass, 'mt-1 w-full text-right tabular-nums')}
+                />
               </label>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Expiry
-                <input type="date" value={receiveExpiry[l.id] ?? defaultExpiry(l.stockItem?.defaultShelfLifeDays)} onChange={(e) => setReceiveExpiry((prev) => ({ ...prev, [l.id]: e.target.value }))} aria-label={`Expiry of ${l.stockItem?.name}`} className={cn(inputClass, 'mt-1 w-full')} required={l.stockItem?.isPerishable} />
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Expiry
+                <input
+                  type="date"
+                  value={receiveExpiry[l.id] ?? defaultExpiry(l.stockItem?.defaultShelfLifeDays)}
+                  onChange={(e) => setReceiveExpiry((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                  aria-label={`Expiry of ${l.stockItem?.name}`}
+                  className={cn(inputClass, 'mt-1 w-full')}
+                  required={l.stockItem?.isPerishable}
+                />
               </label>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Lot
-                <input value={receiveLot[l.id] ?? ''} onChange={(e) => setReceiveLot((prev) => ({ ...prev, [l.id]: e.target.value }))} placeholder="Optional" aria-label={`Lot of ${l.stockItem?.name}`} className={cn(inputClass, 'mt-1 w-full')} />
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Lot
+                <input
+                  value={receiveLot[l.id] ?? ''}
+                  onChange={(e) => setReceiveLot((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                  placeholder="Optional"
+                  aria-label={`Lot of ${l.stockItem?.name}`}
+                  className={cn(inputClass, 'mt-1 w-full')}
+                />
               </label>
             </div>
           ))}
@@ -441,21 +526,71 @@ export function PurchaseOrdersPanel({
   locationId,
   createOpen,
   onCreateOpenChange,
+  draft,
+  onManageSuppliers,
 }: {
   suppliers: Supplier[];
   locationId: string;
   createOpen: boolean;
   onCreateOpenChange: (open: boolean) => void;
+  draft?: PurchaseOrderDraft | null;
+  onManageSuppliers?: () => void;
 }) {
   const [detailId, setDetailId] = useState<string | null>(null);
-  const { data, isLoading } = useQuery({
-    queryKey: ['purchase-orders', locationId],
-    queryFn: () => getPurchaseOrders({ locationId, limit: 50 }),
+  const [statusFilter, setStatusFilter] = useState<'all' | PurchaseOrderStatus>('all');
+  const [supplierFilter, setSupplierFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['purchase-orders', locationId, statusFilter, supplierFilter, page],
+    queryFn: () =>
+      getPurchaseOrders({
+        locationId,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        supplierId: supplierFilter === 'all' ? undefined : supplierFilter,
+        page,
+        limit: 25,
+      }),
+    placeholderData: (previous) => previous,
   });
   const pos = data?.data ?? [];
 
   return (
     <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
+      <div className="grid gap-2 border-b border-border p-3 sm:grid-cols-2 xl:grid-cols-[14rem_16rem_1fr]">
+        <Select
+          value={statusFilter}
+          onValueChange={(value) => {
+            setStatusFilter(value as 'all' | PurchaseOrderStatus);
+            setPage(1);
+          }}
+          options={[
+            { value: 'all', label: 'All PO statuses' },
+            { value: 'draft', label: 'Draft' },
+            { value: 'submitted', label: 'Awaiting delivery' },
+            { value: 'partially_received', label: 'Partially received' },
+            { value: 'received', label: 'Received' },
+            { value: 'cancelled', label: 'Cancelled' },
+          ]}
+          ariaLabel="Filter purchase orders by status"
+          className="w-full"
+        />
+        <Select
+          value={supplierFilter}
+          onValueChange={(value) => {
+            setSupplierFilter(value);
+            setPage(1);
+          }}
+          options={[
+            { value: 'all', label: 'All suppliers' },
+            ...suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name })),
+          ]}
+          ariaLabel="Filter purchase orders by supplier"
+          className="w-full"
+        />
+        <p className="flex items-center justify-end text-xs text-muted-foreground">
+          {isFetching && !isLoading ? 'Updating…' : `${data?.total ?? 0} purchase order${data?.total === 1 ? '' : 's'}`}
+        </p>
+      </div>
       <div className="flex-1 overflow-auto">
         {isLoading ? (
           <div className="p-5 space-y-3">
@@ -472,10 +607,18 @@ export function PurchaseOrdersPanel({
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted">
                 <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">PO</th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Supplier</th>
-                <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Expected</th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
-                <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Invoice</th>
+                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Supplier
+                </th>
+                <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Expected
+                </th>
+                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Status
+                </th>
+                <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Invoice
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -510,9 +653,37 @@ export function PurchaseOrdersPanel({
         )}
       </div>
 
+      {!isLoading && (data?.pages ?? 0) > 1 && (
+        <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3">
+          <p className="text-xs text-muted-foreground">
+            Page {page} of {data?.pages}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={page <= 1 || isFetching} onClick={() => setPage((value) => value - 1)}>
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= (data?.pages ?? 1) || isFetching}
+              onClick={() => setPage((value) => value + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
       {createOpen && (
         <Modal title="New Purchase Order" onClose={() => onCreateOpenChange(false)} className="max-w-xl">
-          <CreatePoForm suppliers={suppliers} locationId={locationId} onClose={() => onCreateOpenChange(false)} />
+          <CreatePoForm
+            key={draft?.restockRequestId ?? 'blank'}
+            suppliers={suppliers}
+            locationId={draft?.locationId ?? locationId}
+            draft={draft}
+            onClose={() => onCreateOpenChange(false)}
+            onManageSuppliers={onManageSuppliers}
+          />
         </Modal>
       )}
       {detailId && (

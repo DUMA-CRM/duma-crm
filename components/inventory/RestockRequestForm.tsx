@@ -1,8 +1,8 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, MapPin, Package, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { AlertTriangle, MapPin, Package, Sparkles } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { STATUS_BAR, STATUS_LABEL, STATUS_VARIANT, fmtQty, getStatus, stockPct } from '@/components/inventory/stock/shared';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
@@ -10,6 +10,7 @@ import { Toast, type ToastMessage } from '@/components/shared/Toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 
 import { type LocationStock, getLocationStock } from '@/lib/api/inventory.service';
 import { type RestockPriority, createRestockRequest, decodeNotes, encodeNotes, getRestockRequests } from '@/lib/api/restock.service';
@@ -56,9 +57,11 @@ function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSug
   const status = getStatus(ls);
   const pct = stockPct(qty, threshold);
   const unit = ls.stockItem?.unit ?? 'units';
-  // Suggest topping up to twice the threshold (a sensible reorder target).
+  const configuredReorder = Number(ls.reorderQuantity ?? ls.stockItem?.defaultReorderQuantity);
+  // Prefer the configured reorder quantity; otherwise top up to twice the threshold.
   const target = threshold > 0 ? threshold * 2 : qty + 1;
-  const suggested = Math.max(Math.ceil(target - qty), 1);
+  const suggested =
+    Number.isFinite(configuredReorder) && configuredReorder > 0 ? Math.ceil(configuredReorder) : Math.max(Math.ceil(target - qty), 1);
 
   return (
     <div className="rounded-xl border border-border bg-surface-offset p-4 space-y-3">
@@ -83,7 +86,7 @@ function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSug
         className="w-full flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 hover:bg-primary/10 transition-colors"
       >
         <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <Sparkles size={12} className="text-primary" /> Suggested order
+          <Sparkles size={12} className="text-primary" /> {configuredReorder > 0 ? 'Configured reorder' : 'Suggested order'}
         </span>
         <span className="text-sm font-bold text-primary tabular-nums">
           +{suggested} {unit}
@@ -121,18 +124,31 @@ export function RestockRequestForm() {
 
   // Shared query key with sidebar — served from cache, no extra request
   const { data: statsResponse } = useQuery({
-    queryKey: ['restock-requests'],
-    queryFn: () => getRestockRequests({ limit: 100 }),
+    queryKey: ['restock-requests', 'summary', locationId],
+    queryFn: () => getRestockRequests({ locationId: locationId!, limit: 100 }),
+    enabled: !!locationId,
   });
 
-  // Reset stock item when the active location changes
-  useEffect(() => {
-    setStockItemId('');
-  }, [locationId]);
-
-  const availableItems = locationStock.filter((ls) => ls.isAvailable && ls.stockItem);
-  const selectedItem = availableItems.find((ls) => ls.stockItemId === stockItemId);
+  const availableItems = useMemo(
+    () =>
+      locationStock
+        .filter((item) => item.isAvailable && item.stockItem)
+        .sort((a, b) => {
+          const statusRank = { out: 0, critical: 1, low: 2, ok: 3, unavailable: 4 };
+          return statusRank[getStatus(a)] - statusRank[getStatus(b)] || a.stockItem!.name.localeCompare(b.stockItem!.name);
+        }),
+    [locationStock],
+  );
+  const validStockItemId = availableItems.some((ls) => ls.stockItemId === stockItemId) ? stockItemId : '';
+  const selectedItem = availableItems.find((ls) => ls.stockItemId === validStockItemId);
   const locationName = locations.find((l) => l.id === locationId)?.name;
+
+  const { data: duplicateResponse } = useQuery({
+    queryKey: ['restock-requests', 'duplicate', locationId, validStockItemId],
+    queryFn: () => getRestockRequests({ locationId: locationId!, stockItemId: validStockItemId, status: 'pending', limit: 1 }),
+    enabled: !!locationId && !!validStockItemId,
+  });
+  const duplicatePending = duplicateResponse?.data[0];
 
   const requests = statsResponse?.data ?? [];
   const statPending = requests.filter((r) => r.status === 'pending').length;
@@ -160,8 +176,12 @@ export function RestockRequestForm() {
       addToast('error', 'Select a location in the top bar first.');
       return;
     }
+    if (duplicatePending) {
+      addToast('error', 'A pending request already exists for this item at this location.');
+      return;
+    }
     const errs: FormErrors = {};
-    if (!stockItemId) errs.stockItem = 'Please select an item.';
+    if (!validStockItemId) errs.stockItem = 'Please select an item.';
     const qtyNum = parseInt(qty, 10);
     if (!qty || isNaN(qtyNum) || qtyNum < 1) errs.qty = 'Enter a valid quantity (min 1).';
     if (Object.keys(errs).length) {
@@ -169,7 +189,7 @@ export function RestockRequestForm() {
       return;
     }
     submit({
-      stockItemId,
+      stockItemId: validStockItemId,
       locationId,
       requestedQty: qtyNum,
       notes: encodeNotes(priority, notes),
@@ -196,29 +216,37 @@ export function RestockRequestForm() {
         {/* Stock Item */}
         <div className="flex flex-col gap-1.5">
           <Label uppercase>Item</Label>
-          <div className="relative">
-            <select
-              value={stockItemId}
-              onChange={(e) => {
-                setStockItemId(e.target.value);
-                setErrors((prev) => ({ ...prev, stockItem: undefined }));
-              }}
-              disabled={!locationId || loadingStock}
-              className={cn(selectClass, errors.stockItem && 'border-destructive/60 focus:border-destructive focus:ring-destructive/15')}
-            >
-              <option value="">
-                {loadingStock ? 'Loading items…' : availableItems.length === 0 && locationId ? 'No available items' : 'Select item…'}
-              </option>
-              {availableItems.map((ls) => (
-                <option key={ls.stockItemId} value={ls.stockItemId}>
-                  {ls.stockItem!.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          </div>
+          <Select
+            value={validStockItemId}
+            onValueChange={(value) => {
+              setStockItemId(value);
+              setErrors((prev) => ({ ...prev, stockItem: undefined }));
+            }}
+            options={[
+              {
+                value: '',
+                label: loadingStock ? 'Loading items…' : availableItems.length === 0 && locationId ? 'No available items' : 'Select item…',
+              },
+              ...availableItems.map((item) => ({
+                value: item.stockItemId,
+                label: `${item.stockItem!.name} · ${fmtQty(Number(item.quantity))} ${item.stockItem!.unit}`,
+              })),
+            ]}
+            ariaLabel="Select stock item"
+            ariaInvalid={Boolean(errors.stockItem)}
+            disabled={!locationId || loadingStock}
+            className={selectClass}
+          />
           {!locationId && <p className="text-xs text-muted-foreground">Select a location in the top bar first.</p>}
           {errors.stockItem && <p className="text-xs text-destructive">{errors.stockItem}</p>}
+          {duplicatePending && (
+            <div className="flex items-start gap-2 rounded-lg border border-warning/20 bg-warning/5 px-3 py-2 text-xs text-warning">
+              <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <span>
+                A pending request already exists for {duplicatePending.requestedQty} {selectedItem?.stockItem?.unit ?? 'units'}.
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Quantity + Unit */}
@@ -280,7 +308,7 @@ export function RestockRequestForm() {
           />
         </div>
 
-        <Button type="submit" disabled={isPending || !locationId} size="lg" className="w-full">
+        <Button type="submit" disabled={isPending || !locationId || !!duplicatePending} size="lg" className="w-full">
           {isPending ? 'Submitting…' : 'Submit Request'}
         </Button>
       </form>
@@ -307,12 +335,12 @@ export function RestockRequestForm() {
 
         {/* Request pipeline */}
         <div className="flex flex-col gap-1.5">
-          <Label uppercase>Request pipeline</Label>
+          <Label uppercase>Request pipeline{locationName ? ` · ${locationName}` : ''}</Label>
           <div className="grid grid-cols-2 gap-3">
             <StatCard label="Pending" value={statPending} valueClass={statPending > 0 ? 'text-warning' : undefined} />
             <StatCard label="Urgent" value={statUrgent} valueClass={statUrgent > 0 ? 'text-destructive' : undefined} />
             <StatCard label="Approved" value={statApproved} valueClass={statApproved > 0 ? 'text-primary' : undefined} />
-            <StatCard label="Fulfilled" value={statFulfilled} valueClass={statFulfilled > 0 ? 'text-success' : undefined} />
+            <StatCard label="Ordered" value={statFulfilled} valueClass={statFulfilled > 0 ? 'text-success' : undefined} />
           </div>
         </div>
       </div>

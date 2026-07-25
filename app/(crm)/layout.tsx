@@ -4,9 +4,10 @@ import { redirect } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AuthInitializer } from '@/components/providers/AuthInitializer';
+import { WorkspaceInitializer } from '@/components/providers/WorkspaceInitializer';
 
 import { getSession } from '@/lib/api/auth.service';
-import { getMyStaffProfile } from '@/lib/api/staff.service';
+import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
 
 // Server Component — runs on every navigation to a CRM page.
 // Validates the session with the API (not just a cookie existence check).
@@ -27,12 +28,15 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
   if (!session) redirect('/api/auth/clear-session');
 
   // The signed-in user's role drives which nav items they can see.
-  const profile = await getMyStaffProfile(cookieHeader);
+  const profile = await getCurrentStaffProfile();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Hydrates the Zustand auth store with the server-fetched user. */}
       <AuthInitializer user={session.user} role={profile?.role ?? null} />
+      <WorkspaceInitializer
+        profile={profile ? { tenantId: profile.tenantId, role: profile.role, locationIds: profile.locationIds } : null}
+      />
 
       <Sidebar role={profile?.role ?? null} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">

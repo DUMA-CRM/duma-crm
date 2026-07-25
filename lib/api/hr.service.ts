@@ -59,6 +59,7 @@ export interface EmployeeHours {
   shifts: TimesheetShift[];
   totals: { shiftCount: number; rawHours: number; paidHours: number; overtimeHours: number; avgShiftHours: number };
 }
+export interface WorkPattern { userId: string; workingDays: number[]; contractedWeeklyHours: number }
 
 // Pay + statutory fields, shared by admin create/patch.
 export interface EmployeePayFields {
@@ -139,3 +140,6 @@ export const updateEmployee = (userId: string, data: UpdateEmployeePayload) =>
 export const offboardEmployee = (userId: string) =>
   apiFetch<{ success: boolean; userId: string }>(`/hr/employees/${userId}`, { method: 'DELETE' });
 
+export const getWorkPattern = (userId: string) => apiFetch<WorkPattern>(`/hr/employees/${userId}/work-pattern`);
+export const updateWorkPattern = (userId: string, data: Omit<WorkPattern, 'userId'>) =>
+  apiFetch<WorkPattern>(`/hr/employees/${userId}/work-pattern`, { method: 'PATCH', body: JSON.stringify(data) });

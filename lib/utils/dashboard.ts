@@ -33,12 +33,34 @@ function zonedParts(date: Date, timeZone: string) {
   };
 }
 
+function zonedDateTimeUtc(parts: ReturnType<typeof zonedParts> & { millisecond?: number }, timeZone: string) {
+  const desired = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second, parts.millisecond ?? 0);
+  let result = new Date(desired);
+
+  // Re-evaluate the offset because the target and current dates can sit on
+  // opposite sides of a daylight-saving transition.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const inZone = zonedParts(result, timeZone);
+    const represented = Date.UTC(
+      inZone.year,
+      inZone.month - 1,
+      inZone.day,
+      inZone.hour,
+      inZone.minute,
+      inZone.second,
+      result.getUTCMilliseconds(),
+    );
+    const correction = desired - represented;
+    if (correction === 0) break;
+    result = new Date(result.getTime() + correction);
+  }
+
+  return result;
+}
+
 function localMidnightUtc(date: Date, timeZone: string) {
   const { year, month, day } = zonedParts(date, timeZone);
-  const guess = new Date(Date.UTC(year, month - 1, day));
-  const inZone = zonedParts(guess, timeZone);
-  const represented = Date.UTC(inZone.year, inZone.month - 1, inZone.day, inZone.hour, inZone.minute, inZone.second);
-  return new Date(guess.getTime() - (represented - guess.getTime()));
+  return zonedDateTimeUtc({ year, month, day, hour: 0, minute: 0, second: 0 }, timeZone);
 }
 
 export function getDateWindow(range: DashboardRange, timeZone: string, now = new Date()): DateWindow {
@@ -48,9 +70,28 @@ export function getDateWindow(range: DashboardRange, timeZone: string, now = new
   const from = new Date(startToday);
   from.setUTCDate(from.getUTCDate() - (days - 1));
 
-  const duration = end.getTime() - from.getTime();
-  const previousTo = new Date(from.getTime() - 1);
-  const previousFrom = new Date(previousTo.getTime() - duration);
+  let previousFrom: Date;
+  let previousTo: Date;
+
+  if (range === 'today') {
+    const yesterday = zonedParts(new Date(startToday.getTime() - 1), timeZone);
+    const currentTime = zonedParts(now, timeZone);
+    previousFrom = zonedDateTimeUtc({ ...yesterday, hour: 0, minute: 0, second: 0 }, timeZone);
+    previousTo = zonedDateTimeUtc(
+      {
+        ...yesterday,
+        hour: currentTime.hour,
+        minute: currentTime.minute,
+        second: currentTime.second,
+        millisecond: now.getMilliseconds(),
+      },
+      timeZone,
+    );
+  } else {
+    const duration = end.getTime() - from.getTime();
+    previousTo = new Date(from.getTime() - 1);
+    previousFrom = new Date(previousTo.getTime() - duration);
+  }
 
   return {
     from: from.toISOString(),

@@ -2,12 +2,13 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { History, MoreHorizontal, PanelRight, RotateCcw, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { roleAtLeast } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
+import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 
 import { AuditDrawer } from './AuditDrawer';
 import { LocationPicker } from './LocationPicker';
@@ -30,11 +31,32 @@ export function Header() {
   // Only pages that render a right-hand panel get the drawer toggle.
   const { present: hasPageSidebar, toggle: togglePageSidebar, open: pageSidebarOpen } = usePageSidebarStore();
 
+  // "Hide top bar" setting — drop the header on lg+ (the sidebar carries its
+  // tools there). Keep it below lg, where it's the only way to open the nav.
+  // Gate on mounted so SSR and the first client render agree (persisted store).
+  const hideHeader = useUiSettingsStore((s) => s.hideHeader);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
   const handleReload = useCallback(async () => {
     setSpinning(true);
     await qc.invalidateQueries();
     setTimeout(() => setSpinning(false), 600);
   }, [qc]);
+
+  // Reflect the "hide top bar" setting on <html> so CSS can zero out
+  // --header-height on lg+ (full-height layouts subtract it).
+  useEffect(() => {
+    const root = document.documentElement;
+    if (hideHeader) root.dataset.hideHeader = 'true';
+    else delete root.dataset.hideHeader;
+    return () => {
+      delete root.dataset.hideHeader;
+    };
+  }, [hideHeader]);
 
   // Close the mobile tools menu on outside click (same pattern as LocationPicker).
   useEffect(() => {
@@ -70,7 +92,10 @@ export function Header() {
     <>
       <header
         ref={headerRef}
-        className="h-14 shrink-0 bg-surface border-b border-divider flex items-center gap-2 md:gap-3 px-3 md:px-6 sticky top-0 z-20"
+        className={cn(
+          'h-14 shrink-0 bg-surface border-b border-divider flex items-center gap-2 md:gap-3 px-3 md:px-6 sticky top-0 z-20',
+          mounted && hideHeader && 'lg:hidden',
+        )}
       >
         <SidebarToggle />
 

@@ -32,10 +32,6 @@ export default function CustomersPage() {
     return () => clearTimeout(id);
   }, [search]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, filter]);
-
   const { data, isLoading } = useQuery({
     queryKey: ['customers', page, debouncedSearch, filter, tenantId],
     queryFn: () =>
@@ -65,7 +61,10 @@ export default function CustomersPage() {
     <CustomerSearch
       query={search}
       filter={filter}
-      onQuery={setSearch}
+      onQuery={(value) => {
+        setSearch(value);
+        setPage(1);
+      }}
       onFilter={(f) => {
         setFilter(f);
         setPage(1);

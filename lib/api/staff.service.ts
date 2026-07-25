@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { ApiError, apiFetch } from './client';
 
 export type StaffRole = 'super_admin' | 'franchise_owner' | 'store_manager' | 'barista' | 'hr_manager' | 'marketing_manager' | 'auditor';
 export type StaffScope = 'global' | 'franchise' | 'location';
@@ -82,12 +82,14 @@ export const getStaff = async (tenantId?: string) => {
 export const getStaffMember = async (userId: string) => normalizeStaff(await apiFetch<StaffProfile>(`/staff/${userId}`));
 
 // The current user's own staff profile (role, scope, locations). Pass cookieHeader
-// when calling from a Server Component. Returns null if no profile / not authed.
+// when calling from a Server Component. Returns null only when no accessible
+// profile exists; transport and server failures remain visible to callers.
 export const getMyStaffProfile = async (cookieHeader?: string): Promise<StaffProfile | null> => {
   try {
     return normalizeStaff(await apiFetch<StaffProfile>('/staff/me', cookieHeader ? { cookieHeader } : {}));
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof ApiError && [401, 403, 404].includes(error.status)) return null;
+    throw error;
   }
 };
 

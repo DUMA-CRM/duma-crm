@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertCircle,
   Banknote,
   Bell,
   CalendarDays,
@@ -13,32 +14,41 @@ import {
   Download,
   Eye,
   Flame,
+  Loader2,
   MapPin,
   Monitor,
+  Search,
   ShoppingBag,
+  SlidersHorizontal,
   Smartphone,
   User,
+  X,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Popover } from 'radix-ui';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { Modal } from '@/components/shared/Modal';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { StatCard } from '@/components/shared/StatCard';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, type SelectOption } from '@/components/ui/select';
 
 import { API_PREFIX } from '@/lib/api/client';
 import {
   type Order,
   type OrderDetail as OrderDetailType,
+  type OrderSource,
   type OrderStatus,
   getOrder,
   getOrders,
   updateOrderStatus,
 } from '@/lib/api/orders.service';
+import { getStaff } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
 import { timeAgo } from '@/lib/utils/format';
 import { toast } from '@/stores/toastStore';
@@ -48,16 +58,39 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const LIMIT = 50;
 
-const STATUS_FILTERS = [
-  { value: 'all', label: 'All' },
+const STATUS_FILTERS: SelectOption[] = [
+  { value: 'all', label: 'All statuses' },
   { value: 'pending', label: 'Pending' },
   { value: 'preparing', label: 'Preparing' },
   { value: 'ready', label: 'Ready' },
   { value: 'done', label: 'Done' },
   { value: 'cancelled', label: 'Cancelled' },
-] as const;
+];
 
-type StatusFilter = (typeof STATUS_FILTERS)[number]['value'];
+type StatusFilter = 'all' | OrderStatus;
+type SourceFilter = 'all' | OrderSource;
+type PaymentFilter = 'all' | 'cash' | 'card';
+type DatePreset = 'all' | 'today' | '7d' | '30d' | 'custom';
+
+const SOURCE_FILTERS: SelectOption[] = [
+  { value: 'all', label: 'All sources' },
+  { value: 'pos', label: 'POS' },
+  { value: 'mobile', label: 'Mobile' },
+];
+
+const PAYMENT_FILTERS: SelectOption[] = [
+  { value: 'all', label: 'All payments' },
+  { value: 'card', label: 'Card' },
+  { value: 'cash', label: 'Cash' },
+];
+
+const DATE_FILTERS: SelectOption[] = [
+  { value: 'all', label: 'Any time' },
+  { value: 'today', label: 'Today' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: '30d', label: 'Last 30 days' },
+  { value: 'custom', label: 'Custom range' },
+];
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; dot: string; text: string; border: string; bg: string }> = {
   pending: { label: 'Pending', dot: 'bg-muted-foreground', text: 'text-muted-foreground', border: 'border-border', bg: 'bg-muted/50' },
@@ -85,6 +118,56 @@ const LIVE_STATUSES: OrderStatus[] = ['pending', 'preparing', 'ready'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+function initialPage(value: string | null) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function dateInputValue(date: Date) {
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10);
+}
+
+function datesForPreset(preset: Exclude<DatePreset, 'all' | 'custom'>) {
+  const end = new Date();
+  const start = new Date();
+  if (preset === '7d') start.setDate(start.getDate() - 6);
+  if (preset === '30d') start.setDate(start.getDate() - 29);
+  return { from: dateInputValue(start), to: dateInputValue(end) };
+}
+
+function startOfLocalDay(value: string) {
+  return new Date(`${value}T00:00:00`).toISOString();
+}
+
+function endOfLocalDay(value: string) {
+  return new Date(`${value}T23:59:59.999`).toISOString();
+}
+
+function optionLabel(options: SelectOption[], value: string) {
+  return options.find((option) => option.value === value)?.label ?? value;
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/8 pl-2.5 pr-1.5 text-xs font-medium text-primary">
+      <span className="max-w-52 truncate">{label}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${label} filter`}
+        className="flex size-5 items-center justify-center rounded-full hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+      >
+        <X size={11} aria-hidden="true" />
+      </button>
+    </span>
+  );
+}
+
 // ── Status badge + inline picker ─────────────────────────────────────────────
 
 function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boolean }) {
@@ -102,7 +185,10 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
       qc.invalidateQueries({ queryKey: ['inventory-overview'] });
       qc.invalidateQueries({ queryKey: ['location-stock'] });
       if (updated.inventoryWarnings?.length) {
-        toast('error', `Order completed with ${updated.inventoryWarnings.length} inventory shortfall${updated.inventoryWarnings.length === 1 ? '' : 's'}.`);
+        toast(
+          'error',
+          `Order completed with ${updated.inventoryWarnings.length} inventory shortfall${updated.inventoryWarnings.length === 1 ? '' : 's'}.`,
+        );
       }
       setOpen(false);
     },
@@ -580,13 +666,73 @@ function OrderRow({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function OrdersPage() {
-  const { locationId } = useWorkspaceStore();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [page, setPage] = useState(1);
+function OrdersPageContent() {
+  const searchParams = useSearchParams();
+  const { locationId, tenantId } = useWorkspaceStore();
+  const requestedStatus = searchParams.get('status');
+  const requestedSource = searchParams.get('source');
+  const requestedPayment = searchParams.get('paymentMethod');
+  const initialFrom = searchParams.get('from') ?? '';
+  const initialTo = searchParams.get('to') ?? '';
+  const requestedDatePreset = searchParams.get('range') as DatePreset | null;
+  const validDatePreset =
+    requestedDatePreset && DATE_FILTERS.some((option) => option.value === requestedDatePreset) ? requestedDatePreset : null;
+  const deepLinkedOrderId = searchParams.get('order');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    requestedStatus && STATUS_FILTERS.some((option) => option.value === requestedStatus) ? (requestedStatus as StatusFilter) : 'all',
+  );
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>(
+    requestedSource && SOURCE_FILTERS.some((option) => option.value === requestedSource) ? (requestedSource as SourceFilter) : 'all',
+  );
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>(
+    requestedPayment && PAYMENT_FILTERS.some((option) => option.value === requestedPayment) ? (requestedPayment as PaymentFilter) : 'all',
+  );
+  const [createdBy, setCreatedBy] = useState(searchParams.get('createdBy') ?? 'all');
+  const [customerSearch, setCustomerSearch] = useState(
+    searchParams.get('customer') ?? searchParams.get('customerId') ?? searchParams.get('customerPhone') ?? '',
+  );
+  const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState(customerSearch);
+  const [datePreset, setDatePreset] = useState<DatePreset>(validDatePreset ?? (initialFrom || initialTo ? 'custom' : 'all'));
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(initialTo);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [page, setPage] = useState(() => initialPage(searchParams.get('page')));
   const [activeTicket, setActiveTicket] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedCustomerSearch(customerSearch.trim()), customerSearch ? 400 : 0);
+    return () => window.clearTimeout(timeout);
+  }, [customerSearch]);
+
+  const invalidDateRange = Boolean(from && to && from > to);
+  const hasFilters =
+    statusFilter !== 'all' ||
+    sourceFilter !== 'all' ||
+    paymentFilter !== 'all' ||
+    createdBy !== 'all' ||
+    !!debouncedCustomerSearch ||
+    datePreset !== 'all' ||
+    !!from ||
+    !!to;
+  const advancedFilterCount = Number(createdBy !== 'all') + Number(datePreset === 'custom' && (!!from || !!to));
+
+  const { data: staff = [] } = useQuery({
+    queryKey: ['staff', tenantId],
+    queryFn: () => getStaff(tenantId ?? undefined),
+    enabled: !!tenantId,
+  });
+
+  const staffOptions = useMemo<SelectOption[]>(() => {
+    const options = staff
+      .map((member) => ({ value: member.userId, label: member.name || member.email || member.userId }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    if (createdBy !== 'all' && !options.some((option) => option.value === createdBy)) {
+      options.unshift({ value: createdBy, label: createdBy });
+    }
+    return [{ value: 'all', label: 'All staff' }, ...options];
+  }, [createdBy, staff]);
 
   // Broad query for stats + live tickets
   const { data: allData } = useQuery({
@@ -628,24 +774,54 @@ export default function OrdersPage() {
   );
 
   // Paginated query for table
-  const { data, isLoading } = useQuery({
-    queryKey: ['orders', page, statusFilter, locationId],
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
+    queryKey: ['orders', page, statusFilter, sourceFilter, paymentFilter, createdBy, debouncedCustomerSearch, from, to, locationId],
     queryFn: () =>
       getOrders({
         page,
         limit: LIMIT,
         locationId: locationId ?? undefined,
         status: statusFilter === 'all' ? undefined : statusFilter,
+        source: sourceFilter === 'all' ? undefined : sourceFilter,
+        paymentMethod: paymentFilter === 'all' ? undefined : paymentFilter,
+        createdBy: createdBy === 'all' ? undefined : createdBy,
+        customerId: debouncedCustomerSearch && isUuid(debouncedCustomerSearch) ? debouncedCustomerSearch : undefined,
+        customerPhone: debouncedCustomerSearch && !isUuid(debouncedCustomerSearch) ? debouncedCustomerSearch : undefined,
+        from: from ? startOfLocalDay(from) : undefined,
+        to: to ? endOfLocalDay(to) : undefined,
       }),
+    enabled: !invalidDateRange,
+    placeholderData: (previousData) => previousData,
   });
 
   const orders = useMemo(() => data?.data ?? [], [data?.data]);
   const totalPages = data?.pages ?? 1;
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    ['page', 'status', 'source', 'paymentMethod', 'createdBy', 'customer', 'customerId', 'customerPhone', 'range', 'from', 'to'].forEach(
+      (key) => params.delete(key),
+    );
+    if (page > 1) params.set('page', String(page));
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    if (sourceFilter !== 'all') params.set('source', sourceFilter);
+    if (paymentFilter !== 'all') params.set('paymentMethod', paymentFilter);
+    if (createdBy !== 'all') params.set('createdBy', createdBy);
+    if (debouncedCustomerSearch) params.set('customer', debouncedCustomerSearch);
+    if (datePreset !== 'all') params.set('range', datePreset);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+
+    const query = params.toString();
+    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextUrl !== currentUrl) window.history.replaceState(null, '', nextUrl);
+  }, [createdBy, datePreset, debouncedCustomerSearch, from, page, paymentFilter, sourceFilter, statusFilter, to]);
+
   // Deep link: /orders?order=<id> (e.g. from a customer's order list) opens the
   // page with that order expanded and scrolled into view.
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get('order');
+    const id = deepLinkedOrderId;
     if (!id) return;
     const timer = window.setTimeout(() => {
       setExpandedOrderId(id);
@@ -653,7 +829,7 @@ export default function OrdersPage() {
       setPendingScrollId(id);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [deepLinkedOrderId]);
 
   // Scroll to the deep-linked row once it renders (i.e. once orders have loaded).
   useEffect(() => {
@@ -680,22 +856,282 @@ export default function OrdersPage() {
     setExpandedOrderId(open ? id : null);
   }
 
-  return (
-    <PageLayout
-      eyebrow="Operations"
-      title="Orders"
-      headerBorder={false}
-      headerSlot={
-        <SegmentedControl
-          options={STATUS_FILTERS}
+  function resetPage() {
+    setPage(1);
+  }
+
+  function changeDatePreset(value: string) {
+    const next = value as DatePreset;
+    setDatePreset(next);
+    resetPage();
+    if (next === 'all') {
+      setFrom('');
+      setTo('');
+    } else if (next === 'custom') {
+      window.setTimeout(() => setAdvancedOpen(true), 0);
+    } else {
+      const dates = datesForPreset(next);
+      setFrom(dates.from);
+      setTo(dates.to);
+    }
+  }
+
+  function clearFilters() {
+    setStatusFilter('all');
+    setSourceFilter('all');
+    setPaymentFilter('all');
+    setCreatedBy('all');
+    setCustomerSearch('');
+    setDebouncedCustomerSearch('');
+    setDatePreset('all');
+    setFrom('');
+    setTo('');
+    resetPage();
+  }
+
+  const filterBar = (
+    <div className="space-y-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-56 flex-1 lg:max-w-sm">
+          <Input
+            type="search"
+            value={customerSearch}
+            onChange={(event) => {
+              setCustomerSearch(event.target.value);
+              resetPage();
+            }}
+            aria-label="Find orders by customer ID or phone number"
+            placeholder="Customer ID or phone…"
+            leftIcon={<Search size={14} />}
+            rightAction={
+              customerSearch ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomerSearch('');
+                    setDebouncedCustomerSearch('');
+                    resetPage();
+                  }}
+                  aria-label="Clear customer ID search"
+                  className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              ) : undefined
+            }
+            className="bg-background border-border"
+          />
+        </div>
+
+        <Select
           value={statusFilter}
-          onChange={(v) => {
-            setStatusFilter(v);
-            setPage(1);
+          onValueChange={(value) => {
+            setStatusFilter(value as StatusFilter);
+            resetPage();
           }}
+          options={STATUS_FILTERS}
+          ariaLabel="Filter orders by status"
+          className="w-[calc(50%-0.25rem)] sm:w-40"
         />
-      }
-    >
+        <Select
+          value={sourceFilter}
+          onValueChange={(value) => {
+            setSourceFilter(value as SourceFilter);
+            resetPage();
+          }}
+          options={SOURCE_FILTERS}
+          ariaLabel="Filter orders by source"
+          className="w-[calc(50%-0.25rem)] sm:w-36"
+        />
+        <Select
+          value={paymentFilter}
+          onValueChange={(value) => {
+            setPaymentFilter(value as PaymentFilter);
+            resetPage();
+          }}
+          options={PAYMENT_FILTERS}
+          ariaLabel="Filter orders by payment method"
+          className="w-[calc(50%-0.25rem)] sm:w-40"
+        />
+        <Select
+          value={datePreset}
+          onValueChange={changeDatePreset}
+          options={DATE_FILTERS}
+          ariaLabel="Filter orders by date range"
+          icon={<CalendarDays />}
+          className="w-[calc(50%-0.25rem)] sm:w-40"
+        />
+
+        <Popover.Root open={advancedOpen} onOpenChange={setAdvancedOpen}>
+          <Popover.Trigger asChild>
+            <Button variant="outline" className="w-[calc(50%-0.25rem)] sm:w-auto" aria-label="Open more order filters">
+              <SlidersHorizontal data-icon="inline-start" />
+              More filters
+              {advancedFilterCount > 0 && (
+                <span className="ml-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {advancedFilterCount}
+                </span>
+              )}
+            </Button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              align="end"
+              sideOffset={8}
+              collisionPadding={16}
+              className="z-[90] w-[calc(100vw-2rem)] max-w-sm rounded-2xl border border-border bg-surface p-4 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
+            >
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">More filters</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Narrow results by staff member or an exact date range.</p>
+                </div>
+                <Popover.Close asChild>
+                  <button
+                    type="button"
+                    aria-label="Close filters"
+                    className="flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <X size={14} aria-hidden="true" />
+                  </button>
+                </Popover.Close>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Created by</label>
+                  <Select
+                    value={createdBy}
+                    onValueChange={(value) => {
+                      setCreatedBy(value);
+                      resetPage();
+                    }}
+                    options={staffOptions}
+                    ariaLabel="Filter by staff member"
+                    icon={<User />}
+                    className="w-full"
+                  />
+                  {!tenantId && <p className="text-xs text-muted-foreground">Select a workspace to load staff names.</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Custom dates</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="date"
+                      value={from}
+                      onChange={(event) => {
+                        setFrom(event.target.value);
+                        setDatePreset('custom');
+                        resetPage();
+                      }}
+                      aria-label="Orders from date"
+                      className="bg-background border-border px-2"
+                    />
+                    <Input
+                      type="date"
+                      value={to}
+                      onChange={(event) => {
+                        setTo(event.target.value);
+                        setDatePreset('custom');
+                        resetPage();
+                      }}
+                      aria-label="Orders to date"
+                      className="bg-background border-border px-2"
+                    />
+                  </div>
+                  {invalidDateRange && (
+                    <p role="alert" className="flex items-center gap-1.5 text-xs text-destructive">
+                      <AlertCircle size={12} aria-hidden="true" /> The end date must be on or after the start date.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
+
+        <span
+          className="ml-auto flex min-w-24 items-center justify-end gap-1.5 text-xs text-muted-foreground tabular-nums"
+          aria-live="polite"
+        >
+          {isFetching && !isLoading && <Loader2 size={12} className="animate-spin" aria-label="Updating orders" />}
+          {data ? `${data.total.toLocaleString()} orders` : ''}
+        </span>
+      </div>
+
+      {hasFilters && (
+        <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
+          {statusFilter !== 'all' && (
+            <FilterChip
+              label={`Status: ${optionLabel(STATUS_FILTERS, statusFilter)}`}
+              onRemove={() => {
+                setStatusFilter('all');
+                resetPage();
+              }}
+            />
+          )}
+          {sourceFilter !== 'all' && (
+            <FilterChip
+              label={`Source: ${optionLabel(SOURCE_FILTERS, sourceFilter)}`}
+              onRemove={() => {
+                setSourceFilter('all');
+                resetPage();
+              }}
+            />
+          )}
+          {paymentFilter !== 'all' && (
+            <FilterChip
+              label={`Payment: ${optionLabel(PAYMENT_FILTERS, paymentFilter)}`}
+              onRemove={() => {
+                setPaymentFilter('all');
+                resetPage();
+              }}
+            />
+          )}
+          {createdBy !== 'all' && (
+            <FilterChip
+              label={`Created by: ${optionLabel(staffOptions, createdBy)}`}
+              onRemove={() => {
+                setCreatedBy('all');
+                resetPage();
+              }}
+            />
+          )}
+          {debouncedCustomerSearch && (
+            <FilterChip
+              label={`${isUuid(debouncedCustomerSearch) ? 'Customer ID' : 'Phone'}: ${debouncedCustomerSearch}`}
+              onRemove={() => {
+                setCustomerSearch('');
+                setDebouncedCustomerSearch('');
+                resetPage();
+              }}
+            />
+          )}
+          {datePreset !== 'all' && (
+            <FilterChip
+              label={datePreset === 'custom' ? `Date: ${from || 'Any'} – ${to || 'Any'}` : `Date: ${optionLabel(DATE_FILTERS, datePreset)}`}
+              onRemove={() => {
+                setDatePreset('all');
+                setFrom('');
+                setTo('');
+                resetPage();
+              }}
+            />
+          )}
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="ml-1 h-7 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <PageLayout eyebrow="Operations" title="Orders" headerBorder headerSlot={filterBar}>
       <div className="flex flex-col gap-4">
         {/* Stats */}
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 shrink-0">
@@ -769,7 +1205,34 @@ export default function OrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {isLoading ? (
+                {invalidDateRange ? (
+                  <tr>
+                    <td colSpan={7} className="py-24">
+                      <EmptyState
+                        icon={CalendarDays}
+                        title="Check the date range"
+                        description="The end date must be on or after the start date."
+                      />
+                    </td>
+                  </tr>
+                ) : isError ? (
+                  <tr>
+                    <td colSpan={7} className="py-24">
+                      <div className="flex flex-col items-center gap-3 px-6 text-center">
+                        <span className="flex size-11 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                          <AlertCircle size={22} aria-hidden="true" />
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">Couldn’t load orders</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Check your connection and try again.</p>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => refetch()}>
+                          Try again
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : isLoading ? (
                   Array.from({ length: 10 }).map((_, i) => (
                     <tr key={i} className="border-b border-border/50">
                       {Array.from({ length: 7 }).map((_, j) => (
@@ -785,11 +1248,7 @@ export default function OrdersPage() {
                       <EmptyState
                         icon={ShoppingBag}
                         title="No orders found"
-                        description={
-                          statusFilter !== 'all'
-                            ? `No ${statusFilter} orders${locationId ? ' at this location' : ''}.`
-                            : 'Orders will appear here once created.'
-                        }
+                        description={hasFilters ? 'Try adjusting or clearing your filters.' : 'Orders will appear here once created.'}
                       />
                     </td>
                   </tr>
@@ -828,5 +1287,29 @@ export default function OrdersPage() {
         </div>
       </div>
     </PageLayout>
+  );
+}
+
+function OrdersPageFallback() {
+  return (
+    <PageLayout eyebrow="Operations" title="Orders" headerBorder>
+      <div className="space-y-4">
+        <div className="h-9 w-full max-w-4xl animate-pulse rounded-lg bg-muted" />
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-28 animate-pulse rounded-2xl bg-muted" />
+          ))}
+        </div>
+        <div className="h-96 animate-pulse rounded-2xl border border-border bg-card" />
+      </div>
+    </PageLayout>
+  );
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={<OrdersPageFallback />}>
+      <OrdersPageContent />
+    </Suspense>
   );
 }

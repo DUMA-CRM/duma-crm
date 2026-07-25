@@ -1158,6 +1158,13 @@
             "description": "Filter by customer"
           },
           {
+            "name": "customerPhone",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Filter by a full or partial customer phone number"
+          },
+          {
             "name": "status",
             "in": "query",
             "required": false,
@@ -1191,6 +1198,20 @@
             "required": false,
             "schema": { "type": "string" },
             "description": "Filter by payment method"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Include orders created at or after this timestamp"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Include orders created at or before this timestamp"
           }
         ],
         "responses": {
@@ -2341,7 +2362,7 @@
         "operationId": "getV1AnalyticsTopItems",
         "tags": ["Analytics"],
         "summary": "Top selling menu items",
-        "description": "Best selling menu items by quantity and revenue within the date range.",
+        "description": "Best selling non-cancelled menu items by quantity and revenue within the date range.",
         "parameters": [
           {
             "name": "from",

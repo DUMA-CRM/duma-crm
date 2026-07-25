@@ -1,13 +1,13 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 
 import {
   type Allergen,
@@ -39,6 +39,13 @@ const NUTRITION_BASES: { value: NutritionBasis; label: string }[] = [
   { value: 'per_100g', label: 'per 100 g' },
   { value: 'per_100ml', label: 'per 100 ml' },
   { value: 'per_piece', label: 'per piece' },
+];
+
+const STOCK_CATEGORY_OPTIONS = [
+  { value: 'FOOD', label: 'Food' },
+  { value: 'BEVERAGE', label: 'Beverage' },
+  { value: 'SUPPLY', label: 'Supply' },
+  { value: 'MERCH', label: 'Merchandise' },
 ];
 
 export interface NutritionDraft {
@@ -201,7 +208,13 @@ export function AddItemModal({
         });
         itemId = created.id;
       }
-      const payload: LocationStockPayload = { locationId, stockItemId: itemId, lowThreshold, reorderQuantity: reorderQuantity || undefined, isAvailable: true };
+      const payload: LocationStockPayload = {
+        locationId,
+        stockItemId: itemId,
+        lowThreshold,
+        reorderQuantity: reorderQuantity || undefined,
+        isAvailable: true,
+      };
       return addLocationStock(payload);
     },
     onSuccess: () => {
@@ -220,7 +233,10 @@ export function AddItemModal({
       if (!newUnit.trim()) errs.unit = 'Unit is required (e.g. kg, ml, units).';
     }
     if (!lowThreshold || parseFloat(lowThreshold) < 0) errs.threshold = 'Enter a valid threshold.';
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
     mutate();
   }
 
@@ -229,14 +245,21 @@ export function AddItemModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex flex-col gap-1.5">
           <Label uppercase>Item</Label>
-          <div className="relative">
-            <select value={stockItemId} onChange={(e) => { setStockItemId(e.target.value); setErrors((p) => ({ ...p, item: '' })); }} className={cn(selectClass, errors.item && 'border-destructive/60')}>
-              <option value="">Select item…</option>
-              {available.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}
-              <option value={NEW_ITEM}>＋ Create new item…</option>
-            </select>
-            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          </div>
+          <Select
+            value={stockItemId}
+            onValueChange={(value) => {
+              setStockItemId(value);
+              setErrors((previous) => ({ ...previous, item: '' }));
+            }}
+            options={[
+              { value: '', label: 'Select item…' },
+              ...available.map((item) => ({ value: item.id, label: `${item.name} (${item.unit})` })),
+              { value: NEW_ITEM, label: '＋ Create new item…' },
+            ]}
+            ariaLabel="Item"
+            ariaInvalid={Boolean(errors.item)}
+            className={selectClass}
+          />
           {errors.item && <p className="text-xs text-destructive">{errors.item}</p>}
         </div>
 
@@ -246,7 +269,10 @@ export function AddItemModal({
               <Input
                 label="NAME"
                 value={newName}
-                onChange={(e) => { setNewName(e.target.value); setErrors((p) => ({ ...p, name: '' })); }}
+                onChange={(e) => {
+                  setNewName(e.target.value);
+                  setErrors((p) => ({ ...p, name: '' }));
+                }}
                 placeholder="e.g. Oat Milk"
                 error={errors.name}
                 autoFocus
@@ -256,7 +282,10 @@ export function AddItemModal({
               <Input
                 label="UNIT"
                 value={newUnit}
-                onChange={(e) => { setNewUnit(e.target.value); setErrors((p) => ({ ...p, unit: '' })); }}
+                onChange={(e) => {
+                  setNewUnit(e.target.value);
+                  setErrors((p) => ({ ...p, unit: '' }));
+                }}
                 placeholder="litre"
                 error={errors.unit}
               />
@@ -268,15 +297,35 @@ export function AddItemModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Label uppercase>Category</Label>
-              <select value={newCategory} onChange={(e) => setNewCategory(e.target.value as StockItem['category'])} className={selectClass}>
-                <option value="FOOD">Food</option><option value="BEVERAGE">Beverage</option><option value="SUPPLY">Supply</option><option value="MERCH">Merchandise</option>
-              </select>
+              <Select
+                value={newCategory}
+                onValueChange={(value) => setNewCategory(value as StockItem['category'])}
+                options={STOCK_CATEGORY_OPTIONS}
+                ariaLabel="Category"
+                className={selectClass}
+              />
             </div>
             <label className="flex items-center gap-2 self-end h-9 rounded-lg bg-surface-offset px-3 text-sm text-foreground">
               <input type="checkbox" checked={newPerishable} onChange={(e) => setNewPerishable(e.target.checked)} /> Perishable
             </label>
-            <Input label="CONTAINER QUANTITY" value={newContainerQty} onChange={(e) => setNewContainerQty(e.target.value)} placeholder="e.g. 1000" type="number" min={0} />
-            {newPerishable && <Input label="SHELF LIFE (DAYS)" value={newShelfLife} onChange={(e) => setNewShelfLife(e.target.value)} placeholder="e.g. 7" type="number" min={1} />}
+            <Input
+              label="CONTAINER QUANTITY"
+              value={newContainerQty}
+              onChange={(e) => setNewContainerQty(e.target.value)}
+              placeholder="e.g. 1000"
+              type="number"
+              min={0}
+            />
+            {newPerishable && (
+              <Input
+                label="SHELF LIFE (DAYS)"
+                value={newShelfLife}
+                onChange={(e) => setNewShelfLife(e.target.value)}
+                placeholder="e.g. 7"
+                type="number"
+                min={1}
+              />
+            )}
           </div>
         )}
 
@@ -287,17 +336,38 @@ export function AddItemModal({
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <Label uppercase>Reorder qty</Label>
-            <input type="number" min={0} step="any" placeholder="e.g. 500" value={reorderQuantity} onChange={(e) => setReorderQuantity(e.target.value)} className={selectClass} />
+            <input
+              type="number"
+              min={0}
+              step="any"
+              placeholder="e.g. 500"
+              value={reorderQuantity}
+              onChange={(e) => setReorderQuantity(e.target.value)}
+              className={selectClass}
+            />
           </div>
           <div className="flex flex-col gap-1.5 flex-1">
             <Label uppercase>Low threshold</Label>
-            <input type="number" min={0} step="any" placeholder="e.g. 100" value={lowThreshold} onChange={(e) => { setLowThreshold(e.target.value); setErrors((p) => ({ ...p, threshold: '' })); }} className={cn(selectClass, errors.threshold && 'border-destructive/60')} />
+            <input
+              type="number"
+              min={0}
+              step="any"
+              placeholder="e.g. 100"
+              value={lowThreshold}
+              onChange={(e) => {
+                setLowThreshold(e.target.value);
+                setErrors((p) => ({ ...p, threshold: '' }));
+              }}
+              className={cn(selectClass, errors.threshold && 'border-destructive/60')}
+            />
             {errors.threshold && <p className="text-xs text-destructive">{errors.threshold}</p>}
           </div>
         </div>
 
         <div className="flex gap-2 pt-1">
-          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
           <Button type="submit" className="flex-1" disabled={isPending}>
             {isPending ? 'Adding…' : 'Add Item'}
           </Button>
@@ -309,27 +379,25 @@ export function AddItemModal({
 
 // ── Edit Threshold ────────────────────────────────────────────────────────────
 
-export function EditThresholdModal({
-  item,
-  onClose,
-  onSuccess,
-}: {
-  item: LocationStock;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
+export function EditThresholdModal({ item, onClose, onSuccess }: { item: LocationStock; onClose: () => void; onSuccess: () => void }) {
   const [threshold, setThreshold] = useState(item.lowThreshold);
   const [reorderQuantity, setReorderQuantity] = useState(item.reorderQuantity ?? item.stockItem?.defaultReorderQuantity ?? '');
   const [error, setError] = useState('');
 
   const { mutate, isPending } = useMutation({
     mutationFn: (val: string) => updateLocationStock(item.id, { lowThreshold: val, reorderQuantity: reorderQuantity || null }),
-    onSuccess: () => { onSuccess(); onClose(); },
+    onSuccess: () => {
+      onSuccess();
+      onClose();
+    },
   });
 
   function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
-    if (parseFloat(threshold) < 0 || isNaN(parseFloat(threshold))) { setError('Enter a valid threshold.'); return; }
+    if (parseFloat(threshold) < 0 || isNaN(parseFloat(threshold))) {
+      setError('Enter a valid threshold.');
+      return;
+    }
     mutate(threshold);
   }
 
@@ -343,7 +411,10 @@ export function EditThresholdModal({
             min={0}
             step="any"
             value={threshold}
-            onChange={(e) => { setThreshold(e.target.value); setError(''); }}
+            onChange={(e) => {
+              setThreshold(e.target.value);
+              setError('');
+            }}
             className={cn(selectClass, error && 'border-destructive/60')}
             autoFocus
           />
@@ -352,12 +423,23 @@ export function EditThresholdModal({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label uppercase>Reorder quantity ({item.stockItem?.unit ?? 'units'})</Label>
-          <input type="number" min={0} step="any" value={reorderQuantity} onChange={(e) => setReorderQuantity(e.target.value)} className={selectClass} />
+          <input
+            type="number"
+            min={0}
+            step="any"
+            value={reorderQuantity}
+            onChange={(e) => setReorderQuantity(e.target.value)}
+            className={selectClass}
+          />
           <p className="text-xs text-muted-foreground">Suggested purchase amount when stock reaches the threshold.</p>
         </div>
         <div className="flex gap-2 pt-1">
-          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={isPending}>{isPending ? 'Saving…' : 'Save'}</Button>
+          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" className="flex-1" disabled={isPending}>
+            {isPending ? 'Saving…' : 'Save'}
+          </Button>
         </div>
       </form>
     </Modal>
@@ -366,28 +448,26 @@ export function EditThresholdModal({
 
 // ── Request Restock ─────────────────────────────────────────────────────────
 
-export function RestockModal({
-  item,
-  onClose,
-  onSuccess,
-}: {
-  item: LocationStock;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
+export function RestockModal({ item, onClose, onSuccess }: { item: LocationStock; onClose: () => void; onSuccess: () => void }) {
   const [qty, setQty] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
 
   const { mutate, isPending } = useMutation({
     mutationFn: (payload: CreateRestockRequestPayload) => createRestockRequest(payload),
-    onSuccess: () => { onSuccess(); onClose(); },
+    onSuccess: () => {
+      onSuccess();
+      onClose();
+    },
   });
 
   function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
     const n = parseFloat(qty);
-    if (!n || n <= 0) { setError('Enter a valid quantity.'); return; }
+    if (!n || n <= 0) {
+      setError('Enter a valid quantity.');
+      return;
+    }
     mutate({ stockItemId: item.stockItemId, locationId: item.locationId, requestedQty: n, notes: notes || undefined });
   }
 
@@ -400,8 +480,14 @@ export function RestockModal({
         <div className="rounded-xl bg-surface-offset px-4 py-3 text-sm">
           <p className="font-medium text-foreground">{itemName}</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Current: <span className="font-semibold text-foreground">{parseFloat(item.quantity)} {unit}</span>
-            {' · '}Threshold: <span className="font-semibold text-foreground">{parseFloat(item.lowThreshold)} {unit}</span>
+            Current:{' '}
+            <span className="font-semibold text-foreground">
+              {parseFloat(item.quantity)} {unit}
+            </span>
+            {' · '}Threshold:{' '}
+            <span className="font-semibold text-foreground">
+              {parseFloat(item.lowThreshold)} {unit}
+            </span>
           </p>
         </div>
 
@@ -413,7 +499,10 @@ export function RestockModal({
             step="any"
             placeholder="e.g. 50"
             value={qty}
-            onChange={(e) => { setQty(e.target.value); setError(''); }}
+            onChange={(e) => {
+              setQty(e.target.value);
+              setError('');
+            }}
             className={cn(selectClass, error && 'border-destructive/60')}
             autoFocus
           />
@@ -439,7 +528,9 @@ export function RestockModal({
         </div>
 
         <div className="flex gap-2 pt-1">
-          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
           <Button type="submit" className="flex-1" disabled={isPending}>
             {isPending ? 'Requesting…' : 'Submit Request'}
           </Button>
@@ -489,7 +580,10 @@ export function LogLossModal({
 
   const { mutate: submit, isPending } = useMutation({
     mutationFn: (data: CreateLossPayload) => createLossEntry(data),
-    onSuccess: () => { onSuccess(); onClose(); },
+    onSuccess: () => {
+      onSuccess();
+      onClose();
+    },
   });
 
   function handleSubmit(e: React.SyntheticEvent) {
@@ -500,7 +594,10 @@ export function LogLossModal({
     const qtyNum = parseFloat(qty);
     if (!qty || isNaN(qtyNum) || qtyNum <= 0) errs.qty = 'Enter a valid quantity.';
     else if (qtyNum > currentQty) errs.qty = `Max available: ${currentQty}`;
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
     submit({ stockItemId, locationId, quantity: qtyNum, reason, notes: notes.trim() || undefined });
   }
 
@@ -509,40 +606,53 @@ export function LogLossModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex flex-col gap-1.5">
           <Label uppercase>Location</Label>
-          <div className="relative">
-            <select
-              value={locationId}
-              onChange={(e) => { setLocationId(e.target.value); setStockItemId(''); setErrors((p) => ({ ...p, location: '' })); }}
-              className={cn(selectClass, errors.location && 'border-destructive/60')}
-            >
-              <option value="">Select location…</option>
-              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          </div>
+          <Select
+            value={locationId}
+            onValueChange={(value) => {
+              setLocationId(value);
+              setStockItemId('');
+              setErrors((previous) => ({ ...previous, location: '' }));
+            }}
+            options={[
+              { value: '', label: 'Select location…' },
+              ...locations.map((location) => ({ value: location.id, label: location.name })),
+            ]}
+            ariaLabel="Location"
+            ariaInvalid={Boolean(errors.location)}
+            className={selectClass}
+          />
           {errors.location && <p className="text-xs text-destructive">{errors.location}</p>}
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label uppercase>Item</Label>
-          <div className="relative">
-            <select
-              value={stockItemId}
-              onChange={(e) => { setStockItemId(e.target.value); setErrors((p) => ({ ...p, item: '' })); }}
-              disabled={!locationId || loadingStock}
-              className={cn(selectClass, errors.item && 'border-destructive/60')}
-            >
-              <option value="">
-                {loadingStock ? 'Loading…' : !locationId ? 'Select a location first' : availableItems.length === 0 ? 'No items available' : 'Select item…'}
-              </option>
-              {availableItems.map((ls) => (
-                <option key={ls.stockItemId} value={ls.stockItemId}>
-                  {ls.stockItem!.name} — {parseFloat(ls.quantity)} {ls.stockItem!.unit} available
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          </div>
+          <Select
+            value={stockItemId}
+            onValueChange={(value) => {
+              setStockItemId(value);
+              setErrors((previous) => ({ ...previous, item: '' }));
+            }}
+            options={[
+              {
+                value: '',
+                label: loadingStock
+                  ? 'Loading…'
+                  : !locationId
+                    ? 'Select a location first'
+                    : availableItems.length === 0
+                      ? 'No items available'
+                      : 'Select item…',
+              },
+              ...availableItems.map((item) => ({
+                value: item.stockItemId,
+                label: `${item.stockItem!.name} — ${parseFloat(item.quantity)} ${item.stockItem!.unit} available`,
+              })),
+            ]}
+            ariaLabel="Item"
+            ariaInvalid={Boolean(errors.item)}
+            disabled={!locationId || loadingStock}
+            className={selectClass}
+          />
           {errors.item && <p className="text-xs text-destructive">{errors.item}</p>}
         </div>
 
@@ -554,28 +664,34 @@ export function LogLossModal({
               min={0.01}
               step="any"
               value={qty}
-              onChange={(e) => { setQty(e.target.value); setErrors((p) => ({ ...p, qty: '' })); }}
+              onChange={(e) => {
+                setQty(e.target.value);
+                setErrors((p) => ({ ...p, qty: '' }));
+              }}
               placeholder="0"
               error={errors.qty}
               hint={selectedItem ? `Available: ${currentQty} ${selectedItem.stockItem?.unit ?? ''}` : undefined}
             />
           </div>
-          <div className={cn(
-            'h-9 px-3 bg-surface-offset rounded-lg flex items-center text-sm font-medium shrink-0 border border-transparent',
-            selectedItem?.stockItem?.unit ? 'text-foreground' : 'text-muted-foreground',
-          )}>
+          <div
+            className={cn(
+              'h-9 px-3 bg-surface-offset rounded-lg flex items-center text-sm font-medium shrink-0 border border-transparent',
+              selectedItem?.stockItem?.unit ? 'text-foreground' : 'text-muted-foreground',
+            )}
+          >
             {selectedItem?.stockItem?.unit ?? 'unit'}
           </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label uppercase>Reason</Label>
-          <div className="relative">
-            <select value={reason} onChange={(e) => setReason(e.target.value as LossCreateReason)} className={selectClass}>
-              {REASON_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          </div>
+          <Select
+            value={reason}
+            onValueChange={(value) => setReason(value as LossCreateReason)}
+            options={REASON_OPTIONS}
+            ariaLabel="Loss reason"
+            className={selectClass}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -599,7 +715,9 @@ export function LogLossModal({
         </div>
 
         <div className="flex gap-2 pt-1">
-          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
           <Button type="submit" className="flex-1" disabled={isPending}>
             {isPending ? 'Logging…' : 'Log Loss'}
           </Button>
@@ -616,7 +734,21 @@ export function EditStockItemModal({
   onClose,
   onSuccess,
 }: {
-  item: Pick<StockItem, 'id' | 'name' | 'unit' | 'category' | 'isPerishable' | 'defaultShelfLifeDays' | 'defaultContainerQuantity' | 'defaultReorderLevel' | 'defaultReorderQuantity' | 'nutritionBasis' | 'nutrition' | 'allergens'>;
+  item: Pick<
+    StockItem,
+    | 'id'
+    | 'name'
+    | 'unit'
+    | 'category'
+    | 'isPerishable'
+    | 'defaultShelfLifeDays'
+    | 'defaultContainerQuantity'
+    | 'defaultReorderLevel'
+    | 'defaultReorderQuantity'
+    | 'nutritionBasis'
+    | 'nutrition'
+    | 'allergens'
+  >;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -645,12 +777,21 @@ export function EditStockItemModal({
         ...nutritionPayload(nutrition),
         allergens: allergens.length > 0 ? allergens : null,
       }),
-    onSuccess: () => { onSuccess(); onClose(); },
+    onSuccess: () => {
+      onSuccess();
+      onClose();
+    },
   });
 
   return (
     <Modal title={`Edit "${item.name}"`} onClose={onClose} className="max-w-lg">
-      <form onSubmit={(e) => { e.preventDefault(); mutate(); }} className="space-y-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          mutate();
+        }}
+        className="space-y-4"
+      >
         <Input label="NAME" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
         <Input
           label="UNIT"
@@ -661,16 +802,49 @@ export function EditStockItemModal({
           hint="Changing the unit affects every location tracking this item."
         />
         <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5"><Label uppercase>Category</Label><select value={category} onChange={(e) => setCategory(e.target.value as StockItem['category'])} className={selectClass}><option value="FOOD">Food</option><option value="BEVERAGE">Beverage</option><option value="SUPPLY">Supply</option><option value="MERCH">Merchandise</option></select></div>
-          <label className="flex items-center gap-2 self-end h-9 rounded-lg bg-surface-offset px-3 text-sm"><input type="checkbox" checked={isPerishable} onChange={(e) => setIsPerishable(e.target.checked)} /> Perishable</label>
-          <Input label="CONTAINER QUANTITY" value={containerQuantity} onChange={(e) => setContainerQuantity(e.target.value)} type="number" min={0} />
-          {isPerishable && <Input label="SHELF LIFE (DAYS)" value={shelfLife} onChange={(e) => setShelfLife(e.target.value)} type="number" min={1} />}
-          <Input label="DEFAULT REORDER LEVEL" value={reorderLevel} onChange={(e) => setReorderLevel(e.target.value)} type="number" min={0} />
-          <Input label="DEFAULT REORDER QUANTITY" value={reorderQuantity} onChange={(e) => setReorderQuantity(e.target.value)} type="number" min={0} />
+          <div className="flex flex-col gap-1.5">
+            <Label uppercase>Category</Label>
+            <Select
+              value={category}
+              onValueChange={(value) => setCategory(value as StockItem['category'])}
+              options={STOCK_CATEGORY_OPTIONS}
+              ariaLabel="Category"
+              className={selectClass}
+            />
+          </div>
+          <label className="flex items-center gap-2 self-end h-9 rounded-lg bg-surface-offset px-3 text-sm">
+            <input type="checkbox" checked={isPerishable} onChange={(e) => setIsPerishable(e.target.checked)} /> Perishable
+          </label>
+          <Input
+            label="CONTAINER QUANTITY"
+            value={containerQuantity}
+            onChange={(e) => setContainerQuantity(e.target.value)}
+            type="number"
+            min={0}
+          />
+          {isPerishable && (
+            <Input label="SHELF LIFE (DAYS)" value={shelfLife} onChange={(e) => setShelfLife(e.target.value)} type="number" min={1} />
+          )}
+          <Input
+            label="DEFAULT REORDER LEVEL"
+            value={reorderLevel}
+            onChange={(e) => setReorderLevel(e.target.value)}
+            type="number"
+            min={0}
+          />
+          <Input
+            label="DEFAULT REORDER QUANTITY"
+            value={reorderQuantity}
+            onChange={(e) => setReorderQuantity(e.target.value)}
+            type="number"
+            min={0}
+          />
         </div>
         <NutritionFields draft={nutrition} onChange={setNutrition} allergens={allergens} onAllergensChange={setAllergens} />
         <div className="flex gap-2 pt-1">
-          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
           <Button type="submit" className="flex-1" disabled={isPending || !name.trim() || !unit.trim()}>
             {isPending ? 'Saving…' : 'Save Changes'}
           </Button>

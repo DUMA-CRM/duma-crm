@@ -8,6 +8,7 @@ import { CoveragePanel } from '@/components/scheduling/CoveragePanel';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
+import { Select } from '@/components/ui/select';
 
 import {
   type ScheduledShift,
@@ -196,13 +197,14 @@ function CreateShiftModal({
     >
       <div>
         <label className={lbl}>Location</label>
-        <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className={sel} required>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
+        <Select
+          value={locationId}
+          onValueChange={setLocationId}
+          options={locations.map((location) => ({ value: location.id, label: location.name }))}
+          ariaLabel="Location"
+          className={sel}
+          required
+        />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-[1fr_auto_auto] gap-3">
@@ -251,14 +253,16 @@ function CreateShiftModal({
             );
           })}
         </div>
-        <select value={weeks} onChange={(e) => setWeeks(Number(e.target.value))} className={sel}>
-          <option value={1}>Just this week</option>
-          {[2, 3, 4, 6, 8, 12].map((n) => (
-            <option key={n} value={n}>
-              For {n} weeks
-            </option>
-          ))}
-        </select>
+        <Select
+          value={String(weeks)}
+          onValueChange={(value) => setWeeks(Number(value))}
+          options={[
+            { value: '1', label: 'Just this week' },
+            ...[2, 3, 4, 6, 8, 12].map((count) => ({ value: String(count), label: `For ${count} weeks` })),
+          ]}
+          ariaLabel="Repeat duration"
+          className={sel}
+        />
         <p className="text-xs text-muted-foreground">
           Creates {occurrences.length} {occurrences.length === 1 ? 'shift' : 'shifts'}
           {occurrences.length > 1 && ' — each one can still be edited or deleted individually.'}
@@ -267,14 +271,16 @@ function CreateShiftModal({
 
       <div>
         <label className={lbl}>Staff</label>
-        <select value={userId} onChange={(e) => setUserId(e.target.value)} className={sel}>
-          <option value="">Open slot</option>
-          {staff.map((s) => (
-            <option key={s.userId} value={s.userId}>
-              {s.name ?? s.email ?? s.userId}
-            </option>
-          ))}
-        </select>
+        <Select
+          value={userId}
+          onValueChange={setUserId}
+          options={[
+            { value: '', label: 'Open slot' },
+            ...staff.map((member) => ({ value: member.userId, label: member.name ?? member.email ?? member.userId })),
+          ]}
+          ariaLabel="Staff"
+          className={sel}
+        />
       </div>
       {suggestReady && suggestions.length > 0 && (
         <div>
@@ -388,14 +394,16 @@ function EditShiftModal({ shift, staff, onClose }: { shift: ScheduledShift; staf
       </p>
       <div>
         <label className={lbl}>Staff</label>
-        <select value={userId} onChange={(e) => setUserId(e.target.value)} className={sel}>
-          <option value="">Open slot</option>
-          {staff.map((s) => (
-            <option key={s.userId} value={s.userId}>
-              {s.name ?? s.email ?? s.userId}
-            </option>
-          ))}
-        </select>
+        <Select
+          value={userId}
+          onValueChange={setUserId}
+          options={[
+            { value: '', label: 'Open slot' },
+            ...staff.map((member) => ({ value: member.userId, label: member.name ?? member.email ?? member.userId })),
+          ]}
+          ariaLabel="Staff"
+          className={sel}
+        />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-[1fr_auto_auto] gap-3">
         <div className="col-span-2 sm:col-span-1">
@@ -418,13 +426,16 @@ function EditShiftModal({ shift, staff, onClose }: { shift: ScheduledShift; staf
         </div>
         <div>
           <label className={lbl}>Status</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value as ScheduledShiftStatus)} className={sel}>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={status}
+            onValueChange={(value) => setStatus(value as ScheduledShiftStatus)}
+            options={STATUSES.map((nextStatus) => ({
+              value: nextStatus,
+              label: nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1),
+            }))}
+            ariaLabel="Shift status"
+            className={sel}
+          />
         </div>
       </div>
       <div>

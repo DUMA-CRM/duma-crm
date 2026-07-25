@@ -21,16 +21,16 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+import { AddressFields } from '@/components/people/AddressFields';
 import {
   Avatar,
   EMPLOYMENT_CONFIG,
   EMPLOYMENT_TYPES,
   PAY_CONFIG,
   PAY_TYPES,
-  ROLE_CONFIG,
   ROLES,
+  ROLE_CONFIG,
   SCOPES,
-  canManageTeam,
   canSeeMoney,
   fmtDate,
   fmtHours,
@@ -40,12 +40,12 @@ import {
   sel,
   toDateInput,
 } from '@/components/people/shared';
-import { AddressFields } from '@/components/people/AddressFields';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 
 import {
   type BankDetailsPayload,
@@ -54,9 +54,11 @@ import {
   getEmployee,
   getEmployeeBank,
   getEmployeeHours,
+  getWorkPattern,
   offboardEmployee,
   setEmployeeBank,
   updateEmployee,
+  updateWorkPattern,
 } from '@/lib/api/hr.service';
 import {
   type StaffPerfWindowKey,
@@ -68,6 +70,18 @@ import {
   updateStaff,
 } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
+import { assignCourse, getCourses, getTrainingCompliance } from '@/lib/api/courses.service';
+import {
+  addEmployeeDocument,
+  createEntitlement,
+  createLeaveType,
+  deleteEmployeeDocument,
+  getEmployeeDocuments,
+  getEmployeeEntitlements,
+  getLeaveTypes,
+  updateEntitlement,
+  type LeaveEntitlement,
+} from '@/lib/api/people-ops.service';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
@@ -97,7 +111,6 @@ export function EmployeeRecordPage({
   const qc = useQueryClient();
   const role = useAuthStore((s) => s.role);
   const money = canSeeMoney(role);
-  const canManage = canManageTeam(role);
   // Owned here (not the parent) so the confirm dialog sits with this record view.
   const [offboardOpen, setOffboardOpen] = useState(false);
 
@@ -136,9 +149,7 @@ export function EmployeeRecordPage({
 
   const name = member?.name ?? emp?.jobTitle ?? 'Employee';
   const estGross =
-    emp?.payType === 'salaried'
-      ? Number(emp.annualSalary ?? 0) / 12
-      : (hours?.totals.paidHours ?? 0) * Number(emp?.hourlyRate ?? 0);
+    emp?.payType === 'salaried' ? Number(emp.annualSalary ?? 0) / 12 : (hours?.totals.paidHours ?? 0) * Number(emp?.hourlyRate ?? 0);
 
   return (
     // In-page full-height panel (keeps the app sidebar + header visible). Negative
@@ -155,7 +166,13 @@ export function EmployeeRecordPage({
             <h1 className="text-lg font-semibold text-foreground truncate">{name}</h1>
             <div className="flex items-center gap-2 mt-0.5">
               {member && (
-                <span className={cn('text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded', ROLE_CONFIG[member.role].bg, ROLE_CONFIG[member.role].text)}>
+                <span
+                  className={cn(
+                    'text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded',
+                    ROLE_CONFIG[member.role].bg,
+                    ROLE_CONFIG[member.role].text,
+                  )}
+                >
                   {ROLE_CONFIG[member.role].label}
                 </span>
               )}
@@ -164,7 +181,7 @@ export function EmployeeRecordPage({
             </div>
           </div>
         </div>
-        {member && (
+        {member && money && (
           <div className="flex items-center gap-2 shrink-0">
             {member.isActive ? (
               <Button variant="outline" onClick={() => setOffboardOpen(true)} className="h-10 text-destructive hover:text-destructive">
@@ -202,11 +219,14 @@ export function EmployeeRecordPage({
               {/* Detail cards, two per row. Access & Role comes from the staff
                   profile so it shows even before an employee record exists. */}
               <div className="grid lg:grid-cols-2 gap-4 items-start">
-                {member && <AccessCard member={member} locations={locations} canEdit={canManage} />}
+                {member && <AccessCard member={member} locations={locations} canEdit={money} />}
                 {emp ? (
                   <>
                     <PersonalTab userId={userId} emp={emp} canEdit={money} email={member?.email} />
                     <EmploymentTab userId={userId} emp={emp} canEditPay={money} />
+                    <WorkPatternCard userId={userId} />
+                    <LeaveAllowanceCard userId={userId} />
+                    {money && <EmployeeDocumentsCard userId={userId} />}
                     {money && <BankTab userId={userId} emp={emp} />}
                   </>
                 ) : (
@@ -220,6 +240,7 @@ export function EmployeeRecordPage({
 
               {/* Performance — sales & throughput this member has driven */}
               {member && <PerformanceCard userId={userId} />}
+              {member && <EmployeeTrainingCard userId={userId} tenantId={member.tenantId} />}
 
               {/* Timesheet — one row per day; click a day for its shift segments */}
               {emp && <TimesheetCard hours={hours} monthOffset={monthOffset} onMonthChange={setMonthOffset} />}
@@ -234,8 +255,8 @@ export function EmployeeRecordPage({
           title="Offboard Employee"
           message={
             <>
-              Offboard <span className="font-semibold text-foreground">{member.name ?? member.email}</span>? Their record is retained
-              (leave &amp; pay history kept) but marked inactive.
+              Offboard <span className="font-semibold text-foreground">{member.name ?? member.email}</span>? Their record is retained (leave
+              &amp; pay history kept) but marked inactive.
             </>
           }
           isPending={offboard.isPending}
@@ -245,6 +266,34 @@ export function EmployeeRecordPage({
       )}
     </div>
   );
+}
+
+function EmployeeTrainingCard({ userId, tenantId }: { userId: string; tenantId: string }) {
+  const qc = useQueryClient();
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [courseId, setCourseId] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [required, setRequired] = useState(true);
+  const { data } = useQuery({ queryKey: ['training-compliance', tenantId], queryFn: () => getTrainingCompliance(tenantId) });
+  const { data: courses = [] } = useQuery({ queryKey: ['courses', tenantId], queryFn: () => getCourses(tenantId), enabled: assignOpen });
+  const rows = data?.rows.filter((row) => row.userId === userId) ?? [];
+  const completed = rows.filter((row) => row.status === 'completed').length;
+  const overdue = rows.filter((row) => row.status === 'overdue' || row.status === 'expired').length;
+  const assign = useMutation({
+    mutationFn: () => assignCourse(courseId, { userIds: [userId], dueAt: dueDate ? new Date(`${dueDate}T23:59:59`).toISOString() : null, required }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['training-compliance'] });
+      qc.invalidateQueries({ queryKey: ['training-assignments-me'] });
+      setAssignOpen(false);
+      setCourseId('');
+      setDueDate('');
+      setRequired(true);
+      toast('success', 'Course assigned to employee.');
+    },
+    onError: (error) => toast('error', (error as Error).message),
+  });
+  const publishedCourses = courses.filter((course) => course.isPublished);
+  return <div className="bg-card border border-border rounded-2xl overflow-hidden"><div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3"><div><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Training compliance</p><p className="text-xs text-muted-foreground mt-1">{completed} of {rows.length} assigned courses complete</p></div><div className="flex items-center gap-2">{overdue > 0 && <Badge variant="destructive">{overdue} attention needed</Badge>}<Button size="sm" onClick={() => setAssignOpen(true)}>Assign course</Button></div></div>{rows.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No training assigned.</p> : <div className="divide-y divide-border">{rows.slice(0, 6).map((row) => <div key={row.assignmentId} className="px-5 py-3 flex items-center justify-between gap-3"><div><p className="text-sm font-medium">{row.courseTitle}</p><p className="text-xs text-muted-foreground mt-0.5">{row.dueAt ? `Due ${fmtDate(row.dueAt)}` : 'No due date'}</p></div><Badge variant={row.status === 'completed' ? 'success' : row.status === 'overdue' || row.status === 'expired' ? 'destructive' : row.status === 'in_progress' ? 'primary' : 'muted'}>{row.status.replace('_', ' ')}</Badge></div>)}</div>}{assignOpen && <Modal title="Assign training course" onClose={() => setAssignOpen(false)}><form className="space-y-4" onSubmit={(event) => { event.preventDefault(); assign.mutate(); }}><div><label className={lbl}>Course</label><Select value={courseId} onValueChange={setCourseId} options={publishedCourses.map((course) => ({ value: course.id, label: `${course.title} · ${course.estimatedMinutes} min` }))} placeholder={publishedCourses.length ? 'Choose a course' : 'No published courses'} ariaLabel="Training course" /></div><div><label className={lbl}>Due date</label><input type="date" className={inp} value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></div><button type="button" onClick={() => setRequired(!required)} className={cn('w-full rounded-xl border p-3 text-left flex gap-3', required ? 'border-primary/40 bg-primary/5' : 'border-border')}><span className={cn('mt-0.5 size-5 rounded-md border flex items-center justify-center shrink-0', required ? 'bg-primary border-primary text-primary-foreground' : 'border-border')}>{required && <CheckCircle2 size={13}/>}</span><span><span className="block text-sm font-medium">Required training</span><span className="block text-xs text-muted-foreground mt-0.5">Include this course in compliance and overdue reporting.</span></span></button><Button type="submit" className="w-full" disabled={!courseId || assign.isPending}>{assign.isPending && <Loader2 className="animate-spin"/>}Assign to employee</Button></form></Modal>}</div>;
 }
 
 function Stat({ icon: Icon, label, value }: { icon: typeof Clock; label: string; value: string }) {
@@ -266,6 +315,90 @@ function Info({ label, value }: { label: string; value?: string | null }) {
       <dd className="text-foreground mt-0.5">{value || <span className="text-muted-foreground/60">—</span>}</dd>
     </div>
   );
+}
+
+// ── Contracted work pattern ───────────────────────────────────────────────────
+
+function WorkPatternCard({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const { data } = useQuery({ queryKey: ['work-pattern', userId], queryFn: () => getWorkPattern(userId) });
+  const [edit, setEdit] = useState(false);
+  const [days, setDays] = useState<number[] | null>(null);
+  const [hours, setHours] = useState<number | null>(null);
+  const selectedDays = days ?? data?.workingDays ?? [1, 2, 3, 4, 5];
+  const weeklyHours = hours ?? data?.contractedWeeklyHours ?? 40;
+  const save = useMutation({
+    mutationFn: () => updateWorkPattern(userId, { workingDays: selectedDays, contractedWeeklyHours: weeklyHours }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['work-pattern', userId] }); setEdit(false); toast('success', 'Work pattern updated.'); },
+    onError: (error) => toast('error', (error as Error).message),
+  });
+  const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return <div className="bg-card border border-border rounded-2xl p-5">
+    <div className="flex items-center justify-between mb-4"><div><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Contracted pattern</p><p className="text-xs text-muted-foreground mt-1">Used for leave and attendance calculations.</p></div><Button variant="outline" size="sm" onClick={() => setEdit(!edit)}>{edit ? 'Cancel' : 'Edit'}</Button></div>
+    <div className="flex gap-1.5">{names.map((name, index) => { const value = index + 1; const active = selectedDays.includes(value); return <button key={name} disabled={!edit} onClick={() => setDays(active ? selectedDays.filter((d) => d !== value) : [...selectedDays, value].sort())} className={cn('flex-1 h-9 rounded-lg border text-xs font-semibold', active ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted border-border text-muted-foreground', edit && 'hover:border-primary')}>{name}</button>; })}</div>
+    <div className="flex items-end justify-between gap-4 mt-4"><div><p className="text-xs text-muted-foreground">Contracted weekly hours</p>{edit ? <input type="number" min="0" max="168" step="0.5" value={weeklyHours} onChange={(e) => setHours(Number(e.target.value))} className={cn(inp, 'mt-1 w-28')} /> : <p className="text-xl font-semibold mt-1">{weeklyHours}h</p>}</div>{edit && <Button onClick={() => save.mutate()} disabled={selectedDays.length === 0 || save.isPending}>{save.isPending ? 'Saving…' : 'Save pattern'}</Button>}</div>
+  </div>;
+}
+
+function LeaveAllowanceCard({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(currentYear);
+  const [editing, setEditing] = useState<LeaveEntitlement | 'new' | null>(null);
+  const { data: entitlements = [], isLoading } = useQuery({
+    queryKey: ['employee-entitlements', userId, year],
+    queryFn: () => getEmployeeEntitlements(userId, year),
+  });
+  return <div className="bg-card border border-border rounded-2xl p-5">
+    <div className="flex items-start justify-between gap-3 mb-4"><div><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Annual leave allowance</p><p className="text-xs text-muted-foreground mt-1">Assigned days, usage, and remaining balance.</p></div><div className="flex gap-2"><Select value={String(year)} onValueChange={(value) => setYear(Number(value))} options={[currentYear - 1, currentYear, currentYear + 1].map((value) => ({ value: String(value), label: String(value) }))} ariaLabel="Entitlement year" className="w-24"/><Button size="sm" onClick={() => setEditing('new')}>Add leave</Button></div></div>
+    {isLoading ? <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : entitlements.length === 0 ? <div className="py-7 rounded-xl border border-dashed border-border text-center"><p className="text-sm font-medium">No allowance for {year}</p><p className="text-xs text-muted-foreground mt-1">Add annual leave so the employee can submit requests.</p></div> : <div className="space-y-3">{entitlements.map((item) => { const total = Number(item.totalDays); const used = Number(item.usedDays); const remaining = total - used; return <button key={item.id} onClick={() => setEditing(item)} className="w-full text-left rounded-xl border border-border p-4 hover:border-primary/40 transition-colors"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold">{item.leaveType.name}</p><p className="text-xs text-muted-foreground mt-1">{used} used · {remaining} remaining</p></div><div className="text-right"><p className="text-2xl font-semibold tabular-nums">{total}</p><p className="text-[10px] uppercase tracking-wider text-muted-foreground">days</p></div></div><div className="h-1.5 bg-muted rounded-full overflow-hidden mt-3"><div className="h-full bg-primary rounded-full" style={{ width: `${total > 0 ? Math.min(100, used / total * 100) : 0}%` }} /></div></button>; })}</div>}
+    {editing && <LeaveAllowanceModal userId={userId} year={year} entitlement={editing === 'new' ? null : editing} existing={entitlements} onClose={() => setEditing(null)} onDone={() => { setEditing(null); qc.invalidateQueries({ queryKey: ['employee-entitlements', userId] }); }} />}
+  </div>;
+}
+
+function LeaveAllowanceModal({ userId, year, entitlement, existing, onClose, onDone }: { userId: string; year: number; entitlement: LeaveEntitlement | null; existing: LeaveEntitlement[]; onClose: () => void; onDone: () => void }) {
+  const { data: leaveTypes = [] } = useQuery({ queryKey: ['leave-types'], queryFn: getLeaveTypes });
+  const annualType = leaveTypes.find((type) => type.name.toLowerCase().includes('annual'));
+  const [leaveTypeId, setLeaveTypeId] = useState(entitlement?.leaveType.id ?? annualType?.id ?? 'annual-default');
+  const [totalDays, setTotalDays] = useState(entitlement?.totalDays ?? annualType?.defaultAllowanceDays ?? '28');
+  const save = useMutation({
+    mutationFn: async () => {
+      if (entitlement) return updateEntitlement(entitlement.id, { totalDays: Number(totalDays).toFixed(1) });
+      let targetTypeId = leaveTypeId;
+      if (targetTypeId === 'annual-default') {
+        if (annualType) {
+          targetTypeId = annualType.id;
+        } else {
+          const created = await createLeaveType({ name: 'Annual Leave', isPaid: true, requiresApproval: true, defaultAllowanceDays: Number(totalDays).toFixed(1) });
+          targetTypeId = created.id;
+        }
+      }
+      const duplicate = existing.find((item) => item.leaveType.id === targetTypeId);
+      if (duplicate) return updateEntitlement(duplicate.id, { totalDays: Number(totalDays).toFixed(1) });
+      return createEntitlement({ userId, leaveTypeId: targetTypeId, year, totalDays: Number(totalDays).toFixed(1) });
+    },
+    onSuccess: () => { toast('success', entitlement ? 'Leave allowance updated.' : 'Leave allowance added.'); onDone(); },
+    onError: (error) => toast('error', (error as Error).message),
+  });
+  const options = [
+    { value: 'annual-default', label: annualType?.name ?? 'Annual Leave' },
+    ...leaveTypes.filter((type) => type.id !== annualType?.id).map((type) => ({ value: type.id, label: type.name })),
+  ];
+  return <Modal title={entitlement ? 'Edit leave allowance' : `Add leave allowance · ${year}`} onClose={onClose}><form className="space-y-4" onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>{!entitlement && <div><label className={lbl}>Leave type</label><Select value={leaveTypeId} onValueChange={(value) => { setLeaveTypeId(value); const type = leaveTypes.find((item) => item.id === value); if (type?.defaultAllowanceDays) setTotalDays(type.defaultAllowanceDays); }} options={options} ariaLabel="Leave type" /></div>}<div><label className={lbl}>Total allowance (days)</label><input type="number" min={entitlement ? Number(entitlement.usedDays) : 0.5} max="366" step="0.5" className={inp} value={totalDays} onChange={(event) => setTotalDays(event.target.value)} /><p className="text-xs text-muted-foreground mt-1.5">Half days are supported. An allowance cannot be lower than days already used.</p></div>{entitlement && <div className="rounded-xl bg-muted p-3 text-sm"><span className="text-muted-foreground">Already used:</span> <strong>{entitlement.usedDays} days</strong></div>}<Button type="submit" className="w-full" disabled={!totalDays || Number(totalDays) <= 0 || (entitlement ? Number(totalDays) < Number(entitlement.usedDays) : false) || save.isPending}>{save.isPending && <Loader2 className="animate-spin" />}{entitlement ? 'Save allowance' : 'Add allowance'}</Button></form></Modal>;
+}
+
+function EmployeeDocumentsCard({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ title: '', documentType: 'Right to work', reference: '', expiresAt: '' });
+  const { data: documents = [] } = useQuery({ queryKey: ['employee-documents', userId], queryFn: () => getEmployeeDocuments(userId) });
+  const add = useMutation({ mutationFn: () => addEmployeeDocument({ userId, ...form }), onSuccess: () => { qc.invalidateQueries({ queryKey: ['employee-documents', userId] }); setAdding(false); setForm({ title: '', documentType: 'Right to work', reference: '', expiresAt: '' }); toast('success', 'Document record added.'); }, onError: (error) => toast('error', (error as Error).message) });
+  const remove = useMutation({ mutationFn: deleteEmployeeDocument, onSuccess: () => qc.invalidateQueries({ queryKey: ['employee-documents', userId] }) });
+  return <div className="bg-card border border-border rounded-2xl p-5">
+    <div className="flex items-center justify-between mb-4"><div><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Documents & certificates</p><p className="text-xs text-muted-foreground mt-1">Track compliance and renewal dates.</p></div><Button variant="outline" size="sm" onClick={() => setAdding(true)}>Add</Button></div>
+    {documents.length === 0 ? <p className="text-sm text-muted-foreground py-4 text-center">No document records yet.</p> : <div className="divide-y divide-border">{documents.map((document) => { const expiring = document.expiresAt && new Date(document.expiresAt).getTime() < Date.now() + 60 * 86_400_000; return <div key={document.id} className="py-3 flex items-center justify-between gap-3"><div className="min-w-0"><div className="flex items-center gap-2"><p className="text-sm font-medium truncate">{document.title}</p>{expiring && <Badge variant="warning">Expiring</Badge>}</div><p className="text-xs text-muted-foreground mt-0.5">{document.documentType}{document.expiresAt ? ` · expires ${fmtDate(document.expiresAt)}` : ''}</p></div><Button variant="ghost" size="sm" className="text-destructive" onClick={() => remove.mutate(document.id)}>Remove</Button></div>; })}</div>}
+    {adding && <Modal title="Add document record" onClose={() => setAdding(false)}><form className="space-y-4" onSubmit={(event) => { event.preventDefault(); add.mutate(); }}><div><label className={lbl}>Title</label><input className={inp} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="e.g. Passport check" /></div><div><label className={lbl}>Type</label><Select value={form.documentType} onValueChange={(value) => setForm({ ...form, documentType: value })} options={['Right to work','Food safety','Training certificate','Employment contract','Other'].map((value) => ({ value, label: value }))} ariaLabel="Document type" /></div><div><label className={lbl}>Reference</label><input className={inp} value={form.reference} onChange={(event) => setForm({ ...form, reference: event.target.value })} /></div><div><label className={lbl}>Expiry date</label><input type="date" className={inp} value={form.expiresAt} onChange={(event) => setForm({ ...form, expiresAt: event.target.value })} /></div><Button type="submit" className="w-full" disabled={form.title.length < 2 || add.isPending}>{add.isPending ? 'Adding…' : 'Add record'}</Button></form></Modal>}
+  </div>;
 }
 
 // ── Employment & Pay (inline edit) ────────────────────────────────────────────
@@ -327,7 +460,9 @@ function EmploymentTab({ userId, emp, canEditPay }: { userId: string; emp: Emplo
           <Info label="Department" value={emp.department} />
           <div>
             <dt className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Employment type</dt>
-            <dd className="mt-1"><Badge variant={EMPLOYMENT_CONFIG[emp.employmentType].variant}>{EMPLOYMENT_CONFIG[emp.employmentType].label}</Badge></dd>
+            <dd className="mt-1">
+              <Badge variant={EMPLOYMENT_CONFIG[emp.employmentType].variant}>{EMPLOYMENT_CONFIG[emp.employmentType].label}</Badge>
+            </dd>
           </div>
           <Info label="Start date" value={fmtDate(emp.startDate)} />
           {canEditPay && emp.payType && (
@@ -353,41 +488,102 @@ function EmploymentTab({ userId, emp, canEditPay }: { userId: string; emp: Emplo
   return (
     <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
       <div className="grid sm:grid-cols-2 gap-4">
-        <div><label className={lbl}>Job title</label><input className={inp} value={f.jobTitle} onChange={(e) => setF({ ...f, jobTitle: e.target.value })} /></div>
-        <div><label className={lbl}>Department</label><input className={inp} value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })} /></div>
+        <div>
+          <label className={lbl}>Job title</label>
+          <input className={inp} value={f.jobTitle} onChange={(e) => setF({ ...f, jobTitle: e.target.value })} />
+        </div>
+        <div>
+          <label className={lbl}>Department</label>
+          <input className={inp} value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })} />
+        </div>
         <div>
           <label className={lbl}>Employment type</label>
-          <select className={sel} value={f.employmentType} onChange={(e) => setF({ ...f, employmentType: e.target.value as typeof f.employmentType })}>
-            {EMPLOYMENT_TYPES.map((t) => <option key={t} value={t}>{EMPLOYMENT_CONFIG[t].label}</option>)}
-          </select>
+          <Select
+            className={sel}
+            value={f.employmentType}
+            onValueChange={(value) => setF({ ...f, employmentType: value as typeof f.employmentType })}
+            options={EMPLOYMENT_TYPES.map((type) => ({ value: type, label: EMPLOYMENT_CONFIG[type].label }))}
+            ariaLabel="Employment type"
+          />
         </div>
-        <div><label className={lbl}>Start date</label><input type="date" className={inp} value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} /></div>
+        <div>
+          <label className={lbl}>Start date</label>
+          <input type="date" className={inp} value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} />
+        </div>
       </div>
       {canEditPay && (
         <>
           <div className="flex gap-1.5">
             {PAY_TYPES.map((p) => (
-              <button key={p} type="button" onClick={() => setF({ ...f, payType: p })}
-                className={cn('flex-1 h-10 rounded-lg border text-sm font-medium transition-colors', f.payType === p ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground')}>
+              <button
+                key={p}
+                type="button"
+                onClick={() => setF({ ...f, payType: p })}
+                className={cn(
+                  'flex-1 h-10 rounded-lg border text-sm font-medium transition-colors',
+                  f.payType === p
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:text-foreground',
+                )}
+              >
                 {PAY_CONFIG[p].label}
               </button>
             ))}
           </div>
           <div className="grid sm:grid-cols-3 gap-4">
             {f.payType === 'hourly' ? (
-              <div><label className={lbl}>Hourly rate (£)</label><input className={inp} inputMode="decimal" value={f.hourlyRate} onChange={(e) => setF({ ...f, hourlyRate: e.target.value })} /></div>
+              <div>
+                <label className={lbl}>Hourly rate (£)</label>
+                <input
+                  className={inp}
+                  inputMode="decimal"
+                  value={f.hourlyRate}
+                  onChange={(e) => setF({ ...f, hourlyRate: e.target.value })}
+                />
+              </div>
             ) : (
-              <div><label className={lbl}>Annual salary (£)</label><input className={inp} inputMode="decimal" value={f.annualSalary} onChange={(e) => setF({ ...f, annualSalary: e.target.value })} /></div>
+              <div>
+                <label className={lbl}>Annual salary (£)</label>
+                <input
+                  className={inp}
+                  inputMode="decimal"
+                  value={f.annualSalary}
+                  onChange={(e) => setF({ ...f, annualSalary: e.target.value })}
+                />
+              </div>
             )}
-            <div><label className={lbl}>Unpaid break (mins)</label><input className={inp} inputMode="numeric" value={f.unpaidBreakMins} onChange={(e) => setF({ ...f, unpaidBreakMins: Number(e.target.value) })} /></div>
-            <div><label className={lbl}>Break after (mins)</label><input className={inp} inputMode="numeric" value={f.breakThresholdMins} onChange={(e) => setF({ ...f, breakThresholdMins: Number(e.target.value) })} /></div>
+            <div>
+              <label className={lbl}>Unpaid break (mins)</label>
+              <input
+                className={inp}
+                inputMode="numeric"
+                value={f.unpaidBreakMins}
+                onChange={(e) => setF({ ...f, unpaidBreakMins: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <label className={lbl}>Break after (mins)</label>
+              <input
+                className={inp}
+                inputMode="numeric"
+                value={f.breakThresholdMins}
+                onChange={(e) => setF({ ...f, breakThresholdMins: Number(e.target.value) })}
+              />
+            </div>
           </div>
-          <div className="sm:w-1/3"><label className={lbl}>Tax code</label><input className={inp} value={f.taxCode} onChange={(e) => setF({ ...f, taxCode: e.target.value.toUpperCase() })} /></div>
+          <div className="sm:w-1/3">
+            <label className={lbl}>Tax code</label>
+            <input className={inp} value={f.taxCode} onChange={(e) => setF({ ...f, taxCode: e.target.value.toUpperCase() })} />
+          </div>
         </>
       )}
       <div className="flex gap-2">
-        <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">Cancel</Button>
-        <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">{save.isPending ? 'Saving…' : 'Save'}</Button>
+        <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">
+          Cancel
+        </Button>
+        <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">
+          {save.isPending ? 'Saving…' : 'Save'}
+        </Button>
       </div>
     </div>
   );
@@ -430,15 +626,23 @@ function AccessCard({ member, locations, canEdit }: { member: StaffProfile; loca
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label className={lbl}>Role</label>
-            <select className={sel} value={role} onChange={(e) => setRole(e.target.value as StaffRole)}>
-              {ROLES.map((r) => <option key={r} value={r}>{ROLE_CONFIG[r].label}</option>)}
-            </select>
+            <Select
+              className={sel}
+              value={role}
+              onValueChange={(value) => setRole(value as StaffRole)}
+              options={ROLES.map((nextRole) => ({ value: nextRole, label: ROLE_CONFIG[nextRole].label }))}
+              ariaLabel="Role"
+            />
           </div>
           <div>
             <label className={lbl}>Scope</label>
-            <select className={sel} value={scope} onChange={(e) => setScope(e.target.value as StaffScope)}>
-              {SCOPES.map((s) => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
-            </select>
+            <Select
+              className={sel}
+              value={scope}
+              onValueChange={(value) => setScope(value as StaffScope)}
+              options={SCOPES.map((nextScope) => ({ value: nextScope, label: nextScope[0].toUpperCase() + nextScope.slice(1) }))}
+              ariaLabel="Scope"
+            />
           </div>
         </div>
         {scope === 'location' && locations.length > 0 && (
@@ -452,7 +656,9 @@ function AccessCard({ member, locations, canEdit }: { member: StaffProfile; loca
                   onClick={() => toggleLoc(l.id)}
                   className={cn(
                     'px-3 h-9 rounded-lg border text-xs font-medium transition-colors',
-                    locs.includes(l.id) ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground',
+                    locs.includes(l.id)
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {l.name}
@@ -462,12 +668,21 @@ function AccessCard({ member, locations, canEdit }: { member: StaffProfile; loca
           </div>
         )}
         <label className="flex items-center gap-2.5 cursor-pointer select-none">
-          <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="w-4 h-4 rounded accent-primary" />
+          <input
+            type="checkbox"
+            checked={isActive}
+            onChange={(e) => setIsActive(e.target.checked)}
+            className="w-4 h-4 rounded accent-primary"
+          />
           <span className="text-sm text-foreground">Account active (can sign in)</span>
         </label>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">Cancel</Button>
-          <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">{save.isPending ? 'Saving…' : 'Save'}</Button>
+          <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">
+            {save.isPending ? 'Saving…' : 'Save'}
+          </Button>
         </div>
       </div>
     );
@@ -477,22 +692,37 @@ function AccessCard({ member, locations, canEdit }: { member: StaffProfile; loca
     <div className="bg-card border border-border rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Access & Role</p>
-        {canEdit && <Button variant="outline" size="sm" onClick={() => setEdit(true)}>Edit</Button>}
+        {canEdit && (
+          <Button variant="outline" size="sm" onClick={() => setEdit(true)}>
+            Edit
+          </Button>
+        )}
       </div>
       <dl className="grid sm:grid-cols-2 gap-4 text-sm">
         <div>
           <dt className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Role</dt>
           <dd className="mt-1">
-            <span className={cn('inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide', ROLE_CONFIG[member.role].bg, ROLE_CONFIG[member.role].text)}>
+            <span
+              className={cn(
+                'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide',
+                ROLE_CONFIG[member.role].bg,
+                ROLE_CONFIG[member.role].text,
+              )}
+            >
               {ROLE_CONFIG[member.role].label}
             </span>
           </dd>
         </div>
         <Info label="Scope" value={member.scope[0].toUpperCase() + member.scope.slice(1)} />
-        <Info label="Locations" value={member.scope === 'location' ? (locNames.length ? locNames.join(', ') : 'None assigned') : 'All in workspace'} />
+        <Info
+          label="Locations"
+          value={member.scope === 'location' ? (locNames.length ? locNames.join(', ') : 'None assigned') : 'All in workspace'}
+        />
         <div>
           <dt className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Account</dt>
-          <dd className="mt-1"><Badge variant={member.isActive ? 'success' : 'muted'}>{member.isActive ? 'Active' : 'Inactive'}</Badge></dd>
+          <dd className="mt-1">
+            <Badge variant={member.isActive ? 'success' : 'muted'}>{member.isActive ? 'Active' : 'Inactive'}</Badge>
+          </dd>
         </div>
       </dl>
     </div>
@@ -534,17 +764,44 @@ function PersonalTab({ userId, emp, canEdit, email }: { userId: string; emp: Emp
       <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Personal details</p>
         <div className="grid sm:grid-cols-2 gap-4">
-          <div><label className={lbl}>Date of birth</label><input type="date" className={inp} value={f.dateOfBirth} onChange={(e) => setF({ ...f, dateOfBirth: e.target.value })} /></div>
+          <div>
+            <label className={lbl}>Date of birth</label>
+            <input type="date" className={inp} value={f.dateOfBirth} onChange={(e) => setF({ ...f, dateOfBirth: e.target.value })} />
+          </div>
         </div>
-        <div><label className={lbl}>Home address</label><AddressFields value={f.address} onChange={(v) => setF({ ...f, address: v })} /></div>
+        <div>
+          <label className={lbl}>Home address</label>
+          <AddressFields value={f.address} onChange={(v) => setF({ ...f, address: v })} />
+        </div>
         <div className="grid sm:grid-cols-3 gap-4">
-          <div><label className={lbl}>Emergency name</label><input className={inp} value={f.emergencyContactName} onChange={(e) => setF({ ...f, emergencyContactName: e.target.value })} /></div>
-          <div><label className={lbl}>Emergency phone</label><input className={inp} value={f.emergencyContactPhone} onChange={(e) => setF({ ...f, emergencyContactPhone: e.target.value })} /></div>
-          <div><label className={lbl}>Relationship</label><input className={inp} value={f.emergencyContactRelation} onChange={(e) => setF({ ...f, emergencyContactRelation: e.target.value })} /></div>
+          <div>
+            <label className={lbl}>Emergency name</label>
+            <input className={inp} value={f.emergencyContactName} onChange={(e) => setF({ ...f, emergencyContactName: e.target.value })} />
+          </div>
+          <div>
+            <label className={lbl}>Emergency phone</label>
+            <input
+              className={inp}
+              value={f.emergencyContactPhone}
+              onChange={(e) => setF({ ...f, emergencyContactPhone: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className={lbl}>Relationship</label>
+            <input
+              className={inp}
+              value={f.emergencyContactRelation}
+              onChange={(e) => setF({ ...f, emergencyContactRelation: e.target.value })}
+            />
+          </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">Cancel</Button>
-          <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">{save.isPending ? 'Saving…' : 'Save'}</Button>
+          <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">
+            {save.isPending ? 'Saving…' : 'Save'}
+          </Button>
         </div>
       </div>
     );
@@ -554,7 +811,11 @@ function PersonalTab({ userId, emp, canEdit, email }: { userId: string; emp: Emp
     <div className="bg-card border border-border rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Personal details</p>
-        {canEdit && <Button variant="outline" size="sm" onClick={() => setEdit(true)}>Edit</Button>}
+        {canEdit && (
+          <Button variant="outline" size="sm" onClick={() => setEdit(true)}>
+            Edit
+          </Button>
+        )}
       </div>
       <dl className="grid sm:grid-cols-2 gap-4 text-sm">
         <Info label="Email" value={email} />
@@ -616,16 +877,53 @@ function BankTab({ userId, emp }: { userId: string; emp: Employee }) {
       <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Bank & statutory</p>
         <div className="grid sm:grid-cols-2 gap-4">
-          <div><label className={lbl}>Account holder</label><input className={inp} value={f.accountHolder ?? ''} onChange={(e) => setF({ ...f, accountHolder: e.target.value })} /></div>
-          <div><label className={lbl}>Bank name</label><input className={inp} value={f.bankName ?? ''} onChange={(e) => setF({ ...f, bankName: e.target.value })} /></div>
-          <div><label className={lbl}>Sort code</label><input className={inp} value={f.sortCode ?? ''} onChange={(e) => setF({ ...f, sortCode: e.target.value })} placeholder="Leave blank to keep" /></div>
-          <div><label className={lbl}>Account number</label><input className={inp} value={f.accountNumber ?? ''} onChange={(e) => setF({ ...f, accountNumber: e.target.value })} placeholder="Leave blank to keep" /></div>
-          <div><label className={lbl}>National Insurance no.</label><input className={inp} value={f.niNumber} onChange={(e) => setF({ ...f, niNumber: e.target.value.toUpperCase() })} placeholder="Leave blank to keep" /></div>
-          <div><label className={lbl}>Tax code</label><input className={inp} value={f.taxCode} onChange={(e) => setF({ ...f, taxCode: e.target.value.toUpperCase() })} /></div>
+          <div>
+            <label className={lbl}>Account holder</label>
+            <input className={inp} value={f.accountHolder ?? ''} onChange={(e) => setF({ ...f, accountHolder: e.target.value })} />
+          </div>
+          <div>
+            <label className={lbl}>Bank name</label>
+            <input className={inp} value={f.bankName ?? ''} onChange={(e) => setF({ ...f, bankName: e.target.value })} />
+          </div>
+          <div>
+            <label className={lbl}>Sort code</label>
+            <input
+              className={inp}
+              value={f.sortCode ?? ''}
+              onChange={(e) => setF({ ...f, sortCode: e.target.value })}
+              placeholder="Leave blank to keep"
+            />
+          </div>
+          <div>
+            <label className={lbl}>Account number</label>
+            <input
+              className={inp}
+              value={f.accountNumber ?? ''}
+              onChange={(e) => setF({ ...f, accountNumber: e.target.value })}
+              placeholder="Leave blank to keep"
+            />
+          </div>
+          <div>
+            <label className={lbl}>National Insurance no.</label>
+            <input
+              className={inp}
+              value={f.niNumber}
+              onChange={(e) => setF({ ...f, niNumber: e.target.value.toUpperCase() })}
+              placeholder="Leave blank to keep"
+            />
+          </div>
+          <div>
+            <label className={lbl}>Tax code</label>
+            <input className={inp} value={f.taxCode} onChange={(e) => setF({ ...f, taxCode: e.target.value.toUpperCase() })} />
+          </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">Cancel</Button>
-          <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">{save.isPending ? 'Saving…' : 'Save'}</Button>
+          <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">
+            {save.isPending ? 'Saving…' : 'Save'}
+          </Button>
         </div>
       </div>
     );
@@ -640,7 +938,17 @@ function BankTab({ userId, emp }: { userId: string; emp: Employee }) {
             {reveal ? <EyeOff size={14} /> : <Eye size={14} />}
             {reveal ? 'Hide' : 'Reveal'}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setEdit(true)}>Edit</Button>
+          <Button variant="outline" size="sm" onClick={() => {
+            setF((current) => ({
+              ...current,
+              accountHolder: bank?.accountHolder ?? '',
+              bankName: bank?.bankName ?? '',
+              taxCode: emp.taxCode ?? '',
+            }));
+            setEdit(true);
+          }}>
+            Edit
+          </Button>
         </div>
       </div>
       <dl className="grid sm:grid-cols-2 gap-4 text-sm">
@@ -768,7 +1076,11 @@ function TimesheetCard({
                   <td className={cn(TD, 'text-muted-foreground tabular-nums hidden sm:table-cell')}>{d.segments.length}</td>
                   <td className={cn(TD, 'text-right tabular-nums text-muted-foreground')}>{fmtHours(d.rawHours)}</td>
                   <td className={cn(TD, 'text-right tabular-nums')}>
-                    {d.overtimeHours > 0 ? <Badge variant="warning">+{fmtHours(d.overtimeHours)}</Badge> : <span className="text-muted-foreground/60">—</span>}
+                    {d.overtimeHours > 0 ? (
+                      <Badge variant="warning">+{fmtHours(d.overtimeHours)}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground/60">—</span>
+                    )}
                   </td>
                   <td className={cn(TD, 'text-right tabular-nums font-semibold text-foreground')}>{fmtHours(d.paidHours)}</td>
                 </tr>
@@ -818,8 +1130,8 @@ function TimesheetCard({
               </table>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Pay follows the scheduled shift — time clocked beyond the rota shows as overtime and isn&apos;t paid, and a shift with no
-              rota slot (&ldquo;No rota&rdquo;) earns nothing.
+              Pay follows the scheduled shift — time clocked beyond the rota shows as overtime and isn&apos;t paid, and a shift with no rota
+              slot (&ldquo;No rota&rdquo;) earns nothing.
             </p>
           </div>
         </Modal>
@@ -888,7 +1200,12 @@ function PerformanceCard({ userId }: { userId: string }) {
           <div className="space-y-4">
             {/* Headline metrics */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <PerfTile icon={Receipt} label="Orders" value={String(w.totalOrders)} hint={`${w.activeDays} active ${w.activeDays === 1 ? 'day' : 'days'}`} />
+              <PerfTile
+                icon={Receipt}
+                label="Orders"
+                value={String(w.totalOrders)}
+                hint={`${w.activeDays} active ${w.activeDays === 1 ? 'day' : 'days'}`}
+              />
               <PerfTile icon={TrendingUp} label="Revenue" value={fmtMoney(w.totalRevenue)} hint="excl. cancelled" />
               <PerfTile icon={Store} label="Avg order" value={fmtMoney(w.avgOrderValue)} />
               <PerfTile icon={CalendarDays} label="Orders / day" value={String(w.avgOrdersPerActiveDay)} hint="per active day" />
@@ -896,7 +1213,11 @@ function PerformanceCard({ userId }: { userId: string }) {
 
             {/* Throughput + quality detail */}
             <div className="grid sm:grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
-              <DetailRow icon={Timer} label="Avg prep (pending → ready)" value={fmtMins(w.prepTime.measuredOrders, w.prepTime.avgMinutes)} />
+              <DetailRow
+                icon={Timer}
+                label="Avg prep (pending → ready)"
+                value={fmtMins(w.prepTime.measuredOrders, w.prepTime.avgMinutes)}
+              />
               <DetailRow icon={Clock} label="Median prep" value={fmtMins(w.prepTime.measuredOrders, w.prepTime.medianMinutes)} />
               <DetailRow icon={CheckCircle2} label="Completed" value={String(w.completedOrders)} />
               <DetailRow

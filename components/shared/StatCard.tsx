@@ -191,7 +191,8 @@ export function StatCard({
               viewBox={`0 0 ${W} ${H}`}
               className="w-full h-10 text-primary cursor-crosshair"
               preserveAspectRatio="none"
-              aria-hidden="true"
+              role="img"
+              aria-label={`${label} trend: ${footer.points.join(', ')}`}
               onMouseMove={handleSparkMove}
               onMouseLeave={() => setHoveredSpark(null)}
             >
@@ -225,20 +226,28 @@ export function StatCard({
       {/* ── Mini bars ── */}
       {footer?.type === 'bars' &&
         (() => {
-          const max = Math.max(...footer.values);
+          const max = Math.max(...footer.values, 1);
           return (
             <div className="flex items-end gap-0.75 h-10">
               {footer.values.map((v, i) => {
                 const isActive = hoveredBar === i;
                 const isDefault = hoveredBar === null && i === footer.values.length - 1;
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={i}
-                    style={{ height: `${(v / max) * 100}%` }}
+                    style={{ height: `${v === 0 ? 3 : (v / max) * 100}%` }}
                     className={cn(
-                      'flex-1 rounded-sm transition-colors duration-100 cursor-default',
+                      'flex-1 rounded-sm transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-info',
                       isActive || isDefault ? 'bg-info' : 'bg-surface-offset',
                     )}
+                    aria-label={
+                      footer.titleLabels?.[i]
+                        ? `${footer.titleLabels[i]}: ${footer.labels?.[i] ?? v}`
+                        : `${label}: ${footer.labels?.[i] ?? v}`
+                    }
+                    onFocus={() => setHoveredBar(i)}
+                    onBlur={() => setHoveredBar(null)}
                     onMouseEnter={() => setHoveredBar(i)}
                     onMouseLeave={() => setHoveredBar(null)}
                   />

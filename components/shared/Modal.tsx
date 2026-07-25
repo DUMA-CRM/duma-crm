@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 
 import { cn } from '@/lib/utils/cn';
@@ -21,8 +21,11 @@ export function Modal({ title, onClose, children, className }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   // Portal to <body> so `fixed` positioning is relative to the viewport, not a
   // transformed ancestor (e.g. the slide-in page sidebar). Mount-gate for SSR.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
