@@ -283,6 +283,24 @@
     display: none; /* Chrome, Safari, Edge */
   }
 
+  /* Operational boards need a visible affordance when more tickets are
+     available off-screen, overriding the app-wide hidden scrollbar rule. */
+  .kds-scrollbar {
+    scrollbar-color: color-mix(in oklch, var(--faint) 70%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+
+  .kds-scrollbar::-webkit-scrollbar {
+    display: block;
+    width: 6px;
+    height: 6px;
+  }
+
+  .kds-scrollbar::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--faint) 70%, transparent);
+    border-radius: 999px;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

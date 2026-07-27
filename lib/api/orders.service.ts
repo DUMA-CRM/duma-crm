@@ -16,6 +16,7 @@ export interface OrderItem {
   quantity: number;
   unitPrice: string;
   subtotal: string;
+  notes?: string;
   modifiers?: OrderItemModifier[];
 }
 
