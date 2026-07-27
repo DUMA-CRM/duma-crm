@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Search, Users } from 'lucide-react';
+import { AlertTriangle, BriefcaseBusiness, Plus, Search, ShieldCheck, UserCheck, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -18,6 +18,7 @@ import { type HrEmployee, getEmployees } from '@/lib/api/hr.service';
 import { type StaffRole, getStaff } from '@/lib/api/staff.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
+import { employeeSetupChecks, setupProgress } from '@/lib/utils/employee-compliance';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -41,8 +42,14 @@ export default function PeoplePage() {
   const [roleFilter, setRoleFilter] = useState<'all' | StaffRole>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [recordFilter, setRecordFilter] = useState<'all' | 'ready' | 'action'>('all');
+  const [complianceAsOf] = useState(() => new Date());
 
-  const { data: staff = [], isLoading, isError: staffError } = useQuery({
+  const {
+    data: staff = [],
+    isLoading,
+    isError: staffError,
+  } = useQuery({
     queryKey: ['staff', tenantId],
     queryFn: () => getStaff(tenantId ?? undefined),
     enabled: !!tenantId && canManage,
@@ -59,23 +66,43 @@ export default function PeoplePage() {
   });
 
   const empByUser = useMemo(() => new Map(employees.map((e) => [e.userId, e])), [employees]);
-  const departments = useMemo(() => [...new Set(employees.map((employee) => employee.department).filter(Boolean) as string[])].sort(), [employees]);
+  const departments = useMemo(
+    () => [...new Set(employees.map((employee) => employee.department).filter(Boolean) as string[])].sort(),
+    [employees],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return staff.filter((m) => {
-      if (roleFilter !== 'all' && m.role !== roleFilter) return false;
-      if (statusFilter === 'active' && !m.isActive) return false;
-      if (statusFilter === 'inactive' && m.isActive) return false;
-      if (departmentFilter !== 'all' && empByUser.get(m.userId)?.department !== departmentFilter) return false;
-      if (q && !`${m.name ?? ''} ${m.email ?? ''}`.toLowerCase().includes(q)) return false;
-      return true;
-    }).sort((a, b) => (a.name ?? a.email ?? '').localeCompare(b.name ?? b.email ?? ''));
-  }, [staff, search, roleFilter, statusFilter, departmentFilter, empByUser]);
+    return staff
+      .filter((m) => {
+        if (roleFilter !== 'all' && m.role !== roleFilter) return false;
+        if (statusFilter === 'active' && !m.isActive) return false;
+        if (statusFilter === 'inactive' && m.isActive) return false;
+        if (departmentFilter !== 'all' && empByUser.get(m.userId)?.department !== departmentFilter) return false;
+        const recordProgress = setupProgress(
+          employeeSetupChecks(m, empByUser.get(m.userId) ?? null, [], complianceAsOf).filter(
+            (check) => !['right-to-work', 'contract'].includes(check.id),
+          ),
+        );
+        if (recordFilter === 'ready' && recordProgress < 100) return false;
+        if (recordFilter === 'action' && recordProgress === 100) return false;
+        if (q && !`${m.name ?? ''} ${m.email ?? ''}`.toLowerCase().includes(q)) return false;
+        return true;
+      })
+      .sort((a, b) => (a.name ?? a.email ?? '').localeCompare(b.name ?? b.email ?? ''));
+  }, [staff, search, roleFilter, statusFilter, departmentFilter, recordFilter, empByUser, complianceAsOf]);
 
   if (!canManage) return null;
 
   const enrolledCount = staff.filter((s) => empByUser.has(s.userId)).length;
+  const actionCount = staff.filter((member) => {
+    const checks = employeeSetupChecks(member, empByUser.get(member.userId) ?? null, [], complianceAsOf).filter(
+      (check) => !['right-to-work', 'contract'].includes(check.id),
+    );
+    return setupProgress(checks) < 100;
+  }).length;
+  const activeCount = staff.filter((s) => s.isActive).length;
+  const futureStarters = employees.filter((employee) => new Date(employee.startDate).getTime() > complianceAsOf.getTime()).length;
   const openMember = openUserId ? (staff.find((s) => s.userId === openUserId) ?? null) : null;
 
   // Employee record renders as in-page content so the app sidebar + header stay visible.
@@ -108,7 +135,29 @@ export default function PeoplePage() {
               ariaLabel="Filter by role"
               className={cn(sel, 'w-auto')}
             />
-            {departments.length > 0 && <Select value={departmentFilter} onValueChange={setDepartmentFilter} options={[{ value: 'all', label: 'All departments' }, ...departments.map((department) => ({ value: department, label: department }))]} ariaLabel="Filter by department" className={cn(sel, 'w-auto hidden lg:flex')} />}
+            <Select
+              value={recordFilter}
+              onValueChange={(value) => setRecordFilter(value as typeof recordFilter)}
+              options={[
+                { value: 'all', label: 'All records' },
+                { value: 'ready', label: 'Core setup ready' },
+                { value: 'action', label: 'Action needed' },
+              ]}
+              ariaLabel="Filter by record readiness"
+              className={cn(sel, 'w-auto hidden xl:flex')}
+            />
+            {departments.length > 0 && (
+              <Select
+                value={departmentFilter}
+                onValueChange={setDepartmentFilter}
+                options={[
+                  { value: 'all', label: 'All departments' },
+                  ...departments.map((department) => ({ value: department, label: department })),
+                ]}
+                ariaLabel="Filter by department"
+                className={cn(sel, 'w-auto hidden lg:flex')}
+              />
+            )}
             <Select
               value={statusFilter}
               onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
@@ -133,7 +182,23 @@ export default function PeoplePage() {
         </div>
       }
     >
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full gap-4">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 shrink-0">
+          <DirectoryStat icon={UserCheck} label="Active people" value={activeCount} detail={`${staff.length - activeCount} inactive`} />
+          <DirectoryStat
+            icon={BriefcaseBusiness}
+            label="HR records"
+            value={enrolledCount}
+            detail={`${staff.length - enrolledCount} account-only`}
+          />
+          <DirectoryStat
+            icon={ShieldCheck}
+            label="Core setup ready"
+            value={Math.max(0, staff.length - actionCount)}
+            detail={`${actionCount} need action`}
+          />
+          <DirectoryStat icon={AlertTriangle} label="Future starters" value={futureStarters} detail="Start date ahead" />
+        </div>
         <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
           <div className="flex-1 overflow-auto">
             <table className="w-full text-sm border-collapse">
@@ -154,7 +219,7 @@ export default function PeoplePage() {
                     </th>
                   )}
                   <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    Onboarding
+                    Record readiness
                   </th>
                   <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Status
@@ -163,7 +228,12 @@ export default function PeoplePage() {
               </thead>
               <tbody>
                 {staffError || employeeError ? (
-                  <tr><td colSpan={6} className="py-20 text-center"><p className="font-semibold text-destructive">Couldn’t load the staff directory</p><p className="text-sm text-muted-foreground mt-1">Refresh the page or try again shortly.</p></td></tr>
+                  <tr>
+                    <td colSpan={6} className="py-20 text-center">
+                      <p className="font-semibold text-destructive">Couldn’t load the staff directory</p>
+                      <p className="text-sm text-muted-foreground mt-1">Refresh the page or try again shortly.</p>
+                    </td>
+                  </tr>
                 ) : isLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="border-b border-border/50">
@@ -245,7 +315,7 @@ export default function PeoplePage() {
                           </td>
                         )}
                         <td className="px-3 md:px-5 py-3.5">
-                          {emp ? <OnboardBadge emp={emp} money={money} /> : <Badge variant="warning">Account only</Badge>}
+                          <RecordReadinessBadge member={member} emp={emp} money={money} asOf={complianceAsOf} />
                         </td>
                         <td className="px-3 md:px-5 py-3.5">
                           <span
@@ -274,7 +344,7 @@ export default function PeoplePage() {
               <p className="text-xs text-muted-foreground">
                 {filtered.length !== staff.length && `${filtered.length} of `}
                 {staff.length} {staff.length === 1 ? 'person' : 'people'} · {staff.filter((s) => s.isActive).length} active ·{' '}
-                {enrolledCount} onboarded
+                {enrolledCount} with HR records · {actionCount} need core setup
               </p>
             </div>
           )}
@@ -295,11 +365,37 @@ export default function PeoplePage() {
   );
 }
 
-// Onboarding completeness: account-only < details < + pay < + bank.
-function OnboardBadge({ emp, money }: { emp: HrEmployee; money: boolean }) {
-  const hasPay = emp.payType && (emp.payType === 'salaried' ? Number(emp.annualSalary) > 0 : Number(emp.hourlyRate) > 0);
-  if (!money) return <Badge variant="success">Enrolled</Badge>;
-  if (hasPay && emp.hasNiNumber) return <Badge variant="success">Complete</Badge>;
-  if (hasPay) return <Badge variant="primary">Pay set</Badge>;
-  return <Badge variant="warning">Needs pay</Badge>;
+function DirectoryStat({ icon: Icon, label, value, detail }: { icon: typeof Users; label: string; value: number; detail: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Icon size={15} aria-hidden="true" />
+        <p className="text-[10px] font-bold uppercase tracking-widest">{label}</p>
+      </div>
+      <div className="mt-2 flex items-end justify-between gap-3">
+        <p className="text-2xl font-bold tabular-nums">{value}</p>
+        <p className="text-xs text-muted-foreground text-right">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function RecordReadinessBadge({
+  member,
+  emp,
+  money,
+  asOf,
+}: {
+  member: Parameters<typeof employeeSetupChecks>[0];
+  emp?: HrEmployee;
+  money: boolean;
+  asOf: Date;
+}) {
+  if (!emp) return <Badge variant="warning">Account only</Badge>;
+  if (!money) return <Badge variant="success">Record linked</Badge>;
+  const checks = employeeSetupChecks(member, emp, [], asOf).filter((check) => !['right-to-work', 'contract'].includes(check.id));
+  const progress = setupProgress(checks);
+  if (checks.some((check) => check.tone === 'destructive')) return <Badge variant="destructive">Pay risk</Badge>;
+  if (progress === 100) return <Badge variant="success">Core ready</Badge>;
+  return <Badge variant="warning">{checks.filter((check) => !check.complete).length} actions</Badge>;
 }

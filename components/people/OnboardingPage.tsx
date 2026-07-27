@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Loader2, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
 import { AddressFields } from '@/components/people/AddressFields';
@@ -13,8 +13,9 @@ import { type OnboardPayload, onboardEmployee } from '@/lib/api/onboarding.servi
 import type { StaffRole } from '@/lib/api/staff.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
+import { ageBasedMinimumWage } from '@/lib/utils/employee-compliance';
 import { useAuthStore } from '@/stores/authStore';
+import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // Roles selectable when onboarding (super_admin is never assigned this way).
@@ -56,6 +57,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
   });
 
   const [step, setStep] = useState(0);
+  const [asOf] = useState(() => new Date());
   const [f, setF] = useState<Form>({
     email: '',
     name: '',
@@ -100,6 +102,8 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
   ];
   const canAdvance = stepValid[step];
   const isLast = step === STEPS.length - 1;
+  const ageRate = f.payType === 'hourly' ? ageBasedMinimumWage(f.dateOfBirth, asOf) : null;
+  const belowAgeRate = !!ageRate && Number(f.hourlyRate ?? 0) < ageRate.rate;
 
   return (
     <div className="fixed inset-0 z-[60] bg-background flex flex-col">
@@ -329,7 +333,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                     />
                   </Field>
                 )}
-                <Field label="Unpaid break (mins)">
+                <Field label="Contract break (mins)">
                   <input
                     className={inp}
                     inputMode="numeric"
@@ -337,7 +341,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                     onChange={(e) => set({ unpaidBreakMins: Number(e.target.value) })}
                   />
                 </Field>
-                <Field label="Break after (mins)" hint="Break applies to shifts longer than this.">
+                <Field label="Break after (mins)" hint="Planning rule only; record whether the break was actually taken.">
                   <input
                     className={inp}
                     inputMode="numeric"
@@ -346,6 +350,19 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                   />
                 </Field>
               </div>
+              {belowAgeRate && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 flex gap-2 text-sm">
+                  <AlertTriangle size={17} className="text-destructive shrink-0" />
+                  <p>
+                    This is below the £{ageRate.rate.toFixed(2)} age-based minimum from 1 April 2026. Apprentice rules may differ and must
+                    be checked separately.
+                  </p>
+                </div>
+              )}
+              <p className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
+                Do not automatically deduct a planned break when it was not taken. Review all actual and unscheduled working time before
+                payroll.
+              </p>
             </>
           )}
 
@@ -398,6 +415,19 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
               <p className="text-xs text-muted-foreground">
                 Statutory and bank details are optional here — you can add them later on the employee record.
               </p>
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={17} className="text-primary" />
+                  <p className="font-semibold">Required follow-up before work starts</p>
+                </div>
+                <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground">
+                  <li>• Complete and retain the prescribed right-to-work evidence.</li>
+                  <li>• Issue the day-one written statement or employment contract.</li>
+                  <li>• Complete the HMRC starter declaration/P45 process.</li>
+                  <li>• Assess workplace-pension duties and record the notice.</li>
+                  <li>• Assign a work pattern, holiday entitlement and required training.</li>
+                </ul>
+              </div>
             </>
           )}
         </div>
