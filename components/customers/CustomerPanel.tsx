@@ -11,6 +11,7 @@ import { EditForm } from '@/components/customers/EditForm';
 import { LoyaltyProgress } from '@/components/customers/LoyaltyProgress';
 import { PointsForm } from '@/components/customers/PointsForm';
 import { VisitCalendar } from '@/components/customers/VisitCalendar';
+import { SendEmailModal } from '@/components/email/SendEmailModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
@@ -33,7 +34,7 @@ interface CustomerPanelProps {
 export function CustomerPanel({ customer, onCustomerUpdate }: CustomerPanelProps) {
   const qc = useQueryClient();
   const router = useRouter();
-  const [modal, setModal] = useState<'edit' | 'points' | null>(null);
+  const [modal, setModal] = useState<'edit' | 'points' | 'email' | null>(null);
 
   const { data: ordersData } = useQuery({
     queryKey: ['customer-visits', customer?.id],
@@ -65,6 +66,16 @@ export function CustomerPanel({ customer, onCustomerUpdate }: CustomerPanelProps
             <div className="flex flex-col">
               {/* Top bar */}
               <div className="flex items-center justify-end gap-2 px-5 pt-5 pb-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setModal('email')}
+                  aria-label="Send email"
+                  disabled={!customer.email}
+                  title={customer.email ? 'Send email' : 'Add an email address first'}
+                >
+                  <Mail size={16} />
+                </Button>
                 <Button variant="outline" size="icon" onClick={() => setModal('points')} aria-label="Adjust points">
                   <Coins size={16} />
                 </Button>
@@ -197,6 +208,13 @@ export function CustomerPanel({ customer, onCustomerUpdate }: CustomerPanelProps
             <Modal title="Adjust Points" onClose={() => setModal(null)}>
               <PointsForm customer={customer} onClose={() => setModal(null)} onSaved={handleSaved} />
             </Modal>
+          )}
+          {modal === 'email' && customer.email && (
+            <SendEmailModal
+              customerId={customer.id}
+              recipientLabel={`${customer.firstName} ${customer.lastName} · ${customer.email}`}
+              onClose={() => setModal(null)}
+            />
           )}
         </>
       )}

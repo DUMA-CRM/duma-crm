@@ -9,8 +9,9 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 
-import { type PayrollPeriod, createPayrollRun, getPayrollPreview } from '@/lib/api/payroll.service';
+import { type PayrollPeriod, type PayrollPreviewLine, createPayrollRun, getPayrollPreview } from '@/lib/api/payroll.service';
 import { toast } from '@/stores/toastStore';
 
 import {
@@ -23,13 +24,64 @@ import {
   labelClass,
   money,
   monthRange,
-  thClass,
   weekRange,
 } from './shared';
 
 const PERIOD_OPTIONS = [
   { value: 'weekly' as const, label: 'Weekly' },
   { value: 'monthly' as const, label: 'Monthly' },
+];
+
+const payrollColumns: DataTableColumn<PayrollPreviewLine>[] = [
+  {
+    id: 'employee',
+    header: 'Employee',
+    minWidth: 180,
+    cell: ({ row }) => (
+      <>
+        <p className="font-medium">{row.name}</p>
+        <p className="text-xs text-muted-foreground">{row.jobTitle}</p>
+      </>
+    ),
+  },
+  {
+    id: 'pay-type',
+    header: 'Pay type',
+    width: 'fit',
+    cell: ({ row }) => <Badge variant={row.payType === 'hourly' ? 'primary' : 'muted'}>{row.payType}</Badge>,
+  },
+  {
+    id: 'raw-hours',
+    header: 'Raw hours',
+    align: 'right',
+    width: 'fit',
+    cellClassName: 'tabular-nums text-muted-foreground',
+    cell: ({ row }) => hours(row.rawHours),
+  },
+  {
+    id: 'paid-hours',
+    header: 'Paid hours',
+    align: 'right',
+    width: 'fit',
+    cellClassName: 'tabular-nums',
+    cell: ({ row }) => hours(row.paidHours),
+  },
+  {
+    id: 'rate',
+    header: 'Rate',
+    align: 'right',
+    width: 'fit',
+    cellClassName: 'tabular-nums text-muted-foreground',
+    cell: ({ row }) => (row.payType === 'hourly' && row.hourlyRate != null ? money(row.hourlyRate) : '—'),
+  },
+  {
+    id: 'gross',
+    header: 'Gross pay',
+    align: 'right',
+    width: 'fit',
+    cellClassName: 'tabular-nums font-semibold',
+    cell: ({ row }) => money(row.grossPay),
+  },
 ];
 
 export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
@@ -116,13 +168,7 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
             <Download size={14} />
             Export CSV
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="Coming soon — connect a payroll provider"
-            className="gap-1.5"
-          >
+          <Button variant="outline" size="sm" disabled title="Coming soon — connect a payroll provider" className="gap-1.5">
             <PlugZap size={14} />
             Send to connector
           </Button>
@@ -132,78 +178,41 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="min-h-0 flex-1 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-auto">
-          {isLoading ? (
-            <div className="p-5 space-y-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-10 bg-muted rounded animate-pulse" />
-              ))}
+      <DataTable
+        aria-label="Payroll preview"
+        className="min-h-0 flex-1 flex flex-col"
+        containerClassName="min-h-0 flex-1"
+        data={lines}
+        columns={payrollColumns}
+        getRowKey={(line) => line.userId}
+        isLoading={isLoading}
+        isError={isError}
+        errorState={
+          <EmptyState icon={Users} title="Couldn't load payroll" description={(error as Error)?.message || 'Try again shortly.'} />
+        }
+        emptyState={<EmptyState icon={Users} title="No employees" description="No hours in this period." />}
+        minWidth={720}
+        rowClassName="hover:bg-surface-offset/70"
+        footer={
+          hasLines ? (
+            <div className="grid grid-cols-[1fr_auto_auto] items-center gap-6">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                {totals.employees} {totals.employees === 1 ? 'employee' : 'employees'}
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total gross</p>
+              <p className="tabular-nums font-bold text-primary">{money(totals.gross)}</p>
             </div>
-          ) : isError ? (
-            <div className="py-24">
-              <EmptyState icon={Users} title="Couldn't load payroll" description={(error as Error)?.message || 'Try again shortly.'} />
-            </div>
-          ) : !hasLines ? (
-            <div className="py-24">
-              <EmptyState icon={Users} title="No employees" description="No hours in this period." />
-            </div>
-          ) : (
-            <table className="w-full text-sm border-collapse">
-              <thead className="sticky top-0 z-10">
-                <tr className="border-b border-border bg-muted">
-                  <th className={thClass}>Employee</th>
-                  <th className={thClass}>Pay type</th>
-                  <th className={`${thClass} text-right`}>Raw hours</th>
-                  <th className={`${thClass} text-right`}>Paid hours</th>
-                  <th className={`${thClass} text-right`}>Rate</th>
-                  <th className={`${thClass} text-right`}>Gross pay</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((l) => (
-                  <tr key={l.userId} className="border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors">
-                    <td className="px-3 md:px-5 py-3">
-                      <p className="font-medium text-foreground">{l.name}</p>
-                      <p className="text-xs text-muted-foreground">{l.jobTitle}</p>
-                    </td>
-                    <td className="px-3 md:px-5 py-3">
-                      <Badge variant={l.payType === 'hourly' ? 'primary' : 'muted'}>{l.payType}</Badge>
-                    </td>
-                    <td className="px-3 md:px-5 py-3 text-right tabular-nums text-muted-foreground">{hours(l.rawHours)}</td>
-                    <td className="px-3 md:px-5 py-3 text-right tabular-nums">{hours(l.paidHours)}</td>
-                    <td className="px-3 md:px-5 py-3 text-right tabular-nums text-muted-foreground">
-                      {l.payType === 'hourly' && l.hourlyRate != null ? money(l.hourlyRate) : '—'}
-                    </td>
-                    <td className="px-3 md:px-5 py-3 text-right tabular-nums font-semibold text-foreground">{money(l.grossPay)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-border bg-surface-offset/50">
-                  <td colSpan={2} className="px-3 md:px-5 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    {totals.employees} {totals.employees === 1 ? 'employee' : 'employees'}
-                  </td>
-                  <td colSpan={3} className="px-3 md:px-5 py-3 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    Total gross
-                  </td>
-                  <td className="px-3 md:px-5 py-3 text-right tabular-nums font-bold text-primary">{money(totals.gross)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          )}
-        </div>
-      </div>
+          ) : null
+        }
+      />
 
       {confirmOpen && (
         <ConfirmModal
           title="Finalise payroll run"
           message={
             <>
-              This snapshots an immutable payroll record for{' '}
-              <span className="font-semibold text-foreground">{formatRange(from, to)}</span> covering{' '}
-              <span className="font-semibold text-foreground">{totals.employees}</span> employees and{' '}
+              This snapshots an immutable payroll record for <span className="font-semibold text-foreground">{formatRange(from, to)}</span>{' '}
+              covering <span className="font-semibold text-foreground">{totals.employees}</span> employees and{' '}
               <span className="font-semibold text-foreground">{money(totals.gross)}</span> gross. It cannot be edited afterwards.
             </>
           }

@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChefHat, Loader2, Search, Trash2, UtensilsCrossed } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { EditorShell } from '@/components/menu/EditorShell';
 import { RecipeSummaryChips } from '@/components/menu/RecipeEditorPage';
 import {
   AvailabilityToggle,
@@ -17,8 +16,10 @@ import {
   selectClass,
 } from '@/components/menu/shared';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
@@ -443,7 +444,7 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
 
       <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
         <div className="flex-1 overflow-auto">
-          <table className="w-full text-sm border-collapse">
+          <DataTable className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted">
                 <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -545,7 +546,7 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
                 ))
               )}
             </tbody>
-          </table>
+          </DataTable>
         </div>
         {items.length > 0 && (
           <div className="px-5 py-3 border-t border-border shrink-0">

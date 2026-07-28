@@ -15,6 +15,7 @@ import {
   Eye,
   Flame,
   Loader2,
+  Mail,
   MapPin,
   Monitor,
   Search,
@@ -29,12 +30,14 @@ import { useSearchParams } from 'next/navigation';
 import { Popover } from 'radix-ui';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
+import { SendEmailModal } from '@/components/email/SendEmailModal';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { Modal } from '@/components/shared/Modal';
 import { StatCard } from '@/components/shared/StatCard';
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select, type SelectOption } from '@/components/ui/select';
 
@@ -407,6 +410,7 @@ function ReceiptModal({ orderId, apiBase, onClose }: { orderId: string; apiBase:
 
 function OrderDetailPanel({ orderId }: { orderId: string }) {
   const [showReceipt, setShowReceipt] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
 
   const { data, isLoading } = useQuery<OrderDetailType>({
     queryKey: ['order', orderId],
@@ -579,7 +583,12 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-2">
-          {/* Email actions removed until the API supports them — they were console.log stubs. */}
+          {data.customerId && (
+            <Button variant="outline" size="sm" onClick={() => setShowEmail(true)}>
+              <Mail />
+              Send email
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setShowReceipt(true)}>
             <Eye />
             View / Download Receipt
@@ -588,6 +597,14 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
       </div>
 
       {showReceipt && <ReceiptModal orderId={data.id} apiBase={API_PREFIX} onClose={() => setShowReceipt(false)} />}
+      {showEmail && data.customerId && (
+        <SendEmailModal
+          customerId={data.customerId}
+          orderId={data.id}
+          recipientLabel={`Customer for order #${data.id.slice(0, 8).toUpperCase()}`}
+          onClose={() => setShowEmail(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1180,7 +1197,7 @@ function OrdersPageContent() {
         {/* Orders table */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div>
-            <table className="w-full text-sm border-collapse">
+            <DataTable className="w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-muted">
                   <th className="px-3 md:px-5 py-3.5 w-8" />
@@ -1258,7 +1275,7 @@ function OrdersPageContent() {
                   ))
                 )}
               </tbody>
-            </table>
+            </DataTable>
           </div>
 
           {totalPages > 1 && (

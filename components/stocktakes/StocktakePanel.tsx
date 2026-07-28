@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
 
 import {
   type Stocktake,
@@ -87,7 +88,10 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
     onSuccess: (res) => {
       invalidate();
       setConfirm(null);
-      toast('success', `Stocktake complete — ${res.adjustments ?? 0} variance ${res.adjustments === 1 ? 'adjustment' : 'adjustments'} applied.`);
+      toast(
+        'success',
+        `Stocktake complete — ${res.adjustments ?? 0} variance ${res.adjustments === 1 ? 'adjustment' : 'adjustments'} applied.`,
+      );
     },
     onError: (err) => {
       setConfirm(null);
@@ -118,13 +122,19 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm border-collapse">
+        <DataTable className="w-full text-sm border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-border bg-muted">
               <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Item</th>
-              <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Expected</th>
-              <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Counted</th>
-              <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Variance</th>
+              <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Expected
+              </th>
+              <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Counted
+              </th>
+              <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Variance
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -154,13 +164,15 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
                       value === '' ? 'text-muted-foreground' : varianceClass(expected, Number(value)),
                     )}
                   >
-                    {value === '' ? '—' : `${Number(value) - expected > 0 ? '+' : ''}${(Number(value) - expected).toFixed(2).replace(/\.00$/, '')}`}
+                    {value === ''
+                      ? '—'
+                      : `${Number(value) - expected > 0 ? '+' : ''}${(Number(value) - expected).toFixed(2).replace(/\.00$/, '')}`}
                   </td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
+        </DataTable>
       </div>
 
       <div className="flex gap-2 px-5 py-3 border-t border-border shrink-0">
@@ -181,8 +193,8 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
           title="Complete Stocktake"
           message={
             <>
-              Apply the counted quantities? On-hand stock will be set to your counts and every variance recorded as an adjustment.
-              Uncounted items are left untouched.
+              Apply the counted quantities? On-hand stock will be set to your counts and every variance recorded as an adjustment. Uncounted
+              items are left untouched.
             </>
           }
           isPending={complete.isPending}
@@ -264,12 +276,18 @@ export function StocktakePanel({ locationId }: { locationId: string }) {
             />
           </div>
         ) : (
-          <table className="w-full text-sm border-collapse">
+          <DataTable className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted">
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Date</th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Started by</th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
+                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Date
+                </th>
+                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Started by
+                </th>
+                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -287,7 +305,7 @@ export function StocktakePanel({ locationId }: { locationId: string }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </div>
 
@@ -316,7 +334,7 @@ function StocktakeDetailModal({ id, onClose }: { id: string; onClose: () => void
             {data.startedByUser?.name ? ` · ${data.startedByUser.name}` : ''}
           </p>
           <div className="border border-border rounded-xl overflow-hidden max-h-96 overflow-y-auto">
-            <table className="w-full text-sm">
+            <DataTable className="w-full text-sm">
               <thead>
                 <tr className="bg-muted text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                   <th className="px-3 py-2 text-left">Item</th>
@@ -342,13 +360,15 @@ function StocktakeDetailModal({ id, onClose }: { id: string; onClose: () => void
                           counted === null ? 'text-muted-foreground' : varianceClass(expected, counted),
                         )}
                       >
-                        {counted === null ? '—' : `${counted - expected > 0 ? '+' : ''}${(counted - expected).toFixed(2).replace(/\.00$/, '')}`}
+                        {counted === null
+                          ? '—'
+                          : `${counted - expected > 0 ? '+' : ''}${(counted - expected).toFixed(2).replace(/\.00$/, '')}`}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
+            </DataTable>
           </div>
         </div>
       )}

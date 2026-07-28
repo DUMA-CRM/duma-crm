@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-import { ManagerDashboard } from '@/components/dashboard/ManagerDashboard';
+import { ReportsWorkspace } from '@/components/reports/ReportsWorkspace';
 
 import { roleAtLeast } from '@/lib/api/staff.service';
 import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
@@ -10,5 +10,5 @@ export default async function ReportsPage() {
 
   if (!profile || !roleAtLeast(profile.role, 'store_manager')) redirect('/dashboard');
 
-  return <ManagerDashboard role={profile.role} mode="reports" />;
+  return <ReportsWorkspace />;
 }

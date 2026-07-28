@@ -12,7 +12,7 @@ export interface LossRecord {
   locationId: string;
   type: 'waste';
   reason?: string | null;
-  quantity: number;       // negative (e.g. -100)
+  quantity: number; // negative (e.g. -100)
   quantityBefore: number;
   quantityAfter: number;
   orderId: string | null;
@@ -30,6 +30,14 @@ export interface CreateLossPayload {
   quantity: number;
   reason: LossCreateReason;
   notes?: string;
+}
+
+export interface LossLogResponse {
+  data: LossRecord[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
 }
 
 export const getLossLog = (params?: {
@@ -50,7 +58,7 @@ export const getLossLog = (params?: {
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.page) query.set('page', String(params.page));
   const qs = query.toString();
-  return apiFetch<LossRecord[]>(`/loss-log${qs ? `?${qs}` : ''}`);
+  return apiFetch<LossLogResponse>(`/loss-log${qs ? `?${qs}` : ''}`);
 };
 
 export const createLossEntry = (data: CreateLossPayload) =>

@@ -11,6 +11,7 @@ import { OnboardingPage } from '@/components/people/OnboardingPage';
 import { Avatar, EMPLOYMENT_CONFIG, ROLES, ROLE_CONFIG, canSeeMoney, fmtMoney, sel } from '@/components/people/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
@@ -201,7 +202,7 @@ export default function PeoplePage() {
         </div>
         <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
           <div className="flex-1 overflow-auto">
-            <table className="w-full text-sm border-collapse">
+            <DataTable className="w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-muted">
                   <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -337,7 +338,7 @@ export default function PeoplePage() {
                   })
                 )}
               </tbody>
-            </table>
+            </DataTable>
           </div>
           {staff.length > 0 && (
             <div className="px-5 py-3 border-t border-border shrink-0">

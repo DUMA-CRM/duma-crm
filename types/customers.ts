@@ -10,6 +10,9 @@ export interface Customer {
   phone: string;
   email?: string;
   dob?: string;
+  marketingOptIn: boolean;
+  marketingOptInAt?: string;
+  emailUnsubscribedAt?: string;
   notes?: string;
   tier: Tier;
   pointsBalance: number;
@@ -45,4 +48,5 @@ export interface CustomerPayload {
   email?: string;
   dob?: string;
   notes?: string;
+  marketingOptIn?: boolean;
 }

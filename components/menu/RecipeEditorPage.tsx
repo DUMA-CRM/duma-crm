@@ -10,6 +10,7 @@ import { DEFAULT_COL, type SizeColumn, computeRecipeTotals, mergeNutrition, useR
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
 import { Select } from '@/components/ui/select';
 
 import { NUTRITION_FIELDS, type NutritionFacts } from '@/lib/api/inventory.service';
@@ -294,7 +295,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                   <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Modifier Add-ons</h2>
                   <div className="bg-card border border-border rounded-2xl overflow-hidden">
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                      <DataTable className="w-full text-sm">
                         <thead>
                           <tr className="bg-muted text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                             <th className="px-4 py-2.5 text-left">Modifier</th>
@@ -356,7 +357,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                             );
                           })}
                         </tbody>
-                      </table>
+                      </DataTable>
                     </div>
                     <p className="px-4 py-2.5 border-t border-border text-[11px] text-muted-foreground">
                       What each modifier adds on top of the base recipe, per size. “—” means no recipe yet — use the pencil to set one.

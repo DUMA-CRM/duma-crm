@@ -6,13 +6,40 @@ import { useState } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 
 import { type PayrollRun, getPayrollRuns } from '@/lib/api/payroll.service';
 import { cn } from '@/lib/utils/cn';
 
-import { formatDate, formatRange, hours, money, thClass } from './shared';
+import { formatDate, formatRange, hours, money } from './shared';
 
 const runGross = (run: PayrollRun) => run.lines.reduce((sum, l) => sum + Number(l.grossPay), 0);
+type PayrollLine = PayrollRun['lines'][number];
+
+const payrollColumns: DataTableColumn<PayrollLine>[] = [
+  {
+    id: 'employee',
+    header: 'Employee',
+    minWidth: 180,
+    cell: ({ row }) => row.employeeName ?? 'Unknown',
+  },
+  {
+    id: 'hours',
+    header: 'Paid hours',
+    align: 'right',
+    width: 'fit',
+    cellClassName: 'tabular-nums text-muted-foreground',
+    cell: ({ row }) => hours(row.paidHours),
+  },
+  {
+    id: 'gross',
+    header: 'Gross',
+    align: 'right',
+    width: 'fit',
+    cellClassName: 'tabular-nums font-semibold',
+    cell: ({ row }) => money(row.grossPay),
+  },
+];
 
 function RunCard({ run }: { run: PayrollRun }) {
   const [open, setOpen] = useState(false);
@@ -45,26 +72,15 @@ function RunCard({ run }: { run: PayrollRun }) {
       </button>
 
       {open && (
-        <div className="border-t border-border overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-border bg-muted">
-                <th className={thClass}>Employee</th>
-                <th className={`${thClass} text-right`}>Paid hours</th>
-                <th className={`${thClass} text-right`}>Gross</th>
-              </tr>
-            </thead>
-            <tbody>
-              {run.lines.map((l) => (
-                <tr key={l.id} className="border-b border-border/50 last:border-0">
-                  <td className="px-3 md:px-5 py-2.5 text-foreground">{l.employeeName ?? 'Unknown'}</td>
-                  <td className="px-3 md:px-5 py-2.5 text-right tabular-nums text-muted-foreground">{hours(l.paidHours)}</td>
-                  <td className="px-3 md:px-5 py-2.5 text-right tabular-nums font-semibold text-foreground">{money(l.grossPay)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          aria-label={`Payroll details for ${formatRange(run.periodStart, run.periodEnd)}`}
+          data={run.lines}
+          columns={payrollColumns}
+          getRowKey={(line) => line.id}
+          density="compact"
+          borders={{ outer: false }}
+          className="border-t border-border rounded-none"
+        />
       )}
     </div>
   );

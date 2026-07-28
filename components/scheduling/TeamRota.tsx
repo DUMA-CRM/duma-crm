@@ -8,6 +8,7 @@ import { CoveragePanel } from '@/components/scheduling/CoveragePanel';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/ui/data-table';
 import { Select } from '@/components/ui/select';
 
 import {
@@ -620,7 +621,7 @@ export function TeamRota() {
 
       <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
         <div className="flex-1 overflow-auto">
-          <table className="w-full text-sm border-collapse">
+          <DataTable className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted">
                 <th className={th}>Staff</th>
@@ -728,7 +729,7 @@ export function TeamRota() {
                 ))
               )}
             </tbody>
-          </table>
+          </DataTable>
         </div>
 
         {shifts.length > 0 && (

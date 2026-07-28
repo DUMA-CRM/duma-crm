@@ -6,6 +6,7 @@ import { inputClass, selectClass } from '@/components/menu/shared';
 import { DEFAULT_COL, type SizeColumn, useRecipeDraft } from '@/components/menu/useRecipeDraft';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
 import { Select } from '@/components/ui/select';
 
 import type { RecipeLine, RecipeLineInput } from '@/lib/api/recipes.service';
@@ -41,7 +42,7 @@ export function RecipeGrid({ queryKey, fetchLines, saveLines, sizes, basePrice, 
 
       {rows.length > 0 && (
         <div className="overflow-x-auto -mx-1 px-1">
-          <table className="w-full text-sm">
+          <DataTable className="w-full text-sm">
             <thead>
               <tr className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 <th className="text-left pb-1.5 font-bold">Ingredient</th>
@@ -108,7 +109,7 @@ export function RecipeGrid({ queryKey, fetchLines, saveLines, sizes, basePrice, 
                 );
               })}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       )}
       {sizes.length > 0 && rows.length > 0 && (
@@ -123,7 +124,7 @@ export function RecipeGrid({ queryKey, fetchLines, saveLines, sizes, basePrice, 
       {/* Per-column cost / nutrition summary */}
       {hasIngredients && (
         <div className="border-t border-border pt-3 space-y-2">
-          <table className="w-full text-xs">
+          <DataTable className="w-full text-xs">
             <thead>
               <tr className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 <th className="text-left font-bold" />
@@ -171,7 +172,7 @@ export function RecipeGrid({ queryKey, fetchLines, saveLines, sizes, basePrice, 
                 ))}
               </tr>
             </tbody>
-          </table>
+          </DataTable>
           {(summary[0].missingCost > 0 || summary[0].missingKcal > 0) && (
             <p className="text-[11px] text-warning">* some ingredients are missing cost or nutrition data (set them on the stock item).</p>
           )}

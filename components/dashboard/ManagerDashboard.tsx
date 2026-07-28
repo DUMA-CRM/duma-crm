@@ -22,6 +22,7 @@ import { useMemo, useState } from 'react';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
+import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 
 import {
   type DailyOrderAnalytics,
@@ -334,37 +335,59 @@ function LocationPerformance({ rows, loading }: { rows: RevenueByLocation[]; loa
       </div>
     );
   if (!rows.length) return <p className="py-12 text-center text-sm text-muted-foreground">No location activity in this period.</p>;
+  const columns: DataTableColumn<RevenueByLocation>[] = [
+    {
+      id: 'location',
+      header: 'Location',
+      minWidth: 180,
+      cellClassName: 'font-medium',
+      cell: ({ row, rowIndex }) => (
+        <>
+          <span className="mr-2 text-xs text-muted-foreground">{rowIndex + 1}</span>
+          {row.locationName ?? 'Unknown location'}
+        </>
+      ),
+    },
+    {
+      id: 'orders',
+      header: 'Orders',
+      align: 'right',
+      width: 'fit',
+      cellClassName: 'tabular-nums text-muted-foreground',
+      cell: ({ row }) => row.orderCount,
+    },
+    {
+      id: 'value',
+      header: 'Order value',
+      align: 'right',
+      width: 'fit',
+      cellClassName: 'font-semibold tabular-nums',
+      cell: ({ row }) => formatMoney(Number(row.totalRevenue ?? 0)),
+    },
+    {
+      id: 'average',
+      header: 'Avg order',
+      align: 'right',
+      width: 'fit',
+      cellClassName: 'tabular-nums text-muted-foreground',
+      cell: ({ row }) => {
+        const revenue = Number(row.totalRevenue ?? 0);
+        return formatMoney(row.orderCount ? revenue / row.orderCount : 0, 2);
+      },
+    },
+  ];
+
   return (
-    <div className="mt-4 overflow-x-auto">
-      <table className="w-full min-w-120 text-left text-sm">
-        <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          <tr>
-            <th className="pb-2 font-semibold">Location</th>
-            <th className="pb-2 text-right font-semibold">Orders</th>
-            <th className="pb-2 text-right font-semibold">Order value</th>
-            <th className="pb-2 text-right font-semibold">Avg order</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => {
-            const revenue = Number(row.totalRevenue ?? 0);
-            return (
-              <tr key={row.locationId} className="border-t border-border/60">
-                <td className="py-3 font-medium text-foreground">
-                  <span className="mr-2 text-xs text-muted-foreground">{index + 1}</span>
-                  {row.locationName ?? 'Unknown location'}
-                </td>
-                <td className="py-3 text-right tabular-nums text-muted-foreground">{row.orderCount}</td>
-                <td className="py-3 text-right font-semibold tabular-nums text-foreground">{formatMoney(revenue)}</td>
-                <td className="py-3 text-right tabular-nums text-muted-foreground">
-                  {formatMoney(row.orderCount ? revenue / row.orderCount : 0, 2)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      aria-label="Location performance"
+      className="mt-4"
+      data={rows}
+      columns={columns}
+      getRowKey={(row) => row.locationId}
+      minWidth={480}
+      density="compact"
+      borders={{ outer: false }}
+    />
   );
 }
 

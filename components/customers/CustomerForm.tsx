@@ -17,9 +17,20 @@ export function CreateCustomerForm({ tenantId, onClose }: CreateCustomerFormProp
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [dob, setDob] = useState('');
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: () => createCustomer({ tenantId, firstName, lastName, phone, email: email || undefined }),
+    mutationFn: () =>
+      createCustomer({
+        tenantId,
+        firstName,
+        lastName,
+        phone,
+        email: email || undefined,
+        dob: dob ? new Date(dob).toISOString() : undefined,
+        marketingOptIn,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['customers'] });
       onClose();
@@ -41,6 +52,14 @@ export function CreateCustomerForm({ tenantId, onClose }: CreateCustomerFormProp
         </div>
         <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+447911123456" />
         <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="adam@duma.com (optional)" />
+        <Input label="Date of birth" type="date" value={dob} onChange={(event) => setDob(event.target.value)} />
+        <label className="flex items-start gap-2 rounded-xl border border-border bg-surface-offset/40 p-3 text-sm">
+          <input type="checkbox" className="mt-0.5" checked={marketingOptIn} onChange={(event) => setMarketingOptIn(event.target.checked)} />
+          <span>
+            <span className="block font-medium text-foreground">Marketing email consent</span>
+            <span className="block text-xs text-muted-foreground">Allow birthday and promotional email automations.</span>
+          </span>
+        </label>
       </div>
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
       <div className="flex gap-2">

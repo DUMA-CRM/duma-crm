@@ -5,6 +5,7 @@ import { Clock, MapPin, Radio } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';
+import { DataTable } from '@/components/ui/data-table';
 
 import { type Shift, getActiveShifts, getShifts } from '@/lib/api/shifts.service';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -46,7 +47,7 @@ export function ShiftsView() {
           <p className="text-sm font-semibold text-foreground">Active now</p>
           <span className="text-xs text-muted-foreground">({active.length})</span>
         </div>
-        <table className="w-full text-sm border-collapse">
+        <DataTable className="w-full text-sm border-collapse">
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className={th}>Staff</th>
@@ -90,7 +91,7 @@ export function ShiftsView() {
               ))
             )}
           </tbody>
-        </table>
+        </DataTable>
       </div>
 
       {/* Recent shifts */}
@@ -100,7 +101,7 @@ export function ShiftsView() {
           <p className="text-sm font-semibold text-foreground">Recent shifts</p>
           {!locationId && <span className="text-xs text-muted-foreground">· all locations</span>}
         </div>
-        <table className="w-full text-sm border-collapse">
+        <DataTable className="w-full text-sm border-collapse">
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className={th}>Staff</th>
@@ -148,7 +149,7 @@ export function ShiftsView() {
               ))
             )}
           </tbody>
-        </table>
+        </DataTable>
       </div>
     </div>
   );

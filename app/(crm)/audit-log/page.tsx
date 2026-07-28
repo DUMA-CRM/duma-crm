@@ -31,6 +31,7 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select, type SelectOption } from '@/components/ui/select';
 
@@ -690,7 +691,7 @@ function AuditLogPageContent() {
         {/* Audit table */}
         <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
           <div className="flex-1 overflow-auto">
-            <table className="w-full text-sm border-collapse">
+            <DataTable className="w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-muted">
                   <th className="px-3 md:px-5 py-3.5 w-6" />
@@ -763,7 +764,7 @@ function AuditLogPageContent() {
                   logs.map((log) => <LogRow key={log.id} log={log} />)
                 )}
               </tbody>
-            </table>
+            </DataTable>
           </div>
 
           {totalPages > 1 && (

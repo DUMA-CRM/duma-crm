@@ -60,6 +60,21 @@ export interface CustomerRetention {
   repeatRate: number;
 }
 
+export interface StaffHoursAnalytics {
+  userId: string;
+  userName: string | null;
+  totalShifts: number;
+  totalMinutes: number;
+  totalHours: number;
+}
+
+export interface StockSummaryAnalytics {
+  stockItemId: string;
+  type: string;
+  totalQty: string | number | null;
+  movementCount: number;
+}
+
 function rangeQuery(params: AnalyticsRangeParams) {
   const query = new URLSearchParams({ from: params.from, to: params.to });
   if (params.locationId) query.set('locationId', params.locationId);
@@ -68,10 +83,28 @@ function rangeQuery(params: AnalyticsRangeParams) {
 
 export const getOrderAnalytics = (params: AnalyticsRangeParams) => apiFetch<OrderAnalytics>(`/analytics/orders?${rangeQuery(params)}`);
 
-export const getTopItems = (params: AnalyticsRangeParams, limit = 6) => {
+export const getTopItems = async (params: AnalyticsRangeParams, limit = 6) => {
   const query = rangeQuery(params);
   query.set('limit', String(limit));
-  return apiFetch<TopItemAnalytics[]>(`/analytics/top-items?${query}`);
+  const rows = await apiFetch<TopItemAnalytics[]>(`/analytics/top-items?${query}`);
+
+  // Defensive aggregation: older API deployments can return more than one row
+  // for a menu item when joined order-line data has multiple matching records.
+  // Consumers need one stable row per menuItemId for correct totals and React
+  // identity.
+  const grouped = new Map<string, TopItemAnalytics>();
+  rows.forEach((row) => {
+    const current = grouped.get(row.menuItemId);
+    if (!current) {
+      grouped.set(row.menuItemId, { ...row });
+      return;
+    }
+    current.totalQuantity = Number(current.totalQuantity ?? 0) + Number(row.totalQuantity ?? 0);
+    current.totalRevenue = String(Number(current.totalRevenue ?? 0) + Number(row.totalRevenue ?? 0));
+    current.orderCount = Number(current.orderCount ?? 0) + Number(row.orderCount ?? 0);
+  });
+
+  return [...grouped.values()];
 };
 
 export const getRevenueByLocation = (params: AnalyticsRangeParams) =>
@@ -81,3 +114,9 @@ export const getHourlyVolume = (params: AnalyticsRangeParams) => apiFetch<Hourly
 
 export const getCustomerRetention = (params: AnalyticsRangeParams) =>
   apiFetch<CustomerRetention>(`/analytics/customer-retention?${rangeQuery(params)}`);
+
+export const getStaffHours = (params: AnalyticsRangeParams) =>
+  apiFetch<StaffHoursAnalytics[]>(`/analytics/staff-hours?${rangeQuery(params)}`);
+
+export const getStockSummary = (params: AnalyticsRangeParams) =>
+  apiFetch<StockSummaryAnalytics[]>(`/analytics/stock/summary?${rangeQuery(params)}`);

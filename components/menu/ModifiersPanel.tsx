@@ -1,19 +1,20 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronDown, Loader2, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 
-import { EditorShell } from '@/components/menu/EditorShell';
 import { ModifierRecipeEditor } from '@/components/menu/ModifierRecipeEditor';
 import { AvailabilityToggle, FormActions, inputClass, labelClass } from '@/components/menu/shared';
+import { CategoryCombobox } from '@/components/shared/CategoryCombobox';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 
 import { createModifier, deleteModifier, getModifiers, updateModifier } from '@/lib/api/menu.service';
-import { cn } from '@/lib/utils/cn';
 import { encodeModifierName, groupByCategory, parseModifierName } from '@/lib/utils/modifiers';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -23,116 +24,6 @@ function formatAdjust(raw?: string): string {
   const n = Number.parseFloat(raw ?? '0');
   if (!n) return '—';
   return `${n > 0 ? '+' : '−'}£${Math.abs(n).toFixed(2)}`;
-}
-
-// ── Category combobox ─────────────────────────────────────────────────────────
-// Free-text input with a suggestions dropdown: focusing shows every existing
-// category immediately; typing filters them; anything else creates a new one.
-
-function CategoryCombobox({ value, onChange, categories }: { value: string; onChange: (v: string) => void; categories: string[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onPointerDown(e: PointerEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, []);
-
-  const q = value.trim().toLowerCase();
-  const filtered = q ? categories.filter((c) => c.toLowerCase().includes(q)) : categories;
-  const isNew = q.length > 0 && !categories.some((c) => c.toLowerCase() === q);
-
-  function pick(next: string) {
-    onChange(next);
-    setOpen(false);
-  }
-
-  return (
-    <div ref={ref} className="relative">
-      <input
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={(e) => {
-          // Close just the dropdown on Escape without closing the whole modal.
-          if (e.key === 'Escape' && open) {
-            e.stopPropagation();
-            setOpen(false);
-          }
-        }}
-        placeholder="Milk, Size, Syrup… (optional)"
-        className={inputClass + ' pr-9'}
-        role="combobox"
-        aria-expanded={open}
-        aria-controls="modifier-category-listbox"
-        aria-autocomplete="list"
-      />
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        tabIndex={-1}
-        aria-label="Show categories"
-        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ChevronDown size={14} className={cn('transition-transform duration-150', open && 'rotate-180')} aria-hidden="true" />
-      </button>
-
-      {open && (
-        <div
-          id="modifier-category-listbox"
-          role="listbox"
-          className="absolute left-0 right-0 top-full mt-1.5 bg-surface border border-border rounded-xl shadow-lg py-1 z-50 max-h-48 overflow-y-auto"
-        >
-          {/* No category */}
-          <button
-            type="button"
-            onClick={() => pick('')}
-            className={cn(
-              'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-surface-offset',
-              !value ? 'text-foreground font-medium' : 'text-muted-foreground',
-            )}
-          >
-            <span>No category</span>
-            {!value && <Check size={14} className="text-primary shrink-0" aria-hidden="true" />}
-          </button>
-
-          {filtered.length > 0 && <div className="my-1 h-px bg-divider mx-3" aria-hidden="true" />}
-
-          {filtered.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => pick(c)}
-              className={cn(
-                'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-surface-offset',
-                c === value.trim() ? 'text-foreground font-medium' : 'text-muted-foreground',
-              )}
-            >
-              <span className="truncate">{c}</span>
-              {c === value.trim() && <Check size={14} className="text-primary shrink-0" aria-hidden="true" />}
-            </button>
-          ))}
-
-          {isNew && (
-            <button
-              type="button"
-              onClick={() => pick(value.trim())}
-              className="w-full flex items-center gap-1.5 px-3 py-2 text-sm text-left text-primary font-medium transition-colors hover:bg-surface-offset"
-            >
-              <Plus size={13} className="shrink-0" aria-hidden="true" />
-              <span className="truncate">Create “{value.trim()}”</span>
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ── Create / edit form ──────────────────────────────────────────────────────
@@ -203,7 +94,7 @@ function ModifierForm({
       </div>
       <div>
         <label className={labelClass}>Category</label>
-        <CategoryCombobox value={category} onChange={setCategory} categories={categories} />
+        <CategoryCombobox value={category} onChange={setCategory} categories={categories} placeholder="Milk, Size, Syrup… (optional)" />
         <p className="mt-1 text-xs text-muted-foreground">Modifiers with the same category are grouped together in the POS.</p>
       </div>
       <div>
@@ -367,7 +258,7 @@ export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => voi
 
       <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
         <div className="flex-1 overflow-auto">
-          <table className="w-full text-sm border-collapse">
+          <DataTable className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted">
                 <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -461,7 +352,7 @@ export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => voi
                 ))
               )}
             </tbody>
-          </table>
+          </DataTable>
         </div>
         {modifiers.length > 0 && (
           <div className="px-5 py-3 border-t border-border shrink-0">

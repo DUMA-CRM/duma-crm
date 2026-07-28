@@ -14,6 +14,10 @@ interface UiSettingsStore {
    *  off-canvas sidebar there. */
   hideHeader: boolean;
   setHideHeader: (hideHeader: boolean) => void;
+  /** Ids of one-off guidance panels (e.g. the Communications setup steps) the
+   *  user has dismissed — they stay hidden on this device. */
+  dismissedTips: string[];
+  dismissTip: (id: string) => void;
 }
 
 export const useUiSettingsStore = create<UiSettingsStore>()(
@@ -23,6 +27,8 @@ export const useUiSettingsStore = create<UiSettingsStore>()(
       setHidePageTitles: (hidePageTitles) => set({ hidePageTitles }),
       hideHeader: false,
       setHideHeader: (hideHeader) => set({ hideHeader }),
+      dismissedTips: [],
+      dismissTip: (id) => set((state) => ({ dismissedTips: [...new Set([...state.dismissedTips, id])] })),
     }),
     { name: 'ui-settings' },
   ),

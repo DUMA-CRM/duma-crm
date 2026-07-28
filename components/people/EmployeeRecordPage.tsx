@@ -56,6 +56,7 @@ import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
 import { Select } from '@/components/ui/select';
 
 import { assignCourse, getCourses, getTrainingCompliance } from '@/lib/api/courses.service';
@@ -1905,7 +1906,7 @@ function TimesheetCard({
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
+        <DataTable className="w-full text-sm border-collapse">
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className={cn(TH, 'text-left')}>Date</th>
@@ -1948,7 +1949,7 @@ function TimesheetCard({
               ))
             )}
           </tbody>
-        </table>
+        </DataTable>
       </div>
 
       {openDay && (
@@ -1960,7 +1961,7 @@ function TimesheetCard({
               <Badge variant="success">{fmtHours(openDay.paidHours)} marked payable</Badge>
             </div>
             <div className="border border-border rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
+              <DataTable className="w-full text-sm">
                 <thead>
                   <tr className="bg-muted text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     <th className="px-3 py-2 text-left">Clocked</th>
@@ -1988,7 +1989,7 @@ function TimesheetCard({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </DataTable>
             </div>
             <p className="text-[11px] text-muted-foreground">
               The rota is evidence of planned work, not a legal cap on pay. Confirm actual working time, breaks and authorised corrections

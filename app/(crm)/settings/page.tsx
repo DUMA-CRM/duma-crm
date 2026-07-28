@@ -135,6 +135,7 @@ interface Connector {
   icon: LucideIcon;
   title: string;
   description: string;
+  href?: string;
 }
 
 const CONNECTORS: Connector[] = [
@@ -165,26 +166,34 @@ const CONNECTORS: Connector[] = [
   },
   {
     icon: Mail,
-    title: 'Email / SMS',
-    description: 'Send digital receipts and marketing via an email/SMS provider.',
+    title: 'Email',
+    description: 'Connect SMTP, create reusable templates and automate customer emails.',
+    href: '/communications',
   },
 ];
 
-function ConnectorCard({ icon: Icon, title, description }: Connector) {
-  return (
-    <div aria-disabled="true" className="bg-card border border-border rounded-2xl p-5 opacity-60 cursor-not-allowed select-none">
+function ConnectorCard({ icon: Icon, title, description, href }: Connector) {
+  const content = (
+    <div
+      aria-disabled={href ? undefined : true}
+      className={cn(
+        'bg-card border border-border rounded-2xl p-5',
+        href ? 'transition-colors hover:border-primary/40 hover:bg-primary/3' : 'opacity-60 cursor-not-allowed select-none',
+      )}
+    >
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
           <Icon size={18} className="text-primary" aria-hidden="true" />
         </div>
-        <Badge variant="muted" className="ml-auto shrink-0">
-          Coming soon
+        <Badge variant={href ? 'success' : 'muted'} className="ml-auto shrink-0">
+          {href ? 'Available' : 'Coming soon'}
         </Badge>
       </div>
       <p className="text-sm font-semibold text-foreground mt-4">{title}</p>
       <p className="text-xs text-muted-foreground mt-1">{description}</p>
     </div>
   );
+  return href ? <Link href={href}>{content}</Link> : content;
 }
 
 /** Best-effort "Chrome · macOS"-style label + a phone/desktop icon from a UA string. */
@@ -570,7 +579,7 @@ export default function SettingsPage() {
         {tab === 'connectors' && showConnectors && (
           <div className="flex flex-col gap-6">
             <p className="text-sm text-muted-foreground max-w-2xl">
-              Connect external services to automate payroll exports, receipt printing and accounting.
+              Connect external services to automate email, payroll exports, receipt printing and accounting.
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -580,7 +589,7 @@ export default function SettingsPage() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Integrations are coming soon — this is where you&apos;ll connect hardware and services.
+              Email is available now. Additional integrations will appear here as they are released.
             </p>
           </div>
         )}

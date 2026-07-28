@@ -21,6 +21,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
 import { Select } from '@/components/ui/select';
 
 import { getStockItems } from '@/lib/api/inventory.service';
@@ -327,7 +328,7 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
 
       {/* Lines */}
       <div className="border border-border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+        <DataTable className="w-full text-sm">
           <thead>
             <tr className="bg-muted text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               <th className="px-3 py-2 text-left">Item</th>
@@ -358,7 +359,7 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
               <td className="px-3 py-2 text-right tabular-nums font-bold text-primary">{money(total)}</td>
             </tr>
           </tbody>
-        </table>
+        </DataTable>
       </div>
 
       {po.notes && <p className="text-xs text-muted-foreground">{po.notes}</p>}
@@ -603,7 +604,7 @@ export function PurchaseOrdersPanel({
             <EmptyState icon={Truck} title="No purchase orders" description='Click "New PO" to order stock from a supplier.' />
           </div>
         ) : (
-          <table className="w-full text-sm border-collapse">
+          <DataTable className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted">
                 <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">PO</th>
@@ -649,7 +650,7 @@ export function PurchaseOrdersPanel({
                 );
               })}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </div>
 
