@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Eye, Info, Loader2, TriangleAlert } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 import { EditorShell } from '@/components/shared/EditorShell';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
@@ -33,6 +33,7 @@ const FORM_ID = 'email-automation-form';
 export function AutomationEditorPage({
   automation,
   initial,
+  suggestedTemplateName,
   onClose,
   onSaved,
   onPreviewTemplate,
@@ -41,6 +42,8 @@ export function AutomationEditorPage({
 }: {
   automation?: EmailAutomation;
   initial?: Partial<EmailAutomationPayload>;
+  /** Template a preset was written for — pre-picked when it exists and nothing else is chosen. */
+  suggestedTemplateName?: string;
   onClose: () => void;
   onSaved?: (saved: EmailAutomation) => void;
   onPreviewTemplate?: (templateId: string) => void;
@@ -76,11 +79,13 @@ export function AutomationEditorPage({
     isEnabled: automation?.isEnabled ?? initial?.isEnabled ?? false,
     locationId: automation?.locationId ?? initial?.locationId ?? null,
   });
-  const initialSnapshot = useRef(JSON.stringify(form)).current;
+  const [initialSnapshot] = useState(() => JSON.stringify(form));
 
-  // Templates load after the first render, so fall back to the first usable one.
+  // Templates load after the first render, so fall back to the one this preset was
+  // written for, else the first usable one.
   const usableTemplates = templates.filter((item) => item.isActive || item.id === automation?.templateId);
-  const templateId = form.templateId || usableTemplates[0]?.id || '';
+  const suggested = suggestedTemplateName ? usableTemplates.find((item) => item.name === suggestedTemplateName) : undefined;
+  const templateId = form.templateId || suggested?.id || usableTemplates[0]?.id || '';
   const selectedTemplate = templates.find((item) => item.id === templateId);
   const selectedLocation = locations.find((item) => item.id === form.locationId);
   const payload = { ...form, templateId, tenantId: tenantId ?? undefined };
@@ -219,7 +224,9 @@ export function AutomationEditorPage({
                 <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3">
                   <TriangleAlert size={15} className="mt-0.5 shrink-0 text-warning" aria-hidden="true" />
                   <div className="text-xs text-warning">
-                    {templatesLoading ? 'Loading your templates…' : 'You need one ready-to-use template before an automation can send anything.'}
+                    {templatesLoading
+                      ? 'Loading your templates…'
+                      : 'You need one ready-to-use template before an automation can send anything.'}
                     {!templatesLoading && onOpenTemplates && (
                       <button type="button" onClick={onOpenTemplates} className="ml-1 font-semibold underline">
                         Create a template

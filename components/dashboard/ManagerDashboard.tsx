@@ -10,6 +10,7 @@ import {
   Coffee,
   PackagePlus,
   ReceiptText,
+  RefreshCw,
   ShoppingBag,
   TrendingDown,
   TrendingUp,
@@ -17,7 +18,7 @@ import {
   WalletCards,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
@@ -53,7 +54,8 @@ const RANGE_OPTIONS: Array<{ value: DashboardRange; label: string }> = [
   { value: '30d', label: '30 days' },
 ];
 
-const panelClass = 'rounded-2xl border border-border bg-card';
+const panelClass =
+  'rounded-2xl border border-border/80 bg-card shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent),0_10px_32px_color-mix(in_oklab,var(--foreground)_3%,transparent)]';
 
 function DashboardSkeleton({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded-xl bg-muted', className)} aria-hidden="true" />;
@@ -64,20 +66,32 @@ function PanelHeader({
   description,
   href,
   hrefLabel = 'View details',
+  badge,
 }: {
   title: string;
   description?: string;
   href?: string;
   hrefLabel?: string;
+  badge?: string;
 }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div>
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-foreground">{title}</h2>
+          {badge && (
+            <span className="rounded-full border border-border bg-muted/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {badge}
+            </span>
+          )}
+        </div>
         {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
       </div>
       {href && (
-        <Link href={href} className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-primary hover:underline">
+        <Link
+          href={href}
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
           {hrefLabel}
           <ArrowRight size={13} aria-hidden="true" />
         </Link>
@@ -87,11 +101,17 @@ function PanelHeader({
 }
 
 function ChangeBadge({ change, label, points = false }: { change: number | null | undefined; label: string; points?: boolean }) {
-  if (change === undefined) return <span className="text-[11px] font-medium text-warning">Comparison unavailable</span>;
-  if (change === null) return <span className="text-[11px] font-medium text-muted-foreground">New {label}</span>;
+  if (change === undefined)
+    return <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-semibold text-muted-foreground">No comparison</span>;
+  if (change === null) return <span className="rounded-full bg-info/10 px-2 py-1 text-[10px] font-semibold text-info">New {label}</span>;
   const improving = change >= 0;
   return (
-    <span className={cn('inline-flex items-center gap-1 text-[11px] font-semibold', improving ? 'text-success' : 'text-destructive')}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold',
+        improving ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive',
+      )}
+    >
       {improving ? <TrendingUp size={12} aria-hidden="true" /> : <TrendingDown size={12} aria-hidden="true" />}
       {Math.abs(change).toFixed(1)}
       {points ? ' pts' : '%'} {label}
@@ -111,6 +131,7 @@ function MetricCard({
   loading,
   points,
   selected,
+  tone = 'bg-primary/10 text-primary',
 }: {
   label: string;
   value: string;
@@ -123,32 +144,28 @@ function MetricCard({
   loading: boolean;
   points?: boolean;
   selected?: boolean;
+  tone?: string;
 }) {
   const content = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Icon size={17} aria-hidden="true" />
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+        <div className={cn('flex size-8 items-center justify-center rounded-lg', tone)}>
+          <Icon size={15} strokeWidth={2.1} aria-hidden="true" />
         </div>
-        <ArrowRight
-          size={15}
-          className="text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
-          aria-hidden="true"
-        />
       </div>
       {loading ? (
-        <div className="mt-5 space-y-3">
+        <div className="mt-4 space-y-3">
           <DashboardSkeleton className="h-8 w-28" />
           <DashboardSkeleton className="h-3 w-36" />
         </div>
       ) : (
         <>
-          <p className="mt-5 text-3xl font-bold tracking-tight text-foreground tabular-nums">{value}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="text-xs font-semibold text-foreground">{label}</p>
+          <p className="mt-4 text-[28px] font-bold leading-none tracking-[-0.04em] text-foreground tabular-nums">{value}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <ChangeBadge change={change} label={comparisonLabel} points={points} />
+            <span className="text-[11px] text-muted-foreground">{hint}</span>
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
         </>
       )}
     </>
@@ -156,7 +173,7 @@ function MetricCard({
 
   const className = cn(
     panelClass,
-    'group min-h-40 p-4 text-left transition-colors hover:border-primary/35 hover:bg-surface',
+    'group min-h-36 p-4 text-left transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md',
     selected && 'border-primary bg-primary/5 ring-2 ring-primary/10',
   );
   const ariaLabel = `${label}: ${value}. ${hint}${onSelect ? '. Show detailed statistics' : ''}`;
@@ -200,53 +217,73 @@ function RevenueChart({ rows, loading }: { rows: DailyOrderAnalytics[]; loading:
 
   const values = rows.map((row) => Number(row.revenue ?? 0));
   const max = Math.max(...values, 1);
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
   const highlighted = active === null ? rows.length - 1 : active;
   const current = rows[highlighted];
   const dateLabel = new Date(`${current.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
   return (
     <div className="mt-5">
-      <div className="mb-4 flex min-h-10 items-end justify-between gap-4" aria-live="polite">
-        <div>
-          <p className="text-xs text-muted-foreground">{dateLabel}</p>
-          <p className="text-lg font-bold text-foreground tabular-nums">{formatMoney(Number(current.revenue ?? 0))}</p>
+      <div className="mb-5 flex min-h-12 flex-wrap items-end justify-between gap-4" aria-live="polite">
+        <div className="flex items-end gap-3">
+          <p className="text-2xl font-bold tracking-[-0.03em] text-foreground tabular-nums">{formatMoney(Number(current.revenue ?? 0))}</p>
+          <p className="pb-0.5 text-xs text-muted-foreground">
+            {dateLabel} · {current.count} orders
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground">{current.count} orders</p>
+        <div className="rounded-lg bg-muted/65 px-3 py-1.5 text-right">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Daily average</p>
+          <p className="text-xs font-semibold tabular-nums text-foreground">{formatMoney(average)}</p>
+        </div>
       </div>
-      <div className="flex h-40 items-end gap-1 sm:gap-1.5" role="group" aria-label="Daily order value chart">
-        {rows.map((row, index) => {
-          const value = Number(row.revenue ?? 0);
-          const selected = highlighted === index;
-          const shortDate = new Date(`${row.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-          return (
-            <button
-              key={row.date}
-              type="button"
-              onFocus={() => setActive(index)}
-              onMouseEnter={() => setActive(index)}
-              onMouseLeave={() => setActive(null)}
-              onClick={() => setActive(index)}
-              aria-label={`${shortDate}: ${formatMoney(value)}, ${row.count} orders`}
-              className="group flex h-full min-w-0 flex-1 items-end rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <span
-                className={cn(
-                  'w-full rounded-t-md transition-colors',
-                  selected ? 'bg-primary' : 'bg-surface-offset group-hover:bg-primary/45',
-                )}
-                style={{ height: `${value === 0 ? 3 : Math.max(8, (value / max) * 100)}%` }}
-              />
-            </button>
-          );
-        })}
+      <div className="flex h-44 gap-3">
+        <div className="flex w-11 shrink-0 flex-col justify-between pb-1 text-right text-[9px] font-medium tabular-nums text-muted-foreground">
+          <span>{formatCompact(max)}</span>
+          <span>{formatCompact(max / 2)}</span>
+          <span>£0</span>
+        </div>
+        <div className="relative min-w-0 flex-1">
+          <div className="pointer-events-none absolute inset-0 flex flex-col justify-between" aria-hidden="true">
+            <span className="border-t border-dashed border-border/70" />
+            <span className="border-t border-dashed border-border/70" />
+            <span className="border-t border-dashed border-border/70" />
+          </div>
+          <div className="relative flex h-full items-end gap-1 sm:gap-1.5" role="group" aria-label="Daily order value chart">
+            {rows.map((row, index) => {
+              const value = Number(row.revenue ?? 0);
+              const selected = highlighted === index;
+              const shortDate = new Date(`${row.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+              return (
+                <button
+                  key={row.date}
+                  type="button"
+                  onFocus={() => setActive(index)}
+                  onBlur={() => setActive(null)}
+                  onMouseEnter={() => setActive(index)}
+                  onMouseLeave={() => setActive(null)}
+                  onClick={() => setActive(index)}
+                  aria-label={`${shortDate}: ${formatMoney(value)}, ${row.count} orders`}
+                  className="group flex h-full min-w-0 flex-1 items-end rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <span
+                    className={cn(
+                      'w-full rounded-t-[5px] transition-[height,background-color,opacity] duration-300',
+                      selected
+                        ? 'bg-primary shadow-[0_0_0_1px_color-mix(in_oklab,var(--primary)_15%,transparent)]'
+                        : 'bg-primary/18 group-hover:bg-primary/45',
+                    )}
+                    style={{ height: `${value === 0 ? 2 : Math.max(7, (value / max) * 100)}%` }}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
-      <div className="mt-2 flex justify-between text-[10px] font-medium text-muted-foreground">
+      <div className="mt-2 ml-14 flex justify-between text-[10px] font-medium text-muted-foreground">
         <span>{new Date(`${rows[0].date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
         <span>{new Date(`${rows.at(-1)!.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
       </div>
-      <p className="mt-3 text-[11px] text-muted-foreground">
-        Headline revenue excludes cancelled orders. Daily bars show recorded order value.
-      </p>
     </div>
   );
 }
@@ -398,10 +435,19 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
 
   const locationsQuery = useQuery({ queryKey: ['locations-accessible'], queryFn: getLocations });
   const locations = locationsQuery.data ?? [];
+  const [secondaryEnabled, setSecondaryEnabled] = useState(false);
+  useEffect(() => {
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(() => setSecondaryEnabled(true), { timeout: 1_200 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = globalThis.setTimeout(() => setSecondaryEnabled(true), 700);
+    return () => globalThis.clearTimeout(id);
+  }, []);
   const selectedLocation = locations.find((location) => location.id === locationId);
   const activeLocationId = selectedLocation?.id ?? null;
   const timeZone = selectedLocation?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'Europe/London';
-  const window = useMemo(() => getDateWindow(range, timeZone), [range, timeZone]);
+  const dateWindow = useMemo(() => getDateWindow(range, timeZone), [range, timeZone]);
   const scopeKey = activeLocationId ?? 'all';
   const currentParams = () => {
     const fresh = getDateWindow(range, timeZone);
@@ -421,32 +467,32 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
   const previousOrders = useQuery({
     queryKey: ['analytics-orders-previous', range, scopeKey, timeZone],
     queryFn: () => getOrderAnalytics(comparisonParams()),
-    enabled: locationsQuery.isSuccess,
+    enabled: locationsQuery.isSuccess && secondaryEnabled,
   });
   const retention = useQuery({
     queryKey: ['analytics-retention', range, scopeKey, timeZone],
     queryFn: () => getCustomerRetention(currentParams()),
-    enabled: locationsQuery.isSuccess,
+    enabled: locationsQuery.isSuccess && secondaryEnabled,
   });
   const previousRetention = useQuery({
     queryKey: ['analytics-retention-previous', range, scopeKey, timeZone],
     queryFn: () => getCustomerRetention(comparisonParams()),
-    enabled: locationsQuery.isSuccess,
+    enabled: locationsQuery.isSuccess && secondaryEnabled,
   });
   const topItems = useQuery({
     queryKey: ['analytics-top-items', range, scopeKey, timeZone, mode],
     queryFn: () => getTopItems(currentParams(), mode === 'reports' ? 10 : 5),
-    enabled: locationsQuery.isSuccess,
+    enabled: locationsQuery.isSuccess && secondaryEnabled,
   });
   const hourly = useQuery({
     queryKey: ['analytics-hourly', range, scopeKey, timeZone],
     queryFn: () => getHourlyVolume(currentParams()),
-    enabled: locationsQuery.isSuccess,
+    enabled: locationsQuery.isSuccess && secondaryEnabled,
   });
   const byLocation = useQuery({
     queryKey: ['analytics-locations', range, scopeKey, timeZone],
     queryFn: () => getRevenueByLocation(currentParams()),
-    enabled: locationsQuery.isSuccess && !activeLocationId,
+    enabled: locationsQuery.isSuccess && secondaryEnabled && !activeLocationId,
   });
   const forecast = useQuery({
     queryKey: ['inventory-forecast-dashboard', scopeKey],
@@ -488,6 +534,14 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
     locationsQuery.isPending || currentOrders.isPending || retention.isPending || previousOrders.isPending || previousRetention.isPending;
   const lastUpdated = Math.max(currentOrders.dataUpdatedAt, retention.dataUpdatedAt, topItems.dataUpdatedAt, hourly.dataUpdatedAt);
   const isOwner = role === 'franchise_owner' || role === 'super_admin';
+  const attentionCount = criticalStock.length + urgentRestocks.length + stuckOrders.length;
+  const isRefreshing =
+    currentOrders.isFetching ||
+    retention.isFetching ||
+    forecast.isFetching ||
+    restocks.isFetching ||
+    activeShifts.isFetching ||
+    liveOrderQueries.some((query) => query.isFetching);
 
   const refresh = () =>
     queryClient.invalidateQueries({
@@ -502,26 +556,100 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
       },
     });
 
-  // Slim header: just the period selector + a muted scope line. The active
-  // location is chosen from the top-bar location picker (shared workspace store),
-  // so no duplicate selector here.
   const header = (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-      <SegmentedControl options={RANGE_OPTIONS} value={range} onChange={setRange} />
-      <p className="text-xs text-muted-foreground truncate">
-        {selectedLocation?.name ?? 'All accessible locations'} · {window.label}
-        {lastUpdated > 0 && ` · updated ${new Date(lastUpdated).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`}
-      </p>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <span className="relative flex size-2" aria-hidden="true">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-50" />
+              <span className="relative inline-flex size-2 rounded-full bg-success" />
+            </span>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Live operations</p>
+          </div>
+          <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground md:text-[32px]">
+            {mode === 'reports' ? 'Performance reports' : 'Operations overview'}
+          </h1>
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+            <span>{selectedLocation?.name ?? 'All accessible locations'}</span>
+            <span aria-hidden="true">·</span>
+            <span>{dateWindow.label}</span>
+            {lastUpdated > 0 && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>Updated {new Date(lastUpdated).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+              </>
+            )}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            disabled={isRefreshing}
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-muted disabled:opacity-60"
+          >
+            <RefreshCw size={14} className={cn(isRefreshing && 'animate-spin')} aria-hidden="true" />
+            Refresh
+          </button>
+          <SegmentedControl options={RANGE_OPTIONS} value={range} onChange={setRange} />
+        </div>
+      </div>
+
+      {mode === 'dashboard' && (
+        <section
+          aria-label="Current operational status"
+          className="relative overflow-hidden rounded-2xl bg-foreground px-5 py-4 text-background shadow-lg shadow-foreground/5"
+        >
+          <div className="pointer-events-none absolute -top-20 right-0 size-64 rounded-full bg-primary/20 blur-3xl" aria-hidden="true" />
+          <div className="relative grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+            <div className="flex min-w-0 items-start gap-3">
+              <div
+                className={cn(
+                  'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl',
+                  attentionCount > 0 ? 'bg-warning/20 text-warning' : 'bg-success/20 text-success',
+                )}
+              >
+                {attentionCount > 0 ? <AlertTriangle size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}
+              </div>
+              <div>
+                <p className="text-sm font-semibold">
+                  {operationsLoading
+                    ? 'Checking the floor…'
+                    : attentionCount > 0
+                      ? `${attentionCount} ${attentionCount === 1 ? 'item needs' : 'items need'} attention`
+                      : 'Everything is running smoothly'}
+                </p>
+                <p className="mt-1 text-xs text-background/65">
+                  {operationsLoading
+                    ? 'Live orders, stock, and restock requests are being updated.'
+                    : attentionCount > 0
+                      ? 'Review the prioritised exceptions below before they affect service.'
+                      : 'No urgent stock, restock, or fulfilment exceptions in the selected scope.'}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 divide-x divide-background/15 rounded-xl border border-background/10 bg-background/5">
+              {[
+                { label: 'Live orders', value: liveOrders },
+                { label: 'On shift', value: visibleShifts.length },
+                { label: 'Stock risks', value: criticalStock.length },
+              ].map((item) => (
+                <div key={item.label} className="min-w-22 px-3 py-2 text-center">
+                  <p className="text-lg font-bold tabular-nums">{operationsLoading ? '—' : item.value}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-background/55">{item.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 
   if (hasCoreError) {
     return (
-      <PageLayout
-        eyebrow={mode === 'reports' ? 'Performance' : 'Business pulse'}
-        title={mode === 'reports' ? 'Reports' : 'Dashboard'}
-        headerSlot={header}
-      >
+      <PageLayout headerSlot={header}>
         <div className={panelClass}>
           <InlineError onRetry={() => void refresh()} />
         </div>
@@ -530,19 +658,16 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
   }
 
   return (
-    <PageLayout
-      eyebrow={mode === 'reports' ? 'Performance' : 'Business pulse'}
-      title={mode === 'reports' ? 'Reports' : 'Dashboard'}
-      headerSlot={header}
-    >
+    <PageLayout headerSlot={header} className="space-y-5 pb-8">
       <section aria-label="Business pulse" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Net revenue"
           value={formatMoney(metrics.revenue)}
           hint="Cancelled orders excluded"
           change={orderComparisonAvailable ? percentageChange(metrics.revenue, previousMetrics.revenue) : undefined}
-          comparisonLabel={window.comparisonLabel}
+          comparisonLabel={dateWindow.comparisonLabel}
           icon={WalletCards}
+          tone="bg-success/10 text-success"
           href={mode === 'reports' ? '/reports/revenue' : '/reports'}
           loading={coreLoading}
         />
@@ -551,8 +676,9 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
           value={formatCompact(metrics.orders)}
           hint={`${liveOrders} currently in progress`}
           change={orderComparisonAvailable ? percentageChange(metrics.orders, previousMetrics.orders) : undefined}
-          comparisonLabel={window.comparisonLabel}
+          comparisonLabel={dateWindow.comparisonLabel}
           icon={ShoppingBag}
+          tone="bg-info/10 text-info"
           href={mode === 'reports' ? '/reports/orders' : '/orders'}
           loading={coreLoading}
         />
@@ -561,8 +687,9 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
           value={formatMoney(metrics.averageOrderValue, 2)}
           hint={`${metrics.cancelledOrders} cancelled · ${metrics.cancellationRate.toFixed(1)}% rate`}
           change={orderComparisonAvailable ? percentageChange(metrics.averageOrderValue, previousMetrics.averageOrderValue) : undefined}
-          comparisonLabel={window.comparisonLabel}
+          comparisonLabel={dateWindow.comparisonLabel}
           icon={ReceiptText}
+          tone="bg-chart-5/10 text-chart-5"
           href={mode === 'reports' ? '/reports/average' : '/reports'}
           loading={coreLoading}
         />
@@ -571,8 +698,9 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
           value={`${repeatRate.toFixed(1)}%`}
           hint={`${retention.data?.returningCustomers ?? 0} returning · ${retention.data?.newCustomers ?? 0} new`}
           change={retentionComparisonAvailable ? repeatRate - previousRepeatRate : undefined}
-          comparisonLabel={window.comparisonLabel}
+          comparisonLabel={dateWindow.comparisonLabel}
           icon={Users}
+          tone="bg-primary/10 text-primary"
           href={mode === 'reports' ? '/reports/retention' : '/customers'}
           loading={coreLoading}
           points
@@ -583,7 +711,7 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
         <div className={cn(panelClass, 'p-5')}>
           <PanelHeader
             title="Daily order value"
-            description={`${window.label}, with the latest day highlighted`}
+            description={`${dateWindow.label}, with the latest day highlighted`}
             href={mode === 'dashboard' ? '/reports' : undefined}
             hrefLabel="Open reports"
           />
@@ -691,7 +819,8 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
                       label: 'Clocked in',
                       value: visibleShifts.length,
                       icon: Users,
-                      href: '/scheduling',
+                      // Team shift cover, not the viewer's own rota.
+                      href: '/staff/shifts',
                       tone: 'text-success bg-success/10',
                     },
                     {

@@ -148,9 +148,10 @@ export const sendEmail = (data: {
   toName?: string;
 }) => apiFetch<EmailDelivery>('/email/send', { method: 'POST', body: JSON.stringify(data) });
 
-export const getEmailDeliveries = (tenantId?: string, page = 1) => {
-  const qs = new URLSearchParams({ page: String(page), limit: '25' });
+export const getEmailDeliveries = (tenantId?: string, page = 1, params: { customerId?: string; limit?: number } = {}) => {
+  const qs = new URLSearchParams({ page: String(page), limit: String(params.limit ?? 25) });
   if (tenantId) qs.set('tenantId', tenantId);
+  if (params.customerId) qs.set('customerId', params.customerId);
   return apiFetch<EmailDeliveriesResponse>(`/email/deliveries?${qs}`);
 };
 export const retryEmailDelivery = (id: string, tenantId?: string) =>

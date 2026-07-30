@@ -2,12 +2,15 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  CalendarCheck,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
   FileText,
   GraduationCap,
   Landmark,
+  LayoutDashboard,
   Loader2,
   MapPin,
   MessageSquarePlus,
@@ -18,20 +21,30 @@ import {
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
-import { PageLayout } from '@/components/layout/PageLayout';
+import { HelpdeskBoard } from '@/components/helpdesk/HelpdeskBoard';
+import { EditorShell } from '@/components/shared/EditorShell';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { Modal } from '@/components/shared/Modal';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { type BankDetailsPayload, type HrEmployee, getEmployeeBank, getMyEmployee, setEmployeeBank, updateMyEmployee } from '@/lib/api/hr.service';
 import { getMyTrainingAssignments } from '@/lib/api/courses.service';
 import {
+  type BankDetailsPayload,
+  type HrEmployee,
+  getEmployeeBank,
+  getMyEmployee,
+  setEmployeeBank,
+  updateMyEmployee,
+} from '@/lib/api/hr.service';
+import {
   type AttendanceDay,
-  type HelpdeskTicket,
+  type EmployeeDocument,
+  type LeaveEntitlement,
+  type LeaveRequest,
   type TicketCategory,
   type TicketPriority,
   cancelLeaveRequest,
@@ -42,15 +55,13 @@ import {
   getMyEntitlements,
   getMyLeaveRequests,
   getMyTickets,
-  getTicket,
-  replyTicket,
   submitLeaveRequest,
 } from '@/lib/api/people-ops.service';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
-type Tab = 'overview' | 'leave' | 'training' | 'documents' | 'helpdesk';
+type Tab = 'overview' | 'leave' | 'attendance' | 'training' | 'documents' | 'helpdesk';
 const fmt = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const statusVariant = (status: string): 'success' | 'warning' | 'destructive' | 'muted' =>
   status === 'approved' || status === 'resolved'
@@ -63,6 +74,7 @@ const statusVariant = (status: string): 'success' | 'warning' | 'destructive' | 
 
 export function MyHrWorkspace() {
   const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
   const [tab, setTab] = useState<Tab>('overview');
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [ticketOpen, setTicketOpen] = useState(false);
@@ -76,13 +88,14 @@ export function MyHrWorkspace() {
   const holiday = entitlements[0];
   const remaining = holiday ? Number(holiday.totalDays) - Number(holiday.usedDays) : 0;
 
-  const tabs = useMemo(
+  const tabs = useMemo<SectionTab<Tab>[]>(
     () => [
-      { value: 'overview' as const, label: 'Overview' },
-      { value: 'leave' as const, label: 'Leave' },
-      { value: 'training' as const, label: 'Training' },
-      { value: 'documents' as const, label: 'Documents' },
-      { value: 'helpdesk' as const, label: openTickets > 0 ? `Helpdesk (${openTickets})` : 'Helpdesk' },
+      { value: 'overview', label: 'Overview', icon: LayoutDashboard },
+      { value: 'leave', label: 'Leave', icon: CalendarDays },
+      { value: 'attendance', label: 'Attendance', icon: CalendarCheck },
+      { value: 'training', label: 'Training', icon: GraduationCap },
+      { value: 'documents', label: 'Documents', icon: FileText },
+      { value: 'helpdesk', label: 'Helpdesk', icon: CircleHelp, count: openTickets },
     ],
     [openTickets],
   );
@@ -92,34 +105,64 @@ export function MyHrWorkspace() {
     setTicketOpen(true);
   };
 
+  const [firstName = '', lastName = ''] = (user?.name ?? '').split(' ');
+
   return (
-    <PageLayout
+    <EditorShell
       eyebrow="Employee workspace"
-      title="My HR"
-      fullHeight
-      headerBorder={false}
-      headerSlot={<SegmentedControl options={tabs} value={tab} onChange={setTab} />}
+      title={user?.name ?? 'My HR'}
+      leading={<InitialsAvatar firstName={firstName || 'U'} lastName={lastName} email={user?.email} className="size-11" />}
+      meta={
+        <>
+          {employee?.jobTitle && <span className="text-xs text-muted-foreground">{employee.jobTitle}</span>}
+          {employee?.department && <Badge variant="muted">{employee.department}</Badge>}
+          {employee?.employmentType && <Badge variant="muted">{employee.employmentType.replaceAll('_', ' ')}</Badge>}
+          {employee?.startDate && <span className="text-xs text-muted-foreground">Since {fmt(employee.startDate)}</span>}
+        </>
+      }
+      actions={
+        <>
+          <Button variant="outline" className="h-10 gap-1.5" onClick={() => setTicketOpen(true)}>
+            <MessageSquarePlus size={15} />
+            <span className="hidden md:inline">New request</span>
+          </Button>
+          <Button className="h-10 gap-1.5" onClick={() => setLeaveOpen(true)}>
+            <Plus size={15} />
+            <span className="hidden md:inline">Request leave</span>
+          </Button>
+        </>
+      }
+      subheader={<SectionTabs tabs={tabs} value={tab} onChange={setTab} ariaLabel="My HR sections" />}
+      // The helpdesk is a split queue/detail view — it manages its own scrolling.
+      flush={tab === 'helpdesk'}
     >
-      <div className="max-w-8xl mx-auto pb-8">
-        {tab === 'overview' && (
-          <Overview
-            employee={employee}
-            loading={employeeLoading}
-            remaining={remaining}
-            used={Number(holiday?.usedDays ?? 0)}
-            pending={requests.filter((r) => r.status === 'pending').length}
-            openTickets={openTickets}
-            go={setTab}
-            onCorrection={requestCorrection}
-          />
-        )}
-        {tab === 'leave' && <LeavePanel requests={requests} entitlements={entitlements} onRequest={() => setLeaveOpen(true)} />}
-        {tab === 'training' && <TrainingPanel />}
-        {tab === 'documents' && <DocumentsPanel documents={documents} />}
-        {tab === 'helpdesk' && (
-          <HelpdeskPanel tickets={tickets} selected={selectedTicket} setSelected={setSelectedTicket} onNew={() => setTicketOpen(true)} />
-        )}
-      </div>
+      {tab === 'overview' && (
+        <Overview
+          employee={employee}
+          loading={employeeLoading}
+          remaining={remaining}
+          used={Number(holiday?.usedDays ?? 0)}
+          pending={requests.filter((r) => r.status === 'pending').length}
+          openTickets={openTickets}
+          go={setTab}
+        />
+      )}
+      {tab === 'leave' && <LeavePanel requests={requests} entitlements={entitlements} onRequest={() => setLeaveOpen(true)} />}
+      {tab === 'attendance' && <AttendanceCalendar onCorrection={requestCorrection} />}
+      {tab === 'training' && <TrainingPanel />}
+      {tab === 'documents' && <DocumentsPanel documents={documents} />}
+      {tab === 'helpdesk' && (
+        <HelpdeskBoard
+          mode="employee"
+          tickets={tickets}
+          selectedId={selectedTicket}
+          onSelect={setSelectedTicket}
+          onNew={() => setTicketOpen(true)}
+          onChanged={() => qc.invalidateQueries({ queryKey: ['helpdesk-my'] })}
+          emptyTitle="No requests yet"
+          emptyDescription="Ask HR a question or request an attendance correction."
+        />
+      )}
       {leaveOpen && (
         <LeaveRequestModal
           onClose={() => setLeaveOpen(false)}
@@ -133,14 +176,16 @@ export function MyHrWorkspace() {
       {ticketOpen && (
         <NewTicketModal
           onClose={() => setTicketOpen(false)}
-          onDone={() => {
+          onDone={(createdId) => {
             setTicketOpen(false);
             setTab('helpdesk');
+            // Open the request straight away so the employee lands on what they just raised.
+            if (createdId) setSelectedTicket(createdId);
             qc.invalidateQueries({ queryKey: ['helpdesk-my'] });
           }}
         />
       )}
-    </PageLayout>
+    </EditorShell>
   );
 }
 
@@ -193,7 +238,6 @@ function Overview({
   pending,
   openTickets,
   go,
-  onCorrection,
 }: {
   employee?: HrEmployee;
   loading: boolean;
@@ -202,7 +246,6 @@ function Overview({
   pending: number;
   openTickets: number;
   go: (tab: Tab) => void;
-  onCorrection: (date: string) => void;
 }) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -223,7 +266,6 @@ function Overview({
       </div>
     );
 
-  const [firstName = '', lastName = ''] = (user?.name ?? '').split(' ');
   const cards = [
     { label: 'Leave remaining', value: `${remaining} days`, note: `${used} days used`, tab: 'leave' as const },
     { label: 'Pending requests', value: pending, note: 'Awaiting review', tab: 'leave' as const },
@@ -232,22 +274,6 @@ function Overview({
 
   return (
     <div className="space-y-5">
-      {/* Profile hero */}
-      <div className="rounded-2xl bg-gradient-to-br from-primary/15 via-card to-card border border-primary/20 p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <InitialsAvatar firstName={firstName || 'U'} lastName={lastName} email={user?.email} size="lg" />
-          <div className="min-w-0">
-            <h2 className="text-2xl font-semibold truncate">{user?.name ?? 'Your employee hub'}</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">{employee?.jobTitle ?? '—'}</p>
-            <div className="mt-2.5 flex flex-wrap items-center gap-2">
-              {employee?.department && <Badge variant="muted">{employee.department}</Badge>}
-              {employee?.employmentType && <Badge variant="muted">{employee.employmentType.replaceAll('_', ' ')}</Badge>}
-              {employee?.startDate && <span className="text-xs text-muted-foreground">Since {fmt(employee.startDate)}</span>}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Quick stats */}
       <div className="grid md:grid-cols-3 gap-3">
         {cards.map((card) => (
@@ -285,11 +311,7 @@ function Overview({
           </dl>
         </InfoCard>
 
-        <InfoCard
-          icon={Landmark}
-          title="Bank details"
-          onEdit={bank.isError ? undefined : () => setEditBank(true)}
-        >
+        <InfoCard icon={Landmark} title="Bank details" onEdit={bank.isError ? undefined : () => setEditBank(true)}>
           {bank.isError ? (
             <p className="text-sm text-muted-foreground">Not available here — contact HR to update your bank details.</p>
           ) : bank.isLoading ? (
@@ -315,9 +337,6 @@ function Overview({
           </dl>
         </InfoCard>
       </div>
-
-      {/* Attendance (merged from its own tab) */}
-      <AttendanceCalendar onCorrection={onCorrection} />
 
       {editDetails && employee && (
         <EditDetailsModal
@@ -419,12 +438,7 @@ function EditBankModal({
   const field = (key: keyof BankDetailsPayload, label: string, props: Record<string, unknown> = {}) => (
     <label className="block text-xs font-semibold text-muted-foreground">
       {label}
-      <Input
-        className="mt-1"
-        value={form[key] ?? ''}
-        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-        {...props}
-      />
+      <Input className="mt-1" value={form[key] ?? ''} onChange={(e) => setForm({ ...form, [key]: e.target.value })} {...props} />
     </label>
   );
   return (
@@ -445,11 +459,7 @@ function EditBankModal({
         <p className="text-xs text-muted-foreground">
           Enter your full sort code and account number to update them. Existing values are hidden for security.
         </p>
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={mutation.isPending || !form.sortCode?.trim() || !form.accountNumber?.trim()}
-        >
+        <Button type="submit" className="w-full" disabled={mutation.isPending || !form.sortCode?.trim() || !form.accountNumber?.trim()}>
           {mutation.isPending && <Loader2 className="animate-spin" />}Save bank details
         </Button>
       </form>
@@ -457,7 +467,15 @@ function EditBankModal({
   );
 }
 
-function LeavePanel({ requests, entitlements, onRequest }: any) {
+function LeavePanel({
+  requests,
+  entitlements,
+  onRequest,
+}: {
+  requests: LeaveRequest[];
+  entitlements: LeaveEntitlement[];
+  onRequest: () => void;
+}) {
   const qc = useQueryClient();
   const cancel = useMutation({
     mutationFn: cancelLeaveRequest,
@@ -480,7 +498,7 @@ function LeavePanel({ requests, entitlements, onRequest }: any) {
         </Button>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {entitlements.map((item: any) => {
+        {entitlements.map((item) => {
           const total = Number(item.totalDays);
           const used = Number(item.usedDays);
           return (
@@ -511,7 +529,7 @@ function LeavePanel({ requests, entitlements, onRequest }: any) {
           <p className="p-8 text-center text-sm text-muted-foreground">No leave requests yet.</p>
         ) : (
           <div className="divide-y divide-border">
-            {requests.map((r: any) => (
+            {requests.map((r) => (
               <div key={r.id} className="p-4 md:px-5 flex items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -646,10 +664,84 @@ function TrainingPanel() {
   const { data: assignments = [], isLoading } = useQuery({ queryKey: ['training-assignments-me'], queryFn: getMyTrainingAssignments });
   const completed = assignments.filter((item) => item.status === 'completed').length;
   const overdue = assignments.filter((item) => item.status === 'overdue').length;
-  return <div className="space-y-5"><div className="flex items-end justify-between gap-4"><div><h2 className="text-lg font-semibold">Training & development</h2><p className="text-sm text-muted-foreground">Required learning, renewals, and practical assessments.</p></div><Button asChild><Link href="/training"><GraduationCap/>Open training</Link></Button></div><div className="grid grid-cols-3 gap-3">{[['Assigned',assignments.length],['Completed',completed],['Overdue',overdue]].map(([label,value])=><div key={String(label)} className="rounded-2xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="text-2xl font-semibold mt-2">{value}</p></div>)}</div><div className="rounded-2xl border border-border bg-card overflow-hidden">{isLoading?<div className="p-16 flex justify-center"><Loader2 className="animate-spin"/></div>:assignments.length===0?<div className="p-12 text-center text-muted-foreground"><GraduationCap className="mx-auto mb-3"/><p className="font-medium text-foreground">No assigned training</p><p className="text-sm mt-1">Optional courses are available in the training library.</p></div>:<div className="divide-y divide-border">{assignments.map(item=><Link key={item.id} href={`/training/${item.courseId}`} className="p-4 md:px-5 flex items-center justify-between gap-4 hover:bg-muted/50"><div><div className="flex items-center gap-2"><p className="font-medium">{item.course.title}</p><Badge variant={item.status==='completed'?'success':item.status==='overdue'?'destructive':item.status==='in_progress'?'primary':'muted'}>{item.status.replace('_',' ')}</Badge></div><p className="text-xs text-muted-foreground mt-1">{item.course.estimatedMinutes} min{item.dueAt?` · Due ${new Date(item.dueAt).toLocaleDateString('en-GB')}`:''}</p></div><ChevronRight className="text-muted-foreground"/></Link>)}</div>}</div></div>;
+  return (
+    <div className="space-y-5">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Training & development</h2>
+          <p className="text-sm text-muted-foreground">Required learning, renewals, and practical assessments.</p>
+        </div>
+        <Button asChild>
+          <Link href="/training">
+            <GraduationCap />
+            Open training
+          </Link>
+        </Button>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          ['Assigned', assignments.length],
+          ['Completed', completed],
+          ['Overdue', overdue],
+        ].map(([label, value]) => (
+          <div key={String(label)} className="rounded-2xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="text-2xl font-semibold mt-2">{value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        {isLoading ? (
+          <div className="p-16 flex justify-center">
+            <Loader2 className="animate-spin" />
+          </div>
+        ) : assignments.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">
+            <GraduationCap className="mx-auto mb-3" />
+            <p className="font-medium text-foreground">No assigned training</p>
+            <p className="text-sm mt-1">Optional courses are available in the training library.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {assignments.map((item) => (
+              <Link
+                key={item.id}
+                href={`/training/${item.courseId}`}
+                className="p-4 md:px-5 flex items-center justify-between gap-4 hover:bg-muted/50"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{item.course.title}</p>
+                    <Badge
+                      variant={
+                        item.status === 'completed'
+                          ? 'success'
+                          : item.status === 'overdue'
+                            ? 'destructive'
+                            : item.status === 'in_progress'
+                              ? 'primary'
+                              : 'muted'
+                      }
+                    >
+                      {item.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {item.course.estimatedMinutes} min{item.dueAt ? ` · Due ${new Date(item.dueAt).toLocaleDateString('en-GB')}` : ''}
+                  </p>
+                </div>
+                <ChevronRight className="text-muted-foreground" />
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function DocumentsPanel({ documents }: any) {
+function DocumentsPanel({ documents }: { documents: EmployeeDocument[] }) {
+  const [expiryWarningCutoff] = useState(() => Date.now() + 60 * 86400000);
   return (
     <div className="space-y-4">
       <div>
@@ -658,8 +750,8 @@ function DocumentsPanel({ documents }: any) {
       </div>
       <div className="grid md:grid-cols-2 gap-3">
         {documents.length ? (
-          documents.map((d: any) => {
-            const soon = d.expiresAt && new Date(d.expiresAt).getTime() < Date.now() + 60 * 86400000;
+          documents.map((d) => {
+            const soon = d.expiresAt && new Date(d.expiresAt).getTime() < expiryWarningCutoff;
             return (
               <div key={d.id} className="rounded-2xl border border-border bg-card p-5 flex gap-4">
                 <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
@@ -688,124 +780,17 @@ function DocumentsPanel({ documents }: any) {
   );
 }
 
-function HelpdeskPanel({
-  tickets,
-  selected,
-  setSelected,
-  onNew,
-}: {
-  tickets: HelpdeskTicket[];
-  selected: string | null;
-  setSelected: (id: string | null) => void;
-  onNew: () => void;
-}) {
-  const { data: detail } = useQuery({ queryKey: ['helpdesk-ticket', selected], queryFn: () => getTicket(selected!), enabled: !!selected });
-  const qc = useQueryClient();
-  const [reply, setReply] = useState('');
-  const send = useMutation({
-    mutationFn: () => replyTicket(selected!, reply),
-    onSuccess: () => {
-      setReply('');
-      qc.invalidateQueries({ queryKey: ['helpdesk-ticket', selected] });
-      qc.invalidateQueries({ queryKey: ['helpdesk-my'] });
-    },
-  });
-  if (selected)
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" onClick={() => setSelected(null)}>
-          <ChevronLeft />
-          All tickets
-        </Button>
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="p-5 border-b border-border">
-            <div className="flex gap-2">
-              <Badge variant={statusVariant(detail?.status ?? '')}>{detail?.status?.replace('_', ' ')}</Badge>
-              <Badge variant="muted">{detail?.category}</Badge>
-            </div>
-            <h2 className="text-lg font-semibold mt-3">{detail?.subject}</h2>
-          </div>
-          <div className="p-5 space-y-3 min-h-48">
-            {detail?.messages?.map((m) => (
-              <div
-                key={m.id}
-                className={cn('max-w-2xl rounded-xl p-3 text-sm', m.internal ? 'bg-warning/10 border border-warning/20' : 'bg-muted')}
-              >
-                <div className="flex justify-between gap-4 text-xs text-muted-foreground mb-1">
-                  <span>{m.authorName}</span>
-                  <span>{new Date(m.createdAt).toLocaleString('en-GB')}</span>
-                </div>
-                <p className="whitespace-pre-wrap">{m.body}</p>
-              </div>
-            ))}
-          </div>
-          {detail && !['resolved', 'closed'].includes(detail.status) && (
-            <div className="p-4 border-t border-border flex gap-2">
-              <Input
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                placeholder="Write a reply…"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && reply.trim()) send.mutate();
-                }}
-              />
-              <Button disabled={!reply.trim() || send.isPending} onClick={() => send.mutate()}>
-                Send
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Helpdesk</h2>
-          <p className="text-sm text-muted-foreground">Private conversations with HR and workplace support.</p>
-        </div>
-        <Button onClick={onNew}>
-          <MessageSquarePlus />
-          New ticket
-        </Button>
-      </div>
-      <div className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
-        {tickets.length ? (
-          tickets.map((ticket) => (
-            <button
-              key={ticket.id}
-              onClick={() => setSelected(ticket.id)}
-              className="w-full p-4 md:px-5 text-left hover:bg-muted/50 flex items-center justify-between gap-4"
-            >
-              <div>
-                <div className="flex gap-2">
-                  <p className="font-medium">{ticket.subject}</p>
-                  <Badge variant={statusVariant(ticket.status)}>{ticket.status.replace('_', ' ')}</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 capitalize">
-                  {ticket.category} · Updated {new Date(ticket.updatedAt).toLocaleDateString('en-GB')}
-                </p>
-              </div>
-              <ChevronRight className="text-muted-foreground" />
-            </button>
-          ))
-        ) : (
-          <div className="p-12 text-center text-muted-foreground">
-            <CircleHelp className="mx-auto mb-3" />
-            <p className="font-medium text-foreground">No tickets yet</p>
-            <p className="text-sm mt-1">Ask HR a question or request an attendance correction.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function LeaveRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const { data: types = [] } = useQuery({ queryKey: ['leave-types'], queryFn: getLeaveTypes });
-  const [form, setForm] = useState({ leaveTypeId: '', startDate: '', endDate: '', partialDay: 'none', notes: '' });
+  const [form, setForm] = useState<Parameters<typeof submitLeaveRequest>[0]>({
+    leaveTypeId: '',
+    startDate: '',
+    endDate: '',
+    partialDay: 'none',
+    notes: '',
+  });
   const mutation = useMutation({
-    mutationFn: () => submitLeaveRequest(form as any),
+    mutationFn: () => submitLeaveRequest(form),
     onSuccess: () => {
       toast('success', 'Leave request submitted.');
       onDone();
@@ -839,8 +824,8 @@ function LeaveRequestModal({ onClose, onDone }: { onClose: () => void; onDone: (
           </label>
         </div>
         <Select
-          value={form.partialDay}
-          onValueChange={(v) => setForm({ ...form, partialDay: v })}
+          value={form.partialDay ?? 'none'}
+          onValueChange={(v) => setForm({ ...form, partialDay: v as NonNullable<Parameters<typeof submitLeaveRequest>[0]['partialDay']> })}
           options={[
             { value: 'none', label: 'Full days' },
             { value: 'start', label: 'Half day on first day' },
@@ -862,7 +847,7 @@ function LeaveRequestModal({ onClose, onDone }: { onClose: () => void; onDone: (
   );
 }
 
-function NewTicketModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+function NewTicketModal({ onClose, onDone }: { onClose: () => void; onDone: (createdId?: string) => void }) {
   const correction = typeof window !== 'undefined' ? sessionStorage.getItem('attendance-correction-date') : null;
   const [form, setForm] = useState<{ subject: string; category: TicketCategory; priority: TicketPriority; message: string }>({
     subject: correction ? `Attendance correction — ${correction}` : '',
@@ -872,10 +857,10 @@ function NewTicketModal({ onClose, onDone }: { onClose: () => void; onDone: () =
   });
   const mutation = useMutation({
     mutationFn: () => createTicket(form),
-    onSuccess: () => {
+    onSuccess: (created) => {
       sessionStorage.removeItem('attendance-correction-date');
-      toast('success', 'Ticket created.');
-      onDone();
+      toast('success', 'Request raised.');
+      onDone(created?.id);
     },
     onError: (e) => toast('error', (e as Error).message),
   });

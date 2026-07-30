@@ -48,13 +48,16 @@ const adjust = (raw?: string) => {
 
 // ── Attached-modifiers editor (edit mode only) ────────────────────────────────
 
-function ItemModifiersEditor({ menuItemId }: { menuItemId: string }) {
+function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; tenantId: string }) {
   const qc = useQueryClient();
   const { data: attached = [] } = useQuery({
     queryKey: ['menu-item-modifiers', menuItemId],
     queryFn: () => getMenuItemModifiers(menuItemId),
   });
-  const { data: all = [] } = useQuery({ queryKey: ['modifiers'], queryFn: getModifiers });
+  const { data: all = [] } = useQuery({
+    queryKey: ['modifiers', tenantId],
+    queryFn: () => getModifiers(tenantId),
+  });
 
   const attachedIds = new Set(attached.map((m) => m.id));
   const defaultIds = new Set(attached.filter((m) => m.isDefault).map((m) => m.id));
@@ -143,6 +146,7 @@ function MenuItemForm({
   formId,
   hideActions,
   onPendingChange,
+  onDirtyChange,
 }: {
   tenantId: string;
   item?: MenuItem;
@@ -158,6 +162,8 @@ function MenuItemForm({
   hideActions?: boolean;
   /** Reports the mutation's pending state so the header Save button can reflect it. */
   onPendingChange?: (pending: boolean) => void;
+  /** Reports unsaved edits so the page shell can warn before discarding them. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const qc = useQueryClient();
   const [name, setName] = useState(item?.name ?? '');
@@ -186,6 +192,15 @@ function MenuItemForm({
   });
 
   useEffect(() => onPendingChange?.(isPending), [isPending, onPendingChange]);
+
+  const dirty =
+    name !== (item?.name ?? '') ||
+    category !== (item?.category ?? 'coffee') ||
+    price !== (item?.price ?? '') ||
+    description !== (item?.description ?? '') ||
+    imageUrl !== (item?.imageUrl ?? '') ||
+    isAvailable !== (item?.isAvailable ?? true);
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   return (
     <form
@@ -298,7 +313,7 @@ function MenuItemForm({
         <section className="bg-surface-offset/40 border border-border rounded-xl p-4 flex-1 w-full">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Modifiers</p>
           {item ? (
-            <ItemModifiersEditor menuItemId={item.id} />
+            <ItemModifiersEditor menuItemId={item.id} tenantId={item.tenantId} />
           ) : (
             <p className="text-xs text-muted-foreground">Modifiers (milk, size, syrups…) can be attached right after creating the item.</p>
           )}
@@ -349,6 +364,7 @@ export function MenuItemEditorPage({
 }) {
   const { tenantId } = useWorkspaceStore();
   const [pending, setPending] = useState(false);
+  const [dirty, setDirty] = useState(false);
   if (!tenantId) return null;
 
   return (
@@ -356,6 +372,8 @@ export function MenuItemEditorPage({
       eyebrow="Menu Item"
       title={item ? item.name : 'New Menu Item'}
       onClose={onClose}
+      dirty={dirty && !pending}
+      discardMessage="This menu item has changes that have not been saved. Leaving now discards them."
       actions={
         <Button type="submit" form={MENU_ITEM_FORM_ID} disabled={pending} className="h-11 px-6 gap-2">
           {pending && <Loader2 size={15} className="animate-spin" />}
@@ -372,6 +390,7 @@ export function MenuItemEditorPage({
         formId={MENU_ITEM_FORM_ID}
         hideActions
         onPendingChange={setPending}
+        onDirtyChange={setDirty}
       />
     </EditorShell>
   );
@@ -387,8 +406,8 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
   const [categoryFilter, setCategoryFilter] = useState<'all' | MenuCategory>('all');
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ['menu-items'],
-    queryFn: getMenuItems,
+    queryKey: ['menu-items', tenantId],
+    queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: !!tenantId,
   });
 

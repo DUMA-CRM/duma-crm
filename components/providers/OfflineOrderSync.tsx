@@ -3,10 +3,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
-import { ApiError } from '@/lib/api/client';
 import { createOrder } from '@/lib/api/orders.service';
+import { classifyOfflineOrderFailure } from '@/lib/utils/offline-order-sync';
+import { useAuthStore } from '@/stores/authStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
 import { toast } from '@/stores/toastStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /**
  * Flushes the offline POS order queue. Mounted once app-wide, so queued
@@ -20,11 +22,16 @@ import { toast } from '@/stores/toastStore';
  */
 export function OfflineOrderSync() {
   const qc = useQueryClient();
-  const queueLength = useOfflineOrdersStore((s) => s.queue.length);
+  const userId = useAuthStore((s) => s.user?.id);
+  const tenantId = useWorkspaceStore((s) => s.tenantId);
+  const pendingQueueLength = useOfflineOrdersStore(
+    (state) =>
+      state.queue.filter((order) => order.ownerUserId === userId && order.tenantId === tenantId && order.status === 'pending').length,
+  );
   const syncing = useRef(false);
 
   useEffect(() => {
-    if (queueLength === 0) return;
+    if (pendingQueueLength === 0 || !userId || !tenantId) return;
 
     const flush = async () => {
       if (syncing.current || !navigator.onLine) return;
@@ -32,18 +39,29 @@ export function OfflineOrderSync() {
       try {
         const store = useOfflineOrdersStore.getState;
         let synced = 0;
-        for (const queued of [...store().queue]) {
+        const eligible = store().queue.filter(
+          (queued) => queued.ownerUserId === userId && queued.tenantId === tenantId && queued.status === 'pending',
+        );
+        for (const queued of eligible) {
           try {
-            await createOrder(queued.payload);
+            await createOrder(queued.payload, queued.idempotencyKey);
             store().remove(queued.id);
             synced++;
           } catch (err) {
-            if (err instanceof ApiError && err.status < 500) {
-              store().remove(queued.id);
-              toast('error', `A queued order was rejected and removed: ${err.message}`);
-            } else {
-              // Still unreachable / server error — keep it and stop this round.
-              store().markAttempt(queued.id, err instanceof Error ? err.message : undefined);
+            const action = classifyOfflineOrderFailure(err);
+            const message = err instanceof Error ? err.message : 'Unknown sync error';
+            if (action === 'needs-attention') {
+              store().markAttempt(queued.id, message, 'needs-attention');
+              toast('error', `A queued order needs manager attention: ${message}`);
+              continue;
+            }
+            store().markAttempt(queued.id, message);
+            if (action === 'pause-auth') {
+              toast('error', 'Queued orders are paused until the original cashier signs in again.');
+            }
+            // Authentication, network, rate-limit, and server failures stop
+            // this round without deleting any sale.
+            if (action === 'pause-auth' || action === 'retry') {
               break;
             }
           }
@@ -66,7 +84,7 @@ export function OfflineOrderSync() {
       window.removeEventListener('online', flush);
       clearInterval(interval);
     };
-  }, [queueLength, qc]);
+  }, [pendingQueueLength, qc, tenantId, userId]);
 
   return null;
 }

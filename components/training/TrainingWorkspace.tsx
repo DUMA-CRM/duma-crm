@@ -173,7 +173,7 @@ function LearningView({ tenantId }: { tenantId: string }) {
         const q = search.trim().toLowerCase();
         return !q || `${course.title} ${course.category ?? ''} ${course.description ?? ''}`.toLowerCase().includes(q);
       }),
-    [courses, assignments, assignedByCourse, filter, search],
+    [courses, assignedByCourse, filter, search],
   );
   const learningPaths = useMemo(() => {
     const includedCategories = new Set(visible.map((course) => course.category?.trim() || 'Other training'));
@@ -426,7 +426,7 @@ function LearningPathCard({
       </div>
       <div className="p-3">
         <div className="space-y-1">
-          {shownLessons.map((lesson, index) => {
+          {shownLessons.map((lesson) => {
             const status = lessonStatus(lesson);
             const lessonNumber = lessons.indexOf(lesson) + 1;
             return (
@@ -549,6 +549,9 @@ function CourseManagement({ tenantId }: { tenantId: string }) {
               <div key={course.id} className="p-4 md:px-5 flex flex-col lg:flex-row lg:items-center gap-4">
                 <div className="size-16 rounded-xl overflow-hidden bg-muted shrink-0">
                   {videoThumbnail(course.videoUrl) ? (
+                    // YouTube thumbnail hosts are dynamic; keep this unoptimized
+                    // rather than widening Next Image's production allow-list.
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={videoThumbnail(course.videoUrl)!} alt="" className="size-full object-cover" />
                   ) : (
                     <div className="size-full flex items-center justify-center">

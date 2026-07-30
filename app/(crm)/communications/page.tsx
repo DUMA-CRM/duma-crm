@@ -1,7 +1,7 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, Loader2, MailX } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertCircle, CheckCircle2, Loader2, Mail, MailX, Plug, Plus, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
@@ -14,13 +14,18 @@ import { SetupChecklist } from '@/components/communications/SetupChecklist';
 import { TemplateEditorPage } from '@/components/communications/TemplateEditorPage';
 import { TemplatesPanel } from '@/components/communications/TemplatesPanel';
 import { AUTOMATION_PRESETS, TEMPLATE_PRESETS, presetPayload } from '@/components/communications/presets';
-import { PageLayout } from '@/components/layout/PageLayout';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 
-import { type EmailDelivery, getEmailAutomations, getEmailConnection, getEmailDeliveries, getEmailTemplates } from '@/lib/api/email.service';
+import {
+  type EmailDelivery,
+  getEmailAutomations,
+  getEmailConnection,
+  getEmailDeliveries,
+  getEmailTemplates,
+} from '@/lib/api/email.service';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -46,6 +51,7 @@ function CommunicationsView() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const role = useAuthStore((state) => state.role);
   const canConfigure = role === 'super_admin' || role === 'franchise_owner';
@@ -94,17 +100,38 @@ function CommunicationsView() {
     queryKey: ['email-deliveries', tenantId, 1],
     queryFn: () => getEmailDeliveries(tenantId ?? undefined, 1),
     enabled: !!tenantId,
+    // Keeps the failure count on the History tab current while you work elsewhere.
+    // (The history table shares this key and polls faster while it is open.)
+    refetchInterval: 60_000,
   });
 
   const emailReady = Boolean(connection?.isEnabled && connection?.lastTestSucceeded);
-  const tabs = useMemo(
+  const activeTemplates = useMemo(() => templates.filter((template) => template.isActive), [templates]);
+  const sendingCount = automations.filter((automation) => automation.isEnabled).length;
+  // Failures on the newest page — surfaced on the History tab so they aren't missed.
+  const failedCount = (deliveries?.data ?? []).filter((delivery) => delivery.status === 'failed').length;
+
+  const tabs = useMemo<SectionTab<Tab>[]>(
     () => [
-      { value: 'templates' as const, label: 'Templates' },
-      { value: 'automations' as const, label: 'Automations' },
-      { value: 'history' as const, label: 'History' },
-      ...(canConfigure ? [{ value: 'connection' as const, label: 'Email setup' }] : []),
+      { value: 'templates', label: 'Templates', icon: Mail, count: templates.length, countLabel: `${templates.length} templates` },
+      {
+        value: 'automations',
+        label: 'Automations',
+        icon: Sparkles,
+        count: sendingCount,
+        countLabel: `${sendingCount} sending`,
+      },
+      {
+        value: 'history',
+        label: 'History',
+        icon: Send,
+        count: failedCount,
+        countTone: 'danger',
+        countLabel: `${failedCount} recent ${failedCount === 1 ? 'failure' : 'failures'}`,
+      },
+      ...(canConfigure ? [{ value: 'connection' as const, label: 'Email setup', icon: Plug }] : []),
     ],
-    [canConfigure],
+    [canConfigure, templates.length, sendingCount, failedCount],
   );
 
   // A delivery link with no record behind it (refresh, shared link) falls back to
@@ -119,9 +146,9 @@ function CommunicationsView() {
 
   if (!tenantId) {
     return (
-      <PageLayout eyebrow="Customer engagement" title="Communications">
+      <EditorShell eyebrow="Customer engagement" title="Communications" icon={<Mail size={20} aria-hidden="true" />}>
         <EmptyState icon={MailX} title="No workspace selected" description="Choose a workspace to manage its customer emails." />
-      </PageLayout>
+      </EditorShell>
     );
   }
 
@@ -193,6 +220,7 @@ function CommunicationsView() {
       return (
         <AutomationEditorPage
           initial={preset?.initial}
+          suggestedTemplateName={preset?.suggestedTemplate}
           {...shared}
           onSaved={(saved) => navigate({ automation: saved.id, preset: null }, 'replace')}
         />
@@ -207,25 +235,61 @@ function CommunicationsView() {
   // ── List view ──────────────────────────────────────────────────────────────
 
   return (
-    <PageLayout
+    <EditorShell
       eyebrow="Customer engagement"
       title="Communications"
-      headerSlot={
-        <div className="flex flex-wrap items-center gap-3">
-          <SegmentedControl options={tabs} value={tab} onChange={(value) => navigate({ tab: value }, 'replace')} />
-          {canConfigure && (
-            <button
-              type="button"
-              onClick={() => navigate({ tab: 'connection' }, 'replace')}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                emailReady ? 'border-success/30 bg-success/10 text-success' : 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20'
-              }`}
-            >
-              {emailReady ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
-              {emailReady ? 'Email connected' : 'Email not set up'}
-            </button>
-          )}
-        </div>
+      icon={<Mail size={20} aria-hidden="true" />}
+      meta={
+        canConfigure ? (
+          <button
+            type="button"
+            onClick={() => navigate({ tab: 'connection' }, 'replace')}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+              emailReady
+                ? 'border-success/30 bg-success/10 text-success'
+                : 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20'
+            }`}
+          >
+            {emailReady ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+            {emailReady ? 'Email connected' : 'Email not set up'}
+          </button>
+        ) : undefined
+      }
+      // One primary action, always in the same place — whatever the open tab is for.
+      actions={
+        tab === 'templates' ? (
+          <Button className="h-10 gap-1.5" onClick={() => navigate({ template: 'new' })}>
+            <Plus size={15} />
+            <span className="hidden md:inline">New template</span>
+          </Button>
+        ) : tab === 'automations' ? (
+          <Button
+            className="h-10 gap-1.5"
+            disabled={activeTemplates.length === 0}
+            title={activeTemplates.length === 0 ? 'Create a ready-to-use template first' : undefined}
+            onClick={() => navigate({ automation: 'new' })}
+          >
+            <Plus size={15} />
+            <span className="hidden md:inline">New automation</span>
+          </Button>
+        ) : tab === 'history' ? (
+          <Button
+            variant="outline"
+            className="h-10 gap-1.5"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['email-deliveries'] })}
+          >
+            <RefreshCw size={15} />
+            <span className="hidden md:inline">Refresh</span>
+          </Button>
+        ) : undefined
+      }
+      subheader={
+        <SectionTabs
+          tabs={tabs}
+          value={tab}
+          onChange={(value) => navigate({ tab: value }, 'replace')}
+          ariaLabel="Communications sections"
+        />
       }
     >
       <div className="space-y-5">
@@ -265,7 +329,7 @@ function CommunicationsView() {
         )}
         {tab === 'connection' && canConfigure && <ConnectionPanel />}
       </div>
-    </PageLayout>
+    </EditorShell>
   );
 }
 

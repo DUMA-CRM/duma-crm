@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 
 import {
   type EmailAutomation,
-  type EmailAutomationPayload,
   deleteEmailAutomation,
   getEmailAutomations,
   getEmailTemplates,
@@ -28,7 +27,7 @@ export function AutomationsPanel({
   onEdit,
   onOpenTemplates,
 }: {
-  onEdit: (selection: { automation?: EmailAutomation; initial?: Partial<EmailAutomationPayload>; presetKey?: string }) => void;
+  onEdit: (selection: { automation?: EmailAutomation; presetKey?: string }) => void;
   onOpenTemplates: () => void;
 }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
@@ -67,24 +66,12 @@ export function AutomationsPanel({
     onError: (error) => toast('error', error.message),
   });
 
-  /** Preset → editor, pre-picking the template it was written for when it exists. */
-  const openPreset = (presetKey: string) => {
-    const preset = AUTOMATION_PRESETS.find((item) => item.key === presetKey);
-    if (!preset) return;
-    const match = activeTemplates.find((template) => template.name === preset.suggestedTemplate);
-    onEdit({ initial: { ...preset.initial, ...(match ? { templateId: match.id } : {}) }, presetKey });
-  };
-
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          An automation watches for something happening — an order, a birthday — and emails one of your templates.
-        </p>
-        <Button disabled={!canCreate} onClick={() => onEdit({})} title={canCreate ? undefined : 'Create a ready-to-use template first'}>
-          <Plus /> New automation
-        </Button>
-      </div>
+      {/* The "New automation" action lives in the page header, next to the tabs. */}
+      <p className="max-w-2xl text-sm text-muted-foreground">
+        An automation watches for something happening — an order, a birthday — and emails one of your templates.
+      </p>
 
       {!canCreate && (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface-offset/50 p-4">
@@ -191,7 +178,13 @@ export function AutomationsPanel({
                   {TRIGGER_LABELS[preset.initial.trigger ?? 'order_created']} ·{' '}
                   {describeTiming(preset.initial.trigger ?? 'order_created', preset.initial.offsetDays ?? 0)}
                 </p>
-                <Button variant="outline" size="sm" className="mt-3 w-full" disabled={!canCreate} onClick={() => openPreset(preset.key)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 w-full"
+                  disabled={!canCreate}
+                  onClick={() => onEdit({ presetKey: preset.key })}
+                >
                   <Plus /> Set this up
                 </Button>
               </article>
@@ -205,8 +198,8 @@ export function AutomationsPanel({
           title="Delete this automation?"
           message={
             <>
-              “{deleteTarget.name}” will stop sending and be removed. Emails already sent stay in History. If you only want a break, pause it
-              instead.
+              “{deleteTarget.name}” will stop sending and be removed. Emails already sent stay in History. If you only want a break, pause
+              it instead.
             </>
           }
           isPending={remove.isPending}

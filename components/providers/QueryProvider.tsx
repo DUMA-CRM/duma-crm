@@ -4,10 +4,12 @@ import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-qu
 import { useState } from 'react';
 
 import { OfflineOrderSync } from '@/components/providers/OfflineOrderSync';
+import { OfflineStatus } from '@/components/providers/OfflineStatus';
 import { ServiceWorkerRegistrar } from '@/components/providers/ServiceWorkerRegistrar';
 import { LoadingToast } from '@/components/shared/LoadingToast';
 import { GlobalToaster } from '@/components/shared/Toast';
 
+import { ApiError } from '@/lib/api/client';
 import { toast } from '@/stores/toastStore';
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
@@ -31,8 +33,11 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
           queries: {
             // Data is fresh for 60 s — won't refetch on every component mount.
             staleTime: 60_000,
-            // Retry once on failure before showing an error.
-            retry: 1,
+            // Live operational queries already have explicit polling. Avoid a
+            // page-wide refetch burst whenever the browser regains focus.
+            refetchOnWindowFocus: false,
+            // Retry one transient failure, never a permanent 4xx response.
+            retry: (failureCount, error) => !(error instanceof ApiError && error.status < 500) && failureCount < 1,
           },
         },
       }),
@@ -44,6 +49,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       <LoadingToast />
       <GlobalToaster />
       <OfflineOrderSync />
+      <OfflineStatus />
       <ServiceWorkerRegistrar />
     </QueryClientProvider>
   );

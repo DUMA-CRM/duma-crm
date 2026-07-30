@@ -36,6 +36,7 @@ function ModifierForm({
   formId,
   hideActions,
   onPendingChange,
+  onDirtyChange,
 }: {
   tenantId: string;
   modifier?: Modifier;
@@ -47,6 +48,8 @@ function ModifierForm({
   hideActions?: boolean;
   /** Reports the mutation's pending state so the header Save button can reflect it. */
   onPendingChange?: (pending: boolean) => void;
+  /** Reports unsaved edits so the page shell can warn before discarding them. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const qc = useQueryClient();
   const parsed = modifier ? parseModifierName(modifier.name) : { category: '', label: '' };
@@ -70,6 +73,13 @@ function ModifierForm({
   });
 
   useEffect(() => onPendingChange?.(isPending), [isPending, onPendingChange]);
+
+  const dirty =
+    name !== parsed.label ||
+    category !== (parsed.category ?? '') ||
+    priceAdjust !== (modifier?.priceAdjust ?? '0') ||
+    isAvailable !== (modifier?.isAvailable ?? true);
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   return (
     <form
@@ -132,8 +142,13 @@ const MODIFIER_FORM_ID = 'modifier-editor-form';
 export function ModifierEditorPage({ modifier, onClose }: { modifier?: Modifier; onClose: () => void }) {
   const { tenantId } = useWorkspaceStore();
   const [pending, setPending] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
-  const { data: modifiers = [] } = useQuery({ queryKey: ['modifiers'], queryFn: getModifiers, enabled: !!tenantId });
+  const { data: modifiers = [] } = useQuery({
+    queryKey: ['modifiers', tenantId],
+    queryFn: () => getModifiers(tenantId ?? undefined),
+    enabled: !!tenantId,
+  });
 
   const categories = useMemo(() => {
     const all = new Set(modifiers.map((m) => parseModifierName(m.name).category).filter((c): c is string => !!c));
@@ -159,6 +174,7 @@ export function ModifierEditorPage({ modifier, onClose }: { modifier?: Modifier;
       formId={MODIFIER_FORM_ID}
       hideActions
       onPendingChange={setPending}
+      onDirtyChange={setDirty}
     />
   );
 
@@ -167,6 +183,8 @@ export function ModifierEditorPage({ modifier, onClose }: { modifier?: Modifier;
       eyebrow="Modifier"
       title={modifier ? parseModifierName(modifier.name).label : 'New Modifier'}
       onClose={onClose}
+      dirty={dirty && !pending}
+      discardMessage="This modifier has changes that have not been saved. Leaving now discards them."
       actions={
         <Button type="submit" form={MODIFIER_FORM_ID} disabled={pending} className="h-11 px-6 gap-2">
           {pending && <Loader2 size={15} className="animate-spin" />}
@@ -201,8 +219,8 @@ export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => voi
   const [search, setSearch] = useState('');
 
   const { data: modifiers = [], isLoading } = useQuery({
-    queryKey: ['modifiers'],
-    queryFn: getModifiers,
+    queryKey: ['modifiers', tenantId],
+    queryFn: () => getModifiers(tenantId ?? undefined),
     enabled: !!tenantId,
   });
 

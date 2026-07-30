@@ -1,5 +1,5 @@
-import { HrInbox } from '@/components/people/HrInbox';
+import { StaffWorkspace } from '@/components/people/StaffWorkspace';
 
-export default function HrRequestsPage() {
-  return <HrInbox />;
+export default function StaffLeaveRequestsPage() {
+  return <StaffWorkspace tab="leave" />;
 }

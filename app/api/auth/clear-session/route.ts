@@ -20,5 +20,7 @@ export async function GET(req: NextRequest) {
     if (c.name.endsWith('session_token')) cookieStore.delete(c.name);
   }
   // Derive the origin from the request itself — no hardcoded localhost fallback.
-  return NextResponse.redirect(new URL('/sign-in', req.url));
+  const signIn = new URL('/sign-in', req.url);
+  signIn.searchParams.set('reason', 'session-expired');
+  return NextResponse.redirect(signIn);
 }

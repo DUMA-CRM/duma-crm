@@ -1,40 +1,93 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronLeft, CircleHelp, Clock3, Loader2, Search, X } from 'lucide-react';
-import { useState } from 'react';
-import { PageLayout } from '@/components/layout/PageLayout';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Check, Clock3, Loader2, X } from 'lucide-react';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { getManagedLeaveRequests, getManagedTickets, getTicket, replyTicket, reviewLeaveRequest, updateTicket, type HelpdeskTicket, type TicketStatus } from '@/lib/api/people-ops.service';
-import { cn } from '@/lib/utils/cn';
+
+import { getManagedLeaveRequests, reviewLeaveRequest } from '@/lib/api/people-ops.service';
 import { toast } from '@/stores/toastStore';
 
-type Tab = 'leave' | 'tickets';
-const fmtDate = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const fmtDate = (value: string) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-export function HrInbox() {
-  const [tab, setTab] = useState<Tab>('leave');
-  const [leaveStatus, setLeaveStatus] = useState('pending');
-  const [ticketStatus, setTicketStatus] = useState('open');
-  const [category, setCategory] = useState('');
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<string | null>(null);
-  const { data: leave = [], isLoading: leaveLoading } = useQuery({ queryKey: ['leave-managed', leaveStatus], queryFn: () => getManagedLeaveRequests(leaveStatus) });
-  const { data: tickets = [], isLoading: ticketLoading } = useQuery({ queryKey: ['helpdesk-managed', ticketStatus, category, search], queryFn: () => getManagedTickets({ status: ticketStatus || undefined, category: category || undefined, search: search || undefined }) });
-  const pendingLeave = leave.filter((r) => r.status === 'pending').length;
-  const tabs = [
-    { value: 'leave' as const, label: pendingLeave > 0 ? `Leave requests (${pendingLeave})` : 'Leave requests' },
-    { value: 'tickets' as const, label: 'Helpdesk' },
-  ];
-  return <PageLayout eyebrow="People operations" title="HR inbox" fullHeight headerBorder={false} headerSlot={<SegmentedControl options={tabs} value={tab} onChange={(v)=>{setTab(v);setSelected(null);}} />}>
-    <div className="max-w-8xl mx-auto pb-8">{tab==='leave'?<LeaveInbox requests={leave} loading={leaveLoading} status={leaveStatus} setStatus={setLeaveStatus}/>:<TicketInbox tickets={tickets} loading={ticketLoading} status={ticketStatus} setStatus={setTicketStatus} category={category} setCategory={setCategory} search={search} setSearch={setSearch} selected={selected} setSelected={setSelected}/>}</div>
-  </PageLayout>;
+/** Leave requests awaiting a decision — a tab of the staff workspace. */
+export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (value: string) => void }) {
+  const { data: requests = [], isLoading: loading } = useQuery({
+    queryKey: ['leave-managed', status],
+    queryFn: () => getManagedLeaveRequests(status),
+  });
+
+  const qc = useQueryClient();
+  const review = useMutation({
+    mutationFn: ({ id, next }: { id: string; next: 'approved' | 'declined' }) => reviewLeaveRequest(id, next),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leave-managed'] });
+      toast('success', 'Leave request updated.');
+    },
+    onError: (e) => toast('error', (e as Error).message),
+  });
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Leave requests</h2>
+          <p className="text-sm text-muted-foreground">Review requests against contracted working days and available balance.</p>
+        </div>
+        <Select
+          value={status}
+          onValueChange={setStatus}
+          options={['pending', 'approved', 'declined', 'cancelled'].map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }))}
+          ariaLabel="Leave status"
+          className="w-36"
+        />
+      </div>
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        {loading ? (
+          <div className="p-20 flex justify-center">
+            <Loader2 className="animate-spin" />
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="p-16 text-center text-muted-foreground">
+            <Clock3 className="mx-auto mb-3" />
+            <p className="font-medium text-foreground">Inbox clear</p>
+            <p className="text-sm">No {status} leave requests.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {requests.map((r) => (
+              <div key={r.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold">{r.employee?.name ?? r.employee?.email ?? 'Employee'}</p>
+                    <Badge variant="muted">{r.leaveType.name}</Badge>
+                  </div>
+                  <p className="text-sm mt-1">
+                    {fmtDate(r.startDate)} – {fmtDate(r.endDate)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {r.totalDays} contracted working days{r.notes ? ` · ${r.notes}` : ''}
+                  </p>
+                </div>
+                {r.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <Button variant="destructive" onClick={() => review.mutate({ id: r.id, next: 'declined' })}>
+                      <X />
+                      Decline
+                    </Button>
+                    <Button onClick={() => review.mutate({ id: r.id, next: 'approved' })}>
+                      <Check />
+                      Approve
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
-
-function LeaveInbox({requests,loading,status,setStatus}:any){const qc=useQueryClient();const review=useMutation({mutationFn:({id,next}:{id:string;next:'approved'|'declined'})=>reviewLeaveRequest(id,next),onSuccess:()=>{qc.invalidateQueries({queryKey:['leave-managed']});toast('success','Leave request updated.');},onError:e=>toast('error',(e as Error).message)});return <div className="space-y-4"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Leave requests</h2><p className="text-sm text-muted-foreground">Review requests against contracted working days and available balance.</p></div><Select value={status} onValueChange={setStatus} options={['pending','approved','declined','cancelled'].map(v=>({value:v,label:v[0].toUpperCase()+v.slice(1)}))} ariaLabel="Leave status" className="w-36"/></div><div className="rounded-2xl border border-border bg-card overflow-hidden">{loading?<div className="p-20 flex justify-center"><Loader2 className="animate-spin"/></div>:requests.length===0?<div className="p-16 text-center text-muted-foreground"><Clock3 className="mx-auto mb-3"/><p className="font-medium text-foreground">Inbox clear</p><p className="text-sm">No {status} leave requests.</p></div>:<div className="divide-y divide-border">{requests.map((r:any)=><div key={r.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4"><div><div className="flex items-center gap-2"><p className="font-semibold">{r.employee?.name??r.employee?.email??'Employee'}</p><Badge variant="muted">{r.leaveType.name}</Badge></div><p className="text-sm mt-1">{fmtDate(r.startDate)} – {fmtDate(r.endDate)}</p><p className="text-xs text-muted-foreground mt-1">{r.totalDays} contracted working days{r.notes?` · ${r.notes}`:''}</p></div>{r.status==='pending'&&<div className="flex gap-2"><Button variant="destructive" onClick={()=>review.mutate({id:r.id,next:'declined'})}><X/>Decline</Button><Button onClick={()=>review.mutate({id:r.id,next:'approved'})}><Check/>Approve</Button></div>}</div>)}</div>}</div></div>}
-
-function TicketInbox({tickets,loading,status,setStatus,category,setCategory,search,setSearch,selected,setSelected}:any){const qc=useQueryClient();const {data:detail}=useQuery({queryKey:['helpdesk-ticket-admin',selected],queryFn:()=>getTicket(selected),enabled:!!selected});const [reply,setReply]=useState('');const [internal,setInternal]=useState(false);const send=useMutation({mutationFn:()=>replyTicket(selected,reply,internal),onSuccess:()=>{setReply('');qc.invalidateQueries({queryKey:['helpdesk-ticket-admin',selected]});qc.invalidateQueries({queryKey:['helpdesk-managed']});}});const change=useMutation({mutationFn:(next:TicketStatus)=>updateTicket(selected,{status:next}),onSuccess:()=>{qc.invalidateQueries({queryKey:['helpdesk-ticket-admin',selected]});qc.invalidateQueries({queryKey:['helpdesk-managed']});toast('success','Ticket updated.');}});if(selected)return <div className="space-y-4"><Button variant="ghost" onClick={()=>setSelected(null)}><ChevronLeft/>Back to inbox</Button><div className="rounded-2xl border border-border bg-card overflow-hidden"><div className="p-5 border-b border-border flex flex-wrap items-start justify-between gap-4"><div><div className="flex gap-2"><Badge variant="warning">{detail?.status?.replace('_',' ')}</Badge><Badge variant="muted">{detail?.priority}</Badge></div><h2 className="text-xl font-semibold mt-3">{detail?.subject}</h2><p className="text-sm text-muted-foreground mt-1">{detail?.employee?.name} · {detail?.employee?.email}</p></div><Select value={detail?.status??'open'} onValueChange={v=>change.mutate(v as TicketStatus)} options={['open','in_progress','waiting_employee','resolved','closed'].map(v=>({value:v,label:v.replace('_',' ')}))} ariaLabel="Ticket status" className="w-44 capitalize"/></div><div className="p-5 space-y-3 min-h-64">{detail?.messages?.map((m:any)=><div key={m.id} className={cn('max-w-3xl p-3 rounded-xl text-sm',m.internal?'bg-warning/10 border border-warning/30':'bg-muted')}><div className="flex justify-between text-xs text-muted-foreground mb-1"><span>{m.authorName}{m.internal?' · Private note':''}</span><span>{new Date(m.createdAt).toLocaleString('en-GB')}</span></div><p className="whitespace-pre-wrap">{m.body}</p></div>)}</div><div className="p-4 border-t border-border"><div className="flex gap-2"><Input value={reply} onChange={e=>setReply(e.target.value)} placeholder={internal?'Add a private HR note…':'Reply to employee…'}/><Button onClick={()=>send.mutate()} disabled={!reply.trim()||send.isPending}>Send</Button></div><label className="inline-flex items-center gap-2 mt-3 text-xs text-muted-foreground"><input type="checkbox" checked={internal} onChange={e=>setInternal(e.target.checked)}/>Private note — employee cannot see this</label></div></div></div>;return <div className="space-y-4"><div className="flex flex-wrap gap-2"><div className="w-full sm:w-64"><Input value={search} onChange={e=>setSearch(e.target.value)} leftIcon={<Search/>} placeholder="Search employee or subject…"/></div><Select value={status} onValueChange={setStatus} options={[{value:'',label:'All statuses'},...['open','in_progress','waiting_employee','resolved','closed'].map(v=>({value:v,label:v.replace('_',' ')}))]} ariaLabel="Ticket status" className="w-44 capitalize"/><Select value={category} onValueChange={setCategory} options={[{value:'',label:'All categories'},...['hr','payroll','scheduling','leave','workplace','it','other'].map(v=>({value:v,label:v}))]} ariaLabel="Ticket category" className="w-40 capitalize"/></div><div className="rounded-2xl border border-border bg-card overflow-hidden">{loading?<div className="p-20 flex justify-center"><Loader2 className="animate-spin"/></div>:tickets.length===0?<div className="p-16 text-center text-muted-foreground"><CircleHelp className="mx-auto mb-3"/><p className="font-medium text-foreground">No matching tickets</p></div>:<div className="divide-y divide-border">{tickets.map((t:HelpdeskTicket)=><button key={t.id} onClick={()=>setSelected(t.id)} className="w-full text-left p-5 hover:bg-muted/50 flex justify-between gap-4"><div><div className="flex gap-2"><p className="font-semibold">{t.subject}</p>{t.priority==='urgent'&&<Badge variant="destructive">Urgent</Badge>}</div><p className="text-sm text-muted-foreground mt-1">{t.employee?.name??t.employee?.email} · <span className="capitalize">{t.category}</span></p></div><div className="text-right"><Badge variant="warning">{t.status.replace('_',' ')}</Badge><p className="text-xs text-muted-foreground mt-2">{new Date(t.updatedAt).toLocaleDateString('en-GB')}</p></div></button>)}</div>}</div></div>}

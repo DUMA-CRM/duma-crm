@@ -36,7 +36,7 @@ export function proxy(req: NextRequest) {
   // sign-in, and blindly bouncing back to /dashboard from here would loop.
   if (!hasSession && !isPublic) {
     const url = new URL('/sign-in', req.url);
-    url.searchParams.set('next', pathname);
+    url.searchParams.set('next', `${pathname}${req.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 

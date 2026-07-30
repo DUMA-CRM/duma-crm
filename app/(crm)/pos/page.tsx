@@ -2,7 +2,7 @@
 
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Clock, CloudUpload, LogIn, MapPin, WifiOff } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
 import { CartBar } from '@/components/pos/CartBar';
@@ -13,7 +13,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
 
-import { ApiError } from '@/lib/api/client';
+import { API_PREFIX, ApiError } from '@/lib/api/client';
 import { getCustomer } from '@/lib/api/customers.service';
 import { getMenuItemModifiers, getMenuItems } from '@/lib/api/menu.service';
 import { type CreateOrderPayload, createOrder } from '@/lib/api/orders.service';
@@ -22,6 +22,7 @@ import { CATEGORIES } from '@/lib/constants/pos';
 import { cn } from '@/lib/utils/cn';
 import { parseModifierName } from '@/lib/utils/modifiers';
 import { cartItemTotal, selectionKey } from '@/lib/utils/pos';
+import { useAuthStore } from '@/stores/authStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -63,6 +64,7 @@ function toPosItem(api: ApiMenuItem, modifiers: AttachedModifier[], modifiersLoa
 export default function POSPage() {
   const qc = useQueryClient();
   const { tenantId, locationId } = useWorkspaceStore();
+  const userId = useAuthStore((state) => state.user?.id);
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
@@ -77,6 +79,7 @@ export default function POSPage() {
   const [checkoutTotal, setCheckoutTotal] = useState(0);
   const [checkoutEmail, setCheckoutEmail] = useState<string | undefined>();
   const [checkoutQueued, setCheckoutQueued] = useState(false);
+  const [checkoutOrderId, setCheckoutOrderId] = useState<string | null>(null);
 
   function addToast(type: ToastMessage['type'], message: string) {
     setToasts((prev) => [...prev, { id: Date.now(), type, message }]);
@@ -118,20 +121,19 @@ export default function POSPage() {
   // The menu changes rarely — keep it fresh for 5 minutes to avoid refetch storms.
   const MENU_STALE_MS = 5 * 60_000;
   const { data: apiItems = [], isLoading: itemsLoading } = useQuery({
-    queryKey: ['menu-items'],
-    queryFn: getMenuItems,
+    queryKey: ['menu-items', tenantId],
+    queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: !!tenantId,
     staleTime: MENU_STALE_MS,
   });
 
-  // Each item's attached modifiers (flat add-ons). One query per item — a
-  // known N+1; a batch endpoint is the real fix. Until then the grid renders
-  // as soon as items arrive and modifiers stream in behind it.
+  // Load modifiers on demand instead of firing one request for every menu item
+  // at POS startup. Results remain cached, so repeat taps are immediate.
   const modifierQueries = useQueries({
     queries: apiItems.map((item) => ({
       queryKey: ['menu-item-modifiers', item.id],
       queryFn: () => getMenuItemModifiers(item.id),
-      enabled: apiItems.length > 0,
+      enabled: selectedItem?.id === item.id,
       staleTime: MENU_STALE_MS,
     })),
   });
@@ -160,15 +162,7 @@ export default function POSPage() {
     [selectedItem, posItems],
   );
 
-  // If the item was tapped before its modifiers loaded, apply the default
-  // pre-selection once they arrive. Render-phase adjustment (not an effect) —
-  // upgrading the snapshot to the loaded item makes this run only once.
-  if (selectedItem && !selectedItem.modifiersLoaded && liveSelectedItem?.modifiersLoaded) {
-    setSelectedItem(liveSelectedItem);
-    setPending(liveSelectedItem.modifiers.filter((o) => o.isDefault));
-  }
-
-  function addLine(item: MenuItem, selected: MenuOption[]) {
+  const addLine = useCallback((item: MenuItem, selected: MenuOption[]) => {
     const key = selectionKey(selected);
     setCart((prev) => {
       // Merge into an existing line with the same item + same modifiers.
@@ -178,9 +172,12 @@ export default function POSPage() {
       }
       return [...prev, { cartId: `${item.id}-${Date.now()}`, item, quantity: 1, selected }];
     });
-  }
+  }, []);
 
-  function handleSelectItem(item: MenuItem) {
+  const selectionRequest = useRef(0);
+
+  async function handleSelectItem(item: MenuItem) {
+    const request = ++selectionRequest.current;
     // Nothing to customise — add in one tap and stay on the menu. Only trust an
     // empty modifier list once it has actually loaded. Any customisation in
     // progress for another item is abandoned, mirroring the tap-to-switch below.
@@ -195,12 +192,45 @@ export default function POSPage() {
       handleCancelItem();
       return;
     }
+
     setSelectedItem(item);
     // On small screens the order panel is a drawer — open it so the customiser is visible.
     usePageSidebarStore.getState().setOpen(true);
-    // Pre-select the item's default variants (one per category is enforced by the
-    // single-select rule in the customiser, so this respects that too).
-    setPending(item.modifiers.filter((o) => o.isDefault));
+    setPending([]);
+
+    const apiItem = apiItems.find((candidate) => candidate.id === item.id);
+    if (!apiItem) {
+      setSelectedItem(null);
+      usePageSidebarStore.getState().setOpen(false);
+      return;
+    }
+
+    try {
+      const modifiers = await qc.fetchQuery({
+        queryKey: ['menu-item-modifiers', item.id],
+        queryFn: () => getMenuItemModifiers(item.id),
+        staleTime: MENU_STALE_MS,
+      });
+      if (selectionRequest.current !== request) return;
+
+      const hydratedItem = toPosItem(apiItem, modifiers, true);
+      if (hydratedItem.modifiers.length === 0) {
+        addLine(hydratedItem, []);
+        setSelectedItem(null);
+        usePageSidebarStore.getState().setOpen(false);
+        return;
+      }
+
+      setSelectedItem(hydratedItem);
+      // Pre-select the item's default variants (one per category is enforced by
+      // the single-select rule in the customiser, so this respects that too).
+      setPending(hydratedItem.modifiers.filter((option) => option.isDefault));
+    } catch {
+      if (selectionRequest.current !== request) return;
+      setSelectedItem(null);
+      usePageSidebarStore.getState().setOpen(false);
+      addToast('error', 'Could not load this item’s options. Please try again.');
+    }
   }
 
   function handleAddToCart() {
@@ -214,6 +244,7 @@ export default function POSPage() {
   }
 
   function handleCancelItem() {
+    selectionRequest.current += 1;
     setSelectedItem(null);
     setPending([]);
     usePageSidebarStore.getState().setOpen(false);
@@ -260,13 +291,14 @@ export default function POSPage() {
     // while offline — mutationFn never runs, isPending spins forever, and our
     // queueing logic below is unreachable. 'always' hands control to us.
     networkMode: 'always',
-    mutationFn: (method: 'cash' | 'card') => {
+    mutationFn: ({ method, idempotencyKey }: { method: 'cash' | 'card'; idempotencyKey: string }) => {
       // Known-offline: don't even attempt the request — fail straight into the
       // offline-queue path instead of waiting out a timeout.
       if (!navigator.onLine) return Promise.reject(new Error('offline'));
-      return createOrder(buildOrderPayload(method, notes));
+      return createOrder(buildOrderPayload(method, notes), idempotencyKey);
     },
-    onSuccess: () => {
+    onSuccess: (order) => {
+      setCheckoutOrderId(order.id);
       finishOrder(false);
       // Refresh exactly what an order touches — invalidating the whole cache
       // refetched every list in the app after every sale.
@@ -275,7 +307,7 @@ export default function POSPage() {
       }
       if (selectedCustomer) void qc.invalidateQueries({ queryKey: ['customer-visits', selectedCustomer.id] });
     },
-    onError: (err, method) => {
+    onError: (err, { method, idempotencyKey }) => {
       // Queue when the API never really answered: fetch/abort failures, and
       // 502/503/504 which are the proxy saying the API is unreachable.
       const unreachable = !(err instanceof ApiError) || err.status === 502 || err.status === 503 || err.status === 504;
@@ -284,7 +316,16 @@ export default function POSPage() {
         // order's createdAt is the sync time, not when it was actually taken.
         const takenAt = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
         const offlineNote = `Taken offline at ${takenAt}`;
-        useOfflineOrdersStore.getState().enqueue(buildOrderPayload(method, notes ? `${notes} · ${offlineNote}` : offlineNote));
+        if (!userId || !tenantId) {
+          addToast('error', 'The order could not be saved offline because the account or workspace is missing.');
+          return;
+        }
+        useOfflineOrdersStore.getState().enqueue(buildOrderPayload(method, notes ? `${notes} · ${offlineNote}` : offlineNote), {
+          idempotencyKey,
+          ownerUserId: userId,
+          tenantId,
+        });
+        setCheckoutOrderId(null);
         finishOrder(true);
         return;
       }
@@ -297,13 +338,29 @@ export default function POSPage() {
     setCheckoutTotal(cart.reduce((sum, c) => sum + cartItemTotal(c), 0));
     setCheckoutEmail(selectedCustomer?.email);
     setCheckoutQueued(false);
+    setCheckoutOrderId(null);
     setCheckout('method');
   }
 
   function handleReceipt(choice: 'email' | 'print' | 'none') {
-    // TODO: no receipt endpoint exists yet — these only acknowledge the choice.
-    if (choice === 'email') addToast('success', `Receipt will be emailed to ${checkoutEmail}.`);
-    if (choice === 'print') addToast('info', 'Receipt sent to the printer.');
+    if (choice === 'email') {
+      addToast('error', 'Email receipts are not available until the API provides a receipt-delivery endpoint.');
+      return;
+    }
+    if (choice === 'print') {
+      if (!checkoutOrderId) {
+        addToast('error', 'The receipt will be available after the offline order has synced.');
+        return;
+      }
+      const receiptWindow = window.open('about:blank', '_blank');
+      if (!receiptWindow) {
+        addToast('error', 'Allow pop-ups to open the printable receipt.');
+        return;
+      }
+      receiptWindow.opener = null;
+      receiptWindow.location.href = `${API_PREFIX}/v1/receipts/${encodeURIComponent(checkoutOrderId)}/receipt`;
+      addToast('info', 'Receipt opened. Use the browser print command to print it.');
+    }
     setCheckout('closed');
   }
 
@@ -312,7 +369,13 @@ export default function POSPage() {
   const isLoading = itemsLoading;
 
   // Offline awareness: banner while disconnected, queued-order count until synced.
-  const queuedCount = useOfflineOrdersStore((s) => s.queue.length);
+  const offlineQueue = useOfflineOrdersStore((state) => state.queue);
+  const queuedOrders = useMemo(
+    () => offlineQueue.filter((order) => order.ownerUserId === userId && order.tenantId === tenantId),
+    [offlineQueue, tenantId, userId],
+  );
+  const queuedCount = queuedOrders.length;
+  const needsAttentionCount = queuedOrders.filter((order) => order.status === 'needs-attention').length;
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
   useEffect(() => {
     const up = () => setOnline(true);
@@ -356,18 +419,42 @@ export default function POSPage() {
         {(!online || queuedCount > 0) && (
           <div
             className={cn(
-              'mb-4 flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm font-medium',
+              'mb-4 rounded-xl border px-3.5 py-2.5 text-sm font-medium',
               online ? 'border-primary/30 bg-primary/5 text-primary' : 'border-warning/40 bg-warning/10 text-warning',
             )}
           >
-            {online ? (
-              <CloudUpload size={16} className="shrink-0" aria-hidden="true" />
-            ) : (
-              <WifiOff size={16} className="shrink-0" aria-hidden="true" />
+            <div className="flex items-center gap-2.5">
+              {online ? (
+                <CloudUpload size={16} className="shrink-0" aria-hidden="true" />
+              ) : (
+                <WifiOff size={16} className="shrink-0" aria-hidden="true" />
+              )}
+              {needsAttentionCount > 0
+                ? `${needsAttentionCount} queued ${needsAttentionCount === 1 ? 'order needs' : 'orders need'} manager attention.`
+                : !online
+                  ? `You're offline — orders are saved locally${queuedCount > 0 ? ` (${queuedCount} waiting)` : ''} and will send when the connection returns.`
+                  : `${queuedCount} ${queuedCount === 1 ? 'order' : 'orders'} waiting to sync…`}
+            </div>
+            {needsAttentionCount > 0 && (
+              <div className="mt-2 space-y-2 border-t border-current/15 pt-2">
+                {queuedOrders
+                  .filter((order) => order.status === 'needs-attention')
+                  .map((order) => (
+                    <div key={order.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span>
+                        {new Date(order.queuedAt).toLocaleString('en-GB')} · {order.lastError ?? 'Rejected by the API'}
+                      </span>
+                      <button
+                        type="button"
+                        className="rounded-md border border-current/30 px-2 py-1 font-semibold hover:bg-current/10"
+                        onClick={() => useOfflineOrdersStore.getState().retry(order.id)}
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ))}
+              </div>
             )}
-            {!online
-              ? `You're offline — orders are saved locally${queuedCount > 0 ? ` (${queuedCount} waiting)` : ''} and will send when the connection returns.`
-              : `${queuedCount} ${queuedCount === 1 ? 'order' : 'orders'} waiting to sync…`}
           </div>
         )}
 
@@ -409,7 +496,7 @@ export default function POSPage() {
           isPaying={isPaying}
           queued={checkoutQueued}
           customerEmail={checkoutEmail}
-          onSelectMethod={submitOrder}
+          onSelectMethod={(method) => submitOrder({ method, idempotencyKey: crypto.randomUUID() })}
           onConfirmDone={() => setCheckout('receipt')}
           onReceipt={handleReceipt}
           onCancel={() => setCheckout('closed')}

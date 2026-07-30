@@ -8,6 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/*.test.mts",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -6,16 +6,16 @@ import { useMemo, useState } from 'react';
 
 import { STATUS_BAR, STATUS_LABEL, STATUS_VARIANT, fmtQty, getStatus, stockPct } from '@/components/inventory/stock/shared';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Toast, type ToastMessage } from '@/components/shared/Toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { type LocationStock, getLocationStock } from '@/lib/api/inventory.service';
-import { type RestockPriority, createRestockRequest, decodeNotes, encodeNotes, getRestockRequests } from '@/lib/api/restock.service';
+import { type RestockPriority, createRestockRequest, encodeNotes, getRestockRequests } from '@/lib/api/restock.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
+import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const selectClass = cn(
@@ -33,21 +33,6 @@ const PRIORITY_OPTIONS = [
 interface FormErrors {
   stockItem?: string;
   qty?: string;
-}
-
-interface StatCardProps {
-  label: string;
-  value: number;
-  valueClass?: string;
-}
-
-function StatCard({ label, value, valueClass }: StatCardProps) {
-  return (
-    <div className="bg-surface-offset rounded-xl p-3 flex flex-col gap-0.5">
-      <p className={cn('text-2xl font-bold text-foreground', valueClass)}>{value}</p>
-      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-tight">{label}</p>
-    </div>
-  );
 }
 
 /** Live stock context for the picked item — current level vs threshold + a suggested order. */
@@ -96,7 +81,7 @@ function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSug
   );
 }
 
-export function RestockRequestForm() {
+export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
   const { tenantId, locationId } = useWorkspaceStore();
   const queryClient = useQueryClient();
 
@@ -105,10 +90,6 @@ export function RestockRequestForm() {
   const [priority, setPriority] = useState<RestockPriority>('standard');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  const addToast = (type: 'success' | 'error', message: string) => setToasts((prev) => [...prev, { id: Date.now(), type, message }]);
-  const removeToast = (id: number) => setToasts((prev) => prev.filter((t) => t.id !== id));
 
   const { data: locations = [] } = useQuery({
     queryKey: ['locations', tenantId],
@@ -119,13 +100,6 @@ export function RestockRequestForm() {
   const { data: locationStock = [], isLoading: loadingStock } = useQuery({
     queryKey: ['location-stock', locationId],
     queryFn: () => getLocationStock(locationId!),
-    enabled: !!locationId,
-  });
-
-  // Shared query key with sidebar — served from cache, no extra request
-  const { data: statsResponse } = useQuery({
-    queryKey: ['restock-requests', 'summary', locationId],
-    queryFn: () => getRestockRequests({ locationId: locationId!, limit: 100 }),
     enabled: !!locationId,
   });
 
@@ -150,12 +124,6 @@ export function RestockRequestForm() {
   });
   const duplicatePending = duplicateResponse?.data[0];
 
-  const requests = statsResponse?.data ?? [];
-  const statPending = requests.filter((r) => r.status === 'pending').length;
-  const statUrgent = requests.filter((r) => r.status === 'pending' && decodeNotes(r.notes).priority === 'urgent').length;
-  const statApproved = requests.filter((r) => r.status === 'approved').length;
-  const statFulfilled = requests.filter((r) => r.status === 'fulfilled').length;
-
   const { mutate: submit, isPending } = useMutation({
     mutationFn: createRestockRequest,
     onSuccess: () => {
@@ -165,19 +133,21 @@ export function RestockRequestForm() {
       setPriority('standard');
       setNotes('');
       setErrors({});
-      addToast('success', 'Restock request submitted successfully.');
+      toast('success', 'Restock request submitted — it is now awaiting review.');
+      // Lets the host close the dialog and drop the user on the pending list.
+      onSubmitted?.();
     },
-    onError: () => addToast('error', 'Failed to submit request. Please try again.'),
+    onError: () => toast('error', 'Failed to submit request. Please try again.'),
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!locationId) {
-      addToast('error', 'Select a location in the top bar first.');
+      toast('error', 'Select a location in the top bar first.');
       return;
     }
     if (duplicatePending) {
-      addToast('error', 'A pending request already exists for this item at this location.');
+      toast('error', 'A pending request already exists for this item at this location.');
       return;
     }
     const errs: FormErrors = {};
@@ -313,39 +283,24 @@ export function RestockRequestForm() {
         </Button>
       </form>
 
-      <div className="space-y-5">
-        {/* Live context for the selected item */}
-        <div className="flex flex-col gap-1.5">
-          <Label uppercase>Item stock</Label>
-          {selectedItem ? (
-            <StockContextCard
-              ls={selectedItem}
-              onUseSuggestion={(q) => {
-                setQty(String(q));
-                setErrors((prev) => ({ ...prev, qty: undefined }));
-              }}
-            />
-          ) : (
-            <div className="rounded-xl border border-dashed border-border p-5 text-center">
-              <Package size={20} className="mx-auto mb-2 text-muted-foreground/40" />
-              <p className="text-xs text-muted-foreground">Pick an item to see its current stock level and a suggested order amount.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Request pipeline */}
-        <div className="flex flex-col gap-1.5">
-          <Label uppercase>Request pipeline{locationName ? ` · ${locationName}` : ''}</Label>
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard label="Pending" value={statPending} valueClass={statPending > 0 ? 'text-warning' : undefined} />
-            <StatCard label="Urgent" value={statUrgent} valueClass={statUrgent > 0 ? 'text-destructive' : undefined} />
-            <StatCard label="Approved" value={statApproved} valueClass={statApproved > 0 ? 'text-primary' : undefined} />
-            <StatCard label="Ordered" value={statFulfilled} valueClass={statFulfilled > 0 ? 'text-success' : undefined} />
+      {/* Live context for the selected item */}
+      <div className="flex flex-col gap-1.5">
+        <Label uppercase>Item stock</Label>
+        {selectedItem ? (
+          <StockContextCard
+            ls={selectedItem}
+            onUseSuggestion={(q) => {
+              setQty(String(q));
+              setErrors((prev) => ({ ...prev, qty: undefined }));
+            }}
+          />
+        ) : (
+          <div className="rounded-xl border border-dashed border-border p-5 text-center">
+            <Package size={20} className="mx-auto mb-2 text-muted-foreground/40" />
+            <p className="text-xs text-muted-foreground">Pick an item to see its current stock level and a suggested order amount.</p>
           </div>
-        </div>
+        )}
       </div>
-
-      <Toast toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }

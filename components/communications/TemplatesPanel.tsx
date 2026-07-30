@@ -10,11 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { type EmailTemplate, type EmailTemplatePayload, createEmailTemplate, getEmailAutomations, getEmailTemplates } from '@/lib/api/email.service';
+import { type EmailTemplate, createEmailTemplate, getEmailAutomations, getEmailTemplates } from '@/lib/api/email.service';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { TEMPLATE_PRESETS, presetPayload } from './presets';
+import { TEMPLATE_PRESETS } from './presets';
 import { labelClass } from './shared';
 
 const FILTERS = [
@@ -27,7 +27,7 @@ export function TemplatesPanel({
   onEdit,
   onPreview,
 }: {
-  onEdit: (selection: { template?: EmailTemplate; initial?: EmailTemplatePayload; presetKey?: string }) => void;
+  onEdit: (selection: { template?: EmailTemplate; presetKey?: string }) => void;
   onPreview: (template: EmailTemplate) => void;
 }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
@@ -69,9 +69,7 @@ export function TemplatesPanel({
     const query = search.trim().toLowerCase();
     return templates
       .filter((template) => (filter === 'all' ? true : filter === 'active' ? template.isActive : !template.isActive))
-      .filter((template) =>
-        query ? `${template.name} ${template.subject} ${template.category}`.toLowerCase().includes(query) : true,
-      )
+      .filter((template) => (query ? `${template.name} ${template.subject} ${template.category}`.toLowerCase().includes(query) : true))
       .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
   }, [templates, filter, search]);
 
@@ -80,14 +78,10 @@ export function TemplatesPanel({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          A template is an email you write once and reuse — order updates, birthday notes, thank-yous.
-        </p>
-        <Button onClick={() => onEdit({})}>
-          <Plus /> New template
-        </Button>
-      </div>
+      {/* The "New template" action lives in the page header, next to the tabs. */}
+      <p className="max-w-2xl text-sm text-muted-foreground">
+        A template is an email you write once and reuse — order updates, birthday notes, thank-yous.
+      </p>
 
       {templates.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
@@ -186,12 +180,7 @@ export function TemplatesPanel({
                 <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{preset.description}</p>
                 <p className={`mt-3 ${labelClass}`}>Pairs with</p>
                 <p className="text-[11px] text-muted-foreground">{preset.recommendedTrigger}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 w-full"
-                  onClick={() => onEdit({ initial: presetPayload(preset), presetKey: preset.key })}
-                >
+                <Button variant="outline" size="sm" className="mt-3 w-full" onClick={() => onEdit({ presetKey: preset.key })}>
                   <Plus /> Use and edit
                 </Button>
               </article>

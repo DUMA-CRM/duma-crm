@@ -1,12 +1,12 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ReceiptText, ShoppingBag, TrendingDown, TrendingUp, Users, WalletCards } from 'lucide-react';
+import { ReceiptText, ShoppingBag, TrendingDown, TrendingUp, Users, WalletCards } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
+import { EditorShell } from '@/components/shared/EditorShell';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Button } from '@/components/ui/button';
 
 import {
   type DailyOrderAnalytics,
@@ -99,7 +99,14 @@ function TrendChart({
           </linearGradient>
         </defs>
         {showPrevious && prev.line && (
-          <path d={prev.line} fill="none" stroke="currentColor" strokeWidth={1.5} strokeDasharray="4 4" className="text-muted-foreground/60" />
+          <path
+            d={prev.line}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            strokeDasharray="4 4"
+            className="text-muted-foreground/60"
+          />
         )}
         {cur.area && <path d={cur.area} fill="url(#metric-area)" />}
         {cur.line && <path d={cur.line} fill="none" stroke="currentColor" strokeWidth={2} />}
@@ -141,7 +148,11 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
   const window = useMemo(() => getDateWindow(range, timeZone), [range, timeZone]);
   const scopeKey = activeLocationId ?? 'all';
   const currentParams = () => ({ from: window.from, to: window.to, ...(activeLocationId ? { locationId: activeLocationId } : {}) });
-  const previousParams = () => ({ from: window.previousFrom, to: window.previousTo, ...(activeLocationId ? { locationId: activeLocationId } : {}) });
+  const previousParams = () => ({
+    from: window.previousFrom,
+    to: window.previousTo,
+    ...(activeLocationId ? { locationId: activeLocationId } : {}),
+  });
   const ready = locationsQuery.isSuccess;
 
   const currentOrders = useQuery({
@@ -215,15 +226,29 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
 
   // Daily series for the trend chart (retention has no daily series).
   const dailyValue = (row: DailyOrderAnalytics) =>
-    metric === 'orders' ? row.count : metric === 'average' ? (row.count ? Number(row.revenue ?? 0) / row.count : 0) : Number(row.revenue ?? 0);
+    metric === 'orders'
+      ? row.count
+      : metric === 'average'
+        ? row.count
+          ? Number(row.revenue ?? 0) / row.count
+          : 0
+        : Number(row.revenue ?? 0);
   const currentDaily = (currentOrders.data?.daily ?? []).map(dailyValue);
   const previousDaily = (previousOrders.data?.daily ?? []).map(dailyValue);
-  const dayLabels = (currentOrders.data?.daily ?? []).map((r) => new Date(`${r.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
+  const dayLabels = (currentOrders.data?.daily ?? []).map((r) =>
+    new Date(`${r.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+  );
   const chartFormat = (v: number) => (metric === 'orders' ? formatCompact(v) : formatMoney(v, metric === 'average' ? 2 : 0));
 
   // Location comparison (only org-wide scope, money/count metrics).
   const locationValue = (r: { totalRevenue: string | null; orderCount: number }) =>
-    metric === 'orders' ? r.orderCount : metric === 'average' ? (r.orderCount ? Number(r.totalRevenue ?? 0) / r.orderCount : 0) : Number(r.totalRevenue ?? 0);
+    metric === 'orders'
+      ? r.orderCount
+      : metric === 'average'
+        ? r.orderCount
+          ? Number(r.totalRevenue ?? 0) / r.orderCount
+          : 0
+        : Number(r.totalRevenue ?? 0);
   const locationRows = [...(byLocation.data ?? [])].sort((a, b) => locationValue(b) - locationValue(a));
   const locationMax = Math.max(1, ...locationRows.map(locationValue));
   const showLocationCompare = !activeLocationId && metric !== 'retention' && locationRows.length > 0;
@@ -231,28 +256,11 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
   const Icon = METRIC_ICON[metric];
   const loading = locationsQuery.isPending || currentOrders.isPending || (metric === 'retention' && retention.isPending);
 
-  const header = (
-    <SegmentedControl options={RANGE_OPTIONS} value={range} onChange={setRange} />
-  );
+  const header = <SegmentedControl options={RANGE_OPTIONS} value={range} onChange={setRange} />;
 
   return (
-    <div className="flex flex-col -m-4 md:-m-8 h-[calc(100vh-var(--header-height))] bg-background">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 md:px-8 py-3.5 border-b border-border shrink-0 bg-card">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/reports')} aria-label="Back to reports" className="size-11 shrink-0">
-          <ArrowLeft size={20} />
-        </Button>
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Icon size={20} aria-hidden="true" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Report</p>
-          <h1 className="text-lg font-semibold text-foreground truncate">{detail.title}</h1>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-5 space-y-4">
+    <EditorShell eyebrow="Report" title={detail.title} icon={<Icon size={20} aria-hidden="true" />} onClose={() => router.push('/reports')}>
+      <div className="space-y-4">
         {header}
 
         {/* Hero */}
@@ -283,7 +291,13 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
               {currentDaily.length === 0 ? (
                 <p className="py-10 text-center text-sm text-muted-foreground">No activity in this period.</p>
               ) : (
-                <TrendChart current={currentDaily} previous={previousDaily} labels={dayLabels} format={chartFormat} showPrevious={showPrevious} />
+                <TrendChart
+                  current={currentDaily}
+                  previous={previousDaily}
+                  labels={dayLabels}
+                  format={chartFormat}
+                  showPrevious={showPrevious}
+                />
               )}
             </div>
           )}
@@ -339,7 +353,10 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
                         </span>
                       </div>
                       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border">
-                        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(value / locationMax) * 100}%` }} />
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{ width: `${(value / locationMax) * 100}%` }}
+                        />
                       </div>
                       <p className="mt-1 text-[11px] text-muted-foreground">{row.orderCount} orders</p>
                     </button>
@@ -380,6 +397,6 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
           <span className="font-semibold text-foreground">How this is calculated:</span> {detail.definition}
         </p>
       </div>
-    </div>
+    </EditorShell>
   );
 }

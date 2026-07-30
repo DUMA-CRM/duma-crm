@@ -1,18 +1,11 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Boxes, Package, Plus, Search, X } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Boxes, ChevronRight, Package, Plus, Search, X } from 'lucide-react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
-import { StockDetailSidebar } from '@/components/inventory/stock/StockDetailSidebar';
-import { TransferStockModal } from '@/components/inventory/transfers/TransferStock';
-import {
-  AddItemModal,
-  EditStockItemModal,
-  EditThresholdModal,
-  LogLossModal,
-  RestockModal,
-} from '@/components/inventory/stock/StockModals';
+import { AddItemModal } from '@/components/inventory/stock/StockModals';
 import {
   STATUS_ICON_BG,
   STATUS_ICON_FG,
@@ -25,7 +18,6 @@ import {
   normaliseArray,
 } from '@/components/inventory/stock/shared';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { StatCard } from '@/components/shared/StatCard';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
@@ -40,31 +32,21 @@ import {
   getInventoryForecast,
   getInventoryOverview,
   getLocationStock,
-  removeLocationStock,
-  updateLocationStock,
 } from '@/lib/api/inventory.service';
 import { cn } from '@/lib/utils/cn';
-import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-const GRID = 'grid-cols-[2fr_0.9fr_0.7fr_0.9fr_1.15fr_0.8fr_0.9fr]';
+// Last track is the row's chevron — fixed so the header grid and the row grids
+// resolve their fr columns to identical widths.
+const GRID = 'grid-cols-[2fr_0.9fr_0.7fr_0.9fr_1.15fr_0.8fr_0.9fr_1.25rem]';
 
 export default function InventoryPage() {
-  const { tenantId, locationId } = useWorkspaceStore();
+  const { locationId } = useWorkspaceStore();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [expiryCutoff] = useState(() => Date.now() + 7 * 86400000);
-
-  // Modal targets
-  const [thresholdTarget, setThresholdTarget] = useState<LocationStock | null>(null);
-  const [restockTarget, setRestockTarget] = useState<LocationStock | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [editItemTarget, setEditItemTarget] = useState<StockRow | null>(null);
-  const [lossModal, setLossModal] = useState<{ locationId?: string; stockItemId?: string } | null>(null);
-  const [removeTarget, setRemoveTarget] = useState<LocationStock | null>(null);
-  const [transferTarget, setTransferTarget] = useState<StockRow | null>(null);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const addToast = (type: 'success' | 'error', message: string) => setToasts((prev) => [...prev, { id: Date.now(), type, message }]);
@@ -92,26 +74,6 @@ export default function InventoryPage() {
     queryKey: ['inventory-overview', locationId],
     queryFn: () => getInventoryOverview(locationId!),
     enabled: !!locationId,
-  });
-
-  const { mutate: toggleAvailable } = useMutation({
-    mutationFn: (item: LocationStock) => updateLocationStock(item.id, { isAvailable: !item.isAvailable }),
-    onSuccess: () => {
-      invalidateStock();
-      addToast('success', 'Availability updated.');
-    },
-    onError: () => addToast('error', 'Failed to update availability.'),
-  });
-
-  const { mutate: removeItem, isPending: removePending } = useMutation({
-    mutationFn: (id: string) => removeLocationStock(id),
-    onSuccess: () => {
-      setSelectedId(null);
-      setRemoveTarget(null);
-      invalidateStock();
-      addToast('success', 'Item removed.');
-    },
-    onError: () => addToast('error', 'Failed to remove item.'),
   });
 
   const allStock = useMemo(() => normaliseArray<LocationStock>(rawStock), [rawStock]);
@@ -157,7 +119,6 @@ export default function InventoryPage() {
     [enriched, search],
   );
 
-  const selectedItem = useMemo(() => enriched.find((s) => s.id === selectedId) ?? null, [enriched, selectedId]);
   const existingIds = useMemo(() => new Set(allStock.map((s) => s.stockItemId)), [allStock]);
 
   const outCount = enriched.filter((s) => s.status === 'out').length;
@@ -167,26 +128,8 @@ export default function InventoryPage() {
 
   const hasFilters = !!search;
 
-  const sidebar = (
-    <StockDetailSidebar
-      item={selectedItem}
-      tenantId={tenantId}
-      onClose={() => {
-        setSelectedId(null);
-        usePageSidebarStore.getState().setOpen(false);
-      }}
-      onEditThreshold={setThresholdTarget}
-      onToggleAvailable={(i) => toggleAvailable(i)}
-      onRemove={(i) => setRemoveTarget(i)}
-      onRestock={setRestockTarget}
-      onLogLoss={(i) => setLossModal({ locationId: i.locationId, stockItemId: i.stockItemId })}
-      onEditItem={setEditItemTarget}
-      onTransfer={setTransferTarget}
-    />
-  );
-
   return (
-    <PageLayout eyebrow="Operations" title="Inventory" headerBorder={false} sidebar={sidebar}>
+    <PageLayout eyebrow="Operations" title="Inventory" headerBorder={false} fullHeight>
       <div className="flex flex-col h-full">
         {/* Toolbar */}
         <div className="mb-4 shrink-0">
@@ -263,6 +206,7 @@ export default function InventoryPage() {
                         {h}
                       </span>
                     ))}
+                    <span className="sr-only">Open</span>
                   </div>
 
                   <div className="flex-1 overflow-y-auto">
@@ -278,21 +222,14 @@ export default function InventoryPage() {
                       />
                     ) : (
                       filtered.map((s) => {
-                        const selected = selectedId === s.id;
                         const days = s.forecast?.daysOfStockRemaining;
                         return (
-                          <div
+                          <Link
                             key={s.id}
-                            onClick={() => {
-                              const next = selected ? null : s.id;
-                              setSelectedId(next);
-                              // On small screens the panel is a drawer — open it with the selection.
-                              usePageSidebarStore.getState().setOpen(next !== null);
-                            }}
+                            href={`/inventory/items/${s.stockItemId}`}
                             className={cn(
-                              'grid gap-4 px-4 py-3 border-b border-border/50 last:border-0 cursor-pointer transition-colors hover:bg-surface-offset/40',
+                              'grid gap-4 px-4 py-3 border-b border-border/50 last:border-0 transition-colors hover:bg-surface-offset/40',
                               GRID,
-                              selected && 'bg-primary/5 border-l-2 border-l-primary',
                             )}
                           >
                             {/* Item */}
@@ -350,7 +287,11 @@ export default function InventoryPage() {
                             <div className="flex items-center">
                               <Badge variant={STATUS_VARIANT[s.status]}>{STATUS_LABEL[s.status]}</Badge>
                             </div>
-                          </div>
+
+                            <div className="flex items-center text-muted-foreground">
+                              <ChevronRight size={15} aria-hidden="true" />
+                            </div>
+                          </Link>
                         );
                       })
                     )}
@@ -381,75 +322,6 @@ export default function InventoryPage() {
             invalidateStock();
             addToast('success', 'Item added.');
           }}
-        />
-      )}
-      {editItemTarget?.stockItem && (
-        <EditStockItemModal
-          item={editItemTarget.stockItem}
-          onClose={() => setEditItemTarget(null)}
-          onSuccess={() => {
-            void queryClient.invalidateQueries({ queryKey: ['stock-items'] });
-            invalidateStock();
-            addToast('success', 'Stock item updated.');
-          }}
-        />
-      )}
-      {thresholdTarget && (
-        <EditThresholdModal
-          item={thresholdTarget}
-          onClose={() => setThresholdTarget(null)}
-          onSuccess={() => {
-            invalidateStock();
-            addToast('success', 'Threshold updated.');
-          }}
-        />
-      )}
-      {restockTarget && (
-        <RestockModal
-          item={restockTarget}
-          onClose={() => setRestockTarget(null)}
-          onSuccess={() => {
-            addToast('success', 'Restock request submitted.');
-            void queryClient.invalidateQueries({ queryKey: ['restock-requests'] });
-          }}
-        />
-      )}
-      {lossModal && (
-        <LogLossModal
-          defaultLocationId={lossModal.locationId}
-          defaultStockItemId={lossModal.stockItemId}
-          onClose={() => setLossModal(null)}
-          onSuccess={() => {
-            invalidateStock();
-            void queryClient.invalidateQueries({ queryKey: ['loss-log'] });
-            addToast('success', 'Loss entry recorded.');
-          }}
-        />
-      )}
-
-      {transferTarget && locationId && tenantId && (
-        <TransferStockModal
-          tenantId={tenantId}
-          locationId={locationId}
-          initialStockItemId={transferTarget.stockItemId}
-          onClose={() => setTransferTarget(null)}
-        />
-      )}
-
-      {removeTarget && (
-        <ConfirmModal
-          title="Remove Stock Item"
-          message={
-            <>
-              Remove <span className="font-semibold text-foreground">{removeTarget.stockItem?.name ?? 'this item'}</span> from this
-              location? Its stock history stays, but the item disappears from the list.
-            </>
-          }
-          confirmLabel="Remove"
-          pendingLabel="Removing…"
-          isPending={removePending}
-          onConfirm={() => removeItem(removeTarget.id)}
-          onClose={() => setRemoveTarget(null)}
         />
       )}
 

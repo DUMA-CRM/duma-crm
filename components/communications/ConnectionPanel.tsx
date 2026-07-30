@@ -16,32 +16,33 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { labelClass, panelClass } from './shared';
 
 /** One-click host/port defaults for the mail providers small businesses actually use. */
-const PROVIDERS: { key: string; label: string; host: string; port: number; security: EmailConnectionPayload['security']; hint: string }[] = [
-  {
-    key: 'gmail',
-    label: 'Gmail / Google Workspace',
-    host: 'smtp.gmail.com',
-    port: 587,
-    security: 'starttls',
-    hint: 'Use an App Password, not your normal Google password.',
-  },
-  {
-    key: 'microsoft',
-    label: 'Microsoft 365 / Outlook',
-    host: 'smtp.office365.com',
-    port: 587,
-    security: 'starttls',
-    hint: 'Your username is the full email address.',
-  },
-  {
-    key: 'other',
-    label: 'Another provider',
-    host: '',
-    port: 587,
-    security: 'starttls',
-    hint: 'Your host will give you a server name, port, username and password.',
-  },
-];
+const PROVIDERS: { key: string; label: string; host: string; port: number; security: EmailConnectionPayload['security']; hint: string }[] =
+  [
+    {
+      key: 'gmail',
+      label: 'Gmail / Google Workspace',
+      host: 'smtp.gmail.com',
+      port: 587,
+      security: 'starttls',
+      hint: 'Use an App Password, not your normal Google password.',
+    },
+    {
+      key: 'microsoft',
+      label: 'Microsoft 365 / Outlook',
+      host: 'smtp.office365.com',
+      port: 587,
+      security: 'starttls',
+      hint: 'Your username is the full email address.',
+    },
+    {
+      key: 'other',
+      label: 'Another provider',
+      host: '',
+      port: 587,
+      security: 'starttls',
+      hint: 'Your host will give you a server name, port, username and password.',
+    },
+  ];
 
 export function ConnectionPanel() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
@@ -204,7 +205,9 @@ export function ConnectionPanel() {
             />
             <span>
               Allow emails to be sent
-              <span className="block text-xs text-muted-foreground">Untick to hold all email — automations keep queueing but nothing goes out.</span>
+              <span className="block text-xs text-muted-foreground">
+                Untick to hold all email — automations keep queueing but nothing goes out.
+              </span>
             </span>
           </label>
           <Button disabled={!canSave || save.isPending || isLoading} onClick={() => save.mutate()} className="gap-2">

@@ -1,10 +1,11 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQueries } from '@tanstack/react-query';
 import { Coffee, LogOut } from 'lucide-react';
-import { useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { Tooltip } from '@/components/shared/Tooltip';
+
 import { getOrders } from '@/lib/api/orders.service';
 import type { StaffRole } from '@/lib/api/staff.service';
 import { analyticsNavItems, filterNavByRole, footerNavItems, mainNavItems } from '@/lib/constants/nav';
@@ -34,17 +35,30 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
   const mainItems = filterNavByRole(mainNavItems, role);
   const analyticsItems = filterNavByRole(analyticsNavItems, role);
 
-  // Badge the Orders nav item with the number of active (not done/cancelled) orders.
-  // Shares the ['orders-all', locationId] cache entry with the dashboard and
-  // orders pages so the same 200-row list isn't fetched three times.
+  // Badge the Orders nav item with the exact active count. Three count-only
+  // responses are much smaller than downloading 200 complete orders globally
+  // on every CRM screen.
   const showOrders = mainItems.some((item) => item.href === '/orders');
-  const { data: ordersData } = useQuery({
-    queryKey: ['orders-all', locationId],
-    queryFn: () => getOrders({ limit: 200, locationId: locationId ?? undefined }),
-    enabled: showOrders,
-    refetchInterval: 60_000,
+  const [badgeEnabled, setBadgeEnabled] = useState(false);
+  useEffect(() => {
+    if (!showOrders) return;
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(() => setBadgeEnabled(true), { timeout: 2_000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = globalThis.setTimeout(() => setBadgeEnabled(true), 1_500);
+    return () => globalThis.clearTimeout(id);
+  }, [showOrders]);
+  const activeOrderQueries = useQueries({
+    queries: (['pending', 'preparing', 'ready'] as const).map((status) => ({
+      queryKey: ['orders-nav-count', status, locationId],
+      queryFn: () => getOrders({ limit: 1, status, locationId: locationId ?? undefined }),
+      enabled: showOrders && badgeEnabled,
+      staleTime: 60_000,
+      refetchInterval: 60_000,
+    })),
   });
-  const activeOrders = (ordersData?.data ?? []).filter((o) => o.status !== 'done' && o.status !== 'cancelled').length;
+  const activeOrders = activeOrderQueries.reduce((total, query) => total + (query.data?.total ?? 0), 0);
   const badges: Record<string, number> = { '/orders': activeOrders };
 
   return (

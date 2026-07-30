@@ -5,7 +5,6 @@ import {
   Activity,
   AlertTriangle,
   ArrowDownRight,
-  ArrowLeft,
   ArrowUpRight,
   Banknote,
   CalendarDays,
@@ -52,6 +51,7 @@ import {
   toDateInput,
 } from '@/components/people/shared';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { EditorShell } from '@/components/shared/EditorShell';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
@@ -181,37 +181,31 @@ export function EmployeeRecordPage({
     emp?.payType === 'salaried' ? Number(emp.annualSalary ?? 0) / 12 : (hours?.totals.rawHours ?? 0) * Number(emp?.hourlyRate ?? 0);
 
   return (
-    // In-page full-height panel (keeps the app sidebar + header visible). Negative
-    // margins cancel the <main> padding so it fills the content area edge-to-edge.
-    <div className="flex flex-col -m-4 md:-m-8 h-[calc(100vh-var(--header-height))] bg-background">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-4 md:px-8 py-3.5 border-b border-border shrink-0 bg-card">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Back to staff" className="size-11 shrink-0">
-            <ArrowLeft size={20} />
-          </Button>
-          <Avatar name={name} email={member?.email} size="lg" />
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-foreground truncate">{name}</h1>
-            <div className="flex items-center gap-2 mt-0.5">
-              {member && (
-                <span
-                  className={cn(
-                    'text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded',
-                    ROLE_CONFIG[member.role].bg,
-                    ROLE_CONFIG[member.role].text,
-                  )}
-                >
-                  {ROLE_CONFIG[member.role].label}
-                </span>
+    <EditorShell
+      title={name}
+      onClose={onClose}
+      leading={<Avatar name={name} email={member?.email} size="lg" />}
+      meta={
+        <>
+          {member && (
+            <span
+              className={cn(
+                'text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded',
+                ROLE_CONFIG[member.role].bg,
+                ROLE_CONFIG[member.role].text,
               )}
-              {member && !member.isActive && <Badge variant="muted">Inactive</Badge>}
-              {emp && <span className="text-xs text-muted-foreground">{emp.jobTitle}</span>}
-            </div>
-          </div>
-        </div>
-        {member && money && (
-          <div className="flex items-center gap-2 shrink-0">
+            >
+              {ROLE_CONFIG[member.role].label}
+            </span>
+          )}
+          {member && !member.isActive && <Badge variant="muted">Inactive</Badge>}
+          {emp && <span className="text-xs text-muted-foreground">{emp.jobTitle}</span>}
+        </>
+      }
+      actions={
+        member &&
+        money && (
+          <>
             {member.isActive ? (
               <Button variant="outline" onClick={() => setOffboardOpen(true)} className="h-10 text-destructive hover:text-destructive">
                 Offboard
@@ -222,115 +216,116 @@ export function EmployeeRecordPage({
                 Reactivate account
               </Button>
             )}
+          </>
+        )
+      }
+      subheader={
+        <nav className="border-b border-border bg-card px-4 md:px-8 overflow-x-auto shrink-0" aria-label="Employee record sections">
+          <div className="flex min-w-max">
+            {RECORD_SECTIONS.filter((item) => !item.moneyOnly || money).map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setSection(item.value)}
+                  className={cn(
+                    'h-11 px-3 md:px-4 border-b-2 flex items-center gap-2 text-sm font-medium transition-colors',
+                    section === item.value
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
-        )}
-      </div>
-
-      <nav className="border-b border-border bg-card px-4 md:px-8 overflow-x-auto shrink-0" aria-label="Employee record sections">
-        <div className="flex min-w-max">
-          {RECORD_SECTIONS.filter((item) => !item.moneyOnly || money).map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setSection(item.value)}
-                className={cn(
-                  'h-11 px-3 md:px-4 border-b-2 flex items-center gap-2 text-sm font-medium transition-colors',
-                  section === item.value ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
+        </nav>
+      }
+    >
+      {/* Everything on one page: stat tiles, a 2-per-row card grid, then the full-width timesheet. */}
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-24 text-muted-foreground">
+            <Loader2 size={22} className="animate-spin" />
+          </div>
+        ) : isError && !member ? (
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+            <AlertTriangle className="mx-auto text-destructive" />
+            <h2 className="mt-3 font-semibold">Employee record unavailable</h2>
+            <p className="mt-1 text-sm text-muted-foreground">It may have been removed, or you may not have access to it.</p>
+            <Button variant="outline" className="mt-4" onClick={onClose}>
+              Back to staff
+            </Button>
+          </div>
+        ) : (
+          <>
+            {section === 'overview' && (
+              <>
+                {member && <ComplianceSummaryCard member={member} employee={emp ?? null} />}
+                {emp && (
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <Stat icon={Clock} label={`Clocked · ${range.label}`} value={fmtHours(hours?.totals.rawHours ?? 0)} />
+                    {money && (
+                      <Stat
+                        icon={Banknote}
+                        label={emp.payType === 'hourly' ? 'Clocked value' : 'Monthly salary'}
+                        value={fmtMoney(estGross)}
+                      />
+                    )}
+                    <Stat icon={UserRound} label="Employment" value={EMPLOYMENT_CONFIG[emp.employmentType].label} />
+                    <Stat icon={ShieldCheck} label="Started" value={fmtDate(emp.startDate)} />
+                  </div>
                 )}
-              >
-                <Icon size={15} aria-hidden="true" />
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-
-      {/* Body — everything on one page: stat tiles, a 2-per-row card grid, then the full-width timesheet. */}
-      <div className="flex-1 min-h-0 overflow-auto">
-        <div className="max-w-8xl mx-auto p-4 md:p-8 space-y-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-24 text-muted-foreground">
-              <Loader2 size={22} className="animate-spin" />
-            </div>
-          ) : isError && !member ? (
-            <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
-              <AlertTriangle className="mx-auto text-destructive" />
-              <h2 className="mt-3 font-semibold">Employee record unavailable</h2>
-              <p className="mt-1 text-sm text-muted-foreground">It may have been removed, or you may not have access to it.</p>
-              <Button variant="outline" className="mt-4" onClick={onClose}>
-                Back to staff
-              </Button>
-            </div>
-          ) : (
-            <>
-              {section === 'overview' && (
-                <>
-                  {member && <ComplianceSummaryCard member={member} employee={emp ?? null} />}
-                  {emp && (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                      <Stat icon={Clock} label={`Clocked · ${range.label}`} value={fmtHours(hours?.totals.rawHours ?? 0)} />
-                      {money && (
-                        <Stat
-                          icon={Banknote}
-                          label={emp.payType === 'hourly' ? 'Clocked value' : 'Monthly salary'}
-                          value={fmtMoney(estGross)}
-                        />
-                      )}
-                      <Stat icon={UserRound} label="Employment" value={EMPLOYMENT_CONFIG[emp.employmentType].label} />
-                      <Stat icon={ShieldCheck} label="Started" value={fmtDate(emp.startDate)} />
+                <div className="grid lg:grid-cols-2 gap-4 items-start">
+                  {member && <AccessCard member={member} locations={locations} canEdit={money} />}
+                  {emp ? (
+                    <>
+                      <PersonalTab userId={userId} emp={emp} canEdit={money} email={member?.email} />
+                      <EmploymentTab userId={userId} emp={emp} canEditPay={money} />
+                    </>
+                  ) : (
+                    <div className="bg-card border border-dashed border-border rounded-2xl p-6">
+                      <p className="font-medium">Account only</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        This login has no linked employment record. Do not schedule or pay this person until onboarding is completed.
+                      </p>
                     </div>
                   )}
-                  <div className="grid lg:grid-cols-2 gap-4 items-start">
-                    {member && <AccessCard member={member} locations={locations} canEdit={money} />}
-                    {emp ? (
-                      <>
-                        <PersonalTab userId={userId} emp={emp} canEdit={money} email={member?.email} />
-                        <EmploymentTab userId={userId} emp={emp} canEditPay={money} />
-                      </>
-                    ) : (
-                      <div className="bg-card border border-dashed border-border rounded-2xl p-6">
-                        <p className="font-medium">Account only</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          This login has no linked employment record. Do not schedule or pay this person until onboarding is completed.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {section === 'time' && emp && (
-                <>
-                  <div className="grid lg:grid-cols-2 gap-4 items-start">
-                    <WorkPatternCard userId={userId} />
-                    <LeaveAllowanceCard userId={userId} employmentType={emp.employmentType} />
-                  </div>
-                  <AbsenceCard userId={userId} />
-                  <TimesheetCard hours={hours} monthOffset={monthOffset} onMonthChange={setMonthOffset} />
-                </>
-              )}
-
-              {section === 'pay' && emp && money && (
-                <div className="grid lg:grid-cols-2 gap-4 items-start">
-                  <BankTab userId={userId} emp={emp} />
-                  <PayslipsCard userId={userId} />
                 </div>
-              )}
+              </>
+            )}
 
-              {section === 'documents' && member && (
+            {section === 'time' && emp && (
+              <>
                 <div className="grid lg:grid-cols-2 gap-4 items-start">
-                  {money && <EmployeeDocumentsCard userId={userId} />}
-                  <EmployeeTrainingCard userId={userId} tenantId={member.tenantId} />
+                  <WorkPatternCard userId={userId} />
+                  <LeaveAllowanceCard userId={userId} employmentType={emp.employmentType} />
                 </div>
-              )}
+                <AbsenceCard userId={userId} />
+                <TimesheetCard hours={hours} monthOffset={monthOffset} onMonthChange={setMonthOffset} />
+              </>
+            )}
 
-              {section === 'performance' && member && <PerformanceCard userId={userId} />}
-            </>
-          )}
-        </div>
+            {section === 'pay' && emp && money && (
+              <div className="grid lg:grid-cols-2 gap-4 items-start">
+                <BankTab userId={userId} emp={emp} />
+                <PayslipsCard userId={userId} />
+              </div>
+            )}
+
+            {section === 'documents' && member && (
+              <div className="grid lg:grid-cols-2 gap-4 items-start">
+                {money && <EmployeeDocumentsCard userId={userId} />}
+                <EmployeeTrainingCard userId={userId} tenantId={member.tenantId} />
+              </div>
+            )}
+
+            {section === 'performance' && member && <PerformanceCard userId={userId} />}
+          </>
+        )}
       </div>
 
       {/* Portaled modal — centers on the viewport above the record view. */}
@@ -354,7 +349,7 @@ export function EmployeeRecordPage({
           onClose={() => setOffboardOpen(false)}
         />
       )}
-    </div>
+    </EditorShell>
   );
 }
 

@@ -132,6 +132,10 @@ export function Markdown({ content, className }: { content: string; className?: 
       if (SAFE_RESOURCE_URL.test(src)) {
         blocks.push(
           <figure key={`img-${key++}`} className="my-5 overflow-hidden rounded-2xl border border-border bg-muted/30">
+            {/* Course authors may use arbitrary approved HTTPS image hosts.
+                The renderer validates the scheme; Next Image cannot safely
+                predeclare every host without a custom proxy. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={src} alt={image[1]} loading="lazy" className="h-auto w-full object-contain" />
             {image[1] && <figcaption className="border-t border-border px-4 py-2.5 text-xs text-muted-foreground">{image[1]}</figcaption>}
           </figure>,

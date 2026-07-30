@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Archive, ChevronDown, ChevronUp, Eye, Loader2, Plus, Send, Trash2, TriangleAlert } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { CategoryCombobox } from '@/components/shared/CategoryCombobox';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -90,7 +90,7 @@ export function TemplateEditorPage({
   const [savedId, setSavedId] = useState(template?.id ?? null);
 
   // Snapshot of the values this editor opened with — powers the discard guard.
-  const initialSnapshot = useRef(JSON.stringify(form)).current;
+  const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(form));
   const dirty = JSON.stringify(form) !== initialSnapshot;
 
   const { data: variables = [] } = useQuery({ queryKey: ['email-variables'], queryFn: getEmailVariables });
@@ -132,6 +132,7 @@ export function TemplateEditorPage({
     const payload = { ...form, tenantId: tenantId ?? undefined };
     const saved = savedId ? await updateEmailTemplate(savedId, payload) : await createEmailTemplate(payload);
     setSavedId(saved.id);
+    setInitialSnapshot(JSON.stringify(form));
     queryClient.invalidateQueries({ queryKey: ['email-templates'] });
     onSaved?.(saved);
     return saved;

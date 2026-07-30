@@ -16,6 +16,8 @@ interface CheckoutFlowProps {
   queued: boolean;
   /** Attached customer's email — enables the Email receipt option. */
   customerEmail?: string;
+  /** The API currently has no receipt-delivery endpoint. */
+  emailReceiptAvailable?: boolean;
   onSelectMethod: (method: 'cash' | 'card') => void;
   /** Called when the confirmation screen finishes — advances to the receipt step. */
   onConfirmDone: () => void;
@@ -28,7 +30,18 @@ interface CheckoutFlowProps {
  * choice. Covers the whole app (including the header) so the cashier can't
  * wander off mid-payment.
  */
-export function CheckoutFlow({ step, total, isPaying, queued, customerEmail, onSelectMethod, onConfirmDone, onReceipt, onCancel }: CheckoutFlowProps) {
+export function CheckoutFlow({
+  step,
+  total,
+  isPaying,
+  queued,
+  customerEmail,
+  emailReceiptAvailable = false,
+  onSelectMethod,
+  onConfirmDone,
+  onReceipt,
+  onCancel,
+}: CheckoutFlowProps) {
   // Which method button was tapped — drives the spinner on that button only.
   // No reset needed: the spinner requires isPaying too, so a stale value is inert.
   const [tapped, setTapped] = useState<'cash' | 'card' | null>(null);
@@ -87,7 +100,9 @@ export function CheckoutFlow({ step, total, isPaying, queued, customerEmail, onS
 
       {step === 'confirm' && (
         <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center ${queued ? 'bg-warning/15 text-warning' : 'bg-success/15 text-success'}`}>
+          <div
+            className={`w-20 h-20 rounded-full flex items-center justify-center ${queued ? 'bg-warning/15 text-warning' : 'bg-success/15 text-success'}`}
+          >
             {queued ? <CloudUpload size={40} /> : <Check size={40} strokeWidth={3} />}
           </div>
           <p className="text-2xl font-bold text-foreground mt-5">{queued ? 'Order saved offline' : 'Payment complete'}</p>
@@ -105,22 +120,24 @@ export function CheckoutFlow({ step, total, isPaying, queued, customerEmail, onS
               <Button
                 variant="outline"
                 onClick={() => onReceipt('email')}
-                disabled={!customerEmail}
+                disabled={!customerEmail || !emailReceiptAvailable || queued}
                 className="h-28 rounded-2xl flex-col gap-2.5 text-base font-semibold [&_svg]:size-7"
               >
                 <Mail />
                 Email
                 <span className="text-xs font-normal text-muted-foreground truncate max-w-full">
-                  {customerEmail ?? 'No customer email'}
+                  {!emailReceiptAvailable ? 'Coming soon' : queued ? 'Available after sync' : (customerEmail ?? 'No customer email')}
                 </span>
               </Button>
               <Button
                 variant="outline"
                 onClick={() => onReceipt('print')}
+                disabled={queued}
                 className="h-28 rounded-2xl flex-col gap-2.5 text-base font-semibold [&_svg]:size-7"
               >
                 <Printer />
                 Print
+                {queued && <span className="text-xs font-normal text-muted-foreground">Available after sync</span>}
               </Button>
             </div>
             <Button

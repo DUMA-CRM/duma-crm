@@ -97,7 +97,9 @@ export function SetupChecklist({
         <X size={15} />
       </button>
 
-      <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Getting started · {doneCount} of {steps.length} done</p>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
+        Getting started · {doneCount} of {steps.length} done
+      </p>
       <h2 className="mt-1 text-base font-semibold text-foreground">Four steps to your first automatic email</h2>
 
       <ol className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">

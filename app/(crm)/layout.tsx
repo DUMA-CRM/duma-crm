@@ -20,15 +20,14 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
     .map((c) => `${c.name}=${c.value}`)
     .join('; ');
 
-  const session = await getSession(cookieHeader);
+  // Both calls use the same cookie and are independent. Starting them together
+  // removes one full API round trip from the first authenticated render.
+  const [session, profile] = await Promise.all([getSession(cookieHeader), getCurrentStaffProfile()]);
 
   // Session invalid — redirect through the clear-session route handler which
   // deletes the stale cookie before sending the browser to sign-in.
   // (Cookies can't be deleted directly in a Server Component.)
   if (!session) redirect('/api/auth/clear-session');
-
-  // The signed-in user's role drives which nav items they can see.
-  const profile = await getCurrentStaffProfile();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

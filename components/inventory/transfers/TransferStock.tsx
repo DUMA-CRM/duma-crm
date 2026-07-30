@@ -185,7 +185,7 @@ function CreateTransferForm({
   );
 }
 
-/** Batch transfer modal, launched from an item's detail sidebar (item pre-selected). */
+/** Batch transfer modal, launched from an item's detail page (item pre-selected). */
 export function TransferStockModal({
   tenantId,
   locationId,
@@ -204,11 +204,11 @@ export function TransferStockModal({
   );
 }
 
-// ── Per-item transfers list (sidebar section) ─────────────────────────────────────
+// ── Per-item transfers list ───────────────────────────────────────────────────
 
 /**
  * Transfers involving one stock item at its location, with inline complete/cancel
- * for pending ones. Rendered inside the item detail sidebar.
+ * for pending ones. Rendered on the item detail page's Transfers tab.
  */
 export function ItemTransfersSection({ stockItemId, locationId }: { stockItemId: string; locationId: string }) {
   const qc = useQueryClient();

@@ -10,6 +10,7 @@ import {
   MapPin,
   Package,
   Pencil,
+  ShoppingCart,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -269,24 +270,33 @@ function RequestRow({
 
 export function RestockApprovals({
   onCreatePurchaseOrder,
+  onCreatePurchaseOrderBatch,
+  status,
+  onStatusChange,
 }: {
   onCreatePurchaseOrder?: (request: RestockRequest) => void;
+  /** Offered on the approved list when every visible request shares one location. */
+  onCreatePurchaseOrderBatch?: (requests: RestockRequest[]) => void;
+  /** Controlled status filter — omit and the panel keeps its own. */
+  status?: RestockStatus;
+  onStatusChange?: (status: RestockStatus) => void;
 } = {}) {
-  const { tenantId } = useWorkspaceStore();
+  const { tenantId, locationId } = useWorkspaceStore();
   const role = useAuthStore((state) => state.role);
-  const [activeTab, setActiveTab] = useState<RestockStatus>('pending');
-  const [locationFilter, setLocationFilter] = useState('all');
+  const [ownStatus, setOwnStatus] = useState<RestockStatus>('pending');
+  const activeTab = status ?? ownStatus;
+  // Requests are listed across every location — the row carries its own — so the
+  // only narrowing here is by status and item.
   const [itemFilter, setItemFilter] = useState('all');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const canDelete = roleAtLeast(role, 'franchise_owner');
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ['restock-requests', 'list', activeTab, locationFilter, itemFilter, page],
+    queryKey: ['restock-requests', 'list', activeTab, itemFilter, page],
     queryFn: () =>
       getRestockRequests({
         status: activeTab,
-        locationId: locationFilter === 'all' ? undefined : locationFilter,
         stockItemId: itemFilter === 'all' ? undefined : itemFilter,
         page,
         limit: PAGE_SIZE,
@@ -305,12 +315,11 @@ export function RestockApprovals({
   });
 
   const countQueries = useQueries({
-    queries: STATUS_ORDER.map((status) => ({
-      queryKey: ['restock-requests', 'count', status, locationFilter, itemFilter],
+    queries: STATUS_ORDER.map((countStatus) => ({
+      queryKey: ['restock-requests', 'count', countStatus, itemFilter],
       queryFn: () =>
         getRestockRequests({
-          status,
-          locationId: locationFilter === 'all' ? undefined : locationFilter,
+          status: countStatus,
           stockItemId: itemFilter === 'all' ? undefined : itemFilter,
           limit: 1,
         }),
@@ -375,14 +384,16 @@ export function RestockApprovals({
   const requests = data?.data ?? [];
   const totalPages = data?.pages ?? 1;
   const urgentCount = requests.filter((r) => decodeNotes(r.notes).priority === 'urgent').length;
+  // A purchase order belongs to one location, so a batch is the approved requests
+  // for the location picked in the top bar — or all of them when they happen to
+  // share one location already.
+  const batchGroup = requests.filter((r) => (locationId ? r.locationId === locationId : r.locationId === requests[0]?.locationId));
+  const canBatch = activeTab === 'approved' && !!onCreatePurchaseOrderBatch && batchGroup.length > 1;
+  const showBatchBar = activeTab === 'approved' && !!onCreatePurchaseOrderBatch && requests.length > 1;
 
-  function changeTab(status: RestockStatus) {
-    setActiveTab(status);
-    setPage(1);
-  }
-
-  function changeLocation(value: string) {
-    setLocationFilter(value);
+  function changeTab(next: RestockStatus) {
+    if (onStatusChange) onStatusChange(next);
+    else setOwnStatus(next);
     setPage(1);
   }
 
@@ -394,52 +405,36 @@ export function RestockApprovals({
   return (
     <div className="space-y-6 pb-8">
       {/* ── Filters ────────────────────────────────────────── */}
-      <div className="space-y-3 rounded-2xl border border-border bg-card p-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <SegmentedControl
-            options={STATUS_ORDER.map((status) => ({
-              value: status,
-              label: counts[status] > 0 ? `${STATUS_META[status].label} ${counts[status]}` : STATUS_META[status].label,
-            }))}
-            value={activeTab}
-            onChange={changeTab}
-          />
-          {activeTab === 'pending' && urgentCount > 0 && <Badge variant="destructive">{urgentCount} urgent on this page</Badge>}
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,16rem)_minmax(12rem,20rem)_1fr]">
-          <Select
-            value={locationFilter}
-            onValueChange={changeLocation}
-            ariaLabel="Filter requests by location"
-            icon={<MapPin />}
-            options={[
-              { value: 'all', label: 'All locations' },
-              ...locations
-                .slice()
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((location) => ({ value: location.id, label: location.name })),
-            ]}
-            className="w-full"
-          />
-          <Select
-            value={itemFilter}
-            onValueChange={changeItem}
-            ariaLabel="Filter requests by stock item"
-            icon={<Package />}
-            options={[
-              { value: 'all', label: 'All items' },
-              ...stockItems
-                .filter((item) => item.isActive)
-                .slice()
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((item) => ({ value: item.id, label: item.name })),
-            ]}
-            className="w-full"
-          />
-          <div className="flex items-center justify-end text-xs text-muted-foreground">
-            {isFetching && !isLoading ? 'Updating…' : `${data?.total ?? 0} request${data?.total === 1 ? '' : 's'}`}
-          </div>
+      <div className="grid gap-2 rounded-2xl border border-border bg-card p-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,16rem)_minmax(12rem,20rem)_1fr]">
+        <Select
+          value={activeTab}
+          onValueChange={(value) => changeTab(value as RestockStatus)}
+          ariaLabel="Filter requests by status"
+          icon={<ClipboardList />}
+          options={STATUS_ORDER.map((status) => ({
+            value: status,
+            label: counts[status] > 0 ? `${STATUS_META[status].label} (${counts[status]})` : STATUS_META[status].label,
+          }))}
+          className="w-full"
+        />
+        <Select
+          value={itemFilter}
+          onValueChange={changeItem}
+          ariaLabel="Filter requests by stock item"
+          icon={<Package />}
+          options={[
+            { value: 'all', label: 'All items' },
+            ...stockItems
+              .filter((item) => item.isActive)
+              .slice()
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((item) => ({ value: item.id, label: item.name })),
+          ]}
+          className="w-full"
+        />
+        <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+          {activeTab === 'pending' && urgentCount > 0 && <Badge variant="destructive">{urgentCount} urgent</Badge>}
+          {isFetching && !isLoading ? 'Updating…' : `${data?.total ?? 0} request${data?.total === 1 ? '' : 's'}`}
         </div>
       </div>
 
@@ -470,15 +465,30 @@ export function RestockApprovals({
           <div className="py-16 text-center">
             <ClipboardList size={32} className="mx-auto text-muted-foreground/30 mb-3" />
             <p className="text-sm text-muted-foreground">No {STATUS_META[activeTab].label.toLowerCase()} requests.</p>
-            {(locationFilter !== 'all' || itemFilter !== 'all') && (
-              <p className="mt-1 text-xs text-muted-foreground/70">Try changing the location or item filter.</p>
-            )}
-            {activeTab === 'pending' && locationFilter === 'all' && itemFilter === 'all' && (
+            {itemFilter !== 'all' && <p className="mt-1 text-xs text-muted-foreground/70">Try changing the item filter.</p>}
+            {activeTab === 'pending' && itemFilter === 'all' && (
               <p className="text-xs text-muted-foreground/70 mt-1">New requests submitted from the form will appear here.</p>
             )}
           </div>
         ) : (
           <div>
+            {/* One PO for everything approved here — saves raising them one by one */}
+            {showBatchBar && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-primary/5 px-4 py-3">
+                <p className="text-xs text-muted-foreground">
+                  {canBatch
+                    ? `Order the ${batchGroup.length} approved requests for ${locationMap[batchGroup[0].locationId] ?? 'this location'} from one supplier in a single purchase order.`
+                    : 'These requests span several locations. Pick a location in the top bar to combine its requests into one purchase order.'}
+                </p>
+                {canBatch && (
+                  <Button size="sm" onClick={() => onCreatePurchaseOrderBatch?.(batchGroup)} className="shrink-0 gap-1.5">
+                    <ShoppingCart size={13} />
+                    Create one PO
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Table header */}
             <div className="flex items-center gap-4 px-4 py-2.5 bg-muted/50 border-b border-border">
               <div className="w-9 shrink-0" />

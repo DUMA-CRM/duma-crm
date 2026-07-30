@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Input } from '@/components/ui/input';
 
@@ -11,6 +11,25 @@ export default function SignInPage() {
   const { login, isLoading, error } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('reason') !== 'session-expired') return;
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready
+        .then((registration) => {
+          const worker = navigator.serviceWorker.controller ?? registration.active;
+          worker?.postMessage({ type: 'DUMA_CLEAR_USER' });
+        })
+        .catch(() => {});
+    }
+    if ('caches' in window) {
+      void caches
+        .keys()
+        .then((keys) =>
+          Promise.all(keys.filter((key) => key.startsWith('duma-user-') || key.startsWith('duma-pages-')).map((key) => caches.delete(key))),
+        );
+    }
+  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -255,11 +255,20 @@ export interface StockUnit {
 export const getInventoryOverview = (locationId: string) =>
   apiFetch<InventoryOverviewRow[]>(`/inventory/overview?${new URLSearchParams({ locationId })}`);
 
-export const getStockUnits = (params: { locationId?: string; stockItemId?: string; status?: StockUnitStatus; expiringWithinDays?: number } = {}) => {
+export const getStockUnits = (
+  params: {
+    locationId?: string;
+    stockItemId?: string;
+    status?: StockUnitStatus;
+    activeOnly?: boolean;
+    expiringWithinDays?: number;
+  } = {},
+) => {
   const query = new URLSearchParams();
   if (params.locationId) query.set('locationId', params.locationId);
   if (params.stockItemId) query.set('stockItemId', params.stockItemId);
   if (params.status) query.set('status', params.status);
+  if (params.activeOnly !== undefined) query.set('activeOnly', String(params.activeOnly));
   if (params.expiringWithinDays !== undefined) query.set('expiringWithinDays', String(params.expiringWithinDays));
   const qs = query.toString();
   return apiFetch<StockUnit[]>(`/stock-units${qs ? `?${qs}` : ''}`);
@@ -274,6 +283,21 @@ export const receiveStockUnits = (data: {
   units: Array<{ initialQuantity: number; expiryDate?: string | null; lotNumber?: string; label?: string; barcode?: string }>;
   notes?: string;
 }) => apiFetch<StockUnit[]>('/stock-units', { method: 'POST', body: JSON.stringify(data) });
+
+export const combineStockUnits = (data: { stockUnitIds: string[]; label?: string; notes?: string }) =>
+  apiFetch<{ unit: StockUnit; sourceUnitIds: string[] }>('/stock-units/combine', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const splitStockUnit = (
+  id: string,
+  data: { parts: Array<{ quantity: number; label?: string }>; notes?: string },
+) =>
+  apiFetch<{ units: StockUnit[]; sourceStockUnitId: string }>(`/stock-units/${id}/split`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 
 export const adjustStockUnit = (id: string, data: { quantity: number; reason?: string; notes?: string }) =>
   apiFetch<StockUnit>(`/stock-units/${id}/adjust`, { method: 'POST', body: JSON.stringify(data) });

@@ -159,10 +159,17 @@ function borderClasses(borders: DataTableBorders) {
   );
 }
 
-function isInteractiveTarget(target: EventTarget | null) {
-  return (
-    target instanceof Element && Boolean(target.closest('button, a, input, select, textarea, [role="button"], [data-table-stop-row-click]'))
-  );
+/**
+ * True when the event came from a control inside the row (a link, a button, an
+ * input) that owns the interaction itself. `row` is the clickable row: it carries
+ * `role="button"`, so it has to be excluded or it would match itself and every
+ * row click would be ignored.
+ */
+function isInteractiveTarget(target: EventTarget | null, row?: Element | null) {
+  if (!(target instanceof Element)) return false;
+  const hit = target.closest('button, a, input, select, textarea, [role="button"], [data-table-stop-row-click]');
+  if (!hit || hit === row) return false;
+  return row ? row.contains(hit) : true;
 }
 
 function DataTable<T>(props: DataTableProps<T>) {
@@ -347,14 +354,14 @@ function DeclarativeTableContent<T>({
                   onClick={
                     isInteractive
                       ? (event) => {
-                          if (!isInteractiveTarget(event.target)) onRowClick?.(context);
+                          if (!isInteractiveTarget(event.target, event.currentTarget)) onRowClick?.(context);
                         }
                       : undefined
                   }
                   onKeyDown={
                     isInteractive
                       ? (event) => {
-                          if ((event.key === 'Enter' || event.key === ' ') && !isInteractiveTarget(event.target)) {
+                          if ((event.key === 'Enter' || event.key === ' ') && !isInteractiveTarget(event.target, event.currentTarget)) {
                             event.preventDefault();
                             onRowClick?.(context);
                           }

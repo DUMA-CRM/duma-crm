@@ -57,7 +57,8 @@ export interface DraftLine {
 
 export interface PurchaseOrderDraft {
   locationId: string;
-  restockRequestId?: string;
+  /** Restock requests this PO fulfils — all are marked ordered once it is created. */
+  restockRequestIds?: string[];
   notes?: string;
   lines: DraftLine[];
 }
@@ -97,11 +98,17 @@ function CreatePoForm({
       }),
     onSuccess: async () => {
       void qc.invalidateQueries({ queryKey: ['purchase-orders'] });
-      if (draft?.restockRequestId) {
+      const linked = draft?.restockRequestIds ?? [];
+      if (linked.length > 0) {
         try {
-          await updateRestockRequest(draft.restockRequestId, { status: 'fulfilled' });
+          await Promise.all(linked.map((requestId) => updateRestockRequest(requestId, { status: 'fulfilled' })));
           void qc.invalidateQueries({ queryKey: ['restock-requests'] });
-          toast('success', 'Purchase order created and restock demand moved to ordered.');
+          toast(
+            'success',
+            linked.length === 1
+              ? 'Purchase order created and restock demand moved to ordered.'
+              : `Purchase order created — ${linked.length} requests moved to ordered.`,
+          );
         } catch (error) {
           toast('error', error instanceof Error ? error.message : 'Purchase order created, but the demand status could not be updated.');
         }
@@ -529,6 +536,8 @@ export function PurchaseOrdersPanel({
   onCreateOpenChange,
   draft,
   onManageSuppliers,
+  status,
+  onStatusChange,
 }: {
   suppliers: Supplier[];
   locationId: string;
@@ -536,9 +545,13 @@ export function PurchaseOrdersPanel({
   onCreateOpenChange: (open: boolean) => void;
   draft?: PurchaseOrderDraft | null;
   onManageSuppliers?: () => void;
+  /** Controlled status filter — omit and the panel keeps its own. */
+  status?: 'all' | PurchaseOrderStatus;
+  onStatusChange?: (status: 'all' | PurchaseOrderStatus) => void;
 }) {
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | PurchaseOrderStatus>('all');
+  const [ownStatus, setOwnStatus] = useState<'all' | PurchaseOrderStatus>('all');
+  const statusFilter = status ?? ownStatus;
   const [supplierFilter, setSupplierFilter] = useState('all');
   const [page, setPage] = useState(1);
   const { data, isLoading, isFetching } = useQuery({
@@ -561,7 +574,9 @@ export function PurchaseOrdersPanel({
         <Select
           value={statusFilter}
           onValueChange={(value) => {
-            setStatusFilter(value as 'all' | PurchaseOrderStatus);
+            const next = value as 'all' | PurchaseOrderStatus;
+            if (onStatusChange) onStatusChange(next);
+            else setOwnStatus(next);
             setPage(1);
           }}
           options={[
@@ -678,7 +693,7 @@ export function PurchaseOrdersPanel({
       {createOpen && (
         <Modal title="New Purchase Order" onClose={() => onCreateOpenChange(false)} className="max-w-xl">
           <CreatePoForm
-            key={draft?.restockRequestId ?? 'blank'}
+            key={draft?.restockRequestIds?.join(',') ?? 'blank'}
             suppliers={suppliers}
             locationId={draft?.locationId ?? locationId}
             draft={draft}

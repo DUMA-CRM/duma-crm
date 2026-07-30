@@ -1,5 +1,4 @@
 import {
-  Banknote,
   BarChart3,
   Building2,
   CalendarDays,
@@ -40,6 +39,8 @@ export interface NavItem {
 export const mainNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'My HR', href: '/my-hr', icon: HeartHandshake },
+  // Everyone's own rota. The team rota and shift cover live in the staff workspace.
+  { label: 'My Rota', href: '/scheduling', icon: CalendarDays },
   { label: 'Customers', href: '/customers', icon: Users, minRole: 'store_manager' },
   {
     label: 'Communications',
@@ -61,17 +62,9 @@ export const mainNavItems: NavItem[] = [
     ],
   },
   { label: 'Orders', href: '/orders', icon: ShoppingBag, minRole: 'store_manager' },
-  {
-    label: 'Staff',
-    href: '/staff',
-    icon: UsersRound,
-    roles: ['franchise_owner', 'store_manager', 'hr_manager'],
-    children: [
-      { href: '/scheduling', label: 'Schedule', icon: CalendarDays },
-      { href: '/staff/requests', label: 'HR inbox', icon: HeartHandshake, roles: ['franchise_owner', 'hr_manager'] },
-      { href: '/staff/payroll', label: 'Payroll', icon: Banknote, roles: ['franchise_owner', 'hr_manager'] },
-    ],
-  },
+  // One entry: team, rota, shifts, leave, helpdesk and payroll are tabs of the
+  // staff workspace, each on its own route.
+  { label: 'Staff', href: '/staff', icon: UsersRound, roles: ['franchise_owner', 'store_manager', 'hr_manager'] },
   { label: 'Training', href: '/training', icon: GraduationCap },
   { label: 'Workspaces', href: '/workspaces', icon: Building2, minRole: 'franchise_owner' },
 ];

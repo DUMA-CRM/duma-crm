@@ -3,7 +3,7 @@
 // Uses better-auth's standard REST endpoints.
 // The server sets/clears the session cookie automatically — we never touch
 // tokens directly, which keeps the client XSS-safe.
-import { apiFetch } from './client';
+import { ApiError, apiFetch } from './client';
 
 // ---------------------------------------------------------------------------
 // Types — mirrors what better-auth returns on the server.
@@ -90,8 +90,11 @@ export async function revokeOtherSessions(): Promise<void> {
 export async function getSession(cookieHeader?: string): Promise<AuthSession | null> {
   try {
     return await apiFetch<AuthSession>('/auth/get-session', { cookieHeader });
-  } catch {
-    // Any error (401, network, etc.) means no valid session.
-    return null;
+  } catch (error) {
+    // Only an explicit authentication response proves the session is invalid.
+    // Network and server failures must reach the error boundary instead of
+    // deleting a valid cookie and forcing the user to sign in again.
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return null;
+    throw error;
   }
 }

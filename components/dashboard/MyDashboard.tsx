@@ -9,8 +9,8 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
 import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
 
-import { createScheduledShift, getMyScheduledShifts } from '@/lib/api/scheduling.service';
 import { getMyTrainingAssignments } from '@/lib/api/courses.service';
+import { createScheduledShift, getMyScheduledShifts } from '@/lib/api/scheduling.service';
 import { clockIn, getMyShifts } from '@/lib/api/shifts.service';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -104,35 +104,48 @@ export function MyDashboard() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-5 pb-8">
         {/* Greeting + live clock */}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">My day</p>
-            <h1 className="text-2xl md:text-3xl font-semibold text-foreground">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="relative flex size-2" aria-hidden="true">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-50" />
+                <span className="relative inline-flex size-2 rounded-full bg-success" />
+              </span>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">My workday</p>
+            </div>
+            <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground md:text-[32px]">
               {greeting(now.getHours())}
               {user?.name ? `, ${user.name.split(' ')[0]}` : ''}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="mt-1.5 text-sm text-muted-foreground">
               {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <p className="text-4xl font-bold tabular-nums text-foreground tracking-tight">{mounted ? fmtClock(now) : ' '}</p>
+          <div className="flex items-center gap-3 rounded-xl border border-border/80 bg-card px-4 py-2.5 shadow-sm">
+            <Clock size={15} className="text-muted-foreground" aria-hidden="true" />
+            <p className="text-xl font-bold tabular-nums tracking-[-0.03em] text-foreground">{mounted ? fmtClock(now) : ' '}</p>
+          </div>
         </div>
 
         {/* Clock in / out card */}
-        <div className="bg-card border border-border rounded-2xl p-4 md:p-6">
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent),0_10px_32px_color-mix(in_oklab,var(--foreground)_3%,transparent)] md:p-6">
+          <div className="pointer-events-none absolute -right-12 -top-20 size-56 rounded-full bg-primary/8 blur-3xl" aria-hidden="true" />
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4 min-w-0">
+            <div className="relative flex min-w-0 items-center gap-4">
               <div
-                className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}
+                className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${active ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}
               >
-                <Clock size={22} />
+                <Clock size={21} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 {active ? (
                   <>
-                    <p className="text-sm font-semibold text-success">On shift</p>
+                    <div className="flex items-center gap-2">
+                      <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
+                      <p className="text-xs font-bold uppercase tracking-wider text-success">On shift</p>
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       Clocked in at {fmtTime(active.clockedIn)} ·{' '}
                       {fmtDur(Math.max(0, (now.getTime() - new Date(active.clockedIn).getTime()) / 60000))} elapsed
@@ -140,7 +153,7 @@ export function MyDashboard() {
                   </>
                 ) : (
                   <>
-                    <p className="text-sm font-semibold text-foreground">Not clocked in</p>
+                    <p className="text-sm font-semibold text-foreground">Ready to start your shift?</p>
                     <p className="text-sm text-muted-foreground">
                       {locationId ? 'Tap clock in to start your shift.' : 'Select your location in the header to clock in.'}
                     </p>
@@ -153,7 +166,7 @@ export function MyDashboard() {
               <button
                 onClick={() => setClockOutOpen(true)}
                 disabled={busy}
-                className="h-14 px-5 md:px-8 rounded-2xl bg-destructive hover:bg-destructive/90 active:translate-y-px text-white text-base font-bold flex items-center gap-2.5 transition-colors disabled:opacity-60"
+                className="relative flex h-11 items-center gap-2 rounded-xl bg-destructive px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-destructive/90 active:translate-y-px disabled:opacity-60"
               >
                 <LogOut size={20} />
                 Clock Out
@@ -162,7 +175,7 @@ export function MyDashboard() {
               <button
                 onClick={() => clockInM.mutate()}
                 disabled={busy || !locationId}
-                className="h-14 px-5 md:px-8 rounded-2xl bg-primary hover:bg-primary-hover active:translate-y-px text-white text-base font-bold flex items-center gap-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary-hover active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <LogIn size={20} />
                 {clockInM.isPending ? 'Clocking in…' : 'Clock In'}
@@ -173,8 +186,8 @@ export function MyDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* My rota this week */}
-          <section className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+          <section className="flex flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
               <div className="flex items-center gap-2">
                 <CalendarClock size={15} className="text-muted-foreground" />
                 <p className="text-sm font-semibold text-foreground">My rota this week</p>
@@ -212,14 +225,26 @@ export function MyDashboard() {
 
         <Link
           href="/training"
-          className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-surface"
+          className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-sm transition-[border-color,transform] hover:-translate-y-0.5 hover:border-primary/30"
         >
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <BookOpenCheck size={18} aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">{overdueTraining ? `${overdueTraining} overdue training ${overdueTraining === 1 ? 'item' : 'items'}` : openTraining ? `${openTraining} training ${openTraining === 1 ? 'item' : 'items'} to complete` : 'Training and team resources'}</p>
-            <p className="text-xs text-muted-foreground">{overdueTraining ? 'Open your learning plan and catch up.' : openTraining ? 'Continue required courses and practical assessments.' : 'You’re up to date. Explore the course library.'}</p>
+            <p className="text-sm font-semibold text-foreground">
+              {overdueTraining
+                ? `${overdueTraining} overdue training ${overdueTraining === 1 ? 'item' : 'items'}`
+                : openTraining
+                  ? `${openTraining} training ${openTraining === 1 ? 'item' : 'items'} to complete`
+                  : 'Training and team resources'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {overdueTraining
+                ? 'Open your learning plan and catch up.'
+                : openTraining
+                  ? 'Continue required courses and practical assessments.'
+                  : 'You’re up to date. Explore the course library.'}
+            </p>
           </div>
           <span className="text-xs font-semibold text-primary">Open training</span>
         </Link>
@@ -275,7 +300,7 @@ function SuggestShiftCard({
   const valid = !!(locationId && date && start && end && durationMins > 0);
 
   return (
-    <details className="group bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
+    <details className="group flex flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 hover:bg-muted/40">
         <div className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">

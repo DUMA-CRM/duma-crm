@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { Tooltip } from '@/components/shared/Tooltip';
+
 import type { NavItem } from '@/lib/constants/nav';
 import { cn } from '@/lib/utils/cn';
 import { useSidebarStore } from '@/stores/sidebarStore';
@@ -16,18 +17,13 @@ type NavItemProps = NavItem & { badge?: number };
 
 function AccentBar({ className }: { className?: string }) {
   return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        'absolute top-1.5 bottom-1.5 w-0.75 bg-primary rounded-l-sm pointer-events-none',
-        className,
-      )}
-    />
+    <span aria-hidden="true" className={cn('absolute top-1.5 bottom-1.5 w-0.75 bg-primary rounded-l-sm pointer-events-none', className)} />
   );
 }
 
 function CollapsedNavItem({ href, label, icon: Icon, children, badge }: NavItemProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { closeMobile } = useSidebarStore();
 
   const active = isActivePath(pathname, href);
@@ -40,6 +36,9 @@ function CollapsedNavItem({ href, label, icon: Icon, children, badge }: NavItemP
       <Tooltip label={badge ? `${label} (${badge})` : label}>
         <Link
           href={href}
+          prefetch={false}
+          onPointerEnter={() => router.prefetch(href)}
+          onFocus={() => router.prefetch(href)}
           onClick={closeMobile}
           aria-current={parentHighlighted ? 'page' : undefined}
           className={cn(
@@ -70,6 +69,9 @@ function CollapsedNavItem({ href, label, icon: Icon, children, badge }: NavItemP
               <Tooltip key={child.href} label={child.label}>
                 <Link
                   href={child.href}
+                  prefetch={false}
+                  onPointerEnter={() => router.prefetch(child.href)}
+                  onFocus={() => router.prefetch(child.href)}
                   onClick={closeMobile}
                   aria-current={isChildActive ? 'page' : undefined}
                   className={cn(
@@ -93,6 +95,7 @@ function CollapsedNavItem({ href, label, icon: Icon, children, badge }: NavItemP
 
 function ExpandedNavItem({ href, label, icon: Icon, children, badge }: NavItemProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { closeMobile } = useSidebarStore();
 
   const active = isActivePath(pathname, href);
@@ -107,6 +110,9 @@ function ExpandedNavItem({ href, label, icon: Icon, children, badge }: NavItemPr
       <div className="relative">
         <Link
           href={href}
+          prefetch={false}
+          onPointerEnter={() => router.prefetch(href)}
+          onFocus={() => router.prefetch(href)}
           onClick={closeMobile}
           aria-current={parentHighlighted || leafHighlighted ? 'page' : undefined}
           className={cn(
@@ -141,6 +147,9 @@ function ExpandedNavItem({ href, label, icon: Icon, children, badge }: NavItemPr
               <div key={child.href} className="relative">
                 <Link
                   href={child.href}
+                  prefetch={false}
+                  onPointerEnter={() => router.prefetch(child.href)}
+                  onFocus={() => router.prefetch(child.href)}
                   onClick={closeMobile}
                   aria-current={isChildActive ? 'page' : undefined}
                   className={cn(

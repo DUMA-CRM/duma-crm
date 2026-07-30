@@ -15,6 +15,9 @@ import { Button } from '@/components/ui/button';
  *
  * Pass `dirty` for forms with unsaved work — Escape and the back button then ask
  * before discarding, and so does a browser reload.
+ *
+ * Omit `onClose` for top-level pages that aren't drilled into (e.g. My HR): the
+ * back button and the Escape handler drop out, leaving the header/tabs/body shell.
  */
 export function EditorShell({
   eyebrow,
@@ -24,6 +27,8 @@ export function EditorShell({
   meta,
   onClose,
   actions,
+  subheader,
+  flush = false,
   dirty = false,
   discardMessage = 'Your changes have not been saved yet. Leaving now discards them.',
   children,
@@ -36,8 +41,13 @@ export function EditorShell({
   leading?: React.ReactNode;
   /** Badges or status text shown under the title. */
   meta?: React.ReactNode;
-  onClose: () => void;
+  /** Omit on top-level pages — the back button and Escape-to-close are then off. */
+  onClose?: () => void;
   actions?: React.ReactNode;
+  /** Pinned below the header, above the scrolling body (e.g. section tabs). */
+  subheader?: React.ReactNode;
+  /** Give children the full body area with no padding or max width — they own their scrolling (e.g. split panes). */
+  flush?: boolean;
   /** True while the page holds unsaved changes — enables the discard guard. */
   dirty?: boolean;
   discardMessage?: string;
@@ -46,6 +56,7 @@ export function EditorShell({
   const [confirmingClose, setConfirmingClose] = useState(false);
 
   const attemptClose = useCallback(() => {
+    if (!onClose) return;
     if (dirty) {
       setConfirmingClose(true);
       return;
@@ -55,13 +66,14 @@ export function EditorShell({
 
   // Escape goes back — unless a dialog is open, which owns Escape itself.
   useEffect(() => {
+    if (!onClose) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || document.querySelector('[role="dialog"]')) return;
       attemptClose();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [attemptClose]);
+  }, [attemptClose, onClose]);
 
   // Reloading or closing the tab mid-edit gets the browser's own warning.
   useEffect(() => {
@@ -76,9 +88,11 @@ export function EditorShell({
       {/* Header */}
       <div className="flex items-center justify-between gap-3 px-4 md:px-8 py-3.5 border-b border-border shrink-0 bg-card">
         <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={attemptClose} aria-label="Back" className="size-11 shrink-0">
-            <ArrowLeft size={20} />
-          </Button>
+          {onClose && (
+            <Button variant="ghost" size="icon" onClick={attemptClose} aria-label="Back" className="size-11 shrink-0">
+              <ArrowLeft size={20} />
+            </Button>
+          )}
           {leading ??
             (icon && <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">{icon}</div>)}
           <div className="min-w-0">
@@ -90,10 +104,16 @@ export function EditorShell({
         {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
       </div>
 
+      {subheader}
+
       {/* Body */}
-      <div className="flex-1 min-h-0 overflow-auto">
-        <div className="max-w-8xl mx-auto p-4 md:p-8">{children}</div>
-      </div>
+      {flush ? (
+        <div className="flex-1 min-h-0 flex flex-col">{children}</div>
+      ) : (
+        <div className="flex-1 min-h-0 overflow-auto">
+          <div className="max-w-8xl mx-auto p-4 md:p-8">{children}</div>
+        </div>
+      )}
 
       {confirmingClose && (
         <ConfirmModal
@@ -103,7 +123,7 @@ export function EditorShell({
           pendingLabel="Discarding…"
           onConfirm={() => {
             setConfirmingClose(false);
-            onClose();
+            onClose?.();
           }}
           onClose={() => setConfirmingClose(false)}
         />

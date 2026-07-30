@@ -4,9 +4,6 @@ const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:7777';
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  // Bundle this package through Next.js instead of treating it as an external.
-  // Needed because the package's exports map lists index.mjs but only ships index.js.
-  transpilePackages: ['@duma-crm/api-client'],
   // Baseline security headers. (No CSP yet — adding one requires auditing every
   // inline style/script Next emits; do it as a follow-up with report-only first.)
   async headers() {

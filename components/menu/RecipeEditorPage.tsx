@@ -1,12 +1,13 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Flame, Loader2, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
+import { ChefHat, Flame, Loader2, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 
 import { ModifierRecipeEditor } from '@/components/menu/ModifierRecipeEditor';
 import { inputClass, selectClass } from '@/components/menu/shared';
 import { DEFAULT_COL, type SizeColumn, computeRecipeTotals, mergeNutrition, useRecipeDraft } from '@/components/menu/useRecipeDraft';
+import { EditorShell } from '@/components/shared/EditorShell';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -166,36 +167,28 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
   })();
 
   return (
-    // In-page full-height panel (keeps the app sidebar + header visible). Negative
-    // margins cancel the <main> padding so it fills the content area edge-to-edge.
-    <div className="flex flex-col -m-4 md:-m-8 h-[calc(100vh-var(--header-height))] bg-background">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-4 md:px-8 py-3.5 border-b border-border shrink-0 bg-card">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Back to item" className="size-11 shrink-0">
-            <ArrowLeft size={20} />
-          </Button>
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Recipe &amp; Cost</p>
-            <h1 className="text-lg font-semibold text-foreground truncate">
-              {itemName} <span className="text-muted-foreground font-normal">· £{(Number(price) || 0).toFixed(2)}</span>
-            </h1>
-          </div>
-        </div>
+    <EditorShell
+      eyebrow="Recipe & Cost"
+      title={itemName}
+      onClose={onClose}
+      dirty={dirty && !save.isPending}
+      discardMessage="This recipe has unsaved ingredient changes. Leaving now discards them."
+      icon={<ChefHat size={20} aria-hidden="true" />}
+      meta={<span className="text-xs text-muted-foreground">Sells for £{(Number(price) || 0).toFixed(2)}</span>}
+      actions={
         <Button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className="h-11 px-6 shrink-0 gap-2">
           {save.isPending && <Loader2 size={15} className="animate-spin" />}
           {save.isPending ? 'Saving…' : dirty ? 'Save Recipe' : 'Saved'}
         </Button>
-      </div>
-
-      {/* Body */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      }
+    >
+      <>
         {isLoading ? (
           <div className="flex items-center justify-center py-24 text-muted-foreground">
             <Loader2 size={22} className="animate-spin" />
           </div>
         ) : (
-          <div className="max-w-8xl mx-auto p-4 md:p-8 grid lg:grid-cols-[1fr_320px] gap-6 items-start">
+          <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start">
             {/* ── Ingredients ── */}
             <section className="space-y-3 min-w-0">
               <div className="flex items-center justify-between">
@@ -526,15 +519,14 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
             </aside>
           </div>
         )}
-      </div>
 
-      {/* Modifier recipe editor overlay — same grid as the Modifiers tab.
-          Rendered inside this page's stacking context, so it sits on top. */}
-      {editTarget && (
-        <Modal title={`${parseModifierName(editTarget.name).label} — Recipe`} onClose={() => setEditTarget(null)} className="max-w-xl">
-          <ModifierRecipeEditor modifierId={editTarget.id} sizes={sizes.filter((s) => s.id !== editTarget.id)} />
-        </Modal>
-      )}
-    </div>
+        {/* Modifier recipe editor overlay — same grid as the Modifiers tab. */}
+        {editTarget && (
+          <Modal title={`${parseModifierName(editTarget.name).label} — Recipe`} onClose={() => setEditTarget(null)} className="max-w-xl">
+            <ModifierRecipeEditor modifierId={editTarget.id} sizes={sizes.filter((s) => s.id !== editTarget.id)} />
+          </Modal>
+        )}
+      </>
+    </EditorShell>
   );
 }

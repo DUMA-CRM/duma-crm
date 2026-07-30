@@ -1,12 +1,12 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ArrowLeft, CircleDollarSign, Grid2X2, TrendingDown, TrendingUp, Trophy } from 'lucide-react';
+import { AlertTriangle, CircleDollarSign, Grid2X2, TrendingDown, TrendingUp, Trophy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
+import { EditorShell } from '@/components/shared/EditorShell';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Button } from '@/components/ui/button';
 
 import { type TopItemAnalytics, getTopItems } from '@/lib/api/analytics.service';
 import { getMenuItems } from '@/lib/api/menu.service';
@@ -120,12 +120,16 @@ function MarginBadge({ margin }: { margin: number | null }) {
 
 export function TopItemsReportPage() {
   const router = useRouter();
-  const { locationId } = useWorkspaceStore();
+  const { tenantId, locationId } = useWorkspaceStore();
   const [range, setRange] = useState<DashboardRange>('30d');
   const [sortBy, setSortBy] = useState<SortBy>('quantity');
 
   const locationsQuery = useQuery({ queryKey: ['locations-accessible'], queryFn: getLocations });
-  const menuQuery = useQuery({ queryKey: ['menu-items', 'report-performance'], queryFn: getMenuItems });
+  const menuQuery = useQuery({
+    queryKey: ['menu-items', tenantId, 'report-performance'],
+    queryFn: () => getMenuItems(tenantId ?? undefined),
+    enabled: !!tenantId,
+  });
   const locations = locationsQuery.data ?? [];
   const selectedLocation = locations.find((location) => location.id === locationId);
   const activeLocationId = selectedLocation?.id ?? null;
@@ -240,27 +244,13 @@ export function TopItemsReportPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-var(--header-height))] -m-4 flex-col bg-background md:-m-8">
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-3.5 md:px-8">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push('/reports')}
-          aria-label="Back to reports"
-          className="size-11 shrink-0"
-        >
-          <ArrowLeft size={20} />
-        </Button>
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Trophy size={20} aria-hidden="true" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Menu intelligence</p>
-          <h1 className="truncate text-lg font-semibold text-foreground">Menu performance</h1>
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5 md:px-8">
+    <EditorShell
+      eyebrow="Menu intelligence"
+      title="Menu performance"
+      icon={<Trophy size={20} aria-hidden="true" />}
+      onClose={() => router.push('/reports')}
+    >
+      <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <SegmentedControl options={RANGE_OPTIONS} value={range} onChange={setRange} />
           <SegmentedControl
@@ -530,6 +520,6 @@ export function TopItemsReportPage() {
           Contribution comparisons are withheld because current costs cannot represent historical ingredient prices.
         </p>
       </div>
-    </div>
+    </EditorShell>
   );
 }
