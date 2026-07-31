@@ -10,21 +10,34 @@ import {
   CircleDollarSign,
   Download,
   FlaskConical,
+  CreditCard,
+  Gift,
   GitCompareArrows,
   Info,
+  Landmark,
+  Leaf,
+  LibraryBig,
+  LineChart,
+  Megaphone,
   PackageSearch,
   ReceiptText,
   RefreshCw,
+  ShieldCheck,
   Sparkles,
+  Star,
+  Timer,
   TrendingDown,
   TrendingUp,
+  Truck,
   Users,
   UsersRound,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { PageLayout } from '@/components/layout/PageLayout';
+import { EditorShell } from '@/components/shared/EditorShell';
+import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
@@ -58,12 +71,65 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ComparisonChart } from './ComparisonChart';
 
-type WorkspaceView = 'overview' | 'compare';
+export type ReportsTab = 'overview' | 'compare' | 'library';
 type ComparisonMode = 'previous' | 'previous-year' | 'custom';
+type PeriodPreset = '7' | '30' | '90' | 'custom';
 
 const panel = 'rounded-2xl border border-border bg-card';
 const inputClass =
   'h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15';
+
+/** Overview period picker — preset ranges plus a custom from/to. Lives in the page header. */
+function PeriodSelector({
+  preset,
+  dates,
+  onPresetChange,
+  onCustomChange,
+}: {
+  preset: PeriodPreset;
+  dates: { from: string; to: string };
+  onPresetChange: (value: string) => void;
+  onCustomChange: (from: string, to: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      {preset === 'custom' && (
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={dates.from}
+            max={dates.to || undefined}
+            onChange={(event) => onCustomChange(event.target.value, dates.to)}
+            aria-label="From date"
+            className={cn(inputClass, 'h-10 w-38')}
+          />
+          <span className="text-xs text-muted-foreground">to</span>
+          <input
+            type="date"
+            value={dates.to}
+            min={dates.from || undefined}
+            onChange={(event) => onCustomChange(dates.from, event.target.value)}
+            aria-label="To date"
+            className={cn(inputClass, 'h-10 w-38')}
+          />
+        </div>
+      )}
+      <Select
+        value={preset}
+        onValueChange={onPresetChange}
+        options={[
+          { value: '7', label: 'Last 7 days' },
+          { value: '30', label: 'Last 30 days' },
+          { value: '90', label: 'Last 90 days' },
+          { value: 'custom', label: 'Custom range' },
+        ]}
+        ariaLabel="Report period"
+        icon={<CalendarRange size={14} aria-hidden="true" />}
+        className="h-10"
+      />
+    </div>
+  );
+}
 
 function LoadingBlock({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded-xl bg-muted', className)} aria-hidden="true" />;
@@ -332,55 +398,130 @@ const reportPacks = [
     status: 'Available',
     href: '/reports/profitability',
   },
+  {
+    title: 'Marketing and promotions',
+    description: 'Campaign reach, promo redemption, discount cost and incremental revenue lift.',
+    icon: Megaphone,
+    status: 'Coming soon',
+  },
+  {
+    title: 'Financial statements',
+    description: 'Profit and loss, gross margin and cash flow rolled up across locations.',
+    icon: Landmark,
+    status: 'Coming soon',
+  },
+  {
+    title: 'Demand forecasting',
+    description: 'Predicted sales and covers by day and hour to guide prep, ordering and rotas.',
+    icon: LineChart,
+    status: 'Coming soon',
+  },
+  {
+    title: 'Sustainability and waste',
+    description: 'Food-waste footprint, packaging use and energy intensity per cover.',
+    icon: Leaf,
+    status: 'Coming soon',
+  },
+  {
+    title: 'Customer feedback',
+    description: 'Review scores, sentiment trends and response times across channels.',
+    icon: Star,
+    status: 'Coming soon',
+  },
+  {
+    title: 'Payments and settlement',
+    description: 'Tender mix, card fees, refunds, chargebacks and payout reconciliation.',
+    icon: CreditCard,
+    status: 'Coming soon',
+  },
+  {
+    title: 'Speed of service',
+    description: 'Order-to-serve times, KDS throughput and bottlenecks by daypart.',
+    icon: Timer,
+    status: 'Coming soon',
+  },
+  {
+    title: 'Compliance and food safety',
+    description: 'Temperature logs, allergen coverage, stocktake accuracy and audit trails.',
+    icon: ShieldCheck,
+    status: 'Coming soon',
+  },
+  {
+    title: 'Loyalty and rewards',
+    description: 'Points earned and redeemed, reward ROI and member lifetime value.',
+    icon: Gift,
+    status: 'Coming soon',
+  },
+  {
+    title: 'Delivery and channels',
+    description: 'Third-party platform mix, commission cost and channel profitability.',
+    icon: Truck,
+    status: 'Coming soon',
+  },
+  {
+    title: 'Smart alerts and anomalies',
+    description: 'Automatic detection of sales dips, waste spikes and unusual voids or discounts.',
+    icon: Sparkles,
+    status: 'Coming soon',
+  },
 ];
 
 function ReportsOverview({
+  dates,
   timeZone,
   activeLocationId,
   selectedLocationName,
-  onOpenCompare,
 }: {
+  dates: { from: string; to: string };
   timeZone: string;
   activeLocationId: string | null;
   selectedLocationName: string;
-  onOpenCompare: () => void;
 }) {
-  const [days, setDays] = useState(30);
-  const dates = useMemo(() => trailingDateRange(days, timeZone), [days, timeZone]);
-  const previousDates = useMemo(() => previousDateRange(dates.from, dates.to), [dates]);
-  const currentRange = useMemo(() => reportDateRange(dates.from, dates.to, timeZone), [dates, timeZone]);
-  const comparisonRange = useMemo(() => reportDateRange(previousDates.from, previousDates.to, timeZone), [previousDates, timeZone]);
+  const valid = Boolean(dates.from && dates.to && dates.from <= dates.to);
+  const dayCount = valid ? Math.round((new Date(dates.to).getTime() - new Date(dates.from).getTime()) / 86_400_000) + 1 : 0;
+  const previousDates = useMemo(() => (valid ? previousDateRange(dates.from, dates.to) : { from: '', to: '' }), [dates, valid]);
+  const currentRange = useMemo(() => (valid ? reportDateRange(dates.from, dates.to, timeZone) : null), [dates, timeZone, valid]);
+  const comparisonRange = useMemo(
+    () => (valid ? reportDateRange(previousDates.from, previousDates.to, timeZone) : null),
+    [previousDates, timeZone, valid],
+  );
   const scope = activeLocationId ?? 'all';
   const scoped = (range: { from: string; to: string }) => ({ ...range, ...(activeLocationId ? { locationId: activeLocationId } : {}) });
 
   const currentOrders = useQuery({
     queryKey: ['reports-overview-orders', dates.from, dates.to, scope, timeZone],
-    queryFn: () => getOrderAnalytics(scoped(currentRange)),
+    queryFn: () => getOrderAnalytics(scoped(currentRange!)),
+    enabled: valid,
   });
   const comparisonOrders = useQuery({
     queryKey: ['reports-overview-orders-comparison', previousDates.from, previousDates.to, scope, timeZone],
-    queryFn: () => getOrderAnalytics(scoped(comparisonRange)),
+    queryFn: () => getOrderAnalytics(scoped(comparisonRange!)),
+    enabled: valid,
   });
   const currentRetention = useQuery({
     queryKey: ['reports-overview-retention', dates.from, dates.to, scope, timeZone],
-    queryFn: () => getCustomerRetention(scoped(currentRange)),
+    queryFn: () => getCustomerRetention(scoped(currentRange!)),
+    enabled: valid,
   });
   const comparisonRetention = useQuery({
     queryKey: ['reports-overview-retention-comparison', previousDates.from, previousDates.to, scope, timeZone],
-    queryFn: () => getCustomerRetention(scoped(comparisonRange)),
+    queryFn: () => getCustomerRetention(scoped(comparisonRange!)),
+    enabled: valid,
   });
   const topItems = useQuery({
     queryKey: ['reports-overview-top-items', dates.from, dates.to, scope, timeZone],
-    queryFn: () => getTopItems(scoped(currentRange), 10),
+    queryFn: () => getTopItems(scoped(currentRange!), 10),
+    enabled: valid,
   });
   const hourly = useQuery({
     queryKey: ['reports-overview-hourly', dates.from, dates.to, scope, timeZone],
-    queryFn: () => getHourlyVolume(scoped(currentRange)),
+    queryFn: () => getHourlyVolume(scoped(currentRange!)),
+    enabled: valid,
   });
   const locations = useQuery({
     queryKey: ['reports-overview-locations', dates.from, dates.to, timeZone],
-    queryFn: () => getRevenueByLocation(currentRange),
-    enabled: !activeLocationId,
+    queryFn: () => getRevenueByLocation(currentRange!),
+    enabled: valid && !activeLocationId,
   });
 
   const current = buildReportSnapshot(currentOrders.data, currentRetention.data);
@@ -394,6 +535,9 @@ function ReportsOverview({
     void comparisonRetention.refetch();
   };
 
+  if (!valid)
+    return <div className={cn(panel, 'p-8 text-center text-sm text-destructive')}>Choose a valid start and end date for the custom range.</div>;
+
   if (coreError)
     return (
       <div className={panel}>
@@ -402,51 +546,12 @@ function ReportsOverview({
     );
 
   return (
-    <>
-      <section
-        className={cn(
-          panel,
-          'overflow-hidden bg-[linear-gradient(135deg,var(--card),color-mix(in_oklab,var(--primary)_8%,var(--card)))] p-5 md:p-6',
-        )}
-      >
-        <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-          <div className="max-w-2xl">
-            <div className="flex items-center gap-2 text-primary">
-              <Sparkles size={15} aria-hidden="true" />
-              <p className="text-[10px] font-bold uppercase tracking-widest">Business intelligence</p>
-            </div>
-            <h2 className="mt-2 text-2xl font-semibold text-foreground">Understand what changed, where, and why.</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Detailed trading, customer and operational analysis for {selectedLocationName.toLowerCase()}. Compare any supported metric
-              across periods or locations.
-            </p>
-          </div>
-          <Button size="lg" onClick={onOpenCompare} className="shrink-0">
-            <GitCompareArrows size={17} /> Create comparison
-          </Button>
-        </div>
-      </section>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-xl border border-border bg-card p-1" aria-label="Report period">
-          {[7, 30, 90].map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setDays(option)}
-              className={cn(
-                'rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
-                days === option ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted',
-              )}
-            >
-              {option} days
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {shortDateLabel(dates.from)}–{shortDateLabel(dates.to)} · {selectedLocationName}
-        </p>
-      </div>
+    <div className="space-y-4">
+      {/* The period control now lives in the page header; this is the resolved-range caption. */}
+      <p className="text-xs text-muted-foreground">
+        {shortDateLabel(dates.from)}–{shortDateLabel(dates.to)} · compared with the preceding {dayCount === 1 ? 'day' : `${dayCount} days`} ·{' '}
+        {selectedLocationName}
+      </p>
 
       <section aria-label="Key performance metrics" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
@@ -586,57 +691,7 @@ function ReportsOverview({
           <LocationTable rows={locations.data ?? []} loading={locations.isPending && !activeLocationId} />
         )}
       </section>
-
-      <section>
-        <div className="mb-3">
-          <h2 className="text-sm font-semibold text-foreground">Report library</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Current and planned business intelligence areas, separated by data readiness.
-          </p>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {reportPacks.map((item) => {
-            const Icon = item.icon;
-            const content = (
-              <>
-                <div className="flex items-start justify-between gap-3">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Icon size={18} aria-hidden="true" />
-                  </span>
-                  <span
-                    className={cn(
-                      'rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide',
-                      item.status === 'Available'
-                        ? 'bg-success-highlight text-success'
-                        : item.status === 'Partial'
-                          ? 'bg-warning-highlight text-warning'
-                          : 'bg-muted text-muted-foreground',
-                    )}
-                  >
-                    {item.status}
-                  </span>
-                </div>
-                <h3 className="mt-4 text-sm font-semibold text-foreground">{item.title}</h3>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
-              </>
-            );
-            return item.href ? (
-              <Link
-                key={item.title}
-                href={item.href}
-                className={cn(panel, 'group p-4 transition-colors hover:border-primary/35 hover:bg-surface')}
-              >
-                {content}
-              </Link>
-            ) : (
-              <div key={item.title} className={cn(panel, 'p-4')}>
-                {content}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-    </>
+    </div>
   );
 }
 
@@ -1060,8 +1115,21 @@ function ComparisonWorkspace({
   );
 }
 
-export function ReportsWorkspace() {
-  const [view, setView] = useState<WorkspaceView>('overview');
+const REPORTS_TABS: SectionTab<ReportsTab>[] = [
+  { value: 'overview', label: 'Overview', icon: BarChart3 },
+  { value: 'compare', label: 'Compare', icon: GitCompareArrows },
+  { value: 'library', label: 'Library', icon: LibraryBig },
+];
+
+/** Each tab is its own route, so a report view can be linked to and bookmarked. */
+const TAB_PATH: Record<ReportsTab, string> = {
+  overview: '/reports',
+  compare: '/reports/compare',
+  library: '/reports/library',
+};
+
+export function ReportsWorkspace({ tab = 'overview' }: { tab?: ReportsTab }) {
+  const router = useRouter();
   const { locationId } = useWorkspaceStore();
   const locationsQuery = useQuery({ queryKey: ['locations-accessible'], queryFn: getLocations });
   const locations = locationsQuery.data ?? [];
@@ -1070,55 +1138,116 @@ export function ReportsWorkspace() {
   const timeZone = selectedLocation?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'Europe/London';
   const selectedLocationName = selectedLocation?.name ?? 'All accessible locations';
 
-  const header = (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="inline-flex rounded-xl border border-border bg-card p-1" role="tablist" aria-label="Reports view">
-        {[
-          { value: 'overview' as const, label: 'Overview', icon: BarChart3 },
-          { value: 'compare' as const, label: 'Explore & compare', icon: GitCompareArrows },
-        ].map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.value}
-              type="button"
-              role="tab"
-              aria-selected={view === item.value}
-              onClick={() => setView(item.value)}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
-                view === item.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted',
-              )}
-            >
-              <Icon size={14} aria-hidden="true" /> {item.label}
-            </button>
-          );
-        })}
-      </div>
-      <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-        <CalendarRange size={13} aria-hidden="true" /> {selectedLocationName} · {timeZone}
-      </p>
-    </div>
+  // Overview period — lifted here so the picker can live in the page header.
+  const [preset, setPreset] = useState<PeriodPreset>('30');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const overviewDates = useMemo(
+    () => (preset === 'custom' ? { from: customFrom, to: customTo } : trailingDateRange(Number(preset), timeZone)),
+    [preset, customFrom, customTo, timeZone],
   );
+  const changePreset = (value: string) => {
+    if (value === 'custom') {
+      // Seed the custom inputs from the range currently shown so it stays valid.
+      setCustomFrom(overviewDates.from);
+      setCustomTo(overviewDates.to);
+    }
+    setPreset(value as PeriodPreset);
+  };
 
   return (
-    <PageLayout eyebrow="Business intelligence" title="Reports" headerSlot={header}>
+    <EditorShell
+      eyebrow="Business intelligence"
+      title="Reports"
+      icon={<BarChart3 size={20} aria-hidden="true" />}
+      meta={
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <CalendarRange size={12} aria-hidden="true" /> {selectedLocationName} · {timeZone}
+        </span>
+      }
+      actions={
+        tab === 'overview' ? (
+          <PeriodSelector
+            preset={preset}
+            dates={overviewDates}
+            onPresetChange={changePreset}
+            onCustomChange={(from, to) => {
+              setCustomFrom(from);
+              setCustomTo(to);
+            }}
+          />
+        ) : undefined
+      }
+      subheader={
+        <SectionTabs tabs={REPORTS_TABS} value={tab} onChange={(next) => router.push(TAB_PATH[next])} ariaLabel="Reports sections" />
+      }
+    >
       {locationsQuery.isError ? (
         <div className={panel}>
           <ErrorBlock onRetry={() => void locationsQuery.refetch()} />
         </div>
       ) : locationsQuery.isPending ? (
         <LoadingBlock className="h-96" />
-      ) : view === 'overview' ? (
-        <ReportsOverview
-          timeZone={timeZone}
-          activeLocationId={activeLocationId}
-          selectedLocationName={selectedLocationName}
-          onOpenCompare={() => setView('compare')}
-        />
-      ) : (
+      ) : tab === 'overview' ? (
+        <ReportsOverview dates={overviewDates} timeZone={timeZone} activeLocationId={activeLocationId} selectedLocationName={selectedLocationName} />
+      ) : tab === 'compare' ? (
         <ComparisonWorkspace locations={locations} timeZone={timeZone} initialLocationId={activeLocationId} />
+      ) : (
+        <ReportLibrary />
       )}
-    </PageLayout>
+    </EditorShell>
+  );
+}
+
+/** Every report area in one place — the way into the deeper reports. */
+function ReportLibrary() {
+  return (
+    <section>
+      <div className="mb-3">
+        <h2 className="text-sm font-semibold text-foreground">Report library</h2>
+        <p className="mt-1 text-xs text-muted-foreground">Current and planned business intelligence areas, separated by data readiness.</p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {reportPacks.map((item) => {
+          const Icon = item.icon;
+          const content = (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Icon size={18} aria-hidden="true" />
+                </span>
+                <span
+                  className={cn(
+                    'rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide',
+                    item.status === 'Available'
+                      ? 'bg-success-highlight text-success'
+                      : item.status === 'Partial'
+                        ? 'bg-warning-highlight text-warning'
+                        : 'bg-muted text-muted-foreground',
+                  )}
+                >
+                  {item.status}
+                </span>
+              </div>
+              <h3 className="mt-4 text-sm font-semibold text-foreground">{item.title}</h3>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
+            </>
+          );
+          return item.href ? (
+            <Link
+              key={item.title}
+              href={item.href}
+              className={cn(panel, 'group p-4 transition-colors hover:border-primary/35 hover:bg-surface')}
+            >
+              {content}
+            </Link>
+          ) : (
+            <div key={item.title} className={cn(panel, 'p-4')}>
+              {content}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

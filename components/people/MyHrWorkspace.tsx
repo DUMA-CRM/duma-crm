@@ -19,6 +19,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { HelpdeskBoard } from '@/components/helpdesk/HelpdeskBoard';
@@ -72,10 +73,15 @@ const statusVariant = (status: string): 'success' | 'warning' | 'destructive' | 
         ? 'destructive'
         : 'muted';
 
+const TABS: Tab[] = ['overview', 'leave', 'attendance', 'training', 'documents', 'helpdesk'];
+
 export function MyHrWorkspace() {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const [tab, setTab] = useState<Tab>('overview');
+  // `?tab=helpdesk` lets other pages (Support, notifications) link to a section.
+  const searchParams = useSearchParams();
+  const requested = searchParams.get('tab');
+  const [tab, setTab] = useState<Tab>(TABS.includes(requested as Tab) ? (requested as Tab) : 'overview');
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [ticketOpen, setTicketOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);

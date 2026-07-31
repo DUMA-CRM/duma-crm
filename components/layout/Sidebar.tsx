@@ -59,7 +59,7 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
     })),
   });
   const activeOrders = activeOrderQueries.reduce((total, query) => total + (query.data?.total ?? 0), 0);
-  const badges: Record<string, number> = { '/orders': activeOrders };
+  const badges: Record<string, number> = { '/orders': activeOrders, '/kds': activeOrders };
 
   return (
     <>

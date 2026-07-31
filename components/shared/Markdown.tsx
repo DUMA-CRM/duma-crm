@@ -1,8 +1,18 @@
 import { Fragment, type ReactNode } from 'react';
 
-// Minimal, dependency-free Markdown renderer for course descriptions.
-// Supports: # headings, **bold**, *italic*, `code`, [links](url), images,
-// - / 1. lists, > blockquotes, ``` code fences, --- rules, and paragraphs.
+// Minimal, dependency-free Markdown renderer for course descriptions and
+// support articles. Supports: # headings (anchored), **bold**, *italic*,
+// `code`, [links](url), images, - / 1. lists, > blockquotes, ``` code fences,
+// | pipe tables |, --- rules, and paragraphs.
+
+/** Stable id for a heading so articles can link to their own sections. */
+export function headingSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+}
 
 // ── Inline ─────────────────────────────────────────────────────────────────────
 
@@ -153,11 +163,56 @@ export function Markdown({ content, className }: { content: string; className?: 
       const size = level === 1 ? 'text-xl' : level === 2 ? 'text-lg' : 'text-base';
       const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4';
       blocks.push(
-        <Tag key={`h-${key++}`} className={`${size} font-semibold text-foreground mt-2`}>
+        // The id lets an article build its own contents list.
+        <Tag key={`h-${key++}`} id={headingSlug(h[2])} className={`${size} font-semibold text-foreground mt-2 scroll-mt-24`}>
           {renderInline(h[2], `h-${key}`)}
         </Tag>,
       );
       i++;
+      continue;
+    }
+
+    // Pipe table: a header row, a | --- | separator, then body rows.
+    if (line.trim().startsWith('|') && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1] ?? '')) {
+      flushParagraph(para);
+      const cells = (row: string) =>
+        row
+          .trim()
+          .replace(/^\|/, '')
+          .replace(/\|$/, '')
+          .split('|')
+          .map((cell) => cell.trim());
+      const head = cells(line);
+      i += 2;
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) rows.push(cells(lines[i++]));
+      const tableKey = key++;
+      blocks.push(
+        <div key={`table-${tableKey}`} className="my-5 overflow-x-auto rounded-2xl border border-border">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-muted">
+                {head.map((cell, index) => (
+                  <th key={index} className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    {renderInline(cell, `th-${tableKey}-${index}`)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={rowIndex} className="border-t border-border/60">
+                  {row.map((cell, index) => (
+                    <td key={index} className="px-4 py-2.5 align-top text-muted-foreground first:text-foreground first:font-medium">
+                      {renderInline(cell, `td-${tableKey}-${rowIndex}-${index}`)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
       continue;
     }
 

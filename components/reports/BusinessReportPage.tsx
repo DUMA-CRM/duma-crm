@@ -1,11 +1,12 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ArrowLeft, Boxes, PackageSearch, ReceiptText, RefreshCw, TrendingDown, TrendingUp, UsersRound } from 'lucide-react';
+import { AlertTriangle, Boxes, PackageSearch, ReceiptText, RefreshCw, TrendingDown, TrendingUp, UsersRound } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { PageLayout } from '@/components/layout/PageLayout';
+import { EditorShell } from '@/components/shared/EditorShell';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -873,61 +874,47 @@ export function BusinessReportPage({ section }: { section: BusinessReportSection
 
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="inline-flex rounded-xl border border-border bg-card p-1" aria-label="Report period">
-        {[7, 30, 90].map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => setDays(option)}
-            className={cn(
-              'rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
-              days === option ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted',
-            )}
-          >
-            {option} days
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        options={[
+          { value: '7', label: '7 days' },
+          { value: '30', label: '30 days' },
+          { value: '90', label: '90 days' },
+        ]}
+        value={String(days)}
+        onChange={(value) => setDays(Number(value))}
+      />
       <p className="text-xs text-muted-foreground">
-        {shortDateLabel(dates.from)}–{shortDateLabel(dates.to)} · {context.locationName}
+        {shortDateLabel(dates.from)}–{shortDateLabel(dates.to)} · compared with the preceding {days} days · {context.locationName}
       </p>
     </div>
   );
 
   return (
-    <PageLayout
+    <EditorShell
       eyebrow={meta.eyebrow}
       title={meta.title}
-      headerSlot={
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => router.push('/reports')} aria-label="Back to reports">
-              <ArrowLeft size={18} />
-            </Button>
-            <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Icon size={18} aria-hidden="true" />
-            </span>
-            <p className="text-sm text-muted-foreground">{meta.description}</p>
-          </div>
-          {header}
-        </div>
-      }
+      icon={<Icon size={20} aria-hidden="true" />}
+      meta={<span className="text-xs text-muted-foreground">{meta.description}</span>}
+      onClose={() => router.push('/reports/library')}
     >
-      {locationsQuery.isPending ? (
-        <LoadingBlock className="h-96" />
-      ) : locationsQuery.isError ? (
-        <div className={panel}>
-          <ErrorBlock onRetry={() => void locationsQuery.refetch()} />
-        </div>
-      ) : section === 'labour' ? (
-        <LabourReport context={context} />
-      ) : section === 'inventory' ? (
-        <InventoryReport context={context} />
-      ) : section === 'purchasing' ? (
-        <PurchasingReport context={context} />
-      ) : (
-        <ProfitabilityReport context={context} />
-      )}
-    </PageLayout>
+      <div className="space-y-4">
+        {header}
+        {locationsQuery.isPending ? (
+          <LoadingBlock className="h-96" />
+        ) : locationsQuery.isError ? (
+          <div className={panel}>
+            <ErrorBlock onRetry={() => void locationsQuery.refetch()} />
+          </div>
+        ) : section === 'labour' ? (
+          <LabourReport context={context} />
+        ) : section === 'inventory' ? (
+          <InventoryReport context={context} />
+        ) : section === 'purchasing' ? (
+          <PurchasingReport context={context} />
+        ) : (
+          <ProfitabilityReport context={context} />
+        )}
+      </div>
+    </EditorShell>
   );
 }

@@ -1,12 +1,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Award, BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, GraduationCap, ListChecks, Loader2, ShieldCheck } from 'lucide-react';
+import { Award, BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, GraduationCap, ListChecks, Loader2, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
-import { PageLayout } from '@/components/layout/PageLayout';
+import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Markdown } from '@/components/shared/Markdown';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { toast } from '@/stores/toastStore';
 
 export default function CourseWatchPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const id = params.id;
   const qc = useQueryClient();
   const [signoffNotes, setSignoffNotes] = useState('');
@@ -66,29 +67,23 @@ export default function CourseWatchPage() {
   });
 
   return (
-    <PageLayout
+    <EditorShell
       eyebrow="Training"
       title={course?.title ?? 'Course'}
-      fullHeight
-      headerBorder={false}
-      headerSlot={
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/training"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft size={15} />
-            Back to Training
-          </Link>
-          {course?.category && <Badge variant="primary">{course.category}</Badge>}
-          {course?.isMandatory && <Badge variant="warning">Mandatory</Badge>}
-          {course?.completed && <Badge variant="success">Completed</Badge>}
-          {course && (
+      icon={<GraduationCap size={20} aria-hidden="true" />}
+      onClose={() => router.push('/training')}
+      meta={
+        course && (
+          <>
+            {course.category && <Badge variant="primary">{course.category}</Badge>}
+            {course.isMandatory && <Badge variant="warning">Mandatory</Badge>}
+            {course.completed && <Badge variant="success">Completed</Badge>}
             <span className="text-xs text-muted-foreground">
-              <Clock3 size={13} className="inline mr-1" />{course.estimatedMinutes} min · Lesson {currentIndex >= 0 ? currentIndex + 1 : 1} of {curriculum.length || 1}
+              <Clock3 size={13} className="inline mr-1" />
+              {course.estimatedMinutes} min · Lesson {currentIndex >= 0 ? currentIndex + 1 : 1} of {curriculum.length || 1}
             </span>
-          )}
-        </div>
+          </>
+        )
       }
     >
       {isLoading ? (
@@ -170,6 +165,6 @@ export default function CourseWatchPage() {
           </aside>
         </div>
       )}
-    </PageLayout>
+    </EditorShell>
   );
 }

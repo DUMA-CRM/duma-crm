@@ -25,12 +25,14 @@ import {
   X,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { PageLayout } from '@/components/layout/PageLayout';
 import { ROLES, ROLE_CONFIG } from '@/components/people/shared';
+import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
+import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
 import { LessonContentEditor } from '@/components/training/LessonContentEditor';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,7 +64,17 @@ import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-type Tab = 'learning' | 'courses' | 'compliance';
+export type TrainingTab = 'learning' | 'courses' | 'compliance';
+
+/** Each tab is its own route, so a tab can be linked to and the back button works. */
+const TAB_PATH: Record<TrainingTab, string> = {
+  learning: '/training',
+  courses: '/training/courses',
+  compliance: '/training/compliance',
+};
+
+type CourseModal = { type: 'create' } | { type: 'edit' | 'assign' | 'archive'; course: Course } | null;
+
 const inp =
   'w-full h-10 bg-background border border-border rounded-lg px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
 const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
@@ -84,74 +96,90 @@ const statusVariant = (status: TrainingStatus): 'muted' | 'warning' | 'success' 
         ? 'primary'
         : 'muted';
 
-export function TrainingWorkspace() {
+export function TrainingWorkspace({ tab = 'learning' }: { tab?: TrainingTab }) {
+  const router = useRouter();
   const role = useAuthStore((state) => state.role);
   const { tenantId } = useWorkspaceStore();
   const manager = !!role && ['super_admin', 'franchise_owner', 'store_manager', 'hr_manager'].includes(role);
-  const [tab, setTab] = useState<Tab>('learning');
+  // Owned here so the primary action can live in the shell header.
+  const [courseModal, setCourseModal] = useState<CourseModal>(null);
+
+  // Tab badges: what the viewer still owes, and what is waiting on a manager.
+  const { data: assignments = [] } = useQuery({ queryKey: ['training-assignments-me'], queryFn: getMyTrainingAssignments });
+  const { data: signoffs = [] } = useQuery({ queryKey: ['training-signoffs'], queryFn: getTrainingSignoffs, enabled: manager });
+  const { data: compliance } = useQuery({
+    queryKey: ['training-compliance', tenantId],
+    queryFn: () => getTrainingCompliance(tenantId!),
+    enabled: manager && !!tenantId,
+  });
+
+  const outstanding = assignments.filter((item) => item.status !== 'completed').length;
+  const overdueMine = assignments.filter((item) => item.status === 'overdue').length;
+  const pendingSignoffs = signoffs.filter((item) => item.status === 'pending').length;
+  const overdueTeam = compliance?.summary.overdue ?? 0;
+
+  const tabs = useMemo<SectionTab<TrainingTab>[]>(() => {
+    const list: SectionTab<TrainingTab>[] = [
+      {
+        value: 'learning',
+        label: 'My learning',
+        icon: BookOpen,
+        count: outstanding,
+        countTone: overdueMine > 0 ? 'danger' : 'default',
+        countLabel: overdueMine > 0 ? `${overdueMine} overdue` : `${outstanding} still to complete`,
+      },
+    ];
+    if (manager) {
+      list.push({
+        value: 'courses',
+        label: 'Lessons',
+        icon: LayoutGrid,
+        count: pendingSignoffs,
+        countTone: 'danger',
+        countLabel: `${pendingSignoffs} sign-offs awaiting review`,
+      });
+      list.push({
+        value: 'compliance',
+        label: 'Compliance',
+        icon: ShieldCheck,
+        count: overdueTeam,
+        countTone: 'danger',
+        countLabel: `${overdueTeam} overdue across the team`,
+      });
+    }
+    return list;
+  }, [manager, outstanding, overdueMine, pendingSignoffs, overdueTeam]);
+
+  // A manager-only tab reached without the role falls back to your own learning.
+  const active: TrainingTab = tab !== 'learning' && !manager ? 'learning' : tab;
+
   return (
-    <PageLayout
+    <EditorShell
       eyebrow="Learning & compliance"
       title="Training"
-      fullHeight
-      headerBorder={false}
-      headerSlot={
-        <div className="flex gap-1 overflow-x-auto">
-          <TabButton active={tab === 'learning'} onClick={() => setTab('learning')} icon={BookOpen}>
-            My learning
-          </TabButton>
-          {manager && (
-            <>
-              <TabButton active={tab === 'courses'} onClick={() => setTab('courses')} icon={LayoutGrid}>
-                Manage courses
-              </TabButton>
-              <TabButton active={tab === 'compliance'} onClick={() => setTab('compliance')} icon={ShieldCheck}>
-                Compliance
-              </TabButton>
-            </>
-          )}
-        </div>
+      icon={<GraduationCap size={20} aria-hidden="true" />}
+      actions={
+        active === 'courses' ? (
+          <Button className="h-10 gap-1.5" onClick={() => setCourseModal({ type: 'create' })}>
+            <Plus size={15} />
+            <span className="hidden md:inline">New lesson</span>
+          </Button>
+        ) : undefined
       }
+      subheader={<SectionTabs tabs={tabs} value={active} onChange={(next) => router.push(TAB_PATH[next])} ariaLabel="Training sections" />}
     >
-      <div className="max-w-[1500px] mx-auto pb-8">
-        {!tenantId ? (
-          <div className="py-24">
-            <EmptyState icon={GraduationCap} title="No workspace selected" description="Select a workspace to view training." />
-          </div>
-        ) : tab === 'learning' ? (
-          <LearningView tenantId={tenantId} />
-        ) : tab === 'courses' ? (
-          <CourseManagement tenantId={tenantId} />
-        ) : (
-          <ComplianceView tenantId={tenantId} />
-        )}
-      </div>
-    </PageLayout>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  icon: Icon,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: typeof BookOpen;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'h-9 px-3 rounded-lg inline-flex items-center gap-2 text-sm font-semibold whitespace-nowrap transition-colors',
-        active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+      {!tenantId ? (
+        <div className="py-24">
+          <EmptyState icon={GraduationCap} title="No workspace selected" description="Select a workspace to view training." />
+        </div>
+      ) : active === 'learning' ? (
+        <LearningView tenantId={tenantId} />
+      ) : active === 'courses' ? (
+        <CourseManagement tenantId={tenantId} modal={courseModal} setModal={setCourseModal} />
+      ) : (
+        <ComplianceView tenantId={tenantId} />
       )}
-    >
-      <Icon size={15} />
-      {children}
-    </button>
+    </EditorShell>
   );
 }
 
@@ -475,9 +503,8 @@ function LearningPathCard({
   );
 }
 
-function CourseManagement({ tenantId }: { tenantId: string }) {
+function CourseManagement({ tenantId, modal, setModal }: { tenantId: string; modal: CourseModal; setModal: (modal: CourseModal) => void }) {
   const qc = useQueryClient();
-  const [modal, setModal] = useState<{ type: 'create' } | { type: 'edit' | 'assign' | 'archive'; course: Course } | null>(null);
   const { data: courses = [], isLoading } = useQuery({ queryKey: ['courses', tenantId], queryFn: () => getCourses(tenantId) });
   const { data: signoffs = [] } = useQuery({ queryKey: ['training-signoffs'], queryFn: getTrainingSignoffs });
   const review = useMutation({
@@ -492,13 +519,8 @@ function CourseManagement({ tenantId }: { tenantId: string }) {
   });
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <SectionTitle title="Lesson management" description="Create lessons, organize them into learning paths, and assign training." />
-        <Button onClick={() => setModal({ type: 'create' })}>
-          <Plus />
-          New lesson
-        </Button>
-      </div>
+      {/* “New lesson” lives in the page header, next to the tabs. */}
+      <SectionTitle title="Lesson management" description="Create lessons, organize them into learning paths, and assign training." />
       {signoffs.length > 0 && (
         <section className="rounded-2xl border border-warning/30 bg-warning/5 overflow-hidden">
           <div className="px-5 py-4 border-b border-warning/20">

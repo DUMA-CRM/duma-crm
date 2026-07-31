@@ -174,7 +174,6 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
       dirty={dirty && !save.isPending}
       discardMessage="This recipe has unsaved ingredient changes. Leaving now discards them."
       icon={<ChefHat size={20} aria-hidden="true" />}
-      meta={<span className="text-xs text-muted-foreground">Sells for £{(Number(price) || 0).toFixed(2)}</span>}
       actions={
         <Button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className="h-11 px-6 shrink-0 gap-2">
           {save.isPending && <Loader2 size={15} className="animate-spin" />}
