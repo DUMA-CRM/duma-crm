@@ -13,6 +13,7 @@ import {
   Monitor,
   Package,
   Settings,
+  ShieldCheck,
   ShoppingBag,
   Truck,
   Users,
@@ -41,7 +42,13 @@ export const mainNavItems: NavItem[] = [
   { label: 'My HR', href: '/my-hr', icon: HeartHandshake },
   // Everyone's own rota. The team rota and shift cover live in the staff workspace.
   { label: 'My Rota', href: '/scheduling', icon: CalendarDays },
-  { label: 'Customers', href: '/customers', icon: Users, minRole: 'store_manager' },
+  {
+    label: 'Customers',
+    href: '/customers',
+    icon: Users,
+    minRole: 'store_manager',
+    children: [{ href: '/customers/privacy', label: 'Privacy requests', icon: ShieldCheck, minRole: 'store_manager' }],
+  },
   {
     label: 'Communications',
     href: '/communications',

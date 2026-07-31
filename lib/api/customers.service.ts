@@ -30,3 +30,24 @@ export const adjustPoints = (id: string, delta: number, reason?: string) =>
     method: 'PATCH',
     body: JSON.stringify({ delta, ...(reason ? { reason } : {}) }),
   });
+
+export type MarketingPreferenceStatus = 'opted_in' | 'opted_out' | 'suppressed';
+export interface MarketingConsentEvent {
+  id: string;
+  action: MarketingPreferenceStatus;
+  source: string;
+  reason?: string | null;
+  occurredAt: string;
+}
+export interface MarketingPreferences {
+  marketingOptIn: boolean;
+  emailUnsubscribedAt?: string | null;
+  suppression?: { id: string; reason: string; source: string; maskedValue: string; createdAt: string } | null;
+  history: MarketingConsentEvent[];
+}
+
+export const getMarketingPreferences = (id: string) => apiFetch<MarketingPreferences>(`/customers/${id}/marketing-preferences`);
+export const updateMarketingPreferences = (
+  id: string,
+  data: { status: MarketingPreferenceStatus; source: string; reason?: string },
+) => apiFetch<Customer>(`/customers/${id}/marketing-preferences`, { method: 'PATCH', body: JSON.stringify(data) });

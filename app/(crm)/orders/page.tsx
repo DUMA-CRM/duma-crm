@@ -47,8 +47,12 @@ import {
   type OrderDetail as OrderDetailType,
   type OrderSource,
   type OrderStatus,
+  type RefundReason,
+  type VoidReason,
+  createRefund,
   getOrder,
   getOrders,
+  getRefundOptions,
   updateOrderStatus,
 } from '@/lib/api/orders.service';
 import { getStaff } from '@/lib/api/staff.service';
@@ -119,6 +123,24 @@ const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
 
 const LIVE_STATUSES: OrderStatus[] = ['pending', 'preparing', 'ready'];
 
+const VOID_REASON_OPTIONS: SelectOption[] = [
+  { value: 'customer_request', label: 'Customer requested cancellation' },
+  { value: 'duplicate', label: 'Duplicate order' },
+  { value: 'payment_failed', label: 'Payment failed' },
+  { value: 'item_unavailable', label: 'Item unavailable' },
+  { value: 'staff_error', label: 'Staff entry error' },
+  { value: 'other', label: 'Other' },
+];
+
+const REFUND_REASON_OPTIONS: SelectOption[] = [
+  { value: 'customer_request', label: 'Customer request' },
+  { value: 'item_issue', label: 'Item issue' },
+  { value: 'service_issue', label: 'Service issue' },
+  { value: 'duplicate_charge', label: 'Duplicate charge' },
+  { value: 'pricing_error', label: 'Pricing error' },
+  { value: 'other', label: 'Other' },
+];
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function initialPage(value: string | null) {
@@ -176,11 +198,15 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
 function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boolean }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState<VoidReason>('customer_request');
+  const [voidNotes, setVoidNotes] = useState('');
   const s = STATUS_CONFIG[order.status];
   const nexts = NEXT_STATUSES[order.status];
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (status: OrderStatus) => updateOrderStatus(order.id, status),
+    mutationFn: ({ status, details }: { status: OrderStatus; details?: { voidReason: VoidReason; voidNotes?: string } }) =>
+      updateOrderStatus(order.id, status, details),
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['orders-all'] });
@@ -194,6 +220,7 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
         );
       }
       setOpen(false);
+      setVoidOpen(false);
     },
     onError: (err) => toast('error', err.message || 'Failed to update the order status.'),
   });
@@ -215,6 +242,7 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
   if (nexts.length === 0) return badge;
 
   return (
+    <>
     <div
       className="relative"
       onKeyDown={(e) => {
@@ -255,7 +283,12 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
                   key={next}
                   onClick={(e) => {
                     e.stopPropagation();
-                    mutate(next);
+                    if (next === 'cancelled') {
+                      setOpen(false);
+                      setVoidOpen(true);
+                    } else {
+                      mutate({ status: next });
+                    }
                   }}
                   className={cn(
                     'w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold hover:bg-muted transition-colors text-left',
@@ -271,6 +304,25 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
         </>
       )}
     </div>
+    {voidOpen && (
+      <Modal title="Void order" onClose={() => setVoidOpen(false)}>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">Choose the reason for cancelling order #{order.id.slice(0, 8).toUpperCase()}.</p>
+          <Select value={voidReason} onValueChange={(value) => setVoidReason(value as VoidReason)} options={VOID_REASON_OPTIONS} ariaLabel="Void reason" className="w-full" />
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Notes</span>
+            <textarea value={voidNotes} onChange={(event) => setVoidNotes(event.target.value)} maxLength={500} placeholder="Optional context for the audit trail…" className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
+          </label>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setVoidOpen(false)} disabled={isPending} className="flex-1">Keep order</Button>
+            <Button variant="destructive" onClick={() => mutate({ status: 'cancelled', details: { voidReason, voidNotes: voidNotes.trim() || undefined } })} disabled={isPending} className="flex-1">
+              {isPending ? 'Voiding…' : 'Void order'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    )}
+    </>
   );
 }
 
@@ -338,6 +390,89 @@ function formatDuration(ms: number) {
   const h = Math.floor(m / 60);
   const remM = m % 60;
   return remM > 0 ? `${h} hr ${remM} min` : `${h} hr`;
+}
+
+function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; refundable: number; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { data: options, isLoading } = useQuery({ queryKey: ['refund-options', order.id], queryFn: () => getRefundOptions(order.id) });
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [reason, setReason] = useState<RefundReason>('customer_request');
+  const [notes, setNotes] = useState('');
+  const amountNumber = (options?.items ?? []).reduce((total, item) => {
+    total += item.base.unitAmounts.slice(0, quantities[`item:${item.id}`] ?? 0).reduce((sum, value) => sum + Number(value), 0);
+    for (const modifier of item.modifiers) total += modifier.unitAmounts.slice(0, quantities[`modifier:${modifier.id}`] ?? 0).reduce((sum, value) => sum + Number(value), 0);
+    return total;
+  }, 0);
+  const lines = (options?.items ?? []).flatMap((item) => [
+    ...((quantities[`item:${item.id}`] ?? 0) > 0 ? [{ orderItemId: item.id, quantity: quantities[`item:${item.id}`] }] : []),
+    ...item.modifiers.flatMap((modifier) => (quantities[`modifier:${modifier.id}`] ?? 0) > 0
+      ? [{ orderItemId: item.id, orderItemModifierId: modifier.id, quantity: quantities[`modifier:${modifier.id}`] }]
+      : []),
+  ]);
+  function setQuantity(key: string, value: number, max: number) {
+    setQuantities((current) => ({ ...current, [key]: Math.max(0, Math.min(max, Math.floor(value || 0))) }));
+  }
+  function toggleWholeItem(item: NonNullable<typeof options>['items'][number]) {
+    setQuantities((current) => {
+      const next = { ...current };
+      const selecting = !(current[`item:${item.id}`] > 0);
+      next[`item:${item.id}`] = selecting ? item.base.remainingQuantity : 0;
+      item.modifiers.forEach((modifier) => { next[`modifier:${modifier.id}`] = selecting ? modifier.remainingQuantity : 0; });
+      return next;
+    });
+  }
+  const refund = useMutation({
+    mutationFn: () => createRefund(order.id, { lines, reason, notes: notes.trim() || undefined }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['order', order.id] });
+      void qc.invalidateQueries({ queryKey: ['orders'] });
+      void qc.invalidateQueries({ queryKey: ['customer-visits'] });
+      toast('success', `${Math.abs(amountNumber - refundable) < 0.001 ? 'Full' : 'Partial'} refund recorded.`);
+      onClose();
+    },
+    onError: (error) => toast('error', error.message || 'Could not record the refund.'),
+  });
+  return (
+    <Modal title="Record refund" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="rounded-xl border border-border bg-surface-offset p-3 text-sm">
+          <div className="flex justify-between"><span className="text-muted-foreground">Order total</span><span>£{Number(order.totalAmount).toFixed(2)}</span></div>
+          <div className="mt-1 flex justify-between font-semibold"><span>Available to refund</span><span>£{refundable.toFixed(2)}</span></div>
+        </div>
+        <div className="max-h-[45vh] space-y-3 overflow-y-auto pr-1">
+          {isLoading && <p className="text-sm text-muted-foreground">Loading refundable items…</p>}
+          {options?.items.map((item) => (
+            <div key={item.id} className="rounded-xl border border-border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <label className="flex min-w-0 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={(quantities[`item:${item.id}`] ?? 0) > 0} disabled={item.base.remainingQuantity === 0} onChange={() => toggleWholeItem(item)} /> <span className="truncate">{item.name}</span></label>
+                <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">Base qty</span><input aria-label={`${item.name} refund quantity`} className="h-8 w-16 rounded-md border border-border bg-background px-2 text-sm" type="number" min={0} max={item.base.remainingQuantity} value={quantities[`item:${item.id}`] ?? 0} onChange={(event) => setQuantity(`item:${item.id}`, Number(event.target.value), item.base.remainingQuantity)} /></div>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">Up to {item.base.remainingQuantity} · £{Number(item.base.remainingAmount).toFixed(2)} paid value</p>
+              {item.modifiers.length > 0 && <div className="mt-3 space-y-2 border-t border-border pt-2">{item.modifiers.map((modifier) => (
+                <div key={modifier.id} className="flex items-center justify-between gap-3 pl-4">
+                  <label className="flex min-w-0 items-center gap-2 text-xs"><input type="checkbox" checked={(quantities[`modifier:${modifier.id}`] ?? 0) > 0} disabled={modifier.remainingQuantity === 0} onChange={() => setQuantity(`modifier:${modifier.id}`, (quantities[`modifier:${modifier.id}`] ?? 0) > 0 ? 0 : modifier.remainingQuantity, modifier.remainingQuantity)} /> <span className="truncate">+ {modifier.name} (£{Number(modifier.remainingAmount).toFixed(2)})</span></label>
+                  <input aria-label={`${modifier.name} refund quantity`} className="h-7 w-16 rounded-md border border-border bg-background px-2 text-xs" type="number" min={0} max={modifier.remainingQuantity} value={quantities[`modifier:${modifier.id}`] ?? 0} onChange={(event) => setQuantity(`modifier:${modifier.id}`, Number(event.target.value), modifier.remainingQuantity)} />
+                </div>
+              ))}</div>}
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-between rounded-xl bg-primary/8 px-3 py-2 text-sm font-bold"><span>Refund total</span><span>£{amountNumber.toFixed(2)}</span></div>
+        <Select value={reason} onValueChange={(value) => setReason(value as RefundReason)} options={REFUND_REASON_OPTIONS} ariaLabel="Refund reason" className="w-full" />
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Notes</span>
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={500} placeholder="How and where the money was returned…" className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
+        </label>
+        <p className="text-xs text-muted-foreground">The refund is recorded in the internal ledger. Payment execution is a placeholder until a terminal or provider is connected.</p>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onClose} disabled={refund.isPending} className="flex-1">Cancel</Button>
+          <Button onClick={() => refund.mutate()} disabled={refund.isPending || lines.length === 0 || amountNumber <= 0 || amountNumber > refundable + 0.001} className="flex-1">
+            {refund.isPending ? 'Recording…' : 'Record refund'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
 }
 
 // ── Receipt modal ──────────────────────────────────────────────────────────────
@@ -411,6 +546,7 @@ function ReceiptModal({ orderId, apiBase, onClose }: { orderId: string; apiBase:
 function OrderDetailPanel({ orderId }: { orderId: string }) {
   const [showReceipt, setShowReceipt] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
 
   const { data, isLoading } = useQuery<OrderDetailType>({
     queryKey: ['order', orderId],
@@ -428,6 +564,8 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
   }
 
   const history = data.statusHistory ?? [];
+  const refundedAmount = (data.refunds ?? []).reduce((sum, refund) => sum + Number(refund.amount), 0);
+  const refundableAmount = Math.max(0, Number(data.totalAmount) - refundedAmount);
 
   return (
     <div className="flex flex-col lg:flex-row gap-5">
@@ -453,6 +591,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
               <div className="flex justify-between gap-2">
                 <span className="text-[11px] text-foreground">
                   <span className="text-muted-foreground">{item.quantity}×</span> {item.name}
+                  {item.refundStatus && item.refundStatus !== 'none' && <span className="ml-1 text-[9px] font-bold uppercase text-destructive">{item.refundStatus.replace('_', ' ')}</span>}
                 </span>
                 <span className="text-[11px] font-semibold tabular-nums shrink-0">£{parseFloat(item.subtotal).toFixed(2)}</span>
               </div>
@@ -461,6 +600,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                   {item.modifiers.map((m, i) => (
                     <div key={i} className="flex justify-between gap-2">
                       <span className="text-[10px] text-muted-foreground">+ {m.name}</span>
+                      {m.refundStatus && m.refundStatus !== 'none' && <span className="text-[9px] font-bold uppercase text-destructive">{m.refundStatus.replace('_', ' ')}</span>}
                       {parseFloat(m.priceAdjust) !== 0 && (
                         <span className="text-[10px] text-muted-foreground tabular-nums">£{parseFloat(m.priceAdjust).toFixed(2)}</span>
                       )}
@@ -487,6 +627,12 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
             <span>Total</span>
             <span className="tabular-nums">£{parseFloat(data.totalAmount).toFixed(2)}</span>
           </div>
+          {refundedAmount > 0 && (
+            <div className="flex justify-between text-[11px] font-semibold text-destructive">
+              <span>Refunded</span>
+              <span className="tabular-nums">−£{refundedAmount.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
             <span>Payment</span>
             <span className="inline-flex items-center gap-1">
@@ -577,9 +723,24 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
               {data.customerId && <InfoRow icon={User} label="Customer ID" value={data.customerId} copyable />}
               <InfoRow icon={User} label="Staff ID" value={data.createdBy} copyable />
               <InfoRow icon={MapPin} label="Location ID" value={data.locationId} copyable />
+              {data.voidReason && <InfoRow icon={XCircle} label="Void reason" value={optionLabel(VOID_REASON_OPTIONS, data.voidReason)} />}
             </InfoGroup>
           </div>
         </div>
+
+        {(data.refunds?.length ?? 0) > 0 && (
+          <div>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Refund history</p>
+            <div className="space-y-2">
+              {data.refunds!.map((refund) => (
+                <div key={refund.id} className="flex items-center justify-between rounded-xl border border-border bg-surface-offset px-3 py-2 text-xs">
+                  <div><p className="font-semibold text-foreground">{optionLabel(REFUND_REASON_OPTIONS, refund.reason)}</p><p className="text-muted-foreground">{new Date(refund.createdAt).toLocaleString('en-GB')} · {refund.kind} · internal ledger</p>{refund.lines?.map((line) => <p key={line.id} className="mt-0.5 text-muted-foreground">{line.quantity}× {line.name} · £{Number(line.amount).toFixed(2)}</p>)}</div>
+                  <span className="font-bold text-destructive">−£{Number(refund.amount).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-2">
@@ -593,10 +754,17 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
             <Eye />
             View / Download Receipt
           </Button>
+          {data.status === 'done' && refundableAmount > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setShowRefund(true)} className="text-destructive">
+              <Banknote />
+              Refund
+            </Button>
+          )}
         </div>
       </div>
 
       {showReceipt && <ReceiptModal orderId={data.id} apiBase={API_PREFIX} onClose={() => setShowReceipt(false)} />}
+      {showRefund && <RefundModal order={data} refundable={refundableAmount} onClose={() => setShowRefund(false)} />}
       {showEmail && data.customerId && (
         <SendEmailModal
           customerId={data.customerId}

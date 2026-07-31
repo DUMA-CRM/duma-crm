@@ -22,6 +22,7 @@ import {
   PackageSearch,
   ReceiptText,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
   Sparkles,
   Star,
@@ -349,6 +350,13 @@ function LocationTable({ rows, loading }: { rows: RevenueByLocation[]; loading: 
 }
 
 const reportPacks = [
+  {
+    title: 'Refunds',
+    description: 'Item and modifier refunds by refund date or original sale date, with reasons and CSV export.',
+    icon: RotateCcw,
+    status: 'Available',
+    href: '/reports/refunds',
+  },
   {
     title: 'Sales and demand',
     description: 'Revenue, orders, average value, channels and peak trading periods.',

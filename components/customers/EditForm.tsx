@@ -17,7 +17,6 @@ export function EditForm({ customer, onClose, onSaved }: { customer: Customer; o
   const [email, setEmail] = useState(customer.email ?? '');
   const [dob, setDob] = useState(customer.dob ? customer.dob.slice(0, 10) : '');
   const [notes, setNotes] = useState(customer.notes ?? '');
-  const [marketingOptIn, setMarketingOptIn] = useState(customer.marketingOptIn ?? false);
 
   const { mutate, isPending } = useMutation({
     mutationFn: () =>
@@ -28,7 +27,6 @@ export function EditForm({ customer, onClose, onSaved }: { customer: Customer; o
         email: email || undefined,
         dob: dob ? new Date(dob).toISOString() : undefined,
         notes: notes || undefined,
-        marketingOptIn,
       }),
     onSuccess: (updated) => {
       onSaved(updated);
@@ -53,18 +51,6 @@ export function EditForm({ customer, onClose, onSaved }: { customer: Customer; o
       <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
       <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="optional" />
       <Input label="Date of birth" type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
-      <label className="flex items-start gap-2 rounded-xl border border-border bg-surface-offset/40 p-3 text-sm">
-        <input
-          type="checkbox"
-          className="mt-0.5"
-          checked={marketingOptIn}
-          onChange={(event) => setMarketingOptIn(event.target.checked)}
-        />
-        <span>
-          <span className="block font-medium text-foreground">Marketing email consent</span>
-          <span className="block text-xs text-muted-foreground">Required for birthday and promotional automations.</span>
-        </span>
-      </label>
       {/* TODO: Replace with a proper rich text editor or Textarea */}
       <Input label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Internal notes…" />
       <div className="flex gap-2">

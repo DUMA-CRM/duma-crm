@@ -111,6 +111,18 @@ export interface EmailDeliveriesResponse {
   pages: number;
 }
 
+export interface MarketingSuppression {
+  id: string;
+  tenantId: string;
+  customerId?: string | null;
+  channel: 'email';
+  maskedValue: string;
+  reason: string;
+  source: string;
+  createdAt: string;
+  customer?: { id: string; firstName: string; lastName: string } | null;
+}
+
 const tenantQuery = (tenantId?: string) => (tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '');
 
 export const getEmailConnection = (tenantId?: string) => apiFetch<EmailConnection | null>(`/email/connection${tenantQuery(tenantId)}`);
@@ -156,3 +168,14 @@ export const getEmailDeliveries = (tenantId?: string, page = 1, params: { custom
 };
 export const retryEmailDelivery = (id: string, tenantId?: string) =>
   apiFetch<EmailDelivery>(`/email/deliveries/${id}/retry${tenantQuery(tenantId)}`, { method: 'POST' });
+export const getMarketingSuppressions = (tenantId?: string) =>
+  apiFetch<MarketingSuppression[]>(`/email/suppressions${tenantQuery(tenantId)}`);
+export const addMarketingSuppression = (data: {
+  tenantId?: string;
+  email: string;
+  customerId?: string;
+  reason: string;
+  source?: string;
+}) => apiFetch<MarketingSuppression>('/email/suppressions', { method: 'POST', body: JSON.stringify(data) });
+export const liftMarketingSuppression = (id: string, tenantId?: string) =>
+  apiFetch<MarketingSuppression>(`/email/suppressions/${id}${tenantQuery(tenantId)}`, { method: 'DELETE' });

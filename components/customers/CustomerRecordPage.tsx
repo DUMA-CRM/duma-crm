@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Loader2,
   Mail,
+  ShieldCheck,
   Pencil,
   Phone,
   ShoppingBag,
@@ -26,6 +27,8 @@ import { EditForm } from '@/components/customers/EditForm';
 import { LoyaltyProgress } from '@/components/customers/LoyaltyProgress';
 import { PointsForm } from '@/components/customers/PointsForm';
 import { VisitCalendar } from '@/components/customers/VisitCalendar';
+import { MarketingPreferencesPanel } from '@/components/customers/MarketingPreferencesPanel';
+import { PrivacyRequestsPanel } from '@/components/customers/PrivacyRequestsPanel';
 import { SendEmailModal } from '@/components/email/SendEmailModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -41,12 +44,13 @@ import { getOrders } from '@/lib/api/orders.service';
 import { TIER_CONFIG } from '@/lib/constants/customers';
 import { customerQrValue } from '@/lib/utils/customer-qr';
 
-type Section = 'overview' | 'activity' | 'emails';
+type Section = 'overview' | 'activity' | 'emails' | 'privacy';
 
 const SECTIONS: SectionTab<Section>[] = [
   { value: 'overview', label: 'Overview', icon: LayoutDashboard },
   { value: 'activity', label: 'Visits & orders', icon: Activity },
   { value: 'emails', label: 'Emails', icon: Mail },
+  { value: 'privacy', label: 'Privacy & consent', icon: ShieldCheck },
 ];
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -205,8 +209,13 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
           )}
           <CustomerOrders customerId={customer.id} />
         </div>
-      ) : (
+      ) : section === 'emails' ? (
         <CustomerEmails customerId={customer.id} />
+      ) : (
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          <MarketingPreferencesPanel customerId={customer.id} hasEmail={Boolean(customer.email)} />
+          <PrivacyRequestsPanel customerId={customer.id} tenantId={customer.tenantId} />
+        </div>
       )}
 
       {/* Modals */}

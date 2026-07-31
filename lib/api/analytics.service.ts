@@ -8,6 +8,9 @@ export interface AnalyticsRangeParams {
 
 export interface OrderAnalyticsSummary {
   totalOrders: number;
+  grossRevenue: string | null;
+  refundsBySaleDate: string | null;
+  refundsByRefundDate: string | null;
   totalRevenue: string | null;
   avgOrderValue: string | null;
 }
@@ -22,6 +25,8 @@ export interface OrderAnalyticsBreakdown {
 export interface DailyOrderAnalytics {
   date: string;
   count: number;
+  grossRevenue?: string | null;
+  refunded?: string | null;
   revenue: string | null;
 }
 
@@ -44,6 +49,8 @@ export interface RevenueByLocation {
   locationId: string;
   locationName: string | null;
   totalRevenue: string | null;
+  grossRevenue?: string | null;
+  refundedAmount?: string | null;
   orderCount: number;
 }
 

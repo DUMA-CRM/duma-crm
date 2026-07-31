@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, Loader2, Mail, MailX, Plug, Plus, RefreshCw, Send, Sparkles } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Mail, MailX, Plug, Plus, RefreshCw, Send, ShieldOff, Sparkles } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
@@ -11,6 +11,7 @@ import { ConnectionPanel } from '@/components/communications/ConnectionPanel';
 import { DeliveryPreviewPage, EmailPreviewPage } from '@/components/communications/EmailPreviewPage';
 import { HistoryPanel } from '@/components/communications/HistoryPanel';
 import { SetupChecklist } from '@/components/communications/SetupChecklist';
+import { SuppressionsPanel } from '@/components/communications/SuppressionsPanel';
 import { TemplateEditorPage } from '@/components/communications/TemplateEditorPage';
 import { TemplatesPanel } from '@/components/communications/TemplatesPanel';
 import { AUTOMATION_PRESETS, TEMPLATE_PRESETS, presetPayload } from '@/components/communications/presets';
@@ -29,9 +30,9 @@ import {
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-type Tab = 'templates' | 'automations' | 'history' | 'connection';
+type Tab = 'templates' | 'automations' | 'history' | 'suppressions' | 'connection';
 
-const TAB_VALUES: Tab[] = ['templates', 'automations', 'history', 'connection'];
+const TAB_VALUES: Tab[] = ['templates', 'automations', 'history', 'suppressions', 'connection'];
 
 export default function CommunicationsPage() {
   // useSearchParams needs a Suspense boundary above it.
@@ -129,6 +130,7 @@ function CommunicationsView() {
         countTone: 'danger',
         countLabel: `${failedCount} recent ${failedCount === 1 ? 'failure' : 'failures'}`,
       },
+      { value: 'suppressions', label: 'Suppressions', icon: ShieldOff },
       ...(canConfigure ? [{ value: 'connection' as const, label: 'Email setup', icon: Plug }] : []),
     ],
     [canConfigure, templates.length, sendingCount, failedCount],
@@ -327,6 +329,7 @@ function CommunicationsView() {
             }}
           />
         )}
+        {tab === 'suppressions' && <SuppressionsPanel />}
         {tab === 'connection' && canConfigure && <ConnectionPanel />}
       </div>
     </EditorShell>

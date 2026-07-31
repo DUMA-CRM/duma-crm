@@ -4,10 +4,14 @@ export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'done' | 'cancelle
 export type OrderSource = 'pos' | 'mobile';
 
 export interface OrderItemModifier {
+  id: string;
   modifierId: string;
   name: string;
   priceAdjust: string;
+  refundStatus?: RefundStatus;
 }
+
+export type RefundStatus = 'none' | 'partially_refunded' | 'refunded';
 
 export interface OrderItem {
   id: string;
@@ -17,6 +21,7 @@ export interface OrderItem {
   unitPrice: string;
   subtotal: string;
   notes?: string;
+  refundStatus?: RefundStatus;
   modifiers?: OrderItemModifier[];
 }
 
@@ -28,6 +33,48 @@ export interface StatusHistoryEntry {
   createdAt: string;
 }
 
+export type VoidReason = 'customer_request' | 'duplicate' | 'payment_failed' | 'item_unavailable' | 'staff_error' | 'other';
+export type RefundReason = 'customer_request' | 'item_issue' | 'service_issue' | 'duplicate_charge' | 'pricing_error' | 'other';
+
+export interface OrderRefund {
+  id: string;
+  orderId: string;
+  amount: string;
+  kind: 'full' | 'partial';
+  reason: RefundReason;
+  notes?: string | null;
+  status: 'recorded';
+  processingMode: 'internal_placeholder';
+  paymentMethod?: string | null;
+  createdBy: string;
+  createdAt: string;
+  lines?: OrderRefundLine[];
+}
+
+export interface OrderRefundLine {
+  id: string;
+  orderItemId: string;
+  orderItemModifierId?: string | null;
+  componentType: 'item' | 'modifier';
+  name: string;
+  quantity: number;
+  amount: string;
+}
+
+export interface RefundOptions {
+  orderId: string;
+  orderTotal: string;
+  refundStatus: RefundStatus;
+  items: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    refundStatus: RefundStatus;
+    base: { remainingQuantity: number; remainingAmount: string; unitAmounts: string[] };
+    modifiers: Array<{ id: string; name: string; refundStatus: RefundStatus; remainingQuantity: number; remainingAmount: string; unitAmounts: string[] }>;
+  }>;
+}
+
 export interface OrderDetail {
   id: string;
   tenantId?: string;
@@ -35,12 +82,18 @@ export interface OrderDetail {
   customerId?: string;
   createdBy: string;
   status: OrderStatus;
+  refundStatus?: RefundStatus;
   source: OrderSource;
   totalAmount: string;
   paymentMethod: 'cash' | 'card';
   notes?: string;
   items: OrderItem[];
   discountAmount?: string;
+  voidReason?: VoidReason | null;
+  voidNotes?: string | null;
+  voidedAt?: string | null;
+  voidedBy?: string | null;
+  refunds?: OrderRefund[];
   statusHistory?: StatusHistoryEntry[];
   createdAt: string;
   updatedAt?: string;
@@ -127,8 +180,13 @@ export const createOrder = (data: CreateOrderPayload, idempotencyKey?: string) =
     ...(idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}),
   });
 
-export const updateOrderStatus = (id: string, status: OrderStatus) =>
-  apiFetch<Order>(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+export const updateOrderStatus = (id: string, status: OrderStatus, voidDetails?: { voidReason: VoidReason; voidNotes?: string }) =>
+  apiFetch<Order>(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, ...voidDetails }) });
+
+export const getRefundOptions = (id: string) => apiFetch<RefundOptions>(`/orders/${id}/refund-options`);
+
+export const createRefund = (id: string, data: { lines: Array<{ orderItemId: string; orderItemModifierId?: string; quantity: number }>; reason: RefundReason; notes?: string }) =>
+  apiFetch<OrderRefund>(`/orders/${id}/refunds`, { method: 'POST', body: JSON.stringify(data) });
 
 export const getOrders = (params: OrdersParams = {}) => {
   const qs = new URLSearchParams();
