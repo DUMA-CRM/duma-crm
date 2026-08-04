@@ -1,10 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, ShoppingBag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { ChevronRight, ShoppingBag } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,10 @@ import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 
 import { type Order, getOrders } from '@/lib/api/orders.service';
 import { STATUS_CONFIG } from '@/lib/constants/customers';
+import { formatDate } from '@/lib/utils/date';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-const date = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const date = (iso: string) => formatDate(iso);
 const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 /** What was in the order: "2 × Flat White, 1 × Croissant +2 more". */

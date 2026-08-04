@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { AlertTriangle, RotateCcw } from '@/components/icons';
 import { useEffect } from 'react';
 
 // Route-level error boundary — a render/runtime throw in any page lands here

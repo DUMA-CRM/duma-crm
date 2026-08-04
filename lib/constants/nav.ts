@@ -3,30 +3,26 @@ import {
   Building2,
   CalendarDays,
   ChefHat,
-  ClipboardCheck,
-  GraduationCap,
-  HelpCircle,
   HeartHandshake,
+  HelpCircle,
+  type IconComponent,
   LayoutDashboard,
   Mail,
-  type LucideIcon,
   Monitor,
   Package,
   Settings,
-  ShieldCheck,
   ShoppingBag,
-  Truck,
   Users,
   UsersRound,
   UtensilsCrossed,
-} from 'lucide-react';
+} from '@/components/icons';
 
 import { type StaffRole, roleAtLeast } from '@/lib/api/staff.service';
 
 export interface NavItem {
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   // Minimum role required to see this item. Omit = visible to everyone (incl. barista).
   // Semantics mirror the API's requireMinRole (rank-based).
   minRole?: StaffRole;
@@ -42,13 +38,8 @@ export const mainNavItems: NavItem[] = [
   { label: 'My HR', href: '/my-hr', icon: HeartHandshake },
   // Everyone's own rota. The team rota and shift cover live in the staff workspace.
   { label: 'My Rota', href: '/scheduling', icon: CalendarDays },
-  {
-    label: 'Customers',
-    href: '/customers',
-    icon: Users,
-    minRole: 'store_manager',
-    children: [{ href: '/customers/privacy', label: 'Privacy requests', icon: ShieldCheck, minRole: 'store_manager' }],
-  },
+  // One entry: the directory and privacy requests are tabs of the customer workspace.
+  { label: 'Customers', href: '/customers', icon: Users, minRole: 'store_manager' },
   {
     label: 'Communications',
     href: '/communications',
@@ -58,21 +49,13 @@ export const mainNavItems: NavItem[] = [
   { label: 'POS Terminal', href: '/pos', icon: Monitor },
   { label: 'KDS Terminal', href: '/kds', icon: ChefHat },
   { label: 'Menu', href: '/menu', icon: UtensilsCrossed, minRole: 'store_manager' },
-  {
-    label: 'Inventory',
-    href: '/inventory',
-    icon: Package,
-    minRole: 'store_manager',
-    children: [
-      { href: '/inventory/purchasing', label: 'Purchasing', icon: Truck, minRole: 'store_manager' },
-      { href: '/inventory/stocktakes', label: 'Stocktakes', icon: ClipboardCheck, minRole: 'store_manager' },
-    ],
-  },
+  // One entry: stock, restock demand, purchase orders, suppliers and stocktakes
+  // are tabs of /inventory.
+  { label: 'Inventory', href: '/inventory', icon: Package, minRole: 'store_manager' },
   { label: 'Orders', href: '/orders', icon: ShoppingBag, minRole: 'store_manager' },
   // One entry: team, rota, shifts, leave, helpdesk and payroll are tabs of the
   // staff workspace, each on its own route.
   { label: 'Staff', href: '/staff', icon: UsersRound, roles: ['franchise_owner', 'store_manager', 'hr_manager'] },
-  { label: 'Training', href: '/training', icon: GraduationCap },
   { label: 'Workspaces', href: '/workspaces', icon: Building2, minRole: 'franchise_owner' },
 ];
 

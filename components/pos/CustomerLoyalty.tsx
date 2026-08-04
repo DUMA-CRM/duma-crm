@@ -1,6 +1,6 @@
 'use client';
 
-import { Phone, QrCode, UserCircle2, X } from 'lucide-react';
+import { Phone, QrCode, UserCircle2, X } from '@/components/icons';
 import { useState } from 'react';
 
 import { NewCustomerForm } from '@/components/pos/NewCustomerForm';

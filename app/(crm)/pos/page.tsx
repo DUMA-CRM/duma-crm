@@ -1,9 +1,9 @@
 'use client';
 
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Clock, CloudUpload, LogIn, MapPin, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { Building2, Clock, CloudUpload, LogIn, MapPin, WifiOff } from '@/components/icons';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { CartBar } from '@/components/pos/CartBar';
 import { CheckoutFlow, type CheckoutStep } from '@/components/pos/CheckoutFlow';
@@ -16,10 +16,13 @@ import { Toast, type ToastMessage } from '@/components/shared/Toast';
 import { API_PREFIX, ApiError } from '@/lib/api/client';
 import { getCustomer } from '@/lib/api/customers.service';
 import { getMenuItemModifiers, getMenuItems } from '@/lib/api/menu.service';
+import { getTradingSettings } from '@/lib/api/operations.service';
 import { type CreateOrderPayload, createOrder } from '@/lib/api/orders.service';
+import { type PaymentAttempt, type PaymentMethod, confirmPayment, getPaymentMethods, startPayment } from '@/lib/api/payments.service';
 import { clockIn, getMyShifts } from '@/lib/api/shifts.service';
 import { CATEGORIES } from '@/lib/constants/pos';
 import { cn } from '@/lib/utils/cn';
+import { formatDateTime } from '@/lib/utils/date';
 import { parseModifierName } from '@/lib/utils/modifiers';
 import { cartItemTotal, selectionKey } from '@/lib/utils/pos';
 import { useAuthStore } from '@/stores/authStore';
@@ -80,6 +83,9 @@ export default function POSPage() {
   const [checkoutEmail, setCheckoutEmail] = useState<string | undefined>();
   const [checkoutQueued, setCheckoutQueued] = useState(false);
   const [checkoutOrderId, setCheckoutOrderId] = useState<string | null>(null);
+  const [paymentAttempt, setPaymentAttempt] = useState<PaymentAttempt | null>(null);
+  const [paymentLabel, setPaymentLabel] = useState('');
+  const [offlinePayment, setOfflinePayment] = useState<{ method: PaymentMethod; idempotencyKey: string } | null>(null);
 
   function addToast(type: ToastMessage['type'], message: string) {
     setToasts((prev) => [...prev, { id: Date.now(), type, message }]);
@@ -262,7 +268,7 @@ export default function POSPage() {
   }
 
   // Prices, item names and the order total are computed server-side. We send IDs only.
-  const buildOrderPayload = (method: 'cash' | 'card', notes: string): CreateOrderPayload => ({
+  const buildOrderPayload = (method: string, notes: string): CreateOrderPayload => ({
     locationId: locationId!,
     ...(selectedCustomer ? { customerId: selectedCustomer.id } : {}),
     source: 'pos',
@@ -286,20 +292,56 @@ export default function POSPage() {
     usePageSidebarStore.getState().setOpen(false);
   }
 
+  const { data: configuredPaymentMethods = [] } = useQuery({
+    queryKey: ['payment-methods', locationId],
+    queryFn: () => getPaymentMethods(locationId!),
+    enabled: !!locationId,
+  });
+  const { data: tradingSettings } = useQuery({
+    queryKey: ['trading', tenantId],
+    queryFn: () => getTradingSettings(tenantId!),
+    enabled: !!tenantId,
+  });
+  const checkoutMethods: PaymentMethod[] = [
+    { id: 'cash', provider: 'cash', displayName: 'Cash' },
+    { id: 'manual', provider: 'manual_terminal', displayName: 'Manual terminal' },
+    ...configuredPaymentMethods,
+  ];
+
   const { mutate: submitOrder, isPending: isPaying } = useMutation({
     // CRITICAL: React Query's default networkMode 'online' PAUSES mutations
     // while offline — mutationFn never runs, isPending spins forever, and our
     // queueing logic below is unreachable. 'always' hands control to us.
     networkMode: 'always',
-    mutationFn: ({ method, idempotencyKey }: { method: 'cash' | 'card'; idempotencyKey: string }) => {
+    mutationFn: async ({ method, idempotencyKey }: { method: PaymentMethod; idempotencyKey: string }) => {
       // Known-offline: don't even attempt the request — fail straight into the
       // offline-queue path instead of waiting out a timeout.
       if (!navigator.onLine) return Promise.reject(new Error('offline'));
-      return createOrder(buildOrderPayload(method, notes), idempotencyKey);
+      const order = checkoutOrderId
+        ? { id: checkoutOrderId }
+        : await createOrder(buildOrderPayload(method.provider, notes), idempotencyKey);
+      const payment = await startPayment(order.id, {
+        ...(method.id === 'cash'
+          ? { provider: 'cash' as const }
+          : method.id === 'manual'
+            ? { provider: 'manual_terminal' as const }
+            : { connectionId: method.id }),
+        idempotencyKey: `pay-${idempotencyKey}`,
+      });
+      return { order, payment, method };
     },
-    onSuccess: (order) => {
+    onSuccess: ({ order, payment, method }) => {
+      setOfflinePayment(null);
       setCheckoutOrderId(order.id);
-      finishOrder(false);
+      if ('totalAmount' in order) setCheckoutTotal(Math.round(Number(order.totalAmount) * 100));
+      if (payment.status === 'failed') {
+        addToast('error', payment.failureMessage ?? 'Payment provider failed. Choose another method or retry.');
+        setCheckout('method');
+        return;
+      }
+      setPaymentAttempt(payment);
+      setPaymentLabel(method.displayName);
+      setCheckout('verify');
       // Refresh exactly what an order touches — invalidating the whole cache
       // refetched every list in the app after every sale.
       for (const key of ['orders', 'orders-all', 'location-stock', 'inventory-forecast', 'low-stock-alerts', 'customers']) {
@@ -311,22 +353,11 @@ export default function POSPage() {
       // Queue when the API never really answered: fetch/abort failures, and
       // 502/503/504 which are the proxy saying the API is unreachable.
       const unreachable = !(err instanceof ApiError) || err.status === 502 || err.status === 503 || err.status === 504;
-      if (unreachable) {
-        // Stamp the order so it's still traceable after it syncs — the synced
-        // order's createdAt is the sync time, not when it was actually taken.
-        const takenAt = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-        const offlineNote = `Taken offline at ${takenAt}`;
-        if (!userId || !tenantId) {
-          addToast('error', 'The order could not be saved offline because the account or workspace is missing.');
-          return;
-        }
-        useOfflineOrdersStore.getState().enqueue(buildOrderPayload(method, notes ? `${notes} · ${offlineNote}` : offlineNote), {
-          idempotencyKey,
-          ownerUserId: userId,
-          tenantId,
-        });
-        setCheckoutOrderId(null);
-        finishOrder(true);
+      if (unreachable && (method.provider === 'cash' || method.provider === 'manual_terminal')) {
+        setOfflinePayment({ method, idempotencyKey });
+        setPaymentLabel(method.displayName);
+        setPaymentAttempt(null);
+        setCheckout('verify');
         return;
       }
       // Real API rejection — stay on the method screen so the cashier can retry.
@@ -334,11 +365,54 @@ export default function POSPage() {
     },
   });
 
+  const { mutate: recordOutcome, isPending: isConfirmingPayment } = useMutation({
+    mutationFn: (outcome: 'succeeded' | 'failed' | 'cancelled') => confirmPayment(paymentAttempt!.id, outcome),
+    onSuccess: (payment) => {
+      if (payment.status === 'succeeded') finishOrder(false);
+      else {
+        addToast('error', 'Payment was not completed. Select a method to retry.');
+        setCheckout('method');
+        setPaymentAttempt(null);
+      }
+    },
+    onError: (error) => addToast('error', error.message || 'Could not record payment result.'),
+  });
+
+  function handlePaymentOutcome(outcome: 'succeeded' | 'failed' | 'cancelled') {
+    if (!offlinePayment) {
+      recordOutcome(outcome);
+      return;
+    }
+    if (outcome !== 'succeeded') {
+      setOfflinePayment(null);
+      setCheckout('method');
+      return;
+    }
+    if (!userId || !tenantId) {
+      addToast('error', 'The order could not be saved offline because the account or workspace is missing.');
+      return;
+    }
+    const takenAt = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const offlineNote = `Taken offline at ${takenAt}`;
+    useOfflineOrdersStore
+      .getState()
+      .enqueue(buildOrderPayload(offlinePayment.method.provider, notes ? `${notes} · ${offlineNote}` : offlineNote), {
+        idempotencyKey: offlinePayment.idempotencyKey,
+        ownerUserId: userId,
+        tenantId,
+        paymentProvider: offlinePayment.method.provider as 'cash' | 'manual_terminal',
+      });
+    setOfflinePayment(null);
+    setCheckoutOrderId(null);
+    finishOrder(true);
+  }
+
   function handleCharge() {
     setCheckoutTotal(cart.reduce((sum, c) => sum + cartItemTotal(c), 0));
     setCheckoutEmail(selectedCustomer?.email);
     setCheckoutQueued(false);
     setCheckoutOrderId(null);
+    setOfflinePayment(null);
     setCheckout('method');
   }
 
@@ -411,6 +485,7 @@ export default function POSPage() {
               notes={notes}
               onNotesChange={setNotes}
               onCharge={handleCharge}
+              currency={tradingSettings?.currency ?? 'GBP'}
             />
           )
         }
@@ -442,7 +517,7 @@ export default function POSPage() {
                   .map((order) => (
                     <div key={order.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                       <span>
-                        {new Date(order.queuedAt).toLocaleString('en-GB')} · {order.lastError ?? 'Rejected by the API'}
+                        {formatDateTime(order.queuedAt)} · {order.lastError ?? 'Rejected by the API'}
                       </span>
                       <button
                         type="button"
@@ -460,8 +535,18 @@ export default function POSPage() {
 
         {tenantId && locationId && onShift && (
           <>
-            <MenuGrid items={filtered} selectedId={selectedItem?.id ?? null} onSelectItem={handleSelectItem} isLoading={isLoading} />
-            <CartBar cart={cart} onOpen={() => usePageSidebarStore.getState().setOpen(true)} />
+            <MenuGrid
+              items={filtered}
+              selectedId={selectedItem?.id ?? null}
+              onSelectItem={handleSelectItem}
+              isLoading={isLoading}
+              currency={tradingSettings?.currency ?? 'GBP'}
+            />
+            <CartBar
+              cart={cart}
+              onOpen={() => usePageSidebarStore.getState().setOpen(true)}
+              currency={tradingSettings?.currency ?? 'GBP'}
+            />
           </>
         )}
         {/* Locked: staff must clock in before taking orders */}
@@ -493,10 +578,15 @@ export default function POSPage() {
         <CheckoutFlow
           step={checkout}
           total={checkoutTotal}
-          isPaying={isPaying}
+          currency={tradingSettings?.currency ?? 'GBP'}
+          isPaying={isPaying || isConfirmingPayment}
+          methods={checkoutMethods}
+          paymentLabel={paymentLabel}
+          paymentProvider={paymentAttempt?.provider ?? offlinePayment?.method.provider}
           queued={checkoutQueued}
           customerEmail={checkoutEmail}
           onSelectMethod={(method) => submitOrder({ method, idempotencyKey: crypto.randomUUID() })}
+          onPaymentOutcome={handlePaymentOutcome}
           onConfirmDone={() => setCheckout('receipt')}
           onReceipt={handleReceipt}
           onCancel={() => setCheckout('closed')}

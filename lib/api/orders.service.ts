@@ -22,6 +22,7 @@ export interface OrderItem {
   subtotal: string;
   notes?: string;
   refundStatus?: RefundStatus;
+  allergens?: string[];
   modifiers?: OrderItemModifier[];
 }
 
@@ -71,7 +72,14 @@ export interface RefundOptions {
     quantity: number;
     refundStatus: RefundStatus;
     base: { remainingQuantity: number; remainingAmount: string; unitAmounts: string[] };
-    modifiers: Array<{ id: string; name: string; refundStatus: RefundStatus; remainingQuantity: number; remainingAmount: string; unitAmounts: string[] }>;
+    modifiers: Array<{
+      id: string;
+      name: string;
+      refundStatus: RefundStatus;
+      remainingQuantity: number;
+      remainingAmount: string;
+      unitAmounts: string[];
+    }>;
   }>;
 }
 
@@ -142,6 +150,7 @@ export interface OrdersParams {
   source?: OrderSource;
   createdBy?: string;
   paymentMethod?: 'cash' | 'card';
+  paymentStatus?: 'unpaid' | 'processing' | 'paid' | 'failed' | 'cancelled';
   from?: string;
   to?: string;
 }
@@ -173,20 +182,22 @@ export const getOrder = (id: string) => apiFetch<OrderDetail>(`/orders/${id}`);
 // 10s timeout: with a dead café connection the proxied request would otherwise
 // hang for minutes — the POS treats the abort as "offline" and queues the order.
 export const createOrder = (data: CreateOrderPayload, idempotencyKey?: string) =>
-  apiFetch<Order>('/orders', {
+  apiFetch<{ order: Order }>('/orders', {
     method: 'POST',
     body: JSON.stringify(data),
     timeoutMs: 10_000,
     ...(idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}),
-  });
+  }).then((response) => response.order);
 
 export const updateOrderStatus = (id: string, status: OrderStatus, voidDetails?: { voidReason: VoidReason; voidNotes?: string }) =>
   apiFetch<Order>(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, ...voidDetails }) });
 
 export const getRefundOptions = (id: string) => apiFetch<RefundOptions>(`/orders/${id}/refund-options`);
 
-export const createRefund = (id: string, data: { lines: Array<{ orderItemId: string; orderItemModifierId?: string; quantity: number }>; reason: RefundReason; notes?: string }) =>
-  apiFetch<OrderRefund>(`/orders/${id}/refunds`, { method: 'POST', body: JSON.stringify(data) });
+export const createRefund = (
+  id: string,
+  data: { lines: Array<{ orderItemId: string; orderItemModifierId?: string; quantity: number }>; reason: RefundReason; notes?: string },
+) => apiFetch<OrderRefund>(`/orders/${id}/refunds`, { method: 'POST', body: JSON.stringify(data) });
 
 export const getOrders = (params: OrdersParams = {}) => {
   const qs = new URLSearchParams();
@@ -199,6 +210,7 @@ export const getOrders = (params: OrdersParams = {}) => {
   if (params.source) qs.set('source', params.source);
   if (params.createdBy) qs.set('createdBy', params.createdBy);
   if (params.paymentMethod) qs.set('paymentMethod', params.paymentMethod);
+  if (params.paymentStatus) qs.set('paymentStatus', params.paymentStatus);
   if (params.from) qs.set('from', params.from);
   if (params.to) qs.set('to', params.to);
   const q = qs.toString();

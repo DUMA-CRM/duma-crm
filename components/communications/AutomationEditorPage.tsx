@@ -1,57 +1,89 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, Info, Loader2, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 
+import { CheckCircle2, Eye, Loader2, Play, Plus, Trash2, TriangleAlert } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import {
   type EmailAutomation,
-  type EmailAutomationPayload,
+  type EmailWorkflowDefinition,
+  type EmailWorkflowNode,
   createEmailAutomation,
+  getEmailAutomationRuns,
   getEmailConnection,
   getEmailTemplates,
+  publishEmailAutomation,
   updateEmailAutomation,
 } from '@/lib/api/email.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
+import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { OPT_IN_TRIGGERS, TRIGGER_HELP, TRIGGER_OPTIONS, describeAutomation, labelClass, panelClass } from './shared';
+import { EmailPreviewDrawer } from './EmailPreviewDrawer';
+import { WorkflowRunDrawer } from './WorkflowRunDrawer';
+import { TRIGGER_HELP, TRIGGER_OPTIONS } from './shared';
+import {
+  defaultWorkflow,
+  insertWorkflowNode,
+  removeWorkflowNode,
+  updateWorkflowNode,
+  workflowErrors,
+  workflowForAutomation,
+  workflowSummary,
+} from './workflowModel';
+import { DOT_GRID_STYLE, NODE_META, nodeDetail } from './workflowNodes';
 
-const FORM_ID = 'email-automation-form';
+const CONDITION_FIELDS = [
+  { value: 'customer.marketingOptIn', label: 'Customer · marketing opt-in' },
+  { value: 'customer.tier', label: 'Customer · loyalty tier' },
+  { value: 'customer.pointsBalance', label: 'Customer · points balance' },
+  { value: 'order.status', label: 'Order · status' },
+  { value: 'order.totalAmount', label: 'Order · total amount' },
+  { value: 'order.paymentMethod', label: 'Order · payment method' },
+];
+const CONDITION_OPERATORS = [
+  { value: 'equals', label: 'Equals' },
+  { value: 'not_equals', label: 'Does not equal' },
+  { value: 'greater_than', label: 'Greater than' },
+  { value: 'greater_than_or_equal', label: 'At least' },
+  { value: 'less_than', label: 'Less than' },
+  { value: 'less_than_or_equal', label: 'At most' },
+  { value: 'contains', label: 'Contains' },
+];
 
-/**
- * Full-page automation editor. Every field is followed by plain-language help, and
- * the sidebar states in one sentence exactly what the automation will do once on.
- */
 export function AutomationEditorPage({
   automation,
-  initial,
-  suggestedTemplateName,
   onClose,
   onSaved,
-  onPreviewTemplate,
   onOpenTemplates,
   onOpenConnection,
 }: {
   automation?: EmailAutomation;
-  initial?: Partial<EmailAutomationPayload>;
-  /** Template a preset was written for — pre-picked when it exists and nothing else is chosen. */
-  suggestedTemplateName?: string;
   onClose: () => void;
   onSaved?: (saved: EmailAutomation) => void;
-  onPreviewTemplate?: (templateId: string) => void;
   onOpenTemplates?: () => void;
   onOpenConnection?: () => void;
 }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
+  const [name, setName] = useState(automation?.name ?? '');
+  const [definition, setDefinition] = useState<EmailWorkflowDefinition>(() =>
+    automation ? workflowForAutomation(automation) : defaultWorkflow(),
+  );
+  const [selectedId, setSelectedId] = useState(definition.nodes[0]?.id ?? '');
+  const [savedId, setSavedId] = useState(automation?.id ?? null);
+  const [previewing, setPreviewing] = useState(false);
+  const [openedRunId, setOpenedRunId] = useState<string | null>(null);
+  const snapshot = JSON.stringify({ name, definition });
+  const [initialSnapshot, setInitialSnapshot] = useState(snapshot);
 
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
     queryKey: ['email-templates', tenantId],
@@ -69,272 +101,530 @@ export function AutomationEditorPage({
     enabled: !!tenantId,
     retry: false,
   });
-
-  const [form, setForm] = useState<EmailAutomationPayload>({
-    name: automation?.name ?? initial?.name ?? '',
-    templateId: automation?.templateId ?? initial?.templateId ?? '',
-    trigger: automation?.trigger ?? initial?.trigger ?? 'order_created',
-    offsetDays: automation?.offsetDays ?? initial?.offsetDays ?? 0,
-    timezone: automation?.timezone ?? initial?.timezone ?? 'Europe/London',
-    isEnabled: automation?.isEnabled ?? initial?.isEnabled ?? false,
-    locationId: automation?.locationId ?? initial?.locationId ?? null,
+  const { data: runs = [] } = useQuery({
+    queryKey: ['email-automation-runs', savedId, tenantId],
+    queryFn: () => getEmailAutomationRuns(savedId ?? '', tenantId ?? undefined),
+    enabled: !!savedId && !!tenantId,
+    refetchInterval: 30_000,
   });
-  const [initialSnapshot] = useState(() => JSON.stringify(form));
+  const usableTemplates = templates.filter((template) => template.isActive);
 
-  // Templates load after the first render, so fall back to the one this preset was
-  // written for, else the first usable one.
-  const usableTemplates = templates.filter((item) => item.isActive || item.id === automation?.templateId);
-  const suggested = suggestedTemplateName ? usableTemplates.find((item) => item.name === suggestedTemplateName) : undefined;
-  const templateId = form.templateId || suggested?.id || usableTemplates[0]?.id || '';
-  const selectedTemplate = templates.find((item) => item.id === templateId);
-  const selectedLocation = locations.find((item) => item.id === form.locationId);
-  const payload = { ...form, templateId, tenantId: tenantId ?? undefined };
-  const dirty = JSON.stringify(form) !== initialSnapshot;
+  const selected = definition.nodes.find((node) => node.id === selectedId);
+  const errors = workflowErrors(definition);
+  const selectedTemplate =
+    selected?.type === 'send_email' ? templates.find((template) => template.id === selected.config.templateId) : undefined;
+  const summary = workflowSummary(definition, (id) => templates.find((template) => template.id === id)?.name ?? 'an email');
+  const dirty = snapshot !== initialSnapshot;
+  const emailReady = connection?.isEnabled && connection.lastTestSucceeded;
 
+  const persist = async (publish: boolean) => {
+    if (errors.length) throw new Error(errors[0]);
+    const common = { tenantId: tenantId ?? undefined, name: name.trim(), definition };
+    const saved = savedId ? await updateEmailAutomation(savedId, common) : await createEmailAutomation({ ...common, isEnabled: false });
+    setSavedId(saved.id);
+    const result = publish ? await publishEmailAutomation(saved.id, tenantId ?? undefined) : saved;
+    setInitialSnapshot(snapshot);
+    await queryClient.invalidateQueries({ queryKey: ['email-automations'] });
+    onSaved?.(result);
+    return result;
+  };
   const save = useMutation({
-    mutationFn: () => (automation ? updateEmailAutomation(automation.id, payload) : createEmailAutomation(payload)),
-    onSuccess: (saved) => {
-      queryClient.invalidateQueries({ queryKey: ['email-automations'] });
-      toast('success', automation ? 'Automation saved.' : form.isEnabled ? 'Automation created and switched on.' : 'Automation created.');
-      onSaved?.(saved);
-      onClose();
-    },
+    mutationFn: (publish: boolean) => persist(publish),
+    onSuccess: (saved, published) => toast('success', published ? `“${saved.name}” is live.` : 'Workflow draft saved.'),
     onError: (error) => toast('error', error.message),
   });
 
-  const update = <K extends keyof EmailAutomationPayload>(key: K, value: EmailAutomationPayload[K]) =>
-    setForm((current) => ({ ...current, [key]: value }));
-
-  const needsTiming = form.trigger === 'customer_birthday' || form.trigger === 'customer_inactive';
-  const emailReady = connection?.isEnabled && connection?.lastTestSucceeded;
-  const summary = describeAutomation({
-    trigger: form.trigger,
-    offsetDays: form.offsetDays,
-    templateName: selectedTemplate?.name,
-    locationName: selectedLocation?.name ?? null,
-  });
+  const updateNode = (node: EmailWorkflowNode) => setDefinition((current) => updateWorkflowNode(current, node));
+  const addNode = (edgeId: string, type: 'send_email' | 'delay' | 'condition') => {
+    const next = insertWorkflowNode(definition, edgeId, type, usableTemplates[0]?.id ?? '');
+    const added = next.nodes.find((node) => !definition.nodes.some((current) => current.id === node.id) && node.type !== 'end');
+    setDefinition(next);
+    if (added) setSelectedId(added.id);
+  };
+  const removeNode = () => {
+    if (!selected || selected.type === 'trigger' || selected.type === 'end') return;
+    const next = removeWorkflowNode(definition, selected.id);
+    setDefinition(next);
+    setSelectedId(next.nodes.find((node) => node.type === 'trigger')?.id ?? next.nodes[0]?.id ?? '');
+  };
 
   return (
     <EditorShell
-      eyebrow="Automation"
-      title={automation ? automation.name : form.name || 'New automation'}
+      eyebrow="Email workflow"
+      title={name || 'New workflow'}
       onClose={onClose}
       dirty={dirty && !save.isPending}
-      discardMessage="This automation has changes that have not been saved. Leaving now discards them."
+      flush
       actions={
-        <Button type="submit" form={FORM_ID} disabled={!form.name || !templateId || save.isPending} className="h-11 gap-2 px-6">
-          {save.isPending && <Loader2 size={15} className="animate-spin" />}
-          {save.isPending ? 'Saving…' : automation ? 'Save' : 'Create'}
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            className="h-10 gap-2"
+            onClick={() => (errors.length ? toast('error', errors[0]) : toast('success', 'Workflow is valid and ready to publish.'))}
+          >
+            <Play size={15} />
+            <span className="hidden sm:inline">Check</span>
+          </Button>
+          <Button variant="outline" className="h-10" disabled={!name.trim() || save.isPending} onClick={() => save.mutate(false)}>
+            Save draft
+          </Button>
+          <Button
+            className="h-10 gap-2 px-5"
+            disabled={!name.trim() || !!errors.length || save.isPending}
+            onClick={() => save.mutate(true)}
+          >
+            {save.isPending && <Loader2 size={14} className="animate-spin" />}Publish
+          </Button>
+        </>
       }
     >
-      <form
-        id={FORM_ID}
-        onSubmit={(event) => {
-          event.preventDefault();
-          save.mutate();
-        }}
-        className="grid items-start gap-6 lg:grid-cols-[minmax(0,34rem)_1fr]"
-      >
-        <div className="space-y-4">
-          <section className={panelClass}>
-            <p className={labelClass}>What triggers it</p>
-            <div className="mt-3 space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="automation-trigger" className={labelClass}>
-                  Send when
-                </label>
-                <Select
-                  id="automation-trigger"
-                  value={form.trigger}
-                  onValueChange={(value) => {
-                    const trigger = value as EmailAutomationPayload['trigger'];
-                    setForm((current) => ({
-                      ...current,
-                      trigger,
-                      // Birthday offsets count backwards; inactivity counts forwards.
-                      offsetDays:
-                        trigger === 'customer_inactive'
-                          ? Math.max(1, Math.abs(current.offsetDays) || 30)
-                          : trigger === 'customer_birthday'
-                            ? -Math.abs(current.offsetDays)
-                            : 0,
-                    }));
-                  }}
-                  options={TRIGGER_OPTIONS}
-                  ariaLabel="Send when"
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">{TRIGGER_HELP[form.trigger]}</p>
-              </div>
-
-              {form.trigger === 'customer_birthday' && (
-                <Input
-                  label="How many days before the birthday"
-                  type="number"
-                  min={0}
-                  max={90}
-                  value={Math.abs(form.offsetDays)}
-                  onChange={(event) => update('offsetDays', -Math.abs(Number(event.target.value)))}
-                  hint="0 sends on the day itself. 7 sends a week ahead."
-                />
-              )}
-              {form.trigger === 'customer_inactive' && (
-                <Input
-                  label="Days without a visit"
-                  type="number"
-                  min={1}
-                  max={3650}
-                  value={Math.max(1, form.offsetDays)}
-                  onChange={(event) => update('offsetDays', Math.max(1, Number(event.target.value)))}
-                  hint="Sent once per quiet spell. A new visit starts the count again."
-                />
-              )}
-              {needsTiming && (
-                <div className="space-y-1.5">
-                  <label htmlFor="automation-timezone" className={labelClass}>
-                    Send in this timezone
-                  </label>
-                  <TimezoneSelect id="automation-timezone" value={form.timezone} onChange={(value) => update('timezone', value)} />
-                  <p className="text-xs text-muted-foreground">Decides what counts as “today” for these emails.</p>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className={panelClass}>
-            <p className={labelClass}>What it sends</p>
-            <div className="mt-3 space-y-4">
-              {usableTemplates.length ? (
-                <div className="space-y-1.5">
-                  <label htmlFor="automation-template" className={labelClass}>
-                    Template
-                  </label>
-                  <Select
-                    id="automation-template"
-                    value={templateId}
-                    onValueChange={(value) => update('templateId', value)}
-                    options={usableTemplates.map((item) => ({ value: item.id, label: `${item.name} — ${item.subject}` }))}
-                    ariaLabel="Template"
-                    className="w-full"
-                  />
-                  <p className="text-xs text-muted-foreground">Only templates marked “ready to use” appear here.</p>
-                </div>
-              ) : (
-                <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3">
-                  <TriangleAlert size={15} className="mt-0.5 shrink-0 text-warning" aria-hidden="true" />
-                  <div className="text-xs text-warning">
-                    {templatesLoading
-                      ? 'Loading your templates…'
-                      : 'You need one ready-to-use template before an automation can send anything.'}
-                    {!templatesLoading && onOpenTemplates && (
-                      <button type="button" onClick={onOpenTemplates} className="ml-1 font-semibold underline">
-                        Create a template
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <label htmlFor="automation-location" className={labelClass}>
-                  Which locations
-                </label>
-                <Select
-                  id="automation-location"
-                  value={form.locationId ?? ''}
-                  onValueChange={(value) => update('locationId', value || null)}
-                  options={[
-                    { value: '', label: 'All locations' },
-                    ...locations.map((location) => ({ value: location.id, label: location.name })),
-                  ]}
-                  ariaLabel="Which locations"
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">Limit the automation to one shop, or leave it across the business.</p>
-              </div>
-
-              <Input
-                label="Name for your team"
-                value={form.name}
-                onChange={(event) => update('name', event.target.value)}
-                required
-                hint="How this automation appears in your list. Customers never see it."
-              />
-            </div>
-          </section>
-
-          <section className={panelClass}>
-            <label className="flex items-start gap-2.5 text-sm">
-              <input
-                type="checkbox"
-                checked={form.isEnabled}
-                onChange={(event) => update('isEnabled', event.target.checked)}
-                className="mt-0.5 size-4 rounded accent-primary"
-              />
-              <span>
-                Switch it on
-                <span className="block text-xs text-muted-foreground">
-                  While off, nothing is sent — handy for setting things up before going live. You can flip this any time from the list.
-                </span>
-              </span>
-            </label>
-          </section>
-        </div>
-
-        {/* Sidebar */}
-        <aside className="space-y-4 lg:sticky lg:top-0">
-          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
-            <div className="flex items-start gap-2">
-              <Info size={16} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(36rem,1fr)_22rem]">
+        <main className="min-h-0 overflow-auto bg-surface-offset/50 p-4 md:p-6">
+          <div className="mx-auto max-w-5xl">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-primary">What this will do</p>
-                <p className="mt-1.5 text-sm text-foreground">{summary}</p>
-                {OPT_IN_TRIGGERS.includes(form.trigger) && (
-                  <p className="mt-2 text-xs text-muted-foreground">Customers who have not opted in to marketing email are skipped.</p>
-                )}
-                <p className="mt-2 text-xs text-muted-foreground">Each customer gets it once per event — duplicates are filtered out.</p>
+                <p className="text-sm font-semibold">{summary}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Select a step to configure it. Use + on a connection to insert another step.
+                </p>
               </div>
+              <Badge variant={automation?.isEnabled ? 'success' : 'muted'}>
+                {automation?.isEnabled ? `Live · v${automation.publishedVersion}` : savedId ? 'Draft' : 'New'}
+              </Badge>
+            </div>
+            {!usableTemplates.length && !templatesLoading && (
+              <div className="mb-4 flex items-center gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
+                <TriangleAlert size={16} />
+                Create a ready-to-use template before publishing.
+                <Button variant="outline" size="sm" onClick={onOpenTemplates}>
+                  Open templates
+                </Button>
+              </div>
+            )}
+            <div
+              className="min-h-150 overflow-auto rounded-2xl border border-border bg-card p-5 shadow-sm"
+              style={DOT_GRID_STYLE}
+            >
+              <WorkflowCanvas definition={definition} selectedId={selectedId} onSelect={setSelectedId} onAdd={addNode} />
             </div>
           </div>
+        </main>
 
-          {!emailReady && (
-            <div className="flex items-start gap-2 rounded-2xl border border-warning/40 bg-warning/10 p-4">
-              <TriangleAlert size={15} className="mt-0.5 shrink-0 text-warning" aria-hidden="true" />
-              <div className="text-xs text-warning">
-                Email sending is not set up and verified yet, so nothing will actually go out.
-                {onOpenConnection && (
-                  <button type="button" onClick={onOpenConnection} className="ml-1 font-semibold underline">
-                    Set up email
-                  </button>
-                )}
-              </div>
+        <aside className="min-h-0 overflow-auto border-t border-border bg-card p-5 lg:border-l lg:border-t-0">
+          <Input
+            label="Workflow name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+            hint="Only your team sees this."
+          />
+          <div className="mt-5 border-t border-border pt-5">
+            {selected ? (
+              <NodeSettings
+                node={selected}
+                templates={usableTemplates}
+                locations={locations}
+                onChange={updateNode}
+                onPreview={() => setPreviewing(true)}
+                onRemove={removeNode}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Select a workflow step.</p>
+            )}
+          </div>
+          {errors.length > 0 && (
+            <div className="mt-5 rounded-xl border border-warning/40 bg-warning/10 p-3">
+              <p className="text-xs font-bold text-warning">Before publishing</p>
+              <ul className="mt-2 space-y-1 text-xs text-warning">
+                {errors.map((error) => (
+                  <li key={error}>• {error}</li>
+                ))}
+              </ul>
             </div>
           )}
-
-          {selectedTemplate && (
-            <div className={panelClass}>
-              <p className={labelClass}>Template preview</p>
-              <p className="mt-2 font-semibold text-foreground">{selectedTemplate.name}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{selectedTemplate.subject}</p>
-              <div className="mt-3 overflow-hidden rounded-xl border border-border bg-white">
-                <iframe title="Template preview" sandbox="" srcDoc={selectedTemplate.htmlBody} className="h-64 w-full border-0 bg-white" />
+          {!emailReady && (
+            <div className="mt-5 flex gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
+              <TriangleAlert size={15} className="shrink-0" />
+              <span>
+                Email sending is not verified.{' '}
+                {onOpenConnection && (
+                  <button type="button" onClick={onOpenConnection} className="font-semibold underline">
+                    Set it up
+                  </button>
+                )}
+              </span>
+            </div>
+          )}
+          {runs.length > 0 && (
+            <div className="mt-6 border-t border-border pt-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Recent runs</p>
+              <div className="mt-3 space-y-2">
+                {runs.slice(0, 8).map((run) => (
+                  <button
+                    type="button"
+                    key={run.id}
+                    onClick={() => setOpenedRunId(run.id)}
+                    className="flex w-full items-center justify-between rounded-lg bg-muted px-3 py-2 text-left text-xs transition hover:bg-primary/10"
+                  >
+                    <span className="flex items-center gap-2">
+                      {run.status === 'completed' ? (
+                        <CheckCircle2 size={13} className="text-success" />
+                      ) : run.status === 'failed' ? (
+                        <TriangleAlert size={13} className="text-destructive" />
+                      ) : (
+                        <Loader2 size={13} className="animate-spin text-primary" />
+                      )}
+                      {run.status}
+                    </span>
+                    <span className="text-muted-foreground">{run.stepCount} steps</span>
+                  </button>
+                ))}
               </div>
-              {onPreviewTemplate && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 w-full gap-2"
-                  onClick={() => onPreviewTemplate(selectedTemplate.id)}
-                >
-                  <Eye size={15} /> Open full preview
-                </Button>
-              )}
             </div>
           )}
         </aside>
-      </form>
+      </div>
+      {previewing && selectedTemplate && (
+        <EmailPreviewDrawer
+          description="Workflow email"
+          title={selectedTemplate.name}
+          subject={selectedTemplate.subject}
+          recipient={<span className="font-mono text-primary">{'{{customer.email}}'}</span>}
+          htmlBody={selectedTemplate.htmlBody}
+          textBody={selectedTemplate.textBody}
+          onClose={() => setPreviewing(false)}
+        />
+      )}
+      {openedRunId && <WorkflowRunDrawer runId={openedRunId} onClose={() => setOpenedRunId(null)} />}
     </EditorShell>
+  );
+}
+
+function WorkflowCanvas({
+  definition,
+  selectedId,
+  onSelect,
+  onAdd,
+}: {
+  definition: EmailWorkflowDefinition;
+  selectedId: string;
+  onSelect: (id: string) => void;
+  onAdd: (edgeId: string, type: 'send_email' | 'delay' | 'condition') => void;
+}) {
+  const trigger = definition.nodes.find((node) => node.type === 'trigger');
+  if (!trigger) return <p className="text-sm text-destructive">Add a trigger to continue.</p>;
+  const render = (node: EmailWorkflowNode, visited: Set<string>): React.ReactNode => {
+    if (visited.has(node.id)) return null;
+    const nextVisited = new Set(visited).add(node.id);
+    const edges = definition.edges.filter((edge) => edge.source === node.id);
+    return (
+      <div className="flex min-w-60 flex-col items-center">
+        <WorkflowNodeCard node={node} selected={node.id === selectedId} onClick={() => onSelect(node.id)} />
+        {node.type === 'condition' ? (
+          <>
+            <BranchConnector />
+            <div className="grid w-full grid-cols-2 gap-8">
+              {(['yes', 'no'] as const).map((branch) => {
+                const edge = edges.find((candidate) => candidate.branch === branch);
+                const target = edge && definition.nodes.find((candidate) => candidate.id === edge.target);
+                return (
+                  <div key={branch} className="flex flex-col items-center">
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase',
+                        branch === 'yes' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      {branch}
+                    </span>
+                    {edge && <EdgeAdder onAdd={(type) => onAdd(edge.id, type)} />}
+                    {target && render(target, nextVisited)}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : edges[0] ? (
+          <>
+            <EdgeAdder onAdd={(type) => onAdd(edges[0].id, type)} />
+            {(() => {
+              const target = definition.nodes.find((candidate) => candidate.id === edges[0].target);
+              return target ? render(target, nextVisited) : null;
+            })()}
+          </>
+        ) : null}
+      </div>
+    );
+  };
+  return <div className="flex min-w-max justify-center">{render(trigger, new Set())}</div>;
+}
+
+/**
+ * Joins a condition card to its yes/no columns: a stem down from the card, a rail
+ * across to each branch, and a drop into it. Without this the branches read as
+ * floating, unconnected to the step that produced them.
+ *
+ * The rail repeats the branch grid below, so each segment ends at its own
+ * column's centre. Equal columns put those centres symmetrically either side of
+ * the middle whatever the gap is, and the middle is where the stem lands — so
+ * the join is exact rather than eyeballed.
+ */
+function BranchConnector() {
+  return (
+    <div className="flex w-full flex-col items-center" aria-hidden="true">
+      <span className="h-4 w-px bg-border" />
+      <div className="grid w-full grid-cols-2 gap-8">
+        {(['left', 'right'] as const).map((side) => (
+          <div key={side} className="relative h-4">
+            <span className={cn('absolute top-0 h-px bg-border', side === 'left' ? 'left-1/2 right-0' : 'left-0 right-1/2')} />
+            <span className="absolute left-1/2 top-0 h-full w-px bg-border" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WorkflowNodeCard({ node, selected, onClick }: { node: EmailWorkflowNode; selected: boolean; onClick: () => void }) {
+  // Icon and colour come from the shared step language, so a step looks the same
+  // here as it does on its automation card in the list.
+  const { icon: Icon, chip } = NODE_META[node.type];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex w-64 items-center gap-3 rounded-xl border bg-card p-3 text-left shadow-sm transition',
+        selected ? 'border-primary ring-2 ring-primary/15' : 'border-border hover:border-primary/40',
+      )}
+    >
+      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', chip)}>
+        <Icon size={18} />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold">{node.name}</span>
+        <span className="block truncate text-[11px] capitalize text-muted-foreground">{nodeDetail(node)}</span>
+      </span>
+    </button>
+  );
+}
+
+function EdgeAdder({ onAdd }: { onAdd: (type: 'send_email' | 'delay' | 'condition') => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative flex h-15 flex-col items-center">
+      <span className="h-5 w-px bg-border" />
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex size-6 items-center justify-center rounded-full border border-border bg-card text-primary shadow-sm hover:border-primary"
+        aria-label="Insert workflow step"
+      >
+        <Plus size={13} />
+      </button>
+      <span className="h-4 w-px bg-border" />
+      {open && (
+        <div className="absolute left-8 top-3 z-20 flex w-40 flex-col rounded-xl border border-border bg-card p-1 shadow-lg">
+          {(
+            [
+              ['send_email', 'Send email'],
+              ['delay', 'Wait'],
+              ['condition', 'Condition'],
+            ] as const
+          ).map(([type, label]) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => {
+                onAdd(type);
+                setOpen(false);
+              }}
+              className="rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-muted"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NodeSettings({
+  node,
+  templates,
+  locations,
+  onChange,
+  onPreview,
+  onRemove,
+}: {
+  node: EmailWorkflowNode;
+  templates: Array<{ id: string; name: string; subject: string }>;
+  locations: Array<{ id: string; name: string }>;
+  onChange: (node: EmailWorkflowNode) => void;
+  onPreview: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">Step settings</p>
+        <Input label="Step name" value={node.name} onChange={(event) => onChange({ ...node, name: event.target.value })} />
+      </div>
+      {node.type === 'trigger' && (
+        <>
+          <div>
+            <label className="text-xs font-bold text-muted-foreground">Event</label>
+            <Select
+              value={node.config.event}
+              onValueChange={(value) =>
+                onChange({
+                  ...node,
+                  config: {
+                    ...node.config,
+                    event: value as typeof node.config.event,
+                    offsetDays: value === 'customer_inactive' ? 30 : 0,
+                    locationId: value.startsWith('order_') ? node.config.locationId : null,
+                  },
+                })
+              }
+              options={TRIGGER_OPTIONS}
+              ariaLabel="Workflow trigger"
+              className="mt-1.5 w-full"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">{TRIGGER_HELP[node.config.event]}</p>
+          </div>
+          {node.config.event.startsWith('order_') && (
+            <div>
+              <label className="text-xs font-bold text-muted-foreground">Location</label>
+              <Select
+                value={node.config.locationId ?? ''}
+                onValueChange={(value) => onChange({ ...node, config: { ...node.config, locationId: value || null } })}
+                options={[
+                  { value: '', label: 'All locations' },
+                  ...locations.map((location) => ({ value: location.id, label: location.name })),
+                ]}
+                ariaLabel="Workflow location"
+                className="mt-1.5 w-full"
+              />
+            </div>
+          )}
+          {(node.config.event === 'customer_birthday' || node.config.event === 'customer_inactive') && (
+            <>
+              <Input
+                label={node.config.event === 'customer_birthday' ? 'Days before birthday' : 'Days without a visit'}
+                type="number"
+                min={0}
+                value={Math.abs(node.config.offsetDays ?? 0)}
+                onChange={(event) =>
+                  onChange({
+                    ...node,
+                    config: {
+                      ...node.config,
+                      offsetDays:
+                        node.config.event === 'customer_birthday'
+                          ? -Math.abs(Number(event.target.value))
+                          : Math.max(1, Number(event.target.value)),
+                    },
+                  })
+                }
+              />
+              <div>
+                <label className="text-xs font-bold text-muted-foreground">Timezone</label>
+                <TimezoneSelect
+                  value={node.config.timezone ?? 'Europe/London'}
+                  onChange={(timezone) => onChange({ ...node, config: { ...node.config, timezone } })}
+                />
+              </div>
+            </>
+          )}
+        </>
+      )}
+      {node.type === 'send_email' && (
+        <>
+          <div>
+            <label className="text-xs font-bold text-muted-foreground">Template</label>
+            <Select
+              value={node.config.templateId}
+              onValueChange={(templateId) => onChange({ ...node, config: { templateId } })}
+              options={templates.map((template) => ({ value: template.id, label: template.name }))}
+              ariaLabel="Email template"
+              className="mt-1.5 w-full"
+            />
+          </div>
+          <Button variant="outline" className="w-full gap-2" onClick={onPreview} disabled={!node.config.templateId}>
+            <Eye />
+            Preview email
+          </Button>
+        </>
+      )}
+      {node.type === 'delay' && (
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            label="Amount"
+            type="number"
+            min={1}
+            value={node.config.amount}
+            onChange={(event) => onChange({ ...node, config: { ...node.config, amount: Math.max(1, Number(event.target.value)) } })}
+          />
+          <div>
+            <label className="text-xs font-bold text-muted-foreground">Unit</label>
+            <Select
+              value={node.config.unit}
+              onValueChange={(unit) => onChange({ ...node, config: { ...node.config, unit: unit as typeof node.config.unit } })}
+              options={[
+                { value: 'minutes', label: 'Minutes' },
+                { value: 'hours', label: 'Hours' },
+                { value: 'days', label: 'Days' },
+              ]}
+              ariaLabel="Delay unit"
+              className="mt-1.5 w-full"
+            />
+          </div>
+        </div>
+      )}
+      {node.type === 'condition' && (
+        <>
+          <div>
+            <label className="text-xs font-bold text-muted-foreground">Field</label>
+            <Select
+              value={node.config.field}
+              onValueChange={(field) => onChange({ ...node, config: { ...node.config, field: field as typeof node.config.field } })}
+              options={CONDITION_FIELDS}
+              ariaLabel="Condition field"
+              className="mt-1.5 w-full"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-muted-foreground">Operator</label>
+            <Select
+              value={node.config.operator}
+              onValueChange={(operator) =>
+                onChange({ ...node, config: { ...node.config, operator: operator as typeof node.config.operator } })
+              }
+              options={CONDITION_OPERATORS}
+              ariaLabel="Condition operator"
+              className="mt-1.5 w-full"
+            />
+          </div>
+          <Input
+            label="Value"
+            value={String(node.config.value)}
+            onChange={(event) => onChange({ ...node, config: { ...node.config, value: event.target.value } })}
+          />
+        </>
+      )}
+      {node.type === 'end' && (
+        <p className="rounded-xl bg-muted p-3 text-xs text-muted-foreground">
+          This branch finishes here. Insert new steps on the connection above it.
+        </p>
+      )}
+      {node.type !== 'trigger' && node.type !== 'end' && (
+        <Button variant="destructive" className="w-full gap-2" onClick={onRemove}>
+          <Trash2 />
+          Remove step
+        </Button>
+      )}
+    </div>
   );
 }

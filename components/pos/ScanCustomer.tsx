@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, ScanLine } from 'lucide-react';
+import { Loader2, ScanLine } from '@/components/icons';
 import { useState } from 'react';
 
 import { QrScanner } from '@/components/pos/QrScanner';

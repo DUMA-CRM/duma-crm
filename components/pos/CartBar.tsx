@@ -1,11 +1,12 @@
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart } from '@/components/icons';
 
-import { cartItemTotal } from '@/lib/utils/pos';
+import { cartItemTotal, formatPrice } from '@/lib/utils/pos';
 import type { CartItem } from '@/types/pos';
 
 interface CartBarProps {
   cart: CartItem[];
   onOpen: () => void;
+  currency?: string;
 }
 
 /**
@@ -14,7 +15,7 @@ interface CartBarProps {
  * opens the drawer in one tap — without it the only way in is the small
  * header toggle.
  */
-export function CartBar({ cart, onOpen }: CartBarProps) {
+export function CartBar({ cart, onOpen, currency }: CartBarProps) {
   const count = cart.reduce((n, c) => n + c.quantity, 0);
   if (count === 0) return null;
   const subtotal = cart.reduce((sum, c) => sum + cartItemTotal(c), 0);
@@ -33,7 +34,7 @@ export function CartBar({ cart, onOpen }: CartBarProps) {
         </span>
         <p className="ml-2.5">View Order</p>
       </span>
-      <span className="text-base font-bold tabular-nums">£{(subtotal / 100).toFixed(2)}</span>
+      <span className="text-base font-bold tabular-nums">{formatPrice(subtotal, currency)}</span>
     </button>
   );
 }

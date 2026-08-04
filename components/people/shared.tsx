@@ -1,6 +1,8 @@
 import { GravatarImage } from '@/components/shared/GravatarImage';
+
 import type { EmploymentType, PayType } from '@/lib/api/hr.service';
 import { type StaffRole, type StaffScope } from '@/lib/api/staff.service';
+import { formatDate } from '@/lib/utils/date';
 
 // ── Role / scope config ───────────────────────────────────────────────────────
 
@@ -64,13 +66,13 @@ export const fmtHours = (h: number): string => `${Math.round(h * 100) / 100}h`;
 // ── Shared form styles ────────────────────────────────────────────────────────
 
 export const inp =
-  'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 export const sel = inp + ' cursor-pointer';
 export const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-export const fmtDate = (x: string) => new Date(x).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+export const fmtDate = (x: string) => formatDate(x);
 export const toDateInput = (x?: string) => (x ? new Date(x).toISOString().slice(0, 10) : '');
 
 // ── Initials avatar ───────────────────────────────────────────────────────────
@@ -90,5 +92,13 @@ export function Avatar({ name, email, size = 'md' }: { name?: string; email?: st
   );
 
   if (!email) return fallback;
-  return <GravatarImage email={email} px={px} className={`${dim} rounded-lg object-cover shrink-0 select-none`} alt={name ?? ''} fallback={fallback} />;
+  return (
+    <GravatarImage
+      email={email}
+      px={px}
+      className={`${dim} rounded-lg object-cover shrink-0 select-none`}
+      alt={name ?? ''}
+      fallback={fallback}
+    />
+  );
 }

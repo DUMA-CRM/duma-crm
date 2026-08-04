@@ -1,6 +1,19 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import QRCode from 'react-qr-code';
+
+import { CustomerEmails } from '@/components/customers/CustomerEmails';
+import { CustomerOrders } from '@/components/customers/CustomerOrders';
+import { EditForm } from '@/components/customers/EditForm';
+import { LoyaltyProgress } from '@/components/customers/LoyaltyProgress';
+import { MarketingPreferencesPanel } from '@/components/customers/MarketingPreferencesPanel';
+import { PointsForm } from '@/components/customers/PointsForm';
+import { PrivacyRequestsPanel } from '@/components/customers/PrivacyRequestsPanel';
+import { VisitCalendar } from '@/components/customers/VisitCalendar';
+import { SendEmailModal } from '@/components/email/SendEmailModal';
 import {
   Activity,
   Calendar,
@@ -10,32 +23,23 @@ import {
   LayoutDashboard,
   Loader2,
   Mail,
-  ShieldCheck,
   Pencil,
   Phone,
+  Receipt,
+  Repeat,
+  ShieldCheck,
   ShoppingBag,
   Star,
   UserCircle2,
-} from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import QRCode from 'react-qr-code';
-
-import { CustomerEmails } from '@/components/customers/CustomerEmails';
-import { CustomerOrders } from '@/components/customers/CustomerOrders';
-import { EditForm } from '@/components/customers/EditForm';
-import { LoyaltyProgress } from '@/components/customers/LoyaltyProgress';
-import { PointsForm } from '@/components/customers/PointsForm';
-import { VisitCalendar } from '@/components/customers/VisitCalendar';
-import { MarketingPreferencesPanel } from '@/components/customers/MarketingPreferencesPanel';
-import { PrivacyRequestsPanel } from '@/components/customers/PrivacyRequestsPanel';
-import { SendEmailModal } from '@/components/email/SendEmailModal';
+  Wallet,
+} from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { Modal } from '@/components/shared/Modal';
-import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
+import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
+import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -43,6 +47,7 @@ import { getCustomer } from '@/lib/api/customers.service';
 import { getOrders } from '@/lib/api/orders.service';
 import { TIER_CONFIG } from '@/lib/constants/customers';
 import { customerQrValue } from '@/lib/utils/customer-qr';
+import { formatDate } from '@/lib/utils/date';
 
 type Section = 'overview' | 'activity' | 'emails' | 'privacy';
 
@@ -53,7 +58,7 @@ const SECTIONS: SectionTab<Section>[] = [
   { value: 'privacy', label: 'Privacy & consent', icon: ShieldCheck },
 ];
 
-const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const fmtDate = (iso: string) => formatDate(iso);
 
 export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const router = useRouter();
@@ -89,17 +94,6 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
           <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} email={customer.email} className="size-11" />
         ) : undefined
       }
-      meta={
-        customer && (
-          <>
-            {tier && <Badge variant={tier.variant}>{tier.label}</Badge>}
-            <span className="text-xs text-muted-foreground">{customer.pointsBalance.toLocaleString()} pts</span>
-            <span className="text-xs text-muted-foreground">
-              Member since {new Date(customer.createdAt).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-            </span>
-          </>
-        )
-      }
       actions={
         customer && (
           <>
@@ -127,14 +121,16 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
           </>
         )
       }
-      subheader={customer ? <SectionTabs tabs={SECTIONS} value={section} onChange={setSection} ariaLabel="Customer record sections" /> : undefined}
+      subheader={
+        customer ? <SectionTabs tabs={SECTIONS} value={section} onChange={setSection} ariaLabel="Customer record sections" /> : undefined
+      }
     >
       {isLoading ? (
         <div className="flex items-center justify-center py-24 text-muted-foreground">
           <Loader2 size={22} className="animate-spin" />
         </div>
       ) : isError || !customer ? (
-        <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-8 text-center">
+        <div className="mx-auto max-w-md rounded-2xl border border-border bg-card shadow-sm p-8 text-center">
           <EmptyState icon={UserCircle2} title="Customer not found" description="It may have been removed, or the link is out of date." />
           <Button variant="outline" onClick={() => router.push('/customers')}>
             Back to customers
@@ -142,16 +138,16 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
         </div>
       ) : section === 'overview' ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat label="Total spent" value={`£${Number(customer.totalSpent).toFixed(0)}`} />
-            <Stat label="Visits" value={String(customer.totalVisits)} />
-            <Stat label="Avg order" value={`£${avgTicket.toFixed(0)}`} />
-            <Stat label="Points" value={customer.pointsBalance.toLocaleString()} />
-          </div>
+          <StatCardGrid>
+            <StatCard size="sm" icon={Wallet} accent="success" label="Total spent" value={`£${Number(customer.totalSpent).toFixed(0)}`} />
+            <StatCard size="sm" icon={Repeat} accent="info" label="Visits" value={customer.totalVisits} />
+            <StatCard size="sm" icon={Receipt} accent="primary" label="Avg order" value={`£${avgTicket.toFixed(0)}`} />
+            <StatCard size="sm" icon={Star} accent="warning" label="Points" value={customer.pointsBalance.toLocaleString()} />
+          </StatCardGrid>
 
           <div className="grid items-start gap-4 lg:grid-cols-2">
             {/* Loyalty and the QR that identifies this customer at the till */}
-            <section className="rounded-2xl border border-border bg-card p-5">
+            <section className="rounded-2xl border border-border bg-card shadow-sm p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="font-semibold text-foreground">Loyalty</h2>
                 {tier && <Badge variant={tier.variant}>{tier.label}</Badge>}
@@ -165,7 +161,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                       value={customerQrValue(customer.id)}
                       size={104}
                       bgColor="#ffffff"
-                      fgColor="#1e1b16"
+                      fgColor="#111a40"
                       aria-label="Customer loyalty QR code"
                     />
                   </div>
@@ -177,7 +173,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border bg-card p-5">
+            <section className="rounded-2xl border border-border bg-card shadow-sm p-5">
               <h2 className="mb-4 font-semibold text-foreground">Contact</h2>
               <InfoGroup>
                 <InfoRow icon={Phone} label="Phone" value={customer.phone} copyable />
@@ -200,7 +196,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
       ) : section === 'activity' ? (
         <div className="space-y-4">
           {visits.length > 0 && (
-            <section className="rounded-2xl border border-border bg-card p-5">
+            <section className="rounded-2xl border border-border bg-card shadow-sm p-5">
               <h2 className="mb-4 font-semibold text-foreground">Visit pattern</h2>
               <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <VisitCalendar visits={visits} months={6} />
@@ -237,14 +233,5 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
         />
       )}
     </EditorShell>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-      <p className="mt-1.5 text-xl font-bold tabular-nums text-foreground">{value}</p>
-    </div>
   );
 }

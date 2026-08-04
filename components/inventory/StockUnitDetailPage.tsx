@@ -1,18 +1,20 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Barcode, Boxes, CalendarDays, History, PackageOpen, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { Barcode, Boxes, CalendarDays, History, PackageOpen, Scale } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
 import { adjustStockUnit, getStockUnit, getStockUnitLedger, wasteStockUnit } from '@/lib/api/inventory.service';
 import { cn } from '@/lib/utils/cn';
+import { formatDate, formatDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 
 const fmt = (value: string | number) => Number(value).toLocaleString('en-GB', { maximumFractionDigits: 3 });
@@ -63,39 +65,24 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
       title={unit?.label ?? (isLoading ? 'Loading…' : 'Stock unit')}
       icon={<PackageOpen size={20} aria-hidden="true" />}
       onClose={() => router.push(backHref)}
-      meta={
-        unit && (
-          <>
-            <Badge variant={active ? 'success' : unit.status === 'EXPIRED' ? 'destructive' : 'muted'}>
-              {unit.status.replace('_', ' ')}
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              {fmt(unit.remainingQuantity)} {unit.unitOfMeasure} left
-            </span>
-          </>
-        )
-      }
     >
       <div className="space-y-4">
         {unit && (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Stat
+            <StatCardGrid>
+              <StatCard
+                size="sm"
                 icon={Scale}
                 label="Remaining"
                 value={`${fmt(unit.remainingQuantity)} / ${fmt(unit.initialQuantity)} ${unit.unitOfMeasure}`}
               />
-              <Stat
-                icon={CalendarDays}
-                label="Expiry"
-                value={unit.expiryDate ? new Date(unit.expiryDate).toLocaleDateString('en-GB') : 'N/A'}
-              />
-              <Stat icon={PackageOpen} label="Status" value={unit.status.replace('_', ' ')} />
-              <Stat icon={Barcode} label="Lot / barcode" value={unit.lotNumber || unit.barcode || 'Not recorded'} />
-            </div>
+              <StatCard size="sm" icon={CalendarDays} label="Expiry" value={formatDate(unit.expiryDate, 'N/A')} />
+              <StatCard size="sm" icon={PackageOpen} label="Status" value={unit.status.replace('_', ' ')} />
+              <StatCard size="sm" icon={Barcode} label="Lot / barcode" value={unit.lotNumber || unit.barcode || 'Not recorded'} />
+            </StatCardGrid>
 
             <div className="grid lg:grid-cols-2 gap-4 items-start">
-              <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+              <section className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
                 <div className="flex items-center gap-2">
                   <Scale size={15} className="text-primary" />
                   <div>
@@ -115,7 +102,7 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
                   </Button>
                 </div>
               </section>
-              <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+              <section className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
                 <div className="flex items-center gap-2">
                   <Boxes size={15} className="text-primary" />
                   <div>
@@ -145,7 +132,7 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
               </section>
             </div>
 
-            <section className="rounded-2xl border border-border bg-card overflow-hidden">
+            <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
               <div className="px-5 py-3 border-b border-border flex items-center gap-2">
                 <History size={15} className="text-muted-foreground" />
                 <h2 className="font-semibold text-foreground">Container history</h2>
@@ -179,9 +166,7 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
                         {Number(movement.quantity) > 0 ? '+' : ''}
                         {fmt(movement.quantity)} {movement.unitOfMeasure}
                       </span>
-                      <time className="hidden md:block text-xs text-muted-foreground">
-                        {new Date(movement.createdAt).toLocaleString('en-GB')}
-                      </time>
+                      <time className="hidden md:block text-xs text-muted-foreground">{formatDateTime(movement.createdAt)}</time>
                     </div>
                   ))}
                 </div>
@@ -191,17 +176,5 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
         )}
       </div>
     </EditorShell>
-  );
-}
-
-function Stat({ icon: Icon, label, value }: { icon: typeof Scale; label: string; value: string }) {
-  return (
-    <div className="bg-card border border-border rounded-2xl p-4">
-      <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
-        <Icon size={14} aria-hidden="true" />
-        <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
-      </div>
-      <p className="text-base font-bold text-foreground tabular-nums">{value}</p>
-    </div>
   );
 }

@@ -254,7 +254,6 @@ Work through:
 
 ## First week
 
-- Assign required **training**. Practical skills need a manager to observe and sign them off — they cannot self-complete those.
 - Put them on the **rota** so they can see their shifts in My Rota.
 - Point them at My HR for leave, attendance corrections and private HR requests.
 
@@ -288,7 +287,7 @@ That is where nearly every "these numbers are wrong" conversation ends.
 | Average order value | Net revenue ÷ orders | Moves when either side moves |
 | Repeat rate | Known customers ordering more than once | Anonymous sales are not in it |
 | Completion rate | Orders reaching done | A queue left uncleared drags it down |
-| Cancellation rate | Cancelled share of orders | Training issues show up here first |
+| Cancellation rate | Cancelled share of orders | Service issues show up here first |
 
 Channel figures are reported before the headline cancellation adjustment, because status and source are not cross-broken-down. Use them for mix, not for a precise total.
 

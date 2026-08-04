@@ -1,4 +1,4 @@
-import { ArrowRight, Coffee, ShieldCheck, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, Coffee, ShieldCheck, Sparkles, Zap } from '@/components/icons';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';

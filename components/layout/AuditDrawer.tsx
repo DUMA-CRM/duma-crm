@@ -1,12 +1,14 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Clock, ExternalLink, History, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 
+import { Clock, ExternalLink, History, X } from '@/components/icons';
+
 import { type AuditLog, getAuditLogs } from '@/lib/api/audit.service';
 import { cn } from '@/lib/utils/cn';
+import { formatDate } from '@/lib/utils/date';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -25,7 +27,7 @@ function formatTime(iso: string) {
   if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return formatDate(d);
 }
 
 function humanise(str: string) {

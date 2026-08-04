@@ -1,12 +1,13 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, CircleDollarSign, Grid2X2, TrendingDown, TrendingUp, Trophy } from 'lucide-react';
+import { AlertTriangle, CircleDollarSign, Grid2X2, Trophy } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { DeltaText, StatCard, StatCardGrid, changeDelta } from '@/components/shared/StatCard';
 
 import { type TopItemAnalytics, getTopItems } from '@/lib/api/analytics.service';
 import { getMenuItems } from '@/lib/api/menu.service';
@@ -39,7 +40,7 @@ interface MenuPerformanceRow extends AggregatedItem {
   costComplete: boolean;
 }
 
-const panel = 'rounded-2xl border border-border bg-card';
+const panel = 'rounded-2xl border border-border bg-card shadow-sm';
 
 const qtyOf = (row: TopItemAnalytics) => Number(row.totalQuantity ?? 0);
 const revOf = (row: TopItemAnalytics) => Number(row.totalRevenue ?? 0);
@@ -71,33 +72,6 @@ function aggregateItems(rows: TopItemAnalytics[]): AggregatedItem[] {
     });
   });
   return [...grouped.values()];
-}
-
-function ChangeBadge({ change }: { change: number | null | undefined }) {
-  if (change === undefined) return <span className="text-[11px] font-medium text-muted-foreground">Unavailable</span>;
-  if (change === null) return <span className="text-[11px] font-medium text-muted-foreground">New</span>;
-  const up = change >= 0;
-  return (
-    <span className={cn('inline-flex items-center gap-0.5 text-[11px] font-semibold', up ? 'text-success' : 'text-destructive')}>
-      {up ? <TrendingUp size={11} aria-hidden="true" /> : <TrendingDown size={11} aria-hidden="true" />}
-      {up ? '+' : ''}
-      {change.toFixed(0)}%
-    </span>
-  );
-}
-
-function SummaryCard({ label, value, note, loading }: { label: string; value: string; note: string; loading: boolean }) {
-  return (
-    <div className={cn(panel, 'p-4')}>
-      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-      {loading ? (
-        <div className="mt-3 h-8 w-24 animate-pulse rounded-lg bg-muted" />
-      ) : (
-        <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{value}</p>
-      )}
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{note}</p>
-    </div>
-  );
 }
 
 function MarginBadge({ margin }: { margin: number | null }) {
@@ -274,34 +248,38 @@ export function TopItemsReportPage() {
           </p>
         </div>
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-          <SummaryCard
+        <StatCardGrid columns={6}>
+          <StatCard
+            size="sm"
             label="Distinct items"
             value={formatCompact(rows.length)}
-            note={`${selectedLocation?.name ?? 'All locations'} · ${window.label}`}
+            hint={`${selectedLocation?.name ?? 'All locations'} · ${window.label}`}
             loading={loading}
           />
-          <SummaryCard label="Units sold" value={formatCompact(totalUnits)} note="Across returned menu items" loading={loading} />
-          <SummaryCard label="Recorded revenue" value={formatMoney(totalRevenue)} note="Non-cancelled item revenue" loading={loading} />
-          <SummaryCard
+          <StatCard size="sm" label="Units sold" value={formatCompact(totalUnits)} hint="Across returned menu items" loading={loading} />
+          <StatCard size="sm" label="Recorded revenue" value={formatMoney(totalRevenue)} hint="Non-cancelled item revenue" loading={loading} />
+          <StatCard
+            size="sm"
             label="Cost coverage"
             value={`${costCoverage.toFixed(1)}%`}
-            note={`${coveredRows.length} of ${rows.length} items fully costed`}
+            hint={`${coveredRows.length} of ${rows.length} items fully costed`}
             loading={loading}
           />
-          <SummaryCard
+          <StatCard
+            size="sm"
             label="Contribution estimate"
             value={formatMoney(contribution)}
-            note="On cost-covered revenue only"
+            hint="On cost-covered revenue only"
             loading={loading}
           />
-          <SummaryCard
+          <StatCard
+            size="sm"
             label="Contribution margin"
             value={`${contributionMargin.toFixed(1)}%`}
-            note={`${formatMoney(estimatedCost)} estimated base cost`}
+            hint={`${formatMoney(estimatedCost)} estimated base cost`}
             loading={loading}
           />
-        </section>
+        </StatCardGrid>
 
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.75fr)]">
           <div className={cn(panel, 'p-5')}>
@@ -351,7 +329,7 @@ export function TopItemsReportPage() {
                           {index + 1}
                         </span>
                         <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{row.name}</span>
-                        {(sortBy === 'quantity' || sortBy === 'revenue') && <ChangeBadge change={change} />}
+                        {(sortBy === 'quantity' || sortBy === 'revenue') && <DeltaText delta={changeDelta(change)} />}
                         <span className="w-28 shrink-0 text-right text-sm font-bold tabular-nums text-foreground">
                           {sortBy === 'quantity'
                             ? `${formatCompact(qtyOf(row))} sold`

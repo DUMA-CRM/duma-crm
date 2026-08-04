@@ -1,5 +1,6 @@
-import { StaffWorkspace } from '@/components/people/StaffWorkspace';
+import { redirect } from 'next/navigation';
 
-export default function StaffShiftsPage() {
-  return <StaffWorkspace tab="shifts" />;
+/** The shift register merged into the rota — one page for planned and worked time. */
+export default function StaffShiftsRedirect() {
+  redirect('/staff/rota');
 }

@@ -13,7 +13,7 @@ import {
   ShoppingCart,
   Trash2,
   XCircle,
-} from 'lucide-react';
+} from '@/components/icons';
 import { useState } from 'react';
 
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
@@ -63,7 +63,7 @@ const PRIORITY_OPTIONS = [
 ] as const;
 
 const textareaClass = cn(
-  'w-full bg-surface-offset border border-transparent rounded-lg px-3 py-2 text-sm text-foreground',
+  'w-full bg-field border border-input rounded-lg px-3 py-2 text-sm text-foreground',
   'placeholder:text-muted-foreground outline-none resize-none',
   'focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150',
 );
@@ -405,7 +405,7 @@ export function RestockApprovals({
   return (
     <div className="space-y-6 pb-8">
       {/* ── Filters ────────────────────────────────────────── */}
-      <div className="grid gap-2 rounded-2xl border border-border bg-card p-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,16rem)_minmax(12rem,20rem)_1fr]">
+      <div className="grid gap-2 rounded-2xl border border-border bg-card shadow-sm p-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,16rem)_minmax(12rem,20rem)_1fr]">
         <Select
           value={activeTab}
           onValueChange={(value) => changeTab(value as RestockStatus)}

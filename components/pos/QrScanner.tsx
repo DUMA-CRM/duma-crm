@@ -1,7 +1,7 @@
 'use client';
 
 import jsQR from 'jsqr';
-import { Loader2, SwitchCamera, VideoOff } from 'lucide-react';
+import { Loader2, SwitchCamera, VideoOff } from '@/components/icons';
 import { useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils/cn';

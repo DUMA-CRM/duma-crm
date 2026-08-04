@@ -1,6 +1,6 @@
 'use client';
 
-import { Check } from 'lucide-react';
+import { Check } from '@/components/icons';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
 
 const PASSWORD_RULES: { label: string; test: (p: string) => boolean }[] = [
-  { label: 'At least 8 characters', test: (p) => p.length >= 8 },
+  { label: 'At least 12 characters', test: (p) => p.length >= 12 },
   { label: 'One uppercase letter', test: (p) => /[A-Z]/.test(p) },
   { label: 'One number', test: (p) => /\d/.test(p) },
 ];

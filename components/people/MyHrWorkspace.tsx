@@ -1,14 +1,17 @@
 'use client';
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
+import { useMemo, useState } from 'react';
+
+import { HelpdeskBoard } from '@/components/helpdesk/HelpdeskBoard';
 import {
   CalendarCheck,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
+  Clock,
   FileText,
-  GraduationCap,
   Landmark,
   LayoutDashboard,
   Loader2,
@@ -17,22 +20,17 @@ import {
   Pencil,
   Plus,
   ShieldAlert,
-} from 'lucide-react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
-
-import { HelpdeskBoard } from '@/components/helpdesk/HelpdeskBoard';
+} from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { Modal } from '@/components/shared/Modal';
-import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
+import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
+import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { getMyTrainingAssignments } from '@/lib/api/courses.service';
 import {
   type BankDetailsPayload,
   type HrEmployee,
@@ -59,11 +57,12 @@ import {
   submitLeaveRequest,
 } from '@/lib/api/people-ops.service';
 import { cn } from '@/lib/utils/cn';
+import { formatDate } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
-type Tab = 'overview' | 'leave' | 'attendance' | 'training' | 'documents' | 'helpdesk';
-const fmt = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+type Tab = 'overview' | 'leave' | 'attendance' | 'documents' | 'helpdesk';
+const fmt = (date: string) => formatDate(date);
 const statusVariant = (status: string): 'success' | 'warning' | 'destructive' | 'muted' =>
   status === 'approved' || status === 'resolved'
     ? 'success'
@@ -72,9 +71,7 @@ const statusVariant = (status: string): 'success' | 'warning' | 'destructive' | 
       : status === 'declined'
         ? 'destructive'
         : 'muted';
-
-const TABS: Tab[] = ['overview', 'leave', 'attendance', 'training', 'documents', 'helpdesk'];
-
+const TABS: Tab[] = ['overview', 'leave', 'attendance', 'documents', 'helpdesk'];
 export function MyHrWorkspace() {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -93,39 +90,26 @@ export function MyHrWorkspace() {
   const openTickets = tickets.filter((ticket) => !['resolved', 'closed'].includes(ticket.status)).length;
   const holiday = entitlements[0];
   const remaining = holiday ? Number(holiday.totalDays) - Number(holiday.usedDays) : 0;
-
   const tabs = useMemo<SectionTab<Tab>[]>(
     () => [
       { value: 'overview', label: 'Overview', icon: LayoutDashboard },
       { value: 'leave', label: 'Leave', icon: CalendarDays },
       { value: 'attendance', label: 'Attendance', icon: CalendarCheck },
-      { value: 'training', label: 'Training', icon: GraduationCap },
       { value: 'documents', label: 'Documents', icon: FileText },
       { value: 'helpdesk', label: 'Helpdesk', icon: CircleHelp, count: openTickets },
     ],
     [openTickets],
   );
-
   const requestCorrection = (date: string) => {
     sessionStorage.setItem('attendance-correction-date', date);
     setTicketOpen(true);
   };
-
   const [firstName = '', lastName = ''] = (user?.name ?? '').split(' ');
-
   return (
     <EditorShell
       eyebrow="Employee workspace"
       title={user?.name ?? 'My HR'}
       leading={<InitialsAvatar firstName={firstName || 'U'} lastName={lastName} email={user?.email} className="size-11" />}
-      meta={
-        <>
-          {employee?.jobTitle && <span className="text-xs text-muted-foreground">{employee.jobTitle}</span>}
-          {employee?.department && <Badge variant="muted">{employee.department}</Badge>}
-          {employee?.employmentType && <Badge variant="muted">{employee.employmentType.replaceAll('_', ' ')}</Badge>}
-          {employee?.startDate && <span className="text-xs text-muted-foreground">Since {fmt(employee.startDate)}</span>}
-        </>
-      }
       actions={
         <>
           <Button variant="outline" className="h-10 gap-1.5" onClick={() => setTicketOpen(true)}>
@@ -155,7 +139,6 @@ export function MyHrWorkspace() {
       )}
       {tab === 'leave' && <LeavePanel requests={requests} entitlements={entitlements} onRequest={() => setLeaveOpen(true)} />}
       {tab === 'attendance' && <AttendanceCalendar onCorrection={requestCorrection} />}
-      {tab === 'training' && <TrainingPanel />}
       {tab === 'documents' && <DocumentsPanel documents={documents} />}
       {tab === 'helpdesk' && (
         <HelpdeskBoard
@@ -194,7 +177,6 @@ export function MyHrWorkspace() {
     </EditorShell>
   );
 }
-
 // ── Small building blocks for the overview cards ────────────────────────────────
 function InfoCard({
   icon: Icon,
@@ -208,7 +190,7 @@ function InfoCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -226,7 +208,6 @@ function InfoCard({
     </div>
   );
 }
-
 function Field({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
     <div>
@@ -235,7 +216,6 @@ function Field({ label, value }: { label: string; value?: React.ReactNode }) {
     </div>
   );
 }
-
 function Overview({
   employee,
   loading,
@@ -257,44 +237,53 @@ function Overview({
   const user = useAuthStore((s) => s.user);
   const [editDetails, setEditDetails] = useState(false);
   const [editBank, setEditBank] = useState(false);
-
   const bank = useQuery({
     queryKey: ['my-bank', employee?.userId],
     queryFn: () => getEmployeeBank(employee!.userId),
     enabled: !!employee?.userId,
     retry: false,
   });
-
   if (loading)
     return (
       <div className="py-24 flex justify-center">
         <Loader2 className="animate-spin text-muted-foreground" />
       </div>
     );
-
   const cards = [
-    { label: 'Leave remaining', value: `${remaining} days`, note: `${used} days used`, tab: 'leave' as const },
-    { label: 'Pending requests', value: pending, note: 'Awaiting review', tab: 'leave' as const },
-    { label: 'Open tickets', value: openTickets, note: 'HR conversations', tab: 'helpdesk' as const },
+    {
+      label: 'Leave remaining',
+      value: `${remaining} days`,
+      note: `${used} days used`,
+      icon: CalendarDays,
+      accent: 'primary' as const,
+      tab: 'leave' as const,
+    },
+    { label: 'Pending requests', value: pending, note: 'Awaiting review', icon: Clock, accent: 'warning' as const, tab: 'leave' as const },
+    {
+      label: 'Open tickets',
+      value: openTickets,
+      note: 'HR conversations',
+      icon: CircleHelp,
+      accent: 'info' as const,
+      tab: 'helpdesk' as const,
+    },
   ];
-
   return (
     <div className="space-y-5">
       {/* Quick stats */}
-      <div className="grid md:grid-cols-3 gap-3">
+      <StatCardGrid columns={3}>
         {cards.map((card) => (
-          <button
+          <StatCard
             key={card.label}
-            onClick={() => go(card.tab)}
-            className="text-left rounded-2xl border border-border bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all"
-          >
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{card.label}</p>
-            <p className="text-3xl font-semibold mt-3 tabular-nums">{card.value}</p>
-            <p className="text-xs text-muted-foreground mt-1">{card.note}</p>
-          </button>
+            label={card.label}
+            value={card.value}
+            caption={card.note}
+            icon={card.icon}
+            accent={card.accent}
+            onSelect={() => go(card.tab)}
+          />
         ))}
-      </div>
-
+      </StatCardGrid>
       {/* Details grid */}
       <div className="grid gap-3 lg:grid-cols-2">
         <InfoCard icon={MapPin} title="Personal details" onEdit={() => setEditDetails(true)}>
@@ -306,7 +295,6 @@ function Overview({
             </div>
           </dl>
         </InfoCard>
-
         <InfoCard icon={ShieldAlert} title="Emergency contact" onEdit={() => setEditDetails(true)}>
           <dl className="grid sm:grid-cols-2 gap-4 text-sm">
             <Field label="Name" value={employee?.emergencyContactName} />
@@ -316,7 +304,6 @@ function Overview({
             </div>
           </dl>
         </InfoCard>
-
         <InfoCard icon={Landmark} title="Bank details" onEdit={bank.isError ? undefined : () => setEditBank(true)}>
           {bank.isError ? (
             <p className="text-sm text-muted-foreground">Not available here — contact HR to update your bank details.</p>
@@ -333,7 +320,6 @@ function Overview({
             <p className="text-sm text-muted-foreground">No bank details on file. Add them so payroll can pay you.</p>
           )}
         </InfoCard>
-
         <InfoCard icon={FileText} title="Employment">
           <dl className="grid sm:grid-cols-2 gap-4 text-sm">
             <Field label="Job title" value={employee?.jobTitle} />
@@ -343,7 +329,6 @@ function Overview({
           </dl>
         </InfoCard>
       </div>
-
       {editDetails && employee && (
         <EditDetailsModal
           employee={employee}
@@ -368,7 +353,6 @@ function Overview({
     </div>
   );
 }
-
 function EditDetailsModal({ employee, onClose, onDone }: { employee: HrEmployee; onClose: () => void; onDone: () => void }) {
   const [form, setForm] = useState({
     address: employee.address ?? '',
@@ -415,7 +399,6 @@ function EditDetailsModal({ employee, onClose, onDone }: { employee: HrEmployee;
     </Modal>
   );
 }
-
 function EditBankModal({
   userId,
   current,
@@ -472,7 +455,6 @@ function EditBankModal({
     </Modal>
   );
 }
-
 function LeavePanel({
   requests,
   entitlements,
@@ -508,26 +490,18 @@ function LeavePanel({
           const total = Number(item.totalDays);
           const used = Number(item.usedDays);
           return (
-            <div key={item.id} className="rounded-2xl border border-border bg-card p-5">
-              <div className="flex justify-between">
-                <p className="font-semibold">{item.leaveType.name}</p>
-                <span className="text-xs text-muted-foreground">{item.year}</span>
-              </div>
-              <p className="text-3xl font-semibold mt-4">
-                {total - used}
-                <span className="text-sm font-normal text-muted-foreground"> days left</span>
-              </p>
-              <div className="h-2 bg-muted rounded-full mt-4 overflow-hidden">
-                <div className="h-full bg-primary" style={{ width: `${total ? Math.min(100, (used / total) * 100) : 0}%` }} />
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                {used} used of {total}
-              </p>
-            </div>
+            <StatCard
+              key={item.id}
+              label={item.leaveType.name}
+              value={total - used}
+              unit="days left"
+              action={<span className="text-xs text-muted-foreground">{item.year}</span>}
+              visual={{ type: 'progress', pct: total ? (used / total) * 100 : 0, from: `${used} used`, to: `of ${total}` }}
+            />
           );
         })}
       </div>
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
           <h3 className="font-semibold">Request history</h3>
         </div>
@@ -560,7 +534,6 @@ function LeavePanel({
     </div>
   );
 }
-
 function monthBounds(offset: number) {
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
@@ -617,7 +590,7 @@ function AttendanceCalendar({ onCorrection }: { onCorrection: (date: string) => 
           </span>
         ))}
       </div>
-      <div className="rounded-2xl border border-border bg-card p-3 md:p-5">
+      <div className="rounded-2xl border border-border bg-card shadow-sm p-3 md:p-5">
         <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-bold uppercase text-muted-foreground mb-2">
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
             <div key={d}>{d}</div>
@@ -665,87 +638,6 @@ function AttendanceCalendar({ onCorrection }: { onCorrection: (date: string) => 
     </div>
   );
 }
-
-function TrainingPanel() {
-  const { data: assignments = [], isLoading } = useQuery({ queryKey: ['training-assignments-me'], queryFn: getMyTrainingAssignments });
-  const completed = assignments.filter((item) => item.status === 'completed').length;
-  const overdue = assignments.filter((item) => item.status === 'overdue').length;
-  return (
-    <div className="space-y-5">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Training & development</h2>
-          <p className="text-sm text-muted-foreground">Required learning, renewals, and practical assessments.</p>
-        </div>
-        <Button asChild>
-          <Link href="/training">
-            <GraduationCap />
-            Open training
-          </Link>
-        </Button>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          ['Assigned', assignments.length],
-          ['Completed', completed],
-          ['Overdue', overdue],
-        ].map(([label, value]) => (
-          <div key={String(label)} className="rounded-2xl border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="text-2xl font-semibold mt-2">{value}</p>
-          </div>
-        ))}
-      </div>
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        {isLoading ? (
-          <div className="p-16 flex justify-center">
-            <Loader2 className="animate-spin" />
-          </div>
-        ) : assignments.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground">
-            <GraduationCap className="mx-auto mb-3" />
-            <p className="font-medium text-foreground">No assigned training</p>
-            <p className="text-sm mt-1">Optional courses are available in the training library.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {assignments.map((item) => (
-              <Link
-                key={item.id}
-                href={`/training/${item.courseId}`}
-                className="p-4 md:px-5 flex items-center justify-between gap-4 hover:bg-muted/50"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{item.course.title}</p>
-                    <Badge
-                      variant={
-                        item.status === 'completed'
-                          ? 'success'
-                          : item.status === 'overdue'
-                            ? 'destructive'
-                            : item.status === 'in_progress'
-                              ? 'primary'
-                              : 'muted'
-                      }
-                    >
-                      {item.status.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {item.course.estimatedMinutes} min{item.dueAt ? ` · Due ${new Date(item.dueAt).toLocaleDateString('en-GB')}` : ''}
-                  </p>
-                </div>
-                <ChevronRight className="text-muted-foreground" />
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function DocumentsPanel({ documents }: { documents: EmployeeDocument[] }) {
   const [expiryWarningCutoff] = useState(() => Date.now() + 60 * 86400000);
   return (
@@ -759,7 +651,7 @@ function DocumentsPanel({ documents }: { documents: EmployeeDocument[] }) {
           documents.map((d) => {
             const soon = d.expiresAt && new Date(d.expiresAt).getTime() < expiryWarningCutoff;
             return (
-              <div key={d.id} className="rounded-2xl border border-border bg-card p-5 flex gap-4">
+              <div key={d.id} className="rounded-2xl border border-border bg-card shadow-sm p-5 flex gap-4">
                 <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                   <FileText size={19} />
                 </div>
@@ -785,7 +677,6 @@ function DocumentsPanel({ documents }: { documents: EmployeeDocument[] }) {
     </div>
   );
 }
-
 function LeaveRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const { data: types = [] } = useQuery({ queryKey: ['leave-types'], queryFn: getLeaveTypes });
   const [form, setForm] = useState<Parameters<typeof submitLeaveRequest>[0]>({
@@ -840,7 +731,7 @@ function LeaveRequestModal({ onClose, onDone }: { onClose: () => void; onDone: (
           ariaLabel="Day length"
         />
         <textarea
-          className="w-full min-h-24 rounded-lg border border-border bg-background p-3 text-sm"
+          className="w-full min-h-24 rounded-lg border border-input bg-field p-3 text-sm"
           placeholder="Optional note"
           value={form.notes}
           onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -852,7 +743,6 @@ function LeaveRequestModal({ onClose, onDone }: { onClose: () => void; onDone: (
     </Modal>
   );
 }
-
 function NewTicketModal({ onClose, onDone }: { onClose: () => void; onDone: (createdId?: string) => void }) {
   const correction = typeof window !== 'undefined' ? sessionStorage.getItem('attendance-correction-date') : null;
   const [form, setForm] = useState<{ subject: string; category: TicketCategory; priority: TicketPriority; message: string }>({
@@ -898,7 +788,7 @@ function NewTicketModal({ onClose, onDone }: { onClose: () => void; onDone: (cre
           />
         </div>
         <textarea
-          className="w-full min-h-32 rounded-lg border border-border bg-background p-3 text-sm"
+          className="w-full min-h-32 rounded-lg border border-input bg-field p-3 text-sm"
           placeholder="Describe what you need help with…"
           value={form.message}
           onChange={(e) => setForm({ ...form, message: e.target.value })}

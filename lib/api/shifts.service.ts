@@ -36,12 +36,35 @@ export interface ClockOutPayload {
   locationId: string;
 }
 
+/** A manager recording time for someone else. Omit `clockedOut` to leave it running. */
+export interface ManualShiftPayload {
+  userId: string;
+  locationId: string;
+  clockedIn?: string;
+  clockedOut?: string;
+  scheduledShiftId?: string;
+}
+
+/** Ends or corrects a recorded shift. `clockedOut: null` reopens one closed by mistake. */
+export interface AdjustShiftPayload {
+  clockedIn?: string;
+  clockedOut?: string | null;
+  scheduledShiftId?: string | null;
+}
+
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
 export const clockIn = (data: ClockInPayload) => apiFetch<Shift>('/shifts/clock-in', { method: 'POST', body: JSON.stringify(data) });
 
 export const clockOut = (data: ClockOutPayload) =>
   apiFetch<Shift & { durationMinutes: number }>('/shifts/clock-out', { method: 'POST', body: JSON.stringify(data) });
+
+// store_manager+ — clocking on behalf of a staff member, and correcting the record.
+export const createManualShift = (data: ManualShiftPayload) =>
+  apiFetch<Shift & { durationMinutes: number | null }>('/shifts/manual', { method: 'POST', body: JSON.stringify(data) });
+
+export const adjustShift = (id: string, data: AdjustShiftPayload) =>
+  apiFetch<Shift & { durationMinutes: number | null }>(`/shifts/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 
 export const getActiveShifts = () => apiFetch<Shift[]>('/shifts/active');
 

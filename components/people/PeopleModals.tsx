@@ -1,9 +1,10 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Eye, EyeOff, UserMinus } from 'lucide-react';
 import { useState } from 'react';
 
+import { UserMinus } from '@/components/icons';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
 import {
@@ -32,13 +33,11 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
   const qc = useQueryClient();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPw, setShowPw] = useState(false);
   const [role, setRole] = useState<StaffRole>('barista');
   const [scope, setScope] = useState<StaffScope>('location');
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: () => createStaff({ name, email, password, tenantId, role, scope }),
+    mutationFn: () => createStaff({ name, email, tenantId, role, scope }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['staff'] });
       onClose();
@@ -76,27 +75,9 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
           className={inp}
         />
       </div>
-      <div>
-        <label className={lbl}>Password</label>
-        <div className="relative">
-          <input
-            type={showPw ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-            placeholder="Min 8 characters"
-            className={inp + ' pr-10'}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPw((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
-        </div>
-      </div>
+      <p className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+        The staff member will receive a single-use activation link and choose their own password.
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={lbl}>Role</label>
@@ -336,15 +317,9 @@ export function EnrollEmployeeModal({ member, onClose }: { member: StaffProfile;
             className={sel}
           />
         </div>
-        <div>
-          <label className={lbl}>Start date</label>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className={inp} />
-        </div>
+        <DatePicker label="Start date" value={startDate} onValueChange={setStartDate} required />
       </div>
-      <div>
-        <label className={lbl}>Date of birth</label>
-        <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className={inp} />
-      </div>
+      <DatePicker label="Date of birth" value={dateOfBirth} onValueChange={setDateOfBirth} />
 
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
 
@@ -438,15 +413,9 @@ export function EditEmployeeModal({ employee, name, onClose }: { employee: HrEmp
             className={sel}
           />
         </div>
-        <div>
-          <label className={lbl}>Start date</label>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className={inp} />
-        </div>
+        <DatePicker label="Start date" value={startDate} onValueChange={setStartDate} required />
       </div>
-      <div>
-        <label className={lbl}>Date of birth</label>
-        <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className={inp} />
-      </div>
+      <DatePicker label="Date of birth" value={dateOfBirth} onValueChange={setDateOfBirth} />
 
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
 

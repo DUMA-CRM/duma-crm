@@ -1,150 +1,134 @@
 'use client';
-
-import { Banknote, Check, CloudUpload, CreditCard, Loader2, Mail, Printer, ReceiptText, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Banknote, Check, CloudUpload, CreditCard, Loader2, Mail, Printer, ReceiptText, X, XCircle } from '@/components/icons';
+import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 
-export type CheckoutStep = 'method' | 'confirm' | 'receipt';
+import type { PaymentMethod } from '@/lib/api/payments.service';
 
-interface CheckoutFlowProps {
+export type CheckoutStep = 'method' | 'verify' | 'confirm' | 'receipt';
+interface Props {
   step: CheckoutStep;
-  /** Order total in pence, snapshotted when checkout opened (the cart is cleared on success). */
   total: number;
+  currency?: string;
   isPaying: boolean;
-  /** True when the order was queued offline instead of paid online. */
   queued: boolean;
-  /** Attached customer's email — enables the Email receipt option. */
+  methods: PaymentMethod[];
+  paymentLabel?: string;
+  paymentProvider?: PaymentMethod['provider'];
   customerEmail?: string;
-  /** The API currently has no receipt-delivery endpoint. */
   emailReceiptAvailable?: boolean;
-  onSelectMethod: (method: 'cash' | 'card') => void;
-  /** Called when the confirmation screen finishes — advances to the receipt step. */
+  onSelectMethod: (method: PaymentMethod) => void;
+  onPaymentOutcome: (outcome: 'succeeded' | 'failed' | 'cancelled') => void;
   onConfirmDone: () => void;
   onReceipt: (choice: 'email' | 'print' | 'none') => void;
   onCancel: () => void;
 }
-
-/**
- * Full-screen checkout: pick payment method → payment confirmation → receipt
- * choice. Covers the whole app (including the header) so the cashier can't
- * wander off mid-payment.
- */
 export function CheckoutFlow({
   step,
   total,
+  currency = 'GBP',
   isPaying,
   queued,
+  methods,
+  paymentLabel,
+  paymentProvider,
   customerEmail,
   emailReceiptAvailable = false,
   onSelectMethod,
+  onPaymentOutcome,
   onConfirmDone,
   onReceipt,
   onCancel,
-}: CheckoutFlowProps) {
-  // Which method button was tapped — drives the spinner on that button only.
-  // No reset needed: the spinner requires isPaying too, so a stale value is inert.
-  const [tapped, setTapped] = useState<'cash' | 'card' | null>(null);
-
-  // Confirmation lingers briefly, then flows into the receipt question.
+}: Props) {
   useEffect(() => {
     if (step !== 'confirm') return;
-    const t = setTimeout(onConfirmDone, 1800);
+    const t = setTimeout(onConfirmDone, 1500);
     return () => clearTimeout(t);
   }, [step, onConfirmDone]);
-
-  const amount = `£${(total / 100).toFixed(2)}`;
-
+  const amount = new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(total / 100);
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      <div className="flex items-center justify-between px-6 py-4">
+        <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Checkout</p>
+        <Button variant="ghost" size="icon" onClick={onCancel} disabled={isPaying}>
+          <X />
+        </Button>
+      </div>
       {step === 'method' && (
-        <>
-          <div className="flex items-center justify-between px-6 py-4 shrink-0">
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Checkout</p>
-            <Button variant="ghost" size="icon" onClick={onCancel} disabled={isPaying} aria-label="Cancel checkout" className="size-11">
-              <X size={20} />
-            </Button>
-          </div>
-          <div className="flex-1 flex flex-col items-center justify-center px-6 pb-16">
-            <p className="text-sm text-muted-foreground">Total to pay</p>
-            <p className="text-5xl font-bold text-foreground tabular-nums mt-2">{amount}</p>
-            <p className="text-sm font-semibold text-muted-foreground mt-10 mb-4">Select payment method</p>
-            <div className="grid grid-cols-2 gap-4 w-full max-w-xl">
+        <div className="flex flex-1 flex-col items-center justify-center px-6 pb-16">
+          <p className="text-sm text-muted-foreground">Total to pay</p>
+          <p className="mt-2 text-5xl font-bold">{amount}</p>
+          <p className="mb-4 mt-10 text-sm font-semibold text-muted-foreground">Select payment method</p>
+          <div className="grid w-full max-w-2xl grid-cols-2 gap-4">
+            {methods.map((m) => (
               <Button
-                variant="outline"
-                onClick={() => {
-                  setTapped('cash');
-                  onSelectMethod('cash');
-                }}
+                key={m.id}
+                variant={m.provider === 'cash' ? 'outline' : 'default'}
+                onClick={() => onSelectMethod(m)}
                 disabled={isPaying}
-                className="h-40 rounded-2xl flex-col gap-3 text-lg font-semibold [&_svg]:size-9"
+                className="h-32 flex-col gap-2 rounded-2xl text-base"
               >
-                {isPaying && tapped === 'cash' ? <Loader2 className="animate-spin" /> : <Banknote />}
-                Cash
+                {isPaying ? <Loader2 className="animate-spin" /> : m.provider === 'cash' ? <Banknote /> : <CreditCard />}
+                {m.displayName}
               </Button>
-              <Button
-                onClick={() => {
-                  setTapped('card');
-                  onSelectMethod('card');
-                }}
-                disabled={isPaying}
-                className="h-40 rounded-2xl flex-col gap-3 text-lg font-semibold [&_svg]:size-9"
-              >
-                {isPaying && tapped === 'card' ? <Loader2 className="animate-spin" /> : <CreditCard />}
-                Card
-              </Button>
-            </div>
+            ))}
           </div>
-        </>
-      )}
-
-      {step === 'confirm' && (
-        <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <div
-            className={`w-20 h-20 rounded-full flex items-center justify-center ${queued ? 'bg-warning/15 text-warning' : 'bg-success/15 text-success'}`}
-          >
-            {queued ? <CloudUpload size={40} /> : <Check size={40} strokeWidth={3} />}
-          </div>
-          <p className="text-2xl font-bold text-foreground mt-5">{queued ? 'Order saved offline' : 'Payment complete'}</p>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            {queued ? 'It will send automatically when the connection returns.' : `${amount} charged successfully.`}
-          </p>
         </div>
       )}
-
+      {step === 'verify' && (
+        <div className="flex flex-1 flex-col items-center justify-center px-6">
+          {paymentProvider === 'cash' ? <Banknote size={52} className="text-primary" /> : <CreditCard size={52} className="text-primary" />}
+          <h2 className="mt-5 text-2xl font-bold">{paymentProvider === 'cash' ? 'Confirm cash received' : 'Confirm payment result'}</h2>
+          <p className="mt-2 max-w-md text-center text-sm text-muted-foreground">
+            {paymentProvider === 'cash'
+              ? `Count and accept ${amount} before confirming the sale.`
+              : `Check ${paymentLabel ?? 'the terminal'} shows ${amount} as approved. Never confirm a declined, cancelled, or uncertain transaction.`}
+          </p>
+          <div className="mt-8 flex gap-3">
+            <Button
+              variant="destructive"
+              onClick={() => onPaymentOutcome(paymentProvider === 'cash' ? 'cancelled' : 'failed')}
+              disabled={isPaying}
+            >
+              <XCircle />
+              {paymentProvider === 'cash' ? 'Cancel' : 'Failed'}
+            </Button>
+            <Button onClick={() => onPaymentOutcome('succeeded')} disabled={isPaying}>
+              {isPaying ? <Loader2 className="animate-spin" /> : <Check />}
+              {paymentProvider === 'cash' ? 'Cash received' : 'Payment approved'}
+            </Button>
+          </div>
+        </div>
+      )}
+      {step === 'confirm' && (
+        <div className="flex flex-1 flex-col items-center justify-center">
+          <div
+            className={`flex size-20 items-center justify-center rounded-full ${queued ? 'bg-warning/15 text-warning' : 'bg-success/15 text-success'}`}
+          >
+            {queued ? <CloudUpload size={40} /> : <Check size={40} />}
+          </div>
+          <p className="mt-5 text-2xl font-bold">{queued ? 'Order saved offline' : 'Payment complete'}</p>
+        </div>
+      )}
       {step === 'receipt' && (
-        <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <p className="text-2xl font-bold text-foreground text-center">How would you like to receive your digital receipt?</p>
-          <div className="w-full max-w-xl mt-8 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                onClick={() => onReceipt('email')}
-                disabled={!customerEmail || !emailReceiptAvailable || queued}
-                className="h-28 rounded-2xl flex-col gap-2.5 text-base font-semibold [&_svg]:size-7"
-              >
-                <Mail />
-                Email
-                <span className="text-xs font-normal text-muted-foreground truncate max-w-full">
-                  {!emailReceiptAvailable ? 'Coming soon' : queued ? 'Available after sync' : (customerEmail ?? 'No customer email')}
-                </span>
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => onReceipt('print')}
-                disabled={queued}
-                className="h-28 rounded-2xl flex-col gap-2.5 text-base font-semibold [&_svg]:size-7"
-              >
-                <Printer />
-                Print
-                {queued && <span className="text-xs font-normal text-muted-foreground">Available after sync</span>}
-              </Button>
-            </div>
+        <div className="flex flex-1 flex-col items-center justify-center px-6">
+          <p className="text-2xl font-bold">Receipt</p>
+          <div className="mt-8 grid w-full max-w-xl grid-cols-2 gap-3">
             <Button
               variant="outline"
-              onClick={() => onReceipt('none')}
-              className="w-full h-28 rounded-2xl flex-col gap-2.5 text-base font-semibold [&_svg]:size-7"
+              onClick={() => onReceipt('email')}
+              disabled={!customerEmail || !emailReceiptAvailable || queued}
+              className="h-24 flex-col"
             >
+              <Mail />
+              Email
+            </Button>
+            <Button variant="outline" onClick={() => onReceipt('print')} disabled={queued} className="h-24 flex-col">
+              <Printer />
+              Print
+            </Button>
+            <Button variant="outline" onClick={() => onReceipt('none')} className="col-span-2 h-20 flex-col">
               <ReceiptText />
               No receipt
             </Button>

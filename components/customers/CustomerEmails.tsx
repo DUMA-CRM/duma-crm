@@ -1,10 +1,10 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MailX, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 
 import { deliveryBadge } from '@/components/communications/shared';
+import { MailX, RefreshCw } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
@@ -12,10 +12,11 @@ import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 
 import { type EmailDelivery, getEmailDeliveries, retryEmailDelivery } from '@/lib/api/email.service';
+import { formatDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+const when = (iso: string) => formatDateTime(iso);
 
 /** Plain-language meaning of each delivery status. */
 const STATUS_HELP: Record<EmailDelivery['status'], string> = {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, History } from 'lucide-react';
+import { ChevronRight, History } from '@/components/icons';
 import { useState } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';

@@ -13,6 +13,6 @@ export function cartItemTotal(c: CartItem): number {
   return (c.item.price + addOns) * c.quantity;
 }
 
-export function formatPrice(n: number): string {
-  return `£${n.toFixed(2)}`;
+export function formatPrice(cents: number, currency = 'GBP'): string {
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100);
 }

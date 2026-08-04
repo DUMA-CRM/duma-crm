@@ -1,6 +1,7 @@
 import type { HrEmployee } from '@/lib/api/hr.service';
 import type { EmployeeDocument } from '@/lib/api/people-ops.service';
 import type { StaffProfile } from '@/lib/api/staff.service';
+import { formatDate } from '@/lib/utils/date';
 
 export type ComplianceTone = 'success' | 'warning' | 'destructive' | 'muted';
 
@@ -65,7 +66,7 @@ export function employeeSetupChecks(
       detail: rightToWorkExpired
         ? 'Evidence has expired — stop and complete the required follow-up check.'
         : rightToWork
-          ? `Evidence recorded${rightToWork.expiresAt ? `; follow up by ${new Date(rightToWork.expiresAt).toLocaleDateString('en-GB')}` : '.'}`
+          ? `Evidence recorded${rightToWork.expiresAt ? `; follow up by ${formatDate(rightToWork.expiresAt)}` : '.'}`
           : 'Record the check date, method and evidence before employment begins.',
       complete: !!rightToWork && !rightToWorkExpired,
       tone: rightToWorkExpired ? 'destructive' : rightToWork ? 'success' : 'warning',

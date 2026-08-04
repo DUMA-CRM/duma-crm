@@ -1,17 +1,26 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { Drawer } from '@/components/shared/Drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { createCustomer } from '@/lib/api/customers.service';
 
-interface CreateCustomerFormProps {
+interface CreateCustomerDrawerProps {
   tenantId: string;
   onClose: () => void;
 }
 
-export function CreateCustomerForm({ tenantId, onClose }: CreateCustomerFormProps) {
+/** The form's own id, so the drawer's pinned footer can submit it from outside. */
+const FORM_ID = 'create-customer-form';
+
+/**
+ * New-customer capture in a right-hand slide-over, alongside the list it was
+ * opened from — the same shape the rota uses for a shift record. Save and cancel
+ * sit in the drawer's pinned footer, so a long form scrolls under them.
+ */
+export function CreateCustomerDrawer({ tenantId, onClose }: CreateCustomerDrawerProps) {
   const qc = useQueryClient();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -38,38 +47,58 @@ export function CreateCustomerForm({ tenantId, onClose }: CreateCustomerFormProp
   });
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        mutate();
-      }}
-      className="space-y-4"
-    >
-      <div className="grid grid-cols-1 gap-2">
-        <div className="grid grid-cols-2 gap-2">
-          <Input label="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required placeholder="Adam" />
-          <Input label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} required placeholder="Smith" />
+    <Drawer
+      title="New customer"
+      description="Add the contact details — loyalty starts at Bronze with no points."
+      onClose={onClose}
+      footer={
+        <div className="flex gap-2">
+          <Button variant="outline" size="lg" onClick={onClose} disabled={isPending} className="flex-1">
+            Cancel
+          </Button>
+          <Button size="lg" type="submit" form={FORM_ID} disabled={isPending} className="flex-1">
+            {isPending ? 'Creating…' : 'Create customer'}
+          </Button>
         </div>
-        <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+447911123456" />
-        <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="adam@duma.com (optional)" />
-        <Input label="Date of birth" type="date" value={dob} onChange={(event) => setDob(event.target.value)} />
-        <label className="flex items-start gap-2 rounded-xl border border-border bg-surface-offset/40 p-3 text-sm">
-          <input type="checkbox" className="mt-0.5" checked={marketingOptIn} onChange={(event) => setMarketingOptIn(event.target.checked)} />
-          <span>
-            <span className="block font-medium text-foreground">Marketing email consent</span>
-            <span className="block text-xs text-muted-foreground">Allow birthday and promotional email automations.</span>
-          </span>
-        </label>
-      </div>
-      {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
-      <div className="flex gap-2">
-        <Button variant="outline" size="lg" onClick={onClose} disabled={isPending} className="flex-1">
-          Cancel
-        </Button>
-        <Button size="lg" type="submit" disabled={isPending} className="flex-1">
-          {isPending ? 'Creating…' : 'Create customer'}
-        </Button>
-      </div>
-    </form>
+      }
+    >
+      <form
+        id={FORM_ID}
+        onSubmit={(e) => {
+          e.preventDefault();
+          mutate();
+        }}
+        className="space-y-4"
+      >
+        <div className="grid grid-cols-1 gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Input label="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required placeholder="Adam" />
+            <Input label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} required placeholder="Smith" />
+          </div>
+          <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+447911123456" />
+          <Input
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="adam@duma.com (optional)"
+          />
+          <Input label="Date of birth" type="date" value={dob} onChange={(event) => setDob(event.target.value)} />
+          <label className="flex items-start gap-2 rounded-xl border border-border bg-surface-offset/40 p-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={marketingOptIn}
+              onChange={(event) => setMarketingOptIn(event.target.checked)}
+            />
+            <span>
+              <span className="block font-medium text-foreground">Marketing email consent</span>
+              <span className="block text-xs text-muted-foreground">Allow birthday and promotional email automations.</span>
+            </span>
+          </label>
+        </div>
+        {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
+      </form>
+    </Drawer>
   );
 }

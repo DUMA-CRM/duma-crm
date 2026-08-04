@@ -1,6 +1,10 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
+
 import {
   ArrowLeftRight,
   Box,
@@ -16,8 +20,8 @@ import {
   Flame,
   Gauge,
   History,
+  type IconComponent,
   LayoutDashboard,
-  type LucideIcon,
   Package,
   PackageMinus,
   PackagePlus,
@@ -28,20 +32,10 @@ import {
   TrendingDown,
   TriangleAlert,
   Wheat,
-} from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
-
-import {
-  EditStockItemModal,
-  EditThresholdModal,
-  LogLossModal,
-  RestockModal,
-} from '@/components/inventory/stock/StockModals';
+} from '@/components/icons';
+import { EditStockItemDrawer, EditThresholdDrawer, LogLossDrawer, RestockDrawer } from '@/components/inventory/stock/StockDrawers';
 import {
   REASON_LABELS,
-  STATUS_BAR,
   STATUS_LABEL,
   STATUS_VARIANT,
   daysColor,
@@ -53,13 +47,14 @@ import {
   stockPct,
   timeAgo,
 } from '@/components/inventory/stock/shared';
-import { ItemTransfersSection, TransferStockModal } from '@/components/inventory/transfers/TransferStock';
-import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { ItemTransfersSection, TransferStockDrawer } from '@/components/inventory/transfers/TransferStock';
+import { ConfirmDrawer } from '@/components/shared/ConfirmDrawer';
+import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
-import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
-import { Modal } from '@/components/shared/Modal';
+import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
+import { StatCard } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
@@ -87,11 +82,12 @@ import {
 } from '@/lib/api/inventory.service';
 import { type LossRecord, getLossLog } from '@/lib/api/loss.service';
 import { cn } from '@/lib/utils/cn';
+import { formatDate as formatAppDate, formatDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const fmt = (value: string | number) => Number(value).toLocaleString('en-GB', { maximumFractionDigits: 3 });
-const when = (value: string) => new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+const when = (value: string) => formatDateTime(value);
 const LEDGER_PAGE_SIZE = 25;
 
 const BASIS_LABEL: Record<NutritionBasis, string> = {
@@ -100,7 +96,7 @@ const BASIS_LABEL: Record<NutritionBasis, string> = {
   per_piece: 'per piece',
 };
 
-const NUTRITION_ICONS: Record<string, LucideIcon> = {
+const NUTRITION_ICONS: Record<string, IconComponent> = {
   kcal: Flame,
   fat: Droplet,
   saturates: Droplets,
@@ -128,7 +124,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
   const [section, setSection] = useState<ItemSection>('overview');
   const [ledgerPage, setLedgerPage] = useState(1);
 
-  // Modal flags — every action the old detail sidebar owned now lives here.
+  // Dialog flags — every action the old detail sidebar owned now lives here.
   const [editThreshold, setEditThreshold] = useState(false);
   const [restockOpen, setRestockOpen] = useState(false);
   const [lossOpen, setLossOpen] = useState(false);
@@ -269,17 +265,6 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
       title={item?.name ?? (itemLoading ? 'Loading…' : 'Inventory item')}
       icon={<Package size={20} aria-hidden="true" />}
       onClose={() => router.push('/inventory')}
-      meta={
-        item && (
-          <>
-            {status && <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>}
-            <Badge variant="muted">{item.category}</Badge>
-            <span className="text-xs text-muted-foreground">{item.unit}</span>
-            {item.isPerishable && <Badge variant="amber">Perishable</Badge>}
-            {!item.isActive && <Badge variant="muted">Inactive</Badge>}
-          </>
-        )
-      }
       actions={
         stock && (
           <>
@@ -314,17 +299,14 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
           <>
             {item && (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <Stat label="On hand" value={`${fmt(onHand)} ${item.unit}`} icon={Package} />
-                <Stat label="Active containers" value={String(activeUnitCount)} icon={Box} />
-                <Stat
-                  label="Earliest expiry"
-                  value={earliestExpiry ? new Date(earliestExpiry).toLocaleDateString('en-GB') : 'N/A'}
-                  icon={CalendarClock}
-                />
-                <Stat
+                <StatCard size="sm" label="On hand" value={`${fmt(onHand)} ${item.unit}`} icon={Package} />
+                <StatCard size="sm" label="Active containers" value={String(activeUnitCount)} icon={Box} />
+                <StatCard size="sm" label="Earliest expiry" value={formatAppDate(earliestExpiry, 'N/A')} icon={CalendarClock} />
+                <StatCard
+                  size="sm"
                   label="Days left"
                   value={forecast ? `${Math.round(forecast.daysOfStockRemaining)}d` : 'N/A'}
-                  valueClass={forecast ? daysColor(forecast.daysOfStockRemaining) : undefined}
+                  valueClassName={forecast ? daysColor(forecast.daysOfStockRemaining) : undefined}
                   icon={Gauge}
                 />
               </div>
@@ -344,25 +326,17 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
                 }
               >
                 {status ? (
-                  <>
-                    <p className="text-xs text-muted-foreground mb-2">{Math.round(stockPct(onHand, threshold))}% of threshold</p>
-                    <div className="h-2 rounded-full bg-border overflow-hidden">
-                      <div
-                        className={cn('h-full rounded-full transition-all', STATUS_BAR[status])}
-                        style={{ width: `${stockPct(onHand, threshold)}%` }}
-                      />
-                    </div>
-                    <div className="flex items-baseline justify-between mt-3">
-                      <div>
-                        <p className="text-2xl font-bold text-foreground tabular-nums">{fmtQty(onHand)}</p>
-                        <p className="text-xs text-muted-foreground">{unit} current</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-muted-foreground tabular-nums">{fmtQty(threshold)}</p>
-                        <p className="text-xs text-muted-foreground">threshold</p>
-                      </div>
-                    </div>
-                  </>
+                  <StatCard
+                    size="sm"
+                    label="On hand"
+                    value={fmtQty(onHand)}
+                    unit={unit}
+                    caption={`${Math.round(stockPct(onHand, threshold))}% of threshold`}
+                    secondary={{ value: fmtQty(threshold), label: 'threshold' }}
+                    visual={{ type: 'progress', pct: stockPct(onHand, threshold) }}
+                    accent={status === 'ok' ? 'success' : status === 'low' ? 'warning' : 'danger'}
+                    className="border-0 p-0 shadow-none"
+                  />
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     This item is not stocked at the selected location, so it has no threshold or availability settings here.
@@ -375,19 +349,27 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
                 {forecast ? (
                   <div className="space-y-2.5">
                     <div className="grid grid-cols-2 gap-2">
-                      <MiniStat
+                      <StatCard
+                        size="sm"
                         label="Days left"
                         icon={Gauge}
                         value={`${Math.round(forecast.daysOfStockRemaining)}d`}
-                        valueClass={daysColor(forecast.daysOfStockRemaining)}
+                        valueClassName={daysColor(forecast.daysOfStockRemaining)}
                       />
-                      <MiniStat label="Avg use / day" icon={TrendingDown} value={`${fmtQty(forecast.avgDailyConsumption)} ${unit}`} />
-                      <MiniStat
+                      <StatCard
+                        size="sm"
+                        label="Avg use / day"
+                        icon={TrendingDown}
+                        value={`${fmtQty(forecast.avgDailyConsumption)} ${unit}`}
+                      />
+                      <StatCard
+                        size="sm"
                         label="Est. stockout"
                         icon={CalendarClock}
                         value={forecast.predictedStockoutDate ? formatDate(forecast.predictedStockoutDate) : '—'}
                       />
-                      <MiniStat
+                      <StatCard
+                        size="sm"
                         label="Suggested reorder"
                         icon={PackagePlus}
                         value={`${fmtQty(forecast.recommendedReorderQuantity)} ${unit}`}
@@ -496,7 +478,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
               </Card>
             )}
 
-            <section className="rounded-2xl border border-border bg-card overflow-hidden">
+            <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
               <div className="px-5 py-3 border-b border-border flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="font-semibold text-foreground">Physical stock units</h2>
@@ -516,19 +498,10 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
                   {selectedUnits.length > 0 && (
                     <span className="text-xs text-muted-foreground tabular-nums">{selectedUnits.length} selected</span>
                   )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={selectedUnits.length !== 1}
-                    onClick={() => setSplitOpen(true)}
-                  >
+                  <Button variant="outline" size="sm" disabled={selectedUnits.length !== 1} onClick={() => setSplitOpen(true)}>
                     <Scissors size={14} /> Split
                   </Button>
-                  <Button
-                    size="sm"
-                    disabled={selectedUnits.length < 2}
-                    onClick={() => setCombineOpen(true)}
-                  >
+                  <Button size="sm" disabled={selectedUnits.length < 2} onClick={() => setCombineOpen(true)}>
                     <Combine size={14} /> Combine
                   </Button>
                 </div>
@@ -596,9 +569,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
                           <td className="px-5 py-3 text-right tabular-nums">
                             {fmt(u.remainingQuantity)} / {fmt(u.initialQuantity)} {u.unitOfMeasure}
                           </td>
-                          <td className="px-5 py-3 tabular-nums">
-                            {u.expiryDate ? new Date(u.expiryDate).toLocaleDateString('en-GB') : '—'}
-                          </td>
+                          <td className="px-5 py-3 tabular-nums">{formatAppDate(u.expiryDate)}</td>
                           <td className="px-5 py-3">
                             <Badge
                               variant={
@@ -623,7 +594,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         )}
 
         {section === 'ledger' && (
-          <section className="rounded-2xl border border-border bg-card overflow-hidden">
+          <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
             <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <History size={15} className="text-muted-foreground" />
@@ -675,17 +646,12 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         )}
 
         {section === 'losses' && (
-          <section className="rounded-2xl border border-border bg-card overflow-hidden">
+          <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
             <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
-              <div>
+              <div className="flex items-center gap-2">
+                <PackageMinus size={15} className="text-muted-foreground" />
                 <h2 className="font-semibold text-foreground">Loss history</h2>
-                <p className="text-xs text-muted-foreground">Waste, expiry, damage and theft recorded against this item.</p>
               </div>
-              {stock && (
-                <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => setLossOpen(true)}>
-                  <PackageMinus size={13} /> Log loss
-                </Button>
-              )}
             </div>
             {lossesLoading ? (
               <p className="p-5 text-sm text-muted-foreground">Loading losses…</p>
@@ -715,7 +681,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
             {locationId ? (
               <ItemTransfersSection stockItemId={stockItemId} locationId={locationId} />
             ) : (
-              <div className="rounded-2xl border border-border bg-card py-16">
+              <div className="rounded-2xl border border-border bg-card shadow-sm py-16">
                 <EmptyState icon={ArrowLeftRight} title="Select a location" description="Transfers are listed per location." />
               </div>
             )}
@@ -723,9 +689,9 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         )}
       </div>
 
-      {/* Modals */}
+      {/* Drawers */}
       {editThreshold && stock && (
-        <EditThresholdModal
+        <EditThresholdDrawer
           item={stock}
           onClose={() => setEditThreshold(false)}
           onSuccess={() => {
@@ -735,7 +701,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         />
       )}
       {restockOpen && stock && (
-        <RestockModal
+        <RestockDrawer
           item={stock}
           onClose={() => setRestockOpen(false)}
           onSuccess={() => {
@@ -745,7 +711,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         />
       )}
       {lossOpen && stock && (
-        <LogLossModal
+        <LogLossDrawer
           defaultLocationId={stock.locationId}
           defaultStockItemId={stockItemId}
           onClose={() => setLossOpen(false)}
@@ -757,7 +723,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         />
       )}
       {editItemOpen && item && (
-        <EditStockItemModal
+        <EditStockItemDrawer
           item={item}
           onClose={() => setEditItemOpen(false)}
           onSuccess={() => {
@@ -769,7 +735,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         />
       )}
       {transferOpen && tenantId && locationId && (
-        <TransferStockModal
+        <TransferStockDrawer
           tenantId={tenantId}
           locationId={locationId}
           initialStockItemId={stockItemId}
@@ -777,7 +743,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         />
       )}
       {combineOpen && selectedUnits.length >= 2 && (
-        <CombineContainersModal
+        <CombineContainersDrawer
           units={selectedUnits}
           onClose={() => setCombineOpen(false)}
           onCompleted={() => {
@@ -788,7 +754,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         />
       )}
       {splitOpen && selectedUnits.length === 1 && (
-        <SplitContainerModal
+        <SplitContainerDrawer
           unit={selectedUnits[0]!}
           onClose={() => setSplitOpen(false)}
           onCompleted={() => {
@@ -799,7 +765,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         />
       )}
       {removeOpen && stock && (
-        <ConfirmModal
+        <ConfirmDrawer
           title="Remove Stock Item"
           message={
             <>
@@ -820,15 +786,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
 
 // ── Container transformations ────────────────────────────────────────────────
 
-function CombineContainersModal({
-  units,
-  onClose,
-  onCompleted,
-}: {
-  units: StockUnit[];
-  onClose: () => void;
-  onCompleted: () => void;
-}) {
+function CombineContainersDrawer({ units, onClose, onCompleted }: { units: StockUnit[]; onClose: () => void; onCompleted: () => void }) {
   const [label, setLabel] = useState('');
   const total = units.reduce((sum, stockUnit) => sum + Number(stockUnit.remainingQuantity), 0);
   const expiryDates = units
@@ -851,12 +809,23 @@ function CombineContainersModal({
   });
 
   return (
-    <Modal title="Combine containers" onClose={onClose}>
+    <Drawer
+      title="Combine containers"
+      onClose={onClose}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={combine.isPending}>
+            Cancel
+          </Button>
+          <Button onClick={() => combine.mutate()} disabled={combine.isPending}>
+            <Combine size={15} /> {combine.isPending ? 'Combining…' : 'Combine containers'}
+          </Button>
+        </div>
+      }
+    >
       <div className="space-y-4">
         <div className="rounded-xl bg-surface-offset p-4">
-          <p className="text-sm font-semibold text-foreground">
-            {units.length} containers → 1 container
-          </p>
+          <p className="text-sm font-semibold text-foreground">{units.length} containers → 1 container</p>
           <p className="mt-1 text-sm text-muted-foreground">
             New balance: {fmt(total)} {units[0]?.unitOfMeasure}
           </p>
@@ -870,36 +839,18 @@ function CombineContainersModal({
         />
         <p className="text-xs text-muted-foreground">
           The source containers will be marked empty. The combined container keeps the earliest expiry
-          {earliestExpiry ? ` (${new Date(earliestExpiry).toLocaleDateString('en-GB')})` : ''} and retains the lot number only when
-          every source has the same lot.
+          {earliestExpiry ? ` (${formatAppDate(earliestExpiry)})` : ''} and retains the lot number only when every source has the same lot.
         </p>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose} disabled={combine.isPending}>
-            Cancel
-          </Button>
-          <Button onClick={() => combine.mutate()} disabled={combine.isPending}>
-            <Combine size={15} /> {combine.isPending ? 'Combining…' : 'Combine containers'}
-          </Button>
-        </div>
       </div>
-    </Modal>
+    </Drawer>
   );
 }
 
-function SplitContainerModal({
-  unit,
-  onClose,
-  onCompleted,
-}: {
-  unit: StockUnit;
-  onClose: () => void;
-  onCompleted: () => void;
-}) {
+function SplitContainerDrawer({ unit, onClose, onCompleted }: { unit: StockUnit; onClose: () => void; onCompleted: () => void }) {
   const [count, setCount] = useState('2');
   const numericCount = Number(count);
   const totalThousandths = Math.round(Number(unit.remainingQuantity) * 1000);
-  const validCount =
-    Number.isInteger(numericCount) && numericCount >= 2 && numericCount <= 100 && numericCount <= totalThousandths;
+  const validCount = Number.isInteger(numericCount) && numericCount >= 2 && numericCount <= 100 && numericCount <= totalThousandths;
   const parts = validCount
     ? Array.from({ length: numericCount }, (_, index) => {
         const base = Math.floor(totalThousandths / numericCount);
@@ -928,7 +879,20 @@ function SplitContainerModal({
   });
 
   return (
-    <Modal title="Split container" onClose={onClose}>
+    <Drawer
+      title="Split container"
+      onClose={onClose}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={split.isPending}>
+            Cancel
+          </Button>
+          <Button onClick={() => split.mutate()} disabled={split.isPending || !validCount}>
+            <Scissors size={15} /> {split.isPending ? 'Splitting…' : 'Split container'}
+          </Button>
+        </div>
+      }
+    >
       <div className="space-y-4">
         <div className="rounded-xl bg-surface-offset p-4">
           <p className="text-sm font-semibold text-foreground">{unit.label}</p>
@@ -950,20 +914,12 @@ function SplitContainerModal({
           <p className="text-xs text-muted-foreground">
             {equalParts
               ? `Each new container will hold ${fmt(parts[0]!)} ${unit.unitOfMeasure}.`
-              : `Balances will be ${parts.map((quantity) => fmt(quantity)).join(', ')} ${unit.unitOfMeasure} so the total stays exact.`}
-            {' '}Expiry and lot details will be copied to every new container.
+              : `Balances will be ${parts.map((quantity) => fmt(quantity)).join(', ')} ${unit.unitOfMeasure} so the total stays exact.`}{' '}
+            Expiry and lot details will be copied to every new container.
           </p>
         )}
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose} disabled={split.isPending}>
-            Cancel
-          </Button>
-          <Button onClick={() => split.mutate()} disabled={split.isPending || !validCount}>
-            <Scissors size={15} /> {split.isPending ? 'Splitting…' : 'Split container'}
-          </Button>
-        </div>
       </div>
-    </Modal>
+    </Drawer>
   );
 }
 
@@ -1115,7 +1071,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-border bg-card shadow-sm p-5">
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
           <h2 className="font-semibold text-foreground">{title}</h2>
@@ -1125,29 +1081,5 @@ function Card({
       </div>
       {children}
     </section>
-  );
-}
-
-function Stat({ label, value, valueClass, icon: Icon }: { label: string; value: string; valueClass?: string; icon: LucideIcon }) {
-  return (
-    <div className="bg-card border border-border rounded-2xl p-4">
-      <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
-        <Icon size={14} aria-hidden="true" />
-        <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
-      </div>
-      <p className={cn('text-xl font-bold text-foreground tabular-nums', valueClass)}>{value}</p>
-    </div>
-  );
-}
-
-function MiniStat({ label, value, valueClass, icon: Icon }: { label: string; value: string; valueClass?: string; icon: LucideIcon }) {
-  return (
-    <div className="rounded-xl bg-surface-offset px-3 py-2.5">
-      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-        <Icon size={12} />
-        <span className="text-[10px] font-bold uppercase tracking-widest leading-none">{label}</span>
-      </div>
-      <p className={cn('text-base font-semibold text-foreground tabular-nums leading-none', valueClass)}>{value}</p>
-    </div>
   );
 }

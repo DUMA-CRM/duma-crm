@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from '@/components/icons';
 
 import { inputClass, selectClass } from '@/components/menu/shared';
 import { DEFAULT_COL, type SizeColumn, useRecipeDraft } from '@/components/menu/useRecipeDraft';

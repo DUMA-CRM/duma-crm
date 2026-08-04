@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 
 import { cn } from '@/lib/utils/cn';
+import { formatDate } from '@/lib/utils/date';
 
 interface Visit {
   date: string;
@@ -22,10 +23,10 @@ interface TooltipState {
 
 function getDot(spend: number | undefined, isFuture: boolean) {
   if (isFuture || spend === undefined) return 'w-[7px] h-[7px] bg-border rounded-full';
-  if (spend < 60) return 'w-[9px]  h-[9px]  bg-amber-300 dark:bg-amber-600 rounded-full shadow-sm';
-  if (spend < 120) return 'w-[12px] h-[12px] bg-amber-400 dark:bg-amber-500 rounded-full shadow-sm';
-  if (spend < 200) return 'w-[15px] h-[15px] bg-amber-500 dark:bg-amber-400 rounded-full shadow-md';
-  return 'w-[18px] h-[18px] bg-amber-600 dark:bg-amber-300 rounded-full shadow-md';
+  if (spend < 60) return 'w-[9px]  h-[9px]  bg-warning/40 rounded-full shadow-sm';
+  if (spend < 120) return 'w-[12px] h-[12px] bg-warning/60 rounded-full shadow-sm';
+  if (spend < 200) return 'w-[15px] h-[15px] bg-warning/80 rounded-full shadow-md';
+  return 'w-[18px] h-[18px] bg-warning rounded-full shadow-md';
 }
 
 // ── Monday-first ─────────────────────────────────────────────
@@ -89,11 +90,7 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
     setTip({
       x: rect.left + rect.width / 2,
       y: rect.top,
-      label: `£${cell.spend.toFixed(0)} · ${cell.date.toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })}`,
+      label: `£${cell.spend.toFixed(0)} · ${formatDate(cell.date)}`,
     });
   }
 

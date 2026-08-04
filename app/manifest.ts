@@ -9,8 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'All-in-one coffee shop management — POS, orders, inventory, staff.',
     start_url: '/dashboard',
     display: 'standalone',
-    background_color: '#f7f5f0',
-    theme_color: '#e8590c',
+    background_color: '#eff1f3',
+    theme_color: '#236bfe',
     // Chrome's installability check wants explicit 192/512 sizes; SVG scales
     // to whatever size is declared, so the same file serves all entries.
     icons: [

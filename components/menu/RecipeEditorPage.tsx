@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ChefHat, Flame, Loader2, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
+import { ChefHat, Flame, Loader2, Pencil, Plus, Trash2, TriangleAlert } from '@/components/icons';
 import { useState } from 'react';
 
 import { ModifierRecipeEditor } from '@/components/menu/ModifierRecipeEditor';

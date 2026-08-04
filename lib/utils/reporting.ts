@@ -1,6 +1,9 @@
+import type { StatAccent, StatDelta } from '@/components/shared/StatCard';
+
 import type { CustomerRetention, DailyOrderAnalytics, OrderAnalytics } from '@/lib/api/analytics.service';
 
 import { formatCompact, formatMoney, orderMetrics, percentageChange } from './dashboard';
+import { formatDate } from './date';
 
 export type ReportMetricUnit = 'money' | 'count' | 'percent' | 'money-precise';
 
@@ -220,6 +223,29 @@ export function metricChangeLabel(key: ReportMetricKey, change: number | null) {
   return `${change >= 0 ? '+' : ''}${change.toFixed(1)}${suffix}`;
 }
 
+/** A report metric's period-on-period change, shaped for `<StatCard delta>`. */
+export function metricDelta(key: ReportMetricKey, current: number, comparison: number, label = 'vs previous period'): StatDelta {
+  const change = metricChange(key, current, comparison);
+  return {
+    value: metricChangeLabel(key, change),
+    trend: change === null || change === 0 ? 'flat' : change > 0 ? 'up' : 'down',
+    lowerIsBetter: REPORT_METRIC_MAP[key].lowerIsBetter,
+    label,
+  };
+}
+
+const CATEGORY_ACCENT: Record<ReportMetricDefinition['category'], StatAccent> = {
+  Sales: 'primary',
+  Operations: 'info',
+  Customers: 'success',
+  Channels: 'purple',
+};
+
+/** Keeps every report tile for a given metric family on the same colour. */
+export function metricAccent(key: ReportMetricKey): StatAccent {
+  return CATEGORY_ACCENT[REPORT_METRIC_MAP[key].category];
+}
+
 export function dailyMetricValues(key: ReportMetricKey, rows: DailyOrderAnalytics[]) {
   if (key === 'orders') return rows.map((row) => Number(row.count ?? 0));
   if (key === 'averageOrderValue') {
@@ -323,5 +349,5 @@ export function previousYearDateRange(from: string, to: string) {
 }
 
 export function shortDateLabel(value: string) {
-  return new Date(`${value}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return formatDate(value);
 }

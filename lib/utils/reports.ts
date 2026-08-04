@@ -1,6 +1,7 @@
 import type { CustomerRetention, DailyOrderAnalytics, OrderAnalytics } from '@/lib/api/analytics.service';
 
 import { type TrustedOrderMetrics, formatCompact, formatMoney, percentageChange } from './dashboard';
+import { formatDate } from './date';
 
 export type MetricKey = 'revenue' | 'orders' | 'average' | 'retention';
 
@@ -129,7 +130,7 @@ export function buildMetricDetail({
             {
               label: 'Highest recorded day',
               value: formatMoney(Number(peakDay.revenue ?? 0)),
-              note: new Date(`${peakDay.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' }),
+              note: formatDate(peakDay.date),
             },
           ]
         : []),

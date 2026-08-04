@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronsUpDown } from '@/components/icons';
 import * as React from 'react';
 
 import { cn } from '@/lib/utils';

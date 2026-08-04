@@ -1,17 +1,17 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Clock3, Loader2, X } from 'lucide-react';
 
+import { Check, Clock3, Loader2, X } from '@/components/icons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
 import { getManagedLeaveRequests, reviewLeaveRequest } from '@/lib/api/people-ops.service';
+import { formatDate } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 
-const fmtDate = (value: string) =>
-  new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const fmtDate = (value: string) => formatDate(value);
 
 /** Leave requests awaiting a decision — a tab of the staff workspace. */
 export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (value: string) => void }) {
@@ -44,7 +44,7 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
           className="w-36"
         />
       </div>
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-20 flex justify-center">
             <Loader2 className="animate-spin" />

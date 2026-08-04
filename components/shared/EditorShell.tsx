@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '@/components/icons';
 import { useCallback, useEffect, useState } from 'react';
 
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -111,7 +111,7 @@ export function EditorShell({
         <div className="flex-1 min-h-0 flex flex-col">{children}</div>
       ) : (
         <div className="flex-1 min-h-0 overflow-auto">
-          <div className="max-w-8xl mx-auto p-4 md:p-8">{children}</div>
+          <div className="max-w-8xl mx-auto p-4">{children}</div>
         </div>
       )}
 

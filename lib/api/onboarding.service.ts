@@ -9,7 +9,6 @@ export interface OnboardPayload {
   // Account & access
   email: string;
   name: string;
-  password: string;
   role: Exclude<StaffRole, 'super_admin'>;
   scope: StaffScope;
   locationIds?: string[];

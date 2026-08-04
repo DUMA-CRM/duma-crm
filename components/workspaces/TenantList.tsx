@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Pencil, Plus, Search } from 'lucide-react';
+import { Building2, Pencil, Plus, Search } from '@/components/icons';
 import { useEffect, useState } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -28,7 +28,7 @@ function TenantForm({
   const [slug, setSlug] = useState(initial?.slug ?? '');
 
   const inputClass =
-    'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+    'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
   return (
     <form
@@ -133,7 +133,7 @@ export function TenantList() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search workspaces…"
-            className="w-full h-9 bg-background border border-border rounded-lg pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150"
+            className="w-full h-9 bg-field border border-input rounded-lg pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150"
           />
         </div>
         <button

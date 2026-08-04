@@ -1,7 +1,8 @@
-import { ChevronDown, ChevronUp, ChevronsUp, Equal, type LucideIcon } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronsUp, Equal, type IconComponent } from '@/components/icons';
 
 import type { HelpdeskTicket, TicketCategory, TicketPriority, TicketStatus } from '@/lib/api/people-ops.service';
 import { cn } from '@/lib/utils/cn';
+import { formatDate, formatDateTime } from '@/lib/utils/date';
 
 // ── Status ────────────────────────────────────────────────────────────────────
 // Statuses group into the three workflow columns an issue tracker shows (to do,
@@ -41,7 +42,7 @@ export function StatusLozenge({ status, className }: { status: TicketStatus; cla
 
 export const TICKET_PRIORITIES: TicketPriority[] = ['urgent', 'high', 'normal', 'low'];
 
-export const PRIORITY_META: Record<TicketPriority, { label: string; icon: LucideIcon; className: string }> = {
+export const PRIORITY_META: Record<TicketPriority, { label: string; icon: IconComponent; className: string }> = {
   urgent: { label: 'Urgent', icon: ChevronsUp, className: 'text-destructive' },
   high: { label: 'High', icon: ChevronUp, className: 'text-warning' },
   normal: { label: 'Normal', icon: Equal, className: 'text-info' },
@@ -79,13 +80,16 @@ export const CATEGORY_META: Record<TicketCategory, { label: string; prefix: stri
  * the life of the ticket and short enough to read out over the phone.
  */
 export function ticketKey(ticket: Pick<HelpdeskTicket, 'id' | 'category'>): string {
-  const tail = ticket.id.replace(/[^a-z0-9]/gi, '').slice(-4).toUpperCase();
+  const tail = ticket.id
+    .replace(/[^a-z0-9]/gi, '')
+    .slice(-4)
+    .toUpperCase();
   return `${CATEGORY_META[ticket.category].prefix}-${tail || '0000'}`;
 }
 
 // ── Dates ─────────────────────────────────────────────────────────────────────
 
-export const fmtWhen = (iso: string) => new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+export const fmtWhen = (iso: string) => formatDateTime(iso);
 
 export function fmtAgo(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -96,7 +100,7 @@ export function fmtAgo(iso: string): string {
   if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatDate(iso);
 }
 
 // ── Author avatar ─────────────────────────────────────────────────────────────

@@ -1,6 +1,8 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+
 import {
   Activity,
   AlertTriangle,
@@ -19,7 +21,6 @@ import {
   HeartPulse,
   LayoutDashboard,
   Loader2,
-  Minus,
   Receipt,
   ShieldCheck,
   Store,
@@ -28,9 +29,7 @@ import {
   TrendingUp,
   UserRound,
   Zap,
-} from 'lucide-react';
-import { useState } from 'react';
-
+} from '@/components/icons';
 import { AddressFields } from '@/components/people/AddressFields';
 import {
   Avatar,
@@ -54,12 +53,13 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { StatCard, StatCardGrid, comparisonDelta } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
-import { assignCourse, getCourses, getTrainingCompliance } from '@/lib/api/courses.service';
 import {
   type BankDetailsPayload,
   type EmployeeHours,
@@ -121,7 +121,7 @@ const RECORD_SECTIONS: { value: RecordSection; label: string; icon: typeof Clock
   { value: 'overview', label: 'Overview', icon: LayoutDashboard },
   { value: 'time', label: 'Time & leave', icon: CalendarDays },
   { value: 'pay', label: 'Pay & statutory', icon: Banknote, moneyOnly: true },
-  { value: 'documents', label: 'Documents & training', icon: FileText },
+  { value: 'documents', label: 'Documents', icon: FileText },
   { value: 'performance', label: 'Performance', icon: TrendingUp },
 ];
 
@@ -185,23 +185,6 @@ export function EmployeeRecordPage({
       title={name}
       onClose={onClose}
       leading={<Avatar name={name} email={member?.email} size="lg" />}
-      meta={
-        <>
-          {member && (
-            <span
-              className={cn(
-                'text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded',
-                ROLE_CONFIG[member.role].bg,
-                ROLE_CONFIG[member.role].text,
-              )}
-            >
-              {ROLE_CONFIG[member.role].label}
-            </span>
-          )}
-          {member && !member.isActive && <Badge variant="muted">Inactive</Badge>}
-          {emp && <span className="text-xs text-muted-foreground">{emp.jobTitle}</span>}
-        </>
-      }
       actions={
         member &&
         money && (
@@ -266,18 +249,32 @@ export function EmployeeRecordPage({
               <>
                 {member && <ComplianceSummaryCard member={member} employee={emp ?? null} />}
                 {emp && (
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <Stat icon={Clock} label={`Clocked · ${range.label}`} value={fmtHours(hours?.totals.rawHours ?? 0)} />
+                  <StatCardGrid>
+                    <StatCard
+                      size="sm"
+                      icon={Clock}
+                      accent="info"
+                      label={`Clocked · ${range.label}`}
+                      value={fmtHours(hours?.totals.rawHours ?? 0)}
+                    />
                     {money && (
-                      <Stat
+                      <StatCard
+                        size="sm"
                         icon={Banknote}
+                        accent="success"
                         label={emp.payType === 'hourly' ? 'Clocked value' : 'Monthly salary'}
                         value={fmtMoney(estGross)}
                       />
                     )}
-                    <Stat icon={UserRound} label="Employment" value={EMPLOYMENT_CONFIG[emp.employmentType].label} />
-                    <Stat icon={ShieldCheck} label="Started" value={fmtDate(emp.startDate)} />
-                  </div>
+                    <StatCard
+                      size="sm"
+                      icon={UserRound}
+                      accent="primary"
+                      label="Employment"
+                      value={EMPLOYMENT_CONFIG[emp.employmentType].label}
+                    />
+                    <StatCard size="sm" icon={ShieldCheck} accent="neutral" label="Started" value={fmtDate(emp.startDate)} />
+                  </StatCardGrid>
                 )}
                 <div className="grid lg:grid-cols-2 gap-4 items-start">
                   {member && <AccessCard member={member} locations={locations} canEdit={money} />}
@@ -316,12 +313,7 @@ export function EmployeeRecordPage({
               </div>
             )}
 
-            {section === 'documents' && member && (
-              <div className="grid lg:grid-cols-2 gap-4 items-start">
-                {money && <EmployeeDocumentsCard userId={userId} />}
-                <EmployeeTrainingCard userId={userId} tenantId={member.tenantId} />
-              </div>
-            )}
+            {section === 'documents' && member && money && <EmployeeDocumentsCard userId={userId} />}
 
             {section === 'performance' && member && <PerformanceCard userId={userId} />}
           </>
@@ -353,144 +345,6 @@ export function EmployeeRecordPage({
   );
 }
 
-function EmployeeTrainingCard({ userId, tenantId }: { userId: string; tenantId: string }) {
-  const qc = useQueryClient();
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [courseId, setCourseId] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [required, setRequired] = useState(true);
-  const { data } = useQuery({ queryKey: ['training-compliance', tenantId], queryFn: () => getTrainingCompliance(tenantId) });
-  const { data: courses = [] } = useQuery({ queryKey: ['courses', tenantId], queryFn: () => getCourses(tenantId), enabled: assignOpen });
-  const rows = data?.rows.filter((row) => row.userId === userId) ?? [];
-  const completed = rows.filter((row) => row.status === 'completed').length;
-  const overdue = rows.filter((row) => row.status === 'overdue' || row.status === 'expired').length;
-  const assign = useMutation({
-    mutationFn: () =>
-      assignCourse(courseId, { userIds: [userId], dueAt: dueDate ? new Date(`${dueDate}T23:59:59`).toISOString() : null, required }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['training-compliance'] });
-      qc.invalidateQueries({ queryKey: ['training-assignments-me'] });
-      setAssignOpen(false);
-      setCourseId('');
-      setDueDate('');
-      setRequired(true);
-      toast('success', 'Course assigned to employee.');
-    },
-    onError: (error) => toast('error', (error as Error).message),
-  });
-  const publishedCourses = courses.filter((course) => course.isPublished);
-  return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Training compliance</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {completed} of {rows.length} assigned courses complete
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {overdue > 0 && <Badge variant="destructive">{overdue} attention needed</Badge>}
-          <Button size="sm" onClick={() => setAssignOpen(true)}>
-            Assign course
-          </Button>
-        </div>
-      </div>
-      {rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">No training assigned.</p>
-      ) : (
-        <div className="divide-y divide-border">
-          {rows.slice(0, 6).map((row) => (
-            <div key={row.assignmentId} className="px-5 py-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium">{row.courseTitle}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{row.dueAt ? `Due ${fmtDate(row.dueAt)}` : 'No due date'}</p>
-              </div>
-              <Badge
-                variant={
-                  row.status === 'completed'
-                    ? 'success'
-                    : row.status === 'overdue' || row.status === 'expired'
-                      ? 'destructive'
-                      : row.status === 'in_progress'
-                        ? 'primary'
-                        : 'muted'
-                }
-              >
-                {row.status.replace('_', ' ')}
-              </Badge>
-            </div>
-          ))}
-        </div>
-      )}
-      {assignOpen && (
-        <Modal title="Assign training course" onClose={() => setAssignOpen(false)}>
-          <form
-            className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              assign.mutate();
-            }}
-          >
-            <div>
-              <label className={lbl}>Course</label>
-              <Select
-                value={courseId}
-                onValueChange={setCourseId}
-                options={publishedCourses.map((course) => ({
-                  value: course.id,
-                  label: `${course.title} · ${course.estimatedMinutes} min`,
-                }))}
-                placeholder={publishedCourses.length ? 'Choose a course' : 'No published courses'}
-                ariaLabel="Training course"
-              />
-            </div>
-            <div>
-              <label className={lbl}>Due date</label>
-              <input type="date" className={inp} value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
-            </div>
-            <button
-              type="button"
-              onClick={() => setRequired(!required)}
-              className={cn(
-                'w-full rounded-xl border p-3 text-left flex gap-3',
-                required ? 'border-primary/40 bg-primary/5' : 'border-border',
-              )}
-            >
-              <span
-                className={cn(
-                  'mt-0.5 size-5 rounded-md border flex items-center justify-center shrink-0',
-                  required ? 'bg-primary border-primary text-primary-foreground' : 'border-border',
-                )}
-              >
-                {required && <CheckCircle2 size={13} />}
-              </span>
-              <span>
-                <span className="block text-sm font-medium">Required training</span>
-                <span className="block text-xs text-muted-foreground mt-0.5">Include this course in compliance and overdue reporting.</span>
-              </span>
-            </button>
-            <Button type="submit" className="w-full" disabled={!courseId || assign.isPending}>
-              {assign.isPending && <Loader2 className="animate-spin" />}Assign to employee
-            </Button>
-          </form>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-function Stat({ icon: Icon, label, value }: { icon: typeof Clock; label: string; value: string }) {
-  return (
-    <div className="bg-card border border-border rounded-2xl p-4">
-      <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
-        <Icon size={14} aria-hidden="true" />
-        <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
-      </div>
-      <p className="text-xl font-bold text-foreground tabular-nums">{value}</p>
-    </div>
-  );
-}
-
 function Info({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
@@ -512,7 +366,7 @@ function ComplianceSummaryCard({ member, employee }: { member: StaffProfile; emp
   const outstanding = checks.filter((check) => !check.complete).length;
 
   return (
-    <section className="rounded-2xl border border-border bg-card overflow-hidden">
+    <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -590,7 +444,7 @@ function AbsenceCard({ userId }: { userId: string }) {
   });
 
   return (
-    <section className="rounded-2xl border border-border bg-card overflow-hidden">
+    <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -645,10 +499,7 @@ function AbsenceCard({ userId }: { userId: string }) {
               add.mutate();
             }}
           >
-            <div>
-              <label className={lbl}>Date</label>
-              <input type="date" className={inp} value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} />
-            </div>
+            <DatePicker label="Date" value={form.date} onValueChange={(date) => setForm({ ...form, date })} />
             <div>
               <label className={lbl}>Leave category</label>
               <Select
@@ -709,7 +560,7 @@ function PayslipsCard({ userId }: { userId: string }) {
     queryFn: () => getEmployeePayslips(userId),
   });
   return (
-    <section className="rounded-2xl border border-border bg-card overflow-hidden">
+    <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-border">
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Payslips</p>
         <p className="text-xs text-muted-foreground mt-1">Draft and finalised payroll documents for this employee.</p>
@@ -919,30 +770,16 @@ function LeaveAllowanceCard({ userId, employmentType }: { userId: string; employ
             const used = Number(item.usedDays);
             const remaining = total - used;
             return (
-              <button
+              <StatCard
                 key={item.id}
-                onClick={() => setEditing(item)}
-                className="w-full text-left rounded-xl border border-border p-4 hover:border-primary/40 transition-colors"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold">{item.leaveType.name}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {used} used · {remaining} remaining
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-semibold tabular-nums">{total}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">days</p>
-                  </div>
-                </div>
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-3">
-                  <div
-                    className="h-full bg-primary rounded-full"
-                    style={{ width: `${total > 0 ? Math.min(100, (used / total) * 100) : 0}%` }}
-                  />
-                </div>
-              </button>
+                size="sm"
+                label={item.leaveType.name}
+                value={total}
+                unit="days"
+                caption={`${used} used · ${remaining} remaining`}
+                visual={{ type: 'progress', pct: total > 0 ? (used / total) * 100 : 0 }}
+                onSelect={() => setEditing(item)}
+              />
             );
           })}
         </div>
@@ -1179,7 +1016,6 @@ function EmployeeDocumentsCard({ userId }: { userId: string }) {
                   'Pension notice',
                   'Fit note',
                   'Food safety',
-                  'Training certificate',
                   'Policy acknowledgement',
                   'Other',
                 ].map((value) => ({ value, label: value }))}
@@ -1196,24 +1032,13 @@ function EmployeeDocumentsCard({ userId }: { userId: string }) {
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={lbl}>Checked / issued</label>
-                <input
-                  type="date"
-                  className={inp}
-                  value={form.issuedAt}
-                  onChange={(event) => setForm({ ...form, issuedAt: event.target.value })}
-                />
-              </div>
-              <div>
-                <label className={lbl}>Follow-up / expiry</label>
-                <input
-                  type="date"
-                  className={inp}
-                  value={form.expiresAt}
-                  onChange={(event) => setForm({ ...form, expiresAt: event.target.value })}
-                />
-              </div>
+              <DatePicker label="Checked / issued" value={form.issuedAt} onValueChange={(issuedAt) => setForm({ ...form, issuedAt })} />
+              <DatePicker
+                label="Follow-up / expiry"
+                value={form.expiresAt}
+                onValueChange={(expiresAt) => setForm({ ...form, expiresAt })}
+                min={form.issuedAt || undefined}
+              />
             </div>
             <div>
               <label className={lbl}>Notes</label>
@@ -1345,10 +1170,7 @@ function EmploymentTab({ userId, emp, canEditPay }: { userId: string; emp: Emplo
             ariaLabel="Employment type"
           />
         </div>
-        <div>
-          <label className={lbl}>Start date</label>
-          <input type="date" className={inp} value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} />
-        </div>
+        <DatePicker label="Start date" value={f.startDate} onValueChange={(startDate) => setF({ ...f, startDate })} />
       </div>
       {canEditPay && (
         <>
@@ -1607,10 +1429,12 @@ function PersonalTab({ userId, emp, canEdit, email }: { userId: string; emp: Emp
       <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Personal details</p>
         <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className={lbl}>Date of birth</label>
-            <input type="date" className={inp} value={f.dateOfBirth} onChange={(e) => setF({ ...f, dateOfBirth: e.target.value })} />
-          </div>
+          <DatePicker
+            label="Date of birth"
+            value={f.dateOfBirth}
+            onValueChange={(dateOfBirth) => setF({ ...f, dateOfBirth })}
+            max={new Date().toISOString().slice(0, 10)}
+          />
         </div>
         <div>
           <label className={lbl}>Home address</label>
@@ -1829,7 +1653,7 @@ const dayKey = (iso: string) => {
   const d = new Date(iso);
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 };
-const fmtDay = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+const fmtDay = (d: Date) => `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${fmtDate(d.toISOString())}`;
 const fmtTime = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—');
 
 function groupByDay(shifts: TimesheetShift[]): DayGroup[] {
@@ -2009,7 +1833,7 @@ const fmtMins = (measured: number, mins: number) =>
   measured === 0 ? '—' : mins < 1 ? `${Math.round(mins * 60)}s` : `${Math.round(mins * 10) / 10} min`;
 const fmtPct = (value: number) => `${Math.round(value * 10) / 10}%`;
 const divide = (value: number, denominator: number) => (denominator > 0 ? value / denominator : 0);
-const relativeDelta = (value: number, baseline: number) => (baseline > 0 ? ((value - baseline) / baseline) * 100 : null);
+const BASELINE_DELTA = { label: 'vs baseline' } as const;
 const windowSpanDays = (window: StaffPerfWindow) => {
   if (window.windowDays) return window.windowDays;
   if (!window.firstOrderAt || !window.lastOrderAt) return Math.max(window.activeDays, 1);
@@ -2035,54 +1859,6 @@ const performanceMetrics = (window: StaffPerfWindow) => {
   };
 };
 
-function DeltaBadge({ value, baseline, lowerIsBetter = false }: { value: number; baseline: number; lowerIsBetter?: boolean }) {
-  const delta = relativeDelta(value, baseline);
-  if (delta === null || Math.abs(delta) < 0.5) {
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
-        <Minus size={11} /> Flat
-      </span>
-    );
-  }
-  const up = delta > 0;
-  const positive = lowerIsBetter ? !up : up;
-  const Icon = up ? ArrowUpRight : ArrowDownRight;
-  return (
-    <span className={cn('inline-flex items-center gap-0.5 text-[10px] font-semibold', positive ? 'text-success' : 'text-warning')}>
-      <Icon size={11} />
-      {Math.abs(Math.round(delta))}%
-    </span>
-  );
-}
-
-function PerfTile({
-  icon: Icon,
-  label,
-  value,
-  hint,
-  compare,
-}: {
-  icon: typeof Clock;
-  label: string;
-  value: string;
-  hint?: string;
-  compare?: { value: number; baseline: number; lowerIsBetter?: boolean };
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-background px-4 py-3.5">
-      <div className="flex items-center justify-between gap-2 text-muted-foreground mb-2">
-        <div className="flex items-center gap-1.5">
-          <Icon size={13} aria-hidden="true" />
-          <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
-        </div>
-        {compare && <DeltaBadge {...compare} />}
-      </div>
-      <p className="text-2xl font-bold text-foreground leading-none tabular-nums">{value}</p>
-      {hint && <p className="text-[11px] text-muted-foreground mt-2">{hint}</p>}
-    </div>
-  );
-}
-
 function BreakdownBar({ rows }: { rows: { label: string; value: number; total: number; colour: string }[] }) {
   return (
     <div className="space-y-3">
@@ -2102,31 +1878,6 @@ function BreakdownBar({ rows }: { rows: { label: string; value: number; total: n
           </div>
         );
       })}
-    </div>
-  );
-}
-
-function ComparisonMetric({
-  label,
-  value,
-  baseline,
-  format,
-  lowerIsBetter,
-}: {
-  label: string;
-  value: number;
-  baseline: number;
-  format: (value: number) => string;
-  lowerIsBetter?: boolean;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-background p-3">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-      <div className="mt-2 flex items-end justify-between gap-2">
-        <p className="text-lg font-bold tabular-nums">{format(value)}</p>
-        <DeltaBadge value={value} baseline={baseline} lowerIsBetter={lowerIsBetter} />
-      </div>
-      <p className="mt-1 text-[10px] text-muted-foreground">Baseline {format(baseline)}</p>
     </div>
   );
 }
@@ -2222,66 +1973,87 @@ function PerformanceCard({ userId }: { userId: string }) {
           </div>
         ) : (
           <div className="p-4 md:p-5 space-y-5">
-            <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-              <PerfTile
+            <StatCardGrid columns={3}>
+              <StatCard
+                size="sm"
                 icon={Receipt}
+                accent="primary"
                 label="Orders"
-                value={String(w.totalOrders)}
+                value={w.totalOrders}
                 hint={`${metrics.ordersPerCalendarDay.toFixed(1)} per calendar day`}
-                compare={
-                  win === 'allTime' ? undefined : { value: metrics.ordersPerCalendarDay, baseline: displayedBaseline.ordersPerCalendarDay }
+                delta={
+                  win === 'allTime'
+                    ? undefined
+                    : comparisonDelta(metrics.ordersPerCalendarDay, displayedBaseline.ordersPerCalendarDay, BASELINE_DELTA)
                 }
               />
-              <PerfTile
+              <StatCard
+                size="sm"
                 icon={CircleDollarSign}
+                accent="success"
                 label="Revenue"
                 value={fmtMoney(w.totalRevenue)}
                 hint={`${fmtMoney(metrics.revenuePerActiveDay)} per active day`}
-                compare={
+                delta={
                   win === 'allTime'
                     ? undefined
-                    : { value: metrics.revenuePerCalendarDay, baseline: displayedBaseline.revenuePerCalendarDay }
+                    : comparisonDelta(metrics.revenuePerCalendarDay, displayedBaseline.revenuePerCalendarDay, BASELINE_DELTA)
                 }
               />
-              <PerfTile
+              <StatCard
+                size="sm"
                 icon={Store}
+                accent="info"
                 label="Average order"
                 value={fmtMoney(w.avgOrderValue)}
                 hint="Revenue excluding cancelled orders"
-                compare={win === 'allTime' ? undefined : { value: metrics.revenuePerOrder, baseline: displayedBaseline.revenuePerOrder }}
+                delta={
+                  win === 'allTime'
+                    ? undefined
+                    : comparisonDelta(metrics.revenuePerOrder, displayedBaseline.revenuePerOrder, BASELINE_DELTA)
+                }
               />
-              <PerfTile
+              <StatCard
+                size="sm"
                 icon={Zap}
+                accent="warning"
                 label="Order velocity"
                 value={w.avgOrdersPerActiveDay.toFixed(1)}
                 hint="Orders per active day"
-                compare={
-                  win === 'allTime' ? undefined : { value: metrics.ordersPerActiveDay, baseline: displayedBaseline.ordersPerActiveDay }
+                delta={
+                  win === 'allTime'
+                    ? undefined
+                    : comparisonDelta(metrics.ordersPerActiveDay, displayedBaseline.ordersPerActiveDay, BASELINE_DELTA)
                 }
               />
-              <PerfTile
+              <StatCard
+                size="sm"
                 icon={CheckCircle2}
+                accent="success"
                 label="Completion"
                 value={fmtPct(metrics.completionRate)}
                 hint={`${w.completedOrders} completed`}
-                compare={win === 'allTime' ? undefined : { value: metrics.completionRate, baseline: displayedBaseline.completionRate }}
+                delta={
+                  win === 'allTime' ? undefined : comparisonDelta(metrics.completionRate, displayedBaseline.completionRate, BASELINE_DELTA)
+                }
               />
-              <PerfTile
+              <StatCard
+                size="sm"
                 icon={Timer}
+                accent="purple"
                 label="Median prep"
                 value={fmtMins(w.prepTime.measuredOrders, w.prepTime.medianMinutes)}
                 hint={`${w.prepTime.measuredOrders} measured orders`}
-                compare={
+                delta={
                   win === 'allTime' || !w.prepTime.measuredOrders || !data.windows[baselineKey].prepTime.measuredOrders
                     ? undefined
-                    : {
-                        value: w.prepTime.medianMinutes,
-                        baseline: data.windows[baselineKey].prepTime.medianMinutes,
+                    : comparisonDelta(w.prepTime.medianMinutes, data.windows[baselineKey].prepTime.medianMinutes, {
+                        ...BASELINE_DELTA,
                         lowerIsBetter: true,
-                      }
+                      })
                 }
               />
-            </div>
+            </StatCardGrid>
           </div>
         )}
       </section>
@@ -2297,38 +2069,54 @@ function PerformanceCard({ userId }: { userId: string }) {
               <Activity size={18} className="text-primary" aria-hidden="true" />
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-              <ComparisonMetric
-                label="Order pace"
-                value={compared.ordersPerCalendarDay}
-                baseline={comparison.ordersPerCalendarDay}
-                format={(value) => value.toFixed(1)}
-              />
-              <ComparisonMetric
-                label="Revenue pace"
-                value={compared.revenuePerCalendarDay}
-                baseline={comparison.revenuePerCalendarDay}
-                format={fmtMoney}
-              />
-              <ComparisonMetric
-                label="Avg order"
-                value={compared.revenuePerOrder}
-                baseline={comparison.revenuePerOrder}
-                format={fmtMoney}
-              />
-              <ComparisonMetric
-                label="Cancellation"
-                value={compared.cancellationRate}
-                baseline={comparison.cancellationRate}
-                format={fmtPct}
-                lowerIsBetter
-              />
-              <ComparisonMetric
-                label="Median prep"
-                value={comparisonPrepAvailable ? comparisonWindow.prepTime.medianMinutes : 0}
-                baseline={comparisonPrepAvailable ? comparisonBase.prepTime.medianMinutes : 0}
-                format={(value) => (comparisonPrepAvailable ? fmtMins(1, value) : '—')}
-                lowerIsBetter
-              />
+              {(
+                [
+                  {
+                    label: 'Order pace',
+                    value: compared.ordersPerCalendarDay,
+                    baseline: comparison.ordersPerCalendarDay,
+                    format: (value: number) => value.toFixed(1),
+                    lowerIsBetter: false,
+                  },
+                  {
+                    label: 'Revenue pace',
+                    value: compared.revenuePerCalendarDay,
+                    baseline: comparison.revenuePerCalendarDay,
+                    format: fmtMoney,
+                    lowerIsBetter: false,
+                  },
+                  {
+                    label: 'Avg order',
+                    value: compared.revenuePerOrder,
+                    baseline: comparison.revenuePerOrder,
+                    format: fmtMoney,
+                    lowerIsBetter: false,
+                  },
+                  {
+                    label: 'Cancellation',
+                    value: compared.cancellationRate,
+                    baseline: comparison.cancellationRate,
+                    format: fmtPct,
+                    lowerIsBetter: true,
+                  },
+                  {
+                    label: 'Median prep',
+                    value: comparisonPrepAvailable ? comparisonWindow.prepTime.medianMinutes : 0,
+                    baseline: comparisonPrepAvailable ? comparisonBase.prepTime.medianMinutes : 0,
+                    format: (value: number) => (comparisonPrepAvailable ? fmtMins(1, value) : '—'),
+                    lowerIsBetter: true,
+                  },
+                ] as const
+              ).map(({ label, value, baseline, format, lowerIsBetter }) => (
+                <StatCard
+                  key={label}
+                  size="sm"
+                  label={label}
+                  value={format(value)}
+                  caption={`Baseline ${format(baseline)}`}
+                  delta={comparisonDelta(value, baseline, { label: '', lowerIsBetter })}
+                />
+              ))}
             </div>
           </section>
 

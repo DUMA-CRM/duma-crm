@@ -1,6 +1,6 @@
 'use client';
 
-import { WifiOff } from 'lucide-react';
+import { WifiOff } from '@/components/icons';
 import { useEffect, useState } from 'react';
 
 export function OfflineStatus() {

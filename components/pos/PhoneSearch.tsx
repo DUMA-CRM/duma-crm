@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Check, Loader2, UserPlus } from 'lucide-react';
+import { Check, Loader2, UserPlus } from '@/components/icons';
 import { useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';

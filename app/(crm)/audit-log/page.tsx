@@ -22,7 +22,7 @@ import {
   Timer,
   User,
   X,
-} from 'lucide-react';
+} from '@/components/icons';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Popover } from 'radix-ui';
 import { Suspense, useEffect, useMemo, useState } from 'react';
@@ -38,6 +38,7 @@ import { Select, type SelectOption } from '@/components/ui/select';
 import { type AuditLog, getAuditLogs, parseAuditMeta } from '@/lib/api/audit.service';
 import { getStaff, roleAtLeast } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
+import { formatDateTime } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -78,15 +79,7 @@ function humanise(str: string) {
   return str.replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+const formatDate = (iso: string) => formatDateTime(iso);
 
 // ── Detail panel (details + metadata) ──────────────────────────────────────────
 
@@ -799,7 +792,7 @@ function AuditLogPageContent() {
 function AuditLogPageFallback() {
   return (
     <PageLayout eyebrow="System" title="Audit Log" headerBorder fullHeight>
-      <div className="h-full rounded-2xl border border-border bg-card p-5">
+      <div className="h-full rounded-2xl border border-border bg-card shadow-sm p-5">
         <div className="h-9 w-full max-w-2xl animate-pulse rounded-lg bg-muted" />
         <div className="mt-6 space-y-3">
           {Array.from({ length: 8 }).map((_, index) => (

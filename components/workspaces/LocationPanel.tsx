@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Building2, MapPin, Pencil, Plus, Trash2 } from '@/components/icons';
 import { useEffect, useState } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -65,9 +65,9 @@ function LocationForm({
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
 
   const inputClass =
-    'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+    'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
   const timeClass =
-    'h-9 bg-background border border-border rounded-lg px-2 text-sm text-foreground tabular-nums outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150 disabled:opacity-40';
+    'h-9 bg-field border border-input rounded-lg px-2 text-sm text-foreground tabular-nums outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150 disabled:opacity-40';
 
   const toggleDay = (key: keyof OpeningHours, open: boolean) =>
     setHours((h) => ({ ...h, [key]: open ? { open: '09:00', close: '17:00' } : null }));

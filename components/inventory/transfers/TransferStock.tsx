@@ -1,12 +1,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
+import { ArrowRight, Plus, Trash2 } from '@/components/icons';
 import { FormActions, inputClass, labelClass, selectClass } from '@/components/purchasing/shared';
-import { ConfirmModal } from '@/components/shared/ConfirmModal';
-import { Modal } from '@/components/shared/Modal';
+import { ConfirmDrawer } from '@/components/shared/ConfirmDrawer';
+import { Drawer } from '@/components/shared/Drawer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -21,6 +21,7 @@ import {
 } from '@/lib/api/transfers.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
+import { formatDateTime as formatAppDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 
 const STATUS_META = {
@@ -29,14 +30,17 @@ const STATUS_META = {
   cancelled: { label: 'Cancelled', variant: 'muted' as const },
 };
 
-const fmtDateTime = (iso: string) =>
-  new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const fmtDateTime = (iso: string) => formatAppDateTime(iso);
 
 type Line = { stockItemId: string; quantity: string };
 
-// ── Batch create form ───────────────────────────────────────────────────────────
+// ── Batch create drawer ─────────────────────────────────────────────────────────
 
-function CreateTransferForm({
+/** The form's id, so the drawer's pinned footer can submit it from outside. */
+const TRANSFER_FORM = 'create-stock-transfer-form';
+
+/** Batch transfer slide-over, launched from an item's detail page (item pre-selected). */
+export function TransferStockDrawer({
   tenantId,
   locationId,
   initialStockItemId,
@@ -80,127 +84,118 @@ function CreateTransferForm({
   });
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (toLocationId && validLines.length > 0) mutate();
-      }}
-      className="space-y-4"
+    <Drawer
+      title="Transfer Stock"
+      description={from?.name ? `Move stock out of ${from.name}.` : 'Move stock to another location.'}
+      onClose={onClose}
+      footer={
+        <FormActions
+          formId={TRANSFER_FORM}
+          onClose={onClose}
+          isPending={isPending}
+          disabled={!toLocationId || validLines.length === 0}
+          submitLabel="Create Transfer"
+        />
+      }
     >
-      <div className="grid grid-cols-2 gap-3">
+      <form
+        id={TRANSFER_FORM}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (toLocationId && validLines.length > 0) mutate();
+        }}
+        className="space-y-4"
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelClass}>From</label>
+            <div className={cn(inputClass, 'flex items-center bg-muted text-muted-foreground')}>{from?.name ?? 'Current location'}</div>
+          </div>
+          <div>
+            <label className={labelClass}>To</label>
+            <Select
+              value={toLocationId}
+              onValueChange={setToLocationId}
+              options={[
+                { value: '', label: 'Select…' },
+                ...locations
+                  .filter((location) => location.id !== locationId)
+                  .map((location) => ({ value: location.id, label: location.name })),
+              ]}
+              ariaLabel="Destination location"
+              required
+              className={selectClass}
+            />
+          </div>
+        </div>
+
         <div>
-          <label className={labelClass}>From</label>
-          <div className={cn(inputClass, 'flex items-center bg-muted text-muted-foreground')}>{from?.name ?? 'Current location'}</div>
+          <label className={labelClass}>Items</label>
+          <div className="space-y-2">
+            {lines.map((line, i) => {
+              const available = availableFor(line.stockItemId);
+              const over = line.stockItemId !== '' && Number(line.quantity) > available;
+              return (
+                <div key={i} className="flex items-center gap-2">
+                  <Select
+                    value={line.stockItemId}
+                    onValueChange={(value) =>
+                      setLines(lines.map((draftLine, index) => (index === i ? { ...draftLine, stockItemId: value } : draftLine)))
+                    }
+                    options={[
+                      { value: '', label: 'Item…' },
+                      ...stockable
+                        .filter((item) => item.stockItemId === line.stockItemId || !chosen.has(item.stockItemId))
+                        .map((item) => ({
+                          value: item.stockItemId,
+                          label: `${item.stockItem!.name} — ${Number(item.quantity)} ${item.stockItem!.unit} available`,
+                        })),
+                    ]}
+                    ariaLabel={`Transfer item ${i + 1}`}
+                    className={cn(selectClass, 'flex-1 min-w-0')}
+                  />
+                  <input
+                    value={line.quantity}
+                    onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, quantity: e.target.value } : l)))}
+                    inputMode="decimal"
+                    placeholder="Qty"
+                    aria-label="Quantity"
+                    className={cn(inputClass, 'w-24 text-right tabular-nums', over && 'border-destructive')}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    type="button"
+                    onClick={() => setLines(lines.length === 1 ? [{ stockItemId: '', quantity: '' }] : lines.filter((_, j) => j !== i))}
+                    aria-label="Remove line"
+                    className="text-muted-foreground/60 hover:text-destructive shrink-0"
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={() => setLines([...lines, { stockItemId: '', quantity: '' }])}
+            className="mt-2 gap-1.5"
+          >
+            <Plus size={14} />
+            Add item
+          </Button>
         </div>
+
         <div>
-          <label className={labelClass}>To</label>
-          <Select
-            value={toLocationId}
-            onValueChange={setToLocationId}
-            options={[
-              { value: '', label: 'Select…' },
-              ...locations
-                .filter((location) => location.id !== locationId)
-                .map((location) => ({ value: location.id, label: location.name })),
-            ]}
-            ariaLabel="Destination location"
-            required
-            className={selectClass}
-          />
+          <label className={labelClass}>Notes</label>
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" className={inputClass} />
         </div>
-      </div>
 
-      <div>
-        <label className={labelClass}>Items</label>
-        <div className="space-y-2">
-          {lines.map((line, i) => {
-            const available = availableFor(line.stockItemId);
-            const over = line.stockItemId !== '' && Number(line.quantity) > available;
-            return (
-              <div key={i} className="flex items-center gap-2">
-                <Select
-                  value={line.stockItemId}
-                  onValueChange={(value) =>
-                    setLines(lines.map((draftLine, index) => (index === i ? { ...draftLine, stockItemId: value } : draftLine)))
-                  }
-                  options={[
-                    { value: '', label: 'Item…' },
-                    ...stockable
-                      .filter((item) => item.stockItemId === line.stockItemId || !chosen.has(item.stockItemId))
-                      .map((item) => ({
-                        value: item.stockItemId,
-                        label: `${item.stockItem!.name} — ${Number(item.quantity)} ${item.stockItem!.unit} available`,
-                      })),
-                  ]}
-                  ariaLabel={`Transfer item ${i + 1}`}
-                  className={cn(selectClass, 'flex-1 min-w-0')}
-                />
-                <input
-                  value={line.quantity}
-                  onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, quantity: e.target.value } : l)))}
-                  inputMode="decimal"
-                  placeholder="Qty"
-                  aria-label="Quantity"
-                  className={cn(inputClass, 'w-24 text-right tabular-nums', over && 'border-destructive')}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  type="button"
-                  onClick={() => setLines(lines.length === 1 ? [{ stockItemId: '', quantity: '' }] : lines.filter((_, j) => j !== i))}
-                  aria-label="Remove line"
-                  className="text-muted-foreground/60 hover:text-destructive shrink-0"
-                >
-                  <Trash2 size={14} />
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          onClick={() => setLines([...lines, { stockItemId: '', quantity: '' }])}
-          className="mt-2 gap-1.5"
-        >
-          <Plus size={14} />
-          Add item
-        </Button>
-      </div>
-
-      <div>
-        <label className={labelClass}>Notes</label>
-        <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" className={inputClass} />
-      </div>
-
-      {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
-      <FormActions
-        onClose={onClose}
-        isPending={isPending}
-        disabled={!toLocationId || validLines.length === 0}
-        submitLabel="Create Transfer"
-      />
-    </form>
-  );
-}
-
-/** Batch transfer modal, launched from an item's detail page (item pre-selected). */
-export function TransferStockModal({
-  tenantId,
-  locationId,
-  initialStockItemId,
-  onClose,
-}: {
-  tenantId: string;
-  locationId: string;
-  initialStockItemId?: string;
-  onClose: () => void;
-}) {
-  return (
-    <Modal title="Transfer Stock" onClose={onClose} className="max-w-xl">
-      <CreateTransferForm tenantId={tenantId} locationId={locationId} initialStockItemId={initialStockItemId} onClose={onClose} />
-    </Modal>
+        {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
+      </form>
+    </Drawer>
   );
 }
 
@@ -317,7 +312,7 @@ export function ItemTransfersSection({ stockItemId, locationId }: { stockItemId:
       )}
 
       {confirm?.action === 'complete' && (
-        <ConfirmModal
+        <ConfirmDrawer
           title="Complete Transfer"
           message={<>Move the stock now? The sender is deducted and the receiver credited immediately.</>}
           isPending={complete.isPending}
@@ -326,7 +321,7 @@ export function ItemTransfersSection({ stockItemId, locationId }: { stockItemId:
         />
       )}
       {confirm?.action === 'cancel' && (
-        <ConfirmModal
+        <ConfirmDrawer
           title="Cancel Transfer"
           message={<>Cancel this transfer? No stock has moved yet.</>}
           isPending={cancel.isPending}

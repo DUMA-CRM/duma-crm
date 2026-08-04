@@ -1,13 +1,13 @@
 'use client';
 
-import type { LucideIcon } from 'lucide-react';
+import type { IconComponent } from '@/components/icons';
 
 import { cn } from '@/lib/utils/cn';
 
 export interface SectionTab<T extends string> {
   value: T;
   label: string;
-  icon?: LucideIcon;
+  icon?: IconComponent;
   /** Count pill after the label — hidden when 0 or undefined. */
   count?: number;
   /** Tint for the count pill. Use `danger` for counts that need attention (failures). */

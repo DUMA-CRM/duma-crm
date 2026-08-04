@@ -92,7 +92,7 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
 
   if (!res.ok) {
     const { message, code } = await extractErrorMessage(res);
-    throw new ApiError(res.status, message, code);
+    throw new ApiError(res.status, `${message} (${method} ${path})`, code);
   }
 
   // 204 No Content — return undefined cast as T

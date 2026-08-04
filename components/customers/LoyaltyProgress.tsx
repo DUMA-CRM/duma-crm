@@ -40,7 +40,7 @@ export function LoyaltyProgress({ customer }: { customer: Customer }) {
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-linear-to-r from-amber-600 to-amber-400 transition-all duration-500"
+          className="h-full rounded-full bg-linear-to-r from-warning to-warning/60 transition-all duration-500"
           style={{ width: `${progressPct}%` }}
         />
       </div>

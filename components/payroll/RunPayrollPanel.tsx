@@ -1,15 +1,16 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, PlugZap, Users } from 'lucide-react';
 import { useState } from 'react';
 
+import { Download, PlugZap, Users } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
+import { DatePicker } from '@/components/ui/date-picker';
 
 import { type PayrollPeriod, type PayrollPreviewLine, createPayrollRun, getPayrollPreview } from '@/lib/api/payroll.service';
 import { toast } from '@/stores/toastStore';
@@ -154,12 +155,7 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
             <input id="payroll-month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} className={inputClass} />
           </div>
         ) : (
-          <div>
-            <label className={labelClass} htmlFor="payroll-week">
-              Week starting
-            </label>
-            <input id="payroll-week" type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} className={inputClass} />
-          </div>
+          <DatePicker id="payroll-week" label="Week starting" value={weekStart} onValueChange={setWeekStart} />
         )}
         {validRange && <p className="text-xs text-muted-foreground pb-2.5">{formatRange(from, to)}</p>}
 

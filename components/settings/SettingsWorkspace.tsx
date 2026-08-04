@@ -1,45 +1,44 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Banknote,
-  Building2,
-  Calculator,
-  Camera,
-  CheckCircle2,
-  CreditCard,
-  Download,
-  EyeOff,
-  Globe,
-  Loader2,
-  LogOut,
-  Mail,
-  MapPin,
-  Monitor,
-  Moon,
-  PanelTopClose,
-  Plug,
-  Printer,
-  ScanLine,
-  Smartphone,
-  Sun,
-  Tags,
-  UserRound,
-  Volume2,
-  VolumeX,
-  type LucideIcon,
-} from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useSyncExternalStore } from 'react';
 
+import {
+  Building2,
+  Camera,
+  CheckCircle2,
+  Download,
+  EyeOff,
+  Globe,
+  type IconComponent,
+  Loader2,
+  LogOut,
+  MapPin,
+  Monitor,
+  Moon,
+  PanelTopClose,
+  Plug,
+  ScanLine,
+  ShieldCheck,
+  Smartphone,
+  Sun,
+  UserRound,
+  Volume2,
+  VolumeX,
+} from '@/components/icons';
+import { ConnectorsGrid } from '@/components/settings/connectors/ConnectorsGrid';
+import { relativeTime } from '@/components/settings/connectors/shared';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
-import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
+import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
-import { getSession, listSessions, revokeOtherSessions, revokeSession, type Session } from '@/lib/api/auth.service';
+import { type Session, changePassword, getSession, listSessions, revokeOtherSessions, revokeSession } from '@/lib/api/auth.service';
 import { roleAtLeast } from '@/lib/api/staff.service';
 import { getLocationsByTenant, getTenants } from '@/lib/api/workspace.service';
 import { chime } from '@/lib/utils/chime';
@@ -47,8 +46,8 @@ import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useKdsStore } from '@/stores/kdsStore';
 import { usePosSettingsStore } from '@/stores/posSettingsStore';
-import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { usePwaStore } from '@/stores/pwaStore';
+import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const ROLE_LABEL: Record<string, string> = {
@@ -136,7 +135,7 @@ function ToggleRow({
   checked,
   onChange,
 }: {
-  icon: LucideIcon;
+  icon: IconComponent;
   title: string;
   description: string;
   checked: boolean;
@@ -183,73 +182,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-interface Connector {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  href?: string;
-}
-
-const CONNECTORS: Connector[] = [
-  {
-    icon: Banknote,
-    title: 'Payroll export',
-    description: 'Send finalised payroll runs to your provider (Xero, QuickBooks, BrightPay).',
-  },
-  {
-    icon: Printer,
-    title: 'Receipt printer',
-    description: 'Print order receipts to networked or Bluetooth thermal printers from the POS.',
-  },
-  {
-    icon: Calculator,
-    title: 'Accounting',
-    description: 'Sync sales, COGS and payroll to your accounting software.',
-  },
-  {
-    icon: CreditCard,
-    title: 'Card payments',
-    description: 'Take card payments through an integrated terminal (SumUp, Stripe Terminal).',
-  },
-  {
-    icon: Tags,
-    title: 'Label printer',
-    description: 'Print prep and allergen labels for food items.',
-  },
-  {
-    icon: Mail,
-    title: 'Email',
-    description: 'Connect SMTP, create reusable templates and automate customer emails.',
-    href: '/communications',
-  },
-];
-
-function ConnectorCard({ icon: Icon, title, description, href }: Connector) {
-  const content = (
-    <div
-      aria-disabled={href ? undefined : true}
-      className={cn(
-        'bg-card border border-border rounded-2xl p-5',
-        href ? 'transition-colors hover:border-primary/40 hover:bg-primary/3' : 'opacity-60 cursor-not-allowed select-none',
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-          <Icon size={18} className="text-primary" aria-hidden="true" />
-        </div>
-        <Badge variant={href ? 'success' : 'muted'} className="ml-auto shrink-0">
-          {href ? 'Available' : 'Coming soon'}
-        </Badge>
-      </div>
-      <p className="text-sm font-semibold text-foreground mt-4">{title}</p>
-      <p className="text-xs text-muted-foreground mt-1">{description}</p>
-    </div>
-  );
-  return href ? <Link href={href}>{content}</Link> : content;
-}
-
 /** Best-effort "Chrome · macOS"-style label + a phone/desktop icon from a UA string. */
-function describeDevice(ua?: string | null): { label: string; icon: LucideIcon } {
+function describeDevice(ua?: string | null): { label: string; icon: IconComponent } {
   if (!ua) return { label: 'Unknown device', icon: Globe };
   const os = /Windows/i.test(ua)
     ? 'Windows'
@@ -275,21 +209,6 @@ function describeDevice(ua?: string | null): { label: string; icon: LucideIcon }
             : 'Browser';
   const isMobile = /Mobile|iPhone|iPod|Android/i.test(ua);
   return { label: [browser, os].filter(Boolean).join(' · '), icon: isMobile ? Smartphone : Monitor };
-}
-
-/** "3 days ago" / "just now" from an ISO timestamp. Returns '' if unparseable. */
-function relativeTime(iso?: string): string {
-  if (!iso) return '';
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return '';
-  const diffMs = Date.now() - then;
-  const mins = Math.round(diffMs / 60_000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`;
-  const days = Math.round(hours / 24);
-  return `${days} day${days === 1 ? '' : 's'} ago`;
 }
 
 function SessionsSection() {
@@ -328,83 +247,112 @@ function SessionsSection() {
 
   return (
     <Section title="Active sessions">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          {hasOthers && (
-            <button
-              onClick={() => revokeOthers.mutate()}
-              disabled={revokeOthers.isPending}
-              className="h-8 px-2.5 rounded-lg border border-destructive/30 text-destructive text-xs font-medium flex items-center gap-1.5 hover:bg-destructive/10 transition-colors disabled:opacity-50"
-            >
-              {revokeOthers.isPending ? (
-                <Loader2 size={13} className="animate-spin" aria-hidden="true" />
-              ) : (
-                <LogOut size={13} aria-hidden="true" />
-              )}
-              Sign out all others
-            </button>
-          )}
-        </div>
-
-        {isLoading ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 size={14} className="animate-spin" aria-hidden="true" />
-            Loading sessions…
-          </p>
-        ) : isError ? (
-          <p className="text-sm text-muted-foreground">Couldn’t load your other sessions.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {sorted.map((s: Session) => {
-              const { label, icon: Icon } = describeDevice(s.userAgent);
-              const isCurrent = s.token === currentToken;
-              const lastActive = relativeTime(s.updatedAt ?? s.createdAt);
-              const meta = [s.ipAddress || null, lastActive ? `Active ${lastActive}` : null].filter(Boolean).join(' · ');
-              return (
-                <li key={s.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface-offset/40 px-3 py-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <Icon size={15} className="text-muted-foreground" aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-foreground truncate flex items-center gap-2">
-                      {label}
-                      {isCurrent && (
-                        <Badge variant="muted" className="shrink-0">
-                          This device
-                        </Badge>
-                      )}
-                    </p>
-                    {meta && <p className="text-xs text-muted-foreground truncate">{meta}</p>}
-                  </div>
-                  {isCurrent ? (
-                    <span className="text-xs text-muted-foreground shrink-0">Current</span>
-                  ) : (
-                    <button
-                      onClick={() => revoke.mutate(s.token)}
-                      disabled={revoke.isPending && revoke.variables === s.token}
-                      className="h-8 px-2.5 rounded-lg border border-destructive/30 text-destructive text-xs font-medium flex items-center gap-1.5 hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                    >
-                      {revoke.isPending && revoke.variables === s.token ? (
-                        <Loader2 size={13} className="animate-spin" aria-hidden="true" />
-                      ) : (
-                        <LogOut size={13} aria-hidden="true" />
-                      )}
-                      Sign out
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        {hasOthers && (
+          <button
+            onClick={() => revokeOthers.mutate()}
+            disabled={revokeOthers.isPending}
+            className="h-8 px-2.5 rounded-lg border border-destructive/30 text-destructive text-xs font-medium flex items-center gap-1.5 hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          >
+            {revokeOthers.isPending ? (
+              <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <LogOut size={13} aria-hidden="true" />
+            )}
+            Sign out all others
+          </button>
         )}
+      </div>
+
+      {isLoading ? (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+          Loading sessions…
+        </p>
+      ) : isError ? (
+        <p className="text-sm text-muted-foreground">Couldn’t load your other sessions.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {sorted.map((s: Session) => {
+            const { label, icon: Icon } = describeDevice(s.userAgent);
+            const isCurrent = s.token === currentToken;
+            const lastActive = relativeTime(s.updatedAt ?? s.createdAt);
+            const meta = [s.ipAddress || null, lastActive ? `Active ${lastActive}` : null].filter(Boolean).join(' · ');
+            return (
+              <li key={s.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface-offset/40 px-3 py-2.5">
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                  <Icon size={15} className="text-muted-foreground" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-foreground truncate flex items-center gap-2">
+                    {label}
+                    {isCurrent && (
+                      <Badge variant="muted" className="shrink-0">
+                        This device
+                      </Badge>
+                    )}
+                  </p>
+                  {meta && <p className="text-xs text-muted-foreground truncate">{meta}</p>}
+                </div>
+                {isCurrent ? (
+                  <span className="text-xs text-muted-foreground shrink-0">Current</span>
+                ) : (
+                  <button
+                    onClick={() => revoke.mutate(s.token)}
+                    disabled={revoke.isPending && revoke.variables === s.token}
+                    className="h-8 px-2.5 rounded-lg border border-destructive/30 text-destructive text-xs font-medium flex items-center gap-1.5 hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                  >
+                    {revoke.isPending && revoke.variables === s.token ? (
+                      <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+                    ) : (
+                      <LogOut size={13} aria-hidden="true" />
+                    )}
+                    Sign out
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </Section>
   );
 }
 
-export type SettingsTab = 'general' | 'devices' | 'connectors';
+export type SettingsTab = 'general' | 'security' | 'devices' | 'connectors';
+
+function PasswordSection() {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const mutation = useMutation({
+    mutationFn: () => changePassword(current, next),
+    onSuccess: () => {
+      setCurrent('');
+      setNext('');
+      setConfirm('');
+    },
+  });
+  return (
+    <Section title="Change password">
+      <div className="max-w-md space-y-3">
+        {mutation.error && <p className="text-sm text-destructive">{mutation.error.message}</p>}
+        {mutation.isSuccess && <p className="text-sm text-success">Password changed. Other sessions were signed out.</p>}
+        <Input label="Current password" type="password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+        <Input label="New password" type="password" value={next} onChange={(e) => setNext(e.target.value)} />
+        <Input label="Confirm new password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        <Button onClick={() => mutation.mutate()} disabled={!current || next.length < 12 || next !== confirm || mutation.isPending}>
+          Change password
+        </Button>
+      </div>
+    </Section>
+  );
+}
 
 /** Each tab is its own route, so “Settings → Devices” can be linked to directly. */
 const TAB_PATH: Record<SettingsTab, string> = {
   general: '/settings',
+  security: '/settings/security',
   devices: '/settings/devices',
   connectors: '/settings/connectors',
 };
@@ -447,6 +395,7 @@ export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
   const showConnectors = roleAtLeast(role, 'franchise_owner');
   const tabs: SectionTab<SettingsTab>[] = [
     { value: 'general', label: 'General', icon: UserRound },
+    { value: 'security', label: 'Security', icon: ShieldCheck },
     { value: 'devices', label: 'This device', icon: Smartphone },
     ...(showConnectors ? [{ value: 'connectors' as const, label: 'Connectors', icon: Plug }] : []),
   ];
@@ -458,161 +407,140 @@ export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
       eyebrow="Account"
       title="Settings"
       leading={<InitialsAvatar firstName={firstName || 'U'} lastName={lastName} email={user?.email} className="size-11" />}
-      meta={
-        <>
-          <span className="text-sm font-medium text-foreground">{user?.name ?? '—'}</span>
-          <span className="text-xs text-muted-foreground">{user?.email ?? '—'}</span>
-          {role && <Badge variant="muted">{ROLE_LABEL[role] ?? role}</Badge>}
-        </>
-      }
       subheader={<SectionTabs tabs={tabs} value={active} onChange={(next) => router.push(TAB_PATH[next])} ariaLabel="Settings sections" />}
     >
       <div>
         {active === 'general' && (
           <div className="grid gap-4 md:grid-cols-2 items-start">
-        {/* Appearance */}
-        <Section title="Appearance">
-          <div className="flex flex-wrap gap-2">
-            {THEMES.map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                onClick={() => setTheme(value)}
-                aria-pressed={mounted && theme === value}
-                className={cn(
-                  'h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors',
-                  mounted && theme === value
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border text-muted-foreground hover:text-foreground hover:bg-surface-offset',
-                )}
-              >
-                <Icon size={15} aria-hidden="true" />
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-4 divide-y divide-border border-t border-border pt-1">
-            <ToggleRow
-              icon={EyeOff}
-              title="Hide page titles"
-              description="Gives content more room on every page — handy on tablets. Search bars and tabs stay visible. Saved per device."
-              checked={mounted && hidePageTitles}
-              onChange={() => setHidePageTitles(!hidePageTitles)}
-            />
-            <ToggleRow
-              icon={PanelTopClose}
-              title="Hide top bar"
-              description="Moves the location picker, reload and activity into the sidebar on large screens. Phones keep the top bar, since it opens the menu. Saved per device."
-              checked={mounted && hideHeader}
-              onChange={() => setHideHeader(!hideHeader)}
-            />
-          </div>
-        </Section>
-
-        {/* Workspace */}
-        <Section title="Workspace">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                <Building2 size={15} className="text-muted-foreground" aria-hidden="true" />
+            {/* Appearance */}
+            <Section title="Appearance">
+              <div className="flex flex-wrap gap-2">
+                {THEMES.map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => setTheme(value)}
+                    aria-pressed={mounted && theme === value}
+                    className={cn(
+                      'h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors',
+                      mounted && theme === value
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground hover:bg-surface-offset',
+                    )}
+                  >
+                    <Icon size={15} aria-hidden="true" />
+                    {label}
+                  </button>
+                ))}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Workspace</p>
-                <p className="text-sm text-foreground truncate">{tenant?.name ?? tenantId ?? 'None selected'}</p>
+
+              <div className="mt-4 divide-y divide-border border-t border-border pt-1">
+                <ToggleRow
+                  icon={EyeOff}
+                  title="Hide page titles"
+                  description="Gives content more room on every page — handy on tablets. Search bars and tabs stay visible. Saved per device."
+                  checked={mounted && hidePageTitles}
+                  onChange={() => setHidePageTitles(!hidePageTitles)}
+                />
+                <ToggleRow
+                  icon={PanelTopClose}
+                  title="Hide top bar"
+                  description="Moves the location picker, reload and activity into the sidebar on large screens. Phones keep the top bar, since it opens the menu. Saved per device."
+                  checked={mounted && hideHeader}
+                  onChange={() => setHideHeader(!hideHeader)}
+                />
               </div>
+            </Section>
+
+            {/* Workspace */}
+            <Section title="Workspace">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <Building2 size={15} className="text-muted-foreground" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Workspace</p>
+                    <p className="text-sm text-foreground truncate">{tenant?.name ?? tenantId ?? 'None selected'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <MapPin size={15} className="text-muted-foreground" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active location</p>
+                    <p className="text-sm text-foreground truncate">{location?.name ?? 'None selected'}</p>
+                  </div>
+                </div>
+                <Link href="/workspaces" className="text-sm font-medium text-primary hover:underline w-fit">
+                  Manage workspaces & locations →
+                </Link>
+              </div>
+            </Section>
+
+            {/* Session — sign out + other active sessions */}
+            <div className="md:col-span-2">
+              <SessionsSection />
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                <MapPin size={15} className="text-muted-foreground" aria-hidden="true" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active location</p>
-                <p className="text-sm text-foreground truncate">{location?.name ?? 'None selected'}</p>
-              </div>
-            </div>
-            <Link href="/workspaces" className="text-sm font-medium text-primary hover:underline w-fit">
-              Manage workspaces & locations →
-            </Link>
-          </div>
-        </Section>
-
-        {/* Session — sign out + other active sessions */}
-        <div className="md:col-span-2">
-          <SessionsSection />
-        </div>
           </div>
         )}
+
+        {active === 'security' && <PasswordSection />}
 
         {active === 'devices' && (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 items-start">
-        {/* POS (per-device) */}
-        <Section title="POS">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Loyalty QR scanner</p>
-          <div className="flex flex-wrap gap-2">
-            {SCANNER_MODES.map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                onClick={() => setScannerMode(value)}
-                aria-pressed={mounted && scannerMode === value}
-                className={cn(
-                  'h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors',
-                  mounted && scannerMode === value
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border text-muted-foreground hover:text-foreground hover:bg-surface-offset',
-                )}
-              >
-                <Icon size={15} aria-hidden="true" />
-                {label}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground mt-3">
-            How the POS reads customer loyalty codes. External scanner supports USB/Bluetooth scanners that type like a keyboard. This
-            setting is saved per device.
-          </p>
-        </Section>
+            {/* POS (per-device) */}
+            <Section title="POS">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Loyalty QR scanner</p>
+              <div className="flex flex-wrap gap-2">
+                {SCANNER_MODES.map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => setScannerMode(value)}
+                    aria-pressed={mounted && scannerMode === value}
+                    className={cn(
+                      'h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors',
+                      mounted && scannerMode === value
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground hover:bg-surface-offset',
+                    )}
+                  >
+                    <Icon size={15} aria-hidden="true" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                How the POS reads customer loyalty codes. External scanner supports USB/Bluetooth scanners that type like a keyboard. This
+                setting is saved per device.
+              </p>
+            </Section>
 
-        {/* Barista display (per-device) */}
-        <Section title="Barista Display">
-          <ToggleRow
-            icon={mounted && soundOn ? Volume2 : VolumeX}
-            title="New-order chime"
-            description="Plays a chime on the barista display when a new order arrives. Saved per device. Switching it on plays it once so you can hear the volume."
-            checked={mounted && soundOn}
-            onChange={() => {
-              const next = !soundOn;
-              setSoundOn(next);
-              // The click is our user gesture — unlock the AudioContext now and
-              // play a confirmation chime so the barista hears that it works.
-              if (next) chime();
-            }}
-          />
-        </Section>
+            {/* Barista display (per-device) */}
+            <Section title="Barista Display">
+              <ToggleRow
+                icon={mounted && soundOn ? Volume2 : VolumeX}
+                title="New-order chime"
+                description="Plays a chime on the barista display when a new order arrives. Saved per device. Switching it on plays it once so you can hear the volume."
+                checked={mounted && soundOn}
+                onChange={() => {
+                  const next = !soundOn;
+                  setSoundOn(next);
+                  // The click is our user gesture — unlock the AudioContext now and
+                  // play a confirmation chime so the barista hears that it works.
+                  if (next) chime();
+                }}
+              />
+            </Section>
 
-        {/* Install as app (PWA) */}
-        <div className="md:col-span-2 lg:col-span-1">
-          <InstallAppSection />
-        </div>
-          </div>
-        )}
-
-        {active === 'connectors' && showConnectors && (
-          <div className="flex flex-col gap-6">
-            <p className="text-sm text-muted-foreground max-w-2xl">
-              Connect external services to automate email, payroll exports, receipt printing and accounting.
-            </p>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {CONNECTORS.map((connector) => (
-                <ConnectorCard key={connector.title} {...connector} />
-              ))}
+            {/* Install as app (PWA) */}
+            <div className="md:col-span-2 lg:col-span-1">
+              <InstallAppSection />
             </div>
-
-            <p className="text-xs text-muted-foreground">
-              Email is available now. Additional integrations will appear here as they are released.
-            </p>
           </div>
         )}
+
+        {active === 'connectors' && showConnectors && <ConnectorsGrid />}
       </div>
     </EditorShell>
   );

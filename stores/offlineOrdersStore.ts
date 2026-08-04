@@ -12,6 +12,7 @@ export interface QueuedOrder {
   ownerUserId: string;
   tenantId: string;
   payload: CreateOrderPayload;
+  paymentProvider: 'cash' | 'manual_terminal';
   queuedAt: string;
   attempts: number;
   lastError?: string;
@@ -20,7 +21,10 @@ export interface QueuedOrder {
 
 interface OfflineOrdersStore {
   queue: QueuedOrder[];
-  enqueue: (payload: CreateOrderPayload, context: { idempotencyKey: string; ownerUserId: string; tenantId: string }) => void;
+  enqueue: (
+    payload: CreateOrderPayload,
+    context: { idempotencyKey: string; ownerUserId: string; tenantId: string; paymentProvider: QueuedOrder['paymentProvider'] },
+  ) => void;
   remove: (id: string) => void;
   markAttempt: (id: string, error?: string, status?: QueuedOrder['status']) => void;
   retry: (id: string) => void;
@@ -71,7 +75,7 @@ export const useOfflineOrdersStore = create<OfflineOrdersStore>()(
     }),
     {
       name: 'pos-offline-orders',
-      version: 2,
+      version: 3,
       // Version 1 did not record the owning account, tenant, or idempotency key.
       // Preserve those sales but never auto-replay them. WorkspaceInitializer
       // assigns them to the first signed-in profile and requires an explicit
@@ -82,6 +86,7 @@ export const useOfflineOrdersStore = create<OfflineOrdersStore>()(
           queue: (legacy.queue ?? []).map((order) => ({
             ...order,
             idempotencyKey: order.idempotencyKey ?? order.id,
+            paymentProvider: order.paymentProvider ?? 'cash',
             ownerUserId: order.ownerUserId ?? '',
             tenantId: order.tenantId ?? '',
             attempts: order.attempts ?? 0,

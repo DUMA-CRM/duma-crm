@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueries } from '@tanstack/react-query';
-import { Coffee, LogOut } from 'lucide-react';
+import { Coffee, LogOut } from '@/components/icons';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { Tooltip } from '@/components/shared/Tooltip';

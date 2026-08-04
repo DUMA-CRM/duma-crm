@@ -2,7 +2,7 @@
 
 DUMA is a multi-tenant café operations application built with Next.js 16 and
 React 19. It includes POS, kitchen display, orders, customers, inventory,
-purchasing, scheduling, HR, training, reporting, and customer communications.
+purchasing, scheduling, HR, reporting, and customer communications.
 
 ## Requirements
 
@@ -19,7 +19,7 @@ Create `.env.local`:
 NEXT_PUBLIC_API_URL=http://localhost:7777
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Required only for training image uploads.
+# Required for direct image uploads in the communication template editor.
 BLOB_READ_WRITE_TOKEN=
 
 # Optional provider-neutral JSON ingestion endpoints.

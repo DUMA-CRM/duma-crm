@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Bell, CheckCircle2, Clock3, CloudOff, Coffee, Flame, MapPin, Monitor, Smartphone } from 'lucide-react';
+import { AlertTriangle, Bell, CheckCircle2, Clock3, CloudOff, Coffee, Flame, MapPin, Monitor, Smartphone } from '@/components/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';
@@ -64,11 +64,13 @@ function orderQueryKey(locationId: string, status: OrderStatus) {
 }
 
 async function getLaneOrders(locationId: string, status: OrderStatus): Promise<OrdersResponse> {
-  const firstPage = await getOrders({ page: 1, limit: 100, locationId, status });
+  const firstPage = await getOrders({ page: 1, limit: 100, locationId, status, paymentStatus: 'paid' });
   if (firstPage.pages <= 1) return firstPage;
 
   const remainingPages = await Promise.all(
-    Array.from({ length: firstPage.pages - 1 }, (_, index) => getOrders({ page: index + 2, limit: 100, locationId, status })),
+    Array.from({ length: firstPage.pages - 1 }, (_, index) =>
+      getOrders({ page: index + 2, limit: 100, locationId, status, paymentStatus: 'paid' }),
+    ),
   );
 
   return {
@@ -173,6 +175,11 @@ function KdsCard({
                 <span className="tabular-nums text-primary">{item.quantity}×</span> {item.name}
               </p>
               {item.notes && <p className="mt-1 pl-6 text-xs font-semibold text-warning">Item note: {item.notes}</p>}
+              {item.allergens && item.allergens.length > 0 && (
+                <div className="mt-1.5 ml-6 rounded-md border border-destructive/50 bg-destructive/10 px-2 py-1.5 text-xs font-black uppercase tracking-wide text-destructive">
+                  Recipe allergens: {item.allergens.map((allergen) => allergen.replaceAll('_', ' ')).join(', ')}
+                </div>
+              )}
               {item.modifiers && item.modifiers.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1.5 pl-6">
                   {item.modifiers.map((modifier, index) => {

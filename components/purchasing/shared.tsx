@@ -2,19 +2,16 @@
 import type { PurchaseOrderLine, PurchaseOrderStatus } from '@/lib/api/purchasing.service';
 
 export const inputClass =
-  'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
 export const selectClass =
-  'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150 cursor-pointer';
+  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150 cursor-pointer';
 
 export const labelClass = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
 export const thClass = 'px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest';
 
-export const STATUS_META: Record<
-  PurchaseOrderStatus,
-  { label: string; variant: 'muted' | 'primary' | 'warning' | 'success' }
-> = {
+export const STATUS_META: Record<PurchaseOrderStatus, { label: string; variant: 'muted' | 'primary' | 'warning' | 'success' }> = {
   draft: { label: 'Draft', variant: 'muted' },
   submitted: { label: 'Submitted', variant: 'primary' },
   partially_received: { label: 'Partially Received', variant: 'warning' },
@@ -47,12 +44,16 @@ export function FormActions({
   submitLabel = 'Create',
   pendingLabel = 'Saving…',
   disabled,
+  formId,
 }: {
   onClose: () => void;
   isPending: boolean;
   submitLabel?: string;
   pendingLabel?: string;
   disabled?: boolean;
+  /** Id of the form to submit — set it when this row sits outside the <form>,
+   *  e.g. pinned in a drawer footer. */
+  formId?: string;
 }) {
   return (
     <div className="flex gap-2 pt-1">
@@ -65,6 +66,7 @@ export function FormActions({
       </button>
       <button
         type="submit"
+        form={formId}
         disabled={isPending || disabled}
         className="flex-1 h-10 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >

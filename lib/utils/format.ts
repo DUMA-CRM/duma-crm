@@ -1,3 +1,5 @@
+import { formatDateTime as formatAppDateTime, formatDate } from './date';
+
 // Central formatting helpers. Locale/currency live here so a future locale
 // switch touches one file instead of every component.
 
@@ -18,9 +20,8 @@ export const fmtGbp = (n: number) => `£${n.toLocaleString(LOCALE, { maximumFrac
 /** Pounds and pence, e.g. "£4.20". */
 export const fmtGbpExact = (n: number) => `£${n.toFixed(2)}`;
 
-/** "14 Jul" style short date. */
-export const fmtDateShort = (iso: string) => new Date(iso).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' });
+/** Consistent app date: "14/07/2026". */
+export const fmtDateShort = (iso: string) => formatDate(iso);
 
-/** "14 Jul 2026, 09:30" style timestamp. */
-export const fmtDateTime = (iso: string) =>
-  new Date(iso).toLocaleString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+/** Consistent app timestamp: "14/07/2026, 09:30". */
+export const fmtDateTime = (iso: string) => formatAppDateTime(iso);

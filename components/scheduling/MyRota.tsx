@@ -1,9 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, ChevronLeft, ChevronRight, LogIn, LogOut } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { CalendarClock, ChevronLeft, ChevronRight, LogIn, LogOut } from '@/components/icons';
 import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
 
 import { type ScheduledShift, getMyScheduledShifts } from '@/lib/api/scheduling.service';
@@ -11,6 +11,7 @@ import { clockIn, getActiveShifts } from '@/lib/api/shifts.service';
 import { type OpeningHours, type Weekday, getLocations } from '@/lib/api/workspace.service';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
+import { formatDate } from '@/lib/utils/date';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -143,7 +144,7 @@ export function MyRota() {
   const todayInWeek = useMemo(() => days.some((d) => sameDay(d, today)), [days, today]);
 
   const totalMins = useMemo(() => shifts.reduce((sum, s) => sum + durationMin(new Date(s.startsAt), new Date(s.endsAt)), 0), [shifts]);
-  const weekLabel = `${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${addDays(weekStart, 6).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+  const weekLabel = `${formatDate(weekStart)} – ${formatDate(addDays(weekStart, 6))}`;
   const navBtn =
     'h-9 w-9 inline-flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-surface-offset transition-colors';
 
@@ -259,7 +260,7 @@ export function MyRota() {
                         {DAY_LABELS[i]}
                       </p>
                       <p className={cn('text-sm font-semibold tabular-nums', isToday ? 'text-primary' : 'text-foreground')}>
-                        {date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        {formatDate(date)}
                       </p>
                     </div>
                     <div

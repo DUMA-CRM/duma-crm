@@ -1,9 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, MapPin, Package, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { AlertTriangle, MapPin, Package, Sparkles } from '@/components/icons';
 import { STATUS_BAR, STATUS_LABEL, STATUS_VARIANT, fmtQty, getStatus, stockPct } from '@/components/inventory/stock/shared';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const selectClass = cn(
-  'w-full h-9 bg-surface-offset border border-transparent rounded-lg px-3 pr-8 text-sm text-foreground',
+  'w-full h-9 bg-field border border-input rounded-lg px-3 pr-8 text-sm text-foreground',
   'outline-none focus:border-primary focus:ring-2 focus:ring-primary/15',
   'transition-[border-color,box-shadow] duration-150 appearance-none cursor-pointer',
   'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -166,8 +166,9 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
     });
   }
 
+  // The drawer body owns the scrolling — this just lays the form out beside its live context.
   return (
-    <div className="h-full overflow-y-auto pb-8 grid gap-6 grid-cols-1 xl:grid-cols-[minmax(0,26rem)_1fr] items-start">
+    <div className="grid items-start gap-6 grid-cols-1 xl:grid-cols-[minmax(0,26rem)_1fr]">
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Location (set from the top bar) */}
@@ -233,7 +234,7 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
               }}
               placeholder="0"
               className={cn(
-                'flex-1 h-9 px-3 bg-surface-offset border border-transparent rounded-lg text-sm text-foreground',
+                'flex-1 h-9 px-3 bg-field border border-input rounded-lg text-sm text-foreground',
                 'placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15',
                 'transition-[border-color,box-shadow] duration-150',
                 errors.qty && 'border-destructive/60 focus:border-destructive focus:ring-destructive/15',
@@ -241,7 +242,7 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
             />
             <div
               className={cn(
-                'h-9 px-3 bg-surface-offset rounded-lg flex items-center text-sm font-medium shrink-0 border border-transparent',
+                'h-9 px-3 bg-surface-offset rounded-lg flex items-center text-sm font-medium shrink-0 border border-input',
                 selectedItem?.stockItem?.unit ? 'text-foreground' : 'text-muted-foreground',
               )}
             >
@@ -270,7 +271,7 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
             maxLength={900}
             rows={3}
             className={cn(
-              'w-full bg-surface-offset border border-transparent rounded-lg px-3 py-2 text-sm text-foreground',
+              'w-full bg-field border border-input rounded-lg px-3 py-2 text-sm text-foreground',
               'placeholder:text-muted-foreground outline-none resize-none',
               'focus:border-primary focus:ring-2 focus:ring-primary/15',
               'transition-[border-color,box-shadow] duration-150',

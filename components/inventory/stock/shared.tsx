@@ -1,6 +1,7 @@
 import type { InventoryCategory, InventoryForecast, LocationStock } from '@/lib/api/inventory.service';
 import type { LossCreateReason, LossReason } from '@/lib/api/loss.service';
 import { cn } from '@/lib/utils/cn';
+import { formatDate as formatAppDate } from '@/lib/utils/date';
 
 // ── Stock status ────────────────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ export const STATUS_VARIANT: Record<StockStatus, 'success' | 'amber' | 'destruct
 
 export const STATUS_BAR: Record<StockStatus, string> = {
   ok: 'bg-success',
-  low: 'bg-amber-400',
+  low: 'bg-warning',
   critical: 'bg-destructive',
   out: 'bg-destructive',
   unavailable: 'bg-border',
@@ -53,7 +54,7 @@ export const STATUS_BAR: Record<StockStatus, string> = {
 
 export const STATUS_ICON_BG: Record<StockStatus, string> = {
   ok: 'bg-primary/10',
-  low: 'bg-amber-400/10',
+  low: 'bg-warning/10',
   critical: 'bg-destructive/10',
   out: 'bg-destructive/10',
   unavailable: 'bg-border/50',
@@ -61,7 +62,7 @@ export const STATUS_ICON_BG: Record<StockStatus, string> = {
 
 export const STATUS_ICON_FG: Record<StockStatus, string> = {
   ok: 'text-primary',
-  low: 'text-amber-500',
+  low: 'text-warning',
   critical: 'text-destructive',
   out: 'text-destructive',
   unavailable: 'text-muted-foreground',
@@ -70,7 +71,7 @@ export const STATUS_ICON_FG: Record<StockStatus, string> = {
 /** Colour for a "days of stock remaining" figure. */
 export function daysColor(days: number): string {
   if (days <= 3) return 'text-destructive';
-  if (days <= 7) return 'text-amber-500';
+  if (days <= 7) return 'text-warning';
   return 'text-foreground';
 }
 
@@ -128,7 +129,7 @@ export function reasonVariant(type: string): 'warning' | 'destructive' | 'muted'
 // ── Misc ──────────────────────────────────────────────────────────────────────
 
 export const selectClass = cn(
-  'w-full h-9 bg-surface-offset border border-transparent rounded-lg px-3 pr-8 text-sm text-foreground',
+  'w-full h-9 bg-field border border-input rounded-lg px-3 pr-8 text-sm text-foreground',
   'outline-none focus:border-primary focus:ring-2 focus:ring-primary/15',
   'transition-[border-color,box-shadow] duration-150 appearance-none cursor-pointer',
   'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -143,7 +144,7 @@ export function normaliseArray<T>(raw: unknown): T[] {
 }
 
 export function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatAppDate(dateStr);
 }
 
 export function timeAgo(iso: string): string {

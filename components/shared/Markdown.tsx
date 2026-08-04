@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 
-// Minimal, dependency-free Markdown renderer for course descriptions and
+// Minimal, dependency-free Markdown renderer for rich support content and
 // support articles. Supports: # headings (anchored), **bold**, *italic*,
 // `code`, [links](url), images, - / 1. lists, > blockquotes, ``` code fences,
 // | pipe tables |, --- rules, and paragraphs.
@@ -142,7 +142,7 @@ export function Markdown({ content, className }: { content: string; className?: 
       if (SAFE_RESOURCE_URL.test(src)) {
         blocks.push(
           <figure key={`img-${key++}`} className="my-5 overflow-hidden rounded-2xl border border-border bg-muted/30">
-            {/* Course authors may use arbitrary approved HTTPS image hosts.
+            {/* Content authors may use arbitrary approved HTTPS image hosts.
                 The renderer validates the scheme; Next Image cannot safely
                 predeclare every host without a custom proxy. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}

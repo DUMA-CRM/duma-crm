@@ -1,0 +1,375 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-04T20:18:50Z",
+  "title": "Design System: DUMA",
+  "extensions": {
+    "colorMeta": {
+      "bluerocratic": {
+        "role": "primary",
+        "displayName": "Bluerocratic",
+        "canonical": "oklch(0.5767 0.2301 262.3)",
+        "hex": "#236bfe",
+        "darkModeValue": "oklch(0.68 0.19 262)",
+        "tonalRamp": [
+          "oklch(0.20 0.09 262.3)",
+          "oklch(0.30 0.14 262.3)",
+          "oklch(0.40 0.19 262.3)",
+          "oklch(0.50 0.22 262.3)",
+          "oklch(0.5767 0.2301 262.3)",
+          "oklch(0.68 0.19 262.3)",
+          "oklch(0.80 0.12 262.3)",
+          "oklch(0.94 0.04 262.3)"
+        ]
+      },
+      "dark-eclipse": {
+        "role": "secondary",
+        "displayName": "Dark Eclipse",
+        "canonical": "oklch(0.2347 0.0732 269.9)",
+        "hex": "#111a40",
+        "tonalRamp": [
+          "oklch(0.16 0.05 269.9)",
+          "oklch(0.2347 0.0732 269.9)",
+          "oklch(0.32 0.07 269.9)",
+          "oklch(0.45 0.06 269.9)",
+          "oklch(0.58 0.05 269.9)",
+          "oklch(0.70 0.035 269.9)",
+          "oklch(0.83 0.02 269.9)",
+          "oklch(0.95 0.008 269.9)"
+        ]
+      },
+      "cool-paper": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "oklch(0.957 0.003 248)",
+        "hex": "#eff1f3",
+        "darkModeValue": "oklch(0.215 0.012 270)",
+        "tonalRamp": [
+          "oklch(0.215 0.012 270)",
+          "oklch(0.295 0.013 270)",
+          "oklch(0.42 0.012 270)",
+          "oklch(0.55 0.010 270)",
+          "oklch(0.68 0.008 270)",
+          "oklch(0.80 0.006 270)",
+          "oklch(0.90 0.005 265)",
+          "oklch(0.957 0.003 248)"
+        ]
+      },
+      "surface-offset": {
+        "role": "neutral",
+        "displayName": "Surface Offset",
+        "canonical": "oklch(0.935 0.008 265)",
+        "hex": "#e7e9ef",
+        "darkModeValue": "oklch(0.295 0.013 270)"
+      },
+      "slate-muted": {
+        "role": "neutral",
+        "displayName": "Slate Muted",
+        "canonical": "oklch(0.5 0.03 265)",
+        "hex": "#5b6375",
+        "darkModeValue": "oklch(0.75 0.012 270)",
+        "note": "AA on every surface in the ladder — that constraint set this value."
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(0.865 0.014 265)",
+        "hex": "#ced3dc",
+        "darkModeValue": "oklch(0.355 0.015 270)"
+      },
+      "inspiration-peak": {
+        "role": "tertiary",
+        "displayName": "Inspiration Peak",
+        "canonical": "oklch(0.52 0.105 166)",
+        "hex": "#0c7c5b",
+        "darkModeValue": "oklch(0.6546 0.0946 165.8)",
+        "tonalRamp": [
+          "oklch(0.22 0.06 166)",
+          "oklch(0.32 0.08 166)",
+          "oklch(0.42 0.095 166)",
+          "oklch(0.52 0.105 166)",
+          "oklch(0.6546 0.0946 165.8)",
+          "oklch(0.78 0.075 166)",
+          "oklch(0.88 0.05 166)",
+          "oklch(0.945 0.03 166)"
+        ]
+      },
+      "pumpkin-pie": {
+        "role": "tertiary",
+        "displayName": "Pumpkin Pie",
+        "canonical": "oklch(0.55 0.13 64)",
+        "hex": "#a55e00",
+        "darkModeValue": "oklch(0.7601 0.124 63.6)",
+        "tonalRamp": [
+          "oklch(0.25 0.07 64)",
+          "oklch(0.35 0.10 64)",
+          "oklch(0.45 0.12 64)",
+          "oklch(0.55 0.13 64)",
+          "oklch(0.66 0.13 64)",
+          "oklch(0.7601 0.124 63.6)",
+          "oklch(0.87 0.08 64)",
+          "oklch(0.955 0.035 64)"
+        ]
+      },
+      "youthful-coral": {
+        "role": "tertiary",
+        "displayName": "Youthful Coral",
+        "canonical": "oklch(0.55 0.18 29)",
+        "hex": "#c5372c",
+        "darkModeValue": "oklch(0.7224 0.1353 29.1)",
+        "tonalRamp": [
+          "oklch(0.25 0.09 29)",
+          "oklch(0.35 0.13 29)",
+          "oklch(0.45 0.16 29)",
+          "oklch(0.55 0.18 29)",
+          "oklch(0.64 0.16 29)",
+          "oklch(0.7224 0.1353 29.1)",
+          "oklch(0.85 0.08 29)",
+          "oklch(0.95 0.03 29)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Marketing surfaces only — the landing hero. Never inside the CRM." },
+      "headline": { "displayName": "Headline", "purpose": "The PageLayout page title. One per screen, and suppressible by a device setting." },
+      "title": { "displayName": "Title", "purpose": "Card headings, dialog titles, section names." },
+      "metric": { "displayName": "Metric", "purpose": "The figure on a StatCard — the loudest element in the system. Always tabular." },
+      "body": { "displayName": "Body", "purpose": "The default: prose and table content." },
+      "label": { "displayName": "Label", "purpose": "Field labels and segmented-control options. Bold, tracked, optionally uppercase." },
+      "micro": { "displayName": "Micro", "purpose": "Table column headers, page eyebrows, sidebar group names. Scanned, never read." },
+      "mono": { "displayName": "Mono", "purpose": "Identifiers, keys, payloads, raw values." }
+    },
+    "shadows": [
+      {
+        "name": "clearance-sm",
+        "value": "0 1px 2px color-mix(in oklab, var(--shadow-tint) 7%, transparent), 0 3px 10px -3px color-mix(in oklab, var(--shadow-tint) 10%, transparent)",
+        "purpose": "The resting card. Two layers exist for one reason: so white clears the #eff1f3 page."
+      },
+      {
+        "name": "raised-md",
+        "value": "0 2px 4px -1px color-mix(in oklab, var(--shadow-tint) 8%, transparent), 0 8px 20px -6px color-mix(in oklab, var(--shadow-tint) 14%, transparent)",
+        "purpose": "Raised panels and hovering interactive tiles."
+      },
+      {
+        "name": "popover-lg",
+        "value": "0 4px 8px -2px color-mix(in oklab, var(--shadow-tint) 9%, transparent), 0 16px 40px -12px color-mix(in oklab, var(--shadow-tint) 18%, transparent)",
+        "purpose": "Select menus, dropdowns, popovers."
+      },
+      {
+        "name": "float-xl",
+        "value": "0 8px 16px -4px color-mix(in oklab, var(--shadow-tint) 11%, transparent), 0 28px 64px -20px color-mix(in oklab, var(--shadow-tint) 22%, transparent)",
+        "purpose": "Modals and toasts — things that genuinely float above everything."
+      },
+      {
+        "name": "shadow-tint",
+        "value": "light: oklch(0.2347 0.0732 269.9) / dark: oklch(0.08 0.01 270)",
+        "purpose": "Every shadow mixes from this, not from neutral black. A grey shadow on cool grey paper reads as dirt; a navy shadow on dark charcoal reads as mud — hence two values."
+      }
+    ],
+    "motion": [
+      { "name": "state-fast", "value": "150ms (colors, border-color, box-shadow)", "purpose": "Nav items, controls, fields — every hover, focus and active change." },
+      { "name": "shell-slide", "value": "300ms cubic-bezier(0, 0, 0.2, 1)", "purpose": "Sidebar width and off-canvas transform." },
+      { "name": "figure-settle", "value": "500ms", "purpose": "Stat ring stroke-dashoffset and progress-bar width, so a value visibly arrives." },
+      { "name": "press", "value": "translateY(1px) on :active", "purpose": "The one piece of button theatre. Suppressed on menu triggers, which must not move while their popover is open." },
+      { "name": "overlay-in", "value": "fade + zoom from 95% (tw-animate-css)", "purpose": "Popovers, selects, toasts, modals." },
+      { "name": "reduced-motion", "value": "all animation and transition durations forced to 0.01ms", "purpose": "Global prefers-reduced-motion override in the base layer. Non-negotiable." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px", "purpose": "Does most of the responsive work: gutters, densities, type steps." },
+      { "name": "lg", "value": "1024px", "purpose": "The shell boundary — sidebar goes from off-canvas drawer to static rail." },
+      { "name": "xl", "value": "1280px", "purpose": "Adds table columns only." },
+      { "name": "2xl", "value": "1536px", "purpose": "Six-across stat rows only." }
+    ],
+    "dimensions": [
+      { "name": "sidebar-width", "value": "220px" },
+      { "name": "sidebar-collapsed-width", "value": "60px" },
+      { "name": "header-height", "value": "56px", "purpose": "Zeroed at lg+ when the 'hide top bar' device setting is on." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one solid-blue action per view. Presses down 1px.",
+      "html": "<button class=\"ds-btn ds-btn-primary\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M12 5v14\"/></svg>New order</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.625rem; border: 1px solid transparent; border-radius: var(--radius-lg, 0.5rem); font-size: 0.875rem; font-weight: 600; white-space: nowrap; cursor: pointer; transition: all 150ms; } .ds-btn-primary { background: var(--primary); color: var(--primary-foreground); } .ds-btn-primary:hover { background: var(--primary-hover); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "The workhorse. White field fill, hairline border, muted hover.",
+      "html": "<button class=\"ds-btn ds-btn-outline\">Export CSV</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.625rem; border: 1px solid var(--border); border-radius: var(--radius-lg, 0.5rem); background: var(--field); color: var(--foreground); font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 150ms; } .ds-btn-outline:hover { background: var(--muted); } .ds-btn-outline:active { transform: translateY(1px); } .ds-btn-outline:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-primary",
+      "description": "Status vocabulary: a 10% tint of the hue with the hue as text. Never a saturated block.",
+      "html": "<span class=\"ds-badge ds-badge-success\">Paid</span> <span class=\"ds-badge ds-badge-warning\">Low stock</span> <span class=\"ds-badge ds-badge-destructive\">Refunded</span> <span class=\"ds-badge ds-badge-primary\">Live</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; height: 1.25rem; padding: 0.125rem 0.5rem; border: 1px solid transparent; border-radius: var(--radius-md, 0.4rem); font-size: 0.75rem; font-weight: 600; white-space: nowrap; } .ds-badge-primary { background: color-mix(in oklab, var(--primary) 10%, transparent); color: var(--primary); } .ds-badge-success { background: color-mix(in oklab, var(--success) 10%, transparent); color: var(--success); } .ds-badge-warning { background: color-mix(in oklab, var(--warning) 10%, transparent); color: var(--warning); } .ds-badge-destructive { background: color-mix(in oklab, var(--destructive) 10%, transparent); color: var(--destructive); }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "White fill, control-edge border, tracked micro-label above, primary focus ring.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-sku\">SKU<span class=\"ds-field-req\" aria-hidden=\"true\">*</span></label><input class=\"ds-input\" id=\"ds-sku\" placeholder=\"e.g. BEAN-HOUSE-1KG\"><p class=\"ds-field-hint\">Must be unique within the location.</p></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 0.375rem; width: 100%; max-width: 22rem; } .ds-field-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; color: var(--muted-foreground); } .ds-field-req { margin-left: 0.25rem; color: var(--destructive); } .ds-input { width: 100%; height: 2.25rem; padding: 0 0.75rem; background: var(--field); border: 1px solid var(--input); border-radius: var(--radius-lg, 0.5rem); font-size: 0.875rem; color: var(--foreground); outline: none; transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 15%, transparent); } .ds-field-hint { font-size: 0.75rem; color: var(--muted-foreground); }"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The single metric tile: tinted icon chip, tabular figure, delta pill with a rounded-square trend glyph.",
+      "html": "<div class=\"ds-stat\"><div class=\"ds-stat-head\"><span class=\"ds-stat-chip\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 17l6-6 4 4 8-8\"/><path d=\"M21 7h-5v5\"/></svg></span><p class=\"ds-stat-label\">Net sales<span class=\"ds-stat-qual\"> / today</span></p></div><p class=\"ds-stat-value\">£4,182<span class=\"ds-stat-unit\">.60</span></p><span class=\"ds-delta\"><span class=\"ds-delta-glyph\" aria-hidden=\"true\"><svg viewBox=\"0 0 24 24\" width=\"11\" height=\"11\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 17l6-6 4 4 8-8\"/><path d=\"M21 7h-5v5\"/></svg></span><span class=\"ds-delta-value\">+12.4%</span><span class=\"ds-delta-label\">vs last Tuesday</span></span></div>",
+      "css": ".ds-stat { display: flex; flex-direction: column; max-width: 20rem; padding: 1.25rem; background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: var(--radius-2xl, 0.9rem); box-shadow: 0 1px 2px color-mix(in oklab, var(--shadow-tint) 7%, transparent), 0 3px 10px -3px color-mix(in oklab, var(--shadow-tint) 10%, transparent); } .ds-stat-head { display: flex; align-items: center; gap: 0.75rem; } .ds-stat-chip { display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: var(--radius-xl, 0.7rem); background: color-mix(in oklab, var(--primary) 10%, transparent); color: var(--primary); flex-shrink: 0; } .ds-stat-label { font-size: 0.9375rem; font-weight: 500; color: var(--foreground); } .ds-stat-qual { font-weight: 400; color: var(--muted-foreground); } .ds-stat-value { margin-top: 1rem; font-size: 2rem; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--foreground); } .ds-stat-unit { font-size: 1rem; font-weight: 600; color: var(--muted-foreground); } .ds-delta { display: flex; align-items: center; gap: 0.375rem; margin-top: 0.625rem; font-size: 0.8125rem; line-height: 1; } .ds-delta-glyph { display: flex; align-items: center; justify-content: center; width: 1.125rem; height: 1.125rem; border-radius: 6px; border: 1px solid color-mix(in oklab, var(--success) 25%, transparent); background: color-mix(in oklab, var(--success) 10%, transparent); color: var(--success); flex-shrink: 0; } .ds-delta-value { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--success); } .ds-delta-label { color: var(--muted-foreground); }"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Active state is a 10% primary fill AND a 3px inner-edge bar — the two together, never one alone.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item-active\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/></svg><span>Dashboard</span><span class=\"ds-nav-bar\" aria-hidden=\"true\"></span></a><a class=\"ds-nav-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 2h12l-1 6a5 5 0 0 1-10 0z\"/><path d=\"M8 22h8\"/><path d=\"M12 14v8\"/></svg><span>POS Terminal</span><span class=\"ds-nav-count\">7</span></a><a class=\"ds-nav-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 7h18M3 12h18M3 17h18\"/></svg><span>Inventory</span></a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 0.125rem; width: 13.75rem; padding: 0.5rem 0; background: var(--sidebar); border-right: 1px solid var(--sidebar-border); } .ds-nav-item { position: relative; display: flex; align-items: center; gap: 0.625rem; margin: 0 0.75rem; padding: 0.5625rem 0.75rem; border-radius: var(--radius-lg, 0.5rem); font-size: 0.8125rem; font-weight: 500; text-decoration: none; color: var(--muted-foreground); transition: color 150ms, background-color 150ms; } .ds-nav-item > span:first-of-type { flex: 1; } .ds-nav-item:hover { background: var(--surface-offset); color: var(--foreground); } .ds-nav-item-active { background: color-mix(in oklab, var(--primary) 10%, transparent); color: var(--primary); font-weight: 600; } .ds-nav-item-active:hover { background: color-mix(in oklab, var(--primary) 15%, transparent); } .ds-nav-bar { position: absolute; right: 0; top: 0.375rem; bottom: 0.375rem; width: 3px; border-radius: 2px 0 0 2px; background: var(--primary); } .ds-nav-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.25rem; height: 1.25rem; padding: 0 0.375rem; border-radius: 9999px; background: var(--primary); color: var(--primary-foreground); font-size: 0.625rem; font-weight: 700; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Data Table",
+      "kind": "custom",
+      "refersTo": "table-header",
+      "description": "The signature component: card shell, sticky micro-label header, hairline rows, tabular figures right-aligned.",
+      "html": "<div class=\"ds-table-shell\"><table class=\"ds-table\"><thead><tr><th scope=\"col\">Item</th><th scope=\"col\">Location</th><th scope=\"col\" class=\"ds-num\">On hand</th><th scope=\"col\" class=\"ds-num\">Value</th></tr></thead><tbody><tr><td>House Blend 1kg</td><td>Bridge Street</td><td class=\"ds-num\">18</td><td class=\"ds-num\">£342.00</td></tr><tr><td>Oat Milk 1L</td><td>Bridge Street</td><td class=\"ds-num ds-warn\">4</td><td class=\"ds-num\">£7.60</td></tr><tr><td>Decaf 250g</td><td>Quayside</td><td class=\"ds-num\">31</td><td class=\"ds-num\">£186.00</td></tr></tbody></table></div>",
+      "css": ".ds-table-shell { overflow: hidden; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-2xl, 0.9rem); } .ds-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; color: var(--foreground); } .ds-table th { padding: 0.75rem 1.25rem; text-align: left; background: color-mix(in oklab, var(--muted) 90%, transparent); border-bottom: 1px solid var(--border); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted-foreground); } .ds-table td { padding: 0.75rem 1.25rem; } .ds-table tbody tr:not(:last-child) > * { border-bottom: 1px solid var(--border); } .ds-table tbody tr { transition: background-color 150ms; } .ds-table tbody tr:hover { background: color-mix(in oklab, var(--surface-offset) 70%, transparent); } .ds-num { text-align: right; font-variant-numeric: tabular-nums; } .ds-warn { color: var(--warning); font-weight: 600; }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": "button-outline",
+      "description": "Muted trough, hairline border; the active segment lifts onto a white card with clearance shadow and primary text.",
+      "html": "<div class=\"ds-seg\" role=\"group\" aria-label=\"Period\"><button class=\"ds-seg-btn ds-seg-btn-active\" aria-pressed=\"true\">Today</button><button class=\"ds-seg-btn\" aria-pressed=\"false\">Week</button><button class=\"ds-seg-btn\" aria-pressed=\"false\">Month</button></div>",
+      "css": ".ds-seg { display: inline-flex; align-items: center; gap: 0.125rem; height: 2.25rem; padding: 0 0.25rem; width: fit-content; background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-xl, 0.7rem); } .ds-seg-btn { display: inline-flex; align-items: center; justify-content: center; height: 1.75rem; padding: 0 1rem; border: none; background: transparent; border-radius: var(--radius-lg, 0.5rem); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-foreground); cursor: pointer; transition: background-color 150ms, color 150ms; } .ds-seg-btn:hover { color: var(--foreground); } .ds-seg-btn-active { background: var(--card); color: var(--primary); box-shadow: 0 1px 2px color-mix(in oklab, var(--shadow-tint) 7%, transparent), 0 3px 10px -3px color-mix(in oklab, var(--shadow-tint) 10%, transparent); } .ds-seg-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }"
+    },
+    {
+      "name": "Empty State",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Deliberately quiet — an empty table is a normal state in a café at 6am, not an error.",
+      "html": "<div class=\"ds-empty\"><div class=\"ds-empty-disc\"><svg viewBox=\"0 0 24 24\" width=\"28\" height=\"28\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 7h13a3 3 0 0 1 0 6h-1\"/><path d=\"M4 7v6a5 5 0 0 0 5 5h3a5 5 0 0 0 5-5\"/><path d=\"M3 21h18\"/></svg></div><p class=\"ds-empty-title\">No orders yet today</p><p class=\"ds-empty-desc\">Sales will appear here as they are taken.</p></div>",
+      "css": ".ds-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 4rem 1.5rem; } .ds-empty-disc { display: flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; margin-bottom: 0.75rem; border-radius: 9999px; background: var(--muted); color: var(--muted-foreground); } .ds-empty-title { font-size: 0.875rem; font-weight: 600; color: var(--muted-foreground); } .ds-empty-desc { margin-top: 0.25rem; font-size: 0.75rem; color: color-mix(in oklab, var(--muted-foreground) 60%, transparent); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Daylight Ledger",
+    "overview": "DUMA looks like a well-kept book read in good light. The page is cool paper (#eff1f3), the records sit on it as pure white cards with hairline rules, and every figure lines up in its column. Nothing is dramatised: the interface is a surface for reading a business accurately at 6am and at 3pm, on a tablet by the grinder and on a laptop in the back office. Where a lesser system would reach for a gradient, this one reaches for alignment.\n\nBecause the same application serves a barista mid-rush and an owner comparing sites, the system carries hierarchy in weight, case, tracking and space rather than in colour. Uppercase tracked micro-labels name a region; a hairline separates it; the number itself is the loudest thing in the frame. Bluerocratic blue appears sparingly and always with meaning — where you are, what is live, what to do next. The result reads calm at rest and specific under pressure, which is exactly the reading order an operator needs.\n\nThe material behaviour is tonal, not theatrical. Depth comes from a ladder of surfaces (page → card → offset → muted), and the one small navy-tinted shadow exists for a single reason: so that white clears cool paper. Real elevation is reserved for things that genuinely float — modals, popovers, drawers. Components are calm and tactile: soft 14px corners, honest hover response, a 1px press-down under the thumb, and touch targets sized for a wet hand.",
+    "antiReferences": [
+      "The consumer POS toy — candy tiles, emoji, gradients, playful illustration",
+      "The enterprise grey admin panel — dense unstyled tables, grey-on-grey 12px, no rhythm",
+      "The marketing-led dashboard — purple gradients, glassmorphism, decorative charts, hero numbers with nothing to compare against",
+      "The coffee-shop cliché — kraft texture, chalkboard type, sepia beans, hand-drawn signage"
+    ],
+    "keyCharacteristics": [
+      "Cool paper page, pure white records, hairline rules — the ledger, not the panel",
+      "One blue accent, rationed to state, position and action",
+      "Tonal depth first; shadow only to clear the page, elevation only for what floats",
+      "Figures always tabular, aligned, and comparable",
+      "Uppercase tracked micro-labels as the naming device",
+      "Calm and tactile controls: 14px corners, 1px press, real hover, thumb-sized targets",
+      "Light and dark are equal citizens, defined token-for-token in the same file"
+    ],
+    "rules": [
+      {
+        "name": "The Call-Light Rule",
+        "body": "Bluerocratic means one of three things: where you are (active nav, active tab), what is live (focus ring, selected state, series one), or what to do next (the primary action). It is never decoration, never a section ornament, and never used to make a heading feel important. A screen with blue in four unrelated places has lost the rule.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two-Theme Rule",
+        "body": "Every colour token is defined twice — once in :root, once in .dark — in app/globals.css, in the same edit. A token that exists in only one theme is a bug, not a shortcut. Dark mode is not a filter over light mode: its surfaces are deliberately near-achromatic charcoal and several tokens (primary foreground, field fill, shadow tint) invert their logic rather than their value.",
+        "section": "colors"
+      },
+      {
+        "name": "The Clear-Both-Surfaces Rule",
+        "body": "Any fill used on a control, chip or row must read against both #ffffff and #eff1f3, because the same component appears on a card and directly on the page. Test both before committing a value.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ledger Rule",
+        "body": "Every number that could be compared to another number is tabular-nums. Figures in a table are right-aligned; figures in a card are left-aligned under their label with the delta beside or below them. A metric with no comparison available says so (\"No comparison\") rather than showing a bare number — the absence of a baseline is information.",
+        "section": "typography"
+      },
+      {
+        "name": "The Ten-Pixel Rule",
+        "body": "The 0.625rem tier is for uppercase tracked labels and column headers only — text that is scanned, never read. No value, no body copy, no error message, and nothing a barista needs mid-shift may live at that size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Weight-Is-Not-A-Colour Rule",
+        "body": "Emphasis comes from the weight ladder (400 → 500 → 600 → 700) and from case and tracking. It does not come from turning text blue.",
+        "section": "typography"
+      },
+      {
+        "name": "The Thumb Rule",
+        "body": "On touch-first surfaces — POS, KDS, cash-up — no interactive target goes below 44px, and the primary ones run 48–96px. Desktop controls stay at the 36px standard. SegmentedControl exposes size=\"lg\" (44px) for exactly this reason; use it rather than restyling.",
+        "section": "layout"
+      },
+      {
+        "name": "The Titleless Rule",
+        "body": "Both the page title and the top bar can be switched off per device. Every screen must remain navigable and self-explanatory with neither present, which means header slots carry their own context and never rely on the h1 above them.",
+        "section": "layout"
+      },
+      {
+        "name": "The Clearance Rule",
+        "body": "shadow-sm on a resting card is clearance, not decoration. If a surface already sits on a distinct tonal step (a well inside a card, a table row, a chip on grey), it gets no shadow at all — the ladder has already said what the shadow would say.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Float-Or-Flat Rule",
+        "body": "Anything above shadow-md must actually float above the page: modal, drawer, popover, toast, dragged item. A card that merely wants attention gets a border shift (hover:border-primary/35) or a tonal change, never a bigger shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One-Block Rule",
+        "body": "A parent and its open children form a single rounded block: the parent loses its bottom radius, the last child gains one, and the group shares a muted/50 ground. Never render an open group as separate rounded items.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Hairline Rule",
+        "body": "Definition comes from a 1px hairline, not from a heavier fill or a drop shadow. Form controls step one shade darker (control-edge) because they must hold an edge on white; everything else uses hairline on the outside and divider on the inside.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do define every colour once in app/globals.css, in both :root and .dark, in the same edit — the Two-Theme Rule.",
+      "Do build a card as rounded-2xl border border-border bg-card shadow-sm p-5. That exact recipe appears throughout the app; matching it is how a new screen looks like DUMA.",
+      "Do put tabular-nums on every figure, and give it something to compare against or say explicitly that there is nothing to compare.",
+      "Do express status as a 10% tint of the hue with the hue as text (bg-success/10 text-success), which is what every Badge variant does.",
+      "Do reach for the existing dials before writing new CSS: DataTable density, StatCard size, SegmentedControl size, PageLayout fullHeight.",
+      "Do use StatCard for any metric tile and DataTable for any tabular data — both exist specifically to have replaced a drawer full of bespoke variants.",
+      "Do take icons only from @/components/icons, the single Hugeicons re-export, at 15–18px with aria-hidden=\"true\".",
+      "Do keep interactive things interactive elements: a clickable card is an <a> or <button>, a clickable row carries role=\"button\" and key handling.",
+      "Do hold 44px minimum touch targets on POS, KDS and cash-up — the Thumb Rule.",
+      "Do design every screen to survive both device toggles: no page title, no top bar."
+    ],
+    "donts": [
+      "Don't add tokens to tailwind.config.ts. It is dead: globals.css has no @config directive, so Tailwind v4 never loads it, and it still references variables (--color-text, --color-bg, --color-error) that no longer exist. @theme inline in app/globals.css is the only wired layer.",
+      "Don't write a raw hex, rgb() or arbitrary colour in a component. If a value is missing, add the token.",
+      "Don't assume Tailwind's stock shadow values — the entire scale is re-tuned to --shadow-tint in a utilities layer, and any new hover:/md: shadow variant must be listed there or it silently falls back to neutral black.",
+      "Don't put a shadow on a surface that already sits on its own tonal step, and don't push past shadow-md for anything that doesn't genuinely float.",
+      "Don't use the 0.625rem tier for anything a person reads rather than scans — no values, no messages, no body copy.",
+      "Don't add a fifth thing for blue to mean. State, position, action; that is the list.",
+      "Don't introduce a new font weight step, a second icon set, a second charting palette, or a second card radius.",
+      "Don't restore scrollbars globally; use .kds-scrollbar where an off-screen queue must be discoverable.",
+      "Don't tint the dark-mode surface ladder navy. It was tried; every panel read blue. Dark Eclipse is an accent, and dark surfaces stay near-achromatic charcoal.",
+      "Don't ship a solid red fill for destruction, a gradient, a glassmorphic panel, a decorative chart, or a coffee-shop texture. All four anti-references are confirmed."
+    ],
+    "committedChanges": [
+      {
+        "name": "Real UI text family",
+        "body": "Questrial ships a single 400 weight, yet the interface uses font-semibold 408 times and font-bold 334 times — nearly every emphasised word is browser-synthesised faux bold, which thickens strokes unevenly and blurs at small sizes, precisely where this system does its most important work. The committed direction is to adopt a variable sans with genuine 400/500/600/700 for all UI and data text, keeping Questrial for the wordmark and display moments only. Recommended face: Geist Sans — the project already loads Geist Mono, so the pair is designed together, it is variable with real weights, and its tabular figures suit the Ledger Rule. Not yet implemented.",
+        "section": "typography"
+      }
+    ]
+  }
+}

@@ -1,39 +1,36 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Copy, Eye, Mail, Pencil, Plus, Search, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { EmptyState } from '@/components/shared/EmptyState';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Copy, Eye, Mail, Pencil, Plus, Sparkles, Trash2 } from '@/components/icons';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
-import { type EmailTemplate, createEmailTemplate, getEmailAutomations, getEmailTemplates } from '@/lib/api/email.service';
+import {
+  type EmailTemplate,
+  archiveEmailTemplate,
+  createEmailTemplate,
+  getEmailAutomations,
+  getEmailTemplates,
+} from '@/lib/api/email.service';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { TEMPLATE_PRESETS } from './presets';
-import { labelClass } from './shared';
-
-const FILTERS = [
-  { value: 'active' as const, label: 'In use' },
-  { value: 'archived' as const, label: 'Archived' },
-  { value: 'all' as const, label: 'All' },
-];
+import { PanelHeader } from './PanelChrome';
+import { workflowForAutomation } from './workflowModel';
 
 export function TemplatesPanel({
   onEdit,
   onPreview,
 }: {
-  onEdit: (selection: { template?: EmailTemplate; presetKey?: string }) => void;
+  onEdit: (selection: { template?: EmailTemplate }) => void;
   onPreview: (template: EmailTemplate) => void;
 }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<'active' | 'archived' | 'all'>('active');
-  const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<EmailTemplate | null>(null);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['email-templates', tenantId],
@@ -55,139 +52,218 @@ export function TemplatesPanel({
         subject: template.subject,
         htmlBody: template.htmlBody,
         textBody: template.textBody ?? '',
-        isActive: false,
+        design: template.design ?? null,
+        isActive: true,
       }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['email-templates'] });
-      toast('success', 'Copy created as a draft — opening it now.');
+      toast('success', 'Copy created — opening it now.');
       onEdit({ template: created });
     },
     onError: (error) => toast('error', error.message),
   });
 
-  const visible = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return templates
-      .filter((template) => (filter === 'all' ? true : filter === 'active' ? template.isActive : !template.isActive))
-      .filter((template) => (query ? `${template.name} ${template.subject} ${template.category}`.toLowerCase().includes(query) : true))
-      .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
-  }, [templates, filter, search]);
+  const remove = useMutation({
+    mutationFn: (template: EmailTemplate) => archiveEmailTemplate(template.id, tenantId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['email-templates'] });
+      setDeleteTarget(null);
+      toast('success', 'Template deleted.');
+    },
+    onError: (error) => toast('error', error.message),
+  });
 
-  const usageCount = (templateId: string) => automations.filter((automation) => automation.templateId === templateId).length;
-  const isFirstRun = !templates.length && !isLoading;
+  // Deleting a template only flags it inactive, so the list shows live ones and
+  // nothing else — grouped by category, alphabetical within each.
+  const visible = useMemo(
+    () =>
+      templates
+        .filter((template) => template.isActive)
+        .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)),
+    [templates],
+  );
+
+  const usageCount = (templateId: string) =>
+    automations.filter((automation) =>
+      workflowForAutomation(automation).nodes.some((node) => node.type === 'send_email' && node.config.templateId === templateId),
+    ).length;
+  const isFirstRun = !visible.length && !isLoading;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* The "New template" action lives in the page header, next to the tabs. */}
-      <p className="max-w-2xl text-sm text-muted-foreground">
-        A template is an email you write once and reuse — order updates, birthday notes, thank-yous.
-      </p>
+      <PanelHeader
+        title="Templates"
+        count={visible.length}
+        description="A template is an email you write once and reuse — order updates, birthday notes, thank-yous."
+      />
 
-      {templates.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <SegmentedControl options={FILTERS} value={filter} onChange={setFilter} />
-          <div className="w-full max-w-xs">
-            <Input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              leftIcon={<Search size={14} />}
-              placeholder="Search templates…"
-              aria-label="Search templates"
+      {isLoading ? (
+        <TemplateGrid>
+          {Array.from({ length: 6 }, (_, index) => (
+            <TemplateCardSkeleton key={index} />
+          ))}
+        </TemplateGrid>
+      ) : isFirstRun ? (
+        <FirstRunCard onCreate={() => onEdit({})} />
+      ) : (
+        <TemplateGrid>
+          {visible.map((template) => (
+            <TemplateCard
+              key={template.id}
+              template={template}
+              uses={usageCount(template.id)}
+              duplicating={duplicate.isPending}
+              onEdit={() => onEdit({ template })}
+              onPreview={() => onPreview(template)}
+              onDuplicate={() => duplicate.mutate(template)}
+              onDelete={() => setDeleteTarget(template)}
             />
-          </div>
-          <span className="text-xs text-muted-foreground">
-            {visible.length} of {templates.length}
+          ))}
+        </TemplateGrid>
+      )}
+
+      {deleteTarget && (
+        <ConfirmModal
+          title="Delete this template?"
+          message={
+            <>
+              “{deleteTarget.name}” will be removed from your templates, and any automation step using it will stop sending. Emails
+              already sent stay in History.
+            </>
+          }
+          confirmLabel="Delete"
+          pendingLabel="Deleting…"
+          isPending={remove.isPending}
+          onConfirm={() => remove.mutate(deleteTarget)}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function TemplateGrid({ children }: { children: React.ReactNode }) {
+  return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{children}</div>;
+}
+
+function TemplateCard({
+  template,
+  uses,
+  duplicating,
+  onEdit,
+  onPreview,
+  onDuplicate,
+  onDelete,
+}: {
+  template: EmailTemplate;
+  uses: number;
+  duplicating: boolean;
+  onEdit: () => void;
+  onPreview: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <article className="group/card flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-primary/40">
+      {/* The thumbnail is the preview affordance — the whole plate is the button. */}
+      <button
+        type="button"
+        onClick={onPreview}
+        aria-label={`Preview ${template.name}`}
+        className="relative block aspect-4/3 w-full overflow-hidden border-b border-border bg-white text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        <iframe
+          title=""
+          sandbox=""
+          tabIndex={-1}
+          srcDoc={template.htmlBody}
+          className="pointer-events-none h-175 w-[200%] origin-top-left scale-50 border-0 bg-white"
+        />
+        {/* Rendered emails are white in both themes, so the scrim is fixed dark. */}
+        <span className="absolute inset-0 flex items-center justify-center bg-foreground/25 opacity-0 transition-opacity group-hover/card:opacity-100">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-card px-3 py-2 text-xs font-semibold text-foreground shadow-md">
+            <Eye size={14} aria-hidden="true" /> Open preview
+          </span>
+        </span>
+      </button>
+
+      <div className="flex min-w-0 flex-1 flex-col p-4">
+        <p className="truncate font-semibold text-foreground" title={template.name}>
+          {template.name}
+        </p>
+        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground" title={template.subject}>
+          {template.subject}
+        </p>
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Badge variant="muted" className="capitalize">
+            {template.category}
+          </Badge>
+          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+            {uses > 0 && <Sparkles size={11} aria-hidden="true" />}
+            {uses ? `Used by ${uses} automation${uses === 1 ? '' : 's'}` : 'Not automated yet'}
           </span>
         </div>
-      )}
 
-      {isFirstRun ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Mail size={24} />
-          </div>
-          <p className="mt-3 text-base font-semibold text-foreground">Start with a ready-made email</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            Pick one of the templates below, change the wording to sound like you, and save it. You can always start from scratch instead.
-          </p>
-          <Button variant="outline" className="mt-4 gap-2" onClick={() => onEdit({})}>
-            <Plus size={15} /> Start from scratch
+        <div className="mt-4 flex items-center gap-1.5 border-t border-border pt-3">
+          <Button variant="outline" size="sm" onClick={onEdit} className="flex-1">
+            <Pencil /> Edit
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={onPreview} aria-label={`Preview ${template.name}`} title="Preview">
+            <Eye />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            disabled={duplicating}
+            onClick={onDuplicate}
+            aria-label={`Duplicate ${template.name}`}
+            title="Create an editable copy"
+          >
+            <Copy />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onDelete}
+            aria-label={`Delete ${template.name}`}
+            title="Delete"
+            className="text-muted-foreground/60 hover:text-destructive"
+          >
+            <Trash2 />
           </Button>
         </div>
-      ) : visible.length === 0 ? (
-        <EmptyState icon={Search} title="No matching templates" description="Try a different search or filter." />
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {visible.map((template) => {
-            const uses = usageCount(template.id);
-            return (
-              <article key={template.id} className="flex flex-col rounded-2xl border border-border bg-card p-5">
-                <div className="flex items-start gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Mail size={18} />
-                  </div>
-                  <Badge variant={template.isActive ? 'success' : 'muted'} className="ml-auto">
-                    {template.isActive ? 'In use' : 'Archived'}
-                  </Badge>
-                </div>
-                <p className="mt-4 font-semibold text-foreground">{template.name}</p>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{template.subject}</p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Badge variant="muted">{template.category}</Badge>
-                  <span className="text-[11px] text-muted-foreground">
-                    {uses ? `Used by ${uses} automation${uses === 1 ? '' : 's'}` : 'Not automated yet'}
-                  </span>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
-                  <Button variant="outline" size="sm" onClick={() => onEdit({ template })}>
-                    <Pencil /> Edit
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => onPreview(template)}>
-                    <Eye /> Preview
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={duplicate.isPending}
-                    onClick={() => duplicate.mutate(template)}
-                    title="Create an editable copy"
-                  >
-                    <Copy /> Duplicate
-                  </Button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+      </div>
+    </article>
+  );
+}
 
-      {/* Ready-made starting points */}
-      <details className="overflow-hidden rounded-2xl border border-border bg-card" open={isFirstRun}>
-        <summary className="flex cursor-pointer select-none items-center gap-2 px-5 py-4 text-sm font-semibold text-foreground hover:bg-surface-offset/50">
-          <Sparkles size={16} className="text-primary" aria-hidden="true" />
-          Ready-made templates
-          <span className="text-xs font-normal text-muted-foreground">{TEMPLATE_PRESETS.length} you can edit</span>
-        </summary>
-        <div className="border-t border-border p-5">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {TEMPLATE_PRESETS.map((preset) => (
-              <article key={preset.key} className="rounded-xl border border-border bg-background p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-foreground">{preset.name}</p>
-                  <Badge variant="muted">{preset.category}</Badge>
-                </div>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{preset.description}</p>
-                <p className={`mt-3 ${labelClass}`}>Pairs with</p>
-                <p className="text-[11px] text-muted-foreground">{preset.recommendedTrigger}</p>
-                <Button variant="outline" size="sm" className="mt-3 w-full" onClick={() => onEdit({ presetKey: preset.key })}>
-                  <Plus /> Use and edit
-                </Button>
-              </article>
-            ))}
-          </div>
-        </div>
-      </details>
+function TemplateCardSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-hidden="true">
+      <div className="aspect-4/3 w-full animate-pulse border-b border-border bg-muted" />
+      <div className="space-y-2 p-4">
+        <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+        <div className="h-3 w-full animate-pulse rounded bg-muted" />
+        <div className="h-5 w-24 animate-pulse rounded bg-muted" />
+      </div>
+    </div>
+  );
+}
+
+function FirstRunCard({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+      <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <Mail size={24} />
+      </div>
+      <p className="mt-4 text-base font-semibold text-foreground">Create your first email template</p>
+      <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-muted-foreground">
+        Build a reusable email with your own content, brand styles, images, and customer variables.
+      </p>
+      <Button className="mt-5 gap-2" onClick={onCreate}>
+        <Plus size={15} /> Create template
+      </Button>
     </div>
   );
 }

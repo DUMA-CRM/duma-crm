@@ -59,7 +59,6 @@ function normalizeStaff(p: StaffProfile): StaffProfile {
 export interface CreateStaffPayload {
   email: string;
   name: string;
-  password: string;
   tenantId: string;
   role: StaffRole;
   scope: StaffScope;

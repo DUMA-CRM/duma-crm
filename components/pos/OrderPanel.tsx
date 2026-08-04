@@ -1,6 +1,6 @@
 'use client';
 
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart } from '@/components/icons';
 import { useState } from 'react';
 
 import { CartRow } from '@/components/pos/CartRow';
@@ -29,6 +29,7 @@ interface OrderPanelProps {
   notes: string;
   onNotesChange: (v: string) => void;
   onCharge: () => void;
+  currency?: string;
 }
 
 export function OrderPanel({
@@ -45,6 +46,7 @@ export function OrderPanel({
   notes,
   onNotesChange,
   onCharge,
+  currency,
 }: OrderPanelProps) {
   // QR scan view — a full-panel takeover like the customiser, so the camera
   // isn't competing with the cart for space.
@@ -60,7 +62,14 @@ export function OrderPanel({
       {/* While an item is being customised, the customiser takes over the whole
           panel — options get full height and the add button needs no scrolling. */}
       {selectedItem ? (
-        <ItemCustomiser item={selectedItem} pending={pending} setPending={setPending} onAdd={onAddToCart} onCancel={onCancelItem} />
+        <ItemCustomiser
+          item={selectedItem}
+          pending={pending}
+          setPending={setPending}
+          onAdd={onAddToCart}
+          onCancel={onCancelItem}
+          currency={currency}
+        />
       ) : scanning ? (
         <div className="flex flex-col h-full min-h-0">
           <div className="px-5 py-4 border-b border-border shrink-0">
@@ -91,13 +100,15 @@ export function OrderPanel({
             ) : (
               <div className="p-5 flex flex-col gap-4">
                 {cart.map((cartItem) => (
-                  <CartRow key={cartItem.cartId} cartItem={cartItem} onQty={onQty} />
+                  <CartRow key={cartItem.cartId} cartItem={cartItem} onQty={onQty} currency={currency} />
                 ))}
               </div>
             )}
           </ScrollArea>
 
-          {cart.length > 0 && <OrderSummary cart={cart} notes={notes} onNotesChange={onNotesChange} onCharge={onCharge} />}
+          {cart.length > 0 && (
+            <OrderSummary cart={cart} notes={notes} onNotesChange={onNotesChange} onCharge={onCharge} currency={currency} />
+          )}
         </>
       )}
     </div>

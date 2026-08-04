@@ -1,17 +1,18 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpenCheck, CalendarClock, ChevronDown, Clock, LogIn, LogOut, MapPin, Send } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
+import { CalendarClock, ChevronDown, Clock, LogIn, LogOut, MapPin, Send } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
 import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
+import { DatePicker } from '@/components/ui/date-picker';
 
-import { getMyTrainingAssignments } from '@/lib/api/courses.service';
 import { createScheduledShift, getMyScheduledShifts } from '@/lib/api/scheduling.service';
 import { clockIn, getMyShifts } from '@/lib/api/shifts.service';
+import { formatDate } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -20,7 +21,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 const two = (n: number) => String(n).padStart(2, '0');
 const fmtClock = (d: Date) => `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-const fmtDayDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+const fmtDayDate = (iso: string) => `${new Date(iso).toLocaleDateString('en-GB', { weekday: 'short' })} ${formatDate(iso)}`;
 const fmtDur = (mins: number) => `${Math.floor(mins / 60)}h ${two(Math.round(mins % 60))}m`;
 
 // Minutes between two "HH:MM" strings on the same day (0 if invalid / not positive).
@@ -45,7 +46,7 @@ function startOfWeek(): Date {
 }
 
 const inp =
-  'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
 // ── Component ───────────────────────────────────────────────────────────────────
@@ -73,9 +74,6 @@ export function MyDashboard() {
 
   // My shifts → the active one (not clocked out).
   const { data: myShifts = [] } = useQuery({ queryKey: ['shifts-my'], queryFn: getMyShifts });
-  const { data: training = [] } = useQuery({ queryKey: ['training-assignments-me'], queryFn: getMyTrainingAssignments });
-  const overdueTraining = training.filter((item) => item.status === 'overdue').length;
-  const openTraining = training.filter((item) => item.status !== 'completed').length;
   const active = myShifts.find((s) => !s.clockedOut);
 
   // This week's published rota.
@@ -120,7 +118,7 @@ export function MyDashboard() {
               {user?.name ? `, ${user.name.split(' ')[0]}` : ''}
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              {now.toLocaleDateString('en-GB', { weekday: 'long' })}, {formatDate(now)}
             </p>
           </div>
           <div className="flex items-center gap-3 rounded-xl border border-border/80 bg-card px-4 py-2.5 shadow-sm">
@@ -222,32 +220,6 @@ export function MyDashboard() {
           {/* Suggest a shift */}
           <SuggestShiftCard locationId={locationId} onDone={(msg) => addToast('success', msg)} onError={(msg) => addToast('error', msg)} />
         </div>
-
-        <Link
-          href="/training"
-          className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-sm transition-[border-color,transform] hover:-translate-y-0.5 hover:border-primary/30"
-        >
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <BookOpenCheck size={18} aria-hidden="true" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">
-              {overdueTraining
-                ? `${overdueTraining} overdue training ${overdueTraining === 1 ? 'item' : 'items'}`
-                : openTraining
-                  ? `${openTraining} training ${openTraining === 1 ? 'item' : 'items'} to complete`
-                  : 'Training and team resources'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {overdueTraining
-                ? 'Open your learning plan and catch up.'
-                : openTraining
-                  ? 'Continue required courses and practical assessments.'
-                  : 'You’re up to date. Explore the course library.'}
-            </p>
-          </div>
-          <span className="text-xs font-semibold text-primary">Open training</span>
-        </Link>
       </div>
       {clockOutOpen && locationId && (
         <ClockOutDialog
@@ -321,10 +293,7 @@ function SuggestShiftCard({
         }}
       >
         {durationMins > 0 && <p className="text-xs font-semibold text-primary">Proposed shift: {fmtDur(durationMins)}</p>}
-        <div>
-          <label className={lbl}>Date</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className={inp} />
-        </div>
+        <DatePicker label="Date" value={date} onValueChange={setDate} required />
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={lbl}>From</label>

@@ -1,6 +1,11 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
+import { Popover } from 'radix-ui';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+
+import { SendEmailModal } from '@/components/email/SendEmailModal';
 import {
   AlertCircle,
   Banknote,
@@ -18,24 +23,22 @@ import {
   Mail,
   MapPin,
   Monitor,
+  Receipt,
   Search,
   ShoppingBag,
   SlidersHorizontal,
   Smartphone,
+  Tag,
   User,
+  Wallet,
   X,
   XCircle,
-} from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
-import { Popover } from 'radix-ui';
-import { Suspense, useEffect, useMemo, useState } from 'react';
-
-import { SendEmailModal } from '@/components/email/SendEmailModal';
+} from '@/components/icons';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { Modal } from '@/components/shared/Modal';
-import { StatCard } from '@/components/shared/StatCard';
+import { StatCard, StatCardGrid, StatCardSkeleton } from '@/components/shared/StatCard';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
@@ -57,6 +60,7 @@ import {
 } from '@/lib/api/orders.service';
 import { getStaff } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
+import { formatDate, formatDateTime } from '@/lib/utils/date';
 import { timeAgo } from '@/lib/utils/format';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -243,85 +247,104 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
 
   return (
     <>
-    <div
-      className="relative"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' && open) {
-          e.stopPropagation();
-          setOpen(false);
-        }
-      }}
-    >
-      <button
-        onClick={(e) => {
-          if (stopProp) e.stopPropagation();
-          setOpen((v) => !v);
+      <div
+        className="relative"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && open) {
+            e.stopPropagation();
+            setOpen(false);
+          }
         }}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        disabled={isPending}
-        className={cn(
-          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide transition-opacity disabled:opacity-60 hover:opacity-80',
-          s.bg,
-          s.text,
-          s.border,
-        )}
       >
-        <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', s.dot)} />
-        {s.label}
-        <ChevronDown size={10} className="shrink-0" />
-      </button>
+        <button
+          onClick={(e) => {
+            if (stopProp) e.stopPropagation();
+            setOpen((v) => !v);
+          }}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          disabled={isPending}
+          className={cn(
+            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide transition-opacity disabled:opacity-60 hover:opacity-80',
+            s.bg,
+            s.text,
+            s.border,
+          )}
+        >
+          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', s.dot)} />
+          {s.label}
+          <ChevronDown size={10} className="shrink-0" />
+        </button>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-20 bg-card border border-border rounded-xl shadow-xl overflow-hidden min-w-36">
-            {nexts.map((next) => {
-              const ns = STATUS_CONFIG[next];
-              return (
-                <button
-                  key={next}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (next === 'cancelled') {
-                      setOpen(false);
-                      setVoidOpen(true);
-                    } else {
-                      mutate({ status: next });
-                    }
-                  }}
-                  className={cn(
-                    'w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold hover:bg-muted transition-colors text-left',
-                    ns.text,
-                  )}
-                >
-                  <span className={cn('w-2 h-2 rounded-full shrink-0', ns.dot)} />
-                  {ns.label}
-                </button>
-              );
-            })}
+        {open && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+            <div className="absolute left-0 top-full mt-1 z-20 bg-card border border-border rounded-xl shadow-xl overflow-hidden min-w-36">
+              {nexts.map((next) => {
+                const ns = STATUS_CONFIG[next];
+                return (
+                  <button
+                    key={next}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (next === 'cancelled') {
+                        setOpen(false);
+                        setVoidOpen(true);
+                      } else {
+                        mutate({ status: next });
+                      }
+                    }}
+                    className={cn(
+                      'w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold hover:bg-muted transition-colors text-left',
+                      ns.text,
+                    )}
+                  >
+                    <span className={cn('w-2 h-2 rounded-full shrink-0', ns.dot)} />
+                    {ns.label}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+      {voidOpen && (
+        <Modal title="Void order" onClose={() => setVoidOpen(false)}>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Choose the reason for cancelling order #{order.id.slice(0, 8).toUpperCase()}.</p>
+            <Select
+              value={voidReason}
+              onValueChange={(value) => setVoidReason(value as VoidReason)}
+              options={VOID_REASON_OPTIONS}
+              ariaLabel="Void reason"
+              className="w-full"
+            />
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Notes</span>
+              <textarea
+                value={voidNotes}
+                onChange={(event) => setVoidNotes(event.target.value)}
+                maxLength={500}
+                placeholder="Optional context for the audit trail…"
+                className="min-h-24 w-full rounded-lg border border-input bg-field px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+              />
+            </label>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setVoidOpen(false)} disabled={isPending} className="flex-1">
+                Keep order
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => mutate({ status: 'cancelled', details: { voidReason, voidNotes: voidNotes.trim() || undefined } })}
+                disabled={isPending}
+                className="flex-1"
+              >
+                {isPending ? 'Voiding…' : 'Void order'}
+              </Button>
+            </div>
           </div>
-        </>
+        </Modal>
       )}
-    </div>
-    {voidOpen && (
-      <Modal title="Void order" onClose={() => setVoidOpen(false)}>
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">Choose the reason for cancelling order #{order.id.slice(0, 8).toUpperCase()}.</p>
-          <Select value={voidReason} onValueChange={(value) => setVoidReason(value as VoidReason)} options={VOID_REASON_OPTIONS} ariaLabel="Void reason" className="w-full" />
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Notes</span>
-            <textarea value={voidNotes} onChange={(event) => setVoidNotes(event.target.value)} maxLength={500} placeholder="Optional context for the audit trail…" className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
-          </label>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setVoidOpen(false)} disabled={isPending} className="flex-1">Keep order</Button>
-            <Button variant="destructive" onClick={() => mutate({ status: 'cancelled', details: { voidReason, voidNotes: voidNotes.trim() || undefined } })} disabled={isPending} className="flex-1">
-              {isPending ? 'Voiding…' : 'Void order'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    )}
     </>
   );
 }
@@ -400,14 +423,17 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
   const [notes, setNotes] = useState('');
   const amountNumber = (options?.items ?? []).reduce((total, item) => {
     total += item.base.unitAmounts.slice(0, quantities[`item:${item.id}`] ?? 0).reduce((sum, value) => sum + Number(value), 0);
-    for (const modifier of item.modifiers) total += modifier.unitAmounts.slice(0, quantities[`modifier:${modifier.id}`] ?? 0).reduce((sum, value) => sum + Number(value), 0);
+    for (const modifier of item.modifiers)
+      total += modifier.unitAmounts.slice(0, quantities[`modifier:${modifier.id}`] ?? 0).reduce((sum, value) => sum + Number(value), 0);
     return total;
   }, 0);
   const lines = (options?.items ?? []).flatMap((item) => [
     ...((quantities[`item:${item.id}`] ?? 0) > 0 ? [{ orderItemId: item.id, quantity: quantities[`item:${item.id}`] }] : []),
-    ...item.modifiers.flatMap((modifier) => (quantities[`modifier:${modifier.id}`] ?? 0) > 0
-      ? [{ orderItemId: item.id, orderItemModifierId: modifier.id, quantity: quantities[`modifier:${modifier.id}`] }]
-      : []),
+    ...item.modifiers.flatMap((modifier) =>
+      (quantities[`modifier:${modifier.id}`] ?? 0) > 0
+        ? [{ orderItemId: item.id, orderItemModifierId: modifier.id, quantity: quantities[`modifier:${modifier.id}`] }]
+        : [],
+    ),
   ]);
   function setQuantity(key: string, value: number, max: number) {
     setQuantities((current) => ({ ...current, [key]: Math.max(0, Math.min(max, Math.floor(value || 0))) }));
@@ -417,7 +443,9 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
       const next = { ...current };
       const selecting = !(current[`item:${item.id}`] > 0);
       next[`item:${item.id}`] = selecting ? item.base.remainingQuantity : 0;
-      item.modifiers.forEach((modifier) => { next[`modifier:${modifier.id}`] = selecting ? modifier.remainingQuantity : 0; });
+      item.modifiers.forEach((modifier) => {
+        next[`modifier:${modifier.id}`] = selecting ? modifier.remainingQuantity : 0;
+      });
       return next;
     });
   }
@@ -436,37 +464,115 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
     <Modal title="Record refund" onClose={onClose}>
       <div className="space-y-4">
         <div className="rounded-xl border border-border bg-surface-offset p-3 text-sm">
-          <div className="flex justify-between"><span className="text-muted-foreground">Order total</span><span>£{Number(order.totalAmount).toFixed(2)}</span></div>
-          <div className="mt-1 flex justify-between font-semibold"><span>Available to refund</span><span>£{refundable.toFixed(2)}</span></div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Order total</span>
+            <span>£{Number(order.totalAmount).toFixed(2)}</span>
+          </div>
+          <div className="mt-1 flex justify-between font-semibold">
+            <span>Available to refund</span>
+            <span>£{refundable.toFixed(2)}</span>
+          </div>
         </div>
         <div className="max-h-[45vh] space-y-3 overflow-y-auto pr-1">
           {isLoading && <p className="text-sm text-muted-foreground">Loading refundable items…</p>}
           {options?.items.map((item) => (
             <div key={item.id} className="rounded-xl border border-border p-3">
               <div className="flex items-center justify-between gap-3">
-                <label className="flex min-w-0 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={(quantities[`item:${item.id}`] ?? 0) > 0} disabled={item.base.remainingQuantity === 0} onChange={() => toggleWholeItem(item)} /> <span className="truncate">{item.name}</span></label>
-                <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">Base qty</span><input aria-label={`${item.name} refund quantity`} className="h-8 w-16 rounded-md border border-border bg-background px-2 text-sm" type="number" min={0} max={item.base.remainingQuantity} value={quantities[`item:${item.id}`] ?? 0} onChange={(event) => setQuantity(`item:${item.id}`, Number(event.target.value), item.base.remainingQuantity)} /></div>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">Up to {item.base.remainingQuantity} · £{Number(item.base.remainingAmount).toFixed(2)} paid value</p>
-              {item.modifiers.length > 0 && <div className="mt-3 space-y-2 border-t border-border pt-2">{item.modifiers.map((modifier) => (
-                <div key={modifier.id} className="flex items-center justify-between gap-3 pl-4">
-                  <label className="flex min-w-0 items-center gap-2 text-xs"><input type="checkbox" checked={(quantities[`modifier:${modifier.id}`] ?? 0) > 0} disabled={modifier.remainingQuantity === 0} onChange={() => setQuantity(`modifier:${modifier.id}`, (quantities[`modifier:${modifier.id}`] ?? 0) > 0 ? 0 : modifier.remainingQuantity, modifier.remainingQuantity)} /> <span className="truncate">+ {modifier.name} (£{Number(modifier.remainingAmount).toFixed(2)})</span></label>
-                  <input aria-label={`${modifier.name} refund quantity`} className="h-7 w-16 rounded-md border border-border bg-background px-2 text-xs" type="number" min={0} max={modifier.remainingQuantity} value={quantities[`modifier:${modifier.id}`] ?? 0} onChange={(event) => setQuantity(`modifier:${modifier.id}`, Number(event.target.value), modifier.remainingQuantity)} />
+                <label className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={(quantities[`item:${item.id}`] ?? 0) > 0}
+                    disabled={item.base.remainingQuantity === 0}
+                    onChange={() => toggleWholeItem(item)}
+                  />{' '}
+                  <span className="truncate">{item.name}</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Base qty</span>
+                  <input
+                    aria-label={`${item.name} refund quantity`}
+                    className="h-8 w-16 rounded-md border border-input bg-field px-2 text-sm"
+                    type="number"
+                    min={0}
+                    max={item.base.remainingQuantity}
+                    value={quantities[`item:${item.id}`] ?? 0}
+                    onChange={(event) => setQuantity(`item:${item.id}`, Number(event.target.value), item.base.remainingQuantity)}
+                  />
                 </div>
-              ))}</div>}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Up to {item.base.remainingQuantity} · £{Number(item.base.remainingAmount).toFixed(2)} paid value
+              </p>
+              {item.modifiers.length > 0 && (
+                <div className="mt-3 space-y-2 border-t border-border pt-2">
+                  {item.modifiers.map((modifier) => (
+                    <div key={modifier.id} className="flex items-center justify-between gap-3 pl-4">
+                      <label className="flex min-w-0 items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={(quantities[`modifier:${modifier.id}`] ?? 0) > 0}
+                          disabled={modifier.remainingQuantity === 0}
+                          onChange={() =>
+                            setQuantity(
+                              `modifier:${modifier.id}`,
+                              (quantities[`modifier:${modifier.id}`] ?? 0) > 0 ? 0 : modifier.remainingQuantity,
+                              modifier.remainingQuantity,
+                            )
+                          }
+                        />{' '}
+                        <span className="truncate">
+                          + {modifier.name} (£{Number(modifier.remainingAmount).toFixed(2)})
+                        </span>
+                      </label>
+                      <input
+                        aria-label={`${modifier.name} refund quantity`}
+                        className="h-7 w-16 rounded-md border border-input bg-field px-2 text-xs"
+                        type="number"
+                        min={0}
+                        max={modifier.remainingQuantity}
+                        value={quantities[`modifier:${modifier.id}`] ?? 0}
+                        onChange={(event) => setQuantity(`modifier:${modifier.id}`, Number(event.target.value), modifier.remainingQuantity)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
-        <div className="flex justify-between rounded-xl bg-primary/8 px-3 py-2 text-sm font-bold"><span>Refund total</span><span>£{amountNumber.toFixed(2)}</span></div>
-        <Select value={reason} onValueChange={(value) => setReason(value as RefundReason)} options={REFUND_REASON_OPTIONS} ariaLabel="Refund reason" className="w-full" />
+        <div className="flex justify-between rounded-xl bg-primary/8 px-3 py-2 text-sm font-bold">
+          <span>Refund total</span>
+          <span>£{amountNumber.toFixed(2)}</span>
+        </div>
+        <Select
+          value={reason}
+          onValueChange={(value) => setReason(value as RefundReason)}
+          options={REFUND_REASON_OPTIONS}
+          ariaLabel="Refund reason"
+          className="w-full"
+        />
         <label className="block">
           <span className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Notes</span>
-          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={500} placeholder="How and where the money was returned…" className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
+          <textarea
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={500}
+            placeholder="How and where the money was returned…"
+            className="min-h-24 w-full rounded-lg border border-input bg-field px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+          />
         </label>
-        <p className="text-xs text-muted-foreground">The refund is recorded in the internal ledger. Payment execution is a placeholder until a terminal or provider is connected.</p>
+        <p className="text-xs text-muted-foreground">
+          The refund is recorded in the internal ledger. Payment execution is a placeholder until a terminal or provider is connected.
+        </p>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose} disabled={refund.isPending} className="flex-1">Cancel</Button>
-          <Button onClick={() => refund.mutate()} disabled={refund.isPending || lines.length === 0 || amountNumber <= 0 || amountNumber > refundable + 0.001} className="flex-1">
+          <Button variant="outline" onClick={onClose} disabled={refund.isPending} className="flex-1">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => refund.mutate()}
+            disabled={refund.isPending || lines.length === 0 || amountNumber <= 0 || amountNumber > refundable + 0.001}
+            className="flex-1"
+          >
             {refund.isPending ? 'Recording…' : 'Record refund'}
           </Button>
         </div>
@@ -574,15 +680,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
         <div className="text-center mb-3">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Receipt</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">#{data.id.slice(0, 8).toUpperCase()}</p>
-          <p className="text-[10px] text-muted-foreground">
-            {new Date(data.createdAt).toLocaleString('en-GB', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </p>
+          <p className="text-[10px] text-muted-foreground">{formatDateTime(data.createdAt)}</p>
         </div>
 
         <div className="border-t border-dashed border-border pt-3 flex flex-col gap-1.5">
@@ -591,7 +689,9 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
               <div className="flex justify-between gap-2">
                 <span className="text-[11px] text-foreground">
                   <span className="text-muted-foreground">{item.quantity}×</span> {item.name}
-                  {item.refundStatus && item.refundStatus !== 'none' && <span className="ml-1 text-[9px] font-bold uppercase text-destructive">{item.refundStatus.replace('_', ' ')}</span>}
+                  {item.refundStatus && item.refundStatus !== 'none' && (
+                    <span className="ml-1 text-[9px] font-bold uppercase text-destructive">{item.refundStatus.replace('_', ' ')}</span>
+                  )}
                 </span>
                 <span className="text-[11px] font-semibold tabular-nums shrink-0">£{parseFloat(item.subtotal).toFixed(2)}</span>
               </div>
@@ -600,7 +700,9 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                   {item.modifiers.map((m, i) => (
                     <div key={i} className="flex justify-between gap-2">
                       <span className="text-[10px] text-muted-foreground">+ {m.name}</span>
-                      {m.refundStatus && m.refundStatus !== 'none' && <span className="text-[9px] font-bold uppercase text-destructive">{m.refundStatus.replace('_', ' ')}</span>}
+                      {m.refundStatus && m.refundStatus !== 'none' && (
+                        <span className="text-[9px] font-bold uppercase text-destructive">{m.refundStatus.replace('_', ' ')}</span>
+                      )}
                       {parseFloat(m.priceAdjust) !== 0 && (
                         <span className="text-[10px] text-muted-foreground tabular-nums">£{parseFloat(m.priceAdjust).toFixed(2)}</span>
                       )}
@@ -676,12 +778,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                       <div className={cn('flex flex-col gap-0.5 pt-1', isLast ? 'pb-0' : 'pb-4')}>
                         <p className={cn('text-xs font-semibold leading-none', s.text)}>{s.label}</p>
                         <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
-                          {new Date(entry.createdAt).toLocaleString('en-GB', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {formatDateTime(entry.createdAt)}
                           {entry.changedBy && <span className="ml-1">· {entry.changedBy}</span>}
                         </p>
                         {duration && <p className="text-[10px] text-muted-foreground/60 italic">{duration} since previous</p>}
@@ -709,17 +806,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                 label="Source"
                 value={data.source === 'pos' ? 'POS' : 'Mobile'}
               />
-              <InfoRow
-                icon={CalendarDays}
-                label="Created"
-                value={new Date(data.createdAt).toLocaleString('en-GB', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              />
+              <InfoRow icon={CalendarDays} label="Created" value={formatDateTime(data.createdAt)} />
               {data.customerId && <InfoRow icon={User} label="Customer ID" value={data.customerId} copyable />}
               <InfoRow icon={User} label="Staff ID" value={data.createdBy} copyable />
               <InfoRow icon={MapPin} label="Location ID" value={data.locationId} copyable />
@@ -733,8 +820,21 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
             <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Refund history</p>
             <div className="space-y-2">
               {data.refunds!.map((refund) => (
-                <div key={refund.id} className="flex items-center justify-between rounded-xl border border-border bg-surface-offset px-3 py-2 text-xs">
-                  <div><p className="font-semibold text-foreground">{optionLabel(REFUND_REASON_OPTIONS, refund.reason)}</p><p className="text-muted-foreground">{new Date(refund.createdAt).toLocaleString('en-GB')} · {refund.kind} · internal ledger</p>{refund.lines?.map((line) => <p key={line.id} className="mt-0.5 text-muted-foreground">{line.quantity}× {line.name} · £{Number(line.amount).toFixed(2)}</p>)}</div>
+                <div
+                  key={refund.id}
+                  className="flex items-center justify-between rounded-xl border border-border bg-surface-offset px-3 py-2 text-xs"
+                >
+                  <div>
+                    <p className="font-semibold text-foreground">{optionLabel(REFUND_REASON_OPTIONS, refund.reason)}</p>
+                    <p className="text-muted-foreground">
+                      {formatDateTime(refund.createdAt)} · {refund.kind} · internal ledger
+                    </p>
+                    {refund.lines?.map((line) => (
+                      <p key={line.id} className="mt-0.5 text-muted-foreground">
+                        {line.quantity}× {line.name} · £{Number(line.amount).toFixed(2)}
+                      </p>
+                    ))}
+                  </div>
                   <span className="font-bold text-destructive">−£{Number(refund.amount).toFixed(2)}</span>
                 </div>
               ))}
@@ -832,9 +932,7 @@ function OrderRow({
           </span>
         </td>
         <td className="px-3 md:px-5 py-4 pr-4 md:pr-6 text-right">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {new Date(order.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-          </span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(order.createdAt)}</span>
         </td>
       </tr>
 
@@ -941,7 +1039,7 @@ function OrdersPageContent() {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
       const key = d.toDateString();
-      const dateLabel = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const dateLabel = formatDate(d);
       const dayOrders = allOrders.filter((o) => new Date(o.createdAt).toDateString() === key);
       return {
         dateLabel,
@@ -1319,13 +1417,13 @@ function OrdersPageContent() {
     <PageLayout eyebrow="Operations" title="Orders" headerBorder headerSlot={filterBar}>
       <div className="flex flex-col gap-4">
         {/* Stats */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 shrink-0">
+        <StatCardGrid className="shrink-0">
           <StatCard
             label="Orders today"
-            value={String(totalOrders)}
-            icon="ShoppingBag"
-            iconVariant="primary"
-            footer={{
+            value={totalOrders}
+            icon={ShoppingBag}
+            accent="primary"
+            visual={{
               type: 'bars',
               values: week7.map((d) => d.orders),
               labels: week7.map((d) => String(d.orders)),
@@ -1335,18 +1433,18 @@ function OrdersPageContent() {
           <StatCard
             label="Revenue"
             value={`£${revenue.toFixed(0)}`}
-            icon="Wallet"
-            iconVariant="success"
-            footer={{
+            icon={Wallet}
+            accent="success"
+            visual={{
               type: 'bars',
               values: week7.map((d) => d.revenue),
               labels: week7.map((d) => `£${d.revenue.toFixed(0)}`),
               titleLabels: week7.map((d) => `Revenue (${d.dateLabel})`),
             }}
           />
-          <StatCard label="Open / Preparing" value={String(liveCount)} icon="Tag" iconVariant="gold" />
-          <StatCard label="Cancelled" value={String(cancelledCount)} icon="Receipt" iconVariant="info" />
-        </div>
+          <StatCard label="Open / Preparing" value={liveCount} icon={Tag} accent="warning" />
+          <StatCard label="Cancelled" value={cancelledCount} icon={Receipt} accent="info" />
+        </StatCardGrid>
 
         {/* Live tickets */}
         {liveTickets.length > 0 && (
@@ -1480,12 +1578,12 @@ function OrdersPageFallback() {
     <PageLayout eyebrow="Operations" title="Orders" headerBorder>
       <div className="space-y-4">
         <div className="h-9 w-full max-w-4xl animate-pulse rounded-lg bg-muted" />
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatCardGrid>
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-28 animate-pulse rounded-2xl bg-muted" />
+            <StatCardSkeleton key={index} />
           ))}
-        </div>
-        <div className="h-96 animate-pulse rounded-2xl border border-border bg-card" />
+        </StatCardGrid>
+        <div className="h-96 animate-pulse rounded-2xl border border-border bg-card shadow-sm" />
       </div>
     </PageLayout>
   );

@@ -55,7 +55,8 @@ export function VariablePalette({ variables, onInsert }: { variables: string[]; 
                   key={variable}
                   type="button"
                   onClick={() => handleClick(variable)}
-                  className="rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                  // Merge fields are accent-coloured wherever they appear, chips included.
+                  className="rounded-md bg-primary/10 px-2 py-1 font-mono text-[11px] text-primary transition-colors hover:bg-primary/20"
                   title={`Insert {{${variable}}}`}
                 >
                   {variable.includes('.') ? variable.split('.').slice(1).join('.') : variable}

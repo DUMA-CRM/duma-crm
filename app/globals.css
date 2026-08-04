@@ -10,61 +10,77 @@
    ════════════════════════════════════════════════════════════════ */
 :root {
   /* ── DUMA Brand ─────────────────────────────────────── */
-  --primary: oklch(0.56 0.18 38); /* #e8590c burnt orange */
-  --primary-hover: oklch(0.5 0.18 38);
-  --primary-foreground: oklch(0.99 0 0);
+  --primary: oklch(0.5767 0.2301 262.3); /* #236bfe Bluerocratic */
+  --primary-hover: oklch(0.515 0.222 262.3); /* #1358e4 */
+  --primary-foreground: oklch(1 0 0); /* #ffffff White */
 
   /* ── Surfaces ───────────────────────────────────────── */
-  --background: oklch(0.97 0.006 80); /* #f7f5f0 */
-  --foreground: oklch(0.14 0.01 80); /* #1e1b16 */
-  --card: oklch(0.98 0.004 80); /* #faf9f6 */
-  --card-foreground: oklch(0.14 0.01 80);
-  --popover: oklch(0.99 0.002 80); /* #ffffff */
-  --popover-foreground: oklch(0.14 0.01 80);
+  --background: oklch(0.957 0.003 248); /* #eff1f3 */
+  --foreground: oklch(0.2347 0.0732 269.9); /* #111a40 Dark Eclipse */
+  --card: oklch(1 0 0); /* #ffffff */
+  --card-foreground: oklch(0.2347 0.0732 269.9);
+  --popover: oklch(1 0 0); /* #ffffff */
+  --popover-foreground: oklch(0.2347 0.0732 269.9);
 
-  /* ── Secondary / Muted ──────────────────────────────── */
-  --secondary: oklch(0.94 0.008 80); /* #f0ede6 */
-  --secondary-foreground: oklch(0.25 0.01 80);
-  --muted: oklch(0.94 0.008 80);
-  --muted-foreground: oklch(0.47 0.015 80); /* #6b6560 */
-  --accent: oklch(0.94 0.008 80);
-  --accent-foreground: oklch(0.25 0.01 80);
+  /* ── Secondary / Muted — the cool grey ladder.
+       Cards are pure white and the page is #eff1f3, so these have to clear
+       BOTH. Kept deep enough that a filled control (input, chip, row) still
+       reads when it sits directly on the page rather than on a card. ────── */
+  --secondary: oklch(0.915 0.011 265); /* #dfe3ea */
+  --secondary-foreground: oklch(0.33 0.045 268); /* #2b354d */
+  --muted: oklch(0.915 0.011 265);
+  --muted-foreground: oklch(0.5 0.03 265); /* #5b6375 — AA on every surface above */
+  --accent: oklch(0.915 0.011 265);
+  --accent-foreground: oklch(0.33 0.045 268);
 
   /* ── Borders & Inputs ───────────────────────────────── */
-  --border: oklch(0.88 0.008 80); /* #d8d3ca */
-  --input: oklch(0.88 0.008 80);
-  --ring: oklch(0.56 0.18 38); /* matches primary */
-  --destructive: oklch(0.54 0.2 27); /* #b91c1c */
+  --border: oklch(0.865 0.014 265); /* #ced3dc */
+  --input: oklch(0.845 0.016 265); /* #c7ccd7 — a step darker: form controls need a hard edge */
+  /* Fill for editable controls. White here rather than the grey surface-offset:
+     the border does the work of defining the control, so the field can stay the
+     brightest thing in a form. Read-only bits of an input group (unit suffixes)
+     deliberately keep surface-offset so they still read as non-editable. */
+  --field: oklch(1 0 0); /* #ffffff */
+  --ring: oklch(0.5767 0.2301 262.3); /* matches primary */
+  --destructive: oklch(0.55 0.18 29); /* #c5372c — Youthful Coral, darkened (text-destructive needs AA) */
 
   /* ── Extra DUMA tokens (beyond shadcn base) ─────────── */
-  --surface-offset: oklch(0.93 0.01 80); /* #f0ede6 */
-  --divider: oklch(0.9 0.009 80); /* #e4dfd6 */
-  --faint: oklch(0.72 0.008 80); /* #b0a99f */
+  --surface-offset: oklch(0.935 0.008 265); /* #e7e9ef */
+  --divider: oklch(0.895 0.012 265); /* #d8dce5 */
+  --faint: oklch(0.68 0.02 265); /* #9298a5 */
 
-  /* ── Semantic ───────────────────────────────────────── */
-  --success: oklch(0.45 0.14 145);
-  --success-highlight: oklch(0.93 0.04 145);
-  --warning: oklch(0.55 0.15 70);
-  --warning-highlight: oklch(0.96 0.04 70);
-  --info: oklch(0.48 0.15 240);
-  --info-highlight: oklch(0.93 0.04 240);
+  /* Shadows are tinted with the brand navy rather than neutral black — a grey
+     shadow on a cool grey page reads as dirt. Consumed by the Elevation block
+     at the bottom of this file. */
+  --shadow-tint: oklch(0.2347 0.0732 269.9); /* #111a40 */
 
-  /* ── Charts ─────────────────────────────────────────── */
-  --chart-1: oklch(0.56 0.18 38); /* orange — primary */
-  --chart-2: oklch(0.72 0.15 80); /* gold */
-  --chart-3: oklch(0.55 0.15 240); /* blue */
-  --chart-4: oklch(0.45 0.14 145); /* green */
-  --chart-5: oklch(0.65 0.18 300); /* purple */
+  /* ── Semantic — brand hues darkened to ~5:1 on white, since
+       text-success / text-warning / text-destructive are all
+       used as body text. The pastels themselves live in the
+       charts below and in dark mode. ─────────────────── */
+  --success: oklch(0.52 0.105 166); /* #0c7c5b ← Inspiration Peak */
+  --success-highlight: oklch(0.945 0.03 166); /* #dbf4e8 */
+  --warning: oklch(0.55 0.13 64); /* #a55e00 ← Pumpkin Pie */
+  --warning-highlight: oklch(0.955 0.035 64); /* #ffecd8 */
+  --info: oklch(0.55 0.2 262); /* #2867e4 ← Bluerocratic */
+  --info-highlight: oklch(0.95 0.03 262); /* #e4efff */
+
+  /* ── Charts — the palette at full strength ──────────── */
+  --chart-1: oklch(0.5767 0.2301 262.3); /* #236bfe Bluerocratic */
+  --chart-2: oklch(0.6546 0.0946 165.8); /* #51a383 Inspiration Peak */
+  --chart-3: oklch(0.7601 0.124 63.6); /* #e89f57 Pumpkin Pie */
+  --chart-4: oklch(0.7224 0.1353 29.1); /* #ee8273 Youthful Coral */
+  --chart-5: oklch(0.45 0.06 270); /* #485477 slate from the Dark Eclipse ladder */
 
   /* ── Sidebar ─────────────────────────────────────────── */
-  --sidebar: oklch(0.98 0.004 80);
-  --sidebar-foreground: oklch(0.14 0.01 80);
-  --sidebar-primary: oklch(0.56 0.18 38);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.94 0.008 80);
-  --sidebar-accent-foreground: oklch(0.25 0.01 80);
-  --sidebar-border: oklch(0.9 0.009 80);
-  --sidebar-ring: oklch(0.56 0.18 38);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.2347 0.0732 269.9);
+  --sidebar-primary: oklch(0.5767 0.2301 262.3);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.915 0.011 265);
+  --sidebar-accent-foreground: oklch(0.33 0.045 268);
+  --sidebar-border: oklch(0.895 0.012 265);
+  --sidebar-ring: oklch(0.5767 0.2301 262.3);
 
   /* ── Layout dimensions ───────────────────────────────── */
   --radius: 0.5rem;
@@ -83,56 +99,65 @@
 }
 
 .dark {
-  --primary: oklch(0.68 0.17 38);
-  --primary-hover: oklch(0.74 0.16 38);
-  --primary-foreground: oklch(0.99 0 0);
+  --primary: oklch(0.68 0.19 262); /* #5492ff — Bluerocratic lifted for dark surfaces */
+  --primary-hover: oklch(0.74 0.17 262); /* #6ea8ff */
+  --primary-foreground: oklch(0.215 0.012 270); /* #17191f — dark on light blue beats white here */
 
-  /* ── Surfaces: soft, warm charcoal ladder (bg < card < offset < muted) ─── */
-  --background: oklch(0.22 0.008 80); /* lifted warm charcoal, easy on the eyes */
-  --foreground: oklch(0.92 0.007 80); /* soft off-white, not harsh */
-  --card: oklch(0.26 0.009 80); /* clearly lifted above background */
-  --card-foreground: oklch(0.92 0.007 80);
-  --popover: oklch(0.28 0.01 80);
-  --popover-foreground: oklch(0.92 0.007 80);
+  /* ── Surfaces: near-neutral charcoal (bg < sidebar < card < offset < muted).
+       Deliberately almost achromatic — Dark Eclipse is a brand *accent*, not a
+       surface. Tinting the whole ladder navy made every panel read blue. ───── */
+  --background: oklch(0.215 0.012 270); /* #17191f */
+  --foreground: oklch(0.93 0.005 270); /* #e6e8eb soft off-white, not harsh */
+  --card: oklch(0.255 0.012 270); /* #202329 clearly lifted above background */
+  --card-foreground: oklch(0.93 0.005 270);
+  --popover: oklch(0.275 0.013 270); /* #25272e */
+  --popover-foreground: oklch(0.93 0.005 270);
 
-  --secondary: oklch(0.31 0.011 80);
-  --secondary-foreground: oklch(0.92 0.007 80);
-  --muted: oklch(0.31 0.011 80);
-  --muted-foreground: oklch(0.74 0.02 80); /* readable secondary text */
-  --accent: oklch(0.31 0.011 80);
-  --accent-foreground: oklch(0.92 0.007 80);
+  --secondary: oklch(0.31 0.014 270); /* #2d3038 */
+  --secondary-foreground: oklch(0.93 0.005 270);
+  --muted: oklch(0.31 0.014 270);
+  --muted-foreground: oklch(0.75 0.012 270); /* #abaeb6 readable secondary text */
+  --accent: oklch(0.31 0.014 270);
+  --accent-foreground: oklch(0.93 0.005 270);
 
   /* ── Borders & inputs: gentle but visible against the surfaces ───── */
-  --border: oklch(0.35 0.012 80);
-  --input: oklch(0.37 0.013 80);
-  --ring: oklch(0.68 0.17 38);
-  --destructive: oklch(0.66 0.19 27);
+  --border: oklch(0.355 0.015 270); /* #393c44 */
+  --input: oklch(0.375 0.015 270); /* #3e4149 */
+  /* Unchanged from surface-offset — on dark, a "white" field would glare. */
+  --field: oklch(0.295 0.013 270); /* #2a2c33 */
+  --ring: oklch(0.68 0.19 262);
+  --destructive: oklch(0.7224 0.1353 29.1); /* #ee8273 Youthful Coral, exact */
 
-  --surface-offset: oklch(0.3 0.011 80); /* rows / hover / chips */
-  --divider: oklch(0.33 0.012 80);
-  --faint: oklch(0.56 0.013 80);
+  --surface-offset: oklch(0.295 0.013 270); /* #2a2c33 rows / hover / chips */
+  --divider: oklch(0.33 0.014 270); /* #32353d */
+  --faint: oklch(0.57 0.015 270); /* #747781 */
 
-  --success: oklch(0.72 0.15 145);
-  --success-highlight: oklch(0.32 0.06 145);
-  --warning: oklch(0.8 0.14 70);
-  --warning-highlight: oklch(0.33 0.06 70);
-  --info: oklch(0.74 0.13 240);
-  --info-highlight: oklch(0.32 0.06 240);
+  /* Near-black on dark: a navy-tinted shadow over a dark surface just muddies
+     it. Keeps dark elevation looking the way it does today. */
+  --shadow-tint: oklch(0.08 0.01 270);
 
-  --chart-1: oklch(0.68 0.17 38);
-  --chart-2: oklch(0.78 0.15 80);
-  --chart-3: oklch(0.68 0.15 240);
-  --chart-4: oklch(0.66 0.15 145);
-  --chart-5: oklch(0.74 0.18 300);
+  /* Against neutral charcoal the palette works at full strength. */
+  --success: oklch(0.6546 0.0946 165.8); /* #51a383 Inspiration Peak, exact */
+  --success-highlight: oklch(0.3 0.05 166);
+  --warning: oklch(0.7601 0.124 63.6); /* #e89f57 Pumpkin Pie, exact */
+  --warning-highlight: oklch(0.31 0.055 64);
+  --info: oklch(0.74 0.14 262); /* #79a9ff */
+  --info-highlight: oklch(0.31 0.065 262);
 
-  --sidebar: oklch(0.24 0.009 80);
-  --sidebar-foreground: oklch(0.92 0.007 80);
-  --sidebar-primary: oklch(0.68 0.17 38);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.31 0.011 80);
-  --sidebar-accent-foreground: oklch(0.92 0.007 80);
-  --sidebar-border: oklch(0.35 0.012 80);
-  --sidebar-ring: oklch(0.68 0.17 38);
+  --chart-1: oklch(0.68 0.19 262); /* #5492ff */
+  --chart-2: oklch(0.6546 0.0946 165.8); /* #51a383 */
+  --chart-3: oklch(0.7601 0.124 63.6); /* #e89f57 */
+  --chart-4: oklch(0.7224 0.1353 29.1); /* #ee8273 */
+  --chart-5: oklch(0.72 0.03 270); /* #a5a8b3 */
+
+  --sidebar: oklch(0.235 0.012 270); /* #1c1e24 */
+  --sidebar-foreground: oklch(0.93 0.005 270);
+  --sidebar-primary: oklch(0.68 0.19 262);
+  --sidebar-primary-foreground: oklch(0.215 0.012 270);
+  --sidebar-accent: oklch(0.31 0.014 270);
+  --sidebar-accent-foreground: oklch(0.93 0.005 270);
+  --sidebar-border: oklch(0.355 0.015 270);
+  --sidebar-ring: oklch(0.68 0.19 262);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -142,7 +167,7 @@
    ════════════════════════════════════════════════════════════════ */
 @theme inline {
   /* Fonts */
-  --font-sans: var(--font-geist, sans-serif);
+  --font-sans: var(--font-questrial, sans-serif);
   --font-mono: var(--font-geist-mono, monospace);
 
   /* shadcn standard → Tailwind utilities */
@@ -185,6 +210,7 @@
   --color-surface-offset: var(--surface-offset);
   --color-divider: var(--divider);
   --color-faint: var(--faint);
+  --color-field: var(--field);
 
   /* Semantic */
   --color-success: var(--success);
@@ -309,5 +335,78 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Merge-field highlight
+
+   {{customer.firstName}} placeholders in the email template builder. They are
+   painted with the CSS Custom Highlight API rather than wrapped in spans, so
+   the text a person edits stays plain text and the caret is never disturbed.
+   Registered by useVariableHighlight; browsers without the API simply show the
+   token unstyled. Only colour-ish properties are allowed in ::highlight().
+   ════════════════════════════════════════════════════════════════ */
+::highlight(template-variable) {
+  background-color: color-mix(in oklab, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Elevation
+
+   Tailwind's stock shadows are neutral black, which on a cool grey page
+   reads as smudge rather than lift. These retune the whole scale to the
+   themed --shadow-tint (brand navy in light, near-black in dark) and give
+   the low end a second, wider layer so a white card actually separates
+   from the #eff1f3 page.
+
+   This overrides --tw-shadow rather than box-shadow so Tailwind's ring /
+   inset-ring composition still works, and keeps the var(--tw-shadow-color)
+   fallback so `shadow-primary/20`-style colour overrides still apply.
+   (Setting these via @theme does not work: Tailwind can't parse a
+   multi-layer color-mix() value into its shadow-colour form.)
+   ════════════════════════════════════════════════════════════════ */
+@layer utilities {
+  .shadow-2xs {
+    --tw-shadow: 0 1px 1px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 6%, transparent));
+  }
+
+  .shadow-xs {
+    --tw-shadow: 0 1px 2px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 7%, transparent));
+  }
+
+  /* Variants generate their own rule, so any `hover:` / `md:` shadow needs
+     listing here too or it falls back to Tailwind's black. Only the variants
+     actually used in the app are covered. */
+  .shadow-sm,
+  .hover\:shadow-sm:hover {
+    --tw-shadow:
+      0 1px 2px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 7%, transparent)),
+      0 3px 10px -3px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 10%, transparent));
+  }
+
+  .shadow-md {
+    --tw-shadow:
+      0 2px 4px -1px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 8%, transparent)),
+      0 8px 20px -6px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 14%, transparent));
+  }
+
+  .shadow-lg {
+    --tw-shadow:
+      0 4px 8px -2px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 9%, transparent)),
+      0 16px 40px -12px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 18%, transparent));
+  }
+
+  .shadow-xl {
+    --tw-shadow:
+      0 8px 16px -4px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 11%, transparent)),
+      0 28px 64px -20px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 22%, transparent));
+  }
+
+  .shadow-2xl {
+    --tw-shadow:
+      0 12px 24px -6px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 14%, transparent)),
+      0 40px 80px -24px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 28%, transparent));
   }
 }

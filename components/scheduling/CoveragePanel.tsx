@@ -1,14 +1,14 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3 } from '@/components/icons';
 import { useMemo, useState } from 'react';
 
 import { type CoverageRow, type CoverageWeekdayRow, getCoverage, isWeekdayRow } from '@/lib/api/scheduling.service';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const inp =
-  'w-full h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 const lbl = 'block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1';
 
 const DEFAULTS = { lookbackDays: 30, ordersPerStaff: 15, minStaff: 1 };

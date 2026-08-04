@@ -1,23 +1,21 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, Loader2, Mail, MailX, Plug, Plus, RefreshCw, Send, ShieldOff, Sparkles } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 
 import { AutomationEditorPage } from '@/components/communications/AutomationEditorPage';
 import { AutomationsPanel } from '@/components/communications/AutomationsPanel';
-import { ConnectionPanel } from '@/components/communications/ConnectionPanel';
-import { DeliveryPreviewPage, EmailPreviewPage } from '@/components/communications/EmailPreviewPage';
+import { DeliveryPreviewDrawer, EmailPreviewDrawer } from '@/components/communications/EmailPreviewDrawer';
 import { HistoryPanel } from '@/components/communications/HistoryPanel';
 import { SetupChecklist } from '@/components/communications/SetupChecklist';
 import { SuppressionsPanel } from '@/components/communications/SuppressionsPanel';
 import { TemplateEditorPage } from '@/components/communications/TemplateEditorPage';
 import { TemplatesPanel } from '@/components/communications/TemplatesPanel';
-import { AUTOMATION_PRESETS, TEMPLATE_PRESETS, presetPayload } from '@/components/communications/presets';
+import { CheckCircle2, Loader2, Mail, MailX, Plug, Plus, RefreshCw, Send, ShieldOff, Sparkles, TriangleAlert } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
+import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -26,13 +24,17 @@ import {
   getEmailConnection,
   getEmailDeliveries,
   getEmailTemplates,
+  getMarketingSuppressions,
 } from '@/lib/api/email.service';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-type Tab = 'templates' | 'automations' | 'history' | 'suppressions' | 'connection';
+type Tab = 'templates' | 'automations' | 'history' | 'suppressions';
 
-const TAB_VALUES: Tab[] = ['templates', 'automations', 'history', 'suppressions', 'connection'];
+const TAB_VALUES: Tab[] = ['templates', 'automations', 'history', 'suppressions'];
+
+/** The mail account itself is a connector, so setting it up happens in Settings. */
+const EMAIL_CONNECTOR = '/settings/connectors?connector=email';
 
 export default function CommunicationsPage() {
   // useSearchParams needs a Suspense boundary above it.
@@ -62,11 +64,9 @@ function CommunicationsView() {
   const templateParam = searchParams.get('template');
   const automationParam = searchParams.get('automation');
   const previewParam = searchParams.get('preview');
-  const presetParam = searchParams.get('preset');
-  const deliveryParam = searchParams.get('delivery');
 
   // Deliveries are paginated with no single-record endpoint, so the row hands the
-  // record over when it opens the preview.
+  // record over. Nothing to put in the URL — a shared link could not resolve it.
   const [openedDelivery, setOpenedDelivery] = useState<EmailDelivery | null>(null);
 
   const navigate = (patch: Record<string, string | null>, mode: 'push' | 'replace' = 'push') => {
@@ -79,7 +79,7 @@ function CommunicationsView() {
     router[mode](query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
 
-  const closeEditors = () => navigate({ template: null, automation: null, preview: null, preset: null, delivery: null });
+  const closeEditors = () => navigate({ template: null, automation: null, preview: null, preset: null });
 
   const { data: templates = [], isFetched: templatesFetched } = useQuery({
     queryKey: ['email-templates', tenantId],
@@ -105,6 +105,12 @@ function CommunicationsView() {
     // (The history table shares this key and polls faster while it is open.)
     refetchInterval: 60_000,
   });
+  // Shares its cache key with SuppressionsPanel — fetched here only for the tab count.
+  const { data: suppressions = [] } = useQuery({
+    queryKey: ['marketing-suppressions', tenantId],
+    queryFn: () => getMarketingSuppressions(tenantId ?? undefined),
+    enabled: !!tenantId,
+  });
 
   const emailReady = Boolean(connection?.isEnabled && connection?.lastTestSucceeded);
   const activeTemplates = useMemo(() => templates.filter((template) => template.isActive), [templates]);
@@ -114,7 +120,13 @@ function CommunicationsView() {
 
   const tabs = useMemo<SectionTab<Tab>[]>(
     () => [
-      { value: 'templates', label: 'Templates', icon: Mail, count: templates.length, countLabel: `${templates.length} templates` },
+      {
+        value: 'templates',
+        label: 'Templates',
+        icon: Mail,
+        count: activeTemplates.length,
+        countLabel: `${activeTemplates.length} templates`,
+      },
       {
         value: 'automations',
         label: 'Automations',
@@ -130,21 +142,16 @@ function CommunicationsView() {
         countTone: 'danger',
         countLabel: `${failedCount} recent ${failedCount === 1 ? 'failure' : 'failures'}`,
       },
-      { value: 'suppressions', label: 'Suppressions', icon: ShieldOff },
-      ...(canConfigure ? [{ value: 'connection' as const, label: 'Email setup', icon: Plug }] : []),
+      {
+        value: 'suppressions',
+        label: 'Suppressions',
+        icon: ShieldOff,
+        count: suppressions.length,
+        countLabel: `${suppressions.length} suppressed ${suppressions.length === 1 ? 'address' : 'addresses'}`,
+      },
     ],
-    [canConfigure, templates.length, sendingCount, failedCount],
+    [activeTemplates.length, sendingCount, failedCount, suppressions.length],
   );
-
-  // A delivery link with no record behind it (refresh, shared link) falls back to
-  // the list instead of showing an empty preview.
-  useEffect(() => {
-    if (!deliveryParam || openedDelivery) return;
-    const next = new URLSearchParams(searchParams.toString());
-    next.delete('delivery');
-    const query = next.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }, [deliveryParam, openedDelivery, pathname, router, searchParams]);
 
   if (!tenantId) {
     return (
@@ -154,50 +161,13 @@ function CommunicationsView() {
     );
   }
 
-  // ── Full-page views (replace the list; the app sidebar and header stay) ─────
-
-  if (deliveryParam && openedDelivery) {
-    return (
-      <DeliveryPreviewPage
-        delivery={openedDelivery}
-        onClose={() => {
-          setOpenedDelivery(null);
-          navigate({ delivery: null });
-        }}
-      />
-    );
-  }
-
-  if (previewParam) {
-    if (!templatesFetched) return <LoadingShell onClose={closeEditors} />;
-    const template = templates.find((item) => item.id === previewParam);
-    if (!template) return <MissingShell title="Template not found" onClose={closeEditors} />;
-    return (
-      <EmailPreviewPage
-        eyebrow="Template preview"
-        title={template.name}
-        subject={template.subject}
-        recipient={<span className="font-mono">{'{{brand.name}} · to {{customer.email}}'}</span>}
-        htmlBody={template.htmlBody}
-        textBody={template.textBody}
-        note="Variables are filled in with real customer and order details when the email is sent."
-        actions={
-          <Button variant="outline" onClick={() => navigate({ preview: null, template: template.id }, 'replace')}>
-            Edit template
-          </Button>
-        }
-        onClose={closeEditors}
-      />
-    );
-  }
+  // ── Full-page editors (replace the list; the app sidebar and header stay) ───
 
   if (templateParam) {
-    const preset = presetParam ? TEMPLATE_PRESETS.find((item) => item.key === presetParam) : undefined;
-    const openConnection = canConfigure ? () => navigate({ tab: 'connection', template: null, preset: null }) : undefined;
+    const openConnection = canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined;
     if (templateParam === 'new') {
       return (
         <TemplateEditorPage
-          initial={preset ? presetPayload(preset) : undefined}
           onClose={closeEditors}
           onSaved={(saved) => navigate({ template: saved.id, preset: null }, 'replace')}
           onOpenConnection={openConnection}
@@ -211,22 +181,13 @@ function CommunicationsView() {
   }
 
   if (automationParam) {
-    const preset = presetParam ? AUTOMATION_PRESETS.find((item) => item.key === presetParam) : undefined;
     const shared = {
       onClose: closeEditors,
-      onPreviewTemplate: (templateId: string) => navigate({ automation: null, preset: null, preview: templateId }),
       onOpenTemplates: () => navigate({ tab: 'templates', automation: null, preset: null }),
-      onOpenConnection: canConfigure ? () => navigate({ tab: 'connection', automation: null, preset: null }) : undefined,
+      onOpenConnection: canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined,
     };
     if (automationParam === 'new') {
-      return (
-        <AutomationEditorPage
-          initial={preset?.initial}
-          suggestedTemplateName={preset?.suggestedTemplate}
-          {...shared}
-          onSaved={(saved) => navigate({ automation: saved.id, preset: null }, 'replace')}
-        />
-      );
+      return <AutomationEditorPage {...shared} onSaved={(saved) => navigate({ automation: saved.id, preset: null }, 'replace')} />;
     }
     if (!automationsFetched) return <LoadingShell onClose={closeEditors} />;
     const automation = automations.find((item) => item.id === automationParam);
@@ -236,52 +197,56 @@ function CommunicationsView() {
 
   // ── List view ──────────────────────────────────────────────────────────────
 
+  // One primary action, always in the same place — whatever the open tab is for.
+  const action =
+    tab === 'templates'
+      ? { icon: Plus, label: 'New template', onClick: () => navigate({ template: 'new' }) }
+      : tab === 'automations'
+        ? {
+            icon: Plus,
+            label: 'New automation',
+            onClick: () => navigate({ automation: 'new' }),
+            disabled: activeTemplates.length === 0,
+            title: activeTemplates.length === 0 ? 'Create a ready-to-use template first' : undefined,
+          }
+        : tab === 'history'
+          ? {
+              icon: RefreshCw,
+              label: 'Refresh',
+              variant: 'outline' as const,
+              onClick: () => queryClient.invalidateQueries({ queryKey: ['email-deliveries'] }),
+            }
+          : canConfigure
+            ? { icon: Plug, label: 'Email setup', variant: 'outline' as const, onClick: () => router.push(EMAIL_CONNECTOR) }
+            : null;
+  const ActionIcon = action?.icon;
+
+  // Previewing a template keeps `?preview=` so the link is shareable; a bad id
+  // simply opens nothing rather than taking over the page.
+  const previewTemplate = previewParam ? templates.find((item) => item.id === previewParam) : undefined;
+
   return (
     <EditorShell
       eyebrow="Customer engagement"
       title="Communications"
       icon={<Mail size={20} aria-hidden="true" />}
       meta={
-        canConfigure ? (
-          <button
-            type="button"
-            onClick={() => navigate({ tab: 'connection' }, 'replace')}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-              emailReady
-                ? 'border-success/30 bg-success/10 text-success'
-                : 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/20'
-            }`}
-          >
-            {emailReady ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
-            {emailReady ? 'Email connected' : 'Email not set up'}
-          </button>
-        ) : undefined
+        <ConnectionStatus
+          ready={emailReady}
+          onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined}
+        />
       }
-      // One primary action, always in the same place — whatever the open tab is for.
       actions={
-        tab === 'templates' ? (
-          <Button className="h-10 gap-1.5" onClick={() => navigate({ template: 'new' })}>
-            <Plus size={15} />
-            <span className="hidden md:inline">New template</span>
-          </Button>
-        ) : tab === 'automations' ? (
+        action && ActionIcon ? (
           <Button
             className="h-10 gap-1.5"
-            disabled={activeTemplates.length === 0}
-            title={activeTemplates.length === 0 ? 'Create a ready-to-use template first' : undefined}
-            onClick={() => navigate({ automation: 'new' })}
+            variant={action.variant}
+            disabled={action.disabled}
+            title={action.title}
+            onClick={action.onClick}
           >
-            <Plus size={15} />
-            <span className="hidden md:inline">New automation</span>
-          </Button>
-        ) : tab === 'history' ? (
-          <Button
-            variant="outline"
-            className="h-10 gap-1.5"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['email-deliveries'] })}
-          >
-            <RefreshCw size={15} />
-            <span className="hidden md:inline">Refresh</span>
+            <ActionIcon size={15} aria-hidden="true" />
+            <span className="hidden md:inline">{action.label}</span>
           </Button>
         ) : undefined
       }
@@ -295,44 +260,88 @@ function CommunicationsView() {
       }
     >
       <div className="space-y-5">
-        {tab !== 'connection' && (
-          <SetupChecklist
-            emailConnected={emailReady}
-            hasTemplate={templates.some((template) => template.isActive)}
-            hasEnabledAutomation={automations.some((automation) => automation.isEnabled)}
-            hasDeliveries={Boolean(deliveries?.total)}
-            canConfigure={canConfigure}
-            onOpenConnection={() => navigate({ tab: 'connection' }, 'replace')}
-            onNewTemplate={() => navigate({ tab: 'templates', template: 'new' })}
-            onNewAutomation={() => navigate({ tab: 'automations' }, 'replace')}
-            onOpenHistory={() => navigate({ tab: 'history' }, 'replace')}
-          />
-        )}
+        <SetupChecklist
+          emailConnected={emailReady}
+          hasTemplate={templates.some((template) => template.isActive)}
+          hasEnabledAutomation={automations.some((automation) => automation.isEnabled)}
+          hasDeliveries={Boolean(deliveries?.total)}
+          canConfigure={canConfigure}
+          onOpenConnection={() => router.push(EMAIL_CONNECTOR)}
+          onNewTemplate={() => navigate({ tab: 'templates', template: 'new' })}
+          onNewAutomation={() => navigate({ tab: 'automations' }, 'replace')}
+          onOpenHistory={() => navigate({ tab: 'history' }, 'replace')}
+        />
 
         {tab === 'templates' && (
           <TemplatesPanel
-            onEdit={({ template, presetKey }) => navigate({ template: template?.id ?? 'new', preset: presetKey ?? null })}
+            onEdit={({ template }) => navigate({ template: template?.id ?? 'new', preset: null })}
             onPreview={(template) => navigate({ preview: template.id })}
           />
         )}
         {tab === 'automations' && (
           <AutomationsPanel
-            onEdit={({ automation, presetKey }) => navigate({ automation: automation?.id ?? 'new', preset: presetKey ?? null })}
+            onEdit={({ automation }) => navigate({ automation: automation?.id ?? 'new', preset: null })}
             onOpenTemplates={() => navigate({ tab: 'templates' }, 'replace')}
           />
         )}
-        {tab === 'history' && (
-          <HistoryPanel
-            onPreview={(delivery) => {
-              setOpenedDelivery(delivery);
-              navigate({ delivery: delivery.id });
-            }}
-          />
-        )}
+        {tab === 'history' && <HistoryPanel onPreview={setOpenedDelivery} />}
         {tab === 'suppressions' && <SuppressionsPanel />}
-        {tab === 'connection' && canConfigure && <ConnectionPanel />}
       </div>
+
+      {previewTemplate && (
+        <EmailPreviewDrawer
+          description="Template preview"
+          title={previewTemplate.name}
+          subject={previewTemplate.subject}
+          recipient={<span className="font-mono text-primary">{'{{brand.name}} · to {{customer.email}}'}</span>}
+          htmlBody={previewTemplate.htmlBody}
+          textBody={previewTemplate.textBody}
+          note="Variables are filled in with real customer and order details when the email is sent."
+          actions={
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate({ preview: null, template: previewTemplate.id }, 'replace')}
+            >
+              Edit template
+            </Button>
+          }
+          onClose={() => navigate({ preview: null })}
+        />
+      )}
+
+      {openedDelivery && <DeliveryPreviewDrawer delivery={openedDelivery} onClose={() => setOpenedDelivery(null)} />}
     </EditorShell>
+  );
+}
+
+/**
+ * Whether email can actually leave the building — the one fact that decides if
+ * anything on this page has an effect, so it sits under the title on every tab.
+ */
+function ConnectionStatus({ ready, onOpenConnection }: { ready: boolean; onOpenConnection?: () => void }) {
+  const Icon = ready ? CheckCircle2 : TriangleAlert;
+  const body = (
+    <>
+      <Icon size={12} aria-hidden="true" />
+      {ready ? 'Email connected' : 'Email not verified'}
+    </>
+  );
+  const className = `inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${
+    ready ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+  }`;
+
+  // Only owners and admins can act on it, so only they get a button.
+  if (!onOpenConnection) return <span className={className}>{body}</span>;
+  return (
+    <button
+      type="button"
+      onClick={onOpenConnection}
+      className={`${className} transition-opacity hover:opacity-80`}
+      title={ready ? 'Review the email connection' : 'Set up email sending'}
+    >
+      {body}
+    </button>
   );
 }
 
@@ -349,8 +358,8 @@ function LoadingShell({ onClose }: { onClose: () => void }) {
 function MissingShell({ title, onClose }: { title: string; onClose: () => void }) {
   return (
     <EditorShell title={title} onClose={onClose}>
-      <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-6 text-center">
-        <p className="text-sm text-muted-foreground">It may have been deleted or archived, or the link is out of date.</p>
+      <div className="mx-auto max-w-md rounded-2xl border border-border bg-card shadow-sm p-6 text-center">
+        <p className="text-sm text-muted-foreground">It may have been deleted, or the link is out of date.</p>
         <Button variant="outline" className="mt-4" onClick={onClose}>
           Back to Communications
         </Button>

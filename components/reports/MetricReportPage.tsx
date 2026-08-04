@@ -1,12 +1,13 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ReceiptText, ShoppingBag, TrendingDown, TrendingUp, Users, WalletCards } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
+import { ReceiptText, ShoppingBag, Users, WalletCards } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { DeltaBadge, StatCard, StatCardGrid, changeDelta } from '@/components/shared/StatCard';
 
 import {
   type DailyOrderAnalytics,
@@ -19,8 +20,11 @@ import { getOrders } from '@/lib/api/orders.service';
 import { getLocations } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { type DashboardRange, formatCompact, formatMoney, getDateWindow, orderMetrics, percentageChange } from '@/lib/utils/dashboard';
+import { formatDate } from '@/lib/utils/date';
 import { type MetricKey, buildMetricDetail } from '@/lib/utils/reports';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+
+import { ReportTrendChart } from './ReportChart';
 
 const RANGE_OPTIONS: Array<{ value: DashboardRange; label: string }> = [
   { value: 'today', label: 'Today' },
@@ -29,110 +33,7 @@ const RANGE_OPTIONS: Array<{ value: DashboardRange; label: string }> = [
 ];
 
 const METRIC_ICON = { revenue: WalletCards, orders: ShoppingBag, average: ReceiptText, retention: Users } as const;
-const panel = 'rounded-2xl border border-border bg-card';
-
-// ── Small line/area chart with optional previous-period overlay ──────────────────
-const CW = 640;
-const CH = 150;
-
-function buildPath(values: number[], max: number) {
-  const n = values.length;
-  if (n === 0) return { line: '', area: '' };
-  const x = (i: number) => (n === 1 ? CW / 2 : (i / (n - 1)) * CW);
-  const y = (v: number) => CH - (max <= 0 ? 0 : (v / max) * (CH - 6)) - 3;
-  const line = values.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-  const area = n > 1 ? `${line} L${CW},${CH} L0,${CH} Z` : '';
-  return { line, area };
-}
-
-function TrendChart({
-  current,
-  previous,
-  labels,
-  format,
-  showPrevious,
-}: {
-  current: number[];
-  previous: number[];
-  labels: string[];
-  format: (v: number) => string;
-  showPrevious: boolean;
-}) {
-  const [hover, setHover] = useState<number | null>(null);
-  const max = Math.max(1, ...current, ...(showPrevious ? previous : []));
-  const cur = buildPath(current, max);
-  const prev = buildPath(previous, max);
-  const active = hover ?? current.length - 1;
-  const curVal = current[active] ?? 0;
-  const prevVal = previous[active];
-
-  return (
-    <div>
-      <div className="mb-3 flex items-end justify-between gap-4">
-        <div>
-          <p className="text-xs text-muted-foreground">{labels[active] ?? '—'}</p>
-          <p className="text-lg font-bold tabular-nums text-foreground">{format(curVal)}</p>
-        </div>
-        {showPrevious && prevVal !== undefined && (
-          <p className="text-xs text-muted-foreground">
-            Prev: <span className="font-semibold tabular-nums text-foreground">{format(prevVal)}</span>
-          </p>
-        )}
-      </div>
-      <svg
-        viewBox={`0 0 ${CW} ${CH}`}
-        preserveAspectRatio="none"
-        className="h-40 w-full text-primary"
-        role="img"
-        aria-label="Trend chart"
-        onMouseLeave={() => setHover(null)}
-        onMouseMove={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const pct = (e.clientX - rect.left) / rect.width;
-          setHover(Math.max(0, Math.min(current.length - 1, Math.round(pct * (current.length - 1)))));
-        }}
-      >
-        <defs>
-          <linearGradient id="metric-area" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="currentColor" stopOpacity="0.2" />
-            <stop offset="1" stopColor="currentColor" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {showPrevious && prev.line && (
-          <path
-            d={prev.line}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            strokeDasharray="4 4"
-            className="text-muted-foreground/60"
-          />
-        )}
-        {cur.area && <path d={cur.area} fill="url(#metric-area)" />}
-        {cur.line && <path d={cur.line} fill="none" stroke="currentColor" strokeWidth={2} />}
-      </svg>
-    </div>
-  );
-}
-
-function ChangeBadge({ change, label, points }: { change: number | null | undefined; label: string; points?: boolean }) {
-  if (change === undefined) return <span className="text-xs font-medium text-warning">Comparison unavailable</span>;
-  if (change === null) return <span className="text-xs font-medium text-muted-foreground">New {label}</span>;
-  const up = change >= 0;
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold',
-        up ? 'bg-success/15 text-success' : 'bg-destructive/10 text-destructive',
-      )}
-    >
-      {up ? <TrendingUp size={13} aria-hidden="true" /> : <TrendingDown size={13} aria-hidden="true" />}
-      {up ? '+' : ''}
-      {change.toFixed(1)}
-      {points ? ' pts' : '%'} {label}
-    </span>
-  );
-}
+const panel = 'rounded-2xl border border-border bg-card shadow-sm';
 
 export function MetricReportPage({ metric }: { metric: MetricKey }) {
   const router = useRouter();
@@ -235,10 +136,10 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
         : Number(row.revenue ?? 0);
   const currentDaily = (currentOrders.data?.daily ?? []).map(dailyValue);
   const previousDaily = (previousOrders.data?.daily ?? []).map(dailyValue);
-  const dayLabels = (currentOrders.data?.daily ?? []).map((r) =>
-    new Date(`${r.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-  );
+  const dayLabels = (currentOrders.data?.daily ?? []).map((r) => formatDate(r.date));
   const chartFormat = (v: number) => (metric === 'orders' ? formatCompact(v) : formatMoney(v, metric === 'average' ? 2 : 0));
+  const chartAxisFormat = (v: number) =>
+    metric === 'orders' ? formatCompact(v) : metric === 'average' ? formatMoney(v, 0) : `£${formatCompact(v)}`;
 
   // Location comparison (only org-wide scope, money/count metrics).
   const locationValue = (r: { totalRevenue: string | null; orderCount: number }) =>
@@ -264,11 +165,11 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
         {header}
 
         {/* Hero */}
-        <section className={cn(panel, 'p-5 md:p-6')}>
+        <section className={cn(panel, 'border-primary/20 bg-[color-mix(in_oklab,var(--primary)_3%,var(--card))] p-5 md:p-6')}>
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{detail.description}</p>
           <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-2">
             <p className="text-4xl font-bold tabular-nums tracking-tight text-foreground">{loading ? '—' : detail.headline}</p>
-            <ChangeBadge change={headlineChange} label={window.comparisonLabel} points={metric === 'retention'} />
+            <DeltaBadge delta={changeDelta(headlineChange, { label: window.comparisonLabel, points: metric === 'retention' })} />
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
             {selectedLocation?.name ?? 'All accessible locations'} · {window.label}
@@ -291,12 +192,16 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
               {currentDaily.length === 0 ? (
                 <p className="py-10 text-center text-sm text-muted-foreground">No activity in this period.</p>
               ) : (
-                <TrendChart
-                  current={currentDaily}
-                  previous={previousDaily}
+                <ReportTrendChart
+                  series={[
+                    { name: 'Current period', values: currentDaily, tone: 'primary' },
+                    ...(showPrevious ? [{ name: 'Previous period', values: previousDaily, tone: 'comparison' as const, dashed: true }] : []),
+                  ]}
                   labels={dayLabels}
-                  format={chartFormat}
-                  showPrevious={showPrevious}
+                  formatValue={chartFormat}
+                  formatAxis={chartAxisFormat}
+                  ariaLabel={`${detail.title} trend`}
+                  insight={showPrevious ? `Compared with ${window.comparisonLabel.toLowerCase()}.` : undefined}
                 />
               )}
             </div>
@@ -304,15 +209,11 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
         </section>
 
         {/* Stat tiles */}
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCardGrid>
           {detail.values.map((item) => (
-            <div key={item.label} className={cn(panel, 'p-4')}>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{item.label}</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-foreground">{loading ? '—' : item.value}</p>
-              {item.note && <p className="mt-1 text-xs text-muted-foreground">{item.note}</p>}
-            </div>
+            <StatCard key={item.label} size="sm" label={item.label} value={item.value} hint={item.note} loading={loading} />
           ))}
-        </section>
+        </StatCardGrid>
 
         {/* Breakdown + location comparison */}
         <section className={cn('grid gap-4', showLocationCompare && 'xl:grid-cols-2')}>

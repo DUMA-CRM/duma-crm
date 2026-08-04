@@ -1,6 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useMemo, useState } from 'react';
+
+import { StatusLozenge, fmtAgo, isOpenStatus, ticketKey } from '@/components/helpdesk/shared';
 import {
   ArrowRight,
   BarChart3,
@@ -15,13 +20,12 @@ import {
   ClipboardCheck,
   Clock3,
   FileText,
-  GraduationCap,
   Headphones,
   HeartHandshake,
+  type IconComponent,
   KeyRound,
   LayoutDashboard,
   LifeBuoy,
-  type LucideIcon,
   Mail,
   MessageSquarePlus,
   Monitor,
@@ -39,14 +43,9 @@ import {
   WifiOff,
   Wrench,
   X,
-} from 'lucide-react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
-
-import { StatusLozenge, fmtAgo, isOpenStatus, ticketKey } from '@/components/helpdesk/shared';
+} from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
-import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
+import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -61,7 +60,7 @@ type GuideTab = 'overview' | 'guides' | 'service' | 'management' | 'people' | 'a
 interface GuideTopic {
   title: string;
   description: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   href: string;
   linkLabel: string;
   access?: string;
@@ -73,7 +72,7 @@ interface GuideTopic {
 interface Playbook {
   symptom: string;
   cause: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   steps: string[];
   href?: string;
   linkLabel?: string;
@@ -94,7 +93,13 @@ interface GlossaryEntry {
 
 const tabs: SectionTab<GuideTab>[] = [
   { value: 'overview', label: 'Start here', icon: BookOpen },
-  { value: 'guides', label: 'In-depth guides', icon: FileText, count: SUPPORT_ARTICLES.length, countLabel: `${SUPPORT_ARTICLES.length} articles` },
+  {
+    value: 'guides',
+    label: 'In-depth guides',
+    icon: FileText,
+    count: SUPPORT_ARTICLES.length,
+    countLabel: `${SUPPORT_ARTICLES.length} articles`,
+  },
   { value: 'service', label: 'Run service', icon: Monitor },
   { value: 'management', label: 'Manage the business', icon: BarChart3 },
   { value: 'people', label: 'People & account', icon: UsersRound },
@@ -207,8 +212,8 @@ const managementTopics: GuideTopic[] = [
     title: 'Purchasing & restocks',
     description: 'Maintain suppliers, raise purchase orders, and process requests for more stock.',
     icon: Truck,
-    href: '/inventory/purchasing',
-    linkLabel: 'Open purchasing',
+    href: '/inventory?tab=orders',
+    linkLabel: 'Open purchase orders',
     access: 'Store manager+',
     steps: [
       'Keep supplier details and the items they provide up to date.',
@@ -221,7 +226,7 @@ const managementTopics: GuideTopic[] = [
     title: 'Stocktakes & transfers',
     description: 'Count physical stock, resolve differences, and move stock between locations.',
     icon: ClipboardCheck,
-    href: '/inventory/stocktakes',
+    href: '/inventory?tab=stocktakes',
     linkLabel: 'Open stocktakes',
     access: 'Store manager+',
     steps: [
@@ -329,18 +334,6 @@ const peopleTopics: GuideTopic[] = [
     ],
   },
   {
-    title: 'Training & compliance',
-    description: 'Complete assigned learning, maintain courses, and monitor required training.',
-    icon: GraduationCap,
-    href: '/training',
-    linkLabel: 'Open training',
-    steps: [
-      'Open your assigned course, work through each lesson, and complete the required content.',
-      'Managers can create courses and organise lessons from the Courses area.',
-      'Use Compliance to identify overdue, incomplete, or soon-to-expire requirements.',
-    ],
-  },
-  {
     title: 'Settings & security',
     description: 'Personalise DUMA, configure this device, install the app, and protect your account.',
     icon: Settings,
@@ -372,7 +365,7 @@ const peopleTopics: GuideTopic[] = [
 
 const accessAreas: AccessArea[] = [
   { area: 'Dashboard, POS, KDS', detail: 'Serving customers and seeing today’s activity.', who: ['Everyone'] },
-  { area: 'My HR, My Rota, Training', detail: 'Your own leave, attendance, shifts, documents and learning.', who: ['Everyone'] },
+  { area: 'My HR, My Rota', detail: 'Your own leave, attendance, shifts and documents.', who: ['Everyone'] },
   { area: 'Support', detail: 'This help centre and the request form.', who: ['Everyone'] },
   {
     area: 'Orders, Customers, Menu, Inventory, Reports',
@@ -487,8 +480,8 @@ const playbooks: Playbook[] = [
       'Enter expiry dates for perishable lines; they drive the expiry warnings later.',
       'Part deliveries are normal: receive what came and the rest stays outstanding.',
     ],
-    href: '/inventory/purchasing',
-    linkLabel: 'Open purchasing',
+    href: '/inventory?tab=orders',
+    linkLabel: 'Open purchase orders',
   },
   {
     symptom: 'Customer emails are not arriving',
@@ -634,23 +627,26 @@ const glossary: GlossaryEntry[] = [
     group: 'People',
   },
   {
-    term: 'Practical sign-off',
-    definition: 'Training that a manager must observe and approve rather than something you can mark complete yourself.',
-    group: 'People',
-  },
-  {
     term: 'Helpdesk request',
     definition: 'A tracked conversation with HR or support, with a status and a full history.',
     group: 'People',
   },
-  { term: 'Loyalty points', definition: 'The balance a customer can earn and spend. Adjustments are manual corrections.', group: 'Customers' },
+  {
+    term: 'Loyalty points',
+    definition: 'The balance a customer can earn and spend. Adjustments are manual corrections.',
+    group: 'Customers',
+  },
   { term: 'Tier', definition: 'Bronze, silver, gold or VIP, reached at set points thresholds.', group: 'Customers' },
   {
     term: 'Delivery status',
     definition: 'What happened to an email: queued, sending, sent, failed or cancelled.',
     group: 'Customers',
   },
-  { term: 'Automation', definition: 'A rule that sends a template when something happens, such as an order being ready.', group: 'Customers' },
+  {
+    term: 'Automation',
+    definition: 'A rule that sends a template when something happens, such as an order being ready.',
+    group: 'Customers',
+  },
 ];
 
 const faqs = [
@@ -762,7 +758,7 @@ function TopicCard({ topic }: { topic: GuideTopic }) {
   const Icon = topic.icon;
 
   return (
-    <article className="rounded-2xl border border-border bg-card p-5 md:p-6">
+    <article className="rounded-2xl border border-border bg-card shadow-sm p-5 md:p-6">
       <div className="flex items-start gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Icon size={18} aria-hidden="true" />
@@ -825,7 +821,7 @@ function OpenRequests() {
   if (open.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-border bg-card">
+    <section className="rounded-2xl border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
         <div>
           <h2 className="font-semibold text-foreground">Your open requests</h2>
@@ -899,8 +895,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
     );
   }, [normalisedQuery]);
 
-  const resultCount =
-    searchResults.length + faqResults.length + playbookResults.length + glossaryResults.length + articleResults.length;
+  const resultCount = searchResults.length + faqResults.length + playbookResults.length + glossaryResults.length + articleResults.length;
 
   const supportHref =
     'mailto:support@duma.coffee?subject=DUMA%20support%20request&body=Name%3A%0AWorkspace%20and%20location%3A%0APage%20or%20feature%3A%0AWhat%20I%20was%20trying%20to%20do%3A%0AWhat%20happened%3A%0AApproximate%20time%3A%0AOrder%20or%20customer%20reference%20(if%20relevant)%3A%0A%0APlease%20attach%20a%20screenshot%20if%20it%20is%20safe%20to%20do%20so.';
@@ -910,12 +905,6 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
       eyebrow="DUMA help centre"
       title="Support"
       icon={<LifeBuoy size={20} aria-hidden="true" />}
-      meta={
-        <span className="text-xs text-muted-foreground">
-          Guides, feature reference and quick answers
-          {role && ` · tailored for your ${roleLabels[role].toLowerCase()} account`}
-        </span>
-      }
       actions={
         <>
           <Button asChild variant="outline" className="h-10 gap-1.5">
@@ -975,7 +964,9 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
           <section>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Search results</p>
             <h2 className="mt-1 text-xl font-semibold text-foreground">
-              {resultCount ? `${resultCount} result${resultCount === 1 ? '' : 's'} for “${query.trim()}”` : `No results for “${query.trim()}”`}
+              {resultCount
+                ? `${resultCount} result${resultCount === 1 ? '' : 's'} for “${query.trim()}”`
+                : `No results for “${query.trim()}”`}
             </h2>
             {articleResults.length > 0 && (
               <div className="mt-5 grid items-start gap-4 md:grid-cols-2">
@@ -1057,7 +1048,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-border bg-card p-5 md:p-7">
+                <section className="rounded-2xl border border-border bg-card shadow-sm p-5 md:p-7">
                   <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Recommended next step</p>
@@ -1128,7 +1119,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                     <BrowseCard
                       icon={UsersRound}
                       title="People & account"
-                      description="Rota, HR, training, settings, and security"
+                      description="Rota, HR, settings, and security"
                       onClick={() => setActiveTab('people')}
                     />
                     <BrowseCard
@@ -1165,7 +1156,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                 </section>
 
                 <section className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-border bg-card p-5">
+                  <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
                     <div className="flex items-center gap-2">
                       <WifiOff size={17} className="text-warning" aria-hidden="true" />
                       <h2 className="font-semibold text-foreground">If something goes wrong</h2>
@@ -1221,8 +1212,8 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
             {activeTab === 'people' && (
               <GuideSection
                 eyebrow="People & account"
-                title="Work, learning, and personal settings"
-                description="Everything from an individual rota to staff operations, training, device setup, and account security."
+                title="Work and personal settings"
+                description="Everything from an individual rota to staff operations, device setup, and account security."
               >
                 <GuideGrid topics={peopleTopics} />
               </GuideSection>
@@ -1260,7 +1251,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                 description="Access follows your role and your assigned locations. If an area is missing for you, this is why."
               >
                 <div className="space-y-6">
-                  <div className="overflow-hidden rounded-2xl border border-border bg-card">
+                  <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
                     <div className="hidden border-b border-border bg-muted/60 px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,17rem)] md:gap-4">
                       <span>Area</span>
                       <span>Who can open it</span>
@@ -1293,7 +1284,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-border bg-card p-5">
+                    <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
                       <div className="flex items-center gap-2">
                         <ShieldCheck size={17} className="text-primary" aria-hidden="true" />
                         <h3 className="font-semibold text-foreground">Two things decide what you see</h3>
@@ -1318,7 +1309,10 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                         Ask a manager or owner to change your role or add a location — it is not something you can grant yourself. Pay and
                         bank details are restricted by design and stay restricted even for a store manager.
                       </p>
-                      <Link href="/my-hr?tab=helpdesk" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+                      <Link
+                        href="/my-hr?tab=helpdesk"
+                        className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+                      >
                         Raise an access request
                         <ArrowRight size={14} aria-hidden="true" />
                       </Link>
@@ -1439,12 +1433,12 @@ function OverviewCard({
   description,
 }: {
   number: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   title: string;
   description: string;
 }) {
   return (
-    <article className="relative overflow-hidden rounded-2xl border border-border bg-card p-5">
+    <article className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm p-5">
       <span className="absolute right-4 top-3 text-3xl font-semibold text-muted/80" aria-hidden="true">
         {number}
       </span>
@@ -1463,7 +1457,7 @@ function BrowseCard({
   description,
   onClick,
 }: {
-  icon: LucideIcon;
+  icon: IconComponent;
   title: string;
   description: string;
   onClick: () => void;
@@ -1472,7 +1466,7 @@ function BrowseCard({
     <button
       type="button"
       onClick={onClick}
-      className="group rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+      className="group rounded-2xl border border-border bg-card shadow-sm p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
     >
       <div className="flex items-start justify-between gap-3">
         <span className="flex size-9 items-center justify-center rounded-xl bg-muted text-foreground group-hover:bg-primary/10 group-hover:text-primary">
@@ -1495,7 +1489,7 @@ function ArticleCard({ article }: { article: SupportArticle }) {
   return (
     <Link
       href={`/support/${article.slug}`}
-      className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/35 hover:bg-surface"
+      className="group flex h-full flex-col rounded-2xl border border-border bg-card shadow-sm p-5 transition-colors hover:border-primary/35 hover:bg-surface"
     >
       <div className="flex items-start justify-between gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -1522,7 +1516,7 @@ function ArticleCard({ article }: { article: SupportArticle }) {
 function PlaybookCard({ playbook }: { playbook: Playbook }) {
   const Icon = playbook.icon;
   return (
-    <article className="rounded-2xl border border-border bg-card p-5 md:p-6">
+    <article className="rounded-2xl border border-border bg-card shadow-sm p-5 md:p-6">
       <div className="flex items-start gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning">
           <Icon size={18} aria-hidden="true" />
@@ -1556,7 +1550,7 @@ function GlossaryGrid({ entries }: { entries: GlossaryEntry[] }) {
   return (
     <dl className="grid gap-3 md:grid-cols-2">
       {entries.map((entry) => (
-        <div key={entry.term} className="rounded-2xl border border-border bg-card p-4">
+        <div key={entry.term} className="rounded-2xl border border-border bg-card shadow-sm p-4">
           <dt className="text-sm font-semibold text-foreground">{entry.term}</dt>
           <dd className="mt-1 text-sm leading-6 text-muted-foreground">{entry.definition}</dd>
         </div>
@@ -1567,7 +1561,7 @@ function GlossaryGrid({ entries }: { entries: GlossaryEntry[] }) {
 
 function FaqItem({ question, answer }: { question: string; answer: string }) {
   return (
-    <details className="group rounded-2xl border border-border bg-card">
+    <details className="group rounded-2xl border border-border bg-card shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-foreground md:px-6">
         {question}
         <ChevronDown size={17} className="shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />

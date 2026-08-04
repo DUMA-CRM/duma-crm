@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CircleHelp, Loader2, Lock, MessageSquarePlus, Search, X } from 'lucide-react';
+import { ArrowLeft, CircleHelp, Loader2, Lock, MessageSquarePlus, Search, X } from '@/components/icons';
 import { useMemo, useState } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -324,7 +324,7 @@ function TicketView({
           <div className="min-w-0 space-y-5">
             <section>
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Description</h3>
-              <div className="mt-2 rounded-xl border border-border bg-card p-4">
+              <div className="mt-2 rounded-xl border border-border bg-card shadow-sm p-4">
                 {description ? (
                   <p className="whitespace-pre-wrap text-sm text-foreground">{description.body}</p>
                 ) : (
@@ -383,7 +383,7 @@ function TicketView({
                     onKeyDown={(event) => {
                       if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && comment.trim()) send.mutate();
                     }}
-                    className="w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus:border-primary focus:ring-2 focus:ring-primary/15"
+                    className="w-full rounded-xl border border-input bg-field p-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus:border-primary focus:ring-2 focus:ring-primary/15"
                   />
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
                     {isAgent ? (
@@ -409,7 +409,7 @@ function TicketView({
           </div>
 
           {/* Details panel */}
-          <aside className="rounded-xl border border-border bg-card xl:sticky xl:top-0">
+          <aside className="rounded-xl border border-border bg-card shadow-sm xl:sticky xl:top-0">
             <div className="border-b border-border px-4 py-2.5">
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Details</h3>
             </div>

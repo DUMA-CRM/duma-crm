@@ -83,6 +83,10 @@ export async function revokeOtherSessions(): Promise<void> {
   await apiFetch('/auth/revoke-other-sessions', { method: 'POST' });
 }
 
+export const requestPasswordReset = (email: string, redirectTo: string) => apiFetch<{ status: boolean }>('/auth/request-password-reset', { method: 'POST', body: JSON.stringify({ email, redirectTo }) });
+export const resetPassword = (token: string, newPassword: string) => apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) });
+export const changePassword = (currentPassword: string, newPassword: string) => apiFetch('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword, revokeOtherSessions: true }) });
+
 // Get the current session.
 // Pass `cookieHeader` when calling from a Server Component so the session
 // cookie is forwarded to the API (browsers do this automatically).

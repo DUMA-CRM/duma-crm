@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, LogOut } from 'lucide-react';
+import { Loader2, LogOut } from '@/components/icons';
 
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';

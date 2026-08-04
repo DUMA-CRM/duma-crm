@@ -1,9 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Plus, Trash2, Truck } from 'lucide-react';
 import { useState } from 'react';
 
+import { Check, Plus, Trash2, Truck } from '@/components/icons';
 import {
   FormActions,
   STATUS_META,
@@ -16,12 +16,13 @@ import {
   selectClass,
   unitMoney,
 } from '@/components/purchasing/shared';
-import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { ConfirmDrawer } from '@/components/shared/ConfirmDrawer';
+import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
 import { getStockItems } from '@/lib/api/inventory.service';
@@ -37,9 +38,10 @@ import {
 } from '@/lib/api/purchasing.service';
 import { updateRestockRequest } from '@/lib/api/restock.service';
 import { cn } from '@/lib/utils/cn';
+import { formatDate } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 
-const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—');
+const fmtDate = (iso?: string | null) => formatDate(iso);
 const defaultExpiry = (shelfLifeDays?: number | null) => {
   if (!shelfLifeDays) return '';
   const date = new Date();
@@ -144,10 +146,7 @@ function CreatePoForm({
             className={selectClass}
           />
         </div>
-        <div>
-          <label className={labelClass}>Expected delivery</label>
-          <input type="date" value={expectedAt} onChange={(e) => setExpectedAt(e.target.value)} className={inputClass} />
-        </div>
+        <DatePicker label="Expected delivery" value={expectedAt} onValueChange={setExpectedAt} />
       </div>
 
       {activeSuppliers.length === 0 && (
@@ -399,17 +398,13 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
                   className={cn(inputClass, 'mt-1 w-full text-right tabular-nums')}
                 />
               </label>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Expiry
-                <input
-                  type="date"
-                  value={receiveExpiry[l.id] ?? defaultExpiry(l.stockItem?.defaultShelfLifeDays)}
-                  onChange={(e) => setReceiveExpiry((prev) => ({ ...prev, [l.id]: e.target.value }))}
-                  aria-label={`Expiry of ${l.stockItem?.name}`}
-                  className={cn(inputClass, 'mt-1 w-full')}
-                  required={l.stockItem?.isPerishable}
-                />
-              </label>
+              <DatePicker
+                label="Expiry"
+                value={receiveExpiry[l.id] ?? defaultExpiry(l.stockItem?.defaultShelfLifeDays)}
+                onValueChange={(expiry) => setReceiveExpiry((prev) => ({ ...prev, [l.id]: expiry }))}
+                aria-label={`Expiry of ${l.stockItem?.name}`}
+                required={l.stockItem?.isPerishable}
+              />
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Lot
                 <input
@@ -511,7 +506,7 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
       </div>
 
       {cancelOpen && (
-        <ConfirmModal
+        <ConfirmDrawer
           title="Cancel Purchase Order"
           message={
             <>
@@ -691,7 +686,11 @@ export function PurchaseOrdersPanel({
       )}
 
       {createOpen && (
-        <Modal title="New Purchase Order" onClose={() => onCreateOpenChange(false)} className="max-w-xl">
+        <Drawer
+          title="New Purchase Order"
+          description="Pick a supplier, list what you're ordering, and send it."
+          onClose={() => onCreateOpenChange(false)}
+        >
           <CreatePoForm
             key={draft?.restockRequestIds?.join(',') ?? 'blank'}
             suppliers={suppliers}
@@ -700,12 +699,12 @@ export function PurchaseOrdersPanel({
             onClose={() => onCreateOpenChange(false)}
             onManageSuppliers={onManageSuppliers}
           />
-        </Modal>
+        </Drawer>
       )}
       {detailId && (
-        <Modal title="Purchase Order" onClose={() => setDetailId(null)} className="max-w-2xl">
+        <Drawer title="Purchase Order" onClose={() => setDetailId(null)} className="max-w-2xl">
           <PoDetail id={detailId} onClose={() => setDetailId(null)} />
-        </Modal>
+        </Drawer>
       )}
     </div>
   );

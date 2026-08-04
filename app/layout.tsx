@@ -1,15 +1,17 @@
 import type { Metadata } from 'next';
 import { ThemeProvider } from 'next-themes';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist_Mono, Questrial } from 'next/font/google';
 import Script from 'next/script';
 
 import { QueryProvider } from '@/components/providers/QueryProvider';
 
 import './globals.css';
 
-const geist = Geist({
+// Questrial ships a single 400 weight (not a variable font), so the weight is required.
+const questrial = Questrial({
+  weight: '400',
   subsets: ['latin'],
-  variable: '--font-geist',
+  variable: '--font-questrial',
   display: 'swap',
 });
 
@@ -39,7 +41,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${geist.variable} ${geistMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${questrial.variable} ${geistMono.variable}`}>
       <body className="font-body" suppressHydrationWarning>
         {/* Chrome fires beforeinstallprompt as soon as install criteria are met —
             on repeat visits that's BEFORE React hydrates, so a listener attached

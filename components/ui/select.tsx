@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from '@/components/icons';
 import { Select as SelectPrimitive } from 'radix-ui';
 import type { ReactNode } from 'react';
 
@@ -62,8 +62,10 @@ function Select({
         aria-invalid={ariaInvalid || undefined}
         aria-required={required || undefined}
         className={cn(
-          'inline-flex h-9 min-w-0 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none',
-          'transition-[border-color,box-shadow,background-color] duration-150 hover:bg-muted/50',
+          // Matches Input: same fill, same border token, so a select and a text
+          // field sitting side by side read as one control family.
+          'inline-flex h-9 min-w-0 items-center gap-2 rounded-lg border border-input bg-field px-3 text-sm text-foreground outline-none',
+          'transition-[border-color,box-shadow,background-color] duration-150 hover:bg-surface-offset',
           'focus:border-primary focus:ring-2 focus:ring-primary/15',
           'aria-invalid:border-destructive/60 aria-invalid:ring-destructive/15',
           'disabled:cursor-not-allowed disabled:opacity-50',

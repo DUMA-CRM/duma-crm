@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Banknote, CalendarDays, CalendarRange, CircleHelp, Clock, Lock, Plus, UsersRound } from 'lucide-react';
+import { Banknote, CalendarDays, CalendarRange, CircleHelp, Lock, Plus, UsersRound } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
@@ -12,8 +12,7 @@ import { LeaveInbox } from '@/components/people/HrInbox';
 import { OnboardingPage } from '@/components/people/OnboardingPage';
 import { StaffDirectory } from '@/components/people/StaffDirectory';
 import { canSeeMoney } from '@/components/people/shared';
-import { ShiftsView } from '@/components/scheduling/ShiftsView';
-import { TeamRota } from '@/components/scheduling/TeamRota';
+import { ShiftsWorkspace } from '@/components/scheduling/ShiftsWorkspace';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
@@ -24,7 +23,7 @@ import { getManagedLeaveRequests, getManagedTickets } from '@/lib/api/people-ops
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-export type StaffTab = 'team' | 'rota' | 'shifts' | 'leave' | 'helpdesk' | 'payroll';
+export type StaffTab = 'team' | 'rota' | 'leave' | 'helpdesk' | 'payroll';
 
 /**
  * Each tab is a route so links stay shareable, the browser back button steps
@@ -33,7 +32,6 @@ export type StaffTab = 'team' | 'rota' | 'shifts' | 'leave' | 'helpdesk' | 'payr
 const TAB_PATH: Record<StaffTab, string> = {
   team: '/staff',
   rota: '/staff/rota',
-  shifts: '/staff/shifts',
   leave: '/staff/requests',
   helpdesk: '/staff/helpdesk',
   payroll: '/staff/payroll',
@@ -55,6 +53,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
   const canOnboard = canSeeMoney(role);
 
   const [onboarding, setOnboarding] = useState(false);
+  const [newShift, setNewShift] = useState(false);
   const [leaveStatus, setLeaveStatus] = useState('pending');
   const [payrollView, setPayrollView] = useState<'run' | 'history'>('run');
   const [ticketFilters, setTicketFilters] = useState<HelpdeskFilters>({ search: '', status: 'open', category: '' });
@@ -85,8 +84,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
   const tabs = useMemo<SectionTab<StaffTab>[]>(() => {
     const list: SectionTab<StaffTab>[] = [
       { value: 'team', label: 'Team', icon: UsersRound },
-      { value: 'rota', label: 'Rota', icon: CalendarRange },
-      { value: 'shifts', label: 'Shifts', icon: Clock },
+      { value: 'rota', label: 'Rota & shifts', icon: CalendarRange },
     ];
     if (canPeopleOps) {
       list.push({
@@ -132,6 +130,12 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
             <Plus size={15} />
             <span className="hidden md:inline">Onboard</span>
           </Button>
+        ) : active === 'rota' ? (
+          <Button className="h-10 gap-1.5" onClick={() => setNewShift(true)}>
+            <Plus size={15} />
+            <span className="hidden md:inline">Create a new record</span>
+            <span className="md:hidden">New</span>
+          </Button>
         ) : active === 'payroll' ? (
           <SegmentedControl
             options={[
@@ -159,9 +163,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
     >
       {active === 'team' && <StaffDirectory />}
 
-      {active === 'rota' && <TeamRota />}
-
-      {active === 'shifts' && <ShiftsView />}
+      {active === 'rota' && <ShiftsWorkspace creating={newShift} onCreatingChange={setNewShift} />}
 
       {active === 'leave' && <LeaveInbox status={leaveStatus} setStatus={setLeaveStatus} />}
 

@@ -1,11 +1,11 @@
-import { FileText } from 'lucide-react';
+import { FileText } from '@/components/icons';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 
-import { cartItemTotal } from '@/lib/utils/pos';
+import { cartItemTotal, formatPrice } from '@/lib/utils/pos';
 import type { CartItem } from '@/types/pos';
 
 interface OrderSummaryProps {
@@ -14,9 +14,10 @@ interface OrderSummaryProps {
   onNotesChange: (v: string) => void;
   /** Opens the full-screen checkout flow (method → confirm → receipt). */
   onCharge: () => void;
+  currency?: string;
 }
 
-export function OrderSummary({ cart, notes, onNotesChange, onCharge }: OrderSummaryProps) {
+export function OrderSummary({ cart, notes, onNotesChange, onCharge, currency }: OrderSummaryProps) {
   // Estimate only — the API computes the authoritative total and applies loyalty server-side.
   const subtotal = cart.reduce((sum, c) => sum + cartItemTotal(c), 0);
 
@@ -34,11 +35,11 @@ export function OrderSummary({ cart, notes, onNotesChange, onCharge }: OrderSumm
 
       <div className="flex items-center justify-between">
         <Label>ESTIMATED TOTAL</Label>
-        <Label className="text-2xl text-primary tabular-nums">£{(subtotal / 100).toFixed(2)}</Label>
+        <Label className="text-2xl text-primary tabular-nums">{formatPrice(subtotal, currency)}</Label>
       </div>
 
       <Button size="lg" onClick={onCharge} className="w-full h-16 text-base mt-1">
-        Charge £{(subtotal / 100).toFixed(2)}
+        Charge {formatPrice(subtotal, currency)}
       </Button>
     </div>
   );

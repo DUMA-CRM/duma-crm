@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Mail, Send } from 'lucide-react';
+import { Mail, Send } from '@/components/icons';
 import { useState } from 'react';
 
 import { Modal } from '@/components/shared/Modal';

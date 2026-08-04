@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChefHat, Loader2, Search, Trash2, UtensilsCrossed } from 'lucide-react';
+import { ChefHat, Loader2, Search, Trash2, UtensilsCrossed } from '@/components/icons';
 import { useEffect, useMemo, useState } from 'react';
 
 import { RecipeSummaryChips } from '@/components/menu/RecipeEditorPage';

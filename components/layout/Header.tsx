@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { History, MoreHorizontal, PanelRight, RotateCcw, X } from 'lucide-react';
+import { History, MoreHorizontal, PanelRight, RotateCcw, X } from '@/components/icons';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { roleAtLeast } from '@/lib/api/staff.service';

@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
 import { createOrder } from '@/lib/api/orders.service';
+import { confirmPayment, startPayment } from '@/lib/api/payments.service';
 import { classifyOfflineOrderFailure } from '@/lib/utils/offline-order-sync';
 import { useAuthStore } from '@/stores/authStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
@@ -44,7 +45,12 @@ export function OfflineOrderSync() {
         );
         for (const queued of eligible) {
           try {
-            await createOrder(queued.payload, queued.idempotencyKey);
+            const order = await createOrder(queued.payload, queued.idempotencyKey);
+            const payment = await startPayment(order.id, {
+              provider: queued.paymentProvider,
+              idempotencyKey: `pay-${queued.idempotencyKey}`,
+            });
+            await confirmPayment(payment.id, 'succeeded');
             store().remove(queued.id);
             synced++;
           } catch (err) {

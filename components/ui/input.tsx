@@ -2,6 +2,8 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+import { DatePicker } from './date-picker';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface InputProps extends React.ComponentProps<'input'> {
@@ -19,6 +21,27 @@ function Input({ className, type, label, hint, error, leftIcon, rightIcon, right
   // Auto-generate an id from the label if none is passed — ensures label is
   // always associated with the input for accessibility even without an explicit id.
   const inputId = id ?? (label ? label.toLowerCase().replaceAll(/\s+/g, '-') : undefined);
+
+  if (type === 'date') {
+    return (
+      <DatePicker
+        id={inputId}
+        name={props.name}
+        label={label}
+        hint={hint}
+        error={error}
+        value={String(props.value ?? '')}
+        onValueChange={(value) => props.onChange?.({ target: { value }, currentTarget: { value } } as React.ChangeEvent<HTMLInputElement>)}
+        min={typeof props.min === 'string' ? props.min : undefined}
+        max={typeof props.max === 'string' ? props.max : undefined}
+        required={props.required}
+        disabled={props.disabled}
+        autoFocus={props.autoFocus}
+        aria-label={props['aria-label']}
+        className={className}
+      />
+    );
+  }
 
   const hasLeft = Boolean(leftIcon);
   const hasRight = Boolean(rightIcon || rightAction);
@@ -53,8 +76,9 @@ function Input({ className, type, label, hint, error, leftIcon, rightIcon, right
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
           className={cn(
-            // Base
-            'w-full h-9 bg-surface-offset border border-transparent rounded-lg text-sm text-foreground',
+            // Base. The border is not decorative: an input can sit on a white
+            // card or straight on the page, and the fill alone can't carry both.
+            'w-full h-9 bg-field border border-input rounded-lg text-sm text-foreground',
             'placeholder:text-muted-foreground outline-none',
             'transition-[border-color,box-shadow] duration-150',
             // Focus

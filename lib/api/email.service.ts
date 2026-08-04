@@ -11,6 +11,44 @@ export type EmailTrigger =
   | 'customer_birthday'
   | 'customer_inactive';
 export type EmailDeliveryStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'cancelled';
+export type EmailWorkflowConditionField =
+  | 'customer.marketingOptIn'
+  | 'customer.tier'
+  | 'customer.pointsBalance'
+  | 'order.status'
+  | 'order.totalAmount'
+  | 'order.paymentMethod';
+export type EmailWorkflowNode =
+  | {
+      id: string;
+      type: 'trigger';
+      name: string;
+      config: { event: Exclude<EmailTrigger, 'manual'>; locationId?: string | null; offsetDays?: number; timezone?: string };
+    }
+  | { id: string; type: 'send_email'; name: string; config: { templateId: string } }
+  | { id: string; type: 'delay'; name: string; config: { amount: number; unit: 'minutes' | 'hours' | 'days' } }
+  | {
+      id: string;
+      type: 'condition';
+      name: string;
+      config: {
+        field: EmailWorkflowConditionField;
+        operator: 'equals' | 'not_equals' | 'greater_than' | 'greater_than_or_equal' | 'less_than' | 'less_than_or_equal' | 'contains';
+        value: string | number | boolean;
+      };
+    }
+  | { id: string; type: 'end'; name: string; config: Record<string, never> };
+export interface EmailWorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  branch?: 'next' | 'yes' | 'no';
+}
+export interface EmailWorkflowDefinition {
+  schemaVersion: 1;
+  nodes: EmailWorkflowNode[];
+  edges: EmailWorkflowEdge[];
+}
 
 export interface EmailConnection {
   id: string;
@@ -50,6 +88,7 @@ export interface EmailTemplate {
   subject: string;
   htmlBody: string;
   textBody?: string | null;
+  design?: Record<string, unknown> | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -67,6 +106,11 @@ export interface EmailAutomation {
   offsetDays: number;
   timezone: string;
   isEnabled: boolean;
+  definition?: EmailWorkflowDefinition;
+  publishedDefinition?: EmailWorkflowDefinition | null;
+  publishedVersion: number;
+  runCount?: number;
+  failedRunCount?: number;
   lastEvaluatedAt?: string | null;
   template?: Pick<EmailTemplate, 'id' | 'name'>;
   location?: { id: string; name: string } | null;
@@ -74,10 +118,44 @@ export interface EmailAutomation {
   updatedAt: string;
 }
 
-export type EmailAutomationPayload = Pick<EmailAutomation, 'templateId' | 'name' | 'trigger' | 'offsetDays' | 'timezone' | 'isEnabled'> & {
+export type EmailAutomationPayload = {
+  name: string;
+  definition: EmailWorkflowDefinition;
+  isEnabled: boolean;
   tenantId?: string;
-  locationId?: string | null;
 };
+
+export interface EmailAutomationRun {
+  id: string;
+  automationId: string;
+  version: number;
+  eventKey: string;
+  customerId?: string | null;
+  orderId?: string | null;
+  status: 'running' | 'completed' | 'failed';
+  stepCount: number;
+  failedStepCount: number;
+  startedAt: string;
+  completedAt?: string | null;
+  createdAt: string;
+}
+
+export interface EmailAutomationRunDetail extends EmailAutomationRun {
+  definition: EmailWorkflowDefinition;
+  context: Record<string, unknown>;
+  steps: Array<{
+    id: string;
+    nodeId: string;
+    nodeType: EmailWorkflowNode['type'];
+    status: string;
+    scheduledAt: string;
+    attemptCount: number;
+    output?: Record<string, unknown> | null;
+    lastError?: string | null;
+    completedAt?: string | null;
+    createdAt: string;
+  }>;
+}
 
 export interface EmailDelivery {
   id: string;
@@ -140,16 +218,31 @@ export const createEmailTemplate = (data: EmailTemplatePayload) =>
   apiFetch<EmailTemplate>('/email/templates', { method: 'POST', body: JSON.stringify(data) });
 export const updateEmailTemplate = (id: string, data: Partial<EmailTemplatePayload>) =>
   apiFetch<EmailTemplate>(`/email/templates/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+/**
+ * What "Delete" does in the UI. The record is kept and flagged inactive, which
+ * takes it out of every list and out of reach of new automation steps, while
+ * delivery history and published workflow runs keep working. Nothing calls the
+ * destructive DELETE endpoint, so a template can always be recovered in the API.
+ */
 export const archiveEmailTemplate = (id: string, tenantId?: string) =>
-  apiFetch<EmailTemplate>(`/email/templates/${id}${tenantQuery(tenantId)}`, { method: 'DELETE' });
+  updateEmailTemplate(id, { isActive: false, tenantId });
 
 export const getEmailAutomations = (tenantId?: string) => apiFetch<EmailAutomation[]>(`/email/automations${tenantQuery(tenantId)}`);
 export const createEmailAutomation = (data: EmailAutomationPayload) =>
   apiFetch<EmailAutomation>('/email/automations', { method: 'POST', body: JSON.stringify(data) });
 export const updateEmailAutomation = (id: string, data: Partial<EmailAutomationPayload>) =>
   apiFetch<EmailAutomation>(`/email/automations/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+export const publishEmailAutomation = (id: string, tenantId?: string) =>
+  apiFetch<EmailAutomation>(`/email/automations/${id}/publish`, {
+    method: 'POST',
+    body: JSON.stringify({ tenantId }),
+  });
 export const deleteEmailAutomation = (id: string, tenantId?: string) =>
   apiFetch<void>(`/email/automations/${id}${tenantQuery(tenantId)}`, { method: 'DELETE' });
+export const getEmailAutomationRuns = (id: string, tenantId?: string) =>
+  apiFetch<EmailAutomationRun[]>(`/email/automations/${id}/runs${tenantQuery(tenantId)}`);
+export const getEmailAutomationRun = (id: string, tenantId?: string) =>
+  apiFetch<EmailAutomationRunDetail>(`/email/automation-runs/${id}${tenantQuery(tenantId)}`);
 
 export const sendEmail = (data: {
   tenantId?: string;
@@ -170,12 +263,7 @@ export const retryEmailDelivery = (id: string, tenantId?: string) =>
   apiFetch<EmailDelivery>(`/email/deliveries/${id}/retry${tenantQuery(tenantId)}`, { method: 'POST' });
 export const getMarketingSuppressions = (tenantId?: string) =>
   apiFetch<MarketingSuppression[]>(`/email/suppressions${tenantQuery(tenantId)}`);
-export const addMarketingSuppression = (data: {
-  tenantId?: string;
-  email: string;
-  customerId?: string;
-  reason: string;
-  source?: string;
-}) => apiFetch<MarketingSuppression>('/email/suppressions', { method: 'POST', body: JSON.stringify(data) });
+export const addMarketingSuppression = (data: { tenantId?: string; email: string; customerId?: string; reason: string; source?: string }) =>
+  apiFetch<MarketingSuppression>('/email/suppressions', { method: 'POST', body: JSON.stringify(data) });
 export const liftMarketingSuppression = (id: string, tenantId?: string) =>
   apiFetch<MarketingSuppression>(`/email/suppressions/${id}${tenantQuery(tenantId)}`, { method: 'DELETE' });

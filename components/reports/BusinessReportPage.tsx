@@ -1,12 +1,13 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Boxes, PackageSearch, ReceiptText, RefreshCw, TrendingDown, TrendingUp, UsersRound } from 'lucide-react';
+import { AlertTriangle, Boxes, PackageSearch, ReceiptText, RefreshCw, UsersRound } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { StatCard, StatCardGrid, comparisonDelta } from '@/components/shared/StatCard';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -25,11 +26,11 @@ import { getVariance } from '@/lib/api/scheduling.service';
 import { getLocations } from '@/lib/api/workspace.service';
 import type { BusinessReportSection } from '@/lib/utils/business-reports';
 import { cn } from '@/lib/utils/cn';
-import { formatCompact, formatMoney, orderMetrics, percentageChange } from '@/lib/utils/dashboard';
+import { formatCompact, formatMoney, orderMetrics } from '@/lib/utils/dashboard';
 import { previousDateRange, reportDateRange, shortDateLabel, trailingDateRange } from '@/lib/utils/reporting';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-const panel = 'rounded-2xl border border-border bg-card';
+const panel = 'rounded-2xl border border-border bg-card shadow-sm';
 
 const SECTION_META = {
   labour: {
@@ -70,50 +71,6 @@ function ErrorBlock({ onRetry }: { onRetry: () => void }) {
       <Button variant="outline" size="sm" onClick={onRetry}>
         <RefreshCw size={14} /> Try again
       </Button>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  note,
-  previous,
-  current,
-  lowerIsBetter,
-  loading,
-}: {
-  label: string;
-  value: string;
-  note?: string;
-  previous?: number;
-  current?: number;
-  lowerIsBetter?: boolean;
-  loading?: boolean;
-}) {
-  const change = previous !== undefined && current !== undefined ? percentageChange(current, previous) : undefined;
-  const good = change !== undefined && change !== null && (lowerIsBetter ? change <= 0 : change >= 0);
-
-  return (
-    <div className={cn(panel, 'min-h-36 p-4')}>
-      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-      {loading ? (
-        <LoadingBlock className="mt-4 h-8 w-28" />
-      ) : (
-        <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-foreground">{value}</p>
-      )}
-      {change !== undefined && (
-        <p
-          className={cn(
-            'mt-2 inline-flex items-center gap-1 text-[11px] font-semibold',
-            change === null ? 'text-muted-foreground' : good ? 'text-success' : 'text-destructive',
-          )}
-        >
-          {change !== null && (change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />)}
-          {change === null ? 'New vs previous period' : `${change >= 0 ? '+' : ''}${change.toFixed(1)}% vs previous period`}
-        </p>
-      )}
-      {note && <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">{note}</p>}
     </div>
   );
 }
@@ -236,41 +193,36 @@ function LabourReport({ context }: { context: ReportContext }) {
 
   return (
     <>
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat
+      <StatCardGrid>
+        <StatCard
           label="Hours worked"
           value={`${hours.toFixed(1)}h`}
-          current={hours}
-          previous={oldHours}
+          delta={comparisonDelta(hours, oldHours)}
           loading={loading}
-          note={`${shifts} completed shifts`}
+          hint={`${shifts} completed shifts`}
         />
-        <Stat
+        <StatCard
           label="Sales per labour hour"
           value={formatMoney(hours ? orders.revenue / hours : 0, 2)}
-          current={hours ? orders.revenue / hours : 0}
-          previous={oldHours ? oldOrders.revenue / oldHours : 0}
+          delta={comparisonDelta(hours ? orders.revenue / hours : 0, oldHours ? oldOrders.revenue / oldHours : 0)}
           loading={loading}
-          note="Net revenue divided by completed-shift hours"
+          hint="Net revenue divided by completed-shift hours"
         />
-        <Stat
+        <StatCard
           label="Orders per labour hour"
           value={(hours ? orders.orders / hours : 0).toFixed(2)}
-          current={hours ? orders.orders / hours : 0}
-          previous={oldHours ? oldOrders.orders / oldHours : 0}
+          delta={comparisonDelta(hours ? orders.orders / hours : 0, oldHours ? oldOrders.orders / oldHours : 0)}
           loading={loading}
-          note="Non-cancelled orders per completed-shift hour"
+          hint="Non-cancelled orders per completed-shift hour"
         />
-        <Stat
+        <StatCard
           label="No-show rate"
           value={`${noShowRate.toFixed(1)}%`}
-          current={noShowRate}
-          previous={oldNoShowRate}
-          lowerIsBetter
+          delta={comparisonDelta(noShowRate, oldNoShowRate, { lowerIsBetter: true })}
           loading={loading}
-          note={`${noShows} of ${variance.data?.length ?? 0} scheduled shifts`}
+          hint={`${noShows} of ${variance.data?.length ?? 0} scheduled shifts`}
         />
-      </section>
+      </StatCardGrid>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
         <div className={cn(panel, 'p-5')}>
@@ -415,35 +367,33 @@ function InventoryReport({ context }: { context: ReportContext }) {
 
   return (
     <>
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat
+      <StatCardGrid>
+        <StatCard
           label="Stock movements"
           value={formatCompact(movements)}
-          current={movements}
-          previous={oldMovements}
+          delta={comparisonDelta(movements, oldMovements)}
           loading={loading}
-          note="All deduction and restock ledger entries"
+          hint="All deduction and restock ledger entries"
         />
-        <Stat
+        <StatCard
           label="Estimated usage cost"
           value={formatMoney(estimatedUsage)}
           loading={loading}
-          note={`Using current item costs · ${costCoverage.toFixed(0)}% item coverage`}
+          hint={`Using current item costs · ${costCoverage.toFixed(0)}% item coverage`}
         />
-        <Stat
+        <StatCard
           label="Estimated waste cost"
           value={formatMoney(estimatedWaste)}
           loading={loading}
-          note={`${lossesRows.length} waste/loss records loaded`}
+          hint={`${lossesRows.length} waste/loss records loaded`}
         />
-        <Stat
+        <StatCard
           label="Critical stock items"
           value={formatCompact(critical.length)}
           loading={loading}
-          lowerIsBetter
-          note="Forecast at three days of stock or less"
+          hint="Forecast at three days of stock or less"
         />
-      </section>
+      </StatCardGrid>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
         <div className={cn(panel, 'p-5')}>
@@ -601,37 +551,34 @@ function PurchasingReport({ context }: { context: ReportContext }) {
 
   return (
     <>
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat
+      <StatCardGrid>
+        <StatCard
           label="Purchase commitments"
           value={formatMoney(totalValue)}
-          current={totalValue}
-          previous={oldTotalValue}
+          delta={comparisonDelta(totalValue, oldTotalValue)}
           loading={ordersQuery.isPending}
-          note={`${current.length} purchase orders created`}
+          hint={`${current.length} purchase orders created`}
         />
-        <Stat
+        <StatCard
           label="Quantity fill rate"
           value={`${fillRate.toFixed(1)}%`}
-          current={fillRate}
-          previous={oldFillRate}
+          delta={comparisonDelta(fillRate, oldFillRate)}
           loading={ordersQuery.isPending}
-          note="Received quantity divided by ordered quantity"
+          hint="Received quantity divided by ordered quantity"
         />
-        <Stat
+        <StatCard
           label="Invoice match rate"
           value={`${invoiceMatchRate.toFixed(1)}%`}
           loading={ordersQuery.isPending}
-          note={`${invoiceEligible.filter((order) => order.invoiceMatched).length} of ${invoiceEligible.length} eligible orders`}
+          hint={`${invoiceEligible.filter((order) => order.invoiceMatched).length} of ${invoiceEligible.length} eligible orders`}
         />
-        <Stat
+        <StatCard
           label="Overdue open orders"
           value={formatCompact(overdue.length)}
           loading={ordersQuery.isPending}
-          lowerIsBetter
-          note={`${open.length} submitted or partially received`}
+          hint={`${open.length} submitted or partially received`}
         />
-      </section>
+      </StatCardGrid>
 
       <section className="grid gap-4 xl:grid-cols-2">
         <div className={cn(panel, 'p-5')}>
@@ -752,32 +699,32 @@ function ProfitabilityReport({ context }: { context: ReportContext }) {
         excludes modifier recipes, historical supplier prices, labour, tax and overhead.
       </DataNotice>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat
+      <StatCardGrid>
+        <StatCard
           label="Analysed item revenue"
           value={formatMoney(totalRevenue)}
           loading={loading}
-          note={`Top ${rows.length} sold items returned by analytics`}
+          hint={`Top ${rows.length} sold items returned by analytics`}
         />
-        <Stat
+        <StatCard
           label="Cost-covered revenue"
           value={formatMoney(coveredRevenue)}
           loading={loading}
-          note={`${revenueCoverage.toFixed(1)}% of analysed revenue has complete base-recipe cost`}
+          hint={`${revenueCoverage.toFixed(1)}% of analysed revenue has complete base-recipe cost`}
         />
-        <Stat
+        <StatCard
           label="Estimated base ingredient cost"
           value={formatMoney(estimatedCost)}
           loading={loading}
-          note="Current base-recipe costs for covered items"
+          hint="Current base-recipe costs for covered items"
         />
-        <Stat
+        <StatCard
           label="Estimated contribution margin"
           value={`${margin.toFixed(1)}%`}
           loading={loading}
-          note={`${formatMoney(contribution)} before modifier cost, labour and overhead`}
+          hint={`${formatMoney(contribution)} before modifier cost, labour and overhead`}
         />
-      </section>
+      </StatCardGrid>
 
       <section className={cn(panel, 'p-5')}>
         <SectionTitle
@@ -894,7 +841,6 @@ export function BusinessReportPage({ section }: { section: BusinessReportSection
       eyebrow={meta.eyebrow}
       title={meta.title}
       icon={<Icon size={20} aria-hidden="true" />}
-      meta={<span className="text-xs text-muted-foreground">{meta.description}</span>}
       onClose={() => router.push('/reports/library')}
     >
       <div className="space-y-4">

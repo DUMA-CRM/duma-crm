@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Loader2, Search, SlidersHorizontal, Trash2 } from '@/components/icons';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import { ModifierRecipeEditor } from '@/components/menu/ModifierRecipeEditor';

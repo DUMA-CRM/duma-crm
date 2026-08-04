@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { History, PanelLeftClose, PanelLeftOpen, RotateCcw } from 'lucide-react';
+import { History, PanelLeftClose, PanelLeftOpen, RotateCcw } from '@/components/icons';
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
 

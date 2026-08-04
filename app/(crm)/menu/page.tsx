@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus } from 'lucide-react';
+import { Plus } from '@/components/icons';
 import { useState } from 'react';
 
 import { PageLayout } from '@/components/layout/PageLayout';

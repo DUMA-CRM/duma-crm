@@ -1,7 +1,9 @@
+import { formatDate as formatAppDate } from '@/lib/utils/date';
+
 // Shared constants and small helpers for the payroll components.
 
 export const inputClass =
-  'h-9 bg-background border border-border rounded-lg px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
 export const labelClass = 'block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
@@ -44,18 +46,14 @@ export const currentWeekStart = () => {
   return iso(d);
 };
 
-/** Display a date range like "1 Jul – 31 Jul 2026". */
+/** Display a date range like "01/07/2026 – 31/07/2026". */
 export function formatRange(from: string, to: string) {
   if (!from || !to) return '';
-  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
-  const f = new Date(`${from}T00:00:00`).toLocaleDateString('en-GB', opts);
-  const t = new Date(`${to}T00:00:00`).toLocaleDateString('en-GB', opts);
-  return `${f} – ${t}`;
+  return `${formatAppDate(from)} – ${formatAppDate(to)}`;
 }
 
-/** A single-day display, e.g. "17 Jul 2026". */
-export const formatDate = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+/** A single-day display, e.g. "17/07/2026". */
+export const formatDate = (iso?: string | null) => formatAppDate(iso);
 
 /** Escape a value for a CSV cell. */
 export const csvCell = (v: string | number) => {

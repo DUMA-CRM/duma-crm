@@ -1,6 +1,9 @@
 'use client';
 
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+
 import {
   AlertTriangle,
   ArrowRight,
@@ -11,17 +14,15 @@ import {
   PackagePlus,
   ReceiptText,
   RefreshCw,
+  Repeat,
   ShoppingBag,
-  TrendingDown,
-  TrendingUp,
+  UserPlus,
   Users,
   WalletCards,
-} from 'lucide-react';
-import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-
+} from '@/components/icons';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { StatCard, StatCardGrid, changeDelta } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 
@@ -44,6 +45,7 @@ import type { StaffRole } from '@/lib/api/staff.service';
 import { getLocations } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { type DashboardRange, formatCompact, formatMoney, getDateWindow, orderMetrics, percentageChange } from '@/lib/utils/dashboard';
+import { formatDate } from '@/lib/utils/date';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 type DashboardMode = 'dashboard' | 'reports';
@@ -100,99 +102,6 @@ function PanelHeader({
   );
 }
 
-function ChangeBadge({ change, label, points = false }: { change: number | null | undefined; label: string; points?: boolean }) {
-  if (change === undefined)
-    return <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-semibold text-muted-foreground">No comparison</span>;
-  if (change === null) return <span className="rounded-full bg-info/10 px-2 py-1 text-[10px] font-semibold text-info">New {label}</span>;
-  const improving = change >= 0;
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold',
-        improving ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive',
-      )}
-    >
-      {improving ? <TrendingUp size={12} aria-hidden="true" /> : <TrendingDown size={12} aria-hidden="true" />}
-      {Math.abs(change).toFixed(1)}
-      {points ? ' pts' : '%'} {label}
-    </span>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  hint,
-  change,
-  comparisonLabel,
-  icon: Icon,
-  href,
-  onSelect,
-  loading,
-  points,
-  selected,
-  tone = 'bg-primary/10 text-primary',
-}: {
-  label: string;
-  value: string;
-  hint: string;
-  change: number | null | undefined;
-  comparisonLabel: string;
-  icon: typeof WalletCards;
-  href?: string;
-  onSelect?: () => void;
-  loading: boolean;
-  points?: boolean;
-  selected?: boolean;
-  tone?: string;
-}) {
-  const content = (
-    <>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-        <div className={cn('flex size-8 items-center justify-center rounded-lg', tone)}>
-          <Icon size={15} strokeWidth={2.1} aria-hidden="true" />
-        </div>
-      </div>
-      {loading ? (
-        <div className="mt-4 space-y-3">
-          <DashboardSkeleton className="h-8 w-28" />
-          <DashboardSkeleton className="h-3 w-36" />
-        </div>
-      ) : (
-        <>
-          <p className="mt-4 text-[28px] font-bold leading-none tracking-[-0.04em] text-foreground tabular-nums">{value}</p>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <ChangeBadge change={change} label={comparisonLabel} points={points} />
-            <span className="text-[11px] text-muted-foreground">{hint}</span>
-          </div>
-        </>
-      )}
-    </>
-  );
-
-  const className = cn(
-    panelClass,
-    'group min-h-36 p-4 text-left transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md',
-    selected && 'border-primary bg-primary/5 ring-2 ring-primary/10',
-  );
-  const ariaLabel = `${label}: ${value}. ${hint}${onSelect ? '. Show detailed statistics' : ''}`;
-
-  if (onSelect) {
-    return (
-      <button type="button" onClick={onSelect} className={className} aria-label={ariaLabel} aria-expanded={selected}>
-        {content}
-      </button>
-    );
-  }
-
-  return (
-    <Link href={href ?? '#'} className={className} aria-label={ariaLabel}>
-      {content}
-    </Link>
-  );
-}
-
 function InlineError({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex min-h-44 flex-col items-center justify-center gap-3 px-6 text-center" role="alert">
@@ -220,7 +129,7 @@ function RevenueChart({ rows, loading }: { rows: DailyOrderAnalytics[]; loading:
   const average = values.reduce((sum, value) => sum + value, 0) / values.length;
   const highlighted = active === null ? rows.length - 1 : active;
   const current = rows[highlighted];
-  const dateLabel = new Date(`${current.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const dateLabel = formatDate(current.date);
 
   return (
     <div className="mt-5">
@@ -252,7 +161,7 @@ function RevenueChart({ rows, loading }: { rows: DailyOrderAnalytics[]; loading:
             {rows.map((row, index) => {
               const value = Number(row.revenue ?? 0);
               const selected = highlighted === index;
-              const shortDate = new Date(`${row.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+              const shortDate = formatDate(row.date);
               return (
                 <button
                   key={row.date}
@@ -281,8 +190,8 @@ function RevenueChart({ rows, loading }: { rows: DailyOrderAnalytics[]; loading:
         </div>
       </div>
       <div className="mt-2 ml-14 flex justify-between text-[10px] font-medium text-muted-foreground">
-        <span>{new Date(`${rows[0].date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
-        <span>{new Date(`${rows.at(-1)!.date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+        <span>{formatDate(rows[0].date)}</span>
+        <span>{formatDate(rows.at(-1)!.date)}</span>
       </div>
     </div>
   );
@@ -516,6 +425,10 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
 
   const metrics = orderMetrics(currentOrders.data);
   const previousMetrics = orderMetrics(previousOrders.data);
+  const dailyRows = currentOrders.data?.daily ?? [];
+  // Sparklines need at least two points to draw a line.
+  const revenueSeries = dailyRows.length > 1 ? dailyRows.map((row) => Number(row.revenue ?? 0)) : [];
+  const ordersSeries = dailyRows.length > 1 ? dailyRows.map((row) => Number(row.count ?? 0)) : [];
   const repeatRate = retention.data?.repeatRate ?? 0;
   const previousRepeatRate = previousRetention.data?.repeatRate ?? 0;
   const liveOrders = liveOrderQueries.reduce((total, query) => total + (query.data?.total ?? 0), 0);
@@ -560,90 +473,12 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="mb-2 flex items-center gap-2">
-            <span className="relative flex size-2" aria-hidden="true">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-50" />
-              <span className="relative inline-flex size-2 rounded-full bg-success" />
-            </span>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Live operations</p>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground md:text-[32px]">
-            {mode === 'reports' ? 'Performance reports' : 'Operations overview'}
-          </h1>
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-            <span>{selectedLocation?.name ?? 'All accessible locations'}</span>
-            <span aria-hidden="true">·</span>
-            <span>{dateWindow.label}</span>
-            {lastUpdated > 0 && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>Updated {new Date(lastUpdated).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-              </>
-            )}
-          </p>
+          <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground md:text-[32px]">Dashboard</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void refresh()}
-            disabled={isRefreshing}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-muted disabled:opacity-60"
-          >
-            <RefreshCw size={14} className={cn(isRefreshing && 'animate-spin')} aria-hidden="true" />
-            Refresh
-          </button>
           <SegmentedControl options={RANGE_OPTIONS} value={range} onChange={setRange} />
         </div>
       </div>
-
-      {mode === 'dashboard' && (
-        <section
-          aria-label="Current operational status"
-          className="relative overflow-hidden rounded-2xl bg-foreground px-5 py-4 text-background shadow-lg shadow-foreground/5"
-        >
-          <div className="pointer-events-none absolute -top-20 right-0 size-64 rounded-full bg-primary/20 blur-3xl" aria-hidden="true" />
-          <div className="relative grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-            <div className="flex min-w-0 items-start gap-3">
-              <div
-                className={cn(
-                  'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl',
-                  attentionCount > 0 ? 'bg-warning/20 text-warning' : 'bg-success/20 text-success',
-                )}
-              >
-                {attentionCount > 0 ? <AlertTriangle size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}
-              </div>
-              <div>
-                <p className="text-sm font-semibold">
-                  {operationsLoading
-                    ? 'Checking the floor…'
-                    : attentionCount > 0
-                      ? `${attentionCount} ${attentionCount === 1 ? 'item needs' : 'items need'} attention`
-                      : 'Everything is running smoothly'}
-                </p>
-                <p className="mt-1 text-xs text-background/65">
-                  {operationsLoading
-                    ? 'Live orders, stock, and restock requests are being updated.'
-                    : attentionCount > 0
-                      ? 'Review the prioritised exceptions below before they affect service.'
-                      : 'No urgent stock, restock, or fulfilment exceptions in the selected scope.'}
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 divide-x divide-background/15 rounded-xl border border-background/10 bg-background/5">
-              {[
-                { label: 'Live orders', value: liveOrders },
-                { label: 'On shift', value: visibleShifts.length },
-                { label: 'Stock risks', value: criticalStock.length },
-              ].map((item) => (
-                <div key={item.label} className="min-w-22 px-3 py-2 text-center">
-                  <p className="text-lg font-bold tabular-nums">{operationsLoading ? '—' : item.value}</p>
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-background/55">{item.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
     </div>
   );
 
@@ -659,53 +494,61 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
 
   return (
     <PageLayout headerSlot={header} className="space-y-5 pb-8">
-      <section aria-label="Business pulse" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
+      <StatCardGrid aria-label="Business pulse">
+        <StatCard
           label="Net revenue"
           value={formatMoney(metrics.revenue)}
           hint="Cancelled orders excluded"
-          change={orderComparisonAvailable ? percentageChange(metrics.revenue, previousMetrics.revenue) : undefined}
-          comparisonLabel={dateWindow.comparisonLabel}
+          delta={changeDelta(orderComparisonAvailable ? percentageChange(metrics.revenue, previousMetrics.revenue) : undefined, {
+            label: dateWindow.comparisonLabel,
+          })}
           icon={WalletCards}
-          tone="bg-success/10 text-success"
+          accent="success"
+          visual={{ type: 'sparkline', points: revenueSeries }}
           href={mode === 'reports' ? '/reports/revenue' : '/reports'}
           loading={coreLoading}
         />
-        <MetricCard
+        <StatCard
           label="Orders"
           value={formatCompact(metrics.orders)}
           hint={`${liveOrders} currently in progress`}
-          change={orderComparisonAvailable ? percentageChange(metrics.orders, previousMetrics.orders) : undefined}
-          comparisonLabel={dateWindow.comparisonLabel}
+          delta={changeDelta(orderComparisonAvailable ? percentageChange(metrics.orders, previousMetrics.orders) : undefined, {
+            label: dateWindow.comparisonLabel,
+          })}
           icon={ShoppingBag}
-          tone="bg-info/10 text-info"
+          accent="info"
+          visual={{ type: 'sparkline', points: ordersSeries }}
           href={mode === 'reports' ? '/reports/orders' : '/orders'}
           loading={coreLoading}
         />
-        <MetricCard
+        <StatCard
           label="Average order"
           value={formatMoney(metrics.averageOrderValue, 2)}
           hint={`${metrics.cancelledOrders} cancelled · ${metrics.cancellationRate.toFixed(1)}% rate`}
-          change={orderComparisonAvailable ? percentageChange(metrics.averageOrderValue, previousMetrics.averageOrderValue) : undefined}
-          comparisonLabel={dateWindow.comparisonLabel}
+          delta={changeDelta(
+            orderComparisonAvailable ? percentageChange(metrics.averageOrderValue, previousMetrics.averageOrderValue) : undefined,
+            { label: dateWindow.comparisonLabel },
+          )}
           icon={ReceiptText}
-          tone="bg-chart-5/10 text-chart-5"
+          accent="purple"
           href={mode === 'reports' ? '/reports/average' : '/reports'}
           loading={coreLoading}
         />
-        <MetricCard
+        <StatCard
           label="Returning customers"
           value={`${repeatRate.toFixed(1)}%`}
           hint={`${retention.data?.returningCustomers ?? 0} returning · ${retention.data?.newCustomers ?? 0} new`}
-          change={retentionComparisonAvailable ? repeatRate - previousRepeatRate : undefined}
-          comparisonLabel={dateWindow.comparisonLabel}
+          delta={changeDelta(retentionComparisonAvailable ? repeatRate - previousRepeatRate : undefined, {
+            label: dateWindow.comparisonLabel,
+            points: true,
+          })}
           icon={Users}
-          tone="bg-primary/10 text-primary"
+          accent="primary"
+          visual={{ type: 'ring', pct: repeatRate, display: `${repeatRate.toFixed(0)}%` }}
           href={mode === 'reports' ? '/reports/retention' : '/customers'}
           loading={coreLoading}
-          points
         />
-      </section>
+      </StatCardGrid>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.75fr)]">
         <div className={cn(panelClass, 'p-5')}>
@@ -758,7 +601,7 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
               {urgentRestocks.slice(0, 2).map((request) => (
                 <Link
                   key={request.id}
-                  href="/inventory/restock-requests"
+                  href="/inventory?tab=demand"
                   className="flex items-center gap-3 rounded-xl border border-warning/20 bg-warning/5 p-3 hover:bg-warning/10"
                 >
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning">
@@ -812,41 +655,35 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
               {liveOperationsError ? (
                 <InlineError onRetry={() => void refresh()} />
               ) : (
-                <div className="mt-5 grid grid-cols-2 gap-3">
+                <StatCardGrid columns={2} className="mt-5">
                   {[
-                    { label: 'Live orders', value: liveOrders, icon: ShoppingBag, href: '/orders', tone: 'text-info bg-info/10' },
+                    { label: 'Live orders', value: liveOrders, icon: ShoppingBag, href: '/orders', accent: 'info' as const },
                     {
                       label: 'Clocked in',
                       value: visibleShifts.length,
                       icon: Users,
                       // Team shift cover, not the viewer's own rota.
                       href: '/staff/shifts',
-                      tone: 'text-success bg-success/10',
+                      accent: 'success' as const,
                     },
                     {
                       label: 'Pending restocks',
                       value: restocks.data?.total ?? 0,
                       icon: PackagePlus,
-                      href: '/inventory/restock-requests',
-                      tone: 'text-warning bg-warning/10',
+                      href: '/inventory?tab=demand',
+                      accent: 'warning' as const,
                     },
                     {
                       label: 'Stockout risks',
                       value: criticalStock.length,
                       icon: AlertTriangle,
                       href: '/inventory',
-                      tone: 'text-destructive bg-destructive/10',
+                      accent: 'danger' as const,
                     },
-                  ].map(({ label, value, icon: Icon, href, tone }) => (
-                    <Link key={label} href={href} className="rounded-xl border border-border p-3 hover:bg-muted/50">
-                      <div className={cn('flex size-8 items-center justify-center rounded-lg', tone)}>
-                        <Icon size={14} aria-hidden="true" />
-                      </div>
-                      <p className="mt-3 text-2xl font-bold tabular-nums text-foreground">{value}</p>
-                      <p className="text-xs text-muted-foreground">{label}</p>
-                    </Link>
+                  ].map((tile) => (
+                    <StatCard key={tile.label} size="sm" {...tile} />
                   ))}
-                </div>
+                </StatCardGrid>
               )}
             </div>
             <div className={cn(panelClass, 'p-5')}>
@@ -895,16 +732,16 @@ export function ManagerDashboard({ role, mode = 'dashboard' }: { role: StaffRole
                   <span className="text-sm font-bold tabular-nums">{row.count} orders</span>
                 </div>
               ))}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="rounded-xl border border-border p-3">
-                  <p className="text-2xl font-bold tabular-nums">{retention.data?.newCustomers ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">New customers</p>
-                </div>
-                <div className="rounded-xl border border-border p-3">
-                  <p className="text-2xl font-bold tabular-nums">{retention.data?.returningCustomers ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">Returning customers</p>
-                </div>
-              </div>
+              <StatCardGrid columns={2} className="pt-2">
+                <StatCard size="sm" label="New customers" value={retention.data?.newCustomers ?? 0} icon={UserPlus} accent="info" />
+                <StatCard
+                  size="sm"
+                  label="Returning customers"
+                  value={retention.data?.returningCustomers ?? 0}
+                  icon={Repeat}
+                  accent="success"
+                />
+              </StatCardGrid>
             </div>
           </div>
         </section>

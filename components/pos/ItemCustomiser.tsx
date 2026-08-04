@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { X } from '@/components/icons';
 import Image from 'next/image';
 
 import { OptionBtn, OptionGroup } from '@/components/pos/Option';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 import { groupByCategory } from '@/lib/utils/modifiers';
+import { formatPrice } from '@/lib/utils/pos';
 import type { MenuItem, MenuOption } from '@/types/pos';
 
 interface ItemCustomiserProps {
@@ -14,6 +15,7 @@ interface ItemCustomiserProps {
   setPending: React.Dispatch<React.SetStateAction<MenuOption[]>>;
   onAdd: () => void;
   onCancel: () => void;
+  currency?: string;
 }
 
 /**
@@ -21,7 +23,7 @@ interface ItemCustomiserProps {
  * selected, so the options get the full height and the add button is always
  * visible without scrolling.
  */
-export function ItemCustomiser({ item, pending, setPending, onAdd, onCancel }: ItemCustomiserProps) {
+export function ItemCustomiser({ item, pending, setPending, onAdd, onCancel, currency }: ItemCustomiserProps) {
   const optionsTotal = pending.reduce((sum, opt) => sum + opt.price, 0);
   const price = item.price + optionsTotal;
 
@@ -52,7 +54,7 @@ export function ItemCustomiser({ item, pending, setPending, onAdd, onCancel }: I
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">£{(item.price / 100).toFixed(2)} base</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{formatPrice(item.price, currency)} base</p>
         </div>
         <Button variant="ghost" size="icon" onClick={onCancel} aria-label="Cancel customising" className="size-11">
           <X size={18} />
@@ -76,7 +78,7 @@ export function ItemCustomiser({ item, pending, setPending, onAdd, onCancel }: I
                   .map((opt) => (
                     <OptionBtn
                       key={opt.id}
-                      label={opt.price > 0 ? `${opt.label} (+£${(opt.price / 100).toFixed(2)})` : opt.label}
+                      label={opt.price > 0 ? `${opt.label} (+${formatPrice(opt.price, currency)})` : opt.label}
                       active={pending.some((o) => o.id === opt.id)}
                       onClick={() => select(opt)}
                     />
@@ -90,7 +92,7 @@ export function ItemCustomiser({ item, pending, setPending, onAdd, onCancel }: I
       {/* Always-visible add button */}
       <div className="border-t border-border p-5 shrink-0">
         <Button size="lg" onClick={onAdd} className="w-full h-14 text-base">
-          Add to Order — £{(price / 100).toFixed(2)}
+          Add to Order — {formatPrice(price, currency)}
         </Button>
       </div>
     </div>

@@ -1,18 +1,19 @@
-import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Minus, Plus, Trash2 } from '@/components/icons';
 import Image from 'next/image';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { cartItemTotal } from '@/lib/utils/pos';
+import { cartItemTotal, formatPrice } from '@/lib/utils/pos';
 import type { CartItem } from '@/types/pos';
 
 interface CartRowProps {
   cartItem: CartItem;
   onQty: (cartId: string, delta: number) => void;
+  currency?: string;
 }
 
-export function CartRow({ cartItem, onQty }: CartRowProps) {
+export function CartRow({ cartItem, onQty, currency }: CartRowProps) {
   const total = cartItemTotal(cartItem);
   const isLastQty = cartItem.quantity === 1;
 
@@ -34,7 +35,7 @@ export function CartRow({ cartItem, onQty }: CartRowProps) {
       {/* Name + price + chips */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-foreground leading-snug truncate">{cartItem.item.name}</p>
-        <p className="text-sm font-bold text-primary tabular-nums mt-0.5">£{(total / 100).toFixed(2)}</p>
+        <p className="text-sm font-bold text-primary tabular-nums mt-0.5">{formatPrice(total, currency)}</p>
         {chips.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
             {chips.map((chip) => (

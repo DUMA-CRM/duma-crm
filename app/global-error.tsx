@@ -8,7 +8,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
       <body style={{ fontFamily: 'sans-serif', display: 'grid', placeItems: 'center', minHeight: '100vh', margin: 0 }}>
         <div style={{ textAlign: 'center', padding: '1.5rem' }}>
           <h1 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Something went wrong</h1>
-          <p style={{ color: '#6b6560', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          <p style={{ color: '#60697b', fontSize: '0.875rem', marginBottom: '1rem' }}>
             The app hit an unexpected error{error.digest ? ` (ref ${error.digest})` : ''}.
           </p>
           <button
@@ -17,7 +17,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
               padding: '0.5rem 1rem',
               borderRadius: '0.5rem',
               border: 'none',
-              background: '#e8590c',
+              background: '#236bfe',
               color: '#fff',
               fontWeight: 600,
               cursor: 'pointer',

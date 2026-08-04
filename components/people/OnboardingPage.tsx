@@ -1,12 +1,13 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, Loader2, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Loader2, ShieldCheck } from '@/components/icons';
 import { AddressFields } from '@/components/people/AddressFields';
 import { EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, PAY_CONFIG, PAY_TYPES, ROLE_CONFIG, SCOPES, inp, lbl, sel } from '@/components/people/shared';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
 import { type OnboardPayload, onboardEmployee } from '@/lib/api/onboarding.service';
@@ -33,7 +34,6 @@ const STEPS = ['Account & role', 'Personal', 'Employment & pay', 'Bank & statuto
 type Form = Partial<OnboardPayload> & {
   email: string;
   name: string;
-  password: string;
   role: Exclude<StaffRole, 'super_admin'>;
   scope: OnboardPayload['scope'];
   locationIds: string[];
@@ -61,7 +61,6 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
   const [f, setF] = useState<Form>({
     email: '',
     name: '',
-    password: '',
     role: 'barista',
     scope: 'location',
     locationIds: [],
@@ -95,7 +94,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
 
   // Per-step validity gates the Next/Finish button.
   const stepValid = [
-    f.email.includes('@') && f.name.trim().length >= 2 && f.password.length >= 8 && (f.scope !== 'location' || f.locationIds.length > 0),
+    f.email.includes('@') && f.name.trim().length >= 2 && (f.scope !== 'location' || f.locationIds.length > 0),
     true, // personal is all optional
     f.jobTitle.trim().length > 0 && !!f.startDate && (f.payType === 'hourly' ? Number(f.hourlyRate) > 0 : Number(f.annualSalary) > 0),
     true, // bank/statutory optional
@@ -164,15 +163,9 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                     placeholder="jane@cafe.co.uk"
                   />
                 </Field>
-                <Field label="Temporary password" hint="At least 8 characters; they can change it later.">
-                  <input
-                    className={inp}
-                    type="text"
-                    value={f.password}
-                    onChange={(e) => set({ password: e.target.value })}
-                    placeholder="••••••••"
-                  />
-                </Field>
+                <p className="self-end rounded-xl bg-muted p-3 text-sm text-muted-foreground">
+                  A single-use activation link will be emailed after onboarding.
+                </p>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <Field label="Role">
@@ -222,9 +215,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
           {step === 1 && (
             <>
               <div className="grid md:grid-cols-2 gap-4">
-                <Field label="Date of birth">
-                  <input className={inp} type="date" value={f.dateOfBirth ?? ''} onChange={(e) => set({ dateOfBirth: e.target.value })} />
-                </Field>
+                <DatePicker label="Date of birth" value={f.dateOfBirth ?? ''} onValueChange={(dateOfBirth) => set({ dateOfBirth })} />
               </div>
               <div>
                 <label className={lbl}>Home address</label>
@@ -288,9 +279,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                     ariaLabel="Employment type"
                   />
                 </Field>
-                <Field label="Start date">
-                  <input className={inp} type="date" value={f.startDate} onChange={(e) => set({ startDate: e.target.value })} />
-                </Field>
+                <DatePicker label="Start date" value={f.startDate} onValueChange={(startDate) => set({ startDate })} required />
               </div>
 
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pt-2">Pay</p>
@@ -425,7 +414,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                   <li>• Issue the day-one written statement or employment contract.</li>
                   <li>• Complete the HMRC starter declaration/P45 process.</li>
                   <li>• Assess workplace-pension duties and record the notice.</li>
-                  <li>• Assign a work pattern, holiday entitlement and required training.</li>
+                  <li>• Assign a work pattern and holiday entitlement.</li>
                 </ul>
               </div>
             </>

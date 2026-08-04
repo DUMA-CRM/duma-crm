@@ -1,8 +1,8 @@
 'use client';
 
-import { Check, CircleDashed, X } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 
+import { Check, X } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
@@ -63,7 +63,7 @@ export function SetupChecklist({
     },
     {
       title: 'Write your first template',
-      description: 'The email itself — start from a ready-made one and change the wording.',
+      description: 'Design the reusable email content in your own brand style.',
       done: hasTemplate,
       action: { label: 'Create', onClick: onNewTemplate },
     },
@@ -71,7 +71,7 @@ export function SetupChecklist({
       title: 'Switch on an automation',
       description: 'Decides when the template is sent, like when an order is ready.',
       done: hasEnabledAutomation,
-      action: { label: 'Choose', onClick: onNewAutomation },
+      action: { label: 'Create', onClick: onNewAutomation },
     },
     {
       title: 'Check what went out',
@@ -87,50 +87,73 @@ export function SetupChecklist({
   const nextStep = steps.findIndex((step) => !step.done);
 
   return (
-    <section className="relative rounded-2xl border border-primary/30 bg-primary/5 p-5">
+    <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-linear-to-br from-primary/8 via-card to-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Getting started</p>
+          <h2 className="mt-1 text-base font-semibold text-foreground">Four steps to your first automatic email</h2>
+        </div>
+        {/* Progress, then the dismiss — the count earns its place next to the bar. */}
+        <div className="flex items-center gap-3 pr-8">
+          <div className="h-1.5 w-32 overflow-hidden rounded-full bg-surface-offset" role="presentation">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-500"
+              style={{ width: `${(doneCount / steps.length) * 100}%` }}
+            />
+          </div>
+          <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+            {doneCount} of {steps.length}
+          </span>
+        </div>
+      </div>
+
       <button
         type="button"
         onClick={() => dismissTip(TIP_ID)}
         aria-label="Hide these setup steps"
-        className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+        className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <X size={15} />
       </button>
 
-      <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
-        Getting started · {doneCount} of {steps.length} done
-      </p>
-      <h2 className="mt-1 text-base font-semibold text-foreground">Four steps to your first automatic email</h2>
-
       <ol className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {steps.map((step, index) => (
-          <li
-            key={step.title}
-            className={cn(
-              'rounded-xl border bg-card p-4',
-              step.done ? 'border-success/30' : index === nextStep ? 'border-primary/40' : 'border-border',
-            )}
-          >
-            <div className="flex items-start gap-2">
-              {step.done ? (
-                <Check size={16} className="mt-0.5 shrink-0 text-success" aria-hidden="true" />
-              ) : (
-                <CircleDashed size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        {steps.map((step, index) => {
+          const isNext = index === nextStep;
+          return (
+            <li
+              key={step.title}
+              className={cn(
+                'rounded-xl border bg-card p-4 transition-colors',
+                step.done ? 'border-success/30' : isNext ? 'border-primary/45 shadow-sm' : 'border-border',
               )}
-              <div className="min-w-0">
-                <p className={cn('text-sm font-semibold', step.done ? 'text-muted-foreground line-through' : 'text-foreground')}>
-                  {index + 1}. {step.title}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{step.description}</p>
-                {!step.done && step.action && (
-                  <Button variant="outline" size="sm" className="mt-2.5" onClick={step.action.onClick}>
-                    {step.action.label}
-                  </Button>
-                )}
+            >
+              <div className="flex items-start gap-2.5">
+                <span
+                  className={cn(
+                    'mt-px flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
+                    step.done
+                      ? 'bg-success text-white'
+                      : isNext
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border border-border bg-surface-offset text-muted-foreground',
+                  )}
+                  aria-hidden="true"
+                >
+                  {step.done ? <Check size={12} strokeWidth={3} /> : index + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className={cn('text-sm font-semibold', step.done ? 'text-muted-foreground' : 'text-foreground')}>{step.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{step.description}</p>
+                  {!step.done && step.action && (
+                    <Button variant={isNext ? 'default' : 'outline'} size="sm" className="mt-2.5" onClick={step.action.onClick}>
+                      {step.action.label}
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

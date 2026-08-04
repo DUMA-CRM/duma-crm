@@ -1,13 +1,13 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ClipboardCheck, Play } from 'lucide-react';
 import { useState } from 'react';
 
+import { ChevronRight, ClipboardCheck, Play } from '@/components/icons';
 import { inputClass } from '@/components/purchasing/shared';
-import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { ConfirmDrawer } from '@/components/shared/ConfirmDrawer';
+import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
@@ -21,15 +21,15 @@ import {
   startStocktake,
 } from '@/lib/api/stocktakes.service';
 import { cn } from '@/lib/utils/cn';
+import { formatDateTime as formatAppDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 
-const fmtDateTime = (iso: string) =>
-  new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const fmtDateTime = (iso: string) => formatAppDateTime(iso);
 
 const STATUS_META = {
-  in_progress: { label: 'In Progress', variant: 'warning' as const },
-  completed: { label: 'Completed', variant: 'success' as const },
-  cancelled: { label: 'Cancelled', variant: 'muted' as const },
+  in_progress: { label: 'In Progress', variant: 'warning' as const, dot: 'bg-warning' },
+  completed: { label: 'Completed', variant: 'success' as const, dot: 'bg-success' },
+  cancelled: { label: 'Cancelled', variant: 'muted' as const, dot: 'bg-muted-foreground/40' },
 };
 
 function varianceClass(expected: number, counted: number): string {
@@ -189,7 +189,7 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
       </div>
 
       {confirm === 'complete' && (
-        <ConfirmModal
+        <ConfirmDrawer
           title="Complete Stocktake"
           message={
             <>
@@ -203,7 +203,7 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
         />
       )}
       {confirm === 'cancel' && (
-        <ConfirmModal
+        <ConfirmDrawer
           title="Cancel Stocktake"
           message={<>Abandon this stocktake? No adjustments will be applied.</>}
           isPending={cancel.isPending}
@@ -217,15 +217,47 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
 
 // ── History + start ───────────────────────────────────────────────────────────
 
-export function StocktakePanel({ locationId }: { locationId: string }) {
-  const qc = useQueryClient();
-  const [detail, setDetail] = useState<Stocktake | null>(null);
+/** The location's stocktakes, plus the id of the one being counted right now. */
+function useStocktakes(locationId: string) {
   const { data, isLoading } = useQuery({
     queryKey: ['stocktakes', locationId],
     queryFn: () => getStocktakes({ locationId, limit: 30 }),
   });
   const stocktakes = data?.data ?? [];
-  const activeId = stocktakes.find((s) => s.status === 'in_progress')?.id;
+  return { stocktakes, activeId: stocktakes.find((s) => s.status === 'in_progress')?.id, isLoading };
+}
+
+/**
+ * "Start Stocktake" for the page header, next to the title rather than on the
+ * panel. It shares the list query with `StocktakePanel`, so it disappears the
+ * moment a count is running — there can only be one open at a time.
+ */
+export function StartStocktakeButton({ locationId }: { locationId: string }) {
+  const qc = useQueryClient();
+  const { activeId } = useStocktakes(locationId);
+
+  const start = useMutation({
+    mutationFn: () => startStocktake({ locationId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['stocktakes'] });
+      toast('success', 'Stocktake started — count each item and enter the physical quantity.');
+    },
+    onError: (err) => toast('error', err.message || 'Failed to start a stocktake.'),
+  });
+
+  if (activeId) return null;
+
+  return (
+    <Button onClick={() => start.mutate()} disabled={start.isPending} className="h-10 gap-1.5">
+      <Play size={15} aria-hidden="true" />
+      <span className="hidden md:inline">{start.isPending ? 'Starting…' : 'Start Stocktake'}</span>
+    </Button>
+  );
+}
+
+export function StocktakePanel({ locationId }: { locationId: string }) {
+  const [detail, setDetail] = useState<Stocktake | null>(null);
+  const { stocktakes, activeId, isLoading } = useStocktakes(locationId);
 
   // The list endpoint doesn't include lines — fetch the active one's detail.
   const { data: active } = useQuery({
@@ -237,84 +269,63 @@ export function StocktakePanel({ locationId }: { locationId: string }) {
     enabled: !!activeId,
   });
 
-  const start = useMutation({
-    mutationFn: () => startStocktake({ locationId }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['stocktakes'] });
-      toast('success', 'Stocktake started — count each item and enter the physical quantity.');
-    },
-    onError: (err) => toast('error', err.message || 'Failed to start a stocktake.'),
-  });
-
   if (activeId) {
     if (!active?.lines) return <div className="h-40 rounded-2xl bg-muted animate-pulse" />;
     return <ActiveCount stocktake={active} />;
   }
 
   return (
-    <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
-        <p className="font-semibold text-foreground">Stocktake history</p>
-        <Button size="sm" onClick={() => start.mutate()} disabled={start.isPending} className="gap-1.5">
-          <Play size={14} />
-          {start.isPending ? 'Starting…' : 'Start Stocktake'}
-        </Button>
-      </div>
-      <div className="flex-1 overflow-auto">
-        {isLoading ? (
-          <div className="p-5 space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-10 bg-muted rounded animate-pulse" />
-            ))}
-          </div>
-        ) : stocktakes.length === 0 ? (
-          <div className="py-24">
-            <EmptyState
-              icon={ClipboardCheck}
-              title="No stocktakes yet"
-              description="Start one to count physical stock and reconcile variances."
-            />
-          </div>
-        ) : (
-          <DataTable className="w-full text-sm border-collapse">
-            <thead className="sticky top-0 z-10">
-              <tr className="border-b border-border bg-muted">
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                  Date
-                </th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                  Started by
-                </th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {stocktakes.map((s) => (
-                <tr
-                  key={s.id}
-                  onClick={() => setDetail(s)}
-                  className="border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors cursor-pointer"
-                >
-                  <td className="px-3 md:px-5 py-3.5 tabular-nums text-foreground">{fmtDateTime(s.createdAt)}</td>
-                  <td className="px-3 md:px-5 py-3.5 text-muted-foreground">{s.startedByUser?.name ?? '—'}</td>
-                  <td className="px-3 md:px-5 py-3.5">
-                    <Badge variant={STATUS_META[s.status].variant}>{STATUS_META[s.status].label}</Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
-        )}
-      </div>
+    <>
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-10 animate-pulse rounded bg-muted" />
+          ))}
+        </div>
+      ) : stocktakes.length === 0 ? (
+        <EmptyState
+          icon={ClipboardCheck}
+          title="No stocktakes yet"
+          description="Start one to count physical stock and reconcile variances."
+        />
+      ) : (
+        // A log of events, not a dataset — nothing here is worth comparing down a
+        // column, so it reads as a timeline rather than a table.
+        <ol>
+          {stocktakes.map((s, index) => (
+            <li key={s.id} className="relative flex gap-3">
+              {/* The rail: a line into the dot from above and out of it below, clipped
+                  at the first and last entry so the timeline has ends. */}
+              <span className="relative flex w-3 shrink-0 justify-center" aria-hidden="true">
+                {index > 0 && <span className="absolute top-0 h-5 w-px bg-border" />}
+                {index < stocktakes.length - 1 && <span className="absolute top-5 bottom-0 w-px bg-border" />}
+                <span className={cn('absolute top-5 size-2.5 -translate-y-1/2 rounded-full', STATUS_META[s.status].dot)} />
+              </span>
+              <button
+                type="button"
+                onClick={() => setDetail(s)}
+                className="flex flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-offset"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium tabular-nums text-foreground">{fmtDateTime(s.createdAt)}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {STATUS_META[s.status].label}
+                    {s.startedByUser?.name ? ` · ${s.startedByUser.name}` : ''}
+                  </span>
+                </span>
+                <ChevronRight size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
 
-      {detail && <StocktakeDetailModal id={detail.id} onClose={() => setDetail(null)} />}
-    </div>
+      {detail && <StocktakeDetailDrawer id={detail.id} onClose={() => setDetail(null)} />}
+    </>
   );
 }
 
-function StocktakeDetailModal({ id, onClose }: { id: string; onClose: () => void }) {
+function StocktakeDetailDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const { data } = useQuery({
     queryKey: ['stocktake', id],
     queryFn: async () => {
@@ -324,16 +335,20 @@ function StocktakeDetailModal({ id, onClose }: { id: string; onClose: () => void
   });
 
   return (
-    <Modal title="Stocktake" onClose={onClose} className="max-w-xl">
+    <Drawer
+      title="Stocktake"
+      description={
+        data
+          ? `${fmtDateTime(data.createdAt)} · ${STATUS_META[data.status].label}${data.startedByUser?.name ? ` · ${data.startedByUser.name}` : ''}`
+          : undefined
+      }
+      onClose={onClose}
+    >
       {!data ? (
-        <div className="h-32 rounded-lg bg-muted animate-pulse" />
+        <div className="h-32 animate-pulse rounded-lg bg-muted" />
       ) : (
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            {fmtDateTime(data.createdAt)} · {STATUS_META[data.status].label}
-            {data.startedByUser?.name ? ` · ${data.startedByUser.name}` : ''}
-          </p>
-          <div className="border border-border rounded-xl overflow-hidden max-h-96 overflow-y-auto">
+          <div className="overflow-hidden rounded-xl border border-border">
             <DataTable className="w-full text-sm">
               <thead>
                 <tr className="bg-muted text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -372,6 +387,6 @@ function StocktakeDetailModal({ id, onClose }: { id: string; onClose: () => void
           </div>
         </div>
       )}
-    </Modal>
+    </Drawer>
   );
 }
