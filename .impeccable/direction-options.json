@@ -1,0 +1,72 @@
+{
+  "title": "Choose DUMA’s new visual world",
+  "question": "The current instrument-like system is being replaced. Choose the friendlier world that should govern the app, or re-roll.",
+  "options": [
+    {
+      "id": "assigned-service-board",
+      "label": "The Service Board",
+      "kicker": "RECOMMENDED DIRECTION",
+      "lineage": "café prep walls, magnetic rota boards, and colour-coded service passes",
+      "thesis": "One shared board reshaped around each role, with warm modular surfaces and colour that carries ownership and priority.",
+      "palette": ["#F6F3EC", "#2F6B4F", "#E8875B", "#6577D8", "#E6B84B"],
+      "materials": ["powder-coated board", "matte magnetic labels", "soft paper notes"],
+      "viewport": "A calm coloured sidebar opens onto a daily operating board, with primary work grouped into soft modules and urgent work pinned visibly rather than buried in tabs.",
+      "risk": "Too many coloured modules could feel juvenile, so colour belongs to product domains and state—not decoration.",
+      "sketch": ".impeccable/sketches/service-board.webp"
+    },
+    {
+      "id": "challenger-depth-bands",
+      "label": "Depth Bands",
+      "lineage": "a technical dive through changing light and depth",
+      "thesis": "The app moves from bright shop-floor actions into deeper layers of management and group control.",
+      "case": "Strong colour and hierarchy, but the ocean metaphor identifies less immediately with café operators than the service board.",
+      "palette": ["#F4FBFA", "#2D9C9C", "#3F68B2", "#182C4D", "#F09A65"],
+      "materials": ["translucent depth bands", "clear instrument labels", "soft particulate fields"],
+      "viewport": "A light cyan action layer sits above progressively deeper blue management bands, with the current role fixing the visible depth.",
+      "risk": "The vertical metaphor may become decorative on dense tables and repetitive operational pages.",
+      "sketch": ".impeccable/sketches/depth-bands.webp",
+      "hero": "https://impeccable.style/worlds/cards/rivers-tides-ocean-depths-mesophotic-deep-dive-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/rivers-tides-ocean-depths-mesophotic-deep-dive.webp"
+    },
+    {
+      "id": "challenger-hyperstack",
+      "label": "Role Stacks",
+      "lineage": "HyperCard stacks and editable index cards",
+      "thesis": "Every role receives a linked stack of task cards, with browse and edit treated as two modes of the same object.",
+      "case": "Excellent task clarity and familiarity, but its monochrome source fuses poorly with the explicit request for more colour.",
+      "palette": ["#FCFCFA", "#171717", "#C9C8C2", "#6A7FD1"],
+      "materials": ["index cards", "painted buttons", "stippled backgrounds"],
+      "viewport": "A compact role stack uses visible back paths, direct-edit fields, and a single coloured selection layer.",
+      "risk": "Pixel nostalgia could make the product feel older—the exact problem this redesign must remove.",
+      "sketch": ".impeccable/sketches/role-stacks.webp",
+      "hero": "https://impeccable.style/worlds/cards/medium-native-hypercard-stack-shoebox-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/medium-native-hypercard-stack-shoebox.webp"
+    },
+    {
+      "id": "challenger-safelight",
+      "label": "Safelight Workflow",
+      "lineage": "darkroom stations and timed process baths",
+      "thesis": "Complex work advances through visible stations, previews, and deliberate commit points.",
+      "case": "Its workflow grammar is strong, but amber-on-dark feels too severe for a shared tablet used all day.",
+      "palette": ["#1D1B1A", "#E5A43A", "#F2E8D5", "#8D7770"],
+      "materials": ["amber safelight", "enamel trays", "test strips"],
+      "viewport": "The current task is a bright station inside a dark process line, with test states shown before irreversible actions.",
+      "risk": "The dark environment would increase glare and make routine screens feel more dramatic than the work warrants.",
+      "sketch": ".impeccable/sketches/safelight-workflow.webp",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-darkroom-safelight-bay-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/signals-instruments-darkroom-safelight-bay.webp"
+    }
+  ],
+  "reroll": true,
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A polished contemporary SaaS admin system with a soft neutral canvas, indigo accent, rounded cards, and familiar sidebar navigation.",
+    "palette": ["#F7F8FA", "#4F67D8", "#FFFFFF", "#16213A"],
+    "materials": ["soft cards", "subtle shadows", "standard controls"],
+    "viewport": "A conventional sidebar, metric cards, activity table, and primary action arranged exactly where an experienced admin user expects them.",
+    "risk": "Highly usable, but likely to retain the generic AI-dashboard feeling the brief explicitly rejects.",
+    "sketch": ".impeccable/sketches/category-standard.webp"
+  },
+  "steer": true
+}

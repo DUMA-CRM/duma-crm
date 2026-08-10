@@ -34,7 +34,7 @@ import {
   X,
   XCircle,
 } from '@/components/icons';
-import { PageLayout } from '@/components/layout/PageLayout';
+import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { Modal } from '@/components/shared/Modal';
@@ -104,9 +104,9 @@ const DATE_FILTERS: SelectOption[] = [
 ];
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; dot: string; text: string; border: string; bg: string }> = {
-  pending: { label: 'Pending', dot: 'bg-muted-foreground', text: 'text-muted-foreground', border: 'border-border', bg: 'bg-muted/50' },
+  pending: { label: 'Pending', dot: 'bg-muted-foreground', text: 'text-muted-foreground', border: 'border-rule', bg: 'bg-muted/50' },
   preparing: { label: 'Preparing', dot: 'bg-warning', text: 'text-warning', border: 'border-warning/40', bg: 'bg-warning/5' },
-  ready: { label: 'Ready', dot: 'bg-primary', text: 'text-primary', border: 'border-primary/40', bg: 'bg-primary/5' },
+  ready: { label: 'Ready', dot: 'bg-primary', text: 'text-primary', border: 'border-primary/40', bg: 'bg-band' },
   done: { label: 'Done', dot: 'bg-success', text: 'text-success', border: 'border-success/40', bg: 'bg-success/5' },
   cancelled: {
     label: 'Cancelled',
@@ -189,7 +189,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${label} filter`}
-        className="flex size-5 items-center justify-center rounded-full hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+        className="flex size-5 items-center justify-center rounded-full hover:bg-band focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       >
         <X size={11} aria-hidden="true" />
       </button>
@@ -226,13 +226,13 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
       setOpen(false);
       setVoidOpen(false);
     },
-    onError: (err) => toast('error', err.message || 'Failed to update the order status.'),
+    onError: (err) => toast('error', err.message || 'The order status wasn’t updated. Try again.'),
   });
 
   const badge = (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide',
+        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border text-label font-semibold uppercase tracking-label',
         s.bg,
         s.text,
         s.border,
@@ -265,7 +265,7 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
           aria-expanded={open}
           disabled={isPending}
           className={cn(
-            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold uppercase tracking-wide transition-opacity disabled:opacity-60 hover:opacity-80',
+            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border text-label font-semibold uppercase tracking-label transition-opacity disabled:opacity-60 hover:opacity-80',
             s.bg,
             s.text,
             s.border,
@@ -279,7 +279,7 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
         {open && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-            <div className="absolute left-0 top-full mt-1 z-20 bg-card border border-border rounded-xl shadow-xl overflow-hidden min-w-36">
+            <div className="absolute left-0 top-full mt-1 z-20 bg-card border border-rule rounded-sm shadow-xl overflow-hidden min-w-36">
               {nexts.map((next) => {
                 const ns = STATUS_CONFIG[next];
                 return (
@@ -326,7 +326,7 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
                 onChange={(event) => setVoidNotes(event.target.value)}
                 maxLength={500}
                 placeholder="Optional context for the audit trail…"
-                className="min-h-24 w-full rounded-lg border border-input bg-field px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                className="min-h-24 w-full rounded-sm border border-input bg-field px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
               />
             </label>
             <div className="flex gap-2">
@@ -364,15 +364,15 @@ function LiveTicket({ order, active, onClick }: { order: Order; active: boolean;
     <button
       onClick={onClick}
       className={cn(
-        'flex flex-col gap-2 p-3 rounded-xl border w-52 shrink-0 text-left transition-all',
-        active ? 'border-primary/60 bg-primary/5 shadow-sm' : 'border-border bg-card hover:bg-surface-offset',
+        'flex flex-col gap-2 p-3 rounded-sm border w-52 shrink-0 text-left transition-all',
+        active ? 'border-primary/60 bg-band shadow-sm' : 'border-rule bg-card hover:bg-band',
       )}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] font-semibold text-muted-foreground">#{order.id.slice(0, 8)}</span>
+        <span className="font-mono text-label font-semibold text-muted-foreground">#{order.id.slice(0, 8)}</span>
         <span
           className={cn(
-            'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-bold uppercase tracking-wide',
+            'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm border text-micro font-semibold uppercase tracking-micro',
             s.bg,
             s.text,
             s.border,
@@ -382,12 +382,12 @@ function LiveTicket({ order, active, onClick }: { order: Order; active: boolean;
           {s.label}
         </span>
       </div>
-      <p className="text-[11px] text-foreground font-medium leading-snug line-clamp-2">
+      <p className="text-label text-foreground font-medium leading-snug line-clamp-2">
         {preview}
         {hasMore && <span className="text-muted-foreground"> +{(order.items?.length ?? 0) - 2} more</span>}
       </p>
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-muted-foreground">{timeAgo(order.createdAt)}</span>
+        <span className="text-label text-muted-foreground">{timeAgo(order.createdAt)}</span>
         <span className="text-xs font-semibold tabular-nums">£{Number(order.totalAmount).toFixed(2)}</span>
       </div>
     </button>
@@ -458,12 +458,12 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
       toast('success', `${Math.abs(amountNumber - refundable) < 0.001 ? 'Full' : 'Partial'} refund recorded.`);
       onClose();
     },
-    onError: (error) => toast('error', error.message || 'Could not record the refund.'),
+    onError: (error) => toast('error', error.message || 'The refund wasn’t recorded. Review the amount and try again.'),
   });
   return (
     <Modal title="Record refund" onClose={onClose}>
       <div className="space-y-4">
-        <div className="rounded-xl border border-border bg-surface-offset p-3 text-sm">
+        <div className="rounded-sm border border-rule bg-band p-3 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Order total</span>
             <span>£{Number(order.totalAmount).toFixed(2)}</span>
@@ -476,7 +476,7 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
         <div className="max-h-[45vh] space-y-3 overflow-y-auto pr-1">
           {isLoading && <p className="text-sm text-muted-foreground">Loading refundable items…</p>}
           {options?.items.map((item) => (
-            <div key={item.id} className="rounded-xl border border-border p-3">
+            <div key={item.id} className="rounded-sm border border-rule p-3">
               <div className="flex items-center justify-between gap-3">
                 <label className="flex min-w-0 items-center gap-2 text-sm font-semibold">
                   <input
@@ -491,7 +491,7 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
                   <span className="text-xs text-muted-foreground">Base qty</span>
                   <input
                     aria-label={`${item.name} refund quantity`}
-                    className="h-8 w-16 rounded-md border border-input bg-field px-2 text-sm"
+                    className="h-8 w-16 rounded-sm border border-input bg-field px-2 text-sm"
                     type="number"
                     min={0}
                     max={item.base.remainingQuantity}
@@ -504,7 +504,7 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
                 Up to {item.base.remainingQuantity} · £{Number(item.base.remainingAmount).toFixed(2)} paid value
               </p>
               {item.modifiers.length > 0 && (
-                <div className="mt-3 space-y-2 border-t border-border pt-2">
+                <div className="mt-3 space-y-2 border-t border-rule pt-2">
                   {item.modifiers.map((modifier) => (
                     <div key={modifier.id} className="flex items-center justify-between gap-3 pl-4">
                       <label className="flex min-w-0 items-center gap-2 text-xs">
@@ -526,7 +526,7 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
                       </label>
                       <input
                         aria-label={`${modifier.name} refund quantity`}
-                        className="h-7 w-16 rounded-md border border-input bg-field px-2 text-xs"
+                        className="h-7 w-16 rounded-sm border border-input bg-field px-2 text-xs"
                         type="number"
                         min={0}
                         max={modifier.remainingQuantity}
@@ -540,7 +540,7 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
             </div>
           ))}
         </div>
-        <div className="flex justify-between rounded-xl bg-primary/8 px-3 py-2 text-sm font-bold">
+        <div className="flex justify-between rounded-sm bg-primary/8 px-3 py-2 text-sm font-bold">
           <span>Refund total</span>
           <span>£{amountNumber.toFixed(2)}</span>
         </div>
@@ -558,7 +558,7 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
             onChange={(event) => setNotes(event.target.value)}
             maxLength={500}
             placeholder="How and where the money was returned…"
-            className="min-h-24 w-full rounded-lg border border-input bg-field px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            className="min-h-24 w-full rounded-sm border border-input bg-field px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
         </label>
         <p className="text-xs text-muted-foreground">
@@ -624,7 +624,7 @@ function ReceiptModal({ orderId, apiBase, onClose }: { orderId: string; apiBase:
   return (
     <Modal title="Receipt" onClose={onClose} className="max-w-2xl">
       <div className="flex flex-col gap-4">
-        <div className="h-[70vh] rounded-lg border border-border overflow-hidden bg-muted">
+        <div className="h-[70vh] rounded-sm border border-rule overflow-hidden bg-muted">
           {loading ? (
             <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Loading receipt…</div>
           ) : error ? (
@@ -663,7 +663,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
     return (
       <div className="flex gap-4 py-2">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex-1 h-24 bg-muted rounded-xl animate-pulse" />
+          <div key={i} className="flex-1 h-24 bg-muted rounded-sm animate-pulse" />
         ))}
       </div>
     );
@@ -676,35 +676,35 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
   return (
     <div className="flex flex-col lg:flex-row gap-5">
       {/* ── Receipt (left) ── */}
-      <div className="w-full lg:w-80 shrink-0 bg-background border border-dashed border-border rounded-xl px-5 py-4 font-mono">
+      <div className="w-full lg:w-80 shrink-0 bg-background border border-dashed border-rule rounded-sm px-5 py-4 font-mono">
         <div className="text-center mb-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Receipt</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">#{data.id.slice(0, 8).toUpperCase()}</p>
-          <p className="text-[10px] text-muted-foreground">{formatDateTime(data.createdAt)}</p>
+          <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Receipt</p>
+          <p className="text-label text-muted-foreground mt-0.5">#{data.id.slice(0, 8).toUpperCase()}</p>
+          <p className="text-micro text-muted-foreground">{formatDateTime(data.createdAt)}</p>
         </div>
 
-        <div className="border-t border-dashed border-border pt-3 flex flex-col gap-1.5">
+        <div className="border-t border-dashed border-rule pt-3 flex flex-col gap-1.5">
           {data.items.map((item) => (
             <div key={item.id}>
               <div className="flex justify-between gap-2">
-                <span className="text-[11px] text-foreground">
+                <span className="text-label text-foreground">
                   <span className="text-muted-foreground">{item.quantity}×</span> {item.name}
                   {item.refundStatus && item.refundStatus !== 'none' && (
-                    <span className="ml-1 text-[9px] font-bold uppercase text-destructive">{item.refundStatus.replace('_', ' ')}</span>
+                    <span className="ml-1 text-micro font-semibold uppercase text-destructive">{item.refundStatus.replace('_', ' ')}</span>
                   )}
                 </span>
-                <span className="text-[11px] font-semibold tabular-nums shrink-0">£{parseFloat(item.subtotal).toFixed(2)}</span>
+                <span className="text-label font-semibold tabular-nums shrink-0">£{parseFloat(item.subtotal).toFixed(2)}</span>
               </div>
               {item.modifiers && item.modifiers.length > 0 && (
                 <div className="pl-4 flex flex-col gap-0.5 mt-0.5">
                   {item.modifiers.map((m, i) => (
                     <div key={i} className="flex justify-between gap-2">
-                      <span className="text-[10px] text-muted-foreground">+ {m.name}</span>
+                      <span className="text-micro text-muted-foreground">+ {m.name}</span>
                       {m.refundStatus && m.refundStatus !== 'none' && (
-                        <span className="text-[9px] font-bold uppercase text-destructive">{m.refundStatus.replace('_', ' ')}</span>
+                        <span className="text-micro font-semibold uppercase text-destructive">{m.refundStatus.replace('_', ' ')}</span>
                       )}
                       {parseFloat(m.priceAdjust) !== 0 && (
-                        <span className="text-[10px] text-muted-foreground tabular-nums">£{parseFloat(m.priceAdjust).toFixed(2)}</span>
+                        <span className="text-micro text-muted-foreground tabular-nums">£{parseFloat(m.priceAdjust).toFixed(2)}</span>
                       )}
                     </div>
                   ))}
@@ -714,28 +714,28 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
           ))}
         </div>
 
-        <div className="border-t border-dashed border-border mt-3 pt-3 flex flex-col gap-1">
-          <div className="flex justify-between text-[10px] text-muted-foreground">
+        <div className="border-t border-dashed border-rule mt-3 pt-3 flex flex-col gap-1">
+          <div className="flex justify-between text-micro text-muted-foreground">
             <span>Items</span>
             <span>{data.items.reduce((s, i) => s + i.quantity, 0)}</span>
           </div>
           {data.discountAmount && parseFloat(data.discountAmount) !== 0 && (
-            <div className="flex justify-between text-[11px] text-success">
+            <div className="flex justify-between text-label text-success">
               <span>Discount</span>
               <span className="tabular-nums">−£{parseFloat(data.discountAmount).toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between text-[12px] font-bold text-foreground">
+          <div className="flex justify-between text-xs font-bold text-foreground">
             <span>Total</span>
             <span className="tabular-nums">£{parseFloat(data.totalAmount).toFixed(2)}</span>
           </div>
           {refundedAmount > 0 && (
-            <div className="flex justify-between text-[11px] font-semibold text-destructive">
+            <div className="flex justify-between text-label font-semibold text-destructive">
               <span>Refunded</span>
               <span className="tabular-nums">−£{refundedAmount.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
+          <div className="flex justify-between text-micro text-muted-foreground mt-0.5">
             <span>Payment</span>
             <span className="inline-flex items-center gap-1">
               {data.paymentMethod === 'cash' ? <Banknote size={10} /> : <CreditCard size={10} />}
@@ -745,8 +745,8 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
         </div>
 
         {data.notes && (
-          <div className="border-t border-dashed border-border mt-3 pt-3">
-            <p className="text-[10px] text-muted-foreground italic text-center">{data.notes}</p>
+          <div className="border-t border-dashed border-rule mt-3 pt-3">
+            <p className="text-micro text-muted-foreground italic text-center">{data.notes}</p>
           </div>
         )}
       </div>
@@ -757,7 +757,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Timeline */}
           <div className="flex flex-col gap-1">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Timeline</p>
+            <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-2">Timeline</p>
             {history.length > 0 ? (
               <div className="flex flex-col">
                 {history.map((entry, idx) => {
@@ -777,24 +777,24 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                       </div>
                       <div className={cn('flex flex-col gap-0.5 pt-1', isLast ? 'pb-0' : 'pb-4')}>
                         <p className={cn('text-xs font-semibold leading-none', s.text)}>{s.label}</p>
-                        <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                        <p className="text-label text-muted-foreground leading-snug mt-0.5">
                           {formatDateTime(entry.createdAt)}
                           {entry.changedBy && <span className="ml-1">· {entry.changedBy}</span>}
                         </p>
-                        {duration && <p className="text-[10px] text-muted-foreground/60 italic">{duration} since previous</p>}
+                        {duration && <p className="text-micro text-muted-foreground/60 italic">{duration} since previous</p>}
                       </div>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <p className="text-[11px] text-muted-foreground">No history available.</p>
+              <p className="text-label text-muted-foreground">No history available.</p>
             )}
           </div>
 
           {/* Details */}
           <div className="flex flex-col gap-3">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Details</p>
+            <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Details</p>
             <InfoGroup>
               <InfoRow
                 icon={data.paymentMethod === 'cash' ? Banknote : CreditCard}
@@ -817,13 +817,10 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
 
         {(data.refunds?.length ?? 0) > 0 && (
           <div>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Refund history</p>
+            <p className="mb-2 text-micro font-semibold uppercase tracking-micro text-muted-foreground">Refund history</p>
             <div className="space-y-2">
               {data.refunds!.map((refund) => (
-                <div
-                  key={refund.id}
-                  className="flex items-center justify-between rounded-xl border border-border bg-surface-offset px-3 py-2 text-xs"
-                >
+                <div key={refund.id} className="flex items-center justify-between rounded-sm border border-rule bg-band px-3 py-2 text-xs">
                   <div>
                     <p className="font-semibold text-foreground">{optionLabel(REFUND_REASON_OPTIONS, refund.reason)}</p>
                     <p className="text-muted-foreground">
@@ -902,8 +899,8 @@ function OrderRow({
       <tr
         id={`order-row-${order.id}`}
         className={cn(
-          'group border-b border-border/50 transition-colors hover:bg-surface-offset cursor-pointer',
-          open && 'bg-surface-offset',
+          'group border-b border-rule transition-colors hover:bg-band cursor-pointer',
+          open && 'bg-band',
           !open && 'last:border-0',
         )}
         onClick={toggle}
@@ -937,7 +934,7 @@ function OrderRow({
       </tr>
 
       {open && (
-        <tr className="border-b border-border/50 bg-surface-offset/50">
+        <tr className="border-b border-rule bg-band">
           <td colSpan={7} className="px-4 md:px-8 pt-3 pb-5">
             <OrderDetailPanel orderId={order.id} />
           </td>
@@ -1196,13 +1193,13 @@ function OrdersPageContent() {
                     resetPage();
                   }}
                   aria-label="Clear customer ID search"
-                  className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   <X size={13} aria-hidden="true" />
                 </button>
               ) : undefined
             }
-            className="bg-background border-border"
+            className="bg-background border-rule"
           />
         </div>
 
@@ -1251,7 +1248,7 @@ function OrdersPageContent() {
               <SlidersHorizontal data-icon="inline-start" />
               More filters
               {advancedFilterCount > 0 && (
-                <span className="ml-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                <span className="ml-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-micro font-semibold text-primary-foreground">
                   {advancedFilterCount}
                 </span>
               )}
@@ -1262,7 +1259,7 @@ function OrdersPageContent() {
               align="end"
               sideOffset={8}
               collisionPadding={16}
-              className="z-[90] w-[calc(100vw-2rem)] max-w-sm rounded-2xl border border-border bg-surface p-4 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
+              className="z-[90] w-[calc(100vw-2rem)] max-w-sm rounded-sm border border-rule bg-surface p-4 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
             >
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
@@ -1273,7 +1270,7 @@ function OrdersPageContent() {
                   <button
                     type="button"
                     aria-label="Close filters"
-                    className="flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="flex size-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <X size={14} aria-hidden="true" />
                   </button>
@@ -1281,7 +1278,7 @@ function OrdersPageContent() {
               </div>
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Created by</label>
+                  <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Created by</label>
                   <Select
                     value={createdBy}
                     onValueChange={(value) => {
@@ -1297,7 +1294,7 @@ function OrdersPageContent() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Custom dates</label>
+                  <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Custom dates</label>
                   <div className="grid grid-cols-2 gap-2">
                     <Input
                       type="date"
@@ -1308,7 +1305,7 @@ function OrdersPageContent() {
                         resetPage();
                       }}
                       aria-label="Orders from date"
-                      className="bg-background border-border px-2"
+                      className="bg-background border-rule px-2"
                     />
                     <Input
                       type="date"
@@ -1319,7 +1316,7 @@ function OrdersPageContent() {
                         resetPage();
                       }}
                       aria-label="Orders to date"
-                      className="bg-background border-border px-2"
+                      className="bg-background border-rule px-2"
                     />
                   </div>
                   {invalidDateRange && (
@@ -1414,8 +1411,11 @@ function OrdersPageContent() {
   );
 
   return (
-    <PageLayout eyebrow="Operations" title="Orders" headerBorder headerSlot={filterBar}>
+    <EditorShell eyebrow="Operations" title="Orders" icon={<ShoppingBag size={20} aria-hidden="true" />}>
       <div className="flex flex-col gap-4">
+        {/* Filters belong to the table they narrow, not to the app chrome. */}
+        {filterBar}
+
         {/* Stats */}
         <StatCardGrid className="shrink-0">
           <StatCard
@@ -1449,7 +1449,7 @@ function OrdersPageContent() {
         {/* Live tickets */}
         {liveTickets.length > 0 && (
           <div className="shrink-0">
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
+            <p className="text-label font-semibold text-muted-foreground uppercase tracking-label mb-2">
               Live tickets · {liveTickets.length}
             </p>
             <div className="flex gap-2.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -1461,28 +1461,28 @@ function OrdersPageContent() {
         )}
 
         {/* Orders table */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="bg-card border border-rule rounded-sm overflow-hidden">
           <div>
             <DataTable className="w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
-                <tr className="border-b border-border bg-muted">
+                <tr className="border-b border-rule bg-muted">
                   <th className="px-3 md:px-5 py-3.5 w-8" />
-                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                     Order
                   </th>
-                  <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <th className="hidden md:table-cell px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                     Source
                   </th>
-                  <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <th className="hidden md:table-cell px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                     Notes
                   </th>
-                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                     Status
                   </th>
-                  <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <th className="px-3 md:px-5 py-3.5 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                     Total
                   </th>
-                  <th className="px-3 md:px-5 py-3.5 pr-4 md:pr-6 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <th className="px-3 md:px-5 py-3.5 pr-4 md:pr-6 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                     Time
                   </th>
                 </tr>
@@ -1502,7 +1502,7 @@ function OrdersPageContent() {
                   <tr>
                     <td colSpan={7} className="py-24">
                       <div className="flex flex-col items-center gap-3 px-6 text-center">
-                        <span className="flex size-11 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                        <span className="flex size-11 items-center justify-center rounded-sm bg-destructive/6 text-destructive">
                           <AlertCircle size={22} aria-hidden="true" />
                         </span>
                         <div>
@@ -1517,7 +1517,7 @@ function OrdersPageContent() {
                   </tr>
                 ) : isLoading ? (
                   Array.from({ length: 10 }).map((_, i) => (
-                    <tr key={i} className="border-b border-border/50">
+                    <tr key={i} className="border-b border-rule">
                       {Array.from({ length: 7 }).map((_, j) => (
                         <td key={j} className={cn('px-3 md:px-5 py-4', (j === 2 || j === 3) && 'hidden md:table-cell')}>
                           <div className="h-4 bg-muted rounded animate-pulse" style={{ width: `${45 + ((i * 13 + j * 17) % 40)}%` }} />
@@ -1545,7 +1545,7 @@ function OrdersPageContent() {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+            <div className="flex items-center justify-between px-5 py-3 border-t border-rule shrink-0">
               <p className="text-xs text-muted-foreground tabular-nums">
                 Page {page} of {totalPages} · {(data?.total ?? 0).toLocaleString()} orders
               </p>
@@ -1553,14 +1553,14 @@ function OrdersPageContent() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="h-7 px-3 text-xs font-medium border border-border rounded-lg text-muted-foreground hover:bg-surface-offset transition-colors disabled:opacity-40"
+                  className="h-7 px-3 text-xs font-medium border border-rule rounded-sm text-muted-foreground hover:bg-band transition-colors disabled:opacity-40"
                 >
                   Prev
                 </button>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="h-7 px-3 text-xs font-medium border border-border rounded-lg text-muted-foreground hover:bg-surface-offset transition-colors disabled:opacity-40"
+                  className="h-7 px-3 text-xs font-medium border border-rule rounded-sm text-muted-foreground hover:bg-band transition-colors disabled:opacity-40"
                 >
                   Next
                 </button>
@@ -1569,23 +1569,23 @@ function OrdersPageContent() {
           )}
         </div>
       </div>
-    </PageLayout>
+    </EditorShell>
   );
 }
 
 function OrdersPageFallback() {
   return (
-    <PageLayout eyebrow="Operations" title="Orders" headerBorder>
+    <EditorShell eyebrow="Operations" title="Orders" icon={<ShoppingBag size={20} aria-hidden="true" />}>
       <div className="space-y-4">
-        <div className="h-9 w-full max-w-4xl animate-pulse rounded-lg bg-muted" />
+        <div className="h-9 w-full max-w-4xl animate-pulse rounded-sm bg-muted" />
         <StatCardGrid>
           {Array.from({ length: 4 }).map((_, index) => (
             <StatCardSkeleton key={index} />
           ))}
         </StatCardGrid>
-        <div className="h-96 animate-pulse rounded-2xl border border-border bg-card shadow-sm" />
+        <div className="h-96 animate-pulse rounded-sm border border-rule bg-card shadow-sm" />
       </div>
-    </PageLayout>
+    </EditorShell>
   );
 }
 

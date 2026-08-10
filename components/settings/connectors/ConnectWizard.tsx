@@ -41,7 +41,7 @@ export function WizardRail({
   footnote?: React.ReactNode;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border bg-surface-offset/40 p-6">
+    <div className="relative overflow-hidden rounded-sm border border-rule bg-band p-6">
       {/* Faint graph paper, purely decorative — echoes the rest of the app's cards. */}
       <div
         aria-hidden="true"
@@ -54,7 +54,7 @@ export function WizardRail({
       />
       <div className="relative">
         <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <div className="flex size-11 items-center justify-center rounded-sm bg-primary text-primary-foreground">
             <Icon size={20} aria-hidden="true" />
           </div>
           <div className="min-w-0">
@@ -66,8 +66,8 @@ export function WizardRail({
         <p className="mt-5 text-sm leading-relaxed text-muted-foreground">{tagline}</p>
 
         {requirements.length > 0 && (
-          <div className="mt-6 border-t border-border pt-5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Before you start</p>
+          <div className="mt-6 border-t border-rule pt-5">
+            <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Before you start</p>
             <ul className="mt-3 space-y-2.5">
               {requirements.map((requirement) => (
                 <li key={requirement} className="flex gap-2.5 text-sm leading-relaxed text-foreground">
@@ -79,12 +79,12 @@ export function WizardRail({
           </div>
         )}
 
-        <div className="mt-6 flex gap-2.5 border-t border-border pt-5 text-xs leading-relaxed text-muted-foreground">
+        <div className="mt-6 flex gap-2.5 border-t border-rule pt-5 text-xs leading-relaxed text-muted-foreground">
           <Lock size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
           <p>Credentials are encrypted before they are stored and are never shown again — only replaced.</p>
         </div>
 
-        {footnote && <div className="mt-5 border-t border-border pt-5 text-xs text-muted-foreground">{footnote}</div>}
+        {footnote && <div className="mt-5 border-t border-rule pt-5 text-xs text-muted-foreground">{footnote}</div>}
       </div>
     </div>
   );
@@ -191,7 +191,7 @@ export function ConnectWizard({
               })}
             </ol>
 
-            <p className="mt-6 text-[10px] font-bold uppercase tracking-widest text-primary">
+            <p className="mt-6 text-micro font-semibold uppercase tracking-micro text-primary">
               Step {clamped + 1} of {steps.length}
             </p>
             <h2 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{step.title}</h2>
@@ -258,8 +258,8 @@ export function ProviderGrid<T extends string>({
               aria-checked={active}
               onClick={() => onChange(option.value)}
               className={cn(
-                'flex flex-col items-center gap-2.5 rounded-xl border p-4 text-center transition-colors',
-                active ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:bg-surface-offset/60',
+                'flex flex-col items-center gap-2.5 rounded-sm border p-4 text-center transition-colors',
+                active ? 'border-primary bg-band text-primary' : 'border-rule text-muted-foreground hover:bg-band',
               )}
             >
               <Icon size={22} aria-hidden="true" />

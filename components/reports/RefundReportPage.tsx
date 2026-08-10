@@ -41,7 +41,7 @@ export function RefundReportPage() {
   return (
     <EditorShell eyebrow="Report" title="Refunds" icon={<RotateCcw size={20} />} onClose={() => router.push('/reports/library')}>
       <div className="space-y-5">
-        <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-card shadow-sm p-4">
+        <div className="flex flex-wrap items-end gap-3 rounded-sm border border-rule bg-card shadow-sm p-4">
           <Input
             label="From"
             type="date"
@@ -80,10 +80,10 @@ export function RefundReportPage() {
             className="ml-auto border-0 bg-transparent p-0 text-right shadow-none"
           />
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
+        <div className="overflow-x-auto rounded-sm border border-rule bg-card shadow-sm">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              <tr className="border-b border-rule text-left text-xs text-muted-foreground">
                 <th className="p-3">Refund date</th>
                 <th className="p-3">Sale date</th>
                 <th className="p-3">Location / order</th>
@@ -102,12 +102,12 @@ export function RefundReportPage() {
               ) : error ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-destructive">
-                    Could not load the refund report.
+                    The refund report couldn’t load. Try again.
                   </td>
                 </tr>
               ) : data?.data.length ? (
                 data.data.map((refund) => (
-                  <tr key={refund.id} className="border-b border-border last:border-0">
+                  <tr key={refund.id} className="border-b border-rule last:border-0">
                     <td className="p-3">{formatDateTime(refund.createdAt)}</td>
                     <td className="p-3">{formatDate(refund.order.createdAt)}</td>
                     <td className="p-3">

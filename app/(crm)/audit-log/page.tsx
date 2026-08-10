@@ -1,6 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Popover } from 'radix-ui';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+
 import {
   AlertCircle,
   Building2,
@@ -23,11 +27,7 @@ import {
   User,
   X,
 } from '@/components/icons';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Popover } from 'radix-ui';
-import { Suspense, useEffect, useMemo, useState } from 'react';
-
-import { PageLayout } from '@/components/layout/PageLayout';
+import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { Button } from '@/components/ui/button';
@@ -59,20 +59,20 @@ function fmtDuration(ms?: number | null) {
 
 function statusColor(code?: number | null) {
   if (code == null) return 'bg-muted text-muted-foreground';
-  if (code < 300) return 'bg-success/10 text-success';
-  if (code < 400) return 'bg-primary/10 text-primary';
-  if (code < 500) return 'bg-warning/10 text-warning';
-  return 'bg-destructive/10 text-destructive';
+  if (code < 300) return 'bg-success/6 text-success';
+  if (code < 400) return 'bg-band text-primary';
+  if (code < 500) return 'bg-warning/6 text-warning';
+  return 'bg-destructive/6 text-destructive';
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function actionColor(action: string) {
-  if (/delete|remove/i.test(action)) return 'text-destructive bg-destructive/10 border-destructive/20';
-  if (/create|add/i.test(action)) return 'text-success bg-success/10 border-success/20';
-  if (/update|patch|edit/i.test(action)) return 'text-primary bg-primary/10 border-primary/20';
-  if (/transfer|receive|adjust/i.test(action)) return 'text-warning bg-warning/10 border-warning/20';
-  return 'text-muted-foreground bg-muted border-border';
+  if (/delete|remove/i.test(action)) return 'text-destructive bg-destructive/6 border-destructive/20';
+  if (/create|add/i.test(action)) return 'text-success bg-success/6 border-success/20';
+  if (/update|patch|edit/i.test(action)) return 'text-primary bg-band border-primary/20';
+  if (/transfer|receive|adjust/i.test(action)) return 'text-warning bg-warning/6 border-warning/20';
+  return 'text-muted-foreground bg-muted border-rule';
 }
 
 function humanise(str: string) {
@@ -92,7 +92,7 @@ function AuditDetailPanel({ log }: { log: AuditLog }) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
       {/* Details */}
       <div className="flex flex-col gap-3">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Details</p>
+        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Details</p>
         <InfoGroup>
           <InfoRow icon={User} label="Actor" value={log.userName ?? 'System / anonymous'} />
           {log.userRole && <InfoRow icon={Shield} label="Role" value={ROLE_LABEL[log.userRole] ?? log.userRole} />}
@@ -101,7 +101,7 @@ function AuditDetailPanel({ log }: { log: AuditLog }) {
           {log.path && <InfoRow icon={Link2} label="Path" value={log.path} copyable />}
           {log.statusCode != null && <InfoRow icon={ShieldCheck} label="Status" value={String(log.statusCode)} />}
           {duration && <InfoRow icon={Timer} label="Duration" value={duration} />}
-          {log.tenantId && <InfoRow icon={Building2} label="Tenant" value={log.tenantId} copyable />}
+          {log.tenantId && <InfoRow icon={Building2} label="Workspace" value={log.tenantId} copyable />}
           {log.resourceId && <InfoRow icon={Link2} label="Resource ID" value={log.resourceId} copyable />}
           {log.ipAddress && <InfoRow icon={Globe} label="IP address" value={log.ipAddress} copyable />}
           {log.requestId && <InfoRow icon={Fingerprint} label="Request ID" value={log.requestId} copyable />}
@@ -111,19 +111,19 @@ function AuditDetailPanel({ log }: { log: AuditLog }) {
 
       {/* Metadata + response */}
       <div className="flex flex-col gap-3">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Metadata</p>
+        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Metadata</p>
         {meta ? (
-          <pre className="text-xs text-muted-foreground bg-background border border-border rounded-xl px-3 py-2.5 overflow-x-auto whitespace-pre-wrap break-all">
+          <pre className="text-xs text-muted-foreground bg-background border border-rule rounded-sm px-3 py-2.5 overflow-x-auto whitespace-pre-wrap break-all">
             {JSON.stringify(meta, null, 2)}
           </pre>
         ) : (
-          <p className="text-[11px] text-muted-foreground">No metadata.</p>
+          <p className="text-label text-muted-foreground">No metadata.</p>
         )}
 
         {response && (
           <>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Response</p>
-            <pre className="text-xs text-muted-foreground bg-background border border-border rounded-xl px-3 py-2.5 overflow-x-auto whitespace-pre-wrap break-all">
+            <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Response</p>
+            <pre className="text-xs text-muted-foreground bg-background border border-rule rounded-sm px-3 py-2.5 overflow-x-auto whitespace-pre-wrap break-all">
               {JSON.stringify(response, null, 2)}
             </pre>
           </>
@@ -142,7 +142,7 @@ function LogRow({ log }: { log: AuditLog }) {
   return (
     <>
       <tr
-        className="group border-b border-border/50 transition-colors align-top cursor-pointer hover:bg-surface-offset"
+        className="group border-b border-rule transition-colors align-top cursor-pointer hover:bg-band"
         onClick={() => setOpen((v) => !v)}
       >
         <td className="px-3 md:px-5 py-4 w-6 align-top">
@@ -155,7 +155,7 @@ function LogRow({ log }: { log: AuditLog }) {
         <td className="px-3 md:px-5 py-4 w-40 align-top">
           <span
             className={cn(
-              'inline-block text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md border whitespace-nowrap',
+              'inline-block text-micro font-semibold uppercase tracking-micro px-1.5 py-0.5 rounded-sm border whitespace-nowrap',
               actionColor(log.action),
             )}
           >
@@ -176,7 +176,7 @@ function LogRow({ log }: { log: AuditLog }) {
               <div className="flex items-center gap-1.5">
                 <p className="text-sm text-foreground leading-snug truncate max-w-36">{log.userName ?? '—'}</p>
                 {log.userRole && (
-                  <span className="text-[9px] font-bold uppercase tracking-wide px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                  <span className="text-micro font-semibold uppercase tracking-micro px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
                     {ROLE_LABEL[log.userRole] ?? log.userRole}
                   </span>
                 )}
@@ -194,16 +194,16 @@ function LogRow({ log }: { log: AuditLog }) {
           </span>
           <div className="flex items-center gap-1.5 mt-1">
             {log.statusCode != null && (
-              <span className={cn('text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md', statusColor(log.statusCode))}>
+              <span className={cn('text-micro font-semibold tabular-nums px-1.5 py-0.5 rounded-sm', statusColor(log.statusCode))}>
                 {log.statusCode}
               </span>
             )}
-            {duration && <span className="text-[11px] text-muted-foreground tabular-nums">{duration}</span>}
+            {duration && <span className="text-label text-muted-foreground tabular-nums">{duration}</span>}
           </div>
         </td>
       </tr>
       {open && (
-        <tr className="border-b border-border/50 bg-surface-offset/50">
+        <tr className="border-b border-rule bg-band">
           <td colSpan={5} className="px-4 md:px-8 pt-3 pb-5">
             <AuditDetailPanel log={log} />
           </td>
@@ -230,7 +230,7 @@ const ACTION_OPTIONS: SelectOption[] = [
   { value: 'stock.transfer', label: 'Stock transferred' },
   { value: 'stock.bulk_update', label: 'Stock bulk updated' },
   { value: 'data.export', label: 'Data exported' },
-  { value: 'tenant.delete', label: 'Tenant deleted' },
+  { value: 'tenant.delete', label: 'Workspace deleted' },
   { value: 'location.delete', label: 'Location deleted' },
   { value: 'hr.leave_approved', label: 'Leave approved' },
   { value: 'hr.leave_declined', label: 'Leave declined' },
@@ -244,7 +244,7 @@ const RESOURCE_OPTIONS: SelectOption[] = [
   { value: 'order', label: 'Orders' },
   { value: 'staff', label: 'Staff' },
   { value: 'stock', label: 'Stock' },
-  { value: 'tenant', label: 'Tenants' },
+  { value: 'tenant', label: 'Workspaces' },
   { value: 'location', label: 'Locations' },
   { value: 'leave_request', label: 'Leave requests' },
   { value: 'expense_claim', label: 'Expense claims' },
@@ -297,7 +297,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${label} filter`}
-        className="flex size-5 items-center justify-center rounded-full hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+        className="flex size-5 items-center justify-center rounded-full hover:bg-band focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       >
         <X size={11} aria-hidden="true" />
       </button>
@@ -477,13 +477,13 @@ function AuditLogPageContent() {
                     resetPage();
                   }}
                   aria-label="Clear resource ID search"
-                  className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   <X size={13} aria-hidden="true" />
                 </button>
               ) : undefined
             }
-            className="bg-background border-border"
+            className="bg-background border-rule"
           />
         </div>
 
@@ -522,7 +522,7 @@ function AuditLogPageContent() {
               <SlidersHorizontal data-icon="inline-start" />
               More filters
               {advancedFilterCount > 0 && (
-                <span className="ml-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                <span className="ml-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-micro font-semibold text-primary-foreground">
                   {advancedFilterCount}
                 </span>
               )}
@@ -533,7 +533,7 @@ function AuditLogPageContent() {
               align="end"
               sideOffset={8}
               collisionPadding={16}
-              className="z-[90] w-[calc(100vw-2rem)] max-w-sm rounded-2xl border border-border bg-surface p-4 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
+              className="z-[90] w-[calc(100vw-2rem)] max-w-sm rounded-sm border border-rule bg-surface p-4 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
             >
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
@@ -544,7 +544,7 @@ function AuditLogPageContent() {
                   <button
                     type="button"
                     aria-label="Close filters"
-                    className="flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="flex size-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <X size={14} aria-hidden="true" />
                   </button>
@@ -553,7 +553,7 @@ function AuditLogPageContent() {
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Actor</label>
+                  <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Actor</label>
                   <Select
                     value={actorId}
                     onValueChange={(value) => {
@@ -569,7 +569,7 @@ function AuditLogPageContent() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Custom dates</label>
+                  <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Custom dates</label>
                   <div className="grid grid-cols-2 gap-2">
                     <Input
                       type="date"
@@ -580,7 +580,7 @@ function AuditLogPageContent() {
                         resetPage();
                       }}
                       aria-label="Audit logs from date"
-                      className="bg-background border-border px-2"
+                      className="bg-background border-rule px-2"
                     />
                     <Input
                       type="date"
@@ -591,7 +591,7 @@ function AuditLogPageContent() {
                         resetPage();
                       }}
                       aria-label="Audit logs to date"
-                      className="bg-background border-border px-2"
+                      className="bg-background border-rule px-2"
                     />
                   </div>
                   {invalidDateRange && (
@@ -679,25 +679,27 @@ function AuditLogPageContent() {
   if (!canView) return null;
 
   return (
-    <PageLayout eyebrow="System" title="Audit Log" headerSlot={filterBar} headerBorder fullHeight>
-      <div className="h-full flex flex-col">
+    <EditorShell eyebrow="System" title="Audit log" icon={<History size={20} aria-hidden="true" />} flush>
+      {/* The table owns the scrolling, so the filters above it stay put. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 px-3 py-4 md:px-6 md:py-6">
+        <div className="shrink-0">{filterBar}</div>
         {/* Audit table */}
-        <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
+        <div className="min-h-0 bg-card border border-rule rounded-sm overflow-hidden flex flex-col">
           <div className="flex-1 overflow-auto">
             <DataTable className="w-full text-sm border-collapse">
               <thead className="sticky top-0 z-10">
-                <tr className="border-b border-border bg-muted">
+                <tr className="border-b border-rule bg-muted">
                   <th className="px-3 md:px-5 py-3.5 w-6" />
-                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-40">
+                  <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro w-40">
                     Action
                   </th>
-                  <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                     Resource
                   </th>
-                  <th className="hidden lg:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-48">
+                  <th className="hidden lg:table-cell px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro w-48">
                     User
                   </th>
-                  <th className="hidden md:table-cell px-5 py-3.5 pr-6 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-44">
+                  <th className="hidden md:table-cell px-5 py-3.5 pr-6 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro w-44">
                     Time
                   </th>
                 </tr>
@@ -717,7 +719,7 @@ function AuditLogPageContent() {
                   <tr>
                     <td colSpan={5} className="py-24">
                       <div className="flex flex-col items-center gap-3 px-6 text-center">
-                        <span className="flex size-11 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                        <span className="flex size-11 items-center justify-center rounded-sm bg-destructive/6 text-destructive">
                           <AlertCircle size={22} aria-hidden="true" />
                         </span>
                         <div>
@@ -732,7 +734,7 @@ function AuditLogPageContent() {
                   </tr>
                 ) : isLoading ? (
                   Array.from({ length: 10 }).map((_, i) => (
-                    <tr key={i} className="border-b border-border/50">
+                    <tr key={i} className="border-b border-rule">
                       {Array.from({ length: 5 }).map((_, j) => (
                         <td
                           key={j}
@@ -761,7 +763,7 @@ function AuditLogPageContent() {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border shrink-0">
+            <div className="flex items-center justify-between px-5 py-3 border-t border-rule shrink-0">
               <p className="text-xs text-muted-foreground tabular-nums">
                 Page {page} of {totalPages} · {(data?.total ?? 0).toLocaleString()} entries
               </p>
@@ -769,14 +771,14 @@ function AuditLogPageContent() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="h-7 px-3 text-xs font-medium border border-border rounded-lg text-muted-foreground hover:bg-surface-offset transition-colors disabled:opacity-40"
+                  className="h-7 px-3 text-xs font-medium border border-rule rounded-sm text-muted-foreground hover:bg-band transition-colors disabled:opacity-40"
                 >
                   Prev
                 </button>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="h-7 px-3 text-xs font-medium border border-border rounded-lg text-muted-foreground hover:bg-surface-offset transition-colors disabled:opacity-40"
+                  className="h-7 px-3 text-xs font-medium border border-rule rounded-sm text-muted-foreground hover:bg-band transition-colors disabled:opacity-40"
                 >
                   Next
                 </button>
@@ -785,22 +787,24 @@ function AuditLogPageContent() {
           )}
         </div>
       </div>
-    </PageLayout>
+    </EditorShell>
   );
 }
 
 function AuditLogPageFallback() {
   return (
-    <PageLayout eyebrow="System" title="Audit Log" headerBorder fullHeight>
-      <div className="h-full rounded-2xl border border-border bg-card shadow-sm p-5">
-        <div className="h-9 w-full max-w-2xl animate-pulse rounded-lg bg-muted" />
-        <div className="mt-6 space-y-3">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <div key={index} className="h-12 animate-pulse rounded-lg bg-muted/70" />
-          ))}
+    <EditorShell eyebrow="System" title="Audit log" icon={<History size={20} aria-hidden="true" />} flush>
+      <div className="flex min-h-0 flex-1 flex-col px-3 py-4 md:px-6 md:py-6">
+        <div className="min-h-0 flex-1 rounded-sm border border-rule bg-card p-5 shadow-sm">
+          <div className="h-9 w-full max-w-2xl animate-pulse rounded-sm bg-muted" />
+          <div className="mt-6 space-y-3">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="h-12 animate-pulse rounded-sm bg-muted/70" />
+            ))}
+          </div>
         </div>
       </div>
-    </PageLayout>
+    </EditorShell>
   );
 }
 

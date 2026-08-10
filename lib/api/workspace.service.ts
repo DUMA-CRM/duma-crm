@@ -47,6 +47,8 @@ export interface Location {
   timezone: string;
   phone?: string;
   openingHours?: OpeningHours | null;
+  /** Net revenue this site aims to take in a trading day. Serialised as a numeric string. */
+  dailyRevenueTarget?: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -58,6 +60,7 @@ export interface LocationPayload {
   timezone: string;
   phone?: string;
   openingHours?: OpeningHours | null;
+  dailyRevenueTarget?: number | null;
   isActive?: boolean;
 }
 
@@ -70,5 +73,13 @@ export const createLocation = (data: LocationPayload) => apiFetch<Location>('/lo
 
 export const updateLocation = (id: string, data: Partial<Omit<LocationPayload, 'tenantId'>>) =>
   apiFetch<Location>(`/locations/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+
+/**
+ * Set (or clear, with null) a location's daily revenue target. Separate from the
+ * full PATCH because that one is super_admin only, and a store manager owning
+ * their own number is the point of having one.
+ */
+export const setLocationDailyTarget = (id: string, dailyRevenueTarget: number | null) =>
+  apiFetch<Location>(`/locations/${id}/target`, { method: 'PATCH', body: JSON.stringify({ dailyRevenueTarget }) });
 
 export const deleteLocation = (id: string) => apiFetch<void>(`/locations/${id}`, { method: 'DELETE' });

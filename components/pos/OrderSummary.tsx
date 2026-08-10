@@ -22,7 +22,7 @@ export function OrderSummary({ cart, notes, onNotesChange, onCharge, currency }:
   const subtotal = cart.reduce((sum, c) => sum + cartItemTotal(c), 0);
 
   return (
-    <div className="border-t border-border p-5 shrink-0 space-y-2.5">
+    <div className="border-t border-rule p-5 shrink-0 space-y-2.5">
       {/* TODO: Replace with a proper rich text editor or Textarea */}
       <Input
         leftIcon={<FileText size="13" />}
@@ -35,7 +35,7 @@ export function OrderSummary({ cart, notes, onNotesChange, onCharge, currency }:
 
       <div className="flex items-center justify-between">
         <Label>ESTIMATED TOTAL</Label>
-        <Label className="text-2xl text-primary tabular-nums">{formatPrice(subtotal, currency)}</Label>
+        <Label className="text-2xl text-primary tabular-nums font-mono">{formatPrice(subtotal, currency)}</Label>
       </div>
 
       <Button size="lg" onClick={onCharge} className="w-full h-16 text-base mt-1">

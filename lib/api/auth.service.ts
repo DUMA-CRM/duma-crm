@@ -83,9 +83,24 @@ export async function revokeOtherSessions(): Promise<void> {
   await apiFetch('/auth/revoke-other-sessions', { method: 'POST' });
 }
 
-export const requestPasswordReset = (email: string, redirectTo: string) => apiFetch<{ status: boolean }>('/auth/request-password-reset', { method: 'POST', body: JSON.stringify({ email, redirectTo }) });
-export const resetPassword = (token: string, newPassword: string) => apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) });
-export const changePassword = (currentPassword: string, newPassword: string) => apiFetch('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword, revokeOtherSessions: true }) });
+export const requestPasswordReset = (email: string, redirectTo: string) =>
+  apiFetch<{ status: boolean }>('/auth/request-password-reset', { method: 'POST', body: JSON.stringify({ email, redirectTo }) });
+export const resetPassword = (token: string, newPassword: string) =>
+  apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) });
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  apiFetch('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword, revokeOtherSessions: true }) });
+
+export interface ChangeEmailResult {
+  status: boolean;
+  message?: 'Email updated' | 'Verification email sent' | null;
+  user?: User;
+}
+
+export const changeEmail = (newEmail: string, callbackURL?: string) =>
+  apiFetch<ChangeEmailResult>('/auth/change-email', {
+    method: 'POST',
+    body: JSON.stringify({ newEmail, ...(callbackURL ? { callbackURL } : {}) }),
+  });
 
 // Get the current session.
 // Pass `cookieHeader` when calling from a Server Component so the session

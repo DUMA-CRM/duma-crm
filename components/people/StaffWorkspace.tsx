@@ -126,12 +126,12 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
       icon={<UsersRound size={20} aria-hidden="true" />}
       actions={
         active === 'team' && canOnboard ? (
-          <Button className="h-10 gap-1.5" onClick={() => setOnboarding(true)}>
+          <Button className="h-9 gap-1.5" onClick={() => setOnboarding(true)}>
             <Plus size={15} />
             <span className="hidden md:inline">Onboard</span>
           </Button>
         ) : active === 'rota' ? (
-          <Button className="h-10 gap-1.5" onClick={() => setNewShift(true)}>
+          <Button className="h-9 gap-1.5" onClick={() => setNewShift(true)}>
             <Plus size={15} />
             <span className="hidden md:inline">Create a new record</span>
             <span className="md:hidden">New</span>

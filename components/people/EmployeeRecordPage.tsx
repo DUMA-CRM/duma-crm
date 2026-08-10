@@ -152,7 +152,7 @@ export function EmployeeRecordPage({
       toast('success', 'Employee offboarded.');
       // Stay on the record (now inactive) so it can be re-onboarded from here.
     },
-    onError: (err) => toast('error', (err as Error).message || 'Failed to offboard.'),
+    onError: (err) => toast('error', (err as Error).message || 'The employee wasn’t offboarded. Review their record and try again.'),
   });
 
   // Re-activate a previously offboarded member — flips the staff record back to
@@ -165,7 +165,7 @@ export function EmployeeRecordPage({
       qc.invalidateQueries({ queryKey: ['hr-employees'] });
       toast('success', 'Employee account reactivated.');
     },
-    onError: (err) => toast('error', (err as Error).message || 'Failed to re-onboard.'),
+    onError: (err) => toast('error', (err as Error).message || 'The employee account wasn’t reactivated. Try again.'),
   });
 
   const { data: emp, isLoading, isError } = useQuery({ queryKey: ['hr-employee', userId], queryFn: () => getEmployee(userId) });
@@ -190,11 +190,11 @@ export function EmployeeRecordPage({
         money && (
           <>
             {member.isActive ? (
-              <Button variant="outline" onClick={() => setOffboardOpen(true)} className="h-10 text-destructive hover:text-destructive">
+              <Button variant="outline" onClick={() => setOffboardOpen(true)} className="h-9 text-destructive hover:text-destructive">
                 Offboard
               </Button>
             ) : (
-              <Button onClick={() => reactivate.mutate()} disabled={reactivate.isPending} className="h-10 gap-2">
+              <Button onClick={() => reactivate.mutate()} disabled={reactivate.isPending} className="h-9 gap-2">
                 {reactivate.isPending && <Loader2 size={15} className="animate-spin" />}
                 Reactivate account
               </Button>
@@ -203,7 +203,7 @@ export function EmployeeRecordPage({
         )
       }
       subheader={
-        <nav className="border-b border-border bg-card px-4 md:px-8 overflow-x-auto shrink-0" aria-label="Employee record sections">
+        <nav className="border-b border-rule bg-card px-3 md:px-6 overflow-x-auto shrink-0" aria-label="Employee record sections">
           <div className="flex min-w-max">
             {RECORD_SECTIONS.filter((item) => !item.moneyOnly || money).map((item) => {
               const Icon = item.icon;
@@ -235,7 +235,7 @@ export function EmployeeRecordPage({
             <Loader2 size={22} className="animate-spin" />
           </div>
         ) : isError && !member ? (
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+          <div className="rounded-sm border border-destructive/30 bg-destructive/5 p-8 text-center">
             <AlertTriangle className="mx-auto text-destructive" />
             <h2 className="mt-3 font-semibold">Employee record unavailable</h2>
             <p className="mt-1 text-sm text-muted-foreground">It may have been removed, or you may not have access to it.</p>
@@ -284,7 +284,7 @@ export function EmployeeRecordPage({
                       <EmploymentTab userId={userId} emp={emp} canEditPay={money} />
                     </>
                   ) : (
-                    <div className="bg-card border border-dashed border-border rounded-2xl p-6">
+                    <div className="bg-card border border-dashed border-rule rounded-sm p-6">
                       <p className="font-medium">Account only</p>
                       <p className="text-sm text-muted-foreground mt-1">
                         This login has no linked employment record. Do not schedule or pay this person until onboarding is completed.
@@ -323,19 +323,21 @@ export function EmployeeRecordPage({
       {/* Portaled modal — centers on the viewport above the record view. */}
       {member && offboardOpen && (
         <ConfirmModal
-          title="Confirm account offboarding"
+          title="Offboard this employee?"
           message={
             <div className="space-y-3">
               <p>
                 Offboard <span className="font-semibold text-foreground">{member.name ?? member.email}</span>? Their HR history is retained
                 and their account is marked inactive.
               </p>
-              <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-left text-xs text-muted-foreground">
+              <div className="rounded-sm border border-warning/30 bg-warning/5 p-3 text-left text-xs text-muted-foreground">
                 Before confirming, record the last working day and reason in the employment documents, approve final time and expenses,
                 calculate unused holiday, arrange final payroll/P45, recover assets, and confirm when access must end.
               </div>
             </div>
           }
+          confirmLabel="Offboard employee"
+          pendingLabel="Offboarding…"
           isPending={offboard.isPending}
           onConfirm={() => offboard.mutate()}
           onClose={() => setOffboardOpen(false)}
@@ -348,7 +350,7 @@ export function EmployeeRecordPage({
 function Info({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
-      <dt className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</dt>
+      <dt className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">{label}</dt>
       <dd className="text-foreground mt-0.5">{value || <span className="text-muted-foreground/60">—</span>}</dd>
     </div>
   );
@@ -366,8 +368,8 @@ function ComplianceSummaryCard({ member, employee }: { member: StaffProfile; emp
   const outstanding = checks.filter((check) => !check.complete).length;
 
   return (
-    <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex flex-wrap items-center justify-between gap-3">
+    <section className="rounded-sm border border-rule bg-card shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-rule flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <ClipboardCheck size={17} className="text-primary" aria-hidden="true" />
@@ -379,14 +381,14 @@ function ComplianceSummaryCard({ member, employee }: { member: StaffProfile; emp
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold tabular-nums">{isLoading ? '—' : `${progress}%`}</p>
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+          <p className="text-micro uppercase tracking-micro text-muted-foreground">
             {urgent ? `${urgent} urgent` : outstanding ? `${outstanding} outstanding` : 'Core checks ready'}
           </p>
         </div>
       </div>
       <div className="grid md:grid-cols-2 xl:grid-cols-3">
         {checks.map((check) => (
-          <div key={check.id} className="p-4 border-b border-border md:border-r last:border-r-0">
+          <div key={check.id} className="p-4 border-b border-rule md:border-r last:border-r-0">
             <div className="flex items-start justify-between gap-3">
               <p className="text-sm font-semibold">{check.label}</p>
               <Badge variant={check.tone}>{check.complete ? 'Ready' : check.tone === 'destructive' ? 'Urgent' : 'Action'}</Badge>
@@ -444,8 +446,8 @@ function AbsenceCard({ userId }: { userId: string }) {
   });
 
   return (
-    <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+    <section className="rounded-sm border border-rule bg-card shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-rule flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <HeartPulse size={16} className="text-primary" aria-hidden="true" />
@@ -514,14 +516,14 @@ function AbsenceCard({ userId }: { userId: string }) {
               type="button"
               onClick={() => setForm({ ...form, isHalfDay: !form.isHalfDay })}
               className={cn(
-                'w-full rounded-xl border p-3 text-left flex gap-3',
-                form.isHalfDay ? 'border-primary/40 bg-primary/5' : 'border-border',
+                'w-full rounded-sm border p-3 text-left flex gap-3',
+                form.isHalfDay ? 'border-primary/40 bg-band' : 'border-rule',
               )}
             >
               <span
                 className={cn(
-                  'mt-0.5 size-5 rounded-md border flex items-center justify-center',
-                  form.isHalfDay ? 'bg-primary border-primary text-primary-foreground' : 'border-border',
+                  'mt-0.5 size-5 rounded-sm border flex items-center justify-center',
+                  form.isHalfDay ? 'bg-primary border-primary text-primary-foreground' : 'border-rule',
                 )}
               >
                 {form.isHalfDay && <CheckCircle2 size={13} />}
@@ -560,9 +562,9 @@ function PayslipsCard({ userId }: { userId: string }) {
     queryFn: () => getEmployeePayslips(userId),
   });
   return (
-    <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-border">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Payslips</p>
+    <section className="rounded-sm border border-rule bg-card shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-rule">
+        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Payslips</p>
         <p className="text-xs text-muted-foreground mt-1">Draft and finalised payroll documents for this employee.</p>
       </div>
       {isLoading ? (
@@ -590,14 +592,14 @@ function PayslipsCard({ userId }: { userId: string }) {
               </div>
               <div className="text-right">
                 <p className="font-semibold tabular-nums">{fmtMoney(payslip.netPay)}</p>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Net pay</p>
+                <p className="text-micro uppercase tracking-micro text-muted-foreground">Net pay</p>
               </div>
             </div>
           ))}
         </div>
       )}
-      <div className="px-5 py-3 border-t border-border bg-muted/30">
-        <p className="text-[11px] text-muted-foreground">
+      <div className="px-5 py-3 border-t border-rule bg-muted/30">
+        <p className="text-label text-muted-foreground">
           HMRC submissions, P45/P60 and pension assessment remain payroll-system responsibilities.
         </p>
       </div>
@@ -626,10 +628,10 @@ function WorkPatternCard({ userId }: { userId: string }) {
   });
   const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   return (
-    <div className="bg-card border border-border rounded-2xl p-5">
+    <div className="bg-card border border-rule rounded-sm p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Contracted pattern</p>
+          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Contracted pattern</p>
           <p className="text-xs text-muted-foreground mt-1">Used for leave planning; actual time remains the payroll record.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setEdit(!edit)}>
@@ -646,8 +648,8 @@ function WorkPatternCard({ userId }: { userId: string }) {
               disabled={!edit}
               onClick={() => setDays(active ? selectedDays.filter((d) => d !== value) : [...selectedDays, value].sort())}
               className={cn(
-                'flex-1 h-9 rounded-lg border text-xs font-semibold',
-                active ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted border-border text-muted-foreground',
+                'flex-1 h-9 rounded-sm border text-xs font-semibold',
+                active ? 'bg-band border-primary/30 text-primary' : 'bg-muted border-rule text-muted-foreground',
                 edit && 'hover:border-primary',
               )}
             >
@@ -680,7 +682,7 @@ function WorkPatternCard({ userId }: { userId: string }) {
         )}
       </div>
       {weeklyHours > 48 && (
-        <p className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
+        <p className="mt-3 rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
           More than 48 contracted hours requires a working-time review. Keep any valid opt-out separately and continue to protect daily and
           weekly rest.
         </p>
@@ -710,10 +712,10 @@ function LeaveAllowanceCard({ userId, employmentType }: { userId: string; employ
     !!annualEntitlement &&
     Number(annualEntitlement.totalDays) < regularHoursBaseline;
   return (
-    <div className="bg-card border border-border rounded-2xl p-5">
+    <div className="bg-card border border-rule rounded-sm p-5">
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Annual leave allowance</p>
+          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Annual leave allowance</p>
           <p className="text-xs text-muted-foreground mt-1">Assigned days, usage, and remaining balance.</p>
         </div>
         <div className="flex gap-2">
@@ -730,20 +732,20 @@ function LeaveAllowanceCard({ userId, employmentType }: { userId: string; employ
         </div>
       </div>
       {employmentType === 'zero_hours' ? (
-        <div className="mb-4 rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
+        <div className="mb-4 rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
           Irregular-hours holiday must accrue from hours worked in each pay period. A manually assigned day balance is not a complete
           statutory calculation.
         </div>
       ) : employmentType === 'contractor' ? (
-        <div className="mb-4 rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
+        <div className="mb-4 rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
           Confirm the person&apos;s real employment status. Labelling someone a contractor does not remove worker holiday rights if the
           working relationship says otherwise.
         </div>
       ) : (
         <div
           className={cn(
-            'mb-4 rounded-xl border p-3 text-xs text-muted-foreground',
-            belowRegularBaseline ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-muted/30',
+            'mb-4 rounded-sm border p-3 text-xs text-muted-foreground',
+            belowRegularBaseline ? 'border-destructive/30 bg-destructive/5' : 'border-rule bg-muted/30',
           )}
         >
           Regular-hours baseline from the current {workPattern?.workingDays.length ?? 5}-day pattern:{' '}
@@ -759,7 +761,7 @@ function LeaveAllowanceCard({ userId, employmentType }: { userId: string; employ
           <Loader2 className="animate-spin text-muted-foreground" />
         </div>
       ) : entitlements.length === 0 ? (
-        <div className="py-7 rounded-xl border border-dashed border-border text-center">
+        <div className="py-7 rounded-sm border border-dashed border-rule text-center">
           <p className="text-sm font-medium">No allowance for {year}</p>
           <p className="text-xs text-muted-foreground mt-1">Add annual leave so the employee can submit requests.</p>
         </div>
@@ -797,7 +799,7 @@ function LeaveAllowanceCard({ userId, employmentType }: { userId: string; employ
           }}
         />
       )}
-      <p className="mt-4 text-[11px] text-muted-foreground">
+      <p className="mt-4 text-label text-muted-foreground">
         Keep the entitlement, leave taken and holiday-pay calculation history. From 6 April 2026, detailed annual-leave and holiday-pay
         records must be retained for at least six years.
       </p>
@@ -895,7 +897,7 @@ function LeaveAllowanceModal({
           </p>
         </div>
         {entitlement && (
-          <div className="rounded-xl bg-muted p-3 text-sm">
+          <div className="rounded-sm bg-muted p-3 text-sm">
             <span className="text-muted-foreground">Already used:</span> <strong>{entitlement.usedDays} days</strong>
           </div>
         )}
@@ -945,10 +947,10 @@ function EmployeeDocumentsCard({ userId }: { userId: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['employee-documents', userId] }),
   });
   return (
-    <div className="bg-card border border-border rounded-2xl p-5">
+    <div className="bg-card border border-rule rounded-sm p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Documents & certificates</p>
+          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Documents & certificates</p>
           <p className="text-xs text-muted-foreground mt-1">Record evidence, check dates and renewal deadlines.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
@@ -1050,7 +1052,7 @@ function EmployeeDocumentsCard({ userId }: { userId: string }) {
               />
             </div>
             {form.documentType === 'Right to work' && (
-              <p className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
+              <p className="rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
                 A record here does not itself establish a statutory excuse. Retain the prescribed evidence, record the actual check date,
                 and complete follow-up checks where permission is time-limited.
               </p>
@@ -1107,14 +1109,14 @@ function EmploymentTab({ userId, emp, canEditPay }: { userId: string; emp: Emplo
       setEdit(false);
       toast('success', 'Employment details updated.');
     },
-    onError: (err) => toast('error', (err as Error).message || 'Failed to update.'),
+    onError: (err) => toast('error', (err as Error).message || 'Employment details weren’t updated. Review the fields and try again.'),
   });
 
   if (!edit) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-5">
+      <div className="bg-card border border-rule rounded-sm p-5">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Employment & Pay</p>
+          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Employment & Pay</p>
           <Button variant="outline" size="sm" onClick={() => setEdit(true)}>
             Edit
           </Button>
@@ -1123,7 +1125,7 @@ function EmploymentTab({ userId, emp, canEditPay }: { userId: string; emp: Emplo
           <Info label="Job title" value={emp.jobTitle} />
           <Info label="Department" value={emp.department} />
           <div>
-            <dt className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Employment type</dt>
+            <dt className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Employment type</dt>
             <dd className="mt-1">
               <Badge variant={EMPLOYMENT_CONFIG[emp.employmentType].variant}>{EMPLOYMENT_CONFIG[emp.employmentType].label}</Badge>
             </dd>
@@ -1132,7 +1134,7 @@ function EmploymentTab({ userId, emp, canEditPay }: { userId: string; emp: Emplo
           {canEditPay && emp.payType && (
             <>
               <div>
-                <dt className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pay</dt>
+                <dt className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Pay</dt>
                 <dd className="mt-1 flex items-center gap-2">
                   <Badge variant={PAY_CONFIG[emp.payType].variant}>{PAY_CONFIG[emp.payType].label}</Badge>
                   <span className="text-foreground">
@@ -1150,7 +1152,7 @@ function EmploymentTab({ userId, emp, canEditPay }: { userId: string; emp: Emplo
   }
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+    <div className="bg-card border border-rule rounded-sm p-5 space-y-4">
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
           <label className={lbl}>Job title</label>
@@ -1181,10 +1183,10 @@ function EmploymentTab({ userId, emp, canEditPay }: { userId: string; emp: Emplo
                 type="button"
                 onClick={() => setF({ ...f, payType: p })}
                 className={cn(
-                  'flex-1 h-10 rounded-lg border text-sm font-medium transition-colors',
+                  'flex-1 h-10 rounded-sm border text-sm font-medium transition-colors',
                   f.payType === p
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border text-muted-foreground hover:text-foreground',
+                    ? 'border-primary bg-band text-primary'
+                    : 'border-rule text-muted-foreground hover:text-foreground',
                 )}
               >
                 {PAY_CONFIG[p].label}
@@ -1236,7 +1238,7 @@ function EmploymentTab({ userId, emp, canEditPay }: { userId: string; emp: Emplo
             <label className={lbl}>Tax code</label>
             <input className={inp} value={f.taxCode} onChange={(e) => setF({ ...f, taxCode: e.target.value.toUpperCase() })} />
           </div>
-          <p className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
+          <p className="rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
             This is the contractual break rule, not proof a break was taken. Payroll must not deduct a break that the worker did not
             actually receive.
           </p>
@@ -1279,15 +1281,15 @@ function AccessCard({ member, locations, canEdit }: { member: StaffProfile; loca
       setEdit(false);
       toast('success', 'Access updated.');
     },
-    onError: (err) => toast('error', (err as Error).message || 'Failed to update access.'),
+    onError: (err) => toast('error', (err as Error).message || 'Access wasn’t updated. Review the role and locations, then try again.'),
   });
 
   const locNames = (member.locationIds ?? []).map((id) => locations.find((l) => l.id === id)?.name ?? id);
 
   if (edit) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Access & Role</p>
+      <div className="bg-card border border-rule rounded-sm p-5 space-y-4">
+        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Access & Role</p>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label className={lbl}>Role</label>
@@ -1320,10 +1322,10 @@ function AccessCard({ member, locations, canEdit }: { member: StaffProfile; loca
                   type="button"
                   onClick={() => toggleLoc(l.id)}
                   className={cn(
-                    'px-3 h-9 rounded-lg border text-xs font-medium transition-colors',
+                    'px-3 h-9 rounded-sm border text-xs font-medium transition-colors',
                     locs.includes(l.id)
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border text-muted-foreground hover:text-foreground',
+                      ? 'border-primary bg-band text-primary'
+                      : 'border-rule text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {l.name}
@@ -1354,9 +1356,9 @@ function AccessCard({ member, locations, canEdit }: { member: StaffProfile; loca
   }
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-5">
+    <div className="bg-card border border-rule rounded-sm p-5">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Access & Role</p>
+        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Access & Role</p>
         {canEdit && (
           <Button variant="outline" size="sm" onClick={() => setEdit(true)}>
             Edit
@@ -1365,11 +1367,11 @@ function AccessCard({ member, locations, canEdit }: { member: StaffProfile; loca
       </div>
       <dl className="grid sm:grid-cols-2 gap-4 text-sm">
         <div>
-          <dt className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Role</dt>
+          <dt className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Role</dt>
           <dd className="mt-1">
             <span
               className={cn(
-                'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide',
+                'inline-flex items-center px-2 py-0.5 rounded text-micro font-semibold uppercase tracking-micro',
                 ROLE_CONFIG[member.role].bg,
                 ROLE_CONFIG[member.role].text,
               )}
@@ -1384,7 +1386,7 @@ function AccessCard({ member, locations, canEdit }: { member: StaffProfile; loca
           value={member.scope === 'location' ? (locNames.length ? locNames.join(', ') : 'None assigned') : 'All in workspace'}
         />
         <div>
-          <dt className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Account</dt>
+          <dt className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Account</dt>
           <dd className="mt-1">
             <Badge variant={member.isActive ? 'success' : 'muted'}>{member.isActive ? 'Active' : 'Inactive'}</Badge>
           </dd>
@@ -1421,13 +1423,13 @@ function PersonalTab({ userId, emp, canEdit, email }: { userId: string; emp: Emp
       setEdit(false);
       toast('success', 'Personal details updated.');
     },
-    onError: (err) => toast('error', (err as Error).message || 'Failed to update.'),
+    onError: (err) => toast('error', (err as Error).message || 'Personal details weren’t updated. Review the fields and try again.'),
   });
 
   if (edit) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Personal details</p>
+      <div className="bg-card border border-rule rounded-sm p-5 space-y-4">
+        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Personal details</p>
         <div className="grid sm:grid-cols-2 gap-4">
           <DatePicker
             label="Date of birth"
@@ -1475,9 +1477,9 @@ function PersonalTab({ userId, emp, canEdit, email }: { userId: string; emp: Emp
   }
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-5">
+    <div className="bg-card border border-rule rounded-sm p-5">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Personal details</p>
+        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Personal details</p>
         {canEdit && (
           <Button variant="outline" size="sm" onClick={() => setEdit(true)}>
             Edit
@@ -1492,7 +1494,7 @@ function PersonalTab({ userId, emp, canEdit, email }: { userId: string; emp: Emp
         <Info label="Emergency phone" value={emp.emergencyContactPhone} />
         <Info label="Relationship" value={emp.emergencyContactRelation} />
       </dl>
-      {!canEdit && <p className="text-[11px] text-muted-foreground mt-4">Employees can also edit these from their own profile.</p>}
+      {!canEdit && <p className="text-label text-muted-foreground mt-4">Employees can also edit these from their own profile.</p>}
     </div>
   );
 }
@@ -1534,15 +1536,15 @@ function BankTab({ userId, emp }: { userId: string; emp: Employee }) {
       setEdit(false);
       toast('success', 'Bank & statutory details saved.');
     },
-    onError: (err) => toast('error', (err as Error).message || 'Failed to save.'),
+    onError: (err) => toast('error', (err as Error).message || 'Bank and statutory details weren’t saved. Review the fields and try again.'),
   });
 
   const niDisplay = reveal ? revealedEmp?.niNumber : emp.niNumber;
 
   if (edit) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Bank & statutory</p>
+      <div className="bg-card border border-rule rounded-sm p-5 space-y-4">
+        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Bank & statutory</p>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label className={lbl}>Account holder</label>
@@ -1597,9 +1599,9 @@ function BankTab({ userId, emp }: { userId: string; emp: Employee }) {
   }
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-5">
+    <div className="bg-card border border-rule rounded-sm p-5">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Bank & statutory</p>
+        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Bank & statutory</p>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => setReveal((v) => !v)} className="gap-1.5">
             {reveal ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -1630,7 +1632,7 @@ function BankTab({ userId, emp }: { userId: string; emp: Employee }) {
         <Info label="National Insurance" value={niDisplay} />
         <Info label="Tax code" value={emp.taxCode} />
       </dl>
-      <p className="text-[11px] text-muted-foreground mt-4 flex items-center gap-1.5">
+      <p className="text-label text-muted-foreground mt-4 flex items-center gap-1.5">
         <ShieldCheck size={13} /> Sort code, account number and NI number are encrypted at rest and visible to HR/owners only.
       </p>
     </div>
@@ -1676,7 +1678,7 @@ function groupByDay(shifts: TimesheetShift[]): DayGroup[] {
     .sort((a, b) => b.date.getTime() - a.date.getTime());
 }
 
-const TH = 'px-3 md:px-5 py-3.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest';
+const TH = 'px-3 md:px-5 py-3.5 text-micro font-semibold text-muted-foreground uppercase tracking-micro';
 const TD = 'px-3 md:px-5 py-3.5';
 
 function TimesheetCard({
@@ -1693,9 +1695,9 @@ function TimesheetCard({
   const t = hours?.totals;
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-4 md:px-5 py-3 border-b border-border flex-wrap">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Hours &amp; Timesheet</p>
+    <div className="bg-card border border-rule rounded-sm overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-4 md:px-5 py-3 border-b border-rule flex-wrap">
+        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Hours &amp; Timesheet</p>
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs text-muted-foreground tabular-nums">
             {fmtHours(t?.paidHours ?? 0)} marked payable
@@ -1727,7 +1729,7 @@ function TimesheetCard({
       <div className="overflow-x-auto">
         <DataTable className="w-full text-sm border-collapse">
           <thead>
-            <tr className="border-b border-border bg-muted">
+            <tr className="border-b border-rule bg-muted">
               <th className={cn(TH, 'text-left')}>Date</th>
               <th className={cn(TH, 'text-left')}>Location</th>
               <th className={cn(TH, 'text-left hidden sm:table-cell')}>Shifts</th>
@@ -1748,7 +1750,7 @@ function TimesheetCard({
                 <tr
                   key={d.key}
                   onClick={() => setOpenDay(d)}
-                  className="border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors cursor-pointer"
+                  className="border-b border-rule last:border-0 hover:bg-band transition-colors cursor-pointer"
                 >
                   <td className={cn(TD, 'font-medium text-foreground whitespace-nowrap')}>{fmtDay(d.date)}</td>
                   <td className={cn(TD, 'text-muted-foreground')}>
@@ -1779,10 +1781,10 @@ function TimesheetCard({
               {openDay.overtimeHours > 0 && <Badge variant="warning">{fmtHours(openDay.overtimeHours)} needs review</Badge>}
               <Badge variant="success">{fmtHours(openDay.paidHours)} marked payable</Badge>
             </div>
-            <div className="border border-border rounded-xl overflow-hidden">
+            <div className="border border-rule rounded-sm overflow-hidden">
               <DataTable className="w-full text-sm">
                 <thead>
-                  <tr className="bg-muted text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <tr className="bg-muted text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                     <th className="px-3 py-2 text-left">Clocked</th>
                     <th className="px-3 py-2 text-left">Scheduled</th>
                     <th className="px-3 py-2 text-right">Clocked</th>
@@ -1792,10 +1794,10 @@ function TimesheetCard({
                 </thead>
                 <tbody>
                   {openDay.segments.map((s) => (
-                    <tr key={s.id} className="border-t border-border/50">
+                    <tr key={s.id} className="border-t border-rule">
                       <td className="px-3 py-2 text-foreground tabular-nums whitespace-nowrap">
                         {fmtTime(s.clockedIn)} – {s.clockedOut ? fmtTime(s.clockedOut) : <span className="text-warning">open</span>}
-                        {s.locationName && <span className="block text-[11px] text-muted-foreground">{s.locationName}</span>}
+                        {s.locationName && <span className="block text-label text-muted-foreground">{s.locationName}</span>}
                       </td>
                       <td className="px-3 py-2 text-muted-foreground tabular-nums whitespace-nowrap">
                         {s.scheduled ? `${fmtTime(s.scheduled.startsAt)} – ${fmtTime(s.scheduled.endsAt)}` : 'Unscheduled'}
@@ -1810,7 +1812,7 @@ function TimesheetCard({
                 </tbody>
               </DataTable>
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-label text-muted-foreground">
               The rota is evidence of planned work, not a legal cap on pay. Confirm actual working time, breaks and authorised corrections
               before payroll, including unscheduled work the business required or permitted.
             </p>
@@ -1885,7 +1887,7 @@ function BreakdownBar({ rows }: { rows: { label: string; value: number; total: n
 function Insight({ tone, children }: { tone: 'good' | 'watch' | 'neutral'; children: React.ReactNode }) {
   const Icon = tone === 'good' ? CheckCircle2 : tone === 'watch' ? AlertTriangle : Target;
   return (
-    <div className="flex gap-2.5 rounded-xl border border-border bg-background p-3">
+    <div className="flex gap-2.5 rounded-sm border border-rule bg-background p-3">
       <Icon
         size={15}
         className={cn('mt-0.5 shrink-0', tone === 'good' ? 'text-success' : tone === 'watch' ? 'text-warning' : 'text-primary')}
@@ -1905,10 +1907,10 @@ function PerformanceCard({ userId }: { userId: string }) {
 
   if (isLoading) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-5">
+      <div className="bg-card border border-rule rounded-sm p-5">
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-xl border border-border bg-background animate-pulse" />
+            <div key={i} className="h-24 rounded-sm border border-rule bg-background animate-pulse" />
           ))}
         </div>
       </div>
@@ -1917,7 +1919,7 @@ function PerformanceCard({ userId }: { userId: string }) {
 
   if (isError || !w || !data) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-8 text-center">
+      <div className="bg-card border border-rule rounded-sm p-8 text-center">
         <TrendingUp size={22} className="mx-auto mb-2 text-muted-foreground/40" aria-hidden="true" />
         <p className="font-medium">Couldn&apos;t load performance stats</p>
         <p className="text-sm text-muted-foreground mt-1">Refresh the page or try again shortly.</p>
@@ -1951,8 +1953,8 @@ function PerformanceCard({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-4">
-      <section className="bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-4 md:px-5 py-4 border-b border-border flex-wrap">
+      <section className="bg-card border border-rule rounded-sm overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-4 md:px-5 py-4 border-b border-rule flex-wrap">
           <div>
             <div className="flex items-center gap-2">
               <Gauge size={17} className="text-primary" aria-hidden="true" />
@@ -2060,10 +2062,10 @@ function PerformanceCard({ userId }: { userId: string }) {
 
       {w.totalOrders > 0 && (
         <>
-          <section className="bg-card border border-border rounded-2xl p-4 md:p-5">
+          <section className="bg-card border border-rule rounded-sm p-4 md:p-5">
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Comparison</p>
+                <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Comparison</p>
                 <p className="text-xs text-muted-foreground mt-1">{comparisonLabel}; volume is normalized per calendar day.</p>
               </div>
               <Activity size={18} className="text-primary" aria-hidden="true" />
@@ -2121,8 +2123,8 @@ function PerformanceCard({ userId }: { userId: string }) {
           </section>
 
           <div className="grid xl:grid-cols-2 gap-4 items-start">
-            <section className="bg-card border border-border rounded-2xl p-4 md:p-5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Order outcomes</p>
+            <section className="bg-card border border-rule rounded-sm p-4 md:p-5">
+              <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Order outcomes</p>
               <p className="text-xs text-muted-foreground mt-1 mb-4">Completion quality and exceptions in the selected window.</p>
               <BreakdownBar
                 rows={[
@@ -2133,13 +2135,15 @@ function PerformanceCard({ userId }: { userId: string }) {
               />
             </section>
 
-            <section className="bg-card border border-border rounded-2xl p-4 md:p-5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sales channels</p>
+            <section className="bg-card border border-rule rounded-sm p-4 md:p-5">
+              <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Sales channels</p>
               <p className="text-xs text-muted-foreground mt-1 mb-4">Where attributed orders originated.</p>
               <BreakdownBar
                 rows={[
-                  { label: 'POS', value: w.bySource.pos, total: w.totalOrders, colour: 'bg-primary' },
-                  { label: 'Mobile', value: w.bySource.mobile, total: w.totalOrders, colour: 'bg-violet-500' },
+                  // Order data, so these are the data roles in reading order —
+                  // not the action colour and a raw Tailwind violet.
+                  { label: 'POS', value: w.bySource.pos, total: w.totalOrders, colour: 'bg-measured' },
+                  { label: 'Mobile', value: w.bySource.mobile, total: w.totalOrders, colour: 'bg-reference' },
                   { label: 'Other', value: otherSources, total: w.totalOrders, colour: 'bg-muted-foreground' },
                 ]}
               />
@@ -2147,11 +2151,11 @@ function PerformanceCard({ userId }: { userId: string }) {
           </div>
 
           <div className="grid xl:grid-cols-2 gap-4 items-start">
-            <section className="bg-card border border-border rounded-2xl p-4 md:p-5">
+            <section className="bg-card border border-rule rounded-sm p-4 md:p-5">
               <div className="flex items-center gap-2 mb-4">
                 <Timer size={16} className="text-primary" />
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Fulfilment</p>
+                  <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Fulfilment</p>
                   <p className="text-xs text-muted-foreground mt-1">Pending-to-ready timing on completed orders with status history.</p>
                 </div>
               </div>
@@ -2164,17 +2168,17 @@ function PerformanceCard({ userId }: { userId: string }) {
                 <DetailRow icon={Gauge} label="Coverage" value={fmtPct(Math.min(100, metrics.prepCoverage))} />
               </div>
               {w.prepTime.measuredOrders === 0 && (
-                <p className="mt-4 rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
+                <p className="mt-4 rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
                   No orders reached “ready” with measurable history, so prep-time statistics are unavailable.
                 </p>
               )}
             </section>
 
-            <section className="bg-card border border-border rounded-2xl p-4 md:p-5">
+            <section className="bg-card border border-rule rounded-sm p-4 md:p-5">
               <div className="flex items-center gap-2 mb-4">
                 <CalendarDays size={16} className="text-primary" />
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Activity & value</p>
+                  <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Activity & value</p>
                   <p className="text-xs text-muted-foreground mt-1">Work cadence and commercial contribution.</p>
                 </div>
               </div>
@@ -2191,11 +2195,11 @@ function PerformanceCard({ userId }: { userId: string }) {
             </section>
           </div>
 
-          <section className="bg-card border border-border rounded-2xl p-4 md:p-5">
+          <section className="bg-card border border-rule rounded-sm p-4 md:p-5">
             <div className="flex items-center gap-2 mb-4">
               <Target size={16} className="text-primary" />
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Insights</p>
+                <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Insights</p>
                 <p className="text-xs text-muted-foreground mt-1">Signals to investigate with the employee and operational context.</p>
               </div>
             </div>
@@ -2221,7 +2225,7 @@ function PerformanceCard({ userId }: { userId: string }) {
                   : 'Coverage is sufficient for a useful operational signal.'}
               </Insight>
             </div>
-            <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="mt-4 text-label leading-relaxed text-muted-foreground">
               These are attributed operational metrics, not a standalone employee score. Review shift mix, staffing, location demand,
               equipment issues, refunds and customer context before making performance decisions.
             </p>
@@ -2234,7 +2238,7 @@ function PerformanceCard({ userId }: { userId: string }) {
 
 function DetailRow({ icon: Icon, label, value }: { icon: typeof Clock; label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-2.5 last:border-0">
+    <div className="flex items-center justify-between gap-3 border-b border-rule pb-2.5 last:border-0">
       <span className="flex items-center gap-2 text-muted-foreground">
         <Icon size={13} aria-hidden="true" />
         {label}

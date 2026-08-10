@@ -1,19 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 
 import { Input } from '@/components/ui/input';
 
 import { useAuth } from '@/lib/hooks/useAuth';
 
-export default function SignInPage() {
+function SignInForm() {
   const { login, isLoading, error } = useAuth();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const sessionExpired = searchParams.get('reason') === 'session-expired';
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('reason') !== 'session-expired') return;
+    if (!sessionExpired) return;
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready
         .then((registration) => {
@@ -29,7 +32,7 @@ export default function SignInPage() {
           Promise.all(keys.filter((key) => key.startsWith('duma-user-') || key.startsWith('duma-pages-')).map((key) => caches.delete(key))),
         );
     }
-  }, []);
+  }, [sessionExpired]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,12 +42,21 @@ export default function SignInPage() {
   return (
     <>
       <div className="mb-6">
-        <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Welcome back</p>
-        <h1 className="text-2xl font-semibold text-foreground">Sign in</h1>
+        <h1 className="text-2xl font-semibold tracking-headline text-foreground">Welcome back</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Sign in to pick up where your team left off.</p>
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
-        {error && <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>}
+        {sessionExpired && (
+          <p className="rounded-sm border border-rule bg-band px-3 py-2 text-sm text-foreground">
+            Your session expired. Sign in again to continue.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="rounded-sm bg-destructive/6 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <Input
           label="Email"
           type="email"
@@ -67,7 +79,7 @@ export default function SignInPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full h-10 mt-2 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full h-10 mt-2 bg-primary hover:bg-primary-hover active:translate-y-px text-primary-foreground text-sm font-semibold rounded-md shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Signing in…' : 'Sign in'}
         </button>
@@ -80,5 +92,13 @@ export default function SignInPage() {
         </Link>
       </p>
     </>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignInForm />
+    </Suspense>
   );
 }

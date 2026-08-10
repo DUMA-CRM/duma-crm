@@ -188,7 +188,7 @@ export function TimezoneSelect({ value, onChange, id, required, placeholder = 'S
             id={listboxId}
             role="listbox"
             style={{ position: 'fixed', top: coords.top, left: coords.left, width: coords.width }}
-            className="z-[60] max-h-56 overflow-y-auto rounded-xl border border-border bg-surface shadow-lg py-1"
+            className="z-[60] max-h-56 overflow-y-auto rounded-sm border border-rule bg-surface shadow-lg py-1"
           >
             {filtered.length === 0 ? (
               <li className="px-3 py-2 text-xs text-muted-foreground">No matching timezone.</li>
@@ -205,7 +205,7 @@ export function TimezoneSelect({ value, onChange, id, required, placeholder = 'S
                     onClick={() => commit(tz)}
                     className={cn(
                       'flex items-center justify-between gap-2 px-3 py-1.5 text-sm cursor-pointer',
-                      isActive ? 'bg-surface-offset text-foreground' : 'text-muted-foreground',
+                      isActive ? 'bg-band text-foreground' : 'text-muted-foreground',
                       isSelected && 'font-medium text-foreground',
                     )}
                   >

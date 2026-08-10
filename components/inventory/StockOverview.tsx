@@ -39,6 +39,54 @@ import { toast } from '@/stores/toastStore';
 const GRID = 'grid-cols-[2fr_0.9fr_0.7fr_0.9fr_1.15fr_0.8fr_0.9fr_1.25rem]';
 
 /**
+ * Stock read against its par level, the way a trace is read against a reference.
+ *
+ * The figures were already here — quantity in one column, threshold in another —
+ * but nothing showed the relationship between them, which is the only thing a
+ * manager actually wants from this row. The bar fills to the current quantity
+ * with the threshold marked as a reference tick, so "below par" is visible
+ * before you read either number.
+ *
+ * The bar supplements the figures rather than replacing them, and the
+ * relationship is stated for screen readers, so this is never colour-only.
+ */
+function LevelAgainstPar({ qty, threshold, unit }: { qty: number; threshold: number; unit?: string }) {
+  // Scale to twice par so a healthy item sits mid-bar and there is headroom to
+  // show overstock; without a par there is no reference and no bar to draw.
+  const scale = threshold > 0 ? threshold * 2 : Math.max(qty, 1);
+  const fill = Math.max(0, Math.min(1, qty / scale));
+  const parAt = threshold > 0 ? Math.min(1, threshold / scale) : null;
+  const tone = qty <= 0 ? 'exception' : threshold > 0 && qty <= threshold ? 'measured' : 'momentum';
+  const relation =
+    threshold > 0
+      ? qty <= 0
+        ? 'out of stock'
+        : qty <= threshold
+          ? `below par of ${threshold}${unit ? ` ${unit}` : ''}`
+          : `above par of ${threshold}${unit ? ` ${unit}` : ''}`
+      : 'no par level set';
+
+  return (
+    <span className="flex min-w-0 flex-col gap-1">
+      <span className="sr-only">{relation}</span>
+      <span className="relative block h-1.5 w-full max-w-24 bg-band" aria-hidden="true">
+        <span
+          className={cn(
+            'absolute inset-y-0 left-0',
+            tone === 'exception' && 'bg-exception',
+            tone === 'measured' && 'bg-measured',
+            tone === 'momentum' && 'bg-momentum',
+          )}
+          style={{ width: `${fill * 100}%` }}
+        />
+        {/* The reference tick: par level, marked on the scale it is measured against. */}
+        {parAt !== null && <span className="absolute -inset-y-0.5 w-px bg-reference" style={{ left: `${parAt * 100}%` }} />}
+      </span>
+    </span>
+  );
+}
+
+/**
  * What this location holds right now: the health summary across the top and one
  * row per stock item, each opening its record. The Add Item drawer is driven from
  * the workspace header, so the flag comes in as a prop.
@@ -175,13 +223,13 @@ export function StockOverview({
         />
       </StatCardGrid>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
         {/* Horizontal scroll on narrow screens — header and rows scroll together */}
         <div className="overflow-x-auto">
           <div className="min-w-160">
-            <div className={cn('grid gap-4 border-b border-border bg-surface-offset/50 px-4 py-2.5', GRID)}>
+            <div className={cn('grid gap-4 border-b border-rule bg-band px-4 py-2.5', GRID)}>
               {['Item', 'On Hand', 'Units', 'Reorder At', 'Earliest Expiry', 'Days Left', 'Status'].map((h) => (
-                <span key={h} className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                <span key={h} className="text-micro font-semibold tracking-micro text-muted-foreground uppercase">
                   {h}
                 </span>
               ))}
@@ -206,19 +254,19 @@ export function StockOverview({
                     key={s.id}
                     href={`/inventory/items/${s.stockItemId}`}
                     className={cn(
-                      'grid gap-4 border-b border-border/50 px-4 py-3 transition-colors last:border-0 hover:bg-surface-offset/40',
+                      'grid gap-4 border-b border-rule px-4 py-3 transition-colors last:border-0 hover:bg-band',
                       GRID,
                     )}
                   >
                     {/* Item */}
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <div className={cn('flex size-7 shrink-0 items-center justify-center rounded-md', STATUS_ICON_BG[s.status])}>
+                      <div className={cn('flex size-7 shrink-0 items-center justify-center rounded-sm', STATUS_ICON_BG[s.status])}>
                         <Package size={13} className={STATUS_ICON_FG[s.status]} />
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-foreground">{s.stockItem?.name ?? s.stockItemId.slice(0, 8)}</p>
                         {s.stockItem?.unit && (
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-label text-muted-foreground">
                             {s.category ? `${s.category} · ` : ''}
                             {s.stockItem.unit}
                           </p>
@@ -226,16 +274,15 @@ export function StockOverview({
                       </div>
                     </div>
 
-                    {/* Quantity */}
-                    <div className="flex items-center">
+                    {/* Quantity, read against par */}
+                    <div className="flex flex-col justify-center gap-1">
                       <span
-                        className={cn(
-                          'text-sm font-semibold tabular-nums',
-                          (s.status === 'critical' || s.status === 'out') && 'text-destructive',
-                        )}
+                        data-figure
+                        className={cn('text-sm font-semibold', (s.status === 'critical' || s.status === 'out') && 'text-exception')}
                       >
                         {fmtQty(s.qty)}
                       </span>
+                      <LevelAgainstPar qty={s.qty} threshold={s.threshold} unit={s.stockItem?.unit} />
                     </div>
 
                     {/* Active physical containers */}
@@ -281,7 +328,7 @@ export function StockOverview({
         </div>
 
         {filtered.length > 0 && (
-          <div className="border-t border-border px-4 py-2">
+          <div className="border-t border-rule px-4 py-2">
             <p className="text-xs text-muted-foreground">
               {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
               {hasFilters && enriched.length !== filtered.length && ` of ${enriched.length} total`}

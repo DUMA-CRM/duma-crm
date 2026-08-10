@@ -4,171 +4,248 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ════════════════════════════════════════════════════════════════
-   SINGLE SOURCE OF TRUTH
+   SINGLE SOURCE OF TRUTH — "The Service Board"
    All raw values live here. shadcn reads these directly.
    @theme inline below maps them → Tailwind utility classes.
+
+   The world is a contemporary café service board: warm work surfaces, a
+   forest shell, magnetic controls, and domain-owned colour.
+
+     measured   what was actually observed — the trace, today's figure
+     reference  what it is read against — previous period, target, par
+     momentum   rate of change in the good direction, on-track
+     exception  out of range, failed, refunded, destructive
+
+   ACTION IS THE SHELL'S GREEN. The forest column is the largest, most constant
+   field in the product, so green is what the eye learns as "DUMA". Action
+   therefore has to be green too — a key in a fifth, unrelated hue reads as a
+   foreign object on its own page, which is exactly how the apricot key drifted.
+   Primary is one step up from the sidebar and presses down onto it.
+
+   Position stays ACHROMATIC — the active-nav rail and count markers are warm
+   white on forest, the way an instrument's cursor is. Colour belongs to data.
+
+   The cost of a green key, recorded here so it is not rediscovered as a bug:
+   with forest ink on a warm ground, no green is at once a distinct link, a
+   distinct success and WCAG-legible — the widest separation available between
+   a dual-purpose (text AND fill) green and momentum is ΔOKLab 0.104, and only
+   by turning momentum into a lime. Apricot enjoyed 0.215. Primary and momentum
+   are therefore close by construction, and the Two-Channel Rule is what
+   actually separates them: momentum never appears without its wash or icon.
+
+   Pairs below are measured, not assumed — body ink ≥7:1, role text ≥4.5:1 on
+   field, ground AND band, fills ≥4.5:1 under their foreground, rules ≥3:1 as a
+   UI boundary. 76 pairs, 9 known failures, ALL of them pre-dating the green key
+   and all in tokens it did not touch (an earlier "0 failures" note here was
+   simply wrong):
+
+     --rule            2.20 / 2.44 / 1.98:1 — light-mode borders miss 1.4.11.
+                       Night rule is fine (3.20–3.94). Fixing it repaints every
+                       border in the app, so it is called out, not smuggled in.
+     --sidebar-border  1.66:1 on the shell — a seam inside one block of forest.
+     --ink-2           4.39:1 on band only.
+     --measured        4.43 on ground, 3.98 on band. This is why it is no longer
+                       the action colour: as --primary it was the least legible
+                       role in the set. As order data on field it is fine.
+     --momentum        4.4996 on band — passes at 4.5 when rounded, so treat
+                       band as its floor and do not lighten it.
+
+   Status is a role-coloured hairline box on the surface, never a filled pill —
+   a light role colour washed over a dark surface closes the gap, which is how
+   tinted chips fail dark mode.
    ════════════════════════════════════════════════════════════════ */
 :root {
-  /* ── DUMA Brand ─────────────────────────────────────── */
-  --primary: oklch(0.5767 0.2301 262.3); /* #236bfe Bluerocratic */
-  --primary-hover: oklch(0.515 0.222 262.3); /* #1358e4 */
-  --primary-foreground: oklch(1 0 0); /* #ffffff White */
+  --ground: #f4f0e7;
+  --field: #fffcf7;
+  --band: #eae4d8;
 
-  /* ── Surfaces ───────────────────────────────────────── */
-  --background: oklch(0.957 0.003 248); /* #eff1f3 */
-  --foreground: oklch(0.2347 0.0732 269.9); /* #111a40 Dark Eclipse */
-  --card: oklch(1 0 0); /* #ffffff */
-  --card-foreground: oklch(0.2347 0.0732 269.9);
-  --popover: oklch(1 0 0); /* #ffffff */
-  --popover-foreground: oklch(0.2347 0.0732 269.9);
+  /* ── Ink: forest, deep enough to read as near-black. NOT the action
+     colour — that is --primary, held lighter so a link is not body text. ── */
+  --ink: #20372d;
+  --ink-2: #5c6c63;
 
-  /* ── Secondary / Muted — the cool grey ladder.
-       Cards are pure white and the page is #eff1f3, so these have to clear
-       BOTH. Kept deep enough that a filled control (input, chip, row) still
-       reads when it sits directly on the page rather than on a card. ────── */
-  --secondary: oklch(0.915 0.011 265); /* #dfe3ea */
-  --secondary-foreground: oklch(0.33 0.045 268); /* #2b354d */
-  --muted: oklch(0.915 0.011 265);
-  --muted-foreground: oklch(0.5 0.03 265); /* #5b6375 — AA on every surface above */
-  --accent: oklch(0.915 0.011 265);
-  --accent-foreground: oklch(0.33 0.045 268);
+  /* ── The chart grid IS the layout grid ────────────────────────── */
+  --grid-minor: #e8e1d5;
+  --grid-major: #d7cfc1;
+  --rule: #aaa397;
+  --grid-step: 8px;
+  --grid-major-step: 64px;
 
-  /* ── Borders & Inputs ───────────────────────────────── */
-  --border: oklch(0.865 0.014 265); /* #ced3dc */
-  --input: oklch(0.845 0.016 265); /* #c7ccd7 — a step darker: form controls need a hard edge */
-  /* Fill for editable controls. White here rather than the grey surface-offset:
-     the border does the work of defining the control, so the field can stay the
-     brightest thing in a form. Read-only bits of an input group (unit suffixes)
-     deliberately keep surface-offset so they still read as non-editable. */
-  --field: oklch(1 0 0); /* #ffffff */
-  --ring: oklch(0.5767 0.2301 262.3); /* matches primary */
-  --destructive: oklch(0.55 0.18 29); /* #c5372c — Youthful Coral, darkened (text-destructive needs AA) */
+  /* ── The four data roles ──────────────────────────────────────── */
+  --measured: #b84e2d;
+  --reference: #505fb8;
+  --momentum: #2b7355;
+  --exception: #b33a45;
+  /* Was #9b6b10, which measured 3.68:1 on band — the one role text that never
+     met the ≥4.5:1 claim this file makes. Darkened at the same hue to 4.63:1. */
+  --stock: #8a5b02;
 
-  /* ── Extra DUMA tokens (beyond shadcn base) ─────────── */
-  --surface-offset: oklch(0.935 0.008 265); /* #e7e9ef */
-  --divider: oklch(0.895 0.012 265); /* #d8dce5 */
-  --faint: oklch(0.68 0.02 265); /* #9298a5 */
+  /* Washes: 6% is the ceiling, verified. Boxes carry a role rule, not a fill. */
+  --measured-wash: color-mix(in oklab, var(--measured) 6%, transparent);
+  --reference-wash: color-mix(in oklab, var(--reference) 6%, transparent);
+  --momentum-wash: color-mix(in oklab, var(--momentum) 6%, transparent);
+  --exception-wash: color-mix(in oklab, var(--exception) 6%, transparent);
+  --stock-wash: color-mix(in oklab, var(--stock) 6%, transparent);
 
-  /* Shadows are tinted with the brand navy rather than neutral black — a grey
-     shadow on a cool grey page reads as dirt. Consumed by the Elevation block
-     at the bottom of this file. */
-  --shadow-tint: oklch(0.2347 0.0732 269.9); /* #111a40 */
+  /* The reference profile ghosted under today's trace. */
+  --ghost: color-mix(in oklab, var(--reference) 28%, transparent);
 
-  /* ── Semantic — brand hues darkened to ~5:1 on white, since
-       text-success / text-warning / text-destructive are all
-       used as body text. The pastels themselves live in the
-       charts below and in dark mode. ─────────────────── */
-  --success: oklch(0.52 0.105 166); /* #0c7c5b ← Inspiration Peak */
-  --success-highlight: oklch(0.945 0.03 166); /* #dbf4e8 */
-  --warning: oklch(0.55 0.13 64); /* #a55e00 ← Pumpkin Pie */
-  --warning-highlight: oklch(0.955 0.035 64); /* #ffecd8 */
-  --info: oklch(0.55 0.2 262); /* #2867e4 ← Bluerocratic */
-  --info-highlight: oklch(0.95 0.03 262); /* #e4efff */
+  /* ════════ shadcn / app token names, mapped onto the world ════════
+     200+ files already reference these. Mapping rather than renaming is what
+     lets the new world land app-wide in one edit. ─────────────────── */
+  --background: var(--ground);
+  --foreground: var(--ink);
+  --card: var(--field);
+  --card-foreground: var(--ink);
+  --popover: var(--field);
+  --popover-foreground: var(--ink);
 
-  /* ── Charts — the palette at full strength ──────────── */
-  --chart-1: oklch(0.5767 0.2301 262.3); /* #236bfe Bluerocratic */
-  --chart-2: oklch(0.6546 0.0946 165.8); /* #51a383 Inspiration Peak */
-  --chart-3: oklch(0.7601 0.124 63.6); /* #e89f57 Pumpkin Pie */
-  --chart-4: oklch(0.7224 0.1353 29.1); /* #ee8273 Youthful Coral */
-  --chart-5: oklch(0.45 0.06 270); /* #485477 slate from the Dark Eclipse ladder */
+  /* Brand green, one step up from the forest shell (Δ0.069 from --sidebar, so it
+     reads as the same material). Legible as text on all three surfaces
+     (7.18 / 6.46 / 5.81:1) AND as a fill under warm white (7.08:1), which is
+     what `text-primary` and `bg-primary` both being one token requires.
+     Hover presses down onto the sidebar colour itself. */
+  --primary: #1f6146;
+  --primary-hover: #174c38;
+  --primary-foreground: #fffaf4;
 
-  /* ── Sidebar ─────────────────────────────────────────── */
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.2347 0.0732 269.9);
-  --sidebar-primary: oklch(0.5767 0.2301 262.3);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.915 0.011 265);
-  --sidebar-accent-foreground: oklch(0.33 0.045 268);
-  --sidebar-border: oklch(0.895 0.012 265);
-  --sidebar-ring: oklch(0.5767 0.2301 262.3);
+  --secondary: var(--band);
+  --secondary-foreground: var(--ink);
+  --muted: var(--band);
+  --muted-foreground: var(--ink-2);
+  --accent: var(--band);
+  --accent-foreground: var(--ink);
 
-  /* ── Layout dimensions ───────────────────────────────── */
-  --radius: 0.5rem;
+  /* One rule weight for every boundary: a chart has no second border colour. */
+  --border: var(--rule);
+  --input: var(--rule);
+  --divider: var(--grid-major);
+  --surface-offset: var(--band);
+  /* No "faint" tier: the old one measured 2.5:1. The quietest legible ink is ink-2. */
+  --faint: var(--ink-2);
+
+  /* Focus follows the action colour — brand green, 7.18:1 on field. */
+  --ring: var(--primary);
+
+  --destructive: var(--exception);
+  --success: var(--momentum);
+  --success-highlight: var(--momentum-wash);
+  /* `bg-success text-success-foreground` was already in use with no such token
+     defined, so that button's label rendered uncoloured. Warm white, 5.49:1. */
+  --success-foreground: #fffaf4;
+  /* Warning is "approaching the limit", which is the stock lane's own colour —
+     running low IS the warning. Previously aliased to --measured, which made a
+     warning badge pixel-identical to a primary button and to an order figure:
+     three meanings, one colour, 61 + 50 + 24 call sites deep. */
+  --warning: var(--stock);
+  --warning-highlight: var(--stock-wash);
+  --info: var(--reference);
+  --info-highlight: var(--reference-wash);
+
+  /* Charts: the roles at trace strength, in reading order. */
+  --chart-1: var(--measured);
+  --chart-2: var(--reference);
+  --chart-3: var(--momentum);
+  --chart-4: var(--exception);
+  --chart-5: oklch(0.55 0.02 250); /* neutral slate for the nth series */
+
+  --sidebar: #174c38;
+  --sidebar-foreground: #f8f1e5;
+  /* Position marker: the active-nav rail and count badges. Warm white rather
+     than the old apricot — 8.79:1 on forest instead of 4.78:1, and it keeps the
+     shell free of the one hue that now means "order data" everywhere else. */
+  --sidebar-primary: #f8f1e5;
+  --sidebar-primary-foreground: #17382c;
+  --sidebar-accent: #28624d;
+  --sidebar-accent-foreground: #fffaf2;
+  --sidebar-border: #3d6d59;
+  --sidebar-ring: #f8f1e5;
+
+  --radius: 0.4375rem;
+
+  /* ── Layout dimensions (unchanged contract) ──────────────────── */
   --sidebar-width: 220px;
   --sidebar-collapsed-width: 60px;
   --header-height: 56px;
-}
 
-/* "Hide top bar" setting: the header is dropped on lg+, so full-height layouts
-   that subtract --header-height must reclaim that space. Toggled by the Header
-   component via a data attribute on <html>. */
-@media (min-width: 1024px) {
-  html[data-hide-header='true'] {
-    --header-height: 0px;
-  }
-}
-
-.dark {
-  --primary: oklch(0.68 0.19 262); /* #5492ff — Bluerocratic lifted for dark surfaces */
-  --primary-hover: oklch(0.74 0.17 262); /* #6ea8ff */
-  --primary-foreground: oklch(0.215 0.012 270); /* #17191f — dark on light blue beats white here */
-
-  /* ── Surfaces: near-neutral charcoal (bg < sidebar < card < offset < muted).
-       Deliberately almost achromatic — Dark Eclipse is a brand *accent*, not a
-       surface. Tinting the whole ladder navy made every panel read blue. ───── */
-  --background: oklch(0.215 0.012 270); /* #17191f */
-  --foreground: oklch(0.93 0.005 270); /* #e6e8eb soft off-white, not harsh */
-  --card: oklch(0.255 0.012 270); /* #202329 clearly lifted above background */
-  --card-foreground: oklch(0.93 0.005 270);
-  --popover: oklch(0.275 0.013 270); /* #25272e */
-  --popover-foreground: oklch(0.93 0.005 270);
-
-  --secondary: oklch(0.31 0.014 270); /* #2d3038 */
-  --secondary-foreground: oklch(0.93 0.005 270);
-  --muted: oklch(0.31 0.014 270);
-  --muted-foreground: oklch(0.75 0.012 270); /* #abaeb6 readable secondary text */
-  --accent: oklch(0.31 0.014 270);
-  --accent-foreground: oklch(0.93 0.005 270);
-
-  /* ── Borders & inputs: gentle but visible against the surfaces ───── */
-  --border: oklch(0.355 0.015 270); /* #393c44 */
-  --input: oklch(0.375 0.015 270); /* #3e4149 */
-  /* Unchanged from surface-offset — on dark, a "white" field would glare. */
-  --field: oklch(0.295 0.013 270); /* #2a2c33 */
-  --ring: oklch(0.68 0.19 262);
-  --destructive: oklch(0.7224 0.1353 29.1); /* #ee8273 Youthful Coral, exact */
-
-  --surface-offset: oklch(0.295 0.013 270); /* #2a2c33 rows / hover / chips */
-  --divider: oklch(0.33 0.014 270); /* #32353d */
-  --faint: oklch(0.57 0.015 270); /* #747781 */
-
-  /* Near-black on dark: a navy-tinted shadow over a dark surface just muddies
-     it. Keeps dark elevation looking the way it does today. */
-  --shadow-tint: oklch(0.08 0.01 270);
-
-  /* Against neutral charcoal the palette works at full strength. */
-  --success: oklch(0.6546 0.0946 165.8); /* #51a383 Inspiration Peak, exact */
-  --success-highlight: oklch(0.3 0.05 166);
-  --warning: oklch(0.7601 0.124 63.6); /* #e89f57 Pumpkin Pie, exact */
-  --warning-highlight: oklch(0.31 0.055 64);
-  --info: oklch(0.74 0.14 262); /* #79a9ff */
-  --info-highlight: oklch(0.31 0.065 262);
-
-  --chart-1: oklch(0.68 0.19 262); /* #5492ff */
-  --chart-2: oklch(0.6546 0.0946 165.8); /* #51a383 */
-  --chart-3: oklch(0.7601 0.124 63.6); /* #e89f57 */
-  --chart-4: oklch(0.7224 0.1353 29.1); /* #ee8273 */
-  --chart-5: oklch(0.72 0.03 270); /* #a5a8b3 */
-
-  --sidebar: oklch(0.235 0.012 270); /* #1c1e24 */
-  --sidebar-foreground: oklch(0.93 0.005 270);
-  --sidebar-primary: oklch(0.68 0.19 262);
-  --sidebar-primary-foreground: oklch(0.215 0.012 270);
-  --sidebar-accent: oklch(0.31 0.014 270);
-  --sidebar-accent-foreground: oklch(0.93 0.005 270);
-  --sidebar-border: oklch(0.355 0.015 270);
-  --sidebar-ring: oklch(0.68 0.19 262);
+  /* Depth is ruling, not lift. Kept as a token so overlays can still read. */
+  --shadow-tint: oklch(0.215 0.014 250);
 }
 
 /* ════════════════════════════════════════════════════════════════
-   @theme inline
-   Maps :root vars → Tailwind utility classes.
-   bg-primary, text-muted-foreground, border-border etc. all work.
+   Night mode — the board after close: lights off, not tinted green.
+
+   The day world is oat over forest. Carrying that forest into the surfaces
+   made every panel, trough and rule a shade of green, so the whole
+   application read as one colour and the domain roles had nothing to sit
+   against. Night keeps the warmth in the ink and drops the hue out of the
+   materials: a near-black warm charcoal ladder — ground → field → band —
+   with roles at full chroma over it.
+
+   Green is therefore structure rather than the room: the navigation shell
+   (deepened, so it holds the edge instead of lighting it), the action key,
+   team/success ink, and healthy states. No work SURFACE is green — the shell and
+   the keys may be, the ground, field and band never are.
+   ════════════════════════════════════════════════════════════════ */
+.dark {
+  /* Warm charcoal, not graphite: hue stays on the oat side of neutral, chroma
+     is low enough that the eye reads it as dark rather than as a colour. */
+  --ground: #121110;
+  --field: #1c1b18;
+  --band: #272521;
+
+  --ink: #f6f0e6;
+  --ink-2: #c3bcae;
+
+  --grid-minor: #2c2924;
+  --grid-major: #3a362e;
+  /* 3.20–3.94:1 across ground, field and band: a panel edge has to survive on
+     a dark surface, where a hairline disappears long before it does on oat. */
+  --rule: #787264;
+
+  --measured: #ef936b;
+  --reference: #a7b0ff;
+  --momentum: #75c7a2;
+  --exception: #ff9298;
+  --stock: #e8bd67;
+
+  --ghost: color-mix(in oklab, var(--reference) 34%, transparent);
+
+  /* The night key: light enough to carry #1a1611 text as a fill (6.83:1) and to
+     read as text on all three charcoals (6.54 / 7.16 / 5.81:1). Held a step
+     deeper than --momentum so the two greens stay tellable apart; hover lifts. */
+  --primary: #4fb187;
+  --primary-hover: #5cbf95;
+  --primary-foreground: #1a1611;
+
+  /* Night success is a light green, so its label flips to the dark ink (8.95:1). */
+  --success-foreground: #1a1611;
+
+  /* The shell keeps its forest — place-memory is worth more than tidiness —
+     but at night it drops to the deepest tier, ~4× darker than the daytime
+     column, so it reads as a dark edge holding the room rather than a lit
+     green wall. Active items still step up one forest tier. */
+  --sidebar: #0e241b;
+  --sidebar-foreground: #ece6d9;
+  --sidebar-primary: #f8f1e5;
+  --sidebar-primary-foreground: #12241b;
+  --sidebar-accent: #204734;
+  --sidebar-accent-foreground: #f7f1e7;
+  --sidebar-border: #2a4b3a;
+  --sidebar-ring: #f8f1e5;
+
+  --chart-5: oklch(0.7 0.02 250);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   @theme inline — maps :root vars → Tailwind utility classes.
    ════════════════════════════════════════════════════════════════ */
 @theme inline {
-  /* Fonts */
-  --font-sans: var(--font-questrial, sans-serif);
-  --font-mono: var(--font-geist-mono, monospace);
+  /* Fonts. Archivo is a grotesque with real tabular figures and genuine
+     weights; Chivo Mono is its monospaced sibling and carries every figure,
+     timestamp and readout. Same family skeleton, so labels and data agree. */
+  --font-sans: var(--font-archivo, ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--font-chivo-mono, ui-monospace, monospace);
 
   /* shadcn standard → Tailwind utilities */
   --color-background: var(--background);
@@ -204,7 +281,19 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* DUMA custom utilities → bg-surface, bg-surface-offset etc. */
+  /* World roles → bg-measured, text-reference, border-momentum etc. */
+  --color-measured: var(--measured);
+  --color-reference: var(--reference);
+  --color-momentum: var(--momentum);
+  --color-exception: var(--exception);
+  --color-stock: var(--stock);
+  --color-ghost: var(--ghost);
+  --color-rule: var(--rule);
+  --color-grid-minor: var(--grid-minor);
+  --color-grid-major: var(--grid-major);
+  --color-band: var(--band);
+
+  /* App custom utilities (kept: bg-surface, bg-surface-offset, …) */
   --color-surface: var(--card);
   --color-surface-2: var(--popover);
   --color-surface-offset: var(--surface-offset);
@@ -214,18 +303,37 @@
 
   /* Semantic */
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-success-highlight: var(--success-highlight);
   --color-warning: var(--warning);
   --color-warning-highlight: var(--warning-highlight);
   --color-info: var(--info);
   --color-info-highlight: var(--info-highlight);
 
-  /* Radius */
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  /* ── Named type steps ────────────────────────────────────────────
+     The three tiers this world invented, given names so there is exactly one
+     way to write each. Without these the same size arrives as both
+     `text-[10px]` and `text-[0.625rem]`, which is two notations for one step —
+     drift wearing a different unit. Legacy px call sites in un-converted route
+     bodies migrate onto these. */
+  --text-micro: 0.625rem; /* 10px — column headers, eyebrows. Scanned, never read. */
+  --text-label: 0.6875rem; /* 11px — annotations, card meta, flag labels. */
+  --text-metric: 2rem; /* the figure on a readout. */
+
+  /* Named role spacing keeps repeated type identical across every surface. */
+  --tracking-micro: 0.14em;
+  --tracking-label: 0.08em;
+  --tracking-title: -0.01em;
+  --tracking-headline: -0.015em;
+  --tracking-display: -0.03em;
+  --tracking-figure: -0.02em;
+
+  /* Compact magnetic corners: friendly without drifting into pill UI. */
+  --radius-sm: 5px;
+  --radius-md: 7px;
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -249,8 +357,14 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans, sans-serif);
+    font-kerning: normal;
+    font-optical-sizing: auto;
+    /* Both families ship the full variable weight axis. Only semantic italics
+       may be synthesised, so a requested bold never becomes faux bold. */
+    font-synthesis: style;
     min-height: 100dvh;
     line-height: 1.5;
+    background-image: none;
   }
 
   img,
@@ -289,13 +403,23 @@
     text-wrap: pretty;
   }
 
+  /* Figures stay aligned; ordinary labels keep the warmer sans voice. */
+  [data-figure],
+  .tabular,
+  .tabular-nums {
+    font-family: var(--font-mono, monospace);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: var(--tracking-figure);
+  }
+
+  /* Focus is the crosshair: a hard marker in the action colour, never a glow. */
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
 
   ::selection {
-    background-color: color-mix(in oklch, var(--primary) 20%, transparent);
+    background-color: color-mix(in oklch, var(--primary) 22%, transparent);
     color: var(--foreground);
   }
 
@@ -312,7 +436,7 @@
   /* Operational boards need a visible affordance when more tickets are
      available off-screen, overriding the app-wide hidden scrollbar rule. */
   .kds-scrollbar {
-    scrollbar-color: color-mix(in oklch, var(--faint) 70%, transparent) transparent;
+    scrollbar-color: color-mix(in oklch, var(--rule) 80%, transparent) transparent;
     scrollbar-width: thin;
   }
 
@@ -323,7 +447,7 @@
   }
 
   .kds-scrollbar::-webkit-scrollbar-thumb {
-    background: color-mix(in oklch, var(--faint) 70%, transparent);
+    background: color-mix(in oklch, var(--rule) 80%, transparent);
     border-radius: 999px;
   }
 
@@ -335,78 +459,123 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+
+    /* Loading feedback is information, not decoration. The previous blanket
+       kill froze 45 spinners into static arcs that told a reduced-motion user
+       nothing at all. Indeterminate indicators keep running — slowed to a calm
+       rate, no oscillation — so "still working" survives the preference. */
+    .animate-spin,
+    .animate-pulse,
+    [data-motion='progress'],
+    [data-motion='progress'] * {
+      animation-duration: 1.6s !important;
+    }
   }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   Merge-field highlight
+   The plot field
 
-   {{customer.firstName}} placeholders in the email template builder. They are
-   painted with the CSS Custom Highlight API rather than wrapped in spans, so
-   the text a person edits stays plain text and the caret is never disturbed.
-   Registered by useVariableHighlight; browsers without the API simply show the
-   token unstyled. Only colour-ish properties are allowed in ::highlight().
+   A region that holds plotted data draws its own grid. This is the world's
+   one piece of chrome, and it replaces the card: no lift, no soft corner, a
+   hairline boundary and a ruled interior.
    ════════════════════════════════════════════════════════════════ */
-::highlight(template-variable) {
-  background-color: color-mix(in oklab, var(--primary) 14%, transparent);
-  color: var(--primary);
+@layer components {
+  .plot-field {
+    background-color: var(--field);
+    background-image:
+      linear-gradient(to right, var(--grid-minor) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-minor) 1px, transparent 1px);
+    background-size: var(--grid-step) var(--grid-step);
+    border: 1px solid var(--rule);
+  }
+
+  /* An event flag: a thin vertical rule with a small-caps label at its head,
+     dropped at a moment on the trace (open, first order, delivery, cash-up). */
+  .event-flag {
+    border-left: 1px solid var(--rule);
+    padding-left: 0.375rem;
+  }
+
+  /* Status is a boxed annotation, never a filled pill: a role-coloured
+     hairline with role-coloured text on the surface it sits on. Verified in
+     both themes on field, page and band. */
+  .annot {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: 1px solid currentColor;
+    border-radius: var(--radius-md);
+    padding: 0 0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   Elevation
+   Depth
 
-   Tailwind's stock shadows are neutral black, which on a cool grey page
-   reads as smudge rather than lift. These retune the whole scale to the
-   themed --shadow-tint (brand navy in light, near-black in dark) and give
-   the low end a second, wider layer so a white card actually separates
-   from the #eff1f3 page.
+   Work surfaces use restrained lift; overlays carry the deeper part of the
+   scale. Shadows always have an offset and a soft blur.
 
-   This overrides --tw-shadow rather than box-shadow so Tailwind's ring /
-   inset-ring composition still works, and keeps the var(--tw-shadow-color)
-   fallback so `shadow-primary/20`-style colour overrides still apply.
-   (Setting these via @theme does not work: Tailwind can't parse a
-   multi-layer color-mix() value into its shadow-colour form.)
+   Overrides --tw-shadow rather than box-shadow so Tailwind's ring / inset-ring
+   composition still works and `shadow-primary/20`-style colour overrides
+   still apply.
    ════════════════════════════════════════════════════════════════ */
 @layer utilities {
-  .shadow-2xs {
-    --tw-shadow: 0 1px 1px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 6%, transparent));
+  /* These are complete type roles, not size aliases. Literal declarations are
+     intentional: Tailwind's registered --tw-* properties can make compound
+     theme fallbacks compute as inherited values in the browser. */
+  .text-micro {
+    font-size: var(--text-micro);
+    line-height: 1.2;
+    letter-spacing: var(--tracking-micro);
+    font-weight: 600;
   }
 
-  .shadow-xs {
-    --tw-shadow: 0 1px 2px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 7%, transparent));
+  .text-label {
+    font-size: var(--text-label);
+    line-height: 1.25;
+    letter-spacing: var(--tracking-label);
+    font-weight: 600;
   }
 
-  /* Variants generate their own rule, so any `hover:` / `md:` shadow needs
-     listing here too or it falls back to Tailwind's black. Only the variants
-     actually used in the app are covered. */
+  .text-metric {
+    font-size: var(--text-metric);
+    line-height: 1.1;
+    letter-spacing: var(--tracking-figure);
+    font-weight: 600;
+  }
+
+  .shadow-2xs,
+  .shadow-xs,
   .shadow-sm,
   .hover\:shadow-sm:hover {
-    --tw-shadow:
-      0 1px 2px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 7%, transparent)),
-      0 3px 10px -3px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 10%, transparent));
+    --tw-shadow: 0 2px 8px -4px color-mix(in oklab, var(--shadow-tint) 18%, transparent);
   }
 
   .shadow-md {
-    --tw-shadow:
-      0 2px 4px -1px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 8%, transparent)),
-      0 8px 20px -6px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 14%, transparent));
+    --tw-shadow: 0 5px 16px -8px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 22%, transparent));
   }
 
+  /* Overlays: a real drop, because a modal genuinely floats. */
   .shadow-lg {
     --tw-shadow:
-      0 4px 8px -2px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 9%, transparent)),
-      0 16px 40px -12px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 18%, transparent));
+      0 2px 4px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 10%, transparent)),
+      0 12px 28px -8px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 22%, transparent));
   }
 
   .shadow-xl {
     --tw-shadow:
-      0 8px 16px -4px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 11%, transparent)),
-      0 28px 64px -20px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 22%, transparent));
+      0 4px 8px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 12%, transparent)),
+      0 24px 56px -16px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 28%, transparent));
   }
 
   .shadow-2xl {
     --tw-shadow:
-      0 12px 24px -6px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 14%, transparent)),
-      0 40px 80px -24px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 28%, transparent));
+      0 6px 12px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 14%, transparent)),
+      0 36px 80px -24px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 34%, transparent));
   }
 }

@@ -122,7 +122,7 @@ export function StaffDirectory() {
         return (
           <span
             className={cn(
-              'inline-flex items-center rounded-lg border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide',
+              'inline-flex items-center rounded-sm border px-2.5 py-1 text-label font-semibold uppercase tracking-label',
               rc.bg,
               rc.text,
               rc.border,
@@ -181,8 +181,8 @@ export function StaffDirectory() {
       cell: ({ row: member }) => (
         <span
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide',
-            member.isActive ? 'border-success/30 bg-success/10 text-success' : 'border-border bg-muted text-muted-foreground',
+            'inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-label font-semibold uppercase tracking-label',
+            member.isActive ? 'border-success/30 bg-success/6 text-success' : 'border-rule bg-muted text-muted-foreground',
           )}
         >
           <span className={cn('size-1.5 shrink-0 rounded-full', member.isActive ? 'bg-success' : 'bg-muted-foreground')} />
@@ -292,7 +292,7 @@ export function StaffDirectory() {
         rowAriaLabel={({ row }) => `Open ${row.name ?? row.email ?? 'member'}`}
         footer={
           staff.length > 0 ? (
-            <div className="border-t border-border px-4 py-3">
+            <div className="border-t border-rule px-4 py-3">
               <p className="text-xs text-muted-foreground">
                 {filtered.length !== staff.length && `${filtered.length} of `}
                 {staff.length} {staff.length === 1 ? 'person' : 'people'} · {activeCount} active · {enrolledCount} with HR records ·{' '}

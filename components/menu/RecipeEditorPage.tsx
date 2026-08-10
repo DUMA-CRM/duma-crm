@@ -175,7 +175,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
       discardMessage="This recipe has unsaved ingredient changes. Leaving now discards them."
       icon={<ChefHat size={20} aria-hidden="true" />}
       actions={
-        <Button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className="h-11 px-6 shrink-0 gap-2">
+        <Button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className="h-9 px-5 shrink-0 gap-2">
           {save.isPending && <Loader2 size={15} className="animate-spin" />}
           {save.isPending ? 'Saving…' : dirty ? 'Save Recipe' : 'Saved'}
         </Button>
@@ -192,11 +192,11 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
             <section className="space-y-3 min-w-0">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Ingredients</h2>
-                {sizes.length > 0 && <p className="text-[11px] text-muted-foreground">Blank size fields inherit the Default amount.</p>}
+                {sizes.length > 0 && <p className="text-label text-muted-foreground">Blank size fields inherit the Default amount.</p>}
               </div>
 
               {rows.length === 0 && (
-                <div className="bg-card border border-dashed border-border rounded-2xl p-6 text-center">
+                <div className="bg-card border border-dashed border-rule rounded-sm p-6 text-center">
                   <p className="text-sm text-muted-foreground">
                     Add the ingredients <span className="font-semibold text-foreground">every variant</span> of this item uses (beans,
                     lid…). Milk and syrups belong on their modifiers — edit a modifier in the Modifiers tab to set what it adds.
@@ -207,7 +207,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
               {rows.map((row, i) => {
                 const item = itemMap.get(row.stockItemId);
                 return (
-                  <div key={`${row.stockItemId}-${i}`} className="bg-card border border-border rounded-2xl p-4">
+                  <div key={`${row.stockItemId}-${i}`} className="bg-card border border-rule rounded-sm p-4">
                     <div className="flex items-center gap-2">
                       <Select
                         value={row.stockItemId}
@@ -236,7 +236,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                     <div className="flex flex-wrap gap-4 mt-3">
                       {columns.map((c) => (
                         <div key={c.id}>
-                          <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                          <label className="block text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-1">
                             {c.label}
                           </label>
                           <div className="flex items-center gap-1.5">
@@ -260,7 +260,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                       ))}
                       {item?.costPerUnit != null && (
                         <div className="ml-auto self-end text-right">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Cost</p>
+                          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-1">Cost</p>
                           <p className="text-sm font-semibold text-foreground tabular-nums h-11 flex items-center justify-end">
                             £{((Number(row.qty[DEFAULT_COL]) || 0) * Number(item.costPerUnit)).toFixed(2)}
                           </p>
@@ -285,11 +285,11 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
               {attached.length > 0 && (
                 <div className="pt-4">
                   <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Modifier Add-ons</h2>
-                  <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <div className="bg-card border border-rule rounded-sm overflow-hidden">
                     <div className="overflow-x-auto">
                       <DataTable className="w-full text-sm">
                         <thead>
-                          <tr className="bg-muted text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                          <tr className="bg-muted text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                             <th className="px-4 py-2.5 text-left">Modifier</th>
                             <th className="px-3 py-2.5 text-right">+Price</th>
                             {columns.map((c) => (
@@ -305,10 +305,10 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                             const { category, label } = parseModifierName(m.name);
                             const lines = modRecipeMap.get(m.id) ?? [];
                             return (
-                              <tr key={m.id} className="border-t border-border/50">
+                              <tr key={m.id} className="border-t border-rule">
                                 <td className="px-4 py-2.5">
                                   <p className="font-medium text-foreground">{label}</p>
-                                  <p className="text-[11px] text-muted-foreground">
+                                  <p className="text-label text-muted-foreground">
                                     {category ?? 'Extra'}
                                     {m.isDefault && ' · default'}
                                   </p>
@@ -351,7 +351,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                         </tbody>
                       </DataTable>
                     </div>
-                    <p className="px-4 py-2.5 border-t border-border text-[11px] text-muted-foreground">
+                    <p className="px-4 py-2.5 border-t border-rule text-label text-muted-foreground">
                       What each modifier adds on top of the base recipe, per size. “—” means no recipe yet — use the pencil to set one.
                     </p>
                   </div>
@@ -363,12 +363,12 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
             <aside className="space-y-4 lg:sticky lg:top-4">
               {/* Combination preview — build a drink like the POS would sell it */}
               {attached.length > 0 && (
-                <div className="bg-card border border-primary/30 rounded-2xl p-4">
-                  <h2 className="text-[10px] font-bold text-primary uppercase tracking-widest mb-3">Try a combination</h2>
+                <div className="bg-card border border-primary/30 rounded-sm p-4">
+                  <h2 className="text-micro font-semibold text-primary uppercase tracking-micro mb-3">Try a combination</h2>
                   <div className="space-y-2.5">
                     {comboGroups.map(([category, mods]) => (
                       <div key={category}>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{category}</p>
+                        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-1">{category}</p>
                         <div className="flex flex-wrap gap-1.5">
                           {mods.map((m) => {
                             const on = selectedSet.has(m.id);
@@ -379,10 +379,10 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                                 onClick={() => toggleCombo(m)}
                                 aria-pressed={on}
                                 className={cn(
-                                  'px-2.5 h-9 rounded-lg border text-xs font-medium transition-colors',
+                                  'px-2.5 h-9 rounded-sm border text-xs font-medium transition-colors',
                                   on
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-border text-muted-foreground hover:text-foreground',
+                                    ? 'border-primary bg-band text-primary'
+                                    : 'border-rule text-muted-foreground hover:text-foreground',
                                 )}
                               >
                                 {parseModifierName(m.name).label}
@@ -394,7 +394,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                     ))}
                   </div>
 
-                  <div className="mt-3 pt-3 border-t border-border space-y-1.5 text-sm tabular-nums">
+                  <div className="mt-3 pt-3 border-t border-rule space-y-1.5 text-sm tabular-nums">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Price</span>
                       <span className="font-bold text-primary">£{combo.price.toFixed(2)}</span>
@@ -420,7 +420,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                       <span className="text-foreground">{Math.round(combo.nutrition.kcal ?? 0)} kcal</span>
                     </div>
                   </div>
-                  <div className="mt-2 pt-2 border-t border-border/60">
+                  <div className="mt-2 pt-2 border-t border-rule">
                     <MacroList nutrition={combo.nutrition} missing={combo.missing > 0} />
                   </div>
                   {combo.allergens.length > 0 && (
@@ -436,7 +436,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                     <button
                       type="button"
                       onClick={() => setComboSel(null)}
-                      className="mt-2.5 text-[11px] font-medium text-primary hover:underline"
+                      className="mt-2.5 text-label font-medium text-primary hover:underline"
                     >
                       Reset to defaults
                     </button>
@@ -447,7 +447,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
               <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Base recipe per size</h2>
 
               {!hasIngredients ? (
-                <div className="bg-card border border-border rounded-2xl p-4">
+                <div className="bg-card border border-rule rounded-sm p-4">
                   <p className="text-xs text-muted-foreground">Cost, margin and nutrition appear here once ingredients are added.</p>
                 </div>
               ) : (
@@ -455,7 +455,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                   const margin = (s.price ?? 0) - s.cogs;
                   const pct = s.price ? (margin / s.price) * 100 : 0;
                   return (
-                    <div key={s.col.id} className="bg-card border border-border rounded-2xl p-4">
+                    <div key={s.col.id} className="bg-card border border-rule rounded-sm p-4">
                       <div className="flex items-center justify-between mb-3">
                         <p className="font-semibold text-foreground">{s.col.label}</p>
                         <p className="text-sm font-bold text-primary tabular-nums">£{(s.price ?? 0).toFixed(2)}</p>
@@ -485,7 +485,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                           </span>
                         </div>
                       </div>
-                      <div className="mt-2 pt-2 border-t border-border/60">
+                      <div className="mt-2 pt-2 border-t border-rule">
                         <MacroList nutrition={s.nutrition} missing={s.missingNutrition > 0} />
                       </div>
                     </div>
@@ -494,8 +494,8 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
               )}
 
               {allAllergens.length > 0 && (
-                <div className="bg-card border border-border rounded-2xl p-4">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Allergens</p>
+                <div className="bg-card border border-rule rounded-sm p-4">
+                  <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-2">Allergens</p>
                   <div className="flex flex-wrap gap-1.5">
                     {allAllergens.map((a) => (
                       <Badge key={a} variant="warning" className="capitalize">
@@ -503,12 +503,12 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                       </Badge>
                     ))}
                   </div>
-                  <p className="mt-2 text-[11px] text-muted-foreground">From base ingredients only — modifiers add their own.</p>
+                  <p className="mt-2 text-label text-muted-foreground">From base ingredients only — modifiers add their own.</p>
                 </div>
               )}
 
               {missingData && (
-                <div className="flex items-start gap-2 rounded-2xl border border-warning/40 bg-warning/10 p-3.5">
+                <div className="flex items-start gap-2 rounded-sm border border-warning/40 bg-warning/6 p-3.5">
                   <TriangleAlert size={15} className="text-warning shrink-0 mt-0.5" aria-hidden="true" />
                   <p className="text-xs text-warning">
                     Some ingredients are missing cost or nutrition data (*) — set them on the stock item in Inventory.

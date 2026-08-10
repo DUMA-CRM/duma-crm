@@ -4,21 +4,33 @@ import { cn } from '@/lib/utils/cn';
 import { formatPrice } from '@/lib/utils/pos';
 import type { MenuItem } from '@/types/pos';
 
-interface ProductCardProps {
+/* A menu tile is a key on the panel, not a card that floats. Selection is ink —
+   position and action are achromatic in this world — so a selected tile never
+   competes with a reading elsewhere on the screen. */
+export function ProductCard({
+  item,
+  isSelected,
+  onSelect,
+  currency,
+}: {
   item: MenuItem;
   isSelected: boolean;
   onSelect: (item: MenuItem) => void;
   currency?: string;
-}
-
-export function ProductCard({ item, isSelected, onSelect, currency }: ProductCardProps) {
+}) {
   return (
     <button
       onClick={() => onSelect(item)}
+      aria-pressed={isSelected}
       className={cn(
-        'flex flex-col text-left rounded-2xl bg-card border-2 overflow-hidden transition-all duration-200',
-        'shadow-xs',
-        isSelected ? 'border-primary shadow-md' : 'border-primary/10 hover:border-primary/30',
+        'relative flex flex-col overflow-hidden rounded-sm border bg-card text-left transition-colors duration-100',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+        // The doubled edge is drawn by an overlay rather than an inset shadow:
+        // an inset shadow paints under the tile's own image, so the ring used to
+        // survive only in the label strip below it.
+        isSelected
+          ? 'border-foreground after:pointer-events-none after:absolute after:inset-0 after:rounded-sm after:border after:border-foreground'
+          : 'border-rule hover:border-foreground',
       )}
     >
       {item.image ? (
@@ -26,19 +38,21 @@ export function ProductCard({ item, isSelected, onSelect, currency }: ProductCar
           width={300}
           height={300}
           src={item.image}
-          alt={item.name}
+          alt=""
           loading="lazy"
-          className="object-cover bg-muted aspect-square w-full shrink-0"
+          className="aspect-square w-full shrink-0 bg-band object-cover"
         />
       ) : (
-        <div className="bg-muted aspect-square w-full shrink-0 flex items-center justify-center text-4xl font-bold text-muted-foreground/30 select-none">
+        <div className="flex aspect-square w-full shrink-0 select-none items-center justify-center bg-band text-4xl font-semibold text-muted-foreground">
           {item.name[0]?.toUpperCase()}
         </div>
       )}
 
-      <div className="px-3 pt-2.5 pb-3">
-        <p className="text-sm font-semibold text-foreground leading-snug">{item.name}</p>
-        <p className="text-base font-bold text-primary tabular-nums mt-1">{formatPrice(item.price, currency)}</p>
+      <div className="border-t border-rule px-3 pt-2 pb-2.5">
+        <p className="text-sm font-medium leading-snug text-foreground">{item.name}</p>
+        <p data-figure className="mt-1 text-base font-semibold text-foreground">
+          {formatPrice(item.price, currency)}
+        </p>
       </div>
     </button>
   );

@@ -109,7 +109,7 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
       setConfirmOpen(false);
       onFinalised();
     },
-    onError: (err) => toast('error', err.message || 'Failed to finalise the payroll run.'),
+    onError: (err) => toast('error', err.message || 'The payroll run wasn’t finalised. Review it and try again.'),
   });
 
   const lines = data?.lines ?? [];
@@ -188,14 +188,14 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
         }
         emptyState={<EmptyState icon={Users} title="No employees" description="No hours in this period." />}
         minWidth={720}
-        rowClassName="hover:bg-surface-offset/70"
+        rowClassName="hover:bg-band"
         footer={
           hasLines ? (
             <div className="grid grid-cols-[1fr_auto_auto] items-center gap-6">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">
                 {totals.employees} {totals.employees === 1 ? 'employee' : 'employees'}
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total gross</p>
+              <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Total gross</p>
               <p className="tabular-nums font-bold text-primary">{money(totals.gross)}</p>
             </div>
           ) : null

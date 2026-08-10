@@ -20,11 +20,18 @@ export interface ReportChartSeries {
   dashed?: boolean;
 }
 
+/* Reports are this world's native home: a measured trace read against a
+   reference profile. `comparison` used to render in neutral slate, which said
+   "another series" when the thing it actually is, is the benchmark — so it now
+   takes the reference role and draws with the ghost stroke, exactly as a
+   previous roast sits under today's.
+
+   Tone names are unchanged; call sites across the reports pages depend on them. */
 const TONE = {
-  primary: { ink: 'text-chart-1', dot: 'bg-chart-1', stroke: 'var(--chart-1)' },
-  comparison: { ink: 'text-chart-5', dot: 'bg-chart-5', stroke: 'var(--chart-5)' },
-  success: { ink: 'text-chart-2', dot: 'bg-chart-2', stroke: 'var(--chart-2)' },
-  warning: { ink: 'text-chart-3', dot: 'bg-chart-3', stroke: 'var(--chart-3)' },
+  primary: { ink: 'text-measured', dot: 'bg-measured', stroke: 'var(--measured)' },
+  comparison: { ink: 'text-reference', dot: 'bg-reference', stroke: 'var(--ghost)' },
+  success: { ink: 'text-momentum', dot: 'bg-momentum', stroke: 'var(--momentum)' },
+  warning: { ink: 'text-exception', dot: 'bg-exception', stroke: 'var(--exception)' },
 } as const;
 
 function niceStep(value: number) {
@@ -140,7 +147,7 @@ export function ReportTrendChart({
     >
       <div className="flex min-h-10 flex-wrap items-start justify-between gap-3" aria-live="polite">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground group-focus-visible/chart:text-primary">
+          <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground group-focus-visible/chart:text-measured">
             {labels[safeActive] ?? 'Selected point'}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -150,9 +157,9 @@ export function ReportTrendChart({
               const tone = TONE[item.tone ?? 'primary'];
               return (
                 <span key={item.name} className="inline-flex items-center gap-1.5">
-                  <span className={cn('size-2 rounded-full', tone.dot)} aria-hidden="true" />
+                  <span className={cn('size-2 rounded-sm', tone.dot)} aria-hidden="true" />
                   <span className="text-xs text-muted-foreground">{item.name}</span>
-                  <span className={cn('text-sm font-bold tabular-nums', tone.ink)}>{formatValue(value)}</span>
+                  <span className={cn('text-sm font-semibold tabular-nums font-mono', tone.ink)}>{formatValue(value)}</span>
                 </span>
               );
             })}
@@ -160,10 +167,13 @@ export function ReportTrendChart({
         </div>
       </div>
 
-      <div ref={chartRef} className="w-full">
+      {/* The plot sits on chart stock with the world's 8px lattice, the same
+          field TraceChart draws on, so a report and the dashboard read as the
+          same instrument. */}
+      <div ref={chartRef} className="plot-field mt-1 w-full px-1 py-1">
         <svg
           viewBox={`0 0 ${chartWidth} ${HEIGHT}`}
-          className="mt-1 h-48 w-full overflow-visible sm:h-52"
+          className="h-48 w-full overflow-visible sm:h-52"
           role="img"
           aria-label={ariaLabel}
           onMouseMove={setFromPointer}
@@ -176,18 +186,27 @@ export function ReportTrendChart({
         >
           <defs>
             <linearGradient id={`${gradientId}-area`} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0" stopColor="var(--chart-1)" stopOpacity="0.2" />
-              <stop offset="1" stopColor="var(--chart-1)" stopOpacity="0" />
+              <stop offset="0" stopColor="var(--measured)" stopOpacity="0.22" />
+              <stop offset="1" stopColor="var(--measured)" stopOpacity="0" />
             </linearGradient>
           </defs>
 
+          {/* Chart-paper rules, solid and faint, rather than dashed borders: a
+              plot's grid is structure, not an annotation. */}
           {axisPositions.map((position, index) => {
             const y = TOP + position * (HEIGHT - TOP - BOTTOM);
             const value = max * (1 - position);
             return (
               <g key={position}>
-                <line x1={left} x2={chartWidth - RIGHT} y1={y} y2={y} stroke="var(--border)" strokeOpacity="0.7" strokeDasharray="3 5" />
-                <text x={left - 8} y={y + 3} textAnchor="end" fill="var(--muted-foreground)" fontSize="9">
+                <line
+                  x1={left}
+                  x2={chartWidth - RIGHT}
+                  y1={y}
+                  y2={y}
+                  stroke={position === 1 ? 'var(--grid-major)' : 'var(--grid-minor)'}
+                  vectorEffect="non-scaling-stroke"
+                />
+                <text x={left - 8} y={y + 3} textAnchor="end" fill="var(--muted-foreground)" fontSize="10" fontFamily="var(--font-mono)">
                   {axisLabels[index] ?? formatAxis(value)}
                 </text>
               </g>
@@ -224,7 +243,7 @@ export function ReportTrendChart({
             y1={TOP}
             y2={HEIGHT - BOTTOM}
             stroke="var(--foreground)"
-            strokeOpacity="0.18"
+            strokeOpacity="0.45"
             strokeWidth="1"
             vectorEffect="non-scaling-stroke"
           />
@@ -252,7 +271,8 @@ export function ReportTrendChart({
               y={HEIGHT - 8}
               textAnchor={index === 0 ? 'start' : index === count - 1 ? 'end' : 'middle'}
               fill="var(--muted-foreground)"
-              fontSize="9"
+              fontSize="10"
+              fontFamily="var(--font-mono)"
             >
               {labels[index] ?? ''}
             </text>
@@ -260,7 +280,7 @@ export function ReportTrendChart({
         </svg>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-rule pt-2 text-label text-muted-foreground">
         {visible.map((item) => (
           <span key={item.name} className="inline-flex items-center gap-1.5">
             <span

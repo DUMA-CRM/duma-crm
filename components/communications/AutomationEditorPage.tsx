@@ -41,6 +41,14 @@ import {
 } from './workflowModel';
 import { DOT_GRID_STYLE, NODE_META, nodeDetail } from './workflowNodes';
 
+/**
+ * The two branch columns under a condition. Shared by the columns themselves and
+ * by BranchConnector, which mirrors this geometry to draw the join — if the gap
+ * changes here, the connector's half-gap bridge (`-right-4` / `-left-4`) has to
+ * change with it.
+ */
+const BRANCH_GRID = 'grid w-full grid-cols-2 gap-8';
+
 const CONDITION_FIELDS = [
   { value: 'customer.marketingOptIn', label: 'Customer · marketing opt-in' },
   { value: 'customer.tier', label: 'Customer · loyalty tier' },
@@ -159,17 +167,17 @@ export function AutomationEditorPage({
         <>
           <Button
             variant="outline"
-            className="h-10 gap-2"
+            className="h-9 gap-2"
             onClick={() => (errors.length ? toast('error', errors[0]) : toast('success', 'Workflow is valid and ready to publish.'))}
           >
             <Play size={15} />
             <span className="hidden sm:inline">Check</span>
           </Button>
-          <Button variant="outline" className="h-10" disabled={!name.trim() || save.isPending} onClick={() => save.mutate(false)}>
+          <Button variant="outline" className="h-9" disabled={!name.trim() || save.isPending} onClick={() => save.mutate(false)}>
             Save draft
           </Button>
           <Button
-            className="h-10 gap-2 px-5"
+            className="h-9 gap-2 px-5"
             disabled={!name.trim() || !!errors.length || save.isPending}
             onClick={() => save.mutate(true)}
           >
@@ -179,9 +187,9 @@ export function AutomationEditorPage({
       }
     >
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(36rem,1fr)_22rem]">
-        <main className="min-h-0 overflow-auto bg-surface-offset/50 p-4 md:p-6">
+        <main className="min-h-0 overflow-auto bg-band p-4 md:p-6">
           <div className="mx-auto max-w-5xl">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-rule bg-card px-4 py-3 shadow-sm">
               <div>
                 <p className="text-sm font-semibold">{summary}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -193,7 +201,7 @@ export function AutomationEditorPage({
               </Badge>
             </div>
             {!usableTemplates.length && !templatesLoading && (
-              <div className="mb-4 flex items-center gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
+              <div className="mb-4 flex items-center gap-3 rounded-sm border border-warning/40 bg-warning/6 p-4 text-sm text-warning">
                 <TriangleAlert size={16} />
                 Create a ready-to-use template before publishing.
                 <Button variant="outline" size="sm" onClick={onOpenTemplates}>
@@ -202,7 +210,7 @@ export function AutomationEditorPage({
               </div>
             )}
             <div
-              className="min-h-150 overflow-auto rounded-2xl border border-border bg-card p-5 shadow-sm"
+              className="min-h-150 overflow-auto rounded-sm border border-rule bg-card p-5 shadow-sm"
               style={DOT_GRID_STYLE}
             >
               <WorkflowCanvas definition={definition} selectedId={selectedId} onSelect={setSelectedId} onAdd={addNode} />
@@ -210,7 +218,7 @@ export function AutomationEditorPage({
           </div>
         </main>
 
-        <aside className="min-h-0 overflow-auto border-t border-border bg-card p-5 lg:border-l lg:border-t-0">
+        <aside className="min-h-0 overflow-auto border-t border-rule bg-card p-5 lg:border-l lg:border-t-0">
           <Input
             label="Workflow name"
             value={name}
@@ -218,7 +226,7 @@ export function AutomationEditorPage({
             required
             hint="Only your team sees this."
           />
-          <div className="mt-5 border-t border-border pt-5">
+          <div className="mt-5 border-t border-rule pt-5">
             {selected ? (
               <NodeSettings
                 node={selected}
@@ -233,7 +241,7 @@ export function AutomationEditorPage({
             )}
           </div>
           {errors.length > 0 && (
-            <div className="mt-5 rounded-xl border border-warning/40 bg-warning/10 p-3">
+            <div className="mt-5 rounded-sm border border-warning/40 bg-warning/6 p-3">
               <p className="text-xs font-bold text-warning">Before publishing</p>
               <ul className="mt-2 space-y-1 text-xs text-warning">
                 {errors.map((error) => (
@@ -243,7 +251,7 @@ export function AutomationEditorPage({
             </div>
           )}
           {!emailReady && (
-            <div className="mt-5 flex gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
+            <div className="mt-5 flex gap-2 rounded-sm border border-warning/40 bg-warning/6 p-3 text-xs text-warning">
               <TriangleAlert size={15} className="shrink-0" />
               <span>
                 Email sending is not verified.{' '}
@@ -256,7 +264,7 @@ export function AutomationEditorPage({
             </div>
           )}
           {runs.length > 0 && (
-            <div className="mt-6 border-t border-border pt-5">
+            <div className="mt-6 border-t border-rule pt-5">
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Recent runs</p>
               <div className="mt-3 space-y-2">
                 {runs.slice(0, 8).map((run) => (
@@ -264,7 +272,7 @@ export function AutomationEditorPage({
                     type="button"
                     key={run.id}
                     onClick={() => setOpenedRunId(run.id)}
-                    className="flex w-full items-center justify-between rounded-lg bg-muted px-3 py-2 text-left text-xs transition hover:bg-primary/10"
+                    className="flex w-full items-center justify-between rounded-sm bg-muted px-3 py-2 text-left text-xs transition hover:bg-band"
                   >
                     <span className="flex items-center gap-2">
                       {run.status === 'completed' ? (
@@ -323,7 +331,7 @@ function WorkflowCanvas({
         {node.type === 'condition' ? (
           <>
             <BranchConnector />
-            <div className="grid w-full grid-cols-2 gap-8">
+            <div className={BRANCH_GRID}>
               {(['yes', 'no'] as const).map((branch) => {
                 const edge = edges.find((candidate) => candidate.branch === branch);
                 const target = edge && definition.nodes.find((candidate) => candidate.id === edge.target);
@@ -331,8 +339,8 @@ function WorkflowCanvas({
                   <div key={branch} className="flex flex-col items-center">
                     <span
                       className={cn(
-                        'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase',
-                        branch === 'yes' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground',
+                        'rounded-full px-2 py-0.5 text-micro font-semibold uppercase',
+                        branch === 'yes' ? 'bg-success/6 text-success' : 'bg-muted text-muted-foreground',
                       )}
                     >
                       {branch}
@@ -364,19 +372,21 @@ function WorkflowCanvas({
  * across to each branch, and a drop into it. Without this the branches read as
  * floating, unconnected to the step that produced them.
  *
- * The rail repeats the branch grid below, so each segment ends at its own
- * column's centre. Equal columns put those centres symmetrically either side of
- * the middle whatever the gap is, and the middle is where the stem lands — so
- * the join is exact rather than eyeballed.
+ * The rail repeats BRANCH_GRID, so each half ends at its own column's centre and
+ * each drop lands where that column centres its label. Equal columns sit
+ * symmetrically either side of the middle whatever the gap is, and the middle is
+ * where the stem lands — so the join is exact rather than eyeballed. Each half
+ * also reaches `-4` (half of the grid's `gap-8`) past its cell, or the gap would
+ * leave the rail split in two right under the stem.
  */
 function BranchConnector() {
   return (
     <div className="flex w-full flex-col items-center" aria-hidden="true">
       <span className="h-4 w-px bg-border" />
-      <div className="grid w-full grid-cols-2 gap-8">
+      <div className={BRANCH_GRID}>
         {(['left', 'right'] as const).map((side) => (
           <div key={side} className="relative h-4">
-            <span className={cn('absolute top-0 h-px bg-border', side === 'left' ? 'left-1/2 right-0' : 'left-0 right-1/2')} />
+            <span className={cn('absolute top-0 h-px bg-border', side === 'left' ? 'left-1/2 -right-4' : '-left-4 right-1/2')} />
             <span className="absolute left-1/2 top-0 h-full w-px bg-border" />
           </div>
         ))}
@@ -394,16 +404,16 @@ function WorkflowNodeCard({ node, selected, onClick }: { node: EmailWorkflowNode
       type="button"
       onClick={onClick}
       className={cn(
-        'flex w-64 items-center gap-3 rounded-xl border bg-card p-3 text-left shadow-sm transition',
-        selected ? 'border-primary ring-2 ring-primary/15' : 'border-border hover:border-primary/40',
+        'flex w-64 items-center gap-3 rounded-sm border bg-card p-3 text-left shadow-sm transition',
+        selected ? 'border-primary ring-2 ring-primary/15' : 'border-rule hover:border-primary/40',
       )}
     >
-      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', chip)}>
+      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-sm', chip)}>
         <Icon size={18} />
       </span>
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold">{node.name}</span>
-        <span className="block truncate text-[11px] capitalize text-muted-foreground">{nodeDetail(node)}</span>
+        <span className="block truncate text-label capitalize text-muted-foreground">{nodeDetail(node)}</span>
       </span>
     </button>
   );
@@ -417,14 +427,14 @@ function EdgeAdder({ onAdd }: { onAdd: (type: 'send_email' | 'delay' | 'conditio
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex size-6 items-center justify-center rounded-full border border-border bg-card text-primary shadow-sm hover:border-primary"
+        className="flex size-6 items-center justify-center rounded-full border border-rule bg-card text-primary shadow-sm hover:border-primary"
         aria-label="Insert workflow step"
       >
         <Plus size={13} />
       </button>
       <span className="h-4 w-px bg-border" />
       {open && (
-        <div className="absolute left-8 top-3 z-20 flex w-40 flex-col rounded-xl border border-border bg-card p-1 shadow-lg">
+        <div className="absolute left-8 top-3 z-20 flex w-40 flex-col rounded-sm border border-rule bg-card p-1 shadow-lg">
           {(
             [
               ['send_email', 'Send email'],
@@ -439,7 +449,7 @@ function EdgeAdder({ onAdd }: { onAdd: (type: 'send_email' | 'delay' | 'conditio
                 onAdd(type);
                 setOpen(false);
               }}
-              className="rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-muted"
+              className="rounded-sm px-3 py-2 text-left text-xs font-semibold hover:bg-muted"
             >
               {label}
             </button>
@@ -615,7 +625,7 @@ function NodeSettings({
         </>
       )}
       {node.type === 'end' && (
-        <p className="rounded-xl bg-muted p-3 text-xs text-muted-foreground">
+        <p className="rounded-sm bg-muted p-3 text-xs text-muted-foreground">
           This branch finishes here. Insert new steps on the connection above it.
         </p>
       )}

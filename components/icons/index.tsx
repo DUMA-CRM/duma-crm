@@ -104,7 +104,6 @@ import {
   LandmarkIcon,
   LayersIcon,
   LayoutGridIcon,
-  LayoutTopIcon,
   LeafIcon,
   LibraryIcon,
   LifebuoyIcon,
@@ -319,7 +318,6 @@ export const PackageSearch = /*#__PURE__*/ glyph(PackageSearchIcon, 'PackageSear
 export const PanelLeftClose = /*#__PURE__*/ glyph(PanelLeftCloseIcon, 'PanelLeftClose');
 export const PanelLeftOpen = /*#__PURE__*/ glyph(PanelLeftOpenIcon, 'PanelLeftOpen');
 export const PanelRight = /*#__PURE__*/ glyph(PanelRightIcon, 'PanelRight');
-export const PanelTopClose = /*#__PURE__*/ glyph(LayoutTopIcon, 'PanelTopClose');
 export const Pencil = /*#__PURE__*/ glyph(Edit03Icon, 'Pencil');
 export const Phone = /*#__PURE__*/ glyph(CallIcon, 'Phone');
 export const Play = /*#__PURE__*/ glyph(PlayIcon, 'Play');

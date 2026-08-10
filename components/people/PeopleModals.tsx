@@ -75,7 +75,7 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
           className={inp}
         />
       </div>
-      <p className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+      <p className="rounded-sm bg-muted p-3 text-xs text-muted-foreground">
         The staff member will receive a single-use activation link and choose their own password.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -107,14 +107,14 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors"
+          className="flex-1 h-10 border border-rule rounded-sm text-sm font-medium text-muted-foreground hover:bg-band transition-colors"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60"
+          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
         >
           {isPending ? 'Creating…' : 'Create'}
         </button>
@@ -162,7 +162,7 @@ export function EditStaffModal({
       }}
       className="space-y-4"
     >
-      <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/40 border border-border rounded-xl">
+      <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/40 border border-rule rounded-sm">
         <Avatar name={member.name} email={member.email} />
         <div>
           <p className="text-sm font-semibold text-foreground">{member.name ?? '—'}</p>
@@ -200,7 +200,7 @@ export function EditStaffModal({
             {locations.map((loc) => (
               <label
                 key={loc.id}
-                className="flex items-center gap-2.5 cursor-pointer select-none px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-2.5 cursor-pointer select-none px-3 py-2 rounded-sm hover:bg-muted transition-colors"
               >
                 <input
                   type="checkbox"
@@ -231,14 +231,14 @@ export function EditStaffModal({
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors"
+          className="flex-1 h-10 border border-rule rounded-sm text-sm font-medium text-muted-foreground hover:bg-band transition-colors"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60"
+          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
         >
           {isPending ? 'Saving…' : 'Save'}
         </button>
@@ -283,7 +283,7 @@ export function EnrollEmployeeModal({ member, onClose }: { member: StaffProfile;
       }}
       className="space-y-4"
     >
-      <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/40 border border-border rounded-xl">
+      <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/40 border border-rule rounded-sm">
         <Avatar name={member.name} email={member.email} />
         <div>
           <p className="text-sm font-semibold text-foreground">{member.name ?? '—'}</p>
@@ -327,14 +327,14 @@ export function EnrollEmployeeModal({ member, onClose }: { member: StaffProfile;
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors"
+          className="flex-1 h-10 border border-rule rounded-sm text-sm font-medium text-muted-foreground hover:bg-band transition-colors"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60"
+          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
         >
           {isPending ? 'Enrolling…' : 'Enroll'}
         </button>
@@ -390,7 +390,7 @@ export function EditEmployeeModal({ employee, name, onClose }: { employee: HrEmp
       }}
       className="space-y-4"
     >
-      <div className="px-3 py-2.5 bg-muted/40 border border-border rounded-xl">
+      <div className="px-3 py-2.5 bg-muted/40 border border-rule rounded-sm">
         <p className="text-sm font-semibold text-foreground">{name}</p>
       </div>
 
@@ -425,10 +425,10 @@ export function EditEmployeeModal({ employee, name, onClose }: { employee: HrEmp
           onClick={() => (confirmOffboard ? offboard.mutate() : setConfirmOffboard(true))}
           disabled={offboard.isPending}
           className={
-            'h-10 px-3 rounded-xl text-sm font-medium transition-colors disabled:opacity-60 flex items-center gap-1.5 ' +
+            'h-10 px-3 rounded-sm text-sm font-medium transition-colors disabled:opacity-60 flex items-center gap-1.5 ' +
             (confirmOffboard
               ? 'bg-destructive hover:bg-destructive/90 text-white font-semibold'
-              : 'border border-destructive/30 text-destructive hover:bg-destructive/10')
+              : 'border border-destructive/30 text-destructive hover:bg-band')
           }
         >
           <UserMinus size={15} />
@@ -437,7 +437,7 @@ export function EditEmployeeModal({ employee, name, onClose }: { employee: HrEmp
         <button
           type="submit"
           disabled={save.isPending}
-          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60"
+          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
         >
           {save.isPending ? 'Saving…' : 'Save'}
         </button>

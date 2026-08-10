@@ -582,7 +582,7 @@ export function ShiftsWorkspace({
       {/* Range + page-level actions */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Stepper and range read as one control: arrows page by the span. */}
-        <div className="flex h-9 items-stretch overflow-hidden rounded-lg border border-border bg-background">
+        <div className="flex h-9 items-stretch overflow-hidden rounded-sm border border-rule bg-background">
           <button
             type="button"
             onClick={() => stepRange(-1)}
@@ -591,7 +591,7 @@ export function ShiftsWorkspace({
           >
             <ChevronLeft size={15} />
           </button>
-          <span className="grid min-w-44 place-items-center border-x border-border px-3 text-sm font-semibold tabular-nums text-foreground">
+          <span className="grid min-w-44 place-items-center border-x border-rule px-3 text-sm font-semibold tabular-nums text-foreground">
             {rangeLabel(from, to)}
           </span>
           <button
@@ -630,7 +630,7 @@ export function ShiftsWorkspace({
 
         <div className="ml-auto flex items-center gap-2">
           {active.length > 0 && (
-            <span className="hidden h-9 items-center gap-1.5 rounded-lg border border-success/30 bg-success/10 px-2.5 text-xs font-semibold text-success sm:inline-flex">
+            <span className="hidden h-9 items-center gap-1.5 rounded-sm border border-success/30 bg-success/6 px-2.5 text-xs font-semibold text-success sm:inline-flex">
               <span className="relative flex size-2" aria-hidden="true">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-50" />
                 <span className="relative inline-flex size-2 rounded-full bg-success" />
@@ -658,8 +658,8 @@ export function ShiftsWorkspace({
       {publish.data && <p className="text-xs text-success">Published {publish.data.published} draft shift(s).</p>}
 
       {/* Register */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+      <div className="overflow-hidden rounded-sm border border-rule bg-card">
+        <div className="flex flex-wrap items-center gap-2 border-b border-rule px-4 py-3">
           <div className="min-w-56 flex-1">
             <Input
               type="search"
@@ -750,7 +750,7 @@ export function ShiftsWorkspace({
         />
 
         {/* Summary + pagination */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rule px-4 py-3">
           <p className="text-xs text-muted-foreground">
             {filtered.length} {filtered.length === 1 ? 'record' : 'records'} · {fmtHours(plannedTotal)} planned · {fmtHours(workedTotal)}{' '}
             worked
@@ -773,10 +773,10 @@ export function ShiftsWorkspace({
                     onClick={() => setPage(n)}
                     aria-current={n === currentPage ? 'page' : undefined}
                     className={cn(
-                      'size-8 rounded-lg text-sm font-medium tabular-nums transition-colors',
+                      'size-8 rounded-sm text-sm font-medium tabular-nums transition-colors',
                       n === currentPage
                         ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:bg-surface-offset hover:text-foreground',
+                        : 'text-muted-foreground hover:bg-band hover:text-foreground',
                     )}
                   >
                     {n}

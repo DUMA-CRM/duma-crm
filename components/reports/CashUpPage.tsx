@@ -32,7 +32,7 @@ export function CashUpPage() {
       void qc.invalidateQueries({ queryKey: ['cashups'] });
       toast('success', 'Trading day opened.');
     },
-    onError: (error) => toast('error', error instanceof Error ? error.message : 'Could not open the trading day.'),
+    onError: (error) => toast('error', error instanceof Error ? error.message : 'The trading day wasn’t opened. Try again.'),
   });
   const close = useMutation({
     mutationFn: () => closeCashUp(current!.id, { countedCash: Number(cash), terminalCardTotal: Number(card) }),
@@ -40,12 +40,12 @@ export function CashUpPage() {
       void qc.invalidateQueries({ queryKey: ['cashups'] });
       toast('success', 'Cash-up closed and variances recorded.');
     },
-    onError: (error) => toast('error', error instanceof Error ? error.message : 'Could not close the cash-up.'),
+    onError: (error) => toast('error', error instanceof Error ? error.message : 'The cash-up wasn’t closed. Review the figures and try again.'),
   });
   return (
     <EditorShell eyebrow="Operations" title="Cash-up" onClose={() => router.push('/reports/library')}>
       <div className="space-y-5">
-        <section className="rounded-2xl border border-border bg-card shadow-sm p-5">
+        <section className="rounded-sm border border-rule bg-card shadow-sm p-5">
           {!current ? (
             <div className="max-w-sm space-y-3">
               <Input label="Opening float" type="number" value={opening} onChange={(e) => setOpening(e.target.value)} />
@@ -63,7 +63,7 @@ export function CashUpPage() {
             </div>
           )}
         </section>
-        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <section className="overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b">

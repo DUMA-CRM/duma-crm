@@ -142,9 +142,36 @@ export const addEmployeeDocument = (data: {
 }) => apiFetch<EmployeeDocument>('/hr/documents', { method: 'POST', body: JSON.stringify(data) });
 export const deleteEmployeeDocument = (id: string) => apiFetch<{ success: boolean }>(`/hr/documents/${id}`, { method: 'DELETE' });
 
+export const getMyAbsences = () => apiFetch<AbsenceLog[]>('/hr/absence-logs/my');
 export const getEmployeeAbsences = (userId: string) => apiFetch<AbsenceLog[]>(`/hr/absence-logs?userId=${encodeURIComponent(userId)}`);
 export const logEmployeeAbsence = (data: { userId: string; leaveTypeId?: string; date: string; isHalfDay?: boolean; reason?: string }) =>
   apiFetch<AbsenceLog>('/hr/absence-logs', { method: 'POST', body: JSON.stringify(data) });
 export const deleteEmployeeAbsence = (id: string) => apiFetch<{ success: boolean }>(`/hr/absence-logs/${id}`, { method: 'DELETE' });
 
+/** Finalised payslips only, most recent first — an employee never sees a draft. */
+export const getMyPayslips = () => apiFetch<Payslip[]>('/hr/payslips/my');
 export const getEmployeePayslips = (userId: string) => apiFetch<Payslip[]>(`/hr/payslips?userId=${encodeURIComponent(userId)}`);
+
+// ── Expense claims ────────────────────────────────────────────────────────────
+
+export type ExpenseClaimStatus = 'pending' | 'approved' | 'declined' | 'paid';
+export interface ExpenseClaim {
+  id: string;
+  userId: string;
+  description: string;
+  amount: string;
+  currency: string;
+  category?: string | null;
+  receiptUrl?: string | null;
+  status: ExpenseClaimStatus;
+  reviewNotes?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  employee?: { id: string; name: string; email: string } | null;
+}
+
+export const getMyExpenseClaims = (status?: ExpenseClaimStatus) =>
+  apiFetch<ExpenseClaim[]>(`/hr/expense-claims/my${status ? `?status=${status}` : ''}`);
+export const createExpenseClaim = (data: { description: string; amount: string; currency?: string; category?: string }) =>
+  apiFetch<ExpenseClaim>('/hr/expense-claims', { method: 'POST', body: JSON.stringify(data) });
+export const cancelExpenseClaim = (id: string) => apiFetch<ExpenseClaim>(`/hr/expense-claims/${id}/cancel`, { method: 'PATCH' });

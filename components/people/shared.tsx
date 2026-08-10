@@ -7,13 +7,15 @@ import { formatDate } from '@/lib/utils/date';
 // ── Role / scope config ───────────────────────────────────────────────────────
 
 export const ROLE_CONFIG: Record<StaffRole, { label: string; bg: string; text: string; border: string }> = {
-  super_admin: { label: 'Super Admin', bg: 'bg-destructive/10', text: 'text-destructive', border: 'border-destructive/30' },
-  franchise_owner: { label: 'Franchise Owner', bg: 'bg-warning/10', text: 'text-warning', border: 'border-warning/30' },
-  store_manager: { label: 'Store Manager', bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/30' },
-  barista: { label: 'Barista', bg: 'bg-success/10', text: 'text-success', border: 'border-success/30' },
-  hr_manager: { label: 'HR Manager', bg: 'bg-violet-500/10', text: 'text-violet-500', border: 'border-violet-500/30' },
-  marketing_manager: { label: 'Marketing Manager', bg: 'bg-orange-500/10', text: 'text-orange-500', border: 'border-orange-500/30' },
-  auditor: { label: 'Auditor', bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-border' },
+  super_admin: { label: 'Super Admin', bg: 'bg-destructive/6', text: 'text-destructive', border: 'border-destructive/30' },
+  franchise_owner: { label: 'Franchise Owner', bg: 'bg-warning/6', text: 'text-warning', border: 'border-warning/30' },
+  store_manager: { label: 'Store Manager', bg: 'bg-band', text: 'text-primary', border: 'border-primary/30' },
+  barista: { label: 'Barista', bg: 'bg-success/6', text: 'text-success', border: 'border-success/30' },
+  // Periwinkle and apricot rather than raw Tailwind violet-500/orange-500, which
+  // were the last two hues in the app from outside the token layer.
+  hr_manager: { label: 'HR Manager', bg: 'bg-reference/10', text: 'text-reference', border: 'border-reference/30' },
+  marketing_manager: { label: 'Marketing Manager', bg: 'bg-measured/10', text: 'text-measured', border: 'border-measured/30' },
+  auditor: { label: 'Auditor', bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-rule' },
 };
 
 export const ROLES: StaffRole[] = [
@@ -66,7 +68,7 @@ export const fmtHours = (h: number): string => `${Math.round(h * 100) / 100}h`;
 // ── Shared form styles ────────────────────────────────────────────────────────
 
 export const inp =
-  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 export const sel = inp + ' cursor-pointer';
 export const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
@@ -85,7 +87,7 @@ export function Avatar({ name, email, size = 'md' }: { name?: string; email?: st
 
   const fallback = (
     <div
-      className={`${dim} rounded-lg bg-linear-to-br from-primary to-primary-hover flex items-center justify-center text-white font-bold shrink-0 select-none uppercase`}
+      className={`${dim} rounded-sm bg-linear-to-br from-primary to-primary-hover flex items-center justify-center text-white font-bold shrink-0 select-none uppercase`}
     >
       {initials}
     </div>
@@ -96,7 +98,7 @@ export function Avatar({ name, email, size = 'md' }: { name?: string; email?: st
     <GravatarImage
       email={email}
       px={px}
-      className={`${dim} rounded-lg object-cover shrink-0 select-none`}
+      className={`${dim} rounded-sm object-cover shrink-0 select-none`}
       alt={name ?? ''}
       fallback={fallback}
     />

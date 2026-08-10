@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils/cn';
 
 const inputClass =
-  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
 /**
  * Free-text input with a suggestions dropdown: focusing shows every existing
@@ -81,7 +81,7 @@ export function CategoryCombobox({
         onClick={() => setOpen((v) => !v)}
         tabIndex={-1}
         aria-label="Show categories"
-        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors"
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ChevronDown size={14} className={cn('transition-transform duration-150', open && 'rotate-180')} aria-hidden="true" />
       </button>
@@ -90,14 +90,14 @@ export function CategoryCombobox({
         <div
           id={listboxId}
           role="listbox"
-          className="absolute left-0 right-0 top-full mt-1.5 bg-surface border border-border rounded-xl shadow-lg py-1 z-50 max-h-48 overflow-y-auto"
+          className="absolute left-0 right-0 top-full mt-1.5 bg-surface border border-rule rounded-sm shadow-lg py-1 z-50 max-h-48 overflow-y-auto"
         >
           {allowEmpty && (
             <button
               type="button"
               onClick={() => pick('')}
               className={cn(
-                'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-surface-offset',
+                'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-band',
                 !value ? 'text-foreground font-medium' : 'text-muted-foreground',
               )}
             >
@@ -114,7 +114,7 @@ export function CategoryCombobox({
               type="button"
               onClick={() => pick(c)}
               className={cn(
-                'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-surface-offset',
+                'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-band',
                 c === value.trim() ? 'text-foreground font-medium' : 'text-muted-foreground',
               )}
             >
@@ -127,7 +127,7 @@ export function CategoryCombobox({
             <button
               type="button"
               onClick={() => pick(value.trim())}
-              className="w-full flex items-center gap-1.5 px-3 py-2 text-sm text-left text-primary font-medium transition-colors hover:bg-surface-offset"
+              className="w-full flex items-center gap-1.5 px-3 py-2 text-sm text-left text-primary font-medium transition-colors hover:bg-band"
             >
               <Plus size={13} className="shrink-0" aria-hidden="true" />
               <span className="truncate">Create “{value.trim()}”</span>

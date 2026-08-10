@@ -48,7 +48,7 @@ export function VariablePalette({ variables, onInsert }: { variables: string[]; 
       <div className="mt-3 space-y-3">
         {ordered.map(([group, items]) => (
           <div key={group}>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{GROUP_LABELS[group] ?? group}</p>
+            <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground/70">{GROUP_LABELS[group] ?? group}</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {items.map((variable) => (
                 <button
@@ -56,7 +56,7 @@ export function VariablePalette({ variables, onInsert }: { variables: string[]; 
                   type="button"
                   onClick={() => handleClick(variable)}
                   // Merge fields are accent-coloured wherever they appear, chips included.
-                  className="rounded-md bg-primary/10 px-2 py-1 font-mono text-[11px] text-primary transition-colors hover:bg-primary/20"
+                  className="rounded-sm bg-band px-2 py-1 font-mono text-label text-primary transition-colors hover:bg-band"
                   title={`Insert {{${variable}}}`}
                 >
                   {variable.includes('.') ? variable.split('.').slice(1).join('.') : variable}

@@ -23,7 +23,7 @@ const STATUS_HELP: Record<EmailDelivery['status'], string> = {
   queued: 'Waiting to be sent',
   sending: 'Being sent right now',
   sent: 'Handed to the mail server',
-  failed: 'Could not be sent',
+  failed: 'Not sent',
   cancelled: 'Stopped before sending',
 };
 
@@ -78,7 +78,7 @@ export function CustomerEmails({ customerId }: { customerId: string }) {
       cell: ({ row: delivery }) => (
         <>
           <Badge variant={deliveryBadge[delivery.status]}>{delivery.status}</Badge>
-          <p className="mt-1 text-[10px] text-muted-foreground">{STATUS_HELP[delivery.status]}</p>
+          <p className="mt-1 text-micro text-muted-foreground">{STATUS_HELP[delivery.status]}</p>
         </>
       ),
     },
@@ -93,7 +93,7 @@ export function CustomerEmails({ customerId }: { customerId: string }) {
         <>
           {when(delivery.sentAt ?? delivery.createdAt)}
           {delivery.attemptCount > 1 && (
-            <span className="block text-[10px]">
+            <span className="block text-micro">
               attempt {delivery.attemptCount}/{delivery.maxAttempts}
             </span>
           )}
@@ -141,7 +141,7 @@ export function CustomerEmails({ customerId }: { customerId: string }) {
         rowAriaLabel={({ row }) => `Open email: ${row.subject}`}
         footer={
           emails.length > 0 ? (
-            <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rule/55 px-4 py-3">
               <p className="text-xs text-muted-foreground">
                 {serverFiltered
                   ? `${data?.total ?? emails.length} email${(data?.total ?? emails.length) === 1 ? '' : 's'}`
@@ -174,7 +174,7 @@ export function CustomerEmails({ customerId }: { customerId: string }) {
             </div>
             {/* The stored body is the exact HTML the customer received. */}
             <div
-              className="overflow-x-auto rounded-2xl border border-border bg-white p-4 text-black"
+              className="overflow-x-auto rounded-md border border-rule/65 bg-white p-4 text-black"
               dangerouslySetInnerHTML={{ __html: preview.htmlBody }}
             />
           </div>

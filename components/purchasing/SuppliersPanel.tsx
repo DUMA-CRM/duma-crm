@@ -71,7 +71,7 @@ function SupplierDrawer({
             <button
               type="button"
               onClick={onDeactivate}
-              className="h-9 w-full rounded-lg border border-destructive/30 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+              className="h-9 w-full rounded-sm border border-destructive/30 text-sm font-medium text-destructive transition-colors hover:bg-band"
             >
               Deactivate supplier
             </button>
@@ -160,14 +160,14 @@ export function SuppliersPanel({
       setDeactivateTarget(null);
       toast('success', 'Supplier deactivated.');
     },
-    onError: (err) => toast('error', err.message || 'Failed to deactivate the supplier.'),
+    onError: (err) => toast('error', err.message || 'The supplier wasn’t deactivated. Try again.'),
   });
 
   return (
     <>
       {suppliers.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card py-24 shadow-sm">
-          <EmptyState icon={Truck} title="No suppliers" description='Click "New Supplier" to add your first supplier.' />
+        <div className="rounded-sm border border-rule bg-card py-24 shadow-sm">
+          <EmptyState icon={Truck} title="No suppliers yet" description="Add a supplier before creating a purchase order." />
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -176,11 +176,11 @@ export function SuppliersPanel({
               type="button"
               key={supplier.id}
               onClick={() => setEditTarget(supplier)}
-              className="group rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/30"
+              className="group rounded-sm border border-rule bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/30"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-band text-primary">
                     <Truck size={17} />
                   </div>
                   <div className="min-w-0">
@@ -191,7 +191,7 @@ export function SuppliersPanel({
                 <Badge variant={supplier.isActive ? 'success' : 'muted'}>{supplier.isActive ? 'Active' : 'Inactive'}</Badge>
               </div>
 
-              <div className="mt-4 space-y-2 border-t border-border/60 pt-3">
+              <div className="mt-4 space-y-2 border-t border-rule pt-3">
                 <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                   <Mail size={12} className="shrink-0" />
                   <span className="truncate">{supplier.email || 'No email address'}</span>

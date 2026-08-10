@@ -56,13 +56,13 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
       // Only allow safe link schemes — authored content must not produce
       // javascript:/data: URLs. Unsafe links render as plain text.
       const safe = /^(https?:|mailto:|\/)/i.test(href.trim());
+      const external = /^https?:/i.test(href.trim());
       out.push(
         safe ? (
           <a
             key={key}
             href={href}
-            target="_blank"
-            rel="noopener noreferrer"
+            {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="text-primary underline underline-offset-2 hover:no-underline"
           >
             {label}
@@ -79,7 +79,16 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
 
 // ── Blocks ─────────────────────────────────────────────────────────────────────
 
-export function Markdown({ content, className }: { content: string; className?: string }) {
+export function Markdown({
+  content,
+  className,
+  variant = 'article',
+}: {
+  content: string;
+  className?: string;
+  variant?: 'article' | 'compact';
+}) {
+  const compact = variant === 'compact';
   const lines = content.replace(/\r\n/g, '\n').split('\n');
   const blocks: ReactNode[] = [];
   let i = 0;
@@ -88,7 +97,7 @@ export function Markdown({ content, className }: { content: string; className?: 
   const flushParagraph = (buf: string[]) => {
     if (!buf.length) return;
     blocks.push(
-      <p key={`p-${key++}`} className="text-sm leading-relaxed text-muted-foreground">
+      <p key={`p-${key++}`} className={compact ? 'text-sm leading-6 text-foreground' : 'text-base leading-7 text-muted-foreground'}>
         {renderInline(buf.join(' '), `p-${key}`)}
       </p>,
     );
@@ -110,7 +119,7 @@ export function Markdown({ content, className }: { content: string; className?: 
       blocks.push(
         <pre
           key={`pre-${key++}`}
-          className="overflow-x-auto rounded-xl border border-border bg-muted px-4 py-3 text-xs font-mono text-foreground"
+          className="overflow-x-auto rounded-sm border border-rule bg-muted px-4 py-3 text-sm leading-6 font-mono text-foreground"
         >
           <code>{code.join('\n')}</code>
         </pre>,
@@ -128,7 +137,7 @@ export function Markdown({ content, className }: { content: string; className?: 
     // Horizontal rule
     if (/^\s*(-{3,}|\*{3,})\s*$/.test(line)) {
       flushParagraph(para);
-      blocks.push(<hr key={`hr-${key++}`} className="my-4 border-border" />);
+      blocks.push(<hr key={`hr-${key++}`} className="my-4 border-rule" />);
       i++;
       continue;
     }
@@ -141,13 +150,15 @@ export function Markdown({ content, className }: { content: string; className?: 
       const src = image[2].trim();
       if (SAFE_RESOURCE_URL.test(src)) {
         blocks.push(
-          <figure key={`img-${key++}`} className="my-5 overflow-hidden rounded-2xl border border-border bg-muted/30">
+          <figure key={`img-${key++}`} className="my-5 overflow-hidden rounded-sm border border-rule bg-muted/30">
             {/* Content authors may use arbitrary approved HTTPS image hosts.
                 The renderer validates the scheme; Next Image cannot safely
                 predeclare every host without a custom proxy. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={src} alt={image[1]} loading="lazy" className="h-auto w-full object-contain" />
-            {image[1] && <figcaption className="border-t border-border px-4 py-2.5 text-xs text-muted-foreground">{image[1]}</figcaption>}
+            {image[1] && (
+              <figcaption className="border-t border-rule px-4 py-2.5 text-sm leading-6 text-muted-foreground">{image[1]}</figcaption>
+            )}
           </figure>,
         );
       }
@@ -160,7 +171,7 @@ export function Markdown({ content, className }: { content: string; className?: 
     if (h) {
       flushParagraph(para);
       const level = h[1].length;
-      const size = level === 1 ? 'text-xl' : level === 2 ? 'text-lg' : 'text-base';
+      const size = compact ? 'text-sm' : level === 1 ? 'text-xl' : level === 2 ? 'text-lg' : 'text-base';
       const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4';
       blocks.push(
         // The id lets an article build its own contents list.
@@ -188,12 +199,12 @@ export function Markdown({ content, className }: { content: string; className?: 
       while (i < lines.length && lines[i].trim().startsWith('|')) rows.push(cells(lines[i++]));
       const tableKey = key++;
       blocks.push(
-        <div key={`table-${tableKey}`} className="my-5 overflow-x-auto rounded-2xl border border-border">
+        <div key={`table-${tableKey}`} className="my-5 overflow-x-auto rounded-sm border border-rule">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-muted">
                 {head.map((cell, index) => (
-                  <th key={index} className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <th key={index} className="px-4 py-2.5 text-left text-micro uppercase text-muted-foreground">
                     {renderInline(cell, `th-${tableKey}-${index}`)}
                   </th>
                 ))}
@@ -201,7 +212,7 @@ export function Markdown({ content, className }: { content: string; className?: 
             </thead>
             <tbody>
               {rows.map((row, rowIndex) => (
-                <tr key={rowIndex} className="border-t border-border/60">
+                <tr key={rowIndex} className="border-t border-rule">
                   {row.map((cell, index) => (
                     <td key={index} className="px-4 py-2.5 align-top text-muted-foreground first:text-foreground first:font-medium">
                       {renderInline(cell, `td-${tableKey}-${rowIndex}-${index}`)}
@@ -222,7 +233,10 @@ export function Markdown({ content, className }: { content: string; className?: 
       const quote: string[] = [];
       while (i < lines.length && /^\s*>\s?/.test(lines[i])) quote.push(lines[i++].replace(/^\s*>\s?/, ''));
       blocks.push(
-        <blockquote key={`bq-${key++}`} className="border-l-2 border-primary/40 pl-3 text-sm italic text-muted-foreground">
+        <blockquote
+          key={`bq-${key++}`}
+          className={`border-l border-rule pl-4 italic text-muted-foreground ${compact ? 'text-sm leading-6' : 'text-base leading-7'}`}
+        >
           {renderInline(quote.join(' '), `bq-${key}`)}
         </blockquote>,
       );
@@ -235,7 +249,10 @@ export function Markdown({ content, className }: { content: string; className?: 
       const items: string[] = [];
       while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) items.push(lines[i++].replace(/^\s*[-*]\s+/, ''));
       blocks.push(
-        <ul key={`ul-${key++}`} className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+        <ul
+          key={`ul-${key++}`}
+          className={`list-disc pl-5 space-y-1.5 ${compact ? 'text-sm leading-6 text-foreground' : 'text-base leading-7 text-muted-foreground'}`}
+        >
           {items.map((it, idx) => (
             <li key={idx}>{renderInline(it, `ul-${key}-${idx}`)}</li>
           ))}
@@ -250,7 +267,10 @@ export function Markdown({ content, className }: { content: string; className?: 
       const items: string[] = [];
       while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) items.push(lines[i++].replace(/^\s*\d+\.\s+/, ''));
       blocks.push(
-        <ol key={`ol-${key++}`} className="list-decimal pl-5 space-y-1 text-sm text-muted-foreground">
+        <ol
+          key={`ol-${key++}`}
+          className={`list-decimal pl-5 space-y-1.5 ${compact ? 'text-sm leading-6 text-foreground' : 'text-base leading-7 text-muted-foreground'}`}
+        >
           {items.map((it, idx) => (
             <li key={idx}>{renderInline(it, `ol-${key}-${idx}`)}</li>
           ))}
@@ -266,7 +286,7 @@ export function Markdown({ content, className }: { content: string; className?: 
   flushParagraph(para);
 
   return (
-    <div className={className}>
+    <div className={`${compact ? '[&>*+*]:mt-3' : ''} ${className ?? ''}`}>
       {blocks.map((b, idx) => (
         <Fragment key={idx}>{b}</Fragment>
       ))}

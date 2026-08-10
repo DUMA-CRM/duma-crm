@@ -29,14 +29,14 @@ export function ConfirmModal({
         <div className="flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors"
+            className="flex-1 h-10 border border-rule rounded-sm text-sm font-medium text-muted-foreground hover:bg-band transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={isPending}
-            className="flex-1 h-10 bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60"
+            className="flex-1 h-10 bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
           >
             {isPending ? pendingLabel : confirmLabel}
           </button>

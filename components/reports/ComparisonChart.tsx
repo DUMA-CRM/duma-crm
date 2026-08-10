@@ -31,12 +31,12 @@ function ComparisonBars({
           <div key={bar.label} className="py-2 first:pt-0 sm:px-4 sm:py-0 sm:first:pl-0 sm:last:pr-0">
             <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{bar.label}</p>
+                <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">{bar.label}</p>
                 <p className={cn('mt-1 text-xl font-bold tabular-nums', bar.ink)}>{formatReportMetric(metric, bar.value)}</p>
               </div>
               <span className="text-xs tabular-nums text-muted-foreground">{((bar.value / max) * 100).toFixed(0)}%</span>
             </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-offset">
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-band">
               <div className={cn('h-full rounded-full', bar.colour)} style={{ width: `${Math.max(2, (bar.value / max) * 100)}%` }} />
             </div>
           </div>

@@ -1,9 +1,10 @@
 'use client';
 
 import { useQueries } from '@tanstack/react-query';
-import { Coffee, LogOut } from '@/components/icons';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 
+import { LogOut } from '@/components/icons';
+import { Logo } from '@/components/shared/Logo';
 import { Tooltip } from '@/components/shared/Tooltip';
 
 import { getOrders } from '@/lib/api/orders.service';
@@ -11,26 +12,19 @@ import type { StaffRole } from '@/lib/api/staff.service';
 import { analyticsNavItems, filterNavByRole, footerNavItems, mainNavItems } from '@/lib/constants/nav';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
+import { useLoginIntroStore } from '@/stores/loginIntroStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
-import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { LocationPicker } from './LocationPicker';
 import { SidebarNavItem } from './SidebarNavItem';
-import { SidebarTools } from './SidebarTools';
 
 export function Sidebar({ role }: { role: StaffRole | null }) {
   const { collapsed, mobileOpen, closeMobile } = useSidebarStore();
+  // True until the sign-in intro's mark has finished flying into the brand slot.
+  const introPending = useLoginIntroStore((s) => s.pending);
   const { logout } = useAuth();
   const { locationId } = useWorkspaceStore();
-
-  // When "Hide top bar" is on, the header's tools live here instead (lg+ only).
-  // Gate on mounted so SSR and first client render agree (persisted store).
-  const hideHeader = useUiSettingsStore((s) => s.hideHeader);
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
 
   const mainItems = filterNavByRole(mainNavItems, role);
   const analyticsItems = filterNavByRole(analyticsNavItems, role);
@@ -64,13 +58,15 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
   return (
     <>
       {/* Mobile backdrop */}
-      {mobileOpen && <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={closeMobile} aria-hidden="true" />}
+      {mobileOpen && <div className="fixed inset-0 bg-foreground/25 z-40 lg:hidden" onClick={closeMobile} aria-hidden="true" />}
 
       <aside
         aria-label="Primary navigation"
         className={cn(
-          'fixed top-0 left-0 h-screen z-50 flex flex-col shrink-0',
-          'bg-card border-r border-border overflow-x-clip overflow-y-hidden',
+          // h-dvh, not h-screen: 100vh includes the browser chrome on a shop
+          // tablet, which pushed Sign out below the visible viewport.
+          'fixed top-0 left-0 h-dvh z-50 flex flex-col shrink-0',
+          'bg-sidebar text-sidebar-foreground border-r border-sidebar-border overflow-x-clip overflow-y-hidden',
           'transition-[width,transform] duration-300 ease-out',
           collapsed ? 'w-15' : 'w-55',
           'lg:static lg:translate-x-0',
@@ -78,14 +74,19 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
         )}
       >
         {/* ── Brand ─────────────────────────────────────────── */}
-        <div className="flex items-center gap-2.5 px-4 pt-2.5 pb-4 shrink-0 whitespace-nowrap overflow-hidden">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white shrink-0">
-            <Coffee size={15} strokeWidth={2.5} aria-hidden="true" />
-          </div>
+        <div className="flex items-center gap-2.5 px-2.5 pt-2.5 pb-4 shrink-0 whitespace-nowrap overflow-hidden">
+          {/* data-brand-mark is the flight target for the post-sign-in intro.
+              While that intro is running this slot holds empty space: the mark
+              flying toward it IS this mark, and showing both makes the arrival
+              pointless. `invisible` rather than conditional rendering, so the box
+              keeps its size and the intro can still measure where to land. */}
+          <span data-brand-mark className={cn('inline-flex shrink-0', introPending && 'invisible')}>
+            <Logo size={36} variant="onDark" className="rounded-md shadow-sm" />
+          </span>
           {!collapsed && (
             <div className="min-w-0 overflow-hidden">
-              <p className="text-base font-bold leading-tight text-foreground tracking-tight">DUMA</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-none mt-0.5 font-semibold">Business</p>
+              <p className="text-base font-semibold leading-tight text-sidebar-foreground tracking-title">DUMA</p>
+              <p className="text-micro text-sidebar-foreground/65 leading-none mt-0.5 font-semibold">Coffee operations</p>
             </div>
           )}
         </div>
@@ -98,11 +99,11 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
 
           {analyticsItems.length > 0 &&
             (!collapsed ? (
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 pt-5 pb-1.5 whitespace-nowrap">
-                Analytics
+              <p className="text-micro font-semibold text-sidebar-foreground/55 tracking-label px-6 pt-5 pb-1.5 whitespace-nowrap">
+                Reports
               </p>
             ) : (
-              <div className="mx-3 my-2 border-t border-border" />
+              <div className="mx-3 my-2 border-t border-sidebar-border" />
             ))}
 
           {analyticsItems.map((item) => (
@@ -111,13 +112,12 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
         </nav>
 
         {/* ── Footer ───────────────────────────────────────── */}
-        <div className="py-2 border-t border-border flex flex-col gap-0.5 shrink-0">
-          {/* Relocated top-bar tools (desktop only, when the header is hidden) */}
-          {mounted && hideHeader && (
-            <div className="hidden lg:block pb-1 mb-1 border-b border-border">
-              <SidebarTools />
-            </div>
-          )}
+        <div className="py-2 border-t border-sidebar-border flex flex-col gap-0.5 shrink-0">
+          {/* Everything above is scoped to this location, so the bottom cluster
+              opens with it — one place, every breakpoint. */}
+          <div className={cn('pb-2 mb-1 border-b border-sidebar-border', collapsed && 'flex justify-center')}>
+            <LocationPicker />
+          </div>
 
           {footerNavItems.map((item) => (
             <SidebarNavItem key={item.href} {...item} />
@@ -129,7 +129,7 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
               <button
                 onClick={logout}
                 aria-label="Sign out"
-                className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors duration-150"
+                className="w-9 h-9 flex items-center justify-center rounded-md text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors duration-150"
               >
                 <LogOut aria-hidden="true" className="shrink-0" size={18} />
               </button>
@@ -137,7 +137,7 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
           ) : (
             <button
               onClick={logout}
-              className="w-[calc(100%-24px)] mx-3 flex items-center gap-2.5 px-3 py-2.25 rounded-lg text-[13px] font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors duration-150"
+              className="w-[calc(100%-24px)] mx-3 flex items-center gap-2.5 px-3 py-2.25 rounded-md text-sm font-medium text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors duration-150"
             >
               <LogOut aria-hidden="true" className="shrink-0" size={18} />
               <span className="flex-1 truncate text-left">Sign out</span>

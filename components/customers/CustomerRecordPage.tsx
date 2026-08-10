@@ -39,7 +39,6 @@ import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { Modal } from '@/components/shared/Modal';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
-import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -86,12 +85,21 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
 
   return (
     <EditorShell
-      eyebrow="Customer"
       title={name}
       onClose={() => router.push('/customers')}
       leading={
         customer ? (
-          <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} email={customer.email} className="size-11" />
+          <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} email={customer.email} className="size-9" />
+        ) : undefined
+      }
+      meta={
+        customer && tier ? (
+          <>
+            <Badge variant={tier.variant}>{tier.label}</Badge>
+            <span className="text-xs text-muted-foreground">
+              {customer.lastVisitAt ? `Last visit ${fmtDate(customer.lastVisitAt)}` : 'No visits yet'}
+            </span>
+          </>
         ) : undefined
       }
       actions={
@@ -100,7 +108,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
             <Button
               variant="outline"
               size="icon"
-              className="size-10"
+              className="size-9"
               onClick={() => setModal('email')}
               aria-label="Send email"
               disabled={!customer.email}
@@ -108,13 +116,13 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
             >
               <Mail size={16} />
             </Button>
-            <Button variant="outline" size="icon" className="size-10" onClick={() => setModal('points')} aria-label="Adjust points">
+            <Button variant="outline" size="icon" className="size-9" onClick={() => setModal('points')} aria-label="Adjust points">
               <Coins size={16} />
             </Button>
-            <Button variant="outline" size="icon" className="size-10" onClick={() => setModal('edit')} aria-label="Edit customer">
+            <Button variant="outline" size="icon" className="size-9" onClick={() => setModal('edit')} aria-label="Edit customer">
               <Pencil size={16} />
             </Button>
-            <Button className="h-10 gap-1.5" onClick={() => router.push(`/pos?customer=${customer.id}`)}>
+            <Button className="h-9 gap-1.5" onClick={() => router.push(`/pos?customer=${customer.id}`)}>
               <ShoppingBag size={15} />
               <span className="hidden md:inline">Open in POS</span>
             </Button>
@@ -130,7 +138,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
           <Loader2 size={22} className="animate-spin" />
         </div>
       ) : isError || !customer ? (
-        <div className="mx-auto max-w-md rounded-2xl border border-border bg-card shadow-sm p-8 text-center">
+        <div className="mx-auto max-w-md rounded-lg border border-rule/65 bg-card p-8 text-center">
           <EmptyState icon={UserCircle2} title="Customer not found" description="It may have been removed, or the link is out of date." />
           <Button variant="outline" onClick={() => router.push('/customers')}>
             Back to customers
@@ -138,16 +146,35 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
         </div>
       ) : section === 'overview' ? (
         <div className="space-y-4">
-          <StatCardGrid>
-            <StatCard size="sm" icon={Wallet} accent="success" label="Total spent" value={`£${Number(customer.totalSpent).toFixed(0)}`} />
-            <StatCard size="sm" icon={Repeat} accent="info" label="Visits" value={customer.totalVisits} />
-            <StatCard size="sm" icon={Receipt} accent="primary" label="Avg order" value={`£${avgTicket.toFixed(0)}`} />
-            <StatCard size="sm" icon={Star} accent="warning" label="Points" value={customer.pointsBalance.toLocaleString()} />
-          </StatCardGrid>
+          <section className="overflow-hidden rounded-lg border border-rule/65 bg-card" aria-label="Customer relationship summary">
+            <div className="grid grid-cols-2 lg:grid-cols-4">
+              {[
+                { label: 'Total spent', value: `£${Number(customer.totalSpent).toFixed(0)}`, icon: Wallet, tone: 'text-momentum' },
+                { label: 'Visits', value: customer.totalVisits.toLocaleString(), icon: Repeat, tone: 'text-reference' },
+                { label: 'Average order', value: `£${avgTicket.toFixed(0)}`, icon: Receipt, tone: 'text-measured' },
+                { label: 'Points', value: customer.pointsBalance.toLocaleString(), icon: Star, tone: 'text-stock' },
+              ].map(({ label, value, icon: Icon, tone }, index) => (
+                <div
+                  key={label}
+                  className={`flex min-h-24 items-center gap-3 p-4 sm:p-5 ${index % 2 ? 'border-l border-rule/45' : ''} ${index > 1 ? 'border-t border-rule/45 lg:border-t-0' : ''} ${index > 0 ? 'lg:border-l lg:border-rule/45' : ''}`}
+                >
+                  <span className={`flex size-9 shrink-0 items-center justify-center rounded-md bg-band ${tone}`}>
+                    <Icon size={16} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p data-figure className="mt-0.5 truncate text-lg font-semibold text-foreground">
+                      {value}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
 
           <div className="grid items-start gap-4 lg:grid-cols-2">
             {/* Loyalty and the QR that identifies this customer at the till */}
-            <section className="rounded-2xl border border-border bg-card shadow-sm p-5">
+            <section className="rounded-lg border border-rule/65 bg-card p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="font-semibold text-foreground">Loyalty</h2>
                 {tier && <Badge variant={tier.variant}>{tier.label}</Badge>}
@@ -156,7 +183,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                 <LoyaltyProgress customer={customer} />
                 <div className="flex flex-col items-center gap-2">
                   {/* Always on white so it scans in dark mode too */}
-                  <div className="rounded-xl border border-border bg-white p-2.5">
+                  <div className="rounded-md border border-rule/65 bg-white p-2.5">
                     <QRCode
                       value={customerQrValue(customer.id)}
                       size={104}
@@ -165,15 +192,15 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                       aria-label="Customer loyalty QR code"
                     />
                   </div>
-                  <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  <p className="font-mono text-micro font-semibold uppercase tracking-micro text-muted-foreground">
                     {customer.id.slice(0, 8)}
                   </p>
-                  <p className="max-w-32 text-center text-[10px] leading-tight text-muted-foreground/70">Scan at the till to attach</p>
+                  <p className="max-w-32 text-center text-micro leading-tight text-muted-foreground/70">Scan at the till to attach</p>
                 </div>
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border bg-card shadow-sm p-5">
+            <section className="rounded-lg border border-rule/65 bg-card p-5">
               <h2 className="mb-4 font-semibold text-foreground">Contact</h2>
               <InfoGroup>
                 <InfoRow icon={Phone} label="Phone" value={customer.phone} copyable />
@@ -196,7 +223,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
       ) : section === 'activity' ? (
         <div className="space-y-4">
           {visits.length > 0 && (
-            <section className="rounded-2xl border border-border bg-card shadow-sm p-5">
+            <section className="rounded-lg border border-rule/65 bg-card p-5">
               <h2 className="mb-4 font-semibold text-foreground">Visit pattern</h2>
               <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <VisitCalendar visits={visits} months={6} />

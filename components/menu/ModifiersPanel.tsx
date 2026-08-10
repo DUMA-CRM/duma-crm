@@ -186,7 +186,7 @@ export function ModifierEditorPage({ modifier, onClose }: { modifier?: Modifier;
       dirty={dirty && !pending}
       discardMessage="This modifier has changes that have not been saved. Leaving now discards them."
       actions={
-        <Button type="submit" form={MODIFIER_FORM_ID} disabled={pending} className="h-11 px-6 gap-2">
+        <Button type="submit" form={MODIFIER_FORM_ID} disabled={pending} className="h-9 px-5 gap-2">
           {pending && <Loader2 size={15} className="animate-spin" />}
           {pending ? 'Saving…' : modifier ? 'Update' : 'Create'}
         </Button>
@@ -194,12 +194,12 @@ export function ModifierEditorPage({ modifier, onClose }: { modifier?: Modifier;
     >
       {modifier ? (
         <div className="grid md:grid-cols-2 gap-4 items-start">
-          <section className="bg-surface-offset/40 border border-border rounded-xl p-4">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Details</p>
+          <section className="bg-band border border-rule rounded-sm p-4">
+            <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-3">Details</p>
             {form}
           </section>
-          <section className="bg-surface-offset/40 border border-border rounded-xl p-4">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Recipe &amp; Nutrition</p>
+          <section className="bg-band border border-rule rounded-sm p-4">
+            <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-3">Recipe &amp; Nutrition</p>
             <ModifierRecipeEditor modifierId={modifier.id} sizes={sizes} />
           </section>
         </div>
@@ -231,14 +231,14 @@ export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => voi
       setDeleteTarget(null);
       toast('success', 'Modifier deleted.');
     },
-    onError: (err) => toast('error', err.message || 'Failed to delete the modifier.'),
+    onError: (err) => toast('error', err.message || 'The modifier wasn’t deleted. Try again.'),
   });
 
   // One-tap availability from the table row (e.g. oat milk ran out).
   const availabilityMutation = useMutation({
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => updateModifier(id, { isAvailable }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['modifiers'] }),
-    onError: (err) => toast('error', err.message || 'Failed to update availability.'),
+    onError: (err) => toast('error', err.message || 'Availability wasn’t updated. Try again.'),
   });
 
   // Parse the category prefix out of each name, sort by category (uncategorised
@@ -274,18 +274,18 @@ export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => voi
         </div>
       )}
 
-      <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
+      <div className="min-h-0 bg-card border border-rule rounded-sm overflow-hidden flex flex-col">
         <div className="flex-1 overflow-auto">
           <DataTable className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
-              <tr className="border-b border-border bg-muted">
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <tr className="border-b border-rule bg-muted">
+                <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Name
                 </th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Price
                 </th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Status
                 </th>
                 <th className="px-3 md:px-5 py-3.5 pr-4 md:pr-6 w-16" />
@@ -294,7 +294,7 @@ export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => voi
             <tbody>
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
-                  <tr key={i} className="border-b border-border/50">
+                  <tr key={i} className="border-b border-rule">
                     {Array.from({ length: 4 }).map((_, j) => (
                       <td key={j} className="px-3 md:px-5 py-4">
                         <div className="h-4 bg-muted rounded animate-pulse" style={{ width: `${45 + ((i * 13 + j * 17) % 40)}%` }} />
@@ -318,7 +318,7 @@ export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => voi
                     <EmptyState
                       icon={SlidersHorizontal}
                       title="No modifiers"
-                      description='Click "New Modifier" to add a reusable add-on.'
+                      description="Add a modifier to create a reusable option."
                     />
                   </td>
                 </tr>
@@ -332,17 +332,17 @@ export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => voi
                 groups.map((group) => (
                   <Fragment key={group.category}>
                     {/* Category section header */}
-                    <tr className="border-b border-border/50 bg-surface-offset/60">
+                    <tr className="border-b border-rule bg-band">
                       <td colSpan={4} className="px-3 md:px-5 py-2">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{group.category}</span>
-                        <span className="ml-2 text-[10px] font-semibold text-muted-foreground/60 tabular-nums">{group.items.length}</span>
+                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">{group.category}</span>
+                        <span className="ml-2 text-micro font-semibold text-muted-foreground/60 tabular-nums">{group.items.length}</span>
                       </td>
                     </tr>
 
                     {group.items.map(({ modifier: m, label }) => (
                       <tr
                         key={m.id}
-                        className="group border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors cursor-pointer"
+                        className="group border-b border-rule last:border-0 hover:bg-band transition-colors cursor-pointer"
                         onClick={() => onEdit(m)}
                       >
                         <td className="px-3 md:px-5 py-3.5 font-medium text-foreground">{label}</td>
@@ -358,7 +358,7 @@ export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => voi
                           {/* Always visible — hover-reveal buttons don't exist on touch screens */}
                           <button
                             onClick={() => setDeleteTarget({ modifier: m, label })}
-                            className="w-9 h-9 inline-flex items-center justify-center rounded-md text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            className="w-9 h-9 inline-flex items-center justify-center rounded-sm text-muted-foreground/60 hover:bg-band hover:text-destructive transition-colors"
                             aria-label={`Delete ${label}`}
                           >
                             <Trash2 size={15} />
@@ -373,7 +373,7 @@ export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => voi
           </DataTable>
         </div>
         {modifiers.length > 0 && (
-          <div className="px-5 py-3 border-t border-border shrink-0">
+          <div className="px-5 py-3 border-t border-rule shrink-0">
             <p className="text-xs text-muted-foreground">
               {visibleCount !== modifiers.length && `${visibleCount} of `}
               {modifiers.length} {modifiers.length === 1 ? 'modifier' : 'modifiers'} · {groups.length}{' '}
@@ -385,13 +385,14 @@ export function ModifiersPanel({ onEdit }: { onEdit: (modifier: Modifier) => voi
 
       {deleteTarget && (
         <ConfirmModal
-          title="Delete Modifier"
+          title="Delete this modifier?"
           message={
             <>
               Delete <span className="font-semibold text-foreground">{deleteTarget.label}</span>? Items using it will lose this option. This
               cannot be undone.
             </>
           }
+          confirmLabel="Delete modifier"
           isPending={removeMutation.isPending}
           onConfirm={() => removeMutation.mutate(deleteTarget.modifier.id)}
           onClose={() => setDeleteTarget(null)}

@@ -37,7 +37,7 @@ export function ConfirmDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="h-10 flex-1 rounded-xl border border-border text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-offset"
+            className="h-10 flex-1 rounded-sm border border-rule text-sm font-medium text-muted-foreground transition-colors hover:bg-band"
           >
             Cancel
           </button>
@@ -45,7 +45,7 @@ export function ConfirmDrawer({
             type="button"
             onClick={onConfirm}
             disabled={isPending}
-            className="h-10 flex-1 rounded-xl bg-destructive text-sm font-semibold text-white transition-colors hover:bg-destructive/90 disabled:opacity-60"
+            className="h-10 flex-1 rounded-sm bg-destructive text-sm font-semibold text-white transition-colors hover:bg-destructive/90 disabled:opacity-60"
           >
             {isPending ? pendingLabel : confirmLabel}
           </button>

@@ -25,11 +25,11 @@ export function MenuGrid({ items, selectedId, onSelectItem, isLoading, currency 
       {isLoading ? (
         <div className={GRID}>
           {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="rounded-2xl bg-muted animate-pulse aspect-3/4" />
+            <div key={i} className="rounded-sm bg-muted animate-pulse aspect-3/4" />
           ))}
         </div>
       ) : items.length === 0 ? (
-        <EmptyState icon={UtensilsCrossed} title="No items found" description="Try selecting a different category" />
+        <EmptyState icon={UtensilsCrossed} title="No items in this category" description="Choose another category to see its items." />
       ) : (
         <div className={GRID}>
           {items.map((item) => (

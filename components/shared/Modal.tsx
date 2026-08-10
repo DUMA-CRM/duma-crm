@@ -76,11 +76,11 @@ export function Modal({ title, onClose, children, className }: ModalProps) {
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'relative bg-card border border-border rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh] outline-none',
+          'relative bg-card border border-rule rounded-sm shadow-xl w-full max-w-md flex flex-col max-h-[90vh] outline-none',
           className,
         )}
       >
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-rule shrink-0">
           <h2 className="text-base font-semibold text-foreground">{title}</h2>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog">
             <X size={16} aria-hidden="true" />

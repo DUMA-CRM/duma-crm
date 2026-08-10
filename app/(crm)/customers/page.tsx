@@ -7,7 +7,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { CustomerCards } from '@/components/customers/CustomerCards';
 import { CreateCustomerDrawer } from '@/components/customers/CustomerForm';
 import { PrivacyRequestsPanel } from '@/components/customers/PrivacyRequestsPanel';
-import { ChevronRight, LayoutGrid, ListView, Plus, Search, ShieldCheck, Users, X } from '@/components/icons';
+import { AlertTriangle, ChevronRight, LayoutGrid, ListView, Plus, Search, ShieldCheck, Users, X } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
@@ -75,12 +75,11 @@ function CustomersView() {
 
   return (
     <EditorShell
-      eyebrow="Customer management"
-      title="Customer 360"
+      title="Customers"
       icon={<Users size={20} aria-hidden="true" />}
       actions={
         tab === 'customers' && tenantId ? (
-          <Button className="h-10 gap-1.5" onClick={() => setShowCreate(true)}>
+          <Button className="h-9 gap-1.5" onClick={() => setShowCreate(true)}>
             <Plus size={15} aria-hidden="true" />
             <span className="hidden md:inline">New customer</span>
           </Button>
@@ -110,7 +109,7 @@ function CustomersList() {
   const [debouncedSearch, setDebouncedSearch] = useState(initialQuery);
   const [filter, setFilter] = useState<FilterOption>('all');
   const [page, setPage] = useState(1);
-  const view = useUiSettingsStore((state) => state.listViews.customers ?? 'table');
+  const view = useUiSettingsStore((state) => state.listViews.customers ?? 'cards');
   const setListView = useUiSettingsStore((state) => state.setListView);
 
   useEffect(() => {
@@ -118,7 +117,7 @@ function CustomersList() {
     return () => clearTimeout(id);
   }, [search]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['customers', page, debouncedSearch, filter, tenantId],
     queryFn: () =>
       getCustomers({
@@ -207,8 +206,8 @@ function CustomersList() {
   );
 
   const footer = (
-    <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
-      <p className="text-xs text-muted-foreground">
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rule/65 bg-card px-4 py-3">
+      <p className="text-xs text-muted-foreground" aria-live="polite">
         {(data?.total ?? 0).toLocaleString()} customers
         {totalPages > 1 && ` · page ${page} of ${totalPages}`}
       </p>
@@ -227,55 +226,90 @@ function CustomersList() {
 
   return (
     <div className="space-y-4">
-      {/* Search · tier · view — one row */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-60 flex-1">
-          <Input
-            leftIcon={<Search size={16} />}
-            type="search"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Search by name, email or phone…"
-            rightAction={
-              search ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch('');
-                    setPage(1);
-                  }}
-                  aria-label="Clear search"
-                  className="text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <X size={14} />
-                </button>
-              ) : undefined
-            }
-          />
+      <div className="rounded-lg border border-rule/65 bg-card p-3 sm:p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="min-w-0 flex-1">
+            <Input
+              leftIcon={<Search size={16} />}
+              type="search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search by name, email or phone…"
+              rightAction={
+                search ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setPage(1);
+                    }}
+                    aria-label="Clear search"
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <X size={14} />
+                  </button>
+                ) : undefined
+              }
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Select
+              value={filter}
+              onValueChange={(value) => {
+                setFilter(value as FilterOption);
+                setPage(1);
+              }}
+              options={TIER_FILTERS.map((tier) => ({ value: tier.value, label: tier.value === 'all' ? 'All tiers' : tier.label }))}
+              ariaLabel="Filter customers by loyalty tier"
+              className="h-10 min-w-36 flex-1 rounded-md lg:flex-none"
+            />
+            <SegmentedControl
+              options={VIEW_OPTIONS}
+              value={view}
+              onChange={(next) => setListView('customers', next)}
+              iconOnly
+              size="lg"
+              ariaLabel="Customer list layout"
+            />
+          </div>
         </div>
-        <Select
-          value={filter}
-          onValueChange={(value) => {
-            setFilter(value as FilterOption);
-            setPage(1);
-          }}
-          options={TIER_FILTERS.map((tier) => ({ value: tier.value, label: tier.label }))}
-          ariaLabel="Filter customers by tier"
-          className="w-36"
-        />
-        <SegmentedControl
-          options={VIEW_OPTIONS}
-          value={view}
-          onChange={(next) => setListView('customers', next)}
-          iconOnly
-          ariaLabel="Customer list layout"
-        />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-rule/45 pt-3">
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            {isLoading ? 'Loading customers…' : `${customers.length.toLocaleString()} shown · ${(data?.total ?? 0).toLocaleString()} total`}
+          </p>
+          {(search || filter !== 'all') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setFilter('all');
+                setPage(1);
+              }}
+              className="min-h-8 rounded-md px-2 text-xs font-semibold text-primary transition-colors hover:bg-measured/8 hover:text-primary-hover"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
       </div>
 
-      {view === 'cards' ? (
+      {isError ? (
+        <div className="flex min-h-72 flex-col items-center justify-center rounded-lg border border-exception/30 bg-card px-6 text-center">
+          <span className="flex size-12 items-center justify-center rounded-md bg-exception/8 text-exception">
+            <AlertTriangle size={22} aria-hidden="true" />
+          </span>
+          <h2 className="mt-4 text-base font-semibold text-foreground">Customers could not be loaded</h2>
+          <p className="mt-1 max-w-md text-sm text-muted-foreground">
+            Check your connection and try again. Your search and filters will stay in place.
+          </p>
+          <Button variant="outline" className="mt-4" onClick={() => void refetch()}>
+            Try again
+          </Button>
+        </div>
+      ) : view === 'cards' ? (
         <CustomerCards customers={customers} isLoading={isLoading} emptyState={emptyState} footer={footer} fmtDate={fmtDate} />
       ) : (
         <DataTable

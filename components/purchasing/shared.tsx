@@ -2,14 +2,14 @@
 import type { PurchaseOrderLine, PurchaseOrderStatus } from '@/lib/api/purchasing.service';
 
 export const inputClass =
-  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
 export const selectClass =
-  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150 cursor-pointer';
+  'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150 cursor-pointer';
 
 export const labelClass = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
-export const thClass = 'px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest';
+export const thClass = 'px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro';
 
 export const STATUS_META: Record<PurchaseOrderStatus, { label: string; variant: 'muted' | 'primary' | 'warning' | 'success' }> = {
   draft: { label: 'Draft', variant: 'muted' },
@@ -60,7 +60,7 @@ export function FormActions({
       <button
         type="button"
         onClick={onClose}
-        className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors"
+        className="flex-1 h-10 border border-rule rounded-sm text-sm font-medium text-muted-foreground hover:bg-band transition-colors"
       >
         Cancel
       </button>
@@ -68,7 +68,7 @@ export function FormActions({
         type="submit"
         form={formId}
         disabled={isPending || disabled}
-        className="flex-1 h-10 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="flex-1 h-10 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {isPending ? pendingLabel : submitLabel}
       </button>

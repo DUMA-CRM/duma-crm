@@ -230,16 +230,10 @@ function CommunicationsView() {
       eyebrow="Customer engagement"
       title="Communications"
       icon={<Mail size={20} aria-hidden="true" />}
-      meta={
-        <ConnectionStatus
-          ready={emailReady}
-          onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined}
-        />
-      }
       actions={
         action && ActionIcon ? (
           <Button
-            className="h-10 gap-1.5"
+            className="h-9 gap-1.5"
             variant={action.variant}
             disabled={action.disabled}
             title={action.title}
@@ -327,8 +321,8 @@ function ConnectionStatus({ ready, onOpenConnection }: { ready: boolean; onOpenC
       {ready ? 'Email connected' : 'Email not verified'}
     </>
   );
-  const className = `inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${
-    ready ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+  const className = `inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-xs font-semibold ${
+    ready ? 'bg-success/6 text-success' : 'bg-warning/6 text-warning'
   }`;
 
   // Only owners and admins can act on it, so only they get a button.
@@ -358,7 +352,7 @@ function LoadingShell({ onClose }: { onClose: () => void }) {
 function MissingShell({ title, onClose }: { title: string; onClose: () => void }) {
   return (
     <EditorShell title={title} onClose={onClose}>
-      <div className="mx-auto max-w-md rounded-2xl border border-border bg-card shadow-sm p-6 text-center">
+      <div className="mx-auto max-w-md rounded-sm border border-rule bg-card shadow-sm p-6 text-center">
         <p className="text-sm text-muted-foreground">It may have been deleted, or the link is out of date.</p>
         <Button variant="outline" className="mt-4" onClick={onClose}>
           Back to Communications

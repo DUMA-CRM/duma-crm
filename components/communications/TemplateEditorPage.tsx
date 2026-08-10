@@ -272,15 +272,15 @@ export function TemplateEditorPage({
       flush
       actions={
         <>
-          <Button variant="outline" onClick={() => setPreviewing(true)} className="h-10 gap-2">
+          <Button variant="outline" onClick={() => setPreviewing(true)} className="h-9 gap-2">
             <Eye size={15} />
             <span className="hidden sm:inline">Preview</span>
           </Button>
-          <Button variant="outline" onClick={() => setTestOpen(true)} disabled={!canSave} className="h-10 gap-2">
+          <Button variant="outline" onClick={() => setTestOpen(true)} disabled={!canSave} className="h-9 gap-2">
             <Send size={15} />
             <span className="hidden sm:inline">Send test</span>
           </Button>
-          <Button type="submit" form={FORM_ID} disabled={!canSave || save.isPending} className="h-10 gap-2 px-5">
+          <Button type="submit" form={FORM_ID} disabled={!canSave || save.isPending} className="h-9 gap-2 px-5">
             {save.isPending && <Loader2 size={14} className="animate-spin" />}
             {save.isPending ? 'Saving…' : 'Save'}
           </Button>
@@ -295,9 +295,9 @@ export function TemplateEditorPage({
         }}
         className="grid min-h-0 flex-1 lg:grid-cols-[15rem_minmax(32rem,1fr)_21rem]"
       >
-        <aside className="overflow-auto border-b border-border bg-card p-4 lg:border-b-0 lg:border-r">
+        <aside className="overflow-auto border-b border-rule bg-card p-4 lg:border-b-0 lg:border-r">
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Content</p>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">Drag onto the email, or click to add at the end.</p>
+          <p className="mt-1.5 text-label leading-relaxed text-muted-foreground">Drag onto the email, or click to add at the end.</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {BLOCKS.map(({ type, label, icon: Icon }) => (
               <button
@@ -311,7 +311,7 @@ export function TemplateEditorPage({
                 }}
                 onDragEnd={dnd.end}
                 onClick={() => addBlock({ kind: 'new', type })}
-                className="flex min-h-20 cursor-grab flex-col items-center justify-center gap-2 rounded-xl border border-border bg-background text-xs font-semibold transition hover:border-primary/50 hover:bg-primary/5 active:cursor-grabbing"
+                className="flex min-h-20 cursor-grab flex-col items-center justify-center gap-2 rounded-sm border border-rule bg-background text-xs font-semibold transition hover:border-primary/50 hover:bg-band active:cursor-grabbing"
               >
                 <Icon size={19} />
                 {label}
@@ -320,9 +320,9 @@ export function TemplateEditorPage({
           </div>
 
           {/* Layouts come second: pick the shape of a row, then fill its cells. */}
-          <div className="mt-6 border-t border-border pt-4">
+          <div className="mt-6 border-t border-rule pt-4">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Layouts</p>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="mt-1.5 text-label leading-relaxed text-muted-foreground">
               Drop a row in, then drag content into each column.
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -340,20 +340,20 @@ export function TemplateEditorPage({
                   onClick={() => addBlock({ kind: 'new', type: 'columns', layout: value })}
                   title={label}
                   aria-label={`Add a ${label} row`}
-                  className="flex cursor-grab flex-col items-center gap-2 rounded-xl border border-border bg-background p-2.5 transition hover:border-primary/50 hover:bg-primary/5 active:cursor-grabbing"
+                  className="flex cursor-grab flex-col items-center gap-2 rounded-sm border border-rule bg-background p-2.5 transition hover:border-primary/50 hover:bg-band active:cursor-grabbing"
                 >
                   <span className="flex h-7 w-full items-stretch gap-1" aria-hidden="true">
                     {widths.map((width, index) => (
                       <span key={index} style={{ width: `${width}%` }} className="rounded bg-muted" />
                     ))}
                   </span>
-                  <span className="text-[11px] font-semibold">{label}</span>
+                  <span className="text-label font-semibold">{label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="mt-6 space-y-3 border-t border-border pt-4">
+          <div className="mt-6 space-y-3 border-t border-rule pt-4">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Template</p>
             <Input label="Name" value={name} onChange={(event) => setName(event.target.value)} required />
             <div className="space-y-1.5">
@@ -363,9 +363,9 @@ export function TemplateEditorPage({
           </div>
         </aside>
 
-        <main className="min-h-0 overflow-auto bg-surface-offset/60 p-4 md:p-6">
+        <main className="min-h-0 overflow-auto bg-band p-4 md:p-6">
           <div className="mx-auto max-w-3xl">
-            <div className="mb-4 rounded-xl border border-border bg-card p-3 shadow-sm">
+            <div className="mb-4 rounded-sm border border-rule bg-card p-3 shadow-sm">
               <Input
                 label="Subject line"
                 value={subject}
@@ -388,13 +388,13 @@ export function TemplateEditorPage({
               </div>
             </div>
             {mode === 'html' ? (
-              <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="space-y-4 rounded-sm border border-rule bg-card p-5 shadow-sm">
                 <div>
                   <label className="text-xs font-bold text-muted-foreground">HTML body</label>
                   <textarea
                     value={htmlBody}
                     onChange={(event) => setHtmlBody(event.target.value)}
-                    className="mt-2 min-h-96 w-full rounded-xl border border-border bg-background p-3 font-mono text-xs outline-none focus:border-primary"
+                    className="mt-2 min-h-96 w-full rounded-sm border border-rule bg-background p-3 font-mono text-xs outline-none focus:border-primary"
                   />
                 </div>
                 <div>
@@ -402,7 +402,7 @@ export function TemplateEditorPage({
                   <textarea
                     value={textBody}
                     onChange={(event) => setTextBody(event.target.value)}
-                    className="mt-2 min-h-32 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-primary"
+                    className="mt-2 min-h-32 w-full rounded-sm border border-rule bg-background p-3 text-sm outline-none focus:border-primary"
                   />
                 </div>
               </div>
@@ -419,7 +419,7 @@ export function TemplateEditorPage({
           </div>
         </main>
 
-        <aside className="overflow-auto border-t border-border bg-card p-4 lg:border-l lg:border-t-0">
+        <aside className="overflow-auto border-t border-rule bg-card p-4 lg:border-l lg:border-t-0">
           {/* Text and layout are handled on the email itself; this panel is for the
               settings a block cannot show inline — links, sizes, alignment. */}
           {mode === 'visual' && selected ? (
@@ -448,27 +448,27 @@ export function TemplateEditorPage({
               event.currentTarget.value = '';
             }}
           />
-          <div className="mt-6 border-t border-border pt-5">
+          <div className="mt-6 border-t border-rule pt-5">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Brand styles</p>
             <div className="mt-3 grid grid-cols-2 gap-3">
               {(['backgroundColor', 'contentColor', 'textColor', 'accentColor'] as const).map((key) => (
-                <label key={key} className="text-[11px] capitalize text-muted-foreground">
+                <label key={key} className="text-label capitalize text-muted-foreground">
                   {key.replace('Color', '')}
                   <input
                     type="color"
                     value={design.styles[key]}
                     onChange={(event) => setDesign((current) => ({ ...current, styles: { ...current.styles, [key]: event.target.value } }))}
-                    className="mt-1 h-9 w-full rounded border border-border bg-background"
+                    className="mt-1 h-9 w-full rounded border border-rule bg-background"
                   />
                 </label>
               ))}
             </div>
           </div>
-          <div className="mt-6 border-t border-border pt-5">
+          <div className="mt-6 border-t border-rule pt-5">
             <VariablePalette variables={variables} onInsert={insertVariable} />
           </div>
           {savedId && (
-            <div className="mt-6 border-t border-border pt-5">
+            <div className="mt-6 border-t border-rule pt-5">
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Used by</p>
               <p className="mt-2 text-xs text-muted-foreground">
                 {usedBy.length ? usedBy.map((item) => item.name).join(', ') : 'No workflows yet.'}
@@ -497,7 +497,7 @@ export function TemplateEditorPage({
         <Modal title="Send a test email" onClose={() => setTestOpen(false)} className="max-w-lg">
           <div className="space-y-4">
             {!emailReady && (
-              <div className="flex gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
+              <div className="flex gap-2 rounded-sm border border-warning/40 bg-warning/6 p-3 text-xs text-warning">
                 <TriangleAlert size={15} />
                 Email sending is not verified.
                 {onOpenConnection && (
@@ -529,7 +529,7 @@ export function TemplateEditorPage({
                   .join(', ')}). Those steps will stop sending. Emails already sent stay in History.`
               : `“${name}” will be removed from your templates. Emails already sent stay in History.`
           }
-          confirmLabel="Delete"
+          confirmLabel="Delete template"
           pendingLabel="Deleting…"
           isPending={destroy.isPending}
           onConfirm={() => destroy.mutate()}
@@ -552,7 +552,7 @@ function BlockSettings({
   if (block.type === 'heading' || block.type === 'text')
     return (
       <div className="space-y-3">
-        <p className="rounded-lg bg-muted p-2.5 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="rounded-sm bg-muted p-2.5 text-label leading-relaxed text-muted-foreground">
           Click the text on the email to edit it in place.
         </p>
         <Alignment value={block.align} onChange={(align) => onChange({ ...block, align })} />
@@ -561,7 +561,7 @@ function BlockSettings({
   if (block.type === 'button')
     return (
       <div className="space-y-3">
-        <p className="rounded-lg bg-muted p-2.5 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="rounded-sm bg-muted p-2.5 text-label leading-relaxed text-muted-foreground">
           The label is edited on the button itself.
         </p>
         <Input label="Destination URL" value={block.url} onChange={(event) => onChange({ ...block, url: event.target.value })} />
@@ -603,7 +603,7 @@ function BlockSettings({
   if (block.type === 'columns')
     return (
       <div className="space-y-3">
-        <p className="rounded-lg bg-muted p-2.5 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="rounded-sm bg-muted p-2.5 text-label leading-relaxed text-muted-foreground">
           Drag content from the left panel into a column. Change the split below — content is kept.
         </p>
         <p className="text-xs font-bold tracking-widest text-muted-foreground">Split</p>
@@ -616,8 +616,8 @@ function BlockSettings({
               aria-pressed={block.layout === value}
               title={label}
               className={cn(
-                'flex flex-col items-center gap-1.5 rounded-xl border p-2 transition',
-                block.layout === value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40',
+                'flex flex-col items-center gap-1.5 rounded-sm border p-2 transition',
+                block.layout === value ? 'border-primary bg-band' : 'border-rule hover:border-primary/40',
               )}
             >
               <span className="flex h-6 w-full items-stretch gap-1" aria-hidden="true">
@@ -625,7 +625,7 @@ function BlockSettings({
                   <span key={index} style={{ width: `${width}%` }} className="rounded bg-muted" />
                 ))}
               </span>
-              <span className="text-[10px] font-semibold">{label}</span>
+              <span className="text-micro font-semibold">{label}</span>
             </button>
           ))}
         </div>
@@ -636,7 +636,7 @@ function BlockSettings({
       <div className="space-y-3">
         <p className="text-xs text-muted-foreground">Add links customers can use to find your brand.</p>
         {block.links.map((link, index) => (
-          <div key={index} className="rounded-xl border border-border p-2">
+          <div key={index} className="rounded-sm border border-rule p-2">
             <Input
               label="Label"
               value={link.label}
@@ -685,8 +685,8 @@ function Alignment({ value, onChange }: { value: 'left' | 'center' | 'right'; on
             type="button"
             onClick={() => onChange(option)}
             className={cn(
-              'rounded-lg border px-2 py-2 text-xs capitalize',
-              value === option ? 'border-primary bg-primary/10 text-primary' : 'border-border',
+              'rounded-sm border px-2 py-2 text-xs capitalize',
+              value === option ? 'border-primary bg-band text-primary' : 'border-rule',
             )}
           >
             {option}

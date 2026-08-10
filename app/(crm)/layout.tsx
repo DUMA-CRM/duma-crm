@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { Header } from '@/components/layout/Header';
+import { LoginIntro } from '@/components/layout/LoginIntro';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AuthInitializer } from '@/components/providers/AuthInitializer';
 import { WorkspaceInitializer } from '@/components/providers/WorkspaceInitializer';
@@ -30,12 +31,15 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
   if (!session) redirect('/api/auth/clear-session');
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       {/* Hydrates the Zustand auth store with the server-fetched user. */}
       <AuthInitializer user={session.user} role={profile?.role ?? null} />
       <WorkspaceInitializer
         profile={profile ? { tenantId: profile.tenantId, role: profile.role, locationIds: profile.locationIds } : null}
       />
+
+      {/* Plays only when a sign-in armed it; renders nothing otherwise. */}
+      <LoginIntro />
 
       <Sidebar role={profile?.role ?? null} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">

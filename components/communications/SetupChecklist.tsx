@@ -87,15 +87,15 @@ export function SetupChecklist({
   const nextStep = steps.findIndex((step) => !step.done);
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-linear-to-br from-primary/8 via-card to-card p-5">
+    <section className="relative overflow-hidden rounded-sm border border-primary/25 bg-linear-to-br from-primary/8 via-card to-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Getting started</p>
+          <p className="text-micro font-semibold uppercase tracking-micro text-primary">Getting started</p>
           <h2 className="mt-1 text-base font-semibold text-foreground">Four steps to your first automatic email</h2>
         </div>
         {/* Progress, then the dismiss — the count earns its place next to the bar. */}
         <div className="flex items-center gap-3 pr-8">
-          <div className="h-1.5 w-32 overflow-hidden rounded-full bg-surface-offset" role="presentation">
+          <div className="h-1.5 w-32 overflow-hidden rounded-full bg-band" role="presentation">
             <div
               className="h-full rounded-full bg-primary transition-[width] duration-500"
               style={{ width: `${(doneCount / steps.length) * 100}%` }}
@@ -111,7 +111,7 @@ export function SetupChecklist({
         type="button"
         onClick={() => dismissTip(TIP_ID)}
         aria-label="Hide these setup steps"
-        className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="absolute right-3 top-3 rounded-sm p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <X size={15} />
       </button>
@@ -123,19 +123,19 @@ export function SetupChecklist({
             <li
               key={step.title}
               className={cn(
-                'rounded-xl border bg-card p-4 transition-colors',
-                step.done ? 'border-success/30' : isNext ? 'border-primary/45 shadow-sm' : 'border-border',
+                'rounded-sm border bg-card p-4 transition-colors',
+                step.done ? 'border-success/30' : isNext ? 'border-primary/45 shadow-sm' : 'border-rule',
               )}
             >
               <div className="flex items-start gap-2.5">
                 <span
                   className={cn(
-                    'mt-px flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
+                    'mt-px flex size-5 shrink-0 items-center justify-center rounded-full text-micro font-semibold',
                     step.done
                       ? 'bg-success text-white'
                       : isNext
                         ? 'bg-primary text-primary-foreground'
-                        : 'border border-border bg-surface-offset text-muted-foreground',
+                        : 'border border-rule bg-band text-muted-foreground',
                   )}
                   aria-hidden="true"
                 >

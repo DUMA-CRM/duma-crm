@@ -11,14 +11,16 @@ interface OptionBtnProps {
 export function OptionBtn({ label, active, onClick }: OptionBtnProps) {
   return (
     <Button
-      variant={active ? 'default' : 'ghost'}
-      size="lg"
+      // `touch` (44px), not `lg` (40px): this is the most-tapped control in the
+      // application and it sat under the floor.
+      size="touch"
+      // Selected is the filled ink key. The previous className override painted
+      // a primary-tinted chip over the solid variant, which both fought the
+      // variant and rebuilt the tinted-chip pattern that fails contrast on a
+      // page-level surface.
+      variant={active ? 'default' : 'outline'}
+      aria-pressed={active}
       onClick={onClick}
-      className={
-        active
-          ? 'border-primary text-primary bg-primary/10'
-          : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
-      }
     >
       {label}
     </Button>

@@ -45,21 +45,21 @@ export function SendEmailModal({ customerId, orderId, recipientLabel, onClose }:
       toast('success', 'Email queued for delivery.');
       onClose();
     },
-    onError: (error) => toast('error', error.message || 'Could not queue the email.'),
+    onError: (error) => toast('error', error.message || 'The email wasn’t queued. Review it and try again.'),
   });
 
   return (
     <Modal title="Send email" onClose={onClose} className="max-w-xl">
       <div className="space-y-4">
-        <div className="rounded-xl border border-border bg-surface-offset/50 p-3">
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Recipient</p>
+        <div className="rounded-sm border border-rule bg-band p-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Recipient</p>
           <p className="mt-1 text-sm font-medium text-foreground">{recipientLabel}</p>
         </div>
 
         {activeTemplates.length ? (
           <>
             <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Template</label>
+              <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Template</label>
               <Select
                 value={effectiveTemplateId}
                 onValueChange={setTemplateId}
@@ -69,22 +69,22 @@ export function SendEmailModal({ customerId, orderId, recipientLabel, onClose }:
               />
             </div>
             {selected && (
-              <div className="rounded-xl border border-border bg-background p-4">
+              <div className="rounded-sm border border-rule bg-background p-4">
                 <p className="text-xs font-semibold text-foreground">{selected.subject}</p>
                 <iframe
                   title="Email template preview"
                   sandbox=""
                   srcDoc={selected.htmlBody}
-                  className="mt-3 h-64 w-full rounded-lg border border-border bg-white"
+                  className="mt-3 h-64 w-full rounded-sm border border-rule bg-white"
                 />
-                <p className="mt-3 text-[11px] text-muted-foreground">
+                <p className="mt-3 text-label text-muted-foreground">
                   Variables such as customer and order details are resolved when the message is queued.
                 </p>
               </div>
             )}
           </>
         ) : (
-          <div className="rounded-xl border border-dashed border-border p-6 text-center">
+          <div className="rounded-sm border border-dashed border-rule p-6 text-center">
             <Mail className="mx-auto text-muted-foreground" size={22} />
             <p className="mt-2 text-sm font-medium">No active email templates</p>
             <p className="mt-1 text-xs text-muted-foreground">Create one in Communications before sending an email.</p>

@@ -4,6 +4,7 @@ import { useLayoutEffect } from 'react';
 
 import type { StaffProfile } from '@/lib/api/staff.service';
 import { roleAtLeast } from '@/lib/api/staff.service';
+import { useTenants } from '@/lib/hooks/useTenants';
 import { useAuthStore } from '@/stores/authStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -12,6 +13,12 @@ type AssignedWorkspace = Pick<StaffProfile, 'tenantId' | 'role' | 'locationIds'>
 
 export function WorkspaceInitializer({ profile }: { profile: AssignedWorkspace | null }) {
   const userId = useAuthStore((state) => state.user?.id);
+  const tenantId = useWorkspaceStore((state) => state.tenantId);
+
+  // A super admin is the only role whose profile doesn't pin a tenant, so it is
+  // the only one that can arrive with nothing selected. Fetching the list here
+  // lets a single-workspace estate select itself app-wide, not just in settings.
+  useTenants({ enabled: profile?.role === 'super_admin' && !tenantId });
 
   useLayoutEffect(() => {
     if (!profile) return;

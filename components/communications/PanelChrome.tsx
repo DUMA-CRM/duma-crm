@@ -28,10 +28,10 @@ export function PanelHeader({
   return (
     <div className={cn('flex flex-wrap items-start justify-between gap-x-4 gap-y-2', className)}>
       <div className="min-w-0">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold text-foreground">
+        <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
           {title}
           {count !== undefined && (
-            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-muted-foreground">{count}</span>
+            <span className="rounded-sm bg-muted px-1.5 py-0.5 text-label font-semibold tabular-nums text-muted-foreground">{count}</span>
           )}
         </h2>
         {description && <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>}

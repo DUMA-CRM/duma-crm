@@ -39,24 +39,30 @@ export function CustomerLoyalty({ selectedCustomer, onCustomerSelect, onScan }: 
   }
 
   return (
-    <div className="p-5 border-b border-border shrink-0">
+    <div className="p-5 border-b border-rule shrink-0">
       <div className="flex items-center justify-between mb-3">
-        {/* <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Customer Loyalty</p> */}
+        {/* <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Customer Loyalty</p> */}
         <Label uppercase>Customer Loyalty</Label>
         <QrCode size={18} className="text-primary" />
       </div>
 
       {/* Selected customer pill */}
       {selectedCustomer && mode === 'idle' && (
-        <div className="flex items-center gap-2.5 mb-3 px-3 py-2 bg-primary/5 border border-primary/20 rounded-xl">
+        <div className="flex items-center gap-2.5 mb-3 px-3 py-2 bg-band border border-primary/20 rounded-sm">
           <InitialsAvatar firstName={selectedCustomer.firstName} lastName={selectedCustomer.lastName} email={selectedCustomer.email} size="sm" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground truncate">
               {selectedCustomer.firstName} {selectedCustomer.lastName}
             </p>
-            <p className="text-xs text-muted-foreground tabular-nums">{selectedCustomer.pointsBalance.toLocaleString()} pts</p>
+            <p className="text-xs text-muted-foreground tabular-nums font-mono">{selectedCustomer.pointsBalance.toLocaleString()} pts</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleClear} className="text-muted-foreground hover:text-foreground">
+          <Button
+            variant="ghost"
+            size="icon-touch"
+            onClick={handleClear}
+            aria-label="Remove customer from this order"
+            className="text-muted-foreground hover:text-foreground"
+          >
             <X size={13} />
           </Button>
         </div>

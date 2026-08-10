@@ -8,22 +8,39 @@ import { type CoverageRow, type CoverageWeekdayRow, getCoverage, isWeekdayRow } 
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const inp =
-  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
-const lbl = 'block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1';
+  'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+const lbl = 'block text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-1';
 
 const DEFAULTS = { lookbackDays: 30, ordersPerStaff: 15, minStaff: 1 };
 const hourLabel = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
+/* Measured demand against the staffing it implies: observed orders per hour are
+   the measured trace, and the recommendation derived from them is the reference.
+   Colouring them as one relationship is what makes this row readable at a glance
+   rather than as two unrelated numbers.
+
+   Note this is demand vs recommendation, NOT rostered labour vs forecast — the
+   scheduled staff-per-hour join does not exist in this data, and inventing it
+   would put a number in front of a manager that nothing computed. */
 function HourBar({ row, maxOrders }: { row: CoverageRow; maxOrders: number }) {
   const pct = maxOrders > 0 ? (row.avgOrders / maxOrders) * 100 : 0;
   return (
     <div className="flex items-center gap-3 px-4 py-1.5">
-      <span className="w-12 shrink-0 text-xs font-semibold text-muted-foreground tabular-nums">{hourLabel(row.hour)}</span>
-      <div className="flex-1 h-5 bg-surface-offset rounded-md overflow-hidden">
-        <div className="h-full bg-primary/70 rounded-md transition-[width] duration-300" style={{ width: `${Math.max(pct, row.avgOrders > 0 ? 3 : 0)}%` }} />
+      <span data-figure className="w-12 shrink-0 text-xs font-semibold text-muted-foreground">
+        {hourLabel(row.hour)}
+      </span>
+      <div className="h-5 flex-1 bg-band">
+        <div
+          className="h-full bg-measured transition-[width] duration-300"
+          style={{ width: `${Math.max(pct, row.avgOrders > 0 ? 3 : 0)}%` }}
+        />
       </div>
-      <span className="w-14 shrink-0 text-right text-xs text-foreground tabular-nums">{row.avgOrders.toFixed(1)}</span>
-      <span className="w-16 shrink-0 text-right text-xs font-semibold text-primary tabular-nums">{row.recommendedStaff} staff</span>
+      <span data-figure className="w-14 shrink-0 text-right text-xs text-foreground">
+        {row.avgOrders.toFixed(1)}
+      </span>
+      <span data-figure className="w-16 shrink-0 text-right text-xs font-semibold text-reference">
+        {row.recommendedStaff} staff
+      </span>
     </div>
   );
 }
@@ -58,9 +75,9 @@ export function CoveragePanel() {
   }, [coverage, byWeekday]);
 
   return (
-    <div className="bg-card border border-border rounded-2xl shrink-0 overflow-hidden">
+    <div className="bg-card border border-rule rounded-sm shrink-0 overflow-hidden">
       {/* Controls */}
-      <div className="p-3 flex flex-wrap items-end gap-3 border-b border-border">
+      <div className="p-3 flex flex-wrap items-end gap-3 border-b border-rule">
         <div><label className={lbl}>Lookback days</label><input type="number" min={1} value={lookbackDays} onChange={(e) => setLookbackDays(Number(e.target.value))} className={inp + ' w-24'} /></div>
         <div><label className={lbl}>Orders / staff</label><input type="number" min={1} value={ordersPerStaff} onChange={(e) => setOrdersPerStaff(Number(e.target.value))} className={inp + ' w-24'} /></div>
         <div><label className={lbl}>Min staff</label><input type="number" min={0} value={minStaff} onChange={(e) => setMinStaff(Number(e.target.value))} className={inp + ' w-24'} /></div>
@@ -82,11 +99,11 @@ export function CoveragePanel() {
         </div>
       ) : (
         <div className="max-h-64 overflow-auto py-3">
-          <div className="flex items-center gap-3 px-4 pb-2 border-b border-border">
-            <span className="w-12 shrink-0 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Hour</span>
-            <span className="flex-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Avg orders</span>
-            <span className="w-14 shrink-0 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Orders</span>
-            <span className="w-16 shrink-0 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Rec.</span>
+          <div className="flex items-center gap-3 px-4 pb-2 border-b border-rule">
+            <span className="w-12 shrink-0 text-micro font-semibold text-muted-foreground uppercase tracking-micro">Hour</span>
+            <span className="flex-1 text-micro font-semibold text-muted-foreground uppercase tracking-micro">Avg orders</span>
+            <span className="w-14 shrink-0 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">Orders</span>
+            <span className="w-16 shrink-0 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">Rec.</span>
           </div>
           {grouped ? (
             grouped.map((g) => (

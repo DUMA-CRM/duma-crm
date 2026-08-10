@@ -133,7 +133,7 @@ function useAddPaymentConnection() {
       await add.mutateAsync();
       return true;
     } catch (error) {
-      toast('error', error instanceof Error ? error.message : 'Could not add the payment method.');
+      toast('error', error instanceof Error ? error.message : 'The payment method wasn’t added. Review the details and try again.');
       return false;
     }
   }
@@ -303,7 +303,7 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
           name={DEFINITION.name}
           tagline={DEFINITION.tagline}
           requirements={DEFINITION.requirements}
-          footnote={<>Readers are added per location. Switch location in the top bar to set up another site.</>}
+          footnote={<>Readers are added per location. Use the location picker to set up another site.</>}
         />
       }
     />
@@ -325,7 +325,7 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
       icon={<CreditCard size={20} aria-hidden="true" />}
       onClose={onClose}
       actions={
-        <Button className="h-10 gap-1.5" disabled={!locationId} onClick={onAdd}>
+        <Button className="h-9 gap-1.5" disabled={!locationId} onClick={onAdd}>
           <Plug size={15} aria-hidden="true" />
           <span className="hidden md:inline">Add reader</span>
         </Button>
@@ -335,7 +335,7 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
         <section className={panelClass}>
           <p className={eyebrowClass}>Readers at this location</p>
           {!locationId ? (
-            <p className="mt-4 text-sm text-muted-foreground">Choose a location in the top bar to see its card readers.</p>
+            <p className="mt-4 text-sm text-muted-foreground">Use the location picker to see this site&apos;s card readers.</p>
           ) : isLoading ? (
             <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 size={14} className="animate-spin" aria-hidden="true" />
@@ -352,8 +352,8 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
           ) : (
             <ul className="mt-3 space-y-2">
               {methods.map((method) => (
-                <li key={method.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface-offset/40 px-3 py-2.5">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <li key={method.id} className="flex items-center gap-3 rounded-sm border border-rule bg-band px-3 py-2.5">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
                     <CreditCard size={15} aria-hidden="true" />
                   </div>
                   <div className="min-w-0 flex-1">

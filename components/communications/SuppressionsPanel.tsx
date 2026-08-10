@@ -47,7 +47,7 @@ export function SuppressionsPanel() {
       setEmail('');
       toast('success', 'Email added to the suppression list.');
     },
-    onError: (error) => toast('error', error.message || 'Could not add the suppression.'),
+    onError: (error) => toast('error', error.message || 'The email wasn’t added to the suppression list. Check the address and try again.'),
   });
   const lift = useMutation({
     mutationFn: (id: string) => liftMarketingSuppression(id, tenantId ?? undefined),
@@ -55,7 +55,7 @@ export function SuppressionsPanel() {
       void refresh();
       toast('success', 'Suppression lifted. Record explicit opt-in on the customer profile before marketing again.');
     },
-    onError: (error) => toast('error', error.message || 'Could not lift the suppression.'),
+    onError: (error) => toast('error', error.message || 'The suppression wasn’t lifted. Try again.'),
   });
 
   const visible = useMemo(() => {
@@ -81,7 +81,7 @@ export function SuppressionsPanel() {
         }
       />
 
-      <div className="flex items-start gap-3 rounded-2xl border border-info/30 bg-info/5 p-4">
+      <div className="flex items-start gap-3 rounded-sm border border-info/30 bg-info/5 p-4">
         <Info size={16} className="mt-0.5 shrink-0 text-info" aria-hidden="true" />
         <p className="text-sm leading-relaxed text-foreground">
           Transactional order messages still go out — receipts and “your order is ready” are never suppressed. Lifting an entry does not
@@ -100,12 +100,12 @@ export function SuppressionsPanel() {
         />
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
         {isLoading ? (
           <div className="divide-y divide-border" aria-hidden="true">
             {Array.from({ length: 3 }, (_, index) => (
               <div key={index} className="flex items-center gap-3 p-4">
-                <div className="size-9 animate-pulse rounded-xl bg-muted" />
+                <div className="size-9 animate-pulse rounded-sm bg-muted" />
                 <div className="flex-1 space-y-2">
                   <div className="h-3.5 w-40 animate-pulse rounded bg-muted" />
                   <div className="h-3 w-56 animate-pulse rounded bg-muted" />
@@ -126,7 +126,7 @@ export function SuppressionsPanel() {
             {visible.map((item) => (
               <li key={item.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4">
                 <span
-                  className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-destructive/6 text-destructive"
                   aria-hidden="true"
                 >
                   <ShieldOff size={16} />

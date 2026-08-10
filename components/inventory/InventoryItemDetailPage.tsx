@@ -245,7 +245,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
       invalidateStock();
       toast('success', 'Availability updated.');
     },
-    onError: () => toast('error', 'Failed to update availability.'),
+    onError: () => toast('error', 'Availability wasn’t updated. Try again.'),
   });
 
   const removeItem = useMutation({
@@ -256,7 +256,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
       toast('success', 'Item removed from this location.');
       router.push('/inventory');
     },
-    onError: () => toast('error', 'Failed to remove item.'),
+    onError: () => toast('error', 'The item wasn’t removed from this location. Try again.'),
   });
 
   return (
@@ -268,15 +268,15 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
       actions={
         stock && (
           <>
-            <Button variant="outline" className="h-10 gap-1.5" onClick={() => setRestockOpen(true)}>
+            <Button variant="outline" className="h-9 gap-1.5" onClick={() => setRestockOpen(true)}>
               <PackagePlus size={15} />
               <span className="hidden md:inline">Restock</span>
             </Button>
-            <Button variant="outline" className="h-10 gap-1.5" onClick={() => setLossOpen(true)}>
+            <Button variant="outline" className="h-9 gap-1.5" onClick={() => setLossOpen(true)}>
               <PackageMinus size={15} />
               <span className="hidden md:inline">Log loss</span>
             </Button>
-            <Button variant="outline" className="h-10 gap-1.5" onClick={() => setTransferOpen(true)}>
+            <Button variant="outline" className="h-9 gap-1.5" onClick={() => setTransferOpen(true)}>
               <ArrowLeftRight size={15} />
               <span className="hidden md:inline">Transfer</span>
             </Button>
@@ -287,10 +287,10 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
     >
       <div className="space-y-4">
         {!locationId && (
-          <div className="rounded-2xl border border-dashed border-border bg-card p-5">
+          <div className="rounded-sm border border-dashed border-rule bg-card p-5">
             <p className="font-medium text-foreground">No location selected</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Choose a location in the header to see this item&apos;s stock level, containers and actions.
+              Use the location picker to see this item&apos;s stock level, containers and actions.
             </p>
           </div>
         )}
@@ -382,7 +382,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
                     )}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground rounded-xl bg-surface-offset px-3 py-3">
+                  <p className="text-xs text-muted-foreground rounded-sm bg-band px-3 py-3">
                     Not enough usage data to forecast yet. Once this item is sold or consumed, its demand trend will appear here.
                   </p>
                 )}
@@ -447,14 +447,14 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
                   )}
                   {allergens.length > 0 && (
                     <div className={cn(nutritionRows.length > 0 && 'mt-3')}>
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
+                      <div className="flex items-center gap-1.5 text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-1.5">
                         <TriangleAlert size={11} aria-hidden="true" /> Allergens
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {allergens.map((a) => (
                           <span
                             key={a}
-                            className="px-2.5 h-7 inline-flex items-center rounded-lg border border-warning bg-warning/10 text-warning text-xs font-medium capitalize"
+                            className="px-2.5 h-7 inline-flex items-center rounded-sm border border-warning bg-warning/6 text-warning text-xs font-medium capitalize"
                           >
                             {a}
                           </span>
@@ -478,8 +478,8 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
               </Card>
             )}
 
-            <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-              <div className="px-5 py-3 border-b border-border flex flex-wrap items-center justify-between gap-3">
+            <section className="rounded-sm border border-rule bg-card shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-rule flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="font-semibold text-foreground">Physical stock units</h2>
                   <p className="text-xs text-muted-foreground">Select active containers to combine them, or select one to split it.</p>
@@ -528,7 +528,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
                 <div className="overflow-x-auto">
                   <DataTable className="w-full text-sm">
                     <thead>
-                      <tr className="bg-muted border-b border-border text-[10px] uppercase tracking-widest text-muted-foreground">
+                      <tr className="bg-muted border-b border-rule text-micro uppercase tracking-micro text-muted-foreground">
                         <th className="pl-5 pr-2 py-3 text-left w-10">
                           <input
                             type="checkbox"
@@ -549,7 +549,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
                     </thead>
                     <tbody>
                       {units.map((u) => (
-                        <tr key={u.id} className="border-b border-border/50 last:border-0 hover:bg-surface-offset/50">
+                        <tr key={u.id} className="border-b border-rule last:border-0 hover:bg-band">
                           <td className="pl-5 pr-2 py-3">
                             <input
                               type="checkbox"
@@ -594,8 +594,8 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         )}
 
         {section === 'ledger' && (
-          <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+          <section className="rounded-sm border border-rule bg-card shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-rule flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <History size={15} className="text-muted-foreground" />
                 <h2 className="font-semibold text-foreground">Ledger timeline</h2>
@@ -618,7 +618,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
               </div>
             )}
             {!ledgerLoading && (ledger?.pages ?? 0) > 1 && (
-              <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3">
+              <div className="flex items-center justify-between border-t border-rule bg-muted/30 px-4 py-3">
                 <p className="text-xs text-muted-foreground">
                   Page {ledgerPage} of {ledger?.pages}
                 </p>
@@ -646,8 +646,8 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
         )}
 
         {section === 'losses' && (
-          <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+          <section className="rounded-sm border border-rule bg-card shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-rule flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <PackageMinus size={15} className="text-muted-foreground" />
                 <h2 className="font-semibold text-foreground">Loss history</h2>
@@ -681,7 +681,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
             {locationId ? (
               <ItemTransfersSection stockItemId={stockItemId} locationId={locationId} />
             ) : (
-              <div className="rounded-2xl border border-border bg-card shadow-sm py-16">
+              <div className="rounded-sm border border-rule bg-card shadow-sm py-16">
                 <EmptyState icon={ArrowLeftRight} title="Select a location" description="Transfers are listed per location." />
               </div>
             )}
@@ -805,7 +805,7 @@ function CombineContainersDrawer({ units, onClose, onCompleted }: { units: Stock
       toast('success', `${units.length} containers combined into one.`);
       onCompleted();
     },
-    onError: (error) => toast('error', error.message || 'Unable to combine containers.'),
+    onError: (error) => toast('error', error.message || 'The containers weren’t combined. Review the selection and try again.'),
   });
 
   return (
@@ -824,7 +824,7 @@ function CombineContainersDrawer({ units, onClose, onCompleted }: { units: Stock
       }
     >
       <div className="space-y-4">
-        <div className="rounded-xl bg-surface-offset p-4">
+        <div className="rounded-sm bg-band p-4">
           <p className="text-sm font-semibold text-foreground">{units.length} containers → 1 container</p>
           <p className="mt-1 text-sm text-muted-foreground">
             New balance: {fmt(total)} {units[0]?.unitOfMeasure}
@@ -875,7 +875,7 @@ function SplitContainerDrawer({ unit, onClose, onCompleted }: { unit: StockUnit;
       toast('success', `Container split into ${numericCount} containers.`);
       onCompleted();
     },
-    onError: (error) => toast('error', error.message || 'Unable to split the container.'),
+    onError: (error) => toast('error', error.message || 'The container wasn’t split. Review the quantity and try again.'),
   });
 
   return (
@@ -894,7 +894,7 @@ function SplitContainerDrawer({ unit, onClose, onCompleted }: { unit: StockUnit;
       }
     >
       <div className="space-y-4">
-        <div className="rounded-xl bg-surface-offset p-4">
+        <div className="rounded-sm bg-band p-4">
           <p className="text-sm font-semibold text-foreground">{unit.label}</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {fmt(unit.remainingQuantity)} {unit.unitOfMeasure} available
@@ -1036,7 +1036,7 @@ function LossRow({ loss, unit }: { loss: LossRecord; unit: string }) {
 
   return (
     <div className="px-5 py-3 flex items-center gap-4">
-      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-destructive/10">
+      <div className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0 bg-destructive/6">
         <TrendingDown size={14} className="text-destructive" />
       </div>
       <div className="min-w-0 flex-1">
@@ -1071,7 +1071,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-card shadow-sm p-5">
+    <section className="rounded-sm border border-rule bg-card shadow-sm p-5">
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
           <h2 className="font-semibold text-foreground">{title}</h2>

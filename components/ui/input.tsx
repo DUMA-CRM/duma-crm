@@ -18,9 +18,11 @@ interface InputProps extends React.ComponentProps<'input'> {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 function Input({ className, type, label, hint, error, leftIcon, rightIcon, rightAction, id, ...props }: InputProps) {
-  // Auto-generate an id from the label if none is passed — ensures label is
-  // always associated with the input for accessibility even without an explicit id.
-  const inputId = id ?? (label ? label.toLowerCase().replaceAll(/\s+/g, '-') : undefined);
+  // Labels repeat frequently in drawers and editable table rows. Deriving IDs
+  // from the label made those controls share an ID, so each instance gets a
+  // stable React ID unless the caller supplies one explicitly.
+  const generatedId = React.useId();
+  const inputId = id ?? `input-${generatedId}`;
 
   if (type === 'date') {
     return (
@@ -50,10 +52,10 @@ function Input({ className, type, label, hint, error, leftIcon, rightIcon, right
     <div className="flex flex-col gap-1.5 w-full">
       {/* Label */}
       {label && (
-        <label htmlFor={inputId} className="block text-xs font-bold text-muted-foreground tracking-widest">
+        <label htmlFor={inputId} className="block text-label uppercase text-muted-foreground">
           {label}
           {props.required && (
-            <span className="ml-1 text-destructive" aria-hidden="true">
+            <span className="ml-1 text-exception" aria-hidden="true">
               *
             </span>
           )}
@@ -76,15 +78,18 @@ function Input({ className, type, label, hint, error, leftIcon, rightIcon, right
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
           className={cn(
-            // Base. The border is not decorative: an input can sit on a white
-            // card or straight on the page, and the fill alone can't carry both.
-            'w-full h-9 bg-field border border-input rounded-lg text-sm text-foreground',
+            // A field on a plot: the hairline is the control, not decoration —
+            // an input sits on the field or straight on the page, and the fill
+            // alone cannot carry both. The rule clears 3:1 on every surface.
+            // Keep focused fields at 16px on small screens so iOS does not zoom
+            // the entire interface; the established 14px density resumes at sm.
+            'w-full h-10 bg-field border border-input rounded-md text-base sm:text-sm text-foreground shadow-sm',
             'placeholder:text-muted-foreground outline-none',
-            'transition-[border-color,box-shadow] duration-150',
-            // Focus
-            'focus:border-primary focus:ring-2 focus:ring-primary/15',
+            'transition-[border-color,outline-color,box-shadow] duration-150',
+            // Focus is the crosshair marker: a hard amber outline, no soft glow.
+            'focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured',
             // Error state
-            error && 'border-destructive/60 focus:border-destructive focus:ring-destructive/15',
+            error && 'border-exception focus:border-exception focus:outline-exception',
             // Dynamic horizontal padding based on icons
             hasLeft ? 'pl-9' : 'pl-3',
             hasRight ? 'pr-10' : 'pr-3',
@@ -108,7 +113,7 @@ function Input({ className, type, label, hint, error, leftIcon, rightIcon, right
 
       {/* Hint / error message */}
       {error ? (
-        <p id={`${inputId}-error`} role="alert" className="text-xs text-destructive">
+        <p id={`${inputId}-error`} role="alert" className="text-xs text-exception">
           {error}
         </p>
       ) : hint ? (

@@ -91,7 +91,7 @@ export function AutomationsPanel({
         description="An automation watches for something happening — an order, a birthday — and emails one of your templates."
         actions={
           automations.length > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-sm border border-rule bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">
               <span
                 className={cn('size-1.5 rounded-full', sendingCount ? 'bg-success' : 'bg-muted-foreground')}
                 aria-hidden="true"
@@ -103,7 +103,7 @@ export function AutomationsPanel({
       />
 
       {!canCreate && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4">
+        <div className="flex flex-wrap items-center gap-3 rounded-sm border border-warning/40 bg-warning/6 p-4">
           <TriangleAlert size={16} className="shrink-0 text-warning" aria-hidden="true" />
           <p className="min-w-0 flex-1 text-sm text-warning">
             Automations need one ready-to-use template to send. Create that first and the options below unlock.
@@ -117,11 +117,11 @@ export function AutomationsPanel({
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="h-40 animate-pulse rounded-2xl border border-border bg-card" aria-hidden="true" />
+            <div key={index} className="h-40 animate-pulse rounded-sm border border-rule bg-card" aria-hidden="true" />
           ))}
         </div>
       ) : !automations.length ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card">
+        <div className="rounded-sm border border-dashed border-rule bg-card">
           <EmptyState
             icon={Sparkles}
             title="No automations yet"
@@ -153,6 +153,7 @@ export function AutomationsPanel({
               it instead.
             </>
           }
+          confirmLabel="Delete automation"
           isPending={remove.isPending}
           onConfirm={() => remove.mutate(deleteTarget.id)}
           onClose={() => setDeleteTarget(null)}
@@ -189,15 +190,15 @@ function AutomationCard({
   return (
     <article
       className={cn(
-        'rounded-2xl border bg-card p-4 shadow-sm transition-colors md:p-5',
-        automation.isEnabled ? 'border-success/30' : 'border-border',
+        'rounded-sm border bg-card p-4 shadow-sm transition-colors md:p-5',
+        automation.isEnabled ? 'border-success/30' : 'border-rule',
       )}
     >
       <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
         <span
           className={cn(
-            'flex size-10 shrink-0 items-center justify-center rounded-xl',
-            automation.isEnabled ? 'bg-success/10 text-success' : 'bg-surface-offset text-muted-foreground',
+            'flex size-10 shrink-0 items-center justify-center rounded-sm',
+            automation.isEnabled ? 'bg-success/6 text-success' : 'bg-band text-muted-foreground',
           )}
           aria-hidden="true"
         >
@@ -229,14 +230,14 @@ function AutomationCard({
             className={cn(
               'inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 transition-colors disabled:opacity-60',
               automation.isEnabled
-                ? 'border-success/30 bg-success/10 hover:bg-success/20'
-                : 'border-border bg-muted hover:bg-secondary',
+                ? 'border-success/30 bg-success/6 hover:bg-band'
+                : 'border-rule bg-muted hover:bg-secondary',
             )}
           >
             <span
               className={cn(
                 'inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
-                automation.isEnabled ? 'border-success bg-success' : 'border-border bg-card',
+                automation.isEnabled ? 'border-success bg-success' : 'border-rule bg-card',
               )}
               aria-hidden="true"
             >
@@ -251,7 +252,7 @@ function AutomationCard({
             </span>
             <span
               className={cn(
-                'text-[11px] font-bold uppercase tracking-wide',
+                'text-label font-semibold uppercase tracking-label',
                 automation.isEnabled ? 'text-success' : 'text-muted-foreground',
               )}
             >
@@ -277,7 +278,7 @@ function AutomationCard({
       {/* The flow at a glance — the same chips and colours as the editor canvas. */}
       <FlowStrip nodes={displayNodes} templateName={templateName} className="mt-4" />
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
           <Activity size={12} aria-hidden="true" />
           {automation.runCount ?? 0} run{(automation.runCount ?? 0) === 1 ? '' : 's'}
@@ -297,7 +298,7 @@ function AutomationCard({
       </div>
 
       {missingTemplates.length > 0 && (
-        <p className="mt-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-2.5 text-xs text-destructive">
+        <p className="mt-3 flex items-start gap-2 rounded-sm border border-destructive/30 bg-destructive/5 p-2.5 text-xs text-destructive">
           <TriangleAlert size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>
             {missingTemplates.length === 1 ? 'One email template has' : `${missingTemplates.length} email templates have`} been deleted,

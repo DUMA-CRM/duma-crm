@@ -13,6 +13,7 @@ export function PointsForm({ customer, onClose, onSaved }: { customer: Customer;
   const [reason, setReason] = useState('');
   const deltaNum = Number.parseInt(delta, 10) || 0;
   const preview = Math.max(0, customer.pointsBalance + deltaNum);
+  const wouldGoBelowZero = customer.pointsBalance + deltaNum < 0;
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => adjustPoints(customer.id, deltaNum, reason || undefined),
@@ -21,28 +22,32 @@ export function PointsForm({ customer, onClose, onSaved }: { customer: Customer;
       onClose();
       toast('success', 'Points balance updated.');
     },
-    onError: (err) => toast('error', err.message || 'Failed to adjust points.'),
+    onError: (err) => toast('error', err.message || 'The points balance wasn’t updated. Review the adjustment and try again.'),
   });
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (deltaNum !== 0) mutate();
+        if (deltaNum !== 0 && !wouldGoBelowZero) mutate();
       }}
       className="space-y-4"
     >
-      <div className="flex items-center justify-between px-3 py-2 bg-muted rounded-lg">
-        <span className="text-sm text-muted-foreground">Current balance</span>
-        <span className="text-sm font-semibold text-foreground">{customer.pointsBalance.toLocaleString()} pts</span>
+      <div className="rounded-md bg-band/55 p-4">
+        <span className="text-xs font-medium text-muted-foreground">Current balance</span>
+        <p data-figure className="mt-1 text-2xl font-semibold text-foreground">
+          {customer.pointsBalance.toLocaleString()} <span className="text-sm font-medium text-muted-foreground">points</span>
+        </p>
       </div>
       <Input
-        label="Adjustment (+ or -)"
+        label="Points to add or remove"
         value={delta}
         onChange={(e) => setDelta(e.target.value)}
         required
         pattern="^-?\d+"
+        inputMode="numeric"
         placeholder="+100 or -50"
+        hint="Use a minus sign to remove points."
         autoFocus
       />
       <Input
@@ -52,16 +57,23 @@ export function PointsForm({ customer, onClose, onSaved }: { customer: Customer;
         placeholder="Birthday bonus, correction…"
       />
       {deltaNum !== 0 && (
-        <div className="flex items-center justify-between px-3 py-2 bg-primary/5 border border-primary/20 rounded-lg">
+        <div className="flex items-center justify-between rounded-md border border-stock/30 bg-stock/8 px-3 py-3">
           <span className="text-sm text-muted-foreground">New balance</span>
-          <span className="text-sm font-semibold text-foreground">{preview.toLocaleString()} pts</span>
+          <span data-figure className="text-sm font-semibold text-foreground">
+            {preview.toLocaleString()} pts
+          </span>
         </div>
       )}
-      <div className="flex gap-2 pt-1">
+      {wouldGoBelowZero && (
+        <p role="alert" className="rounded-md bg-exception/8 px-3 py-2 text-sm text-exception">
+          The balance cannot go below zero.
+        </p>
+      )}
+      <div className="flex gap-2 border-t border-rule/55 pt-4">
         <Button variant="outline" onClick={onClose} disabled={isPending} className="flex-1">
           Cancel
         </Button>
-        <Button type="submit" disabled={isPending || deltaNum === 0} className="flex-1">
+        <Button type="submit" disabled={isPending || deltaNum === 0 || wouldGoBelowZero} className="flex-1">
           {isPending ? 'Saving…' : 'Confirm'}
         </Button>
       </div>

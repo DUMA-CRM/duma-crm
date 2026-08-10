@@ -20,13 +20,14 @@ export function CartRow({ cartItem, onQty, currency }: CartRowProps) {
   const chips = cartItem.selected.map((opt) => opt.label);
 
   return (
-    <div className="flex items-center gap-2.5 p-2.5 border border-border rounded-xl bg-card">
-      {/* Thumbnail */}
-      <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
+    <div className="flex items-center gap-2.5 p-2.5 border border-rule rounded-sm bg-card">
+      {/* Thumbnail. The name sits immediately beside it, so the image is
+          decorative and an empty alt is correct rather than lazy. */}
+      <div className="w-12 h-12 rounded-sm overflow-hidden bg-band shrink-0">
         {cartItem.item.image ? (
-          <Image width={48} height={48} src={cartItem.item.image} alt={cartItem.item.name} className="w-full h-full object-cover" />
+          <Image width={48} height={48} src={cartItem.item.image} alt="" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-base font-bold text-muted-foreground opacity-30 select-none">
+          <div className="w-full h-full flex items-center justify-center text-base font-semibold text-muted-foreground select-none">
             {cartItem.item.name[0]?.toUpperCase()}
           </div>
         )}
@@ -34,8 +35,10 @@ export function CartRow({ cartItem, onQty, currency }: CartRowProps) {
 
       {/* Name + price + chips */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground leading-snug truncate">{cartItem.item.name}</p>
-        <p className="text-sm font-bold text-primary tabular-nums mt-0.5">{formatPrice(total, currency)}</p>
+        <p className="text-sm font-medium text-foreground leading-snug truncate">{cartItem.item.name}</p>
+        <p data-figure className="text-sm font-semibold text-foreground mt-0.5">
+          {formatPrice(total, currency)}
+        </p>
         {chips.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
             {chips.map((chip) => (
@@ -47,19 +50,21 @@ export function CartRow({ cartItem, onQty, currency }: CartRowProps) {
         )}
       </div>
 
-      {/* Qty controls — size-11 (44px) keeps them comfortably tappable on tablets */}
+      {/* Qty controls. `icon-touch` is the 44px floor for touch-first surfaces —
+          the size now carries the intent instead of a one-off className. */}
       <div className="flex items-center gap-0.5 shrink-0">
         <Button
           onClick={() => onQty(cartItem.cartId, -1)}
           aria-label={isLastQty ? 'Remove item' : 'Decrease quantity'}
-          size="icon"
-          variant={isLastQty ? 'default' : 'outline'}
-          className="size-11"
+          size="icon-touch"
+          variant={isLastQty ? 'destructive' : 'outline'}
         >
           {isLastQty ? <Trash2 size={16} /> : <Minus size={16} />}
         </Button>
-        <span className="w-8 text-center text-sm font-bold tabular-nums select-none text-foreground">{cartItem.quantity}</span>
-        <Button onClick={() => onQty(cartItem.cartId, 1)} aria-label="Increase quantity" size="icon" variant="outline" className="size-11">
+        <span data-figure className="w-8 text-center text-sm font-semibold select-none text-foreground">
+          {cartItem.quantity}
+        </span>
+        <Button onClick={() => onQty(cartItem.cartId, 1)} aria-label="Increase quantity" size="icon-touch" variant="outline">
           <Plus size={16} />
         </Button>
       </div>

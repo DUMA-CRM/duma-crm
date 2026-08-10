@@ -1,0 +1,44 @@
+{
+  "title": "Choose the Service Board composition",
+  "question": "The visual world is fixed. Choose the information architecture that should become DUMA’s new app shell, or add a steer to combine parts.",
+  "options": [
+    {
+      "id": "daily-board",
+      "label": "Daily Board",
+      "kicker": "COMPOSITION A",
+      "lineage": "one dominant shift focus with supporting modules",
+      "thesis": "The day’s most important work leads; status, domain summaries, and the operational table support it in descending priority.",
+      "palette": ["#F6F3EC", "#2F6B4F", "#E8875B", "#6577D8", "#E6B84B"],
+      "materials": ["powder-coated board", "magnetic edge labels", "soft task notes"],
+      "viewport": "A large shift-focus region owns the first view, followed by compact domain modules and a grounded working table.",
+      "risk": "The dominant focus panel works best for managers; specialist pages must still collapse it cleanly.",
+      "sketch": ".impeccable/mocks/duma-service-board-a.webp"
+    },
+    {
+      "id": "role-canvas",
+      "label": "Role Canvas",
+      "kicker": "COMPOSITION B",
+      "lineage": "attached role tabs with a task-led asymmetric canvas",
+      "thesis": "A visible role layer changes the workspace without hiding core work, pairing a primary task column with live operational context.",
+      "palette": ["#F6F3EC", "#2F6B4F", "#E8875B", "#6577D8", "#E6B84B"],
+      "materials": ["laminated role labels", "warm work surfaces", "colour-owned context panels"],
+      "viewport": "Role tabs sit directly above a shift checklist and orders table, while kitchen, stock, and team context stays visible beside them.",
+      "risk": "Persistent role tabs could duplicate navigation unless their scope is limited to genuinely different workspaces.",
+      "sketch": ".impeccable/mocks/duma-service-board-b.webp"
+    },
+    {
+      "id": "shift-lanes",
+      "label": "Shift Lanes",
+      "kicker": "COMPOSITION C",
+      "lineage": "time-based service lanes with a contextual workbench",
+      "thesis": "Orders, kitchen, stock, and team are read together against the same shift timeline, making dependencies visible before they become problems.",
+      "palette": ["#F6F3EC", "#2F6B4F", "#E8875B", "#6577D8", "#E6B84B"],
+      "materials": ["colour-coded service passes", "magnetic timeline blocks", "context workbench"],
+      "viewport": "A shared shift timeline dominates the page, with the selected task and attention list held in a stable right workbench.",
+      "risk": "Excellent for the dashboard and rota, but too timeline-specific to become the literal layout of every module.",
+      "sketch": ".impeccable/mocks/duma-service-board-c.webp"
+    }
+  ],
+  "reroll": true,
+  "steer": true
+}

@@ -51,7 +51,7 @@ export function CheckoutFlow({
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       <div className="flex items-center justify-between px-6 py-4">
         <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Checkout</p>
-        <Button variant="ghost" size="icon" onClick={onCancel} disabled={isPaying}>
+        <Button variant="ghost" size="icon-touch" onClick={onCancel} disabled={isPaying} aria-label="Cancel checkout">
           <X />
         </Button>
       </div>
@@ -67,7 +67,7 @@ export function CheckoutFlow({
                 variant={m.provider === 'cash' ? 'outline' : 'default'}
                 onClick={() => onSelectMethod(m)}
                 disabled={isPaying}
-                className="h-32 flex-col gap-2 rounded-2xl text-base"
+                className="h-32 flex-col gap-2 rounded-sm text-base"
               >
                 {isPaying ? <Loader2 className="animate-spin" /> : m.provider === 'cash' ? <Banknote /> : <CreditCard />}
                 {m.displayName}
@@ -104,7 +104,7 @@ export function CheckoutFlow({
       {step === 'confirm' && (
         <div className="flex flex-1 flex-col items-center justify-center">
           <div
-            className={`flex size-20 items-center justify-center rounded-full ${queued ? 'bg-warning/15 text-warning' : 'bg-success/15 text-success'}`}
+            className={`flex size-20 items-center justify-center rounded-full ${queued ? 'bg-warning/6 text-measured' : 'bg-success/6 text-momentum'}`}
           >
             {queued ? <CloudUpload size={40} /> : <Check size={40} />}
           </div>

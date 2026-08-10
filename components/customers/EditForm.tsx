@@ -33,7 +33,7 @@ export function EditForm({ customer, onClose, onSaved }: { customer: Customer; o
       onClose();
       toast('success', 'Customer updated.');
     },
-    onError: (err) => toast('error', err.message || 'Failed to save the customer.'),
+    onError: (err) => toast('error', err.message || 'The customer record wasn’t saved. Review the details and try again.'),
   });
 
   return (
@@ -42,18 +42,36 @@ export function EditForm({ customer, onClose, onSaved }: { customer: Customer; o
         e.preventDefault();
         mutate();
       }}
-      className="space-y-4"
+      className="space-y-5"
     >
-      <div className="grid grid-cols-2 gap-2">
-        <Input label="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoFocus />
-        <Input label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Input
+          label="First name"
+          autoComplete="given-name"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          required
+          autoFocus
+        />
+        <Input label="Last name" autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
       </div>
-      <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-      <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="optional" />
-      <Input label="Date of birth" type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
-      {/* TODO: Replace with a proper rich text editor or Textarea */}
-      <Input label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Internal notes…" />
-      <div className="flex gap-2">
+      <Input label="Phone" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+      <Input label="Email (optional)" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Input label="Date of birth (optional)" type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+      <div>
+        <label htmlFor="customer-notes" className="mb-1.5 block text-xs font-semibold text-foreground">
+          Internal notes (optional)
+        </label>
+        <textarea
+          id="customer-notes"
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          maxLength={2000}
+          placeholder="Preferences or context the team should know"
+          className="min-h-28 w-full rounded-md border border-input bg-field p-3 text-sm outline-none transition-[border-color,outline-color] focus:border-primary focus:outline-2 focus:outline-primary"
+        />
+      </div>
+      <div className="flex gap-2 border-t border-rule/55 pt-4">
         <Button variant="outline" size="lg" onClick={onClose} disabled={isPending} className="flex-1">
           Cancel
         </Button>

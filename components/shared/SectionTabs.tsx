@@ -32,8 +32,10 @@ export function SectionTabs<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <nav className="border-b border-border bg-card px-4 md:px-8 overflow-x-auto shrink-0" aria-label={ariaLabel}>
-      <div className="flex min-w-max" role="tablist">
+    // px matches the app header's px-3 md:px-6 so tabs, masthead and body all
+    // sit on one left edge.
+    <nav className="border-b border-rule/70 bg-band/70 px-3 pt-2 md:px-6 overflow-x-auto shrink-0" aria-label={ariaLabel}>
+      <div className="flex min-w-max gap-1" role="tablist">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = value === tab.value;
@@ -45,8 +47,10 @@ export function SectionTabs<T extends string>({
               aria-selected={active}
               onClick={() => onChange(tab.value)}
               className={cn(
-                'h-11 px-3 md:px-4 border-b-2 flex items-center gap-2 text-sm font-medium transition-colors',
-                active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
+                'h-10 px-3 md:px-4 -mb-px rounded-t-md border border-transparent flex items-center gap-2 text-sm font-semibold transition-colors',
+                active
+                  ? 'border-rule/70 border-b-card bg-card text-foreground'
+                  : 'text-muted-foreground hover:bg-card/45 hover:text-foreground',
               )}
             >
               {Icon && <Icon size={15} aria-hidden="true" />}
@@ -56,11 +60,11 @@ export function SectionTabs<T extends string>({
                   title={tab.countLabel}
                   aria-label={tab.countLabel}
                   className={cn(
-                    'h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-[11px] font-bold tabular-nums',
+                    'h-5 min-w-5 px-1.5 rounded-sm flex items-center justify-center text-label font-semibold tabular-nums',
                     tab.countTone === 'danger'
-                      ? 'bg-destructive/10 text-destructive'
+                      ? 'bg-destructive/6 text-destructive'
                       : active
-                        ? 'bg-primary/10 text-primary'
+                        ? 'bg-band text-primary'
                         : 'bg-muted text-muted-foreground',
                   )}
                 >

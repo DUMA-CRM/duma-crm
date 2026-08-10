@@ -86,11 +86,11 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
         <div className="flex flex-col gap-2 overflow-y-auto pr-1">
           {groups.map((group) => (
             <div key={group.category}>
-              <p className="px-1 pb-0.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{group.category}</p>
+              <p className="px-1 pb-0.5 text-micro font-semibold text-muted-foreground uppercase tracking-micro">{group.category}</p>
               {group.items.map((m) => {
                 const isAttached = attachedIds.has(m.id);
                 return (
-                  <div key={m.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted transition-colors">
+                  <div key={m.id} className="flex items-center gap-2.5 px-3 py-2 rounded-sm hover:bg-muted transition-colors">
                     <label className="flex items-center gap-2.5 cursor-pointer select-none flex-1 min-w-0">
                       <input
                         type="checkbox"
@@ -104,7 +104,7 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
                     </label>
                     {isAttached && (
                       <label
-                        className="flex items-center gap-1.5 cursor-pointer select-none text-[11px] font-medium text-muted-foreground shrink-0"
+                        className="flex items-center gap-1.5 cursor-pointer select-none text-label font-medium text-muted-foreground shrink-0"
                         title="Pre-select this as the default variant in the POS"
                       >
                         <input
@@ -214,7 +214,7 @@ function MenuItemForm({
       {/* Two cards side by side: a narrower item-details card and a wider
           modifiers card — the modifier list is the denser of the two. */}
       <div className="flex gap-4 items-stretch">
-        <section className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm flex flex-col max-w-md">
+        <section className="bg-card border border-rule rounded-sm overflow-hidden shadow-sm flex flex-col max-w-md">
           {/* Image hero — live preview doubles as the card banner; grows to fill the card height */}
           <div className="relative flex-1 min-h-52 bg-linear-to-br from-primary/15 via-surface-offset to-surface-offset">
             {imageUrl.trim() && !imageBroken ? (
@@ -223,12 +223,12 @@ function MenuItemForm({
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-muted-foreground/40 select-none">
                 <UtensilsCrossed size={30} aria-hidden="true" />
-                <span className="text-[11px] font-semibold">{imageBroken ? 'Image didn’t load' : 'No image yet'}</span>
+                <span className="text-label font-semibold">{imageBroken ? 'Image didn’t load' : 'No image yet'}</span>
               </div>
             )}
             <span
               className={cn(
-                'absolute top-3 left-3 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm',
+                'absolute top-3 left-3 px-2.5 py-1 rounded-sm text-micro font-semibold uppercase tracking-micro backdrop-blur-sm',
                 CATEGORY_COLORS[category],
               )}
             >
@@ -242,7 +242,7 @@ function MenuItemForm({
           <div className="p-4 space-y-4 shrink-0">
             <div className="flex items-center gap-2">
               <UtensilsCrossed size={13} className="text-primary" aria-hidden="true" />
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Item Details</p>
+              <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Item Details</p>
             </div>
 
             <div>
@@ -305,13 +305,13 @@ function MenuItemForm({
                 placeholder="https://…"
                 className={inputClass}
               />
-              <p className="mt-1.5 text-[11px] text-muted-foreground">Paste a link — the preview above updates as you type.</p>
+              <p className="mt-1.5 text-label text-muted-foreground">Paste a link — the preview above updates as you type.</p>
             </div>
           </div>
         </section>
 
-        <section className="bg-surface-offset/40 border border-border rounded-xl p-4 flex-1 w-full">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Modifiers</p>
+        <section className="bg-band border border-rule rounded-sm p-4 flex-1 w-full">
+          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-3">Modifiers</p>
           {item ? (
             <ItemModifiersEditor menuItemId={item.id} tenantId={item.tenantId} />
           ) : (
@@ -322,9 +322,9 @@ function MenuItemForm({
 
       {/* Recipe / ingredients — drives usage recording, forecasts and COGS/margin */}
       {item && (
-        <section className="bg-surface-offset/40 border border-border rounded-xl p-4">
+        <section className="bg-band border border-rule rounded-sm p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Recipe &amp; Cost</p>
+            <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Recipe &amp; Cost</p>
             <Button
               type="button"
               size="sm"
@@ -375,7 +375,7 @@ export function MenuItemEditorPage({
       dirty={dirty && !pending}
       discardMessage="This menu item has changes that have not been saved. Leaving now discards them."
       actions={
-        <Button type="submit" form={MENU_ITEM_FORM_ID} disabled={pending} className="h-11 px-6 gap-2">
+        <Button type="submit" form={MENU_ITEM_FORM_ID} disabled={pending} className="h-9 px-5 gap-2">
           {pending && <Loader2 size={15} className="animate-spin" />}
           {pending ? 'Saving…' : item ? 'Update' : 'Create'}
         </Button>
@@ -427,14 +427,14 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
       setDeleteItem(null);
       toast('success', 'Menu item deleted.');
     },
-    onError: (err) => toast('error', err.message || 'Failed to delete the menu item.'),
+    onError: (err) => toast('error', err.message || 'The menu item wasn’t deleted. Try again.'),
   });
 
   // One-tap availability from the table row.
   const availabilityMutation = useMutation({
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => updateMenuItem(id, { isAvailable }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['menu-items'] }),
-    onError: (err) => toast('error', err.message || 'Failed to update availability.'),
+    onError: (err) => toast('error', err.message || 'Availability wasn’t updated. Try again.'),
   });
 
   return (
@@ -461,21 +461,21 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
         </div>
       )}
 
-      <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
+      <div className="min-h-0 bg-card border border-rule rounded-sm overflow-hidden flex flex-col">
         <div className="flex-1 overflow-auto">
           <DataTable className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
-              <tr className="border-b border-border bg-muted">
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <tr className="border-b border-rule bg-muted">
+                <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Item
                 </th>
-                <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <th className="hidden md:table-cell px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Category
                 </th>
-                <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <th className="px-3 md:px-5 py-3.5 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Price
                 </th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Status
                 </th>
                 <th className="px-3 md:px-5 py-3.5 pr-4 md:pr-6 w-16" />
@@ -484,7 +484,7 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
             <tbody>
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
-                  <tr key={i} className="border-b border-border/50">
+                  <tr key={i} className="border-b border-rule">
                     {Array.from({ length: 5 }).map((_, j) => (
                       <td key={j} className={cn('px-3 md:px-5 py-4', j === 1 && 'hidden md:table-cell')}>
                         <div className="h-4 bg-muted rounded animate-pulse" style={{ width: `${45 + ((i * 13 + j * 17) % 40)}%` }} />
@@ -501,7 +501,7 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-24">
-                    <EmptyState icon={UtensilsCrossed} title="No menu items" description='Click "New Item" to add your first product.' />
+                    <EmptyState icon={UtensilsCrossed} title="No menu items yet" description="Add a menu item to start building the menu." />
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
@@ -514,16 +514,16 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
                 filtered.map((item) => (
                   <tr
                     key={item.id}
-                    className="group border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors cursor-pointer"
+                    className="group border-b border-rule last:border-0 hover:bg-band transition-colors cursor-pointer"
                     onClick={() => onEdit(item)}
                   >
                     <td className="px-3 md:px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         {item.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={item.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 bg-muted" />
+                          <img src={item.imageUrl} alt="" className="w-10 h-10 rounded-sm object-cover shrink-0 bg-muted" />
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-sm bg-muted flex items-center justify-center shrink-0">
                             <UtensilsCrossed size={16} className="text-muted-foreground" />
                           </div>
                         )}
@@ -536,7 +536,7 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
                     <td className="hidden md:table-cell px-5 py-3.5">
                       <span
                         className={cn(
-                          'inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wide',
+                          'inline-flex items-center px-2.5 py-1 rounded-sm text-label font-semibold uppercase tracking-label',
                           CATEGORY_COLORS[item.category],
                         )}
                       >
@@ -555,7 +555,7 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
                       {/* Always visible — hover-reveal buttons don't exist on touch screens */}
                       <button
                         onClick={() => setDeleteItem(item)}
-                        className="w-9 h-9 inline-flex items-center justify-center rounded-md text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        className="w-9 h-9 inline-flex items-center justify-center rounded-sm text-muted-foreground/60 hover:bg-band hover:text-destructive transition-colors"
                         aria-label={`Delete ${item.name}`}
                       >
                         <Trash2 size={15} />
@@ -568,7 +568,7 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
           </DataTable>
         </div>
         {items.length > 0 && (
-          <div className="px-5 py-3 border-t border-border shrink-0">
+          <div className="px-5 py-3 border-t border-rule shrink-0">
             <p className="text-xs text-muted-foreground">
               {filtered.length !== items.length && `${filtered.length} of `}
               {items.length} {items.length === 1 ? 'item' : 'items'} · {items.filter((i) => i.isAvailable).length} available
@@ -579,12 +579,13 @@ export function MenuItemsPanel({ onEdit }: { onEdit: (item: MenuItem) => void })
 
       {deleteItem && (
         <ConfirmModal
-          title="Delete Menu Item"
+          title="Delete this menu item?"
           message={
             <>
-              Delete <span className="font-semibold text-foreground">{deleteItem.name}</span>? This cannot be undone.
+              <span className="font-semibold text-foreground">{deleteItem.name}</span> will be removed from the menu. This cannot be undone.
             </>
           }
+          confirmLabel="Delete menu item"
           isPending={removeMutation.isPending}
           onConfirm={() => removeMutation.mutate(deleteItem.id)}
           onClose={() => setDeleteItem(null)}

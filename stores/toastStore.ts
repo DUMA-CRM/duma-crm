@@ -16,7 +16,9 @@ export const useToastStore = create<ToastStore>((set) => ({
     set((s) => {
       // Drop exact duplicates already on screen (e.g. one global error per burst).
       if (s.toasts.some((t) => t.type === type && t.message === message)) return s;
-      return { toasts: [...s.toasts, { id: ++nextId, type, message }] };
+      // A failing page can fan out into many query failures. Keep the newest
+      // four messages so the notification layer never obscures the workspace.
+      return { toasts: [...s.toasts, { id: ++nextId, type, message }].slice(-4) };
     }),
   dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 }));

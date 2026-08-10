@@ -84,10 +84,10 @@ function Hint({ tone, children }: { tone: 'success' | 'warning' | 'muted'; child
   return (
     <p
       className={cn(
-        'mt-2 rounded-lg border px-3 py-2 text-xs font-medium',
-        tone === 'success' && 'border-success/20 bg-success/10 text-success',
-        tone === 'warning' && 'border-warning/20 bg-warning/10 text-warning',
-        tone === 'muted' && 'border-border bg-surface-offset text-muted-foreground',
+        'mt-2 rounded-sm border px-3 py-2 text-xs font-medium',
+        tone === 'success' && 'border-success/20 bg-success/6 text-success',
+        tone === 'warning' && 'border-warning/20 bg-warning/6 text-warning',
+        tone === 'muted' && 'border-rule bg-band text-muted-foreground',
       )}
     >
       {children}
@@ -97,7 +97,7 @@ function Hint({ tone, children }: { tone: 'success' | 'warning' | 'muted'; child
 
 function Card({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface-offset/40 p-4">
+    <section className="rounded-sm border border-rule bg-band p-4">
       <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
       {children}
     </section>
@@ -143,7 +143,7 @@ function ClockEntryRow({ entry, canEdit, onSaved }: { entry: Shift; canEdit: boo
 
   if (!canEdit) {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2 text-sm">
+      <div className="flex items-center justify-between rounded-sm border border-rule bg-card px-3 py-2 text-sm">
         <span className="tabular-nums text-foreground">
           {fmtTime(entry.clockedIn)} – {entry.clockedOut ? fmtTime(entry.clockedOut) : '—:—'}
         </span>
@@ -157,7 +157,7 @@ function ClockEntryRow({ entry, canEdit, onSaved }: { entry: Shift; canEdit: boo
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2">
+    <div className="rounded-sm border border-rule bg-card px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
         <input type="time" value={inTime} onChange={(e) => setInTime(e.target.value)} aria-label="Clocked in" className={cn(inp, 'w-28')} />
         <span className="text-muted-foreground">–</span>
@@ -433,7 +433,7 @@ export function ShiftRecordDrawer({
           <Field icon={UsersRound} label="Assigned worker">
             <div className="flex items-center gap-2">
               {assigned && (
-                <span className="shrink-0 *:size-9 *:rounded-lg">
+                <span className="shrink-0 *:size-9 *:rounded-sm">
                   <Avatar name={assigned.name} email={assigned.email} />
                 </span>
               )}
@@ -597,10 +597,10 @@ export function ShiftRecordDrawer({
                       onClick={() => toggleDay(day)}
                       aria-pressed={active}
                       className={cn(
-                        'h-8 rounded-lg border px-2.5 text-xs font-semibold transition-colors',
+                        'h-8 rounded-sm border px-2.5 text-xs font-semibold transition-colors',
                         active
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border bg-background text-muted-foreground hover:text-foreground',
+                          ? 'border-primary bg-band text-primary'
+                          : 'border-rule bg-background text-muted-foreground hover:text-foreground',
                       )}
                     >
                       {label}
@@ -660,7 +660,7 @@ export function ShiftRecordDrawer({
                     <dd className="tabular-nums text-foreground">{occurrences.length}</dd>
                   </div>
                 )}
-                <div className="flex items-center justify-between gap-3 border-t border-border pt-2">
+                <div className="flex items-center justify-between gap-3 border-t border-rule pt-2">
                   <dt className="font-semibold text-foreground">Estimated total</dt>
                   <dd className="text-base font-semibold tabular-nums text-foreground">{fmtMoney(estimatedCost)}</dd>
                 </div>
@@ -687,6 +687,7 @@ export function ShiftRecordDrawer({
         <ConfirmModal
           title="Delete this shift?"
           message="The rota entry is removed for good. Clocked time already recorded against it stays in the timesheet."
+          confirmLabel="Delete shift"
           isPending={remove.isPending}
           onConfirm={() => remove.mutate()}
           onClose={() => setConfirmDelete(false)}

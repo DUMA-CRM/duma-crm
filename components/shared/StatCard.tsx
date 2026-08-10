@@ -1,10 +1,11 @@
 'use client';
 
-import { ArrowDownRight, ArrowUpRight, TrendingDown, TrendingUp } from '@/components/icons';
-import type { IconComponent } from '@/components/icons';
 import Link from 'next/link';
 import { useId, useRef, useState } from 'react';
 import type { ComponentProps, MouseEvent, ReactNode } from 'react';
+
+import { ArrowDownRight, ArrowUpRight, TrendingDown, TrendingUp } from '@/components/icons';
+import type { IconComponent } from '@/components/icons';
 
 import { cn } from '@/lib/utils/cn';
 import { percentageChange } from '@/lib/utils/dashboard';
@@ -19,15 +20,19 @@ import { percentageChange } from '@/lib/utils/dashboard';
 // ── Accents ───────────────────────────────────────────────────────
 export type StatAccent = 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'purple' | 'neutral';
 
-/** Chip behind a leading icon. */
+/**
+ * Chip behind a leading icon: filled with the accent, edged in the same colour,
+ * with the icon knocked out in the ground — warm white by day, charcoal at
+ * night, so the glyph reads against a saturated fill in either theme.
+ */
 const ACCENT_CHIP: Record<StatAccent, string> = {
-  primary: 'bg-primary/10 text-primary',
-  success: 'bg-success/10 text-success',
-  warning: 'bg-warning/10 text-warning',
-  danger: 'bg-destructive/10 text-destructive',
-  info: 'bg-info/10 text-info',
-  purple: 'bg-chart-5/10 text-chart-5',
-  neutral: 'bg-surface-offset text-muted-foreground',
+  primary: 'border border-foreground bg-foreground text-background',
+  success: 'border border-momentum bg-momentum text-background',
+  warning: 'border border-measured bg-measured text-background',
+  danger: 'border border-exception bg-exception text-background',
+  info: 'border border-reference bg-reference text-background',
+  purple: 'border border-chart-5 bg-chart-5 text-background',
+  neutral: 'border border-muted-foreground bg-muted-foreground text-background',
 };
 
 /** `currentColor` for the sparkline / bars / ring stroke. */
@@ -65,9 +70,9 @@ export interface StatDelta {
 }
 
 const DELTA_TONE: Record<StatTone, { chip: string; text: string }> = {
-  positive: { chip: 'border-success/25 bg-success/10 text-success', text: 'text-success' },
-  negative: { chip: 'border-destructive/25 bg-destructive/10 text-destructive', text: 'text-destructive' },
-  neutral: { chip: 'border-border bg-surface-offset text-muted-foreground', text: 'text-muted-foreground' },
+  positive: { chip: 'border-momentum/60 bg-momentum/6 text-momentum', text: 'text-momentum' },
+  negative: { chip: 'border-exception/60 bg-exception/6 text-exception', text: 'text-exception' },
+  neutral: { chip: 'border-rule text-muted-foreground', text: 'text-muted-foreground' },
 };
 
 function resolveDelta({ value, trend, tone, lowerIsBetter }: StatDelta) {
@@ -75,8 +80,7 @@ function resolveDelta({ value, trend, tone, lowerIsBetter }: StatDelta) {
   const resolvedTrend: StatTrend = trend ?? (numeric === null || numeric === 0 ? 'flat' : numeric > 0 ? 'up' : 'down');
   const good = lowerIsBetter ? 'down' : 'up';
   const bad = lowerIsBetter ? 'up' : 'down';
-  const resolvedTone: StatTone =
-    tone ?? (resolvedTrend === good ? 'positive' : resolvedTrend === bad ? 'negative' : 'neutral');
+  const resolvedTone: StatTone = tone ?? (resolvedTrend === good ? 'positive' : resolvedTrend === bad ? 'negative' : 'neutral');
   const text = numeric === null ? value : `${numeric > 0 ? '+' : ''}${Number(numeric.toFixed(1))}%`;
   return { trend: resolvedTrend, tone: resolvedTone, text };
 }
@@ -119,32 +123,20 @@ export function comparisonDelta(
  * The delta pill from the design: a small rounded-square trend glyph followed
  * by the change and an optional comparison label.
  */
-export function DeltaBadge({
-  delta,
-  size = 'md',
-  className,
-}: {
-  delta: StatDelta;
-  size?: 'sm' | 'md';
-  className?: string;
-}) {
+export function DeltaBadge({ delta, size = 'md', className }: { delta: StatDelta; size?: 'sm' | 'md'; className?: string }) {
   const { trend, tone, text } = resolveDelta(delta);
   const Glyph = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : null;
   const sm = size === 'sm';
 
   return (
-    <span className={cn('flex items-center gap-1.5 leading-none', sm ? 'text-[11px]' : 'text-[13px]', className)}>
+    <span className={cn('flex items-center gap-1.5 leading-none', sm ? 'text-label' : 'text-sm', className)}>
       <span
-        className={cn(
-          'flex shrink-0 items-center justify-center rounded-[6px] border',
-          DELTA_TONE[tone].chip,
-          sm ? 'size-4' : 'size-4.5',
-        )}
+        className={cn('flex shrink-0 items-center justify-center rounded-sm border', DELTA_TONE[tone].chip, sm ? 'size-4' : 'size-4.5')}
         aria-hidden="true"
       >
         {Glyph ? <Glyph size={sm ? 9 : 11} strokeWidth={2.75} /> : <span className="h-px w-2 rounded-full bg-current" />}
       </span>
-      <span className={cn('font-semibold tabular-nums', DELTA_TONE[tone].text)}>{text}</span>
+      <span className={cn('font-semibold tabular-nums font-mono', DELTA_TONE[tone].text)}>{text}</span>
       {delta.label && <span className="truncate font-normal text-muted-foreground">{delta.label}</span>}
     </span>
   );
@@ -223,7 +215,7 @@ export function StatRing({
       className={cn('shrink-0 -rotate-90', ACCENT_INK[accent], className)}
       aria-hidden="true"
     >
-      <circle cx="20" cy="20" r={RING_R} fill="none" strokeWidth="5" className="stroke-surface-offset" />
+      <circle cx="20" cy="20" r={RING_R} fill="none" strokeWidth="5" className="stroke-band" />
       <circle
         cx="20"
         cy="20"
@@ -279,8 +271,7 @@ export interface StatCardProps {
   valueClassName?: string;
 }
 
-const CARD_BASE =
-  'group relative flex flex-col rounded-2xl border border-border bg-card shadow-sm text-left shadow-sm';
+const CARD_BASE = 'group relative flex flex-col rounded-sm border border-rule bg-card text-left';
 
 // ── Component ─────────────────────────────────────────────────────
 export function StatCard({
@@ -315,8 +306,7 @@ export function StatCard({
   // Callers pass series straight from a query, so an empty period must not
   // leave a blank chart slot eating half the card.
   const visual =
-    (visualProp?.type === 'sparkline' && visualProp.points.length < 2) ||
-    (visualProp?.type === 'bars' && visualProp.values.length === 0)
+    (visualProp?.type === 'sparkline' && visualProp.points.length < 2) || (visualProp?.type === 'bars' && visualProp.values.length === 0)
       ? undefined
       : visualProp;
 
@@ -328,8 +318,7 @@ export function StatCard({
   const series = visual?.type === 'sparkline' ? visual.points : visual?.type === 'bars' ? visual.values : null;
   const active = series && hovered !== null ? hovered : null;
   const displayValue = active !== null && visual && 'labels' in visual ? (visual.labels?.[active] ?? String(series![active])) : value;
-  const displayLabel =
-    active !== null && visual && 'titleLabels' in visual ? (visual.titleLabels?.[active] ?? label) : label;
+  const displayLabel = active !== null && visual && 'titleLabels' in visual ? (visual.titleLabels?.[active] ?? label) : label;
 
   function handleSparkMove(event: MouseEvent<SVGSVGElement>) {
     const svg = svgRef.current;
@@ -346,13 +335,7 @@ export function StatCard({
   const leading =
     media ??
     (Icon ? (
-      <span
-        className={cn(
-          'flex shrink-0 items-center justify-center rounded-xl',
-          ACCENT_CHIP[accent],
-          sm ? 'size-8' : 'size-10',
-        )}
-      >
+      <span className={cn('flex shrink-0 items-center justify-center rounded-sm', ACCENT_CHIP[accent], sm ? 'size-8' : 'size-10')}>
         <Icon size={sm ? 15 : 18} strokeWidth={2} />
       </span>
     ) : null);
@@ -366,15 +349,14 @@ export function StatCard({
     const area = line ? `${line} L${SPARK_W},${SPARK_H} L0,${SPARK_H} Z` : '';
     const markerIndex = active ?? coords.length - 2;
     const marker = coords[markerIndex] ?? coords[coords.length - 1];
-    const markerText =
-      active !== null ? (visual.labels?.[active] ?? String(visual.points[active])) : (visual.marker ?? null);
+    const markerText = active !== null ? (visual.labels?.[active] ?? String(visual.points[active])) : (visual.marker ?? null);
     const full = visualPlacement === 'below';
 
     visualNode = (
       <div className={cn('relative', full ? 'w-full' : 'w-[46%] max-w-43 shrink-0')}>
         {markerText && marker && (
           <span
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-full pb-1 text-[11px] font-semibold tabular-nums text-foreground"
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-full pb-1 text-label font-semibold tabular-nums font-mono text-foreground"
             style={{
               // Clamped so the label never spills past the card edge.
               left: `${Math.min(92, Math.max(8, (marker.x / SPARK_W) * 100))}%`,
@@ -423,7 +405,15 @@ export function StatCard({
             vectorEffect="non-scaling-stroke"
           />
           {marker && (
-            <circle cx={marker.x} cy={marker.y} r="3" fill="currentColor" stroke="var(--card)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            <circle
+              cx={marker.x}
+              cy={marker.y}
+              r="3"
+              fill="currentColor"
+              stroke="var(--card)"
+              strokeWidth="2"
+              vectorEffect="non-scaling-stroke"
+            />
           )}
         </svg>
       </div>
@@ -443,8 +433,8 @@ export function StatCard({
               key={i}
               style={{ height: `${v === 0 ? 4 : Math.max(4, (v / max) * 100)}%` }}
               className={cn(
-                'flex-1 rounded-full transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                on ? cn('bg-current', ACCENT_INK[accent]) : 'bg-surface-offset',
+                'flex-1 rounded-none transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                on ? cn('bg-current', ACCENT_INK[accent]) : 'bg-band',
               )}
               aria-label={`${visual.titleLabels?.[i] ?? label}: ${visual.labels?.[i] ?? v}`}
               onFocus={() => setHovered(i)}
@@ -461,9 +451,9 @@ export function StatCard({
   if (visual?.type === 'ring') {
     visualNode = (
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        <span className="flex items-center gap-2 rounded-full border border-border/60 py-1 pr-3 pl-1">
+        <span className="flex items-center gap-2 border border-rule py-1 pr-3 pl-1">
           <StatRing pct={visual.pct} accent={accent} size={26} />
-          <span className="text-sm font-semibold tabular-nums text-foreground">
+          <span className="text-sm font-semibold tabular-nums font-mono text-foreground">
             {visual.display ?? `${Math.round(visual.pct)}`}
           </span>
         </span>
@@ -474,14 +464,14 @@ export function StatCard({
 
   const progressNode = visual?.type === 'progress' && (
     <div className="mt-3">
-      <div className="h-1.5 overflow-hidden rounded-full bg-surface-offset">
+      <div className="h-1.5 overflow-hidden bg-band">
         <div
-          className={cn('h-full rounded-full bg-current transition-[width] duration-500', ACCENT_INK[accent])}
+          className={cn('h-full bg-current transition-[width] duration-500', ACCENT_INK[accent])}
           style={{ width: `${Math.max(0, Math.min(100, visual.pct))}%` }}
         />
       </div>
       {(visual.from || visual.to) && (
-        <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
+        <div className="mt-1.5 flex justify-between text-label text-muted-foreground">
           <span>{visual.from}</span>
           <span>{visual.to}</span>
         </div>
@@ -500,14 +490,11 @@ export function StatCard({
           <div className="flex min-w-0 items-center gap-3">
             {leading}
             <div className="min-w-0">
-              <p
-                className={cn('truncate font-medium text-foreground', sm ? 'text-[13px]' : 'text-[15px]')}
-                title={displayLabel}
-              >
+              <p className={cn('truncate font-medium text-foreground', sm ? 'text-sm' : 'text-base')} title={displayLabel}>
                 {displayLabel}
                 {qualifier && <span className="font-normal text-muted-foreground"> / {qualifier}</span>}
               </p>
-              {sublabel && <p className="truncate text-[13px] text-muted-foreground">{sublabel}</p>}
+              {sublabel && <p className="truncate text-sm text-muted-foreground">{sublabel}</p>}
             </div>
           </div>
           {action && <div className="shrink-0">{action}</div>}
@@ -519,8 +506,8 @@ export function StatCard({
           <div className={cn('flex flex-wrap items-baseline gap-x-2.5 gap-y-1', inlineDelta && 'items-center')}>
             <p
               className={cn(
-                'font-bold tracking-[-0.02em] tabular-nums text-foreground',
-                sm ? 'text-2xl' : 'text-[32px] leading-[1.1]',
+                'font-mono font-semibold tabular-nums tracking-figure text-foreground',
+                sm ? 'text-2xl' : 'text-metric',
                 valueClassName,
               )}
             >
@@ -531,7 +518,7 @@ export function StatCard({
           </div>
 
           {delta && !inlineDelta && <DeltaBadge delta={delta} size={sm ? 'sm' : 'md'} className="mt-2.5" />}
-          {caption && <p className="mt-1.5 truncate text-[13px] text-muted-foreground">{caption}</p>}
+          {caption && <p className="mt-1.5 truncate text-sm text-muted-foreground">{caption}</p>}
           {hint && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{hint}</p>}
         </div>
 
@@ -539,9 +526,9 @@ export function StatCard({
           <div className="flex shrink-0 flex-col items-end gap-1">
             <span className="flex items-center gap-2">
               {secondary.ring !== undefined && <StatRing pct={secondary.ring} accent={accent} size={28} />}
-              <span className="text-lg font-semibold tabular-nums text-foreground">{secondary.value}</span>
+              <span className="text-lg font-semibold tabular-nums font-mono text-foreground">{secondary.value}</span>
             </span>
-            {secondary.label && <span className="text-[13px] text-muted-foreground">{secondary.label}</span>}
+            {secondary.label && <span className="text-sm text-muted-foreground">{secondary.label}</span>}
           </div>
         ) : (
           sideVisual
@@ -557,8 +544,8 @@ export function StatCard({
     CARD_BASE,
     sm ? 'p-4' : 'p-5',
     interactive &&
-      'transition-shadow transition-colors hover:border-primary/35 hover:shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent),0_12px_28px_-10px_color-mix(in_oklab,var(--foreground)_12%,transparent)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-    selected && 'border-primary ring-2 ring-primary/15',
+      'transition-colors hover:border-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+    selected && 'border-foreground shadow-[inset_0_0_0_1px_var(--foreground)]',
     className,
   );
 
@@ -587,11 +574,11 @@ export function StatCardSkeleton({ size = 'md', className }: { size?: 'sm' | 'md
   return (
     <div className={cn(CARD_BASE, sm ? 'p-4' : 'p-5', className)} aria-hidden="true">
       <div className="flex items-center gap-3">
-        <div className={cn('animate-pulse rounded-xl bg-muted', sm ? 'size-8' : 'size-10')} />
-        <div className="h-3.5 w-28 animate-pulse rounded bg-muted" />
+        <div className={cn('animate-pulse rounded-sm bg-band', sm ? 'size-8' : 'size-10')} />
+        <div className="h-3.5 w-28 animate-pulse bg-band" />
       </div>
-      <div className={cn('animate-pulse rounded bg-muted', sm ? 'mt-3 h-7 w-24' : 'mt-4 h-9 w-32')} />
-      <div className="mt-3 h-3 w-20 animate-pulse rounded bg-muted" />
+      <div className={cn('animate-pulse bg-band', sm ? 'mt-3 h-7 w-24' : 'mt-4 h-9 w-32')} />
+      <div className="mt-3 h-3 w-20 animate-pulse bg-band" />
     </div>
   );
 }
@@ -605,12 +592,7 @@ const GRID_COLS: Record<number, string> = {
 };
 
 /** Standard responsive row for a set of StatCards. */
-export function StatCardGrid({
-  columns = 4,
-  className,
-  children,
-  ...rest
-}: { columns?: 2 | 3 | 4 | 6 } & ComponentProps<'section'>) {
+export function StatCardGrid({ columns = 4, className, children, ...rest }: { columns?: 2 | 3 | 4 | 6 } & ComponentProps<'section'>) {
   return (
     <section className={cn('grid gap-3', GRID_COLS[columns], className)} {...rest}>
       {children}
@@ -623,7 +605,7 @@ export function DeltaText({ delta, className }: { delta: StatDelta; className?: 
   const { trend, tone, text } = resolveDelta(delta);
   const Glyph = trend === 'up' ? ArrowUpRight : trend === 'down' ? ArrowDownRight : null;
   return (
-    <span className={cn('inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums', DELTA_TONE[tone].text, className)}>
+    <span className={cn('inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums font-mono', DELTA_TONE[tone].text, className)}>
       {Glyph && <Glyph size={13} strokeWidth={2.5} />}
       {text}
     </span>

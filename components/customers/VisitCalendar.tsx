@@ -22,11 +22,11 @@ interface TooltipState {
 }
 
 function getDot(spend: number | undefined, isFuture: boolean) {
-  if (isFuture || spend === undefined) return 'w-[7px] h-[7px] bg-border rounded-full';
-  if (spend < 60) return 'w-[9px]  h-[9px]  bg-warning/40 rounded-full shadow-sm';
-  if (spend < 120) return 'w-[12px] h-[12px] bg-warning/60 rounded-full shadow-sm';
-  if (spend < 200) return 'w-[15px] h-[15px] bg-warning/80 rounded-full shadow-md';
-  return 'w-[18px] h-[18px] bg-warning rounded-full shadow-md';
+  if (isFuture || spend === undefined) return 'size-2 bg-rule/45 rounded-sm';
+  if (spend < 60) return 'size-2.5 bg-stock/40 rounded-sm';
+  if (spend < 120) return 'size-3 bg-stock/60 rounded-sm';
+  if (spend < 200) return 'size-3.5 bg-stock/80 rounded-sm';
+  return 'size-4 bg-stock rounded-sm';
 }
 
 // ── Monday-first ─────────────────────────────────────────────
@@ -35,6 +35,7 @@ const SHOW_LABEL = new Set([0, 2, 4]); // Mon, Wed, Fri
 
 export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
   const [tip, setTip] = useState<TooltipState | null>(null);
+  const [today] = useState(() => new Date());
 
   const { weeks, monthLabels } = useMemo(() => {
     const visitMap = new Map<string, number>();
@@ -43,7 +44,6 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
       visitMap.set(key, (visitMap.get(key) ?? 0) + v.spend);
     });
 
-    const today = new Date();
     const start = new Date(today);
     start.setMonth(start.getMonth() - months);
 
@@ -79,12 +79,10 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
     }
 
     return { weeks, monthLabels };
-  }, [visits, months]);
-
-  const today = new Date();
+  }, [visits, months, today]);
 
   // ── Fixed-position tooltip handlers ────────────────────────
-  function handleEnter(e: React.MouseEvent, cell: { date: Date; spend?: number }) {
+  function handleEnter(e: React.SyntheticEvent<HTMLElement>, cell: { date: Date; spend?: number }) {
     if (!cell.spend) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setTip({
@@ -99,7 +97,7 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
       {/* ── Fixed tooltip — escapes overflow-x-auto ─────────── */}
       {tip && (
         <div className="fixed z-[9999] pointer-events-none" style={{ left: tip.x, top: tip.y - 10, transform: 'translate(-50%, -100%)' }}>
-          <div className="bg-foreground text-background text-[10px] font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap shadow-lg">
+          <div className="bg-foreground text-background text-micro font-semibold px-2.5 py-1 rounded-sm whitespace-nowrap shadow-lg">
             {tip.label}
           </div>
           <div className="w-2 h-2 bg-foreground rotate-45 mx-auto -mt-1" />
@@ -107,7 +105,7 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
       )}
 
       <div>
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Activity</p>
+        <p className="mb-4 text-xs font-semibold text-foreground">Six-month activity</p>
 
         <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div style={{ minWidth: 'max-content' }}>
@@ -118,7 +116,7 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
                 const m = monthLabels.find((m) => m.col === i);
                 return (
                   <div key={week[0].date.toISOString().slice(0, 10)} className="w-5 shrink-0">
-                    {m && <span className="text-[10px] font-semibold text-muted-foreground/80 whitespace-nowrap">{m.label}</span>}
+                    {m && <span className="text-micro font-semibold text-muted-foreground whitespace-nowrap">{m.label}</span>}
                   </div>
                 );
               })}
@@ -130,7 +128,7 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
               <div className="flex flex-col gap-1 mr-1">
                 {DAY_LABELS.map((day, i) => (
                   <div key={day} className="h-5 w-5 flex items-center justify-end">
-                    {SHOW_LABEL.has(i) ? <span className="text-[9px] font-semibold text-muted-foreground/60">{day[0]}</span> : null}
+                    {SHOW_LABEL.has(i) ? <span className="text-micro font-semibold text-muted-foreground">{day[0]}</span> : null}
                   </div>
                 ))}
               </div>
@@ -141,11 +139,19 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
                   {week.map((cell) => {
                     const isFuture = cell.date > today;
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={cell.date.toISOString().slice(0, 10)}
-                        className="w-5 h-5 flex items-center justify-center cursor-default"
+                        className="flex size-5 cursor-default items-center justify-center rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                        aria-label={
+                          cell.spend
+                            ? `Spent £${cell.spend.toFixed(0)} on ${formatDate(cell.date)}`
+                            : `No visit on ${formatDate(cell.date)}`
+                        }
                         onMouseEnter={(e) => handleEnter(e, cell)}
                         onMouseLeave={() => setTip(null)}
+                        onFocus={(e) => handleEnter(e, cell)}
+                        onBlur={() => setTip(null)}
                       >
                         <div
                           className={cn(
@@ -154,7 +160,7 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
                             tip && cell.spend && 'hover:scale-125',
                           )}
                         />
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -165,13 +171,13 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
 
         {/* Legend */}
         <div className="flex items-center gap-2 mt-3">
-          <span className="text-[10px] text-muted-foreground">Less</span>
+          <span className="text-micro text-muted-foreground">Less</span>
           {[undefined, 50, 100, 160, 220].map((spend) => (
             <div key={spend ?? 'none'} className="w-4 h-4 flex items-center justify-center">
               <div className={cn(getDot(spend, false))} />
             </div>
           ))}
-          <span className="text-[10px] text-muted-foreground">More</span>
+          <span className="text-micro text-muted-foreground">More</span>
         </div>
       </div>
     </>

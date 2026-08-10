@@ -18,6 +18,18 @@ Create `.env.local`:
 ```dotenv
 NEXT_PUBLIC_API_URL=http://localhost:7777
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-3.5-flash-lite
+AI_AGENT_TEST_MODE=true
+# Optional; use a separate long random value before enabling live writes.
+AI_AGENT_APPROVAL_SECRET=
+
+# Optional open-model fallback. When Gemini is rate-limited or out of quota,
+# the same conversation continues here instead of failing. Both defaults
+# support tool calling, which Ask DUMA depends on.
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=google/gemma-4-31b-it:free
+OPENROUTER_BACKUP_MODEL=google/gemma-4-26b-a4b-it:free
 
 # Required for direct image uploads in the communication template editor.
 BLOB_READ_WRITE_TOKEN=
@@ -26,6 +38,19 @@ BLOB_READ_WRITE_TOKEN=
 ERROR_REPORTING_URL=
 NEXT_PUBLIC_ERROR_REPORTING_URL=
 ```
+
+`AI_AGENT_TEST_MODE` defaults to `true`. In test mode, Ask DUMA can read the
+signed-in operator's scoped workspace and validate confirmed actions, but it
+does not write records. Set it to `false` only when approved AI actions should
+be sent to the DUMA API. Approval payloads are signed and expire after ten
+minutes; set a dedicated `AI_AGENT_APPROVAL_SECRET` before enabling live mode.
+
+Ask DUMA answers from the first configured provider and steps down the list on a
+quota, a rate limit, an overloaded backend or a timeout — anything a different
+provider might survive. A malformed request or a bad key is not retried
+elsewhere. The hand-off keeps the tool results already gathered, and the answer
+says which model finished it. With only `OPENROUTER_API_KEY` set, the open model
+becomes the primary.
 
 Install and start:
 

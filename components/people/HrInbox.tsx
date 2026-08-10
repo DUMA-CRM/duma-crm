@@ -44,7 +44,7 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
           className="w-36"
         />
       </div>
-      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="rounded-sm border border-rule bg-card shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-20 flex justify-center">
             <Loader2 className="animate-spin" />

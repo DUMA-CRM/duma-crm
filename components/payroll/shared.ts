@@ -5,9 +5,9 @@ import { formatDate as formatAppDate } from '@/lib/utils/date';
 export const inputClass =
   'h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
-export const labelClass = 'block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
+export const labelClass = 'mb-1.5 block text-micro uppercase text-muted-foreground';
 
-export const thClass = 'px-3 md:px-5 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest';
+export const thClass = 'px-3 py-3 text-left text-micro uppercase text-muted-foreground md:px-5';
 
 /** Pounds and pence, e.g. "£4.20". Accepts numbers or numeric strings. */
 export const money = (v: number | string | null | undefined) => `£${Number(v ?? 0).toFixed(2)}`;

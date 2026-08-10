@@ -3,15 +3,17 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { Building2, Clock, CloudUpload, LogIn, MapPin, WifiOff } from '@/components/icons';
-import { PageLayout } from '@/components/layout/PageLayout';
+import { Building2, Clock, CloudUpload, LogIn, MapPin, Monitor, WifiOff } from '@/components/icons';
+import { PageSidebar } from '@/components/layout/PageSidebar';
 import { CartBar } from '@/components/pos/CartBar';
 import { CheckoutFlow, type CheckoutStep } from '@/components/pos/CheckoutFlow';
 import { MenuGrid } from '@/components/pos/MenuGrid';
 import { OrderPanel } from '@/components/pos/OrderPanel';
+import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
+import { Button } from '@/components/ui/button';
 
 import { API_PREFIX, ApiError } from '@/lib/api/client';
 import { getCustomer } from '@/lib/api/customers.service';
@@ -104,7 +106,7 @@ export default function POSPage() {
         setSelectedCustomer(c);
         addToast('success', `${c.firstName} ${c.lastName} attached to this order.`);
       })
-      .catch(() => addToast('error', 'Could not load the linked customer.'));
+      .catch(() => addToast('error', 'The linked customer couldn’t load. Search for them again.'));
   }, []);
 
   // The POS is locked until the signed-in staff member is clocked in.
@@ -121,7 +123,7 @@ export default function POSPage() {
       void qc.invalidateQueries({ queryKey: ['shifts-my'] });
       addToast('success', 'Clocked in — the POS is unlocked.');
     },
-    onError: (err) => addToast('error', (err as Error).message || 'Could not clock in.'),
+    onError: (err) => addToast('error', (err as Error).message || 'You weren’t clocked in. Try again before taking orders.'),
   });
 
   // The menu changes rarely — keep it fresh for 5 minutes to avoid refetch storms.
@@ -235,7 +237,7 @@ export default function POSPage() {
       if (selectionRequest.current !== request) return;
       setSelectedItem(null);
       usePageSidebarStore.getState().setOpen(false);
-      addToast('error', 'Could not load this item’s options. Please try again.');
+      addToast('error', 'This item’s options couldn’t load. Try again.');
     }
   }
 
@@ -361,7 +363,7 @@ export default function POSPage() {
         return;
       }
       // Real API rejection — stay on the method screen so the cashier can retry.
-      addToast('error', err.message || 'Failed to place order. Please try again.');
+      addToast('error', err.message || 'The order wasn’t placed. Check the basket and try again.');
     },
   });
 
@@ -375,7 +377,7 @@ export default function POSPage() {
         setPaymentAttempt(null);
       }
     },
-    onError: (error) => addToast('error', error.message || 'Could not record payment result.'),
+    onError: (error) => addToast('error', error.message || 'The payment result wasn’t recorded. Keep this order open and try again.'),
   });
 
   function handlePaymentOutcome(outcome: 'succeeded' | 'failed' | 'cancelled') {
@@ -464,116 +466,131 @@ export default function POSPage() {
 
   return (
     <>
-      <PageLayout
+      <EditorShell
         eyebrow="Service Mode"
         title="Roastery Menu"
-        headerSlot={<SegmentedControl options={CATEGORIES} value={activeCategory} onChange={setActiveCategory} size="lg" />}
-        headerBorder={false}
-        sidebar={
-          !(tenantId && locationId && onShift) ? undefined : (
-            <OrderPanel
-              cart={cart}
-              selectedItem={liveSelectedItem}
-              pending={pending}
-              setPending={setPending}
-              onAddToCart={handleAddToCart}
-              onCancelItem={handleCancelItem}
-              onQty={handleQty}
-              onClearCart={handleClearCart}
-              selectedCustomer={selectedCustomer}
-              onCustomerSelect={setSelectedCustomer}
-              notes={notes}
-              onNotesChange={setNotes}
-              onCharge={handleCharge}
-              currency={tradingSettings?.currency ?? 'GBP'}
-            />
-          )
-        }
+        icon={<Monitor size={20} aria-hidden="true" />}
+        // The till is a split view — grid on the left, order panel on the right —
+        // and each side scrolls itself.
+        flush
       >
-        {/* Offline / sync status */}
-        {(!online || queuedCount > 0) && (
-          <div
-            className={cn(
-              'mb-4 rounded-xl border px-3.5 py-2.5 text-sm font-medium',
-              online ? 'border-primary/30 bg-primary/5 text-primary' : 'border-warning/40 bg-warning/10 text-warning',
-            )}
-          >
-            <div className="flex items-center gap-2.5">
-              {online ? (
-                <CloudUpload size={16} className="shrink-0" aria-hidden="true" />
-              ) : (
-                <WifiOff size={16} className="shrink-0" aria-hidden="true" />
-              )}
-              {needsAttentionCount > 0
-                ? `${needsAttentionCount} queued ${needsAttentionCount === 1 ? 'order needs' : 'orders need'} manager attention.`
-                : !online
-                  ? `You're offline — orders are saved locally${queuedCount > 0 ? ` (${queuedCount} waiting)` : ''} and will send when the connection returns.`
-                  : `${queuedCount} ${queuedCount === 1 ? 'order' : 'orders'} waiting to sync…`}
+        <div className="flex min-h-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col">
+            {/* Categories belong to the menu grid, not to the app chrome — but they
+                stay out of the scroll area so they never leave during service. */}
+            <div className="shrink-0 px-3 pt-4 md:px-6">
+              <SegmentedControl options={CATEGORIES} value={activeCategory} onChange={setActiveCategory} size="lg" />
             </div>
-            {needsAttentionCount > 0 && (
-              <div className="mt-2 space-y-2 border-t border-current/15 pt-2">
-                {queuedOrders
-                  .filter((order) => order.status === 'needs-attention')
-                  .map((order) => (
-                    <div key={order.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <span>
-                        {formatDateTime(order.queuedAt)} · {order.lastError ?? 'Rejected by the API'}
-                      </span>
-                      <button
-                        type="button"
-                        className="rounded-md border border-current/30 px-2 py-1 font-semibold hover:bg-current/10"
-                        onClick={() => useOfflineOrdersStore.getState().retry(order.id)}
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </div>
-        )}
 
-        {tenantId && locationId && onShift && (
-          <>
-            <MenuGrid
-              items={filtered}
-              selectedId={selectedItem?.id ?? null}
-              onSelectItem={handleSelectItem}
-              isLoading={isLoading}
-              currency={tradingSettings?.currency ?? 'GBP'}
-            />
-            <CartBar
-              cart={cart}
-              onOpen={() => usePageSidebarStore.getState().setOpen(true)}
-              currency={tradingSettings?.currency ?? 'GBP'}
-            />
-          </>
-        )}
-        {/* Locked: staff must clock in before taking orders */}
-        {tenantId && locationId && !onShift && !shiftsLoading && (
-          <div className="flex flex-col items-center justify-center text-center px-6 py-16">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-3">
-              <Clock size={28} className="text-muted-foreground" />
+            <div className="min-h-0 flex-1 overflow-auto px-3 py-4 md:px-6">
+              {/* Offline / sync status */}
+              {(!online || queuedCount > 0) && (
+                <div
+                  className={cn(
+                    'mb-4 rounded-sm border px-3.5 py-2.5 text-sm font-medium',
+                    online ? 'border-primary/30 bg-band text-primary' : 'border-warning/40 bg-warning/6 text-warning',
+                  )}
+                >
+                  <div className="flex items-center gap-2.5">
+                    {online ? (
+                      <CloudUpload size={16} className="shrink-0" aria-hidden="true" />
+                    ) : (
+                      <WifiOff size={16} className="shrink-0" aria-hidden="true" />
+                    )}
+                    {needsAttentionCount > 0
+                      ? `${needsAttentionCount} queued ${needsAttentionCount === 1 ? 'order needs' : 'orders need'} manager attention.`
+                      : !online
+                        ? `You're offline — orders are saved locally${queuedCount > 0 ? ` (${queuedCount} waiting)` : ''} and will send when the connection returns.`
+                        : `${queuedCount} ${queuedCount === 1 ? 'order' : 'orders'} waiting to sync…`}
+                  </div>
+                  {needsAttentionCount > 0 && (
+                    <div className="mt-2 space-y-2 border-t border-current/15 pt-2">
+                      {queuedOrders
+                        .filter((order) => order.status === 'needs-attention')
+                        .map((order) => (
+                          <div key={order.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <span>
+                              {formatDateTime(order.queuedAt)} · {order.lastError ?? 'Rejected by the API'}
+                            </span>
+                            <button
+                              type="button"
+                              className="rounded-sm border border-current/30 px-2 py-1 font-semibold hover:bg-current/10"
+                              onClick={() => useOfflineOrdersStore.getState().retry(order.id)}
+                            >
+                              Retry
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {tenantId && locationId && onShift && (
+                <>
+                  <MenuGrid
+                    items={filtered}
+                    selectedId={selectedItem?.id ?? null}
+                    onSelectItem={handleSelectItem}
+                    isLoading={isLoading}
+                    currency={tradingSettings?.currency ?? 'GBP'}
+                  />
+                  <CartBar
+                    cart={cart}
+                    onOpen={() => usePageSidebarStore.getState().setOpen(true)}
+                    currency={tradingSettings?.currency ?? 'GBP'}
+                  />
+                </>
+              )}
+              {/* Locked: staff must clock in before taking orders */}
+              {tenantId && locationId && !onShift && !shiftsLoading && (
+                <div className="flex flex-col items-center justify-center text-center px-6 py-16">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-3">
+                    <Clock size={28} className="text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-semibold text-muted-foreground">{"You're not clocked in"}</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Clock in to unlock the POS and start taking orders.</p>
+                  <Button size="touch" className="mt-5" onClick={() => doClockIn()} disabled={clockingIn}>
+                    <LogIn size={16} aria-hidden="true" />
+                    {clockingIn ? 'Clocking in…' : 'Clock in'}
+                  </Button>
+                </div>
+              )}
+              {!tenantId && (
+                <EmptyState icon={Building2} title="No workspace selected" description="Select a workspace before taking orders." />
+              )}
+              {tenantId && !locationId && (
+                <EmptyState
+                  icon={MapPin}
+                  title="No location selected"
+                  description="Use the location picker to choose where you’re taking orders."
+                />
+              )}
             </div>
-            <p className="text-sm font-semibold text-muted-foreground">{"You're not clocked in"}</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">Clock in to unlock the POS and start taking orders.</p>
-            <button
-              onClick={() => doClockIn()}
-              disabled={clockingIn}
-              className="mt-5 h-10 px-6 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl flex items-center gap-2 transition-colors disabled:opacity-60"
-            >
-              <LogIn size={16} aria-hidden="true" />
-              {clockingIn ? 'Clocking in…' : 'Clock In'}
-            </button>
           </div>
-        )}
-        {!tenantId && (
-          <EmptyState icon={Building2} title="No workspace selected" description="Go to Workspaces and select a workspace first." />
-        )}
-        {tenantId && !locationId && (
-          <EmptyState icon={MapPin} title="No location selected" description="Select a location from the header to start taking orders." />
-        )}
-      </PageLayout>
+
+          {tenantId && locationId && onShift && (
+            <PageSidebar>
+              <OrderPanel
+                cart={cart}
+                selectedItem={liveSelectedItem}
+                pending={pending}
+                setPending={setPending}
+                onAddToCart={handleAddToCart}
+                onCancelItem={handleCancelItem}
+                onQty={handleQty}
+                onClearCart={handleClearCart}
+                selectedCustomer={selectedCustomer}
+                onCustomerSelect={setSelectedCustomer}
+                notes={notes}
+                onNotesChange={setNotes}
+                onCharge={handleCharge}
+                currency={tradingSettings?.currency ?? 'GBP'}
+              />
+            </PageSidebar>
+          )}
+        </div>
+      </EditorShell>
       {checkout !== 'closed' && (
         <CheckoutFlow
           step={checkout}

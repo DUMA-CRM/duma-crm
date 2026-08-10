@@ -1,9 +1,9 @@
 'use client';
 
-import { Check } from '@/components/icons';
 import Link from 'next/link';
 import { useState } from 'react';
 
+import { Check } from '@/components/icons';
 import { Input } from '@/components/ui/input';
 
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -32,12 +32,16 @@ export default function SignUpPage() {
   return (
     <>
       <div className="mb-6">
-        <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Get started</p>
-        <h1 className="text-2xl font-semibold text-foreground">Create account</h1>
+        <h1 className="text-2xl font-semibold tracking-headline text-foreground">Create your workspace</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Start with one shop and bring the rest of the team in later.</p>
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
-        {error && <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>}
+        {error && (
+          <p role="alert" className="rounded-sm bg-destructive/6 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <Input
           label="Full name"
           type="text"
@@ -77,7 +81,7 @@ export default function SignUpPage() {
                   <span
                     className={cn(
                       'flex h-4 w-4 items-center justify-center rounded-full transition-colors',
-                      ok ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground',
+                      ok ? 'bg-success/6 text-success' : 'bg-muted text-muted-foreground',
                     )}
                   >
                     <Check size={11} strokeWidth={3} className={cn('transition-opacity', ok ? 'opacity-100' : 'opacity-30')} />
@@ -92,7 +96,7 @@ export default function SignUpPage() {
         <button
           type="submit"
           disabled={isLoading || !passwordOk}
-          className="w-full h-10 mt-2 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full h-10 mt-2 bg-primary hover:bg-primary-hover active:translate-y-px text-primary-foreground text-sm font-semibold rounded-md shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Creating account…' : 'Create account'}
         </button>

@@ -8,6 +8,7 @@ import { useState } from 'react';
 
 import { signIn, signOut, signUp } from '@/lib/api/auth.service';
 import { useAuthStore } from '@/stores/authStore';
+import { useLoginIntroStore } from '@/stores/loginIntroStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 export function useAuth() {
@@ -23,6 +24,9 @@ export function useAuth() {
     try {
       const session = await signIn(email, password);
       setUser(session.user);
+      // Armed before navigating so the intro is already up when the CRM layout
+      // paints — it doubles as cover for the dashboard's first data fetches.
+      useLoginIntroStore.getState().start();
       // Honour ?next= from the auth guard — internal paths only (a value like
       // "//evil.com" would be treated as protocol-relative and open-redirect).
       const next = new URLSearchParams(window.location.search).get('next');

@@ -22,7 +22,7 @@ export function OfflineStatus() {
   return (
     <div
       role="status"
-      className="fixed inset-x-3 bottom-3 z-[70] mx-auto flex max-w-2xl items-center gap-3 rounded-xl border border-warning/40 bg-card px-4 py-3 text-sm text-foreground shadow-lg"
+      className="fixed inset-x-3 bottom-3 z-[70] mx-auto flex max-w-2xl items-center gap-3 rounded-sm border border-warning/40 bg-card px-4 py-3 text-sm text-foreground shadow-lg"
     >
       <WifiOff className="shrink-0 text-warning" size={18} aria-hidden="true" />
       <p>

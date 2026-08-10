@@ -53,8 +53,8 @@ export function CustomerOrders({ customerId }: { customerId: string }) {
         const summary = itemSummary(order);
         return (
           <div className="flex items-center gap-3">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-              <ShoppingBag size={14} className="text-muted-foreground" aria-hidden="true" />
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-measured/10">
+              <ShoppingBag size={15} className="text-measured" aria-hidden="true" />
             </span>
             <div className="min-w-0">
               <p className="font-mono text-sm font-semibold text-foreground">#{order.id.slice(0, 8)}</p>
@@ -120,7 +120,7 @@ export function CustomerOrders({ customerId }: { customerId: string }) {
       rowAriaLabel={({ row }) => `Open order ${row.id.slice(0, 8)}`}
       footer={
         orders.length > 0 ? (
-          <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rule/55 px-4 py-3">
             <p className="text-xs text-muted-foreground">
               {data?.total ?? orders.length} order{(data?.total ?? orders.length) === 1 ? '' : 's'}
               {totalPages > 1 && ` · page ${page} of ${totalPages}`}

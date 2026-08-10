@@ -1,0 +1,115 @@
+<!-- Animated variant of icon.svg. 2s reveal on a single master timeline, plays once
+    and holds. Geometry is byte-identical to icon.svg, so the resting frame is
+    the exact static mark. No width/height, so it scales to whatever asks for it.
+		To loop instead of hold, change repeat to `infinite` below.
+
+    All visible motion has settled by 76% (1520ms) — the last keyframe stop below.
+    Anything consuming this file should hand over there, not at 100%, or it waits
+    on a dead hold. See PLAY_MS in components/layout/LoginIntro.tsx.-->
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none" role="img" aria-label="Logo mark">
+  <style>
+    svg {
+      --dur: 2s;
+      --repeat: 1;
+    }
+
+    .anim {
+      animation-duration: var(--dur);
+      animation-iteration-count: var(--repeat);
+      animation-fill-mode: both;
+    }
+
+    /* Base state is the FINISHED mark. Keyframes supply the from-states, so if
+       animation is disabled for any reason the static logo is what renders. */
+    .brush { stroke-dashoffset: 0; }
+
+    .mark  { transform-box: fill-box; transform-origin: center; animation-name: markAbsorb; }
+    .plate { transform-box: fill-box; transform-origin: center; animation-name: plateIn; }
+    .dot   { transform-box: fill-box; transform-origin: center; animation-name: dotLand; }
+    .brush-tab    { animation-name: drawTab; }
+    .brush-swoosh { animation-name: drawSwoosh; }
+
+    /* 0 – 350ms · the plate arrives, corners tightening from round to squircle */
+    @keyframes plateIn {
+      0% {
+        opacity: 0;
+        rx: 18px;
+        transform: scale(0.88);
+        animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      17.5%, 100% { opacity: 1; rx: 7px; transform: scale(1); }
+    }
+
+    /* 300 – 1000ms · focal beat. The body is written in one pass: the pen sets down
+       on the head at top-right, accelerates down the right column, pivots at the
+       bottom-right corner, then decelerates left across the lobe and lifts at the tail.
+       The first stop is the approach — it spends the brush's lead-in, which sits
+       outside the artwork, so the visible stroke starts on time. */
+    @keyframes drawSwoosh {
+      0%, 15% { stroke-dashoffset: 1; animation-timing-function: linear; }
+      16.2% { stroke-dashoffset: 0.85; animation-timing-function: cubic-bezier(0.42, 0, 0.72, 0.45); }
+      27.5% { stroke-dashoffset: 0.56; animation-timing-function: linear; }        /* the pivot */
+      36%   { stroke-dashoffset: 0.376; animation-timing-function: cubic-bezier(0.22, 0.7, 0.25, 1); }
+      50%, 100% { stroke-dashoffset: 0; }                                           /* lift off */
+    }
+
+    /* 950 – 1160ms · the flag joins, wiping the way its own form flows */
+    @keyframes drawTab {
+      0%, 47.5% { stroke-dashoffset: 1; animation-timing-function: linear; }
+      48.3% { stroke-dashoffset: 0.92; animation-timing-function: cubic-bezier(0.3, 0.1, 0.2, 1); }
+      58%, 100% { stroke-dashoffset: 0; }
+    }
+
+    /* 1200 – 1400ms · the period lands */
+    @keyframes dotLand {
+      0%, 60% {
+        opacity: 0;
+        transform: scale(0.3);
+        /* Decelerating, NOT overshooting — the 1.07 stop below is the whole
+           overshoot. An overshooting curve here too would reverse twice: a bounce. */
+        animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      63.5% { opacity: 1; transform: scale(1.07); animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+      70%, 100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* 1220 – 1520ms · the mark takes the dot's impact and settles as one object */
+    @keyframes markAbsorb {
+      0%, 61% { transform: scale(1); animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+      65%     { transform: scale(0.988); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+      76%, 100% { transform: scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .anim { animation: none !important; }
+    }
+  </style>
+
+  <defs>
+    <!-- Reveal brushes. Each is a thick stroke swept along its shape's medial axis;
+         stroke-dashoffset 1 → 0 walks the brush along, uncovering the fill behind it.
+         pathLength="1" normalizes both paths to the same 0–1 progress space. -->
+    <mask id="wipe-tab" maskUnits="userSpaceOnUse" x="-10" y="-10" width="56" height="56">
+      <path class="anim brush brush-tab"
+            d="M-2.5 9.2L1.5 8.4C5.5 7.6 11 6.4 15.2 7.2C17.8 7.7 19.2 9.8 20 12.4"
+            pathLength="1" stroke-dasharray="1 2"
+            stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </mask>
+
+    <mask id="wipe-swoosh" maskUnits="userSpaceOnUse" x="-10" y="-10" width="56" height="56">
+      <path class="anim brush brush-swoosh"
+            d="M23.6 -3.5L23.9 5C24.2 8.5 25 11 25.8 13.5C26.6 15.8 27 17 27.1 18.5C27.3 22.5 26.6 24.7 22 25.7C16 27 9 26.2 3 26.4"
+            pathLength="1" stroke-dasharray="1 2"
+            stroke="#fff" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </mask>
+  </defs>
+
+  <g class="anim mark">
+    <rect class="anim plate" width="36" height="36" rx="7" fill="white"/>
+    <path d="M31 25.3125C31 28.4536 28.4579 30.9999 25.3219 31L10.315 30.9993C3.71595 30.9995 3.03058 21.3436 9.56316 20.4087L18.6342 19.7697C22.4213 19.2276 23.249 14.118 19.8273 12.4044C16.1443 10.5599 17.4547 4.99982 21.5725 4.99982H26.0425C28.7805 4.99982 31 7.22298 31 9.96541V25.3125Z" fill="#174C38" mask="url(#wipe-swoosh)"/>
+    <path class="anim dot" d="M14.7773 15.9697C14.7773 14.4017 16.0485 13.126 17.6165 13.126V13.126C19.1845 13.126 20.4556 14.4017 20.4556 15.9697V15.9697C20.4556 17.5377 19.1845 18.8135 17.6165 18.8135V18.8135C16.0485 18.8135 14.7773 17.5377 14.7773 15.9697V15.9697Z" fill="#174C38"/>
+    <path d="M5.04297 7.97795C5.04297 6.33381 6.37581 5.00098 8.01994 5.00098H18.833L18.5072 5.21855C16.2036 6.75677 15.9644 10.0526 18.0218 11.9072L7.74162 10.9419C6.21204 10.7983 5.04297 9.51426 5.04297 7.97795Z" fill="#174C38" mask="url(#wipe-tab)"/>
+  </g>
+</svg>

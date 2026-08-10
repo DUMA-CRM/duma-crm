@@ -51,7 +51,7 @@ export function Tooltip({
             style={{ top: pos.top, left: pos.left + 10 }}
             className="fixed z-[60] -translate-y-1/2 pointer-events-none animate-in fade-in slide-in-from-left-1 duration-150"
           >
-            <div className="relative rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-semibold text-background shadow-lg whitespace-nowrap">
+            <div className="relative rounded-sm bg-foreground px-2.5 py-1.5 text-xs font-semibold text-background shadow-lg whitespace-nowrap">
               {/* Left-pointing arrow */}
               <span
                 aria-hidden="true"

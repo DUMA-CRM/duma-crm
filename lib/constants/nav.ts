@@ -1,10 +1,10 @@
 import {
   BarChart3,
-  Building2,
   CalendarDays,
   ChefHat,
   HeartHandshake,
   HelpCircle,
+  History,
   type IconComponent,
   LayoutDashboard,
   Mail,
@@ -56,10 +56,16 @@ export const mainNavItems: NavItem[] = [
   // One entry: team, rota, shifts, leave, helpdesk and payroll are tabs of the
   // staff workspace, each on its own route.
   { label: 'Staff', href: '/staff', icon: UsersRound, roles: ['franchise_owner', 'store_manager', 'hr_manager'] },
-  { label: 'Workspaces', href: '/workspaces', icon: Building2, minRole: 'franchise_owner' },
+  // Workspaces and locations are a tab of Settings — organisation structure is
+  // set up once, so it belongs with the other administration, not in the
+  // day-to-day nav.
 ];
 
-export const analyticsNavItems: NavItem[] = [{ label: 'Reports', href: '/reports', icon: BarChart3, minRole: 'store_manager' }];
+export const analyticsNavItems: NavItem[] = [
+  { label: 'Reports', href: '/reports', icon: BarChart3, minRole: 'store_manager' },
+  // Matches the API and the route's own requireMinimumRole('franchise_owner').
+  { label: 'Audit Log', href: '/audit-log', icon: History, minRole: 'franchise_owner' },
+];
 
 export const footerNavItems: NavItem[] = [
   { label: 'Settings', href: '/settings', icon: Settings },

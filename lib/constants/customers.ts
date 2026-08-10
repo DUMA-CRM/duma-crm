@@ -19,7 +19,9 @@ export const TIER_CONFIG: Record<Tier, { label: string; variant: BadgeVariant; d
   vip: { label: 'VIP', variant: 'success', dot: 'bg-primary' },
   gold: { label: 'GOLD', variant: 'warning', dot: 'bg-warning' },
   silver: { label: 'SILVER', variant: 'muted', dot: 'bg-muted-foreground' },
-  bronze: { label: 'BRONZE', variant: 'amber', dot: 'bg-amber-500' },
+  // `amber` is an alias of the measured/apricot variant, so the dot matches it
+  // rather than reaching for Tailwind's own amber-500.
+  bronze: { label: 'BRONZE', variant: 'amber', dot: 'bg-measured' },
 };
 
 export const TIER_FILTERS = [

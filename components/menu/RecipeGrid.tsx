@@ -34,7 +34,7 @@ export function RecipeGrid({ queryKey, fetchLines, saveLines, sizes, basePrice, 
   const { rows, edit, dirty, isLoading, save, stockItems, itemMap, usedIds, columns, summary, allAllergens, hasIngredients } =
     useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePrice });
 
-  if (isLoading) return <div className="h-16 rounded-lg bg-muted animate-pulse" />;
+  if (isLoading) return <div className="h-16 rounded-sm bg-muted animate-pulse" />;
 
   return (
     <div className="space-y-3">
@@ -44,7 +44,7 @@ export function RecipeGrid({ queryKey, fetchLines, saveLines, sizes, basePrice, 
         <div className="overflow-x-auto -mx-1 px-1">
           <DataTable className="w-full text-sm">
             <thead>
-              <tr className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <tr className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                 <th className="text-left pb-1.5 font-bold">Ingredient</th>
                 {columns.map((c) => (
                   <th key={c.id} className="text-right pb-1.5 px-1 font-bold whitespace-nowrap">
@@ -113,7 +113,7 @@ export function RecipeGrid({ queryKey, fetchLines, saveLines, sizes, basePrice, 
         </div>
       )}
       {sizes.length > 0 && rows.length > 0 && (
-        <p className="text-[11px] text-muted-foreground">Blank size cells use the Default amount — fill one only when the size differs.</p>
+        <p className="text-label text-muted-foreground">Blank size cells use the Default amount — fill one only when the size differs.</p>
       )}
 
       <Button type="button" variant="outline" size="sm" onClick={() => edit([...rows, { stockItemId: '', qty: {} }])} className="gap-1.5">
@@ -123,10 +123,10 @@ export function RecipeGrid({ queryKey, fetchLines, saveLines, sizes, basePrice, 
 
       {/* Per-column cost / nutrition summary */}
       {hasIngredients && (
-        <div className="border-t border-border pt-3 space-y-2">
+        <div className="border-t border-rule pt-3 space-y-2">
           <DataTable className="w-full text-xs">
             <thead>
-              <tr className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <tr className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                 <th className="text-left font-bold" />
                 {summary.map(({ col }) => (
                   <th key={col.id} className="text-right px-1 font-bold whitespace-nowrap">
@@ -174,11 +174,11 @@ export function RecipeGrid({ queryKey, fetchLines, saveLines, sizes, basePrice, 
             </tbody>
           </DataTable>
           {(summary[0].missingCost > 0 || summary[0].missingKcal > 0) && (
-            <p className="text-[11px] text-warning">* some ingredients are missing cost or nutrition data (set them on the stock item).</p>
+            <p className="text-label text-warning">* some ingredients are missing cost or nutrition data (set them on the stock item).</p>
           )}
           {allAllergens.length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mr-1">Allergens</span>
+              <span className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mr-1">Allergens</span>
               {allAllergens.map((a) => (
                 <Badge key={a} variant="warning" className="capitalize">
                   {a}

@@ -129,7 +129,7 @@ function useEmailConnectionForm() {
       await save.mutateAsync();
       return true;
     } catch (error) {
-      toast('error', error instanceof Error ? error.message : 'Could not save the email settings.');
+      toast('error', error instanceof Error ? error.message : 'Email settings weren’t saved. Review the details and try again.');
       return false;
     }
   }
@@ -163,7 +163,7 @@ function useConnectionTest() {
       void queryClient.invalidateQueries({ queryKey: ['email-connection'] });
       toast('success', testEmail ? `It works — test email sent to ${testEmail}.` : 'It works — the mail server accepted the connection.');
     },
-    onError: (error) => toast('error', error instanceof Error ? error.message : 'The check failed.'),
+    onError: (error) => toast('error', error instanceof Error ? error.message : 'DUMA couldn’t connect to the mail server. Check the settings and try again.'),
   });
 
   return { testEmail, setTestEmail, test };
@@ -443,7 +443,7 @@ export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => vo
       onClose={onClose}
       dirty={dirty}
       actions={
-        <Button variant="outline" className="h-10 gap-1.5" onClick={onReconnect}>
+        <Button variant="outline" className="h-9 gap-1.5" onClick={onReconnect}>
           <Zap size={15} aria-hidden="true" />
           <span className="hidden md:inline">Run setup again</span>
         </Button>
@@ -452,7 +452,7 @@ export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => vo
       <div className="grid items-start gap-5 lg:grid-cols-[1fr_0.8fr]">
         <section className={panelClass}>
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div className="flex size-10 items-center justify-center rounded-sm bg-band text-primary">
               <Server size={18} aria-hidden="true" />
             </div>
             <div>
@@ -465,7 +465,7 @@ export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => vo
 
           <div className="space-y-4">
             <ServerFields form={form} update={update} hasPassword={Boolean(connection?.hasPassword)} idPrefix="manage" />
-            <div className="border-t border-border pt-4">
+            <div className="border-t border-rule pt-4">
               <SenderFields form={form} update={update} idPrefix="manage" />
             </div>
             <Button disabled={!serverReady || !senderReady || save.isPending || isLoading} onClick={() => save.mutate()} className="gap-2">
@@ -482,13 +482,13 @@ export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => vo
             <div className="mt-4">
               <ConnectionStatus connection={connection} />
             </div>
-            <div className="mt-5 border-t border-border pt-5">
+            <div className="mt-5 border-t border-rule pt-5">
               <TestPanel connection={connection} />
             </div>
           </section>
 
           {state === 'paused' && (
-            <section className="rounded-2xl border border-warning/30 bg-warning/5 p-5">
+            <section className="rounded-sm border border-warning/30 bg-warning/5 p-5">
               <p className="text-sm font-medium text-foreground">Sending is paused</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Automations keep queueing but nothing leaves the building. Tick “Allow emails to be sent” and save to resume.
@@ -501,7 +501,7 @@ export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => vo
             <ul className="mt-3 space-y-1">
               {USES.map(({ href, icon: Icon, title, description }) => (
                 <li key={href}>
-                  <Link href={href} className="flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-surface-offset/60">
+                  <Link href={href} className="flex items-center gap-3 rounded-sm px-2 py-2.5 transition-colors hover:bg-band">
                     <Icon size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
                     <span className="min-w-0">
                       <span className="block text-sm font-medium text-foreground">{title}</span>

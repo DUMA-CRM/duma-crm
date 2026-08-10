@@ -109,7 +109,7 @@ export function QrScanner({ onScan, paused = false }: QrScannerProps) {
   }, [facing]);
 
   return (
-    <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-black">
+    <div className="relative aspect-square w-full overflow-hidden rounded-sm bg-black">
       {/* The front camera preview is mirrored (like a selfie) — CSS only, the
           decoded frames stay unmirrored so the QR still reads. */}
       <video
@@ -120,7 +120,7 @@ export function QrScanner({ onScan, paused = false }: QrScannerProps) {
       />
       {/* Viewfinder — dimmed surround with a clear centre square */}
       {!error && !starting && (
-        <div className="absolute inset-0 m-auto w-3/5 aspect-square rounded-2xl border-2 border-white/80 shadow-[0_0_0_9999px_rgb(0_0_0/0.35)]" />
+        <div className="absolute inset-0 m-auto w-3/5 aspect-square rounded-sm border-2 border-white/80 shadow-[0_0_0_9999px_rgb(0_0_0/0.35)]" />
       )}
       {/* Flip between rear and front camera */}
       {!error && (

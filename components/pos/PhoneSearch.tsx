@@ -44,9 +44,11 @@ export function PhoneSearch({ onSelect, onCreate, onClose }: { onSelect: (c: Cus
             <button
               key={c.id}
               onClick={() => onSelect(c)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 bg-primary/5 border border-primary/30 rounded-lg hover:bg-primary/10 transition-colors text-left"
+              className="w-full flex items-center gap-2.5 px-3 py-2 bg-card border border-rule rounded-sm hover:border-foreground transition-colors text-left"
             >
-              <div className="w-8 h-8 rounded-full bg-linear-to-br from-primary to-primary-hover flex items-center justify-center text-white text-xs font-bold shrink-0">
+              {/* Flat ink, not a gradient: this world has no gradients outside
+                  the area fill under a trace. */}
+              <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold shrink-0">
                 {c.firstName[0]?.toUpperCase()}
                 {c.lastName[0]?.toUpperCase()}
               </div>
@@ -66,9 +68,9 @@ export function PhoneSearch({ onSelect, onCreate, onClose }: { onSelect: (c: Cus
       {canCreate && (
         <button
           onClick={() => onCreate(trimmed)}
-          className="w-full flex items-center gap-2.5 px-3 py-2 border border-dashed border-border rounded-lg text-left hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors"
+          className="w-full flex items-center gap-2.5 px-3 py-2 border border-dashed border-rule rounded-sm text-left hover:border-primary/40 hover:bg-band hover:text-primary transition-colors"
         >
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <div className="w-8 h-8 rounded-full bg-band flex items-center justify-center text-primary shrink-0">
             <UserPlus size={15} />
           </div>
           <div className="flex-1 min-w-0">
@@ -82,7 +84,7 @@ export function PhoneSearch({ onSelect, onCreate, onClose }: { onSelect: (c: Cus
         <p className="text-xs text-muted-foreground text-center py-1">Keep typing to find or add a customer…</p>
       )}
 
-      {isError && <p className="text-xs text-destructive text-center py-1">Search failed. Please try again.</p>}
+      {isError && <p className="text-xs text-exception text-center py-1">Search failed. Please try again.</p>}
 
       <Button variant="outline" size="sm" onClick={onClose} className="w-full">
         Cancel

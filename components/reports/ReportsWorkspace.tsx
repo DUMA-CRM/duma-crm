@@ -78,7 +78,7 @@ export type ReportsTab = 'overview' | 'compare' | 'library';
 type ComparisonMode = 'previous' | 'previous-year' | 'custom';
 type PeriodPreset = '7' | '30' | '90' | 'custom';
 
-const panel = 'rounded-2xl border border-border bg-card shadow-sm';
+const panel = 'rounded-sm border border-rule bg-card shadow-sm';
 /** Overview period picker — preset ranges plus a custom from/to. Lives in the page header. */
 function PeriodSelector({
   preset,
@@ -130,7 +130,7 @@ function PeriodSelector({
 }
 
 function LoadingBlock({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-xl bg-muted', className)} aria-hidden="true" />;
+  return <div className={cn('animate-pulse rounded-sm bg-muted', className)} aria-hidden="true" />;
 }
 
 function ErrorBlock({ onRetry }: { onRetry: () => void }) {
@@ -197,22 +197,22 @@ function OperationalStrip({
   loading: boolean;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-1 shadow-sm" aria-label="Supporting performance metrics">
+    <section className="rounded-sm border border-rule bg-card p-1 shadow-sm" aria-label="Supporting performance metrics">
       <div className="grid gap-1 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(({ metric, current, comparison }) => {
           const definition = REPORT_METRIC_MAP[metric];
           return (
-            <div key={metric} className="min-w-0 rounded-xl px-3 py-3 transition-colors hover:bg-muted/35">
+            <div key={metric} className="min-w-0 rounded-sm px-3 py-3 transition-colors hover:bg-muted/35">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">{definition.label}</p>
+                  <p className="truncate text-micro font-semibold uppercase tracking-micro text-muted-foreground">{definition.label}</p>
                   <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
                     {loading ? '—' : formatReportMetric(metric, current)}
                   </p>
                 </div>
                 {!loading && <DeltaText delta={metricDelta(metric, current, comparison, '')} />}
               </div>
-              <p className="mt-1 truncate text-[11px] text-muted-foreground">{definition.description}</p>
+              <p className="mt-1 truncate text-label text-muted-foreground">{definition.description}</p>
             </div>
           );
         })}
@@ -232,24 +232,24 @@ function PerformanceBrief({
   }>;
 }) {
   return (
-    <section className="rounded-2xl border border-primary/20 bg-[color-mix(in_oklab,var(--primary)_4%,var(--card))] px-4 py-3.5 shadow-sm">
+    <section className="rounded-sm border border-primary/20 bg-[color-mix(in_oklab,var(--primary)_4%,var(--card))] px-4 py-3.5 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles size={15} className="text-primary" aria-hidden="true" />
-        <h2 className="text-xs font-bold uppercase tracking-[0.13em] text-foreground">Performance brief</h2>
-        <span className="text-[11px] text-muted-foreground">Quick answers from this period</span>
+        <h2 className="text-xs font-bold uppercase tracking-micro text-foreground">Performance brief</h2>
+        <span className="text-label text-muted-foreground">Quick answers from this period</span>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {items.map((item) => {
           const Icon = item.icon;
           return (
             <div key={item.label} className="flex min-w-0 gap-3">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-card text-primary shadow-sm">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-card text-primary shadow-sm">
                 <Icon size={15} aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{item.label}</p>
+                <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">{item.label}</p>
                 <p className="mt-0.5 truncate text-sm font-bold text-foreground">{item.value}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{item.detail}</p>
+                <p className="truncate text-label text-muted-foreground">{item.detail}</p>
               </div>
             </div>
           );
@@ -282,11 +282,11 @@ function HourlyHeatmap({ rows, loading }: { rows: HourlyVolume[]; loading: boole
           <div
             key={part.label}
             className={cn(
-              'rounded-lg bg-muted/35 px-2 py-2',
-              part.label === busiestPart.label && 'bg-primary/10 text-primary ring-1 ring-primary/15',
+              'rounded-sm bg-muted/35 px-2 py-2',
+              part.label === busiestPart.label && 'bg-band text-primary ring-1 ring-primary/15',
             )}
           >
-            <p className="truncate text-[10px] font-semibold text-muted-foreground">{part.label}</p>
+            <p className="truncate text-micro font-semibold text-muted-foreground">{part.label}</p>
             <p className="mt-0.5 text-sm font-bold tabular-nums text-foreground">{part.orders}</p>
           </div>
         ))}
@@ -297,14 +297,14 @@ function HourlyHeatmap({ rows, loading }: { rows: HourlyVolume[]; loading: boole
           return (
             <div
               key={row.hour}
-              className="flex aspect-square min-w-0 flex-col items-center justify-center rounded-lg border border-primary/10 text-center"
+              className="flex aspect-square min-w-0 flex-col items-center justify-center rounded-sm border border-primary/10 text-center"
               style={{ backgroundColor: `color-mix(in oklab, var(--primary) ${Math.round(8 + strength * 72)}%, var(--card))` }}
               title={`${String(row.hour).padStart(2, '0')}:00 — ${row.orderCount} orders`}
             >
-              <span className={cn('text-[10px] font-semibold', strength > 0.55 ? 'text-primary-foreground' : 'text-foreground')}>
+              <span className={cn('text-micro font-semibold', strength > 0.55 ? 'text-primary-foreground' : 'text-foreground')}>
                 {String(row.hour).padStart(2, '0')}
               </span>
-              <span className={cn('text-[9px]', strength > 0.55 ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+              <span className={cn('text-micro', strength > 0.55 ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
                 {row.orderCount}
               </span>
             </div>
@@ -329,7 +329,7 @@ function TopItemsTable({ rows, loading }: { rows: TopItemAnalytics[]; loading: b
     <div className="mt-4 overflow-x-auto">
       <table className="w-full min-w-120 border-separate border-spacing-y-1 text-sm">
         <thead>
-          <tr className="text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+          <tr className="text-left text-micro uppercase tracking-micro text-muted-foreground">
             <th className="px-3 pb-1 font-semibold">Item</th>
             <th className="px-3 pb-1 text-right font-semibold">Units</th>
             <th className="px-3 pb-1 text-right font-semibold">Orders</th>
@@ -341,12 +341,12 @@ function TopItemsTable({ rows, loading }: { rows: TopItemAnalytics[]; loading: b
             const revenue = Number(row.totalRevenue ?? 0);
             return (
               <tr key={`${row.menuItemId}-${row.name}`} className="group">
-                <td className="rounded-l-lg bg-muted/25 py-2.5 pr-4 pl-3 transition-colors group-hover:bg-muted/45">
+                <td className="rounded-l-sm bg-muted/25 py-2.5 pr-4 pl-3 transition-colors group-hover:bg-muted/45">
                   <div className="flex items-center gap-3">
                     <span className="w-4 text-xs font-bold text-muted-foreground">{index + 1}</span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-foreground">{row.name}</p>
-                      <div className="mt-1 h-1 max-w-40 overflow-hidden rounded-full bg-surface-offset">
+                      <div className="mt-1 h-1 max-w-40 overflow-hidden rounded-full bg-band">
                         <div className="h-full rounded-full bg-primary/70" style={{ width: `${(revenue / maxRevenue) * 100}%` }} />
                       </div>
                     </div>
@@ -358,7 +358,7 @@ function TopItemsTable({ rows, loading }: { rows: TopItemAnalytics[]; loading: b
                 <td className="bg-muted/25 px-3 py-2.5 text-right tabular-nums text-muted-foreground transition-colors group-hover:bg-muted/45">
                   {row.orderCount.toLocaleString()}
                 </td>
-                <td className="rounded-r-lg bg-muted/25 px-3 py-2.5 text-right font-semibold tabular-nums text-foreground transition-colors group-hover:bg-muted/45">
+                <td className="rounded-r-sm bg-muted/25 px-3 py-2.5 text-right font-semibold tabular-nums text-foreground transition-colors group-hover:bg-muted/45">
                   {formatReportMetric('netRevenue', revenue)}
                 </td>
               </tr>
@@ -696,7 +696,7 @@ function ReportsOverview({
                 <span className="text-sm font-bold text-foreground">{totalChannelOrders ? (posLeads ? 'POS' : 'Mobile') : '—'}</span>
               </p>
             </div>
-            <div className="mt-5 flex h-3 overflow-hidden rounded-full bg-surface-offset" aria-label="Order source share">
+            <div className="mt-5 flex h-3 overflow-hidden rounded-full bg-band" aria-label="Order source share">
               <div
                 className="h-full bg-chart-1 transition-[width] duration-500 motion-reduce:transition-none"
                 style={{ width: `${totalChannelOrders ? (current.values.posOrders / totalChannelOrders) * 100 : 0}%` }}
@@ -715,7 +715,7 @@ function ReportsOverview({
                 return (
                   <div
                     key={source.label}
-                    className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 rounded-lg bg-muted/25 px-3 py-2.5"
+                    className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 rounded-sm bg-muted/25 px-3 py-2.5"
                   >
                     <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
                       <span className={cn('size-2.5 rounded-full', source.dot)} /> {source.label}
@@ -731,7 +731,7 @@ function ReportsOverview({
               })}
             </div>
           </div>
-          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-3 text-label leading-relaxed text-muted-foreground">
             Channel value is reported before the headline cancellation adjustment because the current API does not cross-break down status
             and source.
           </p>
@@ -774,14 +774,14 @@ function MetricPicker({ selected, onToggle }: { selected: ReportMetricKey[]; onT
     <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
       {categories.map((category) => (
         <fieldset key={category}>
-          <legend className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{category}</legend>
+          <legend className="mb-2 text-micro font-semibold uppercase tracking-micro text-muted-foreground">{category}</legend>
           <div className="grid gap-1.5">
             {REPORT_METRICS.filter((metric) => metric.category === category).map((metric) => (
               <label
                 key={metric.key}
                 className={cn(
-                  'flex cursor-pointer items-start gap-2.5 rounded-lg bg-background/70 px-2.5 py-2 transition-colors hover:bg-muted',
-                  selected.includes(metric.key) && 'bg-primary/10 ring-1 ring-primary/20',
+                  'flex cursor-pointer items-start gap-2.5 rounded-sm bg-background/70 px-2.5 py-2 transition-colors hover:bg-muted',
+                  selected.includes(metric.key) && 'bg-band ring-1 ring-primary/20',
                 )}
               >
                 <input
@@ -792,7 +792,7 @@ function MetricPicker({ selected, onToggle }: { selected: ReportMetricKey[]; onT
                 />
                 <span className="min-w-0">
                   <span className="block text-xs font-semibold text-foreground">{metric.label}</span>
-                  <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-foreground">{metric.description}</span>
+                  <span className="mt-0.5 block text-micro leading-relaxed text-muted-foreground">{metric.description}</span>
                 </span>
               </label>
             ))}
@@ -914,17 +914,17 @@ function ComparisonWorkspace({
             <FlaskConical size={17} className="text-primary" aria-hidden="true" />
             <div>
               <h2 className="text-sm font-semibold text-foreground">Build a comparison</h2>
-              <p className="text-[11px] text-muted-foreground">Choose two views, then focus the metrics you need.</p>
+              <p className="text-label text-muted-foreground">Choose two views, then focus the metrics you need.</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">View A range</span>
+            <span className="mr-1 text-micro font-semibold uppercase tracking-micro text-muted-foreground">View A range</span>
             {[7, 30, 90].map((days) => (
               <button
                 key={days}
                 type="button"
                 onClick={() => applyPreset(days)}
-                className="rounded-lg bg-muted/70 px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted"
+                className="rounded-sm bg-muted/70 px-2.5 py-1.5 text-label font-semibold text-foreground transition-colors hover:bg-muted"
               >
                 Last {days}d
               </button>
@@ -933,10 +933,10 @@ function ComparisonWorkspace({
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          <fieldset className="rounded-xl bg-muted/30 p-3">
+          <fieldset className="rounded-sm bg-muted/30 p-3">
             <legend className="sr-only">View A</legend>
             <div className="flex items-center gap-2">
-              <span className="inline-flex size-5 items-center justify-center rounded-md bg-chart-1 text-[10px] font-bold text-primary-foreground">
+              <span className="inline-flex size-5 items-center justify-center rounded-sm bg-chart-1 text-micro font-semibold text-primary-foreground">
                 A
               </span>
               <span className="text-xs font-semibold text-foreground">Primary view</span>
@@ -954,16 +954,16 @@ function ComparisonWorkspace({
             </div>
           </fieldset>
 
-          <fieldset className="rounded-xl bg-muted/30 p-3">
+          <fieldset className="rounded-sm bg-muted/30 p-3">
             <legend className="sr-only">View B</legend>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="inline-flex size-5 items-center justify-center rounded-md bg-chart-5 text-[10px] font-bold text-card">
+                <span className="inline-flex size-5 items-center justify-center rounded-sm bg-chart-5 text-micro font-semibold text-card">
                   B
                 </span>
                 <span className="text-xs font-semibold text-foreground">Comparison view</span>
               </div>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-micro text-muted-foreground">
                 {shortDateLabel(effectiveB.from)}–{shortDateLabel(effectiveB.to)}
               </span>
             </div>
@@ -996,10 +996,10 @@ function ComparisonWorkspace({
           </fieldset>
         </div>
 
-        <details className="group mt-3 rounded-xl bg-muted/30 px-3 py-2.5">
+        <details className="group mt-3 rounded-sm bg-muted/30 px-3 py-2.5">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-semibold text-foreground">
             <span>Choose metrics</span>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">{metrics.length} selected</span>
+            <span className="rounded-full bg-band px-2 py-0.5 text-micro text-primary">{metrics.length} selected</span>
           </summary>
           <div className="mt-3">
             <MetricPicker selected={metrics} onToggle={toggleMetric} />
@@ -1011,7 +1011,7 @@ function ComparisonWorkspace({
         <section>
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Custom comparison</p>
+              <p className="text-micro font-semibold uppercase tracking-micro text-primary">Custom comparison</p>
               <h2 className="mt-1 text-lg font-semibold text-foreground">View A against View B</h2>
               <p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted-foreground">
                 Date boundaries use {timeZone}. Percentage metrics show percentage-point differences; all other metrics show relative
@@ -1019,14 +1019,14 @@ function ComparisonWorkspace({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <div className="inline-flex rounded-lg bg-muted/60 p-1">
+              <div className="inline-flex rounded-sm bg-muted/60 p-1">
                 {(['charts', 'table'] as const).map((option) => (
                   <button
                     key={option}
                     type="button"
                     onClick={() => setVisual(option)}
                     className={cn(
-                      'rounded-md px-3 py-1 text-xs font-semibold capitalize',
+                      'rounded-sm px-3 py-1 text-xs font-semibold capitalize',
                       visual === option ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-background',
                     )}
                   >
@@ -1045,14 +1045,14 @@ function ComparisonWorkspace({
             </div>
           </div>
           <div className="mt-4 grid gap-2 text-xs sm:grid-cols-2">
-            <div className="rounded-xl bg-primary/5 px-3 py-2.5">
-              <span className="mr-2 inline-flex size-5 items-center justify-center rounded-md bg-chart-1 text-[10px] font-bold text-primary-foreground">
+            <div className="rounded-sm bg-band px-3 py-2.5">
+              <span className="mr-2 inline-flex size-5 items-center justify-center rounded-sm bg-chart-1 text-micro font-semibold text-primary-foreground">
                 A
               </span>
               <span className="text-muted-foreground">{labelA}</span>
             </div>
-            <div className="rounded-xl bg-chart-5/10 px-3 py-2.5">
-              <span className="mr-2 inline-flex size-5 items-center justify-center rounded-md bg-chart-5 text-[10px] font-bold text-card">
+            <div className="rounded-sm bg-chart-5/10 px-3 py-2.5">
+              <span className="mr-2 inline-flex size-5 items-center justify-center rounded-sm bg-chart-5 text-micro font-semibold text-card">
                 B
               </span>
               <span className="text-muted-foreground">{labelB}</span>
@@ -1092,7 +1092,7 @@ function ComparisonWorkspace({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">{definition.label}</h3>
-                      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{definition.description}</p>
+                      <p className="mt-1 text-label leading-relaxed text-muted-foreground">{definition.description}</p>
                     </div>
                     <span title={definition.description} className="text-muted-foreground">
                       <Info size={14} aria-hidden="true" />
@@ -1126,7 +1126,7 @@ function ComparisonWorkspace({
             <div className="overflow-x-auto">
               <table className="w-full min-w-[780px] text-sm">
                 <thead className="bg-muted/35">
-                  <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-b border-rule text-left text-micro uppercase tracking-micro text-muted-foreground">
                     <th className="px-4 py-3 font-semibold">Metric</th>
                     <th className="px-4 py-3 text-right font-semibold">View A</th>
                     <th className="px-4 py-3 text-right font-semibold">View B</th>
@@ -1140,10 +1140,10 @@ function ComparisonWorkspace({
                     const current = snapshotA.values[metric];
                     const comparison = snapshotB.values[metric];
                     return (
-                      <tr key={metric} className="border-b border-border/60 last:border-0">
+                      <tr key={metric} className="border-b border-rule last:border-0">
                         <td className="px-4 py-3">
                           <p className="font-semibold text-foreground">{definition.label}</p>
-                          <p className="mt-0.5 max-w-md text-[11px] text-muted-foreground">{definition.description}</p>
+                          <p className="mt-0.5 max-w-md text-label text-muted-foreground">{definition.description}</p>
                         </td>
                         <td className="px-4 py-3 text-right font-bold tabular-nums text-foreground">
                           {formatReportMetric(metric, current)}
@@ -1268,12 +1268,12 @@ function ReportLibrary() {
           const content = (
             <>
               <div className="flex items-start justify-between gap-3">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <span className="flex size-10 items-center justify-center rounded-sm bg-band text-primary">
                   <Icon size={18} aria-hidden="true" />
                 </span>
                 <span
                   className={cn(
-                    'rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide',
+                    'rounded-full px-2 py-1 text-micro font-semibold uppercase tracking-micro',
                     item.status === 'Available'
                       ? 'bg-success-highlight text-success'
                       : item.status === 'Partial'

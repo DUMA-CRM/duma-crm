@@ -70,7 +70,7 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
       setCounts({});
       toast('success', 'Counts saved.');
     },
-    onError: (err) => toast('error', err.message || 'Failed to save counts.'),
+    onError: (err) => toast('error', err.message || 'The counts weren’t saved. Check the quantities and try again.'),
   });
 
   const complete = useMutation({
@@ -95,7 +95,7 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
     },
     onError: (err) => {
       setConfirm(null);
-      toast('error', err.message || 'Failed to complete the stocktake.');
+      toast('error', err.message || 'The stocktake wasn’t completed. Review the counts and try again.');
     },
   });
 
@@ -106,12 +106,12 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
       setConfirm(null);
       toast('info', 'Stocktake cancelled — nothing was applied.');
     },
-    onError: (err) => toast('error', err.message || 'Failed to cancel.'),
+    onError: (err) => toast('error', err.message || 'The stocktake wasn’t cancelled. Try again.'),
   });
 
   return (
-    <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
+    <div className="min-h-0 bg-card border border-rule rounded-sm overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-rule shrink-0">
         <div>
           <p className="font-semibold text-foreground">Counting in progress</p>
           <p className="text-xs text-muted-foreground">
@@ -124,15 +124,15 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
       <div className="flex-1 overflow-auto">
         <DataTable className="w-full text-sm border-collapse">
           <thead className="sticky top-0 z-10">
-            <tr className="border-b border-border bg-muted">
-              <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Item</th>
-              <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+            <tr className="border-b border-rule bg-muted">
+              <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">Item</th>
+              <th className="px-3 md:px-5 py-3.5 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                 Expected
               </th>
-              <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <th className="px-3 md:px-5 py-3.5 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                 Counted
               </th>
-              <th className="px-3 md:px-5 py-3.5 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <th className="px-3 md:px-5 py-3.5 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                 Variance
               </th>
             </tr>
@@ -142,10 +142,10 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
               const value = valueFor(line.stockItemId, line.countedQty);
               const expected = Number(line.expectedQty);
               return (
-                <tr key={line.id} className="border-b border-border/50 last:border-0">
+                <tr key={line.id} className="border-b border-rule last:border-0">
                   <td className="px-3 md:px-5 py-2.5">
                     <p className="font-medium text-foreground">{line.stockItem?.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{line.stockItem?.unit}</p>
+                    <p className="text-label text-muted-foreground">{line.stockItem?.unit}</p>
                   </td>
                   <td className="px-3 md:px-5 py-2.5 text-right tabular-nums text-muted-foreground">{Number(line.expectedQty)}</td>
                   <td className="px-3 md:px-5 py-2.5 text-right">
@@ -175,7 +175,7 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
         </DataTable>
       </div>
 
-      <div className="flex gap-2 px-5 py-3 border-t border-border shrink-0">
+      <div className="flex gap-2 px-5 py-3 border-t border-rule shrink-0">
         <Button variant="outline" onClick={() => setConfirm('cancel')} className="text-destructive hover:text-destructive">
           Cancel Stocktake
         </Button>
@@ -242,7 +242,7 @@ export function StartStocktakeButton({ locationId }: { locationId: string }) {
       qc.invalidateQueries({ queryKey: ['stocktakes'] });
       toast('success', 'Stocktake started — count each item and enter the physical quantity.');
     },
-    onError: (err) => toast('error', err.message || 'Failed to start a stocktake.'),
+    onError: (err) => toast('error', err.message || 'The stocktake didn’t start. Try again.'),
   });
 
   if (activeId) return null;
@@ -270,7 +270,7 @@ export function StocktakePanel({ locationId }: { locationId: string }) {
   });
 
   if (activeId) {
-    if (!active?.lines) return <div className="h-40 rounded-2xl bg-muted animate-pulse" />;
+    if (!active?.lines) return <div className="h-40 rounded-sm bg-muted animate-pulse" />;
     return <ActiveCount stocktake={active} />;
   }
 
@@ -304,7 +304,7 @@ export function StocktakePanel({ locationId }: { locationId: string }) {
               <button
                 type="button"
                 onClick={() => setDetail(s)}
-                className="flex flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-offset"
+                className="flex flex-1 items-center gap-3 rounded-sm px-3 py-2.5 text-left transition-colors hover:bg-band"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-medium tabular-nums text-foreground">{fmtDateTime(s.createdAt)}</span>
@@ -345,13 +345,13 @@ function StocktakeDetailDrawer({ id, onClose }: { id: string; onClose: () => voi
       onClose={onClose}
     >
       {!data ? (
-        <div className="h-32 animate-pulse rounded-lg bg-muted" />
+        <div className="h-32 animate-pulse rounded-sm bg-muted" />
       ) : (
         <div className="space-y-3">
-          <div className="overflow-hidden rounded-xl border border-border">
+          <div className="overflow-hidden rounded-sm border border-rule">
             <DataTable className="w-full text-sm">
               <thead>
-                <tr className="bg-muted text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <tr className="bg-muted text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   <th className="px-3 py-2 text-left">Item</th>
                   <th className="px-3 py-2 text-right">Expected</th>
                   <th className="px-3 py-2 text-right">Counted</th>
@@ -363,9 +363,9 @@ function StocktakeDetailDrawer({ id, onClose }: { id: string; onClose: () => voi
                   const expected = Number(l.expectedQty);
                   const counted = l.countedQty != null ? Number(l.countedQty) : null;
                   return (
-                    <tr key={l.id} className="border-t border-border/50">
+                    <tr key={l.id} className="border-t border-rule">
                       <td className="px-3 py-2 font-medium text-foreground">
-                        {l.stockItem?.name} <span className="text-[11px] text-muted-foreground">{l.stockItem?.unit}</span>
+                        {l.stockItem?.name} <span className="text-label text-muted-foreground">{l.stockItem?.unit}</span>
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{expected}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{counted ?? '—'}</td>

@@ -12,7 +12,7 @@ export default function CRMLoading() {
           <StatCardSkeleton key={index} />
         ))}
       </StatCardGrid>
-      <div className="h-80 rounded-2xl border border-border bg-muted/40" />
+      <div className="h-80 rounded-sm border border-rule bg-muted/40" />
     </div>
   );
 }

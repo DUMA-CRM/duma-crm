@@ -56,65 +56,59 @@ export function ConnectorCard({
   return (
     <article
       className={cn(
-        'flex flex-col rounded-2xl border border-border bg-muted/40 p-1.5 transition-colors',
-        state === 'attention' && 'border-destructive/30 bg-destructive/5',
+        'rounded-lg border border-rule/65 bg-card p-4 transition-colors',
+        state === 'attention' && 'border-destructive/35 bg-destructive/5',
         state === 'unavailable' && 'opacity-70',
       )}
     >
-      <header className="flex items-center gap-2.5 px-3.5 py-3">
-        <div
-          className={cn(
-            'flex size-8 shrink-0 items-center justify-center rounded-lg bg-card',
-            state === 'attention' ? 'text-destructive' : 'text-primary',
-          )}
-        >
-          <Icon size={17} aria-hidden="true" />
-        </div>
-        <h3 className="truncate text-base font-semibold text-foreground">{definition.name}</h3>
-        <Badge variant={badge.variant} className="shrink-0 uppercase tracking-wide">
-          {badge.label}
-        </Badge>
-      </header>
-
-      <div className="flex flex-1 flex-col rounded-xl border border-border bg-card shadow-sm p-4">
-        <p className="text-sm leading-relaxed text-muted-foreground">{definition.description}</p>
-
-        <ul className="mt-3.5 flex flex-wrap gap-1.5">
-          {definition.tags.map((tag) => (
-            <li key={tag} className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
-              {tag}
-            </li>
-          ))}
-        </ul>
-
-        {/* Everything below is pinned to the bottom so the buttons align across a row. */}
-        <div className="mt-auto space-y-3 pt-5">
-          {accounts.length > 0 && (
-            <div className="flex items-stretch gap-2">
-              <div className="min-w-0 flex-1 space-y-2">
-                {accounts.map((account) => (
-                  <div key={account.label} className="flex items-center gap-2 rounded-xl bg-surface-offset/60 px-3 py-2.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">{account.label}</p>
-                      {account.meta && <p className="truncate text-xs text-muted-foreground">{account.meta}</p>}
-                    </div>
-                    {account.busy && <Loader2 size={15} className="shrink-0 animate-spin text-primary" aria-label="Checking" />}
-                  </div>
-                ))}
-              </div>
-              {extraAccountCount > 0 && (
-                <div
-                  className="flex w-12 shrink-0 items-center justify-center rounded-xl bg-surface-offset/60 text-sm font-semibold text-muted-foreground tabular-nums"
-                  title={`${extraAccountCount} more`}
-                >
-                  +{extraAccountCount}
-                </div>
-              )}
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(12rem,0.55fr)_auto] md:items-center">
+        <div className="flex min-w-0 items-start gap-3">
+          <div
+            className={cn(
+              'flex size-10 shrink-0 items-center justify-center rounded-md bg-band',
+              state === 'attention' ? 'text-destructive' : state === 'connected' ? 'text-success' : 'text-primary',
+            )}
+          >
+            <Icon size={17} aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-semibold text-foreground">{definition.name}</h3>
+              <Badge variant={badge.variant} className="shrink-0">
+                {badge.label}
+              </Badge>
             </div>
+            <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">{definition.description}</p>
+            <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+              {definition.tags.slice(0, 4).map((tag) => (
+                <li key={tag} className="text-xs text-muted-foreground before:mr-1.5 before:text-rule before:content-['•']">
+                  {tag}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          {accounts.length > 0 ? (
+            <div className="space-y-2">
+              {accounts.map((account) => (
+                <div key={account.label} className="flex min-w-0 items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{account.label}</p>
+                    {account.meta && <p className="truncate text-xs text-muted-foreground">{account.meta}</p>}
+                  </div>
+                  {account.busy && <Loader2 size={15} className="shrink-0 animate-spin text-primary" aria-label="Checking" />}
+                </div>
+              ))}
+              {extraAccountCount > 0 && <p className="text-xs text-muted-foreground">And {extraAccountCount} more at this location</p>}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No account connected yet.</p>
           )}
 
           {alert && (
-            <div className="flex items-start gap-2 text-destructive">
+            <div className="mt-2 flex items-start gap-2 text-destructive">
               <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
               <div className="min-w-0">
                 <p className="text-sm font-medium">{alert.title}</p>
@@ -122,14 +116,21 @@ export function ConnectorCard({
               </div>
             </div>
           )}
+        </div>
 
+        <div className="md:justify-self-end">
           {action ? (
-            <Button variant={action.variant ?? 'default'} disabled={action.disabled} onClick={action.onClick} className="h-10 w-full gap-2">
+            <Button
+              variant={action.variant ?? 'default'}
+              disabled={action.disabled}
+              onClick={action.onClick}
+              className="w-full gap-2 md:w-auto"
+            >
               {ActionIcon && <ActionIcon size={15} aria-hidden="true" />}
               {action.label}
             </Button>
           ) : (
-            <p className="text-xs text-muted-foreground">Nothing to set up yet — we’ll switch this on when it’s ready.</p>
+            <p className="text-xs text-muted-foreground">Not available yet</p>
           )}
         </div>
       </div>

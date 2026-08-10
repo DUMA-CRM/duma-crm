@@ -46,10 +46,10 @@ function RunCard({ run }: { run: PayrollRun }) {
   const gross = runGross(run);
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+    <div className="bg-card border border-rule rounded-sm overflow-hidden">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-3 px-4 md:px-5 py-3.5 text-left hover:bg-surface-offset transition-colors"
+        className="w-full flex items-center gap-3 px-4 md:px-5 py-3.5 text-left hover:bg-band transition-colors"
       >
         <ChevronRight size={16} className={cn('text-muted-foreground transition-transform shrink-0', open && 'rotate-90')} />
         <div className="min-w-0 flex-1">
@@ -79,7 +79,7 @@ function RunCard({ run }: { run: PayrollRun }) {
           getRowKey={(line) => line.id}
           density="compact"
           borders={{ outer: false }}
-          className="border-t border-border rounded-none"
+          className="border-t border-rule rounded-none"
         />
       )}
     </div>
@@ -93,7 +93,7 @@ export function PayrollHistoryPanel() {
     return (
       <div className="space-y-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-16 bg-muted rounded-2xl animate-pulse" />
+          <div key={i} className="h-16 bg-muted rounded-sm animate-pulse" />
         ))}
       </div>
     );

@@ -42,8 +42,8 @@ export function ItemCustomiser({ item, pending, setPending, onAdd, onCancel, cur
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Item header */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0">
-        <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-rule shrink-0">
+        <div className="w-12 h-12 rounded-sm overflow-hidden bg-muted shrink-0">
           {item.image ? (
             <Image width={48} height={48} src={item.image} alt={item.name} className="w-full h-full object-cover" />
           ) : (
@@ -67,7 +67,7 @@ export function ItemCustomiser({ item, pending, setPending, onAdd, onCancel, cur
           {!item.modifiersLoaded ? (
             <div className="space-y-2.5">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />
+                <div key={i} className="h-10 rounded-sm bg-muted animate-pulse" />
               ))}
             </div>
           ) : (
@@ -90,7 +90,7 @@ export function ItemCustomiser({ item, pending, setPending, onAdd, onCancel, cur
       </ScrollArea>
 
       {/* Always-visible add button */}
-      <div className="border-t border-border p-5 shrink-0">
+      <div className="border-t border-rule p-5 shrink-0">
         <Button size="lg" onClick={onAdd} className="w-full h-14 text-base">
           Add to Order — {formatPrice(price, currency)}
         </Button>

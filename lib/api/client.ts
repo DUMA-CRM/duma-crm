@@ -39,10 +39,20 @@ export class ApiError extends Error {
     public readonly status: number,
     message: string,
     public readonly code?: string,
+    public readonly request?: string,
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+function normaliseErrorMessage(value: unknown, fallback: string) {
+  if (typeof value !== 'string') return fallback;
+  const message = value
+    .replaceAll(/[\u0000-\u001F\u007F]+/g, ' ')
+    .replaceAll(/\s+/g, ' ')
+    .trim();
+  return message ? message.slice(0, 300) : fallback;
 }
 
 // Pull a human-readable message out of an error response body. The API sends
@@ -54,11 +64,14 @@ async function extractErrorMessage(res: Response): Promise<{ message: string; co
     const text = await res.text();
     if (!text) return { message: fallback };
     try {
-      const body = JSON.parse(text) as { message?: string; error?: string; code?: string };
-      return { message: body.message ?? body.error ?? fallback, code: body.code };
+      const body = JSON.parse(text) as { message?: unknown; error?: unknown; code?: unknown };
+      return {
+        message: normaliseErrorMessage(body.message ?? body.error, fallback),
+        code: typeof body.code === 'string' ? body.code.slice(0, 100) : undefined,
+      };
     } catch {
       // Plain-text body: use it only if it doesn't look like an HTML page.
-      return { message: text.startsWith('<') ? fallback : text.slice(0, 300) };
+      return { message: text.trimStart().startsWith('<') ? fallback : normaliseErrorMessage(text, fallback) };
     }
   } catch {
     return { message: fallback };
@@ -92,7 +105,9 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
 
   if (!res.ok) {
     const { message, code } = await extractErrorMessage(res);
-    throw new ApiError(res.status, `${message} (${method} ${path})`, code);
+    // Keep request internals on the error for diagnostics without putting API
+    // paths into every customer-facing toast and inline validation message.
+    throw new ApiError(res.status, message, code, `${method} ${path}`);
   }
 
   // 204 No Content — return undefined cast as T

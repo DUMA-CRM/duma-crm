@@ -30,7 +30,7 @@ export function LoyaltyProgress({ customer }: { customer: Customer }) {
   return (
     <div>
       <div className="mb-3 flex items-end justify-between gap-3">
-        <p className="text-2xl font-bold tabular-nums text-foreground">
+        <p data-figure className="text-2xl font-semibold text-foreground">
           {pts.toLocaleString()}
           <span className="ml-1 text-sm font-normal text-muted-foreground">pts</span>
         </p>
@@ -38,15 +38,12 @@ export function LoyaltyProgress({ customer }: { customer: Customer }) {
           {ptsToNext > 0 ? `${ptsToNext.toLocaleString()} to ${band.nextTier}` : `${band.nextTier} reached`}
         </p>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full bg-linear-to-r from-warning to-warning/60 transition-all duration-500"
-          style={{ width: `${progressPct}%` }}
-        />
+      <div className="h-2 overflow-hidden rounded-full bg-band">
+        <div className="h-full rounded-full bg-stock transition-[width] duration-500" style={{ width: `${progressPct}%` }} />
       </div>
       <div className="mt-1.5 flex justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{band.fromLabel}</span>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{band.nextTier}</span>
+        <span className="text-xs font-medium text-muted-foreground">{band.fromLabel}</span>
+        <span className="text-xs font-medium text-muted-foreground">{band.nextTier}</span>
       </div>
     </div>
   );

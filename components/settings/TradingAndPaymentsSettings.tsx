@@ -64,7 +64,7 @@ export function TradingAndPaymentsSettings() {
       void qc.invalidateQueries({ queryKey: ['trading'] });
       toast('success', 'Trading settings saved.');
     },
-    onError: (error) => toast('error', error instanceof Error ? error.message : 'Could not save trading settings.'),
+    onError: (error) => toast('error', error instanceof Error ? error.message : 'Trading settings weren’t saved. Review them and try again.'),
   });
   const add = useMutation({
     mutationFn: () =>
@@ -93,12 +93,12 @@ export function TradingAndPaymentsSettings() {
       setAffiliateKey('');
       toast('success', 'Payment method added.');
     },
-    onError: (error) => toast('error', error instanceof Error ? error.message : 'Could not add payment method.'),
+    onError: (error) => toast('error', error instanceof Error ? error.message : 'The payment method wasn’t added. Review the details and try again.'),
   });
   return (
     <EditorShell eyebrow="Settings" title="Trading & payments" onClose={() => router.push('/settings/connectors')}>
       <div className="grid gap-5 lg:grid-cols-2">
-        <section className="rounded-2xl border border-border bg-card shadow-sm p-5">
+        <section className="rounded-sm border border-rule bg-card shadow-sm p-5">
           <h2 className="mb-4 font-semibold">Currency and VAT</h2>
           <div className="space-y-3">
             <Input
@@ -160,7 +160,7 @@ export function TradingAndPaymentsSettings() {
             </Button>
           </div>
         </section>
-        <section className="rounded-2xl border border-border bg-card shadow-sm p-5">
+        <section className="rounded-sm border border-rule bg-card shadow-sm p-5">
           <h2 className="mb-4 font-semibold">Payment methods</h2>
           <div className="mb-4 space-y-1 text-sm">
             {methods.map((m) => (

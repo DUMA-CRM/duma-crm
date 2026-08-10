@@ -4,23 +4,39 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+/* ════════════════════════════════════════════════════════════════
+   A badge is a chart annotation.
+
+   On a roast plot a status is a small boxed label with a coloured hairline and
+   coloured text, sitting on the field — not a filled pill. That is the world's
+   idiom AND the only construction that survives both themes: a light role
+   colour washed over a dark surface closes the contrast gap, which is exactly
+   how the previous tinted chips failed dark mode (measured 4.11:1,
+   exception 3.47:1 against a 4.5 requirement).
+
+   Role text on field / page / band is verified 4.90–8.93:1, and the role
+   hairline clears 3:1 as a UI boundary, in both themes.
+
+   Every variant name is preserved; `amber` remains an alias of `warning`.
+   ════════════════════════════════════════════════════════════════ */
 const badgeVariants = cva(
-  'group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-md border border-transparent px-2 py-0.5 text-xs font-semibold whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!',
+  'group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm border border-transparent px-1.5 text-label font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 aria-invalid:border-exception aria-invalid:text-exception [&>svg]:pointer-events-none [&>svg]:size-3!',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground [a]:hover:bg-primary/80',
-        secondary: 'bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80',
-        primary: 'bg-primary/10 text-primary',
-        success: 'bg-success/10 text-success',
-        warning: 'bg-warning/10 text-warning',
-        muted: 'bg-muted text-muted-foreground',
-        amber: 'bg-warning/10 text-warning',
-        destructive:
-          'bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20',
-        outline: 'border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground',
-        ghost: 'hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50',
-        link: 'text-primary underline-offset-4 hover:underline',
+        // Solid keys, for counts and neutral tags.
+        default: 'bg-primary text-primary-foreground',
+        secondary: 'bg-band text-foreground',
+        muted: 'bg-band text-muted-foreground',
+        // Boxed annotations — a role hairline with role text on the surface.
+        primary: 'border-rule text-foreground',
+        success: 'border-momentum/60 bg-momentum/6 text-momentum',
+        warning: 'border-measured/60 bg-measured/6 text-measured',
+        amber: 'border-measured/60 bg-measured/6 text-measured',
+        destructive: 'border-exception/60 bg-exception/6 text-exception',
+        outline: 'border-rule text-foreground',
+        ghost: 'text-muted-foreground hover:bg-band',
+        link: 'text-reference underline decoration-1 underline-offset-4',
       },
     },
     defaultVariants: {

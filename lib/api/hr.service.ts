@@ -93,11 +93,38 @@ export interface UpdateEmployeePayload extends EmployeePayFields {
   emergencyContactRelation?: string | null;
 }
 
+/**
+ * What an employee may change about their own record. Self-service pay details
+ * go through this endpoint, not the admin `/employees/{userId}/bank` one, which
+ * ordinary staff cannot call.
+ *
+ * The pay fields are sent under BOTH spellings on purpose. `openapi.json`
+ * documents `bankAccountName` / `bankSortCode` / `bankAccountNumber` /
+ * `nationalInsuranceNumber`, but every write against this API that is known to
+ * work — `updateEmployee`, `createEmployee`, `setEmployeeBank` — uses
+ * `niNumber` / `accountHolder` / `sortCode` / `accountNumber`, and that spec
+ * file has already proved incomplete elsewhere (it omits `/hr/attendance/me`,
+ * which this app calls successfully). The endpoint returns 200 while ignoring
+ * keys it does not know, so sending both names costs nothing and stops the save
+ * silently doing nothing. Collapse this to one spelling once the handler is
+ * confirmed server-side.
+ */
 export interface UpdateMyEmployeePayload {
   address?: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   emergencyContactRelation?: string;
+  // Documented spelling.
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  bankSortCode?: string;
+  nationalInsuranceNumber?: string;
+  // The spelling every working call site in this app uses.
+  accountHolder?: string;
+  bankName?: string;
+  sortCode?: string;
+  accountNumber?: string;
+  niNumber?: string;
 }
 
 export const getMyEmployee = () => apiFetch<HrEmployee>('/hr/employees/me');

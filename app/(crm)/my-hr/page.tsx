@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 
-import { MyHrWorkspace } from '@/components/people/MyHrWorkspace';
+import { MyHrWorkspace } from '@/components/people/my-hr/MyHrWorkspace';
 
 export default function MyHrPage() {
   // The workspace reads `?tab=` for deep links, which needs a Suspense boundary.

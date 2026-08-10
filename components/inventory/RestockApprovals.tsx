@@ -51,9 +51,9 @@ const STATUS_META: Record<
   RestockStatus,
   { label: string; variant: 'warning' | 'success' | 'destructive' | 'muted'; iconBg: string; iconFg: string }
 > = {
-  pending: { label: 'Pending', variant: 'warning', iconBg: 'bg-warning/10', iconFg: 'text-warning' },
-  approved: { label: 'Approved', variant: 'success', iconBg: 'bg-success/10', iconFg: 'text-success' },
-  rejected: { label: 'Rejected', variant: 'destructive', iconBg: 'bg-destructive/10', iconFg: 'text-destructive' },
+  pending: { label: 'Pending', variant: 'warning', iconBg: 'bg-warning/6', iconFg: 'text-warning' },
+  approved: { label: 'Approved', variant: 'success', iconBg: 'bg-success/6', iconFg: 'text-success' },
+  rejected: { label: 'Rejected', variant: 'destructive', iconBg: 'bg-destructive/6', iconFg: 'text-destructive' },
   fulfilled: { label: 'Ordered', variant: 'muted', iconBg: 'bg-muted', iconFg: 'text-muted-foreground' },
 };
 
@@ -63,7 +63,7 @@ const PRIORITY_OPTIONS = [
 ] as const;
 
 const textareaClass = cn(
-  'w-full bg-field border border-input rounded-lg px-3 py-2 text-sm text-foreground',
+  'w-full bg-field border border-input rounded-sm px-3 py-2 text-sm text-foreground',
   'placeholder:text-muted-foreground outline-none resize-none',
   'focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150',
 );
@@ -124,13 +124,13 @@ function RequestRow({
   return (
     <div
       className={cn(
-        'px-4 py-4 border-b border-border/50 last:border-0 transition-opacity',
+        'px-4 py-4 border-b border-rule last:border-0 transition-opacity',
         statusPending && 'opacity-50 pointer-events-none',
       )}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
         {/* Icon */}
-        <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5', meta.iconBg)}>
+        <div className={cn('w-9 h-9 rounded-sm flex items-center justify-center shrink-0 mt-0.5', meta.iconBg)}>
           <ClipboardList size={15} className={meta.iconFg} />
         </div>
 
@@ -141,11 +141,11 @@ function RequestRow({
               {request.stockItem?.name ?? <span className="font-mono text-xs">{request.id.slice(0, 8)}</span>}
             </p>
             {priority === 'urgent' && (
-              <Badge variant="destructive" className="text-[10px]">
+              <Badge variant="destructive" className="text-micro">
                 Urgent
               </Badge>
             )}
-            <Badge variant={meta.variant} className="text-[10px]">
+            <Badge variant={meta.variant} className="text-micro">
               {meta.label}
             </Badge>
           </div>
@@ -175,7 +175,7 @@ function RequestRow({
               type="button"
               onClick={startEdit}
               aria-label="Edit request"
-              className="w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-surface-offset hover:text-foreground transition-colors"
+              className="w-8 h-8 rounded-sm flex items-center justify-center text-muted-foreground hover:bg-band hover:text-foreground transition-colors"
             >
               <Pencil size={13} />
             </button>
@@ -184,7 +184,7 @@ function RequestRow({
                 type="button"
                 onClick={() => setMode('delete')}
                 aria-label="Delete request"
-                className="w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                className="w-8 h-8 rounded-sm flex items-center justify-center text-muted-foreground hover:bg-band hover:text-destructive transition-colors"
               >
                 <Trash2 size={13} />
               </button>
@@ -194,7 +194,7 @@ function RequestRow({
               variant="outline"
               size="sm"
               onClick={() => onReject(request.id)}
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+              className="text-destructive hover:bg-band hover:text-destructive border-destructive/30"
             >
               <XCircle size={13} />
               Reject
@@ -215,7 +215,7 @@ function RequestRow({
 
       {/* Inline edit */}
       {mode === 'edit' && (
-        <div className="mt-3 pt-3 border-t border-border space-y-3">
+        <div className="mt-3 pt-3 border-t border-rule space-y-3">
           <div className="flex flex-wrap items-end gap-4">
             <div className="w-32">
               <Input label="QUANTITY" type="number" min={1} value={editQty} onChange={(e) => setEditQty(e.target.value)} placeholder="0" />
@@ -246,7 +246,7 @@ function RequestRow({
 
       {/* Inline delete confirm */}
       {mode === 'delete' && (
-        <div className="mt-3 flex items-center gap-3 rounded-lg bg-destructive/5 border border-destructive/10 px-3 py-2.5">
+        <div className="mt-3 flex items-center gap-3 rounded-sm bg-destructive/5 border border-destructive/10 px-3 py-2.5">
           <AlertTriangle size={14} className="text-destructive shrink-0" />
           <p className="text-xs text-destructive flex-1">Delete this request? This can’t be undone.</p>
           <Button variant="ghost" size="sm" onClick={() => setMode('view')}>
@@ -254,7 +254,7 @@ function RequestRow({
           </Button>
           <Button
             size="sm"
-            className="bg-destructive/10 text-destructive hover:bg-destructive hover:text-white"
+            className="bg-destructive/6 text-destructive hover:bg-destructive hover:text-white"
             disabled={deletePending}
             onClick={() => onDelete(request.id)}
           >
@@ -352,7 +352,7 @@ export function RestockApprovals({
             : 'Request rejected.';
       toast('success', message);
     },
-    onError: (error: Error) => toast('error', error.message || 'Unable to update the request.'),
+    onError: (error: Error) => toast('error', error.message || 'The restock request wasn’t updated. Try again.'),
   });
 
   const {
@@ -365,7 +365,7 @@ export function RestockApprovals({
       invalidate();
       toast('success', 'Request updated.');
     },
-    onError: (error: Error) => toast('error', error.message || 'Unable to save the request.'),
+    onError: (error: Error) => toast('error', error.message || 'The restock request wasn’t saved. Review it and try again.'),
   });
 
   const {
@@ -378,7 +378,7 @@ export function RestockApprovals({
       invalidate();
       toast('success', 'Request deleted.');
     },
-    onError: (error: Error) => toast('error', error.message || 'Unable to delete the request.'),
+    onError: (error: Error) => toast('error', error.message || 'The restock request wasn’t deleted. Try again.'),
   });
 
   const requests = data?.data ?? [];
@@ -405,7 +405,7 @@ export function RestockApprovals({
   return (
     <div className="space-y-6 pb-8">
       {/* ── Filters ────────────────────────────────────────── */}
-      <div className="grid gap-2 rounded-2xl border border-border bg-card shadow-sm p-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,16rem)_minmax(12rem,20rem)_1fr]">
+      <div className="grid gap-2 rounded-sm border border-rule bg-card shadow-sm p-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,16rem)_minmax(12rem,20rem)_1fr]">
         <Select
           value={activeTab}
           onValueChange={(value) => changeTab(value as RestockStatus)}
@@ -439,15 +439,15 @@ export function RestockApprovals({
       </div>
 
       {/* ── Request list ───────────────────────────────────── */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      <div className="bg-card border border-rule rounded-sm overflow-hidden">
         {isLoading ? (
           <div className="divide-y divide-border/50">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 px-4 py-4">
-                <div className="w-9 h-9 rounded-xl bg-surface-offset animate-pulse shrink-0" />
+                <div className="w-9 h-9 rounded-sm bg-band animate-pulse shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-3.5 w-40 bg-surface-offset rounded animate-pulse" />
-                  <div className="h-3 w-64 bg-surface-offset rounded animate-pulse" />
+                  <div className="h-3.5 w-40 bg-band rounded animate-pulse" />
+                  <div className="h-3 w-64 bg-band rounded animate-pulse" />
                 </div>
               </div>
             ))}
@@ -474,27 +474,27 @@ export function RestockApprovals({
           <div>
             {/* One PO for everything approved here — saves raising them one by one */}
             {showBatchBar && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-primary/5 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rule bg-band px-4 py-3">
                 <p className="text-xs text-muted-foreground">
                   {canBatch
                     ? `Order the ${batchGroup.length} approved requests for ${locationMap[batchGroup[0].locationId] ?? 'this location'} from one supplier in a single purchase order.`
-                    : 'These requests span several locations. Pick a location in the top bar to combine its requests into one purchase order.'}
+                    : 'These requests span several locations. Use the location picker to combine one location’s requests into a purchase order.'}
                 </p>
                 {canBatch && (
                   <Button size="sm" onClick={() => onCreatePurchaseOrderBatch?.(batchGroup)} className="shrink-0 gap-1.5">
                     <ShoppingCart size={13} />
-                    Create one PO
+                    Create purchase order
                   </Button>
                 )}
               </div>
             )}
 
             {/* Table header */}
-            <div className="flex items-center gap-4 px-4 py-2.5 bg-muted/50 border-b border-border">
+            <div className="flex items-center gap-4 px-4 py-2.5 bg-muted/50 border-b border-rule">
               <div className="w-9 shrink-0" />
-              <p className="flex-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Item / Details</p>
+              <p className="flex-1 text-micro font-semibold text-muted-foreground uppercase tracking-micro">Item / Details</p>
               {activeTab === 'pending' && (
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest shrink-0 pr-1">Actions</p>
+                <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro shrink-0 pr-1">Actions</p>
               )}
             </div>
 
@@ -518,14 +518,14 @@ export function RestockApprovals({
                 savePending={savePending && saveVariables?.id === r.id}
                 deletePending={deletePending && deleteVariables === r.id}
                 canDelete={canDelete}
-                fulfillLabel={onCreatePurchaseOrder ? 'Create PO' : 'Mark fulfilled'}
+                fulfillLabel={onCreatePurchaseOrder ? 'Create purchase order' : 'Mark fulfilled'}
               />
             ))}
           </div>
         )}
 
         {!isLoading && !isError && totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3">
+          <div className="flex items-center justify-between border-t border-rule bg-muted/30 px-4 py-3">
             <p className="text-xs text-muted-foreground">
               Page {page} of {totalPages}
             </p>

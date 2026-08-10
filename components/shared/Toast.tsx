@@ -1,7 +1,8 @@
 'use client';
 
-import { CheckCircle2, Info, X, XCircle } from '@/components/icons';
 import { useEffect } from 'react';
+
+import { CheckCircle2, Info, X, XCircle } from '@/components/icons';
 
 import { cn } from '@/lib/utils/cn';
 import { useToastStore } from '@/stores/toastStore';
@@ -32,8 +33,7 @@ export function GlobalToaster() {
 export function Toast({ toasts, onDismiss }: ToastProps) {
   return (
     <div
-      role="status"
-      aria-live="polite"
+      aria-label="Notifications"
       className="fixed bottom-5 left-4 right-4 sm:left-auto sm:right-5 z-50 flex flex-col gap-2 items-end pointer-events-none"
     >
       {toasts.map((t) => (
@@ -45,14 +45,20 @@ export function Toast({ toasts, onDismiss }: ToastProps) {
 
 function ToastItem({ toast, onDismiss }: { toast: ToastMessage; onDismiss: (id: number) => void }) {
   useEffect(() => {
-    const timer = setTimeout(() => onDismiss(toast.id), toast.type === 'error' ? 6000 : 3000);
+    // Errors require a decision or recovery and must remain available until the
+    // operator dismisses them. Routine confirmations can clear themselves.
+    if (toast.type === 'error') return;
+    const timer = setTimeout(() => onDismiss(toast.id), 4000);
     return () => clearTimeout(timer);
   }, [toast.id, toast.type, onDismiss]);
 
   return (
     <div
+      role={toast.type === 'error' ? 'alert' : 'status'}
+      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+      aria-atomic="true"
       className={cn(
-        'pointer-events-auto flex items-start gap-3 px-4 py-3 bg-card border rounded-xl shadow-lg w-full sm:w-auto sm:max-w-sm animate-in fade-in slide-in-from-bottom-2 duration-200',
+        'pointer-events-auto flex items-start gap-3 px-4 py-3 bg-card border rounded-sm shadow-lg w-full sm:w-auto sm:max-w-sm animate-in fade-in slide-in-from-bottom-2 duration-200',
         toast.type === 'success' && 'border-success/30',
         toast.type === 'error' && 'border-destructive/30',
         toast.type === 'info' && 'border-primary/30',
@@ -65,13 +71,14 @@ function ToastItem({ toast, onDismiss }: { toast: ToastMessage; onDismiss: (id: 
       ) : (
         <XCircle size={16} className="text-destructive shrink-0 mt-0.5" />
       )}
-      <p className="text-xs font-medium text-foreground flex-1 leading-relaxed">{toast.message}</p>
+      <p className="min-w-0 flex-1 overflow-wrap-anywhere text-sm leading-6 text-foreground">{toast.message}</p>
       <button
+        type="button"
         onClick={() => onDismiss(toast.id)}
-        className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-        aria-label="Dismiss"
+        className="-m-2 inline-flex size-9 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:size-8"
+        aria-label={`Dismiss ${toast.type} notification`}
       >
-        <X size={13} />
+        <X size={13} aria-hidden="true" />
       </button>
     </div>
   );

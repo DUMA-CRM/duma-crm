@@ -31,7 +31,9 @@ export interface DatePickerProps {
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DATE_MASK = '__/__/____';
 const DATE_POSITIONS = [0, 1, 3, 4, 6, 7, 8, 9];
-const MONTHS = Array.from({ length: 12 }, (_, month) => new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(new Date(2026, month, 1)));
+const MONTHS = Array.from({ length: 12 }, (_, month) =>
+  new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(new Date(2026, month, 1)),
+);
 const fullLabel = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 type CalendarView = 'days' | 'months' | 'years';
 
@@ -175,7 +177,7 @@ export function DatePicker({
   return (
     <div ref={rootRef} className="relative flex w-full flex-col gap-1.5">
       {label && (
-        <label htmlFor={inputId} className="block text-xs font-bold tracking-widest text-muted-foreground">
+        <label htmlFor={inputId} className="block text-label uppercase text-muted-foreground">
           {label}
           {required && (
             <span className="ml-1 text-destructive" aria-hidden="true">
@@ -275,9 +277,12 @@ export function DatePicker({
             const chars = clearSelection(draft || DATE_MASK, start, end);
             const targets = DATE_POSITIONS.filter((position) => position >= start);
             if (!targets.length) return;
-            pastedDigits.slice(0, targets.length).split('').forEach((digit, index) => {
-              chars[targets[index]] = digit;
-            });
+            pastedDigits
+              .slice(0, targets.length)
+              .split('')
+              .forEach((digit, index) => {
+                chars[targets[index]] = digit;
+              });
             setDraft(chars.join(''));
             setEditing(true);
             setInputError('');
@@ -286,6 +291,7 @@ export function DatePicker({
             moveCaret(next);
           }}
           placeholder={placeholder}
+          maxLength={DATE_MASK.length}
           required={required}
           disabled={disabled}
           autoFocus={autoFocus}
@@ -296,7 +302,7 @@ export function DatePicker({
           aria-describedby={describedBy}
           aria-haspopup="dialog"
           className={cn(
-            'h-9 w-full rounded-lg border border-input bg-field pl-3 pr-16 text-sm text-foreground outline-none placeholder:text-muted-foreground',
+            'h-9 w-full rounded-sm border border-input bg-field pl-3 pr-16 text-base text-foreground outline-none placeholder:text-muted-foreground sm:text-sm',
             'transition-[border-color,box-shadow] duration-150 focus:border-primary focus:ring-2 focus:ring-primary/15',
             (error || inputError) && 'border-destructive/60 focus:border-destructive focus:ring-destructive/15',
             'disabled:cursor-not-allowed disabled:opacity-50',
@@ -332,7 +338,7 @@ export function DatePicker({
           }}
           aria-expanded={open}
           aria-haspopup="dialog"
-          className="absolute right-1.5 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+          className="absolute right-1.5 rounded-sm p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
           aria-label="Open calendar"
         >
           <Calendar size={15} />
@@ -359,13 +365,13 @@ export function DatePicker({
             role="dialog"
             aria-label="Choose date"
             style={position}
-            className="fixed z-[100] w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-border bg-card p-3 shadow-xl"
+            className="fixed z-[100] w-[min(20rem,calc(100vw-2rem))] rounded-sm border border-rule bg-card p-3 shadow-xl"
           >
             <div className="flex items-center justify-between gap-2 pb-3">
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-sm"
+                size="icon"
                 onClick={() => navigateCalendar(-1)}
                 aria-label={calendarView === 'days' ? 'Previous month' : calendarView === 'months' ? 'Previous year' : 'Previous 12 years'}
               >
@@ -376,7 +382,7 @@ export function DatePicker({
                   <button
                     type="button"
                     onClick={() => setCalendarView('months')}
-                    className="rounded-md px-2 py-1 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    className="rounded-sm px-2 py-1 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                     aria-label={`Choose month, currently ${MONTHS[view.getMonth()]}`}
                   >
                     {MONTHS[view.getMonth()]}
@@ -386,19 +392,21 @@ export function DatePicker({
                   <button
                     type="button"
                     onClick={() => setCalendarView('years')}
-                    className="rounded-md px-2 py-1 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    className="rounded-sm px-2 py-1 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                     aria-label={`Choose year, currently ${view.getFullYear()}`}
                   >
                     {view.getFullYear()}
                   </button>
                 ) : (
-                  <span className="px-2 py-1">{yearPageStart}–{yearPageStart + 11}</span>
+                  <span className="px-2 py-1">
+                    {yearPageStart}–{yearPageStart + 11}
+                  </span>
                 )}
               </div>
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-sm"
+                size="icon"
                 onClick={() => navigateCalendar(1)}
                 aria-label={calendarView === 'days' ? 'Next month' : calendarView === 'months' ? 'Next year' : 'Next 12 years'}
               >
@@ -408,11 +416,7 @@ export function DatePicker({
             {calendarView === 'days' && (
               <div className="grid grid-cols-7 gap-1" role="grid">
                 {WEEKDAYS.map((day) => (
-                  <div
-                    key={day}
-                    role="columnheader"
-                    className="py-1 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
-                  >
+                  <div key={day} role="columnheader" className="py-1 text-center text-micro uppercase text-muted-foreground">
                     {day}
                   </div>
                 ))}
@@ -432,7 +436,7 @@ export function DatePicker({
                       aria-label={fullLabel.format(date)}
                       onClick={() => choose(date)}
                       className={cn(
-                        'relative flex size-9 items-center justify-center rounded-lg text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                        'relative flex size-9 items-center justify-center rounded-sm text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                         outside && 'text-muted-foreground/45',
                         today && !active && 'font-bold text-primary',
                         active && 'bg-primary font-bold text-primary-foreground hover:bg-primary/90',
@@ -463,7 +467,7 @@ export function DatePicker({
                         setCalendarView('days');
                       }}
                       className={cn(
-                        'h-12 rounded-xl text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                        'h-12 rounded-sm text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                         active && 'bg-primary font-bold text-primary-foreground hover:bg-primary/90',
                         unavailable && 'cursor-not-allowed opacity-25',
                       )}
@@ -491,7 +495,7 @@ export function DatePicker({
                         setCalendarView('months');
                       }}
                       className={cn(
-                        'h-12 rounded-xl text-sm font-medium tabular-nums transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                        'h-12 rounded-sm text-sm font-medium tabular-nums transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                         active && 'bg-primary font-bold text-primary-foreground hover:bg-primary/90',
                         unavailable && 'cursor-not-allowed opacity-25',
                       )}
@@ -502,7 +506,7 @@ export function DatePicker({
                 })}
               </div>
             )}
-            <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+            <div className="mt-3 flex items-center justify-between border-t border-rule pt-3">
               <Button
                 type="button"
                 variant="ghost"

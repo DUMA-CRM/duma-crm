@@ -40,7 +40,7 @@ interface MenuPerformanceRow extends AggregatedItem {
   costComplete: boolean;
 }
 
-const panel = 'rounded-2xl border border-border bg-card shadow-sm';
+const panel = 'rounded-sm border border-rule bg-card shadow-sm';
 
 const qtyOf = (row: TopItemAnalytics) => Number(row.totalQuantity ?? 0);
 const revOf = (row: TopItemAnalytics) => Number(row.totalRevenue ?? 0);
@@ -75,16 +75,16 @@ function aggregateItems(rows: TopItemAnalytics[]): AggregatedItem[] {
 }
 
 function MarginBadge({ margin }: { margin: number | null }) {
-  if (margin === null) return <span className="text-[11px] font-medium text-warning">Cost incomplete</span>;
+  if (margin === null) return <span className="text-label font-medium text-warning">Cost incomplete</span>;
   return (
     <span
       className={cn(
-        'rounded-full px-2 py-1 text-[11px] font-bold tabular-nums',
+        'rounded-full px-2 py-1 text-label font-semibold tabular-nums',
         margin >= 65
           ? 'bg-success-highlight text-success'
           : margin >= 50
             ? 'bg-warning-highlight text-warning'
-            : 'bg-destructive/10 text-destructive',
+            : 'bg-destructive/6 text-destructive',
       )}
     >
       {margin.toFixed(1)}%
@@ -239,7 +239,7 @@ export function TopItemsReportPage() {
           />
         </div>
 
-        <div className="flex items-start gap-3 rounded-xl border border-warning/25 bg-warning/5 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+        <div className="flex items-start gap-3 rounded-sm border border-warning/25 bg-warning/5 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
           <AlertTriangle size={15} className="mt-0.5 shrink-0 text-warning" aria-hidden="true" />
           <p>
             Contribution uses today&apos;s default base-recipe ingredient costs. It excludes modifier recipes, size overrides, historical
@@ -290,13 +290,13 @@ export function TopItemsReportPage() {
                 </h2>
                 <p className="mt-1 text-xs text-muted-foreground">Item momentum and share within the selected period</p>
               </div>
-              {comparisonAvailable && <span className="text-[11px] text-muted-foreground">Change {window.comparisonLabel}</span>}
+              {comparisonAvailable && <span className="text-label text-muted-foreground">Change {window.comparisonLabel}</span>}
             </div>
 
             {loading ? (
               <div className="space-y-2">
                 {Array.from({ length: 8 }).map((_, index) => (
-                  <div key={index} className="h-12 animate-pulse rounded-xl bg-muted" />
+                  <div key={index} className="h-12 animate-pulse rounded-sm bg-muted" />
                 ))}
               </div>
             ) : rows.length === 0 ? (
@@ -318,11 +318,11 @@ export function TopItemsReportPage() {
                           : null
                         : undefined;
                   return (
-                    <div key={row.menuItemId} className="rounded-xl px-1 py-1">
+                    <div key={row.menuItemId} className="rounded-sm px-1 py-1">
                       <div className="flex items-center gap-3">
                         <span
                           className={cn(
-                            'flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold',
+                            'flex size-6 shrink-0 items-center justify-center rounded-sm text-label font-semibold',
                             index === 0 ? 'bg-primary text-white' : 'bg-muted text-muted-foreground',
                           )}
                         >
@@ -348,7 +348,7 @@ export function TopItemsReportPage() {
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
                           <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${share}%` }} />
                         </div>
-                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                        <span className="shrink-0 text-label text-muted-foreground">
                           {CATEGORY_LABEL[row.category]} · {row.orderCount} orders
                         </span>
                       </div>
@@ -369,23 +369,23 @@ export function TopItemsReportPage() {
             </div>
             <div className="mt-4 space-y-2">
               {categories.map((category) => (
-                <div key={category.category} className="rounded-xl bg-muted/40 px-3 py-3">
+                <div key={category.category} className="rounded-sm bg-muted/40 px-3 py-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold text-foreground">{CATEGORY_LABEL[category.category]}</p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-micro text-muted-foreground">
                         {formatCompact(category.units)} units ·{' '}
                         {totalRevenue ? ((category.revenue / totalRevenue) * 100).toFixed(1) : '0.0'}% revenue
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold tabular-nums text-foreground">{formatMoney(category.revenue)}</p>
-                      <p className="text-[10px] tabular-nums text-muted-foreground">
+                      <p className="text-micro tabular-nums text-muted-foreground">
                         {category.coveredRevenue ? `${formatMoney(category.contribution)} contribution` : 'Cost incomplete'}
                       </p>
                     </div>
                   </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-offset">
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-band">
                     <div
                       className="h-full rounded-full bg-primary/75"
                       style={{ width: `${totalRevenue ? (category.revenue / totalRevenue) * 100 : 0}%` }}
@@ -418,20 +418,20 @@ export function TopItemsReportPage() {
                       ? 'Higher margin with lower popularity'
                       : 'Below-median margin and popularity';
               return (
-                <div key={name} className="rounded-xl border border-border bg-background p-4">
+                <div key={name} className="rounded-sm border border-rule bg-background p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-xs font-bold text-foreground">{name}</h3>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">{copy}</p>
+                      <p className="mt-0.5 text-micro text-muted-foreground">{copy}</p>
                     </div>
-                    <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground">{items.length}</span>
+                    <span className="rounded-full bg-muted px-2 py-1 text-micro font-semibold text-muted-foreground">{items.length}</span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {items.length === 0 ? (
                       <span className="text-xs text-muted-foreground">No items</span>
                     ) : (
                       items.slice(0, 12).map((item) => (
-                        <span key={item.menuItemId} className="rounded-lg bg-muted/70 px-2 py-1 text-[11px] font-medium text-foreground">
+                        <span key={item.menuItemId} className="rounded-sm bg-muted/70 px-2 py-1 text-label font-medium text-foreground">
                           {item.name}
                         </span>
                       ))
@@ -444,7 +444,7 @@ export function TopItemsReportPage() {
         </section>
 
         <section className={cn(panel, 'overflow-hidden')}>
-          <div className="border-b border-border p-5">
+          <div className="border-b border-rule p-5">
             <h2 className="text-sm font-semibold text-foreground">Detailed item economics</h2>
             <p className="mt-1 text-xs text-muted-foreground">
               Current base-recipe costs applied to actual item sales in the selected period
@@ -453,7 +453,7 @@ export function TopItemsReportPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
               <thead className="bg-muted/35">
-                <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-rule text-left text-micro uppercase tracking-micro text-muted-foreground">
                   <th className="px-4 py-3 font-semibold">Item</th>
                   <th className="px-4 py-3 font-semibold">Category</th>
                   <th className="px-4 py-3 text-right font-semibold">Units</th>
@@ -468,7 +468,7 @@ export function TopItemsReportPage() {
                 {[...rows]
                   .sort((a, b) => revOf(b) - revOf(a))
                   .map((row) => (
-                    <tr key={row.menuItemId} className="border-b border-border/60 last:border-0">
+                    <tr key={row.menuItemId} className="border-b border-rule last:border-0">
                       <td className="px-4 py-3 font-medium text-foreground">{row.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{CATEGORY_LABEL[row.category]}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{qtyOf(row).toLocaleString()}</td>

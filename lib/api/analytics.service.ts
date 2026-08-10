@@ -75,6 +75,45 @@ export interface StaffHoursAnalytics {
   totalHours: number;
 }
 
+export interface BaselineHour {
+  hour: number;
+  /** Median revenue taken by the END of this hour on a typical same-weekday. */
+  cumulativeRevenue: number;
+  cumulativeOrders: number;
+  /** Median revenue taken within this hour alone — used to interpolate inside it. */
+  revenue: number;
+  orderCount: number;
+}
+
+/** The shape of a typical same-weekday trading day, for judging today against. */
+export interface DayBaseline {
+  weekday: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+  timezone: string;
+  weeks: number;
+  /** Trading days that made it into the sample. Below 3, don't draw a pace line. */
+  sampleCount: number;
+  sampleDates: string[];
+  dailyMedianRevenue: number;
+  dailyMedianOrders: number;
+  byHour: BaselineHour[];
+}
+
+/** Aggregate labour for a window. Deliberately carries no per-person figures. */
+export interface LabourAnalytics {
+  clockedHours: number;
+  /** Hours that cost money: capped at the rota slot, less unpaid breaks. */
+  paidHours: number;
+  /** Clocked outside a rota slot, so not costed. */
+  uncostedHours: number;
+  estimatedCost: number;
+  headcount: number;
+  openShifts: number;
+  salariedHeadcount: number;
+  /** Staff with no usable pay record — the cost is short by whatever they earned. */
+  staffMissingPayData: number;
+  costComplete: boolean;
+}
+
 export interface StockSummaryAnalytics {
   stockItemId: string;
   type: string;
@@ -117,7 +156,13 @@ export const getTopItems = async (params: AnalyticsRangeParams, limit = 6) => {
 export const getRevenueByLocation = (params: AnalyticsRangeParams) =>
   apiFetch<RevenueByLocation[]>(`/analytics/revenue-by-location?${rangeQuery(params)}`);
 
-export const getHourlyVolume = (params: AnalyticsRangeParams) => apiFetch<HourlyVolume[]>(`/analytics/hourly-volume?${rangeQuery(params)}`);
+export const getHourlyVolume = (params: AnalyticsRangeParams & { timezone?: string }) => {
+  const query = rangeQuery(params);
+  // Without this the API buckets by UTC hour, which puts a 13:00 peak in the
+  // 12:00 column whenever the location is off UTC.
+  if (params.timezone) query.set('timezone', params.timezone);
+  return apiFetch<HourlyVolume[]>(`/analytics/hourly-volume?${query}`);
+};
 
 export const getCustomerRetention = (params: AnalyticsRangeParams) =>
   apiFetch<CustomerRetention>(`/analytics/customer-retention?${rangeQuery(params)}`);
@@ -127,3 +172,15 @@ export const getStaffHours = (params: AnalyticsRangeParams) =>
 
 export const getStockSummary = (params: AnalyticsRangeParams) =>
   apiFetch<StockSummaryAnalytics[]>(`/analytics/stock/summary?${rangeQuery(params)}`);
+
+export const getDayBaseline = (params: { weekday?: string; weeks?: number; timezone?: string; locationId?: string }) => {
+  const query = new URLSearchParams();
+  if (params.weekday) query.set('weekday', params.weekday);
+  if (params.weeks) query.set('weeks', String(params.weeks));
+  if (params.timezone) query.set('timezone', params.timezone);
+  if (params.locationId) query.set('locationId', params.locationId);
+  return apiFetch<DayBaseline>(`/analytics/baseline?${query}`);
+};
+
+export const getLabourAnalytics = (params: AnalyticsRangeParams) =>
+  apiFetch<LabourAnalytics>(`/analytics/labour?${rangeQuery(params)}`);

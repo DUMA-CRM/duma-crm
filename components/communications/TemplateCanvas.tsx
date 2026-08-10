@@ -27,28 +27,37 @@ import {
 } from './templateDesign';
 
 /** What is being dragged: a brand new block from the palette, or an existing one. */
-export type DragPayload =
-  | { kind: 'new'; type: TemplateBlock['type']; layout?: ColumnsLayout }
-  | { kind: 'move'; blockId: string };
+export type DragPayload = { kind: 'new'; type: TemplateBlock['type']; layout?: ColumnsLayout } | { kind: 'move'; blockId: string };
 
 /** Builds the block a palette drag or click asked for. */
 export const blockFromPayload = (payload: Extract<DragPayload, { kind: 'new' }>): TemplateBlock =>
   payload.type === 'columns' ? newColumnsBlock(payload.layout ?? 'two-equal') : newLeafBlock(payload.type);
 
 const HIGHLIGHT_NAME = 'template-variable';
+const HIGHLIGHT_STYLE_ID = 'template-variable-highlight-style';
 const VARIABLE_TOKEN = /\{\{[^{}]+\}\}/g;
+
+function ensureVariableHighlightStyle() {
+  if (document.getElementById(HIGHLIGHT_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = HIGHLIGHT_STYLE_ID;
+  // Kept at runtime because the current Next.js CSS optimiser rejects the
+  // standards-based custom-highlight pseudo-element during production builds.
+  style.textContent = `::highlight(${HIGHLIGHT_NAME}) { background-color: color-mix(in oklab, var(--reference) 14%, transparent); color: var(--reference); }`;
+  document.head.append(style);
+}
 
 /**
  * Tints every {{merge.field}} in the canvas with the app accent, so placeholders
  * read as placeholders rather than literal copy. Uses the CSS Custom Highlight
  * API — no wrapper elements, so the editable text stays plain and the caret is
- * unaffected. Styled by the `::highlight(template-variable)` rule in globals.css;
- * where the API is missing the token just renders unstyled.
+ * unaffected. Browsers without the API simply render the token unstyled.
  */
 function useVariableHighlight(root: React.RefObject<HTMLElement | null>, design: TemplateDesign) {
   useEffect(() => {
     const node = root.current;
     if (!node || typeof CSS === 'undefined' || !CSS.highlights) return;
+    ensureVariableHighlightStyle();
 
     const ranges: Range[] = [];
     const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
@@ -149,10 +158,10 @@ export function TemplateCanvas({
   };
 
   return (
-    <div className="rounded-2xl p-4 shadow-inner" style={{ backgroundColor: design.styles.backgroundColor }}>
+    <div className="rounded-sm p-4 shadow-inner" style={{ backgroundColor: design.styles.backgroundColor }}>
       <div
         ref={sheetRef}
-        className="mx-auto max-w-155 rounded-2xl p-6 shadow-sm md:p-8"
+        className="mx-auto max-w-155 rounded-sm p-6 shadow-sm md:p-8"
         style={{
           backgroundColor: design.styles.contentColor,
           color: design.styles.textColor,
@@ -167,7 +176,7 @@ export function TemplateCanvas({
               onChange(insertTemplateBlock(design, block, { kind: 'root' }, 0));
               onSelect(block.id);
             }}
-            className="w-full rounded-xl border border-dashed border-current/25 p-12 text-sm opacity-60"
+            className="w-full rounded-sm border border-dashed border-current/25 p-12 text-sm opacity-60"
           >
             Add your first content block — or drag one in from the left
           </button>
@@ -203,7 +212,8 @@ const rootIndexOf = (design: TemplateDesign, blockId: string) => design.blocks.f
 function columnOf(design: TemplateDesign, blockId: string): DropContainer | undefined {
   for (const block of design.blocks) {
     if (!isColumnsBlock(block)) continue;
-    for (const column of block.columns) if (column.blocks.some((leaf) => leaf.id === blockId)) return { kind: 'column', columnId: column.id };
+    for (const column of block.columns)
+      if (column.blocks.some((leaf) => leaf.id === blockId)) return { kind: 'column', columnId: column.id };
   }
   return undefined;
 }
@@ -275,11 +285,7 @@ function DropGap({
         onDrop(container, index);
       }}
       aria-hidden="true"
-      className={cn(
-        'relative transition-all',
-        allowed ? (vertical ? 'my-0.5 h-4' : 'my-1 h-6') : first ? 'h-0' : 'h-1',
-        over && 'h-10',
-      )}
+      className={cn('relative transition-all', allowed ? (vertical ? 'my-0.5 h-4' : 'my-1 h-6') : first ? 'h-0' : 'h-1', over && 'h-10')}
     >
       {allowed && (
         <span
@@ -328,7 +334,7 @@ function BlockShell({
         actions.select(block.id);
       }}
       className={cn(
-        'group/block relative rounded-lg border-2 transition-colors',
+        'group/block relative rounded-sm border-2 transition-colors',
         compact ? 'px-1' : 'px-2',
         selected ? 'border-primary' : 'border-transparent hover:border-current/20',
       )}
@@ -383,7 +389,7 @@ function BlockToolbar({
   return (
     <div
       className={cn(
-        'absolute -top-3 right-1 z-10 flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5 shadow-md transition-opacity',
+        'absolute -top-3 right-1 z-10 flex items-center gap-0.5 rounded-sm border border-rule bg-card p-0.5 shadow-md transition-opacity',
         selected ? 'opacity-100' : 'opacity-0 group-hover/block:opacity-100 focus-within:opacity-100',
       )}
       // Clicking the toolbar must not also re-enter the block's own handlers.
@@ -402,7 +408,7 @@ function BlockToolbar({
         onDragEnd={dnd.end}
         aria-label={`Drag to move this ${label}`}
         title="Drag to move"
-        className="flex size-6 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
+        className="flex size-6 cursor-grab items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
       >
         <Menu size={13} />
       </button>
@@ -440,8 +446,10 @@ function ToolbarButton({
       aria-label={label}
       title={label}
       className={cn(
-        'flex size-6 items-center justify-center rounded-md transition-colors',
-        destructive ? 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+        'flex size-6 items-center justify-center rounded-sm transition-colors',
+        destructive
+          ? 'text-muted-foreground hover:bg-band hover:text-destructive'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
       {children}
@@ -477,11 +485,7 @@ function ColumnsView({
         const container: DropContainer = { kind: 'column', columnId: column.id };
         const empty = column.blocks.length === 0;
         return (
-          <div
-            key={column.id}
-            style={{ width: `${widths[columnIndex] ?? 100 / block.columns.length}%` }}
-            className="min-w-0"
-          >
+          <div key={column.id} style={{ width: `${widths[columnIndex] ?? 100 / block.columns.length}%` }} className="min-w-0">
             {empty ? (
               <EmptyCell container={container} dnd={dnd} accepts={accepts} onDrop={onDropAt} />
             ) : (
@@ -500,14 +504,7 @@ function ColumnsView({
                       actions={actions}
                       compact
                     />
-                    <DropGap
-                      container={container}
-                      index={leafIndex + 1}
-                      dnd={dnd}
-                      accepts={accepts}
-                      onDrop={onDropAt}
-                      vertical
-                    />
+                    <DropGap container={container} index={leafIndex + 1} dnd={dnd} accepts={accepts} onDrop={onDropAt} vertical />
                   </div>
                 ))}
               </>
@@ -549,8 +546,8 @@ function EmptyCell({
         onDrop(container, 0);
       }}
       className={cn(
-        'flex min-h-24 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed p-3 text-center text-[11px] transition-colors',
-        over ? 'border-primary bg-primary/10' : 'border-current/20 opacity-50',
+        'flex min-h-24 flex-col items-center justify-center gap-1 rounded-sm border-2 border-dashed p-3 text-center text-label transition-colors',
+        over ? 'border-primary bg-band' : 'border-current/20 opacity-50',
       )}
     >
       {/* Inert, so dragging over the label never reads as leaving the cell. */}
@@ -597,7 +594,7 @@ function LeafView({
         onFocus={() => actions.select(block.id)}
         placeholder="Write your message here."
         ariaLabel="Paragraph text"
-        className={cn('leading-7', compact ? 'py-1 text-[13px]' : 'py-2 text-sm')}
+        className={cn('leading-7', compact ? 'py-1 text-sm' : 'py-2 text-sm')}
         style={{ textAlign: block.align }}
       />
     );
@@ -605,10 +602,7 @@ function LeafView({
   if (block.type === 'button')
     return (
       <div className={compact ? 'py-2' : 'py-4'} style={{ textAlign: block.align }}>
-        <span
-          className="inline-block rounded-xl px-6 py-3 text-sm font-bold text-white"
-          style={{ backgroundColor: accent }}
-        >
+        <span className="inline-block rounded-sm px-6 py-3 text-sm font-bold text-white" style={{ backgroundColor: accent }}>
           <InlineText
             value={block.text}
             onChange={(text) => actions.update({ ...block, text })}
@@ -629,12 +623,12 @@ function LeafView({
           // Email-builder images use arbitrary tenant-uploaded public URLs;
           // next/image cannot know or safely proxy those hosts at build time.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={block.url} alt={block.alt} className="inline-block h-auto max-w-full rounded-lg" style={{ width: `${block.width}%` }} />
+          <img src={block.url} alt={block.alt} className="inline-block h-auto max-w-full rounded-sm" style={{ width: `${block.width}%` }} />
         ) : (
           <button
             type="button"
             onClick={() => actions.requestImage(block.id)}
-            className="flex min-h-24 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-current/25 text-sm opacity-60 transition-opacity hover:opacity-100"
+            className="flex min-h-24 w-full items-center justify-center gap-2 rounded-sm border border-dashed border-current/25 text-sm opacity-60 transition-opacity hover:opacity-100"
           >
             <ImagePlus size={16} />
             Choose an image
@@ -648,7 +642,7 @@ function LeafView({
   if (block.type === 'spacer')
     return (
       <div className="flex items-center justify-center opacity-40" style={{ height: block.height }}>
-        <span className="text-[10px]">{block.height}px</span>
+        <span className="text-micro">{block.height}px</span>
       </div>
     );
 

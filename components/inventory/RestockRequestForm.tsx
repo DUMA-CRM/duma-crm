@@ -19,7 +19,7 @@ import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const selectClass = cn(
-  'w-full h-9 bg-field border border-input rounded-lg px-3 pr-8 text-sm text-foreground',
+  'w-full h-9 bg-field border border-input rounded-sm px-3 pr-8 text-sm text-foreground',
   'outline-none focus:border-primary focus:ring-2 focus:ring-primary/15',
   'transition-[border-color,box-shadow] duration-150 appearance-none cursor-pointer',
   'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -49,7 +49,7 @@ function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSug
     Number.isFinite(configuredReorder) && configuredReorder > 0 ? Math.ceil(configuredReorder) : Math.max(Math.ceil(target - qty), 1);
 
   return (
-    <div className="rounded-xl border border-border bg-surface-offset p-4 space-y-3">
+    <div className="rounded-sm border border-rule bg-band p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold text-foreground truncate">{ls.stockItem?.name}</p>
         <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
@@ -68,7 +68,7 @@ function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSug
       <button
         type="button"
         onClick={() => onUseSuggestion(suggested)}
-        className="w-full flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 hover:bg-primary/10 transition-colors"
+        className="w-full flex items-center justify-between gap-2 rounded-sm border border-primary/30 bg-band px-3 py-2 hover:bg-band transition-colors"
       >
         <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Sparkles size={12} className="text-primary" /> {configuredReorder > 0 ? 'Configured reorder' : 'Suggested order'}
@@ -137,13 +137,13 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
       // Lets the host close the dialog and drop the user on the pending list.
       onSubmitted?.();
     },
-    onError: () => toast('error', 'Failed to submit request. Please try again.'),
+    onError: () => toast('error', 'The restock request wasn’t sent. Try again.'),
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!locationId) {
-      toast('error', 'Select a location in the top bar first.');
+      toast('error', 'Select a location before requesting stock.');
       return;
     }
     if (duplicatePending) {
@@ -174,12 +174,12 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
         {/* Location (set from the top bar) */}
         <div className="flex flex-col gap-1.5">
           <Label uppercase>Location</Label>
-          <div className="h-9 px-3 bg-surface-offset rounded-lg flex items-center gap-2 text-sm">
+          <div className="h-9 px-3 bg-band rounded-sm flex items-center gap-2 text-sm">
             <MapPin size={14} className="text-muted-foreground shrink-0" />
             {locationName ? (
               <span className="font-medium text-foreground truncate">{locationName}</span>
             ) : (
-              <span className="text-muted-foreground">No location selected — choose one in the top bar</span>
+              <span className="text-muted-foreground">No location selected — choose one from the location picker</span>
             )}
           </div>
         </div>
@@ -208,10 +208,10 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
             disabled={!locationId || loadingStock}
             className={selectClass}
           />
-          {!locationId && <p className="text-xs text-muted-foreground">Select a location in the top bar first.</p>}
+          {!locationId && <p className="text-xs text-muted-foreground">Select a location before sending this request.</p>}
           {errors.stockItem && <p className="text-xs text-destructive">{errors.stockItem}</p>}
           {duplicatePending && (
-            <div className="flex items-start gap-2 rounded-lg border border-warning/20 bg-warning/5 px-3 py-2 text-xs text-warning">
+            <div className="flex items-start gap-2 rounded-sm border border-warning/20 bg-warning/5 px-3 py-2 text-xs text-warning">
               <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
               <span>
                 A pending request already exists for {duplicatePending.requestedQty} {selectedItem?.stockItem?.unit ?? 'units'}.
@@ -234,7 +234,7 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
               }}
               placeholder="0"
               className={cn(
-                'flex-1 h-9 px-3 bg-field border border-input rounded-lg text-sm text-foreground',
+                'flex-1 h-9 px-3 bg-field border border-input rounded-sm text-sm text-foreground',
                 'placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15',
                 'transition-[border-color,box-shadow] duration-150',
                 errors.qty && 'border-destructive/60 focus:border-destructive focus:ring-destructive/15',
@@ -242,7 +242,7 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
             />
             <div
               className={cn(
-                'h-9 px-3 bg-surface-offset rounded-lg flex items-center text-sm font-medium shrink-0 border border-input',
+                'h-9 px-3 bg-band rounded-sm flex items-center text-sm font-medium shrink-0 border border-input',
                 selectedItem?.stockItem?.unit ? 'text-foreground' : 'text-muted-foreground',
               )}
             >
@@ -271,7 +271,7 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
             maxLength={900}
             rows={3}
             className={cn(
-              'w-full bg-field border border-input rounded-lg px-3 py-2 text-sm text-foreground',
+              'w-full bg-field border border-input rounded-sm px-3 py-2 text-sm text-foreground',
               'placeholder:text-muted-foreground outline-none resize-none',
               'focus:border-primary focus:ring-2 focus:ring-primary/15',
               'transition-[border-color,box-shadow] duration-150',
@@ -296,7 +296,7 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
             }}
           />
         ) : (
-          <div className="rounded-xl border border-dashed border-border p-5 text-center">
+          <div className="rounded-sm border border-dashed border-rule p-5 text-center">
             <Package size={20} className="mx-auto mb-2 text-muted-foreground/40" />
             <p className="text-xs text-muted-foreground">Pick an item to see its current stock level and a suggested order amount.</p>
           </div>

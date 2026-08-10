@@ -1,45 +1,34 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { History, MoreHorizontal, PanelRight, RotateCcw, X } from '@/components/icons';
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-import { roleAtLeast } from '@/lib/api/staff.service';
+import { PanelRight, RotateCcw } from '@/components/icons';
+import { DumaAgent } from '@/components/ai/DumaAgent';
+
 import { cn } from '@/lib/utils/cn';
-import { useAuthStore } from '@/stores/authStore';
+import { usePageHeaderStore } from '@/stores/pageHeaderStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
-import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 
-import { AuditDrawer } from './AuditDrawer';
-import { LocationPicker } from './LocationPicker';
 import { SidebarToggle } from './SidebarToggle';
 import { ThemeToggle } from './ThemeToggle';
 
-const iconButton = 'w-9 h-9 rounded-md flex items-center justify-center hover:bg-surface-offset hover:text-foreground transition-colors';
+const iconButton = 'w-9 h-9 rounded-md flex items-center justify-center hover:bg-band hover:text-foreground transition-colors';
 
 export function Header() {
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [spinning, setSpinning] = useState(false);
-  const headerRef = useRef<HTMLElement>(null);
   const qc = useQueryClient();
-  // Audit log is franchise_owner+ (matches the API); hide the button otherwise.
-  const canViewAudit = roleAtLeast(
-    useAuthStore((s) => s.role),
-    'franchise_owner',
-  );
   // Only pages that render a right-hand panel get the drawer toggle.
   const { present: hasPageSidebar, toggle: togglePageSidebar, open: pageSidebarOpen } = usePageSidebarStore();
 
-  // "Hide top bar" setting — drop the header on lg+ (the sidebar carries its
-  // tools there). Keep it below lg, where it's the only way to open the nav.
-  // Gate on mounted so SSR and the first client render agree (persisted store).
-  const hideHeader = useUiSettingsStore((s) => s.hideHeader);
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
+  const setSlot = usePageHeaderStore((s) => s.setSlot);
+  const setBarVisible = usePageHeaderStore((s) => s.setBarVisible);
+  const slotRef = useCallback((node: HTMLDivElement | null) => setSlot(node), [setSlot]);
+
+  useEffect(() => {
+    setBarVisible(true);
+    return () => setBarVisible(false);
+  }, [setBarVisible]);
 
   const handleReload = useCallback(async () => {
     setSpinning(true);
@@ -47,110 +36,41 @@ export function Header() {
     setTimeout(() => setSpinning(false), 600);
   }, [qc]);
 
-  // Reflect the "hide top bar" setting on <html> so CSS can zero out
-  // --header-height on lg+ (full-height layouts subtract it).
-  useEffect(() => {
-    const root = document.documentElement;
-    if (hideHeader) root.dataset.hideHeader = 'true';
-    else delete root.dataset.hideHeader;
-    return () => {
-      delete root.dataset.hideHeader;
-    };
-  }, [hideHeader]);
-
-  // Close the mobile tools menu on outside click (same pattern as LocationPicker).
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onPointerDown(e: PointerEvent) {
-      if (headerRef.current && !headerRef.current.contains(e.target as Node)) setMenuOpen(false);
-    }
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [menuOpen]);
-
-  const reloadButton = (className?: string) => (
-    <button onClick={handleReload} aria-label="Reload data" className={cn(iconButton, className)}>
-      <RotateCcw size={18} aria-hidden="true" className={cn('transition-transform duration-500', spinning && 'rotate-180')} />
-    </button>
-  );
-
-  const auditButton = (className?: string) =>
-    canViewAudit ? (
-      <button
-        onClick={() => {
-          setAuditOpen(true);
-          setMenuOpen(false);
-        }}
-        aria-label="Activity history"
-        className={cn(iconButton, className)}
-      >
-        <History size={18} aria-hidden="true" />
-      </button>
-    ) : null;
-
   return (
-    <>
-      <header
-        ref={headerRef}
-        className={cn(
-          'h-14 shrink-0 bg-surface border-b border-divider flex items-center gap-2 md:gap-3 px-3 md:px-6 sticky top-0 z-20',
-          mounted && hideHeader && 'lg:hidden',
-        )}
-      >
-        <SidebarToggle />
+    // Card, not page: the bar carries the page's masthead, so it reads as the
+    // sheet's own header lifted off the content rather than a gap above it.
+    // Opaque — <main> is a separate scroll container, so nothing passes under.
+    <header className="h-14 shrink-0 bg-card border-b border-divider flex items-center gap-2 md:gap-3 px-3 md:px-6 sticky top-0 z-20">
+      <SidebarToggle />
 
-        <div className="flex-1" />
+      {/* The page's masthead — back, title, page actions — is portalled in here
+          by EditorShell. Empty on pages that don't use it, where it just spaces
+          the app tools to the right. */}
+      <div ref={slotRef} className="flex min-w-0 flex-1 items-center gap-1.5 md:gap-2" />
 
-        {/* Mobile: tools-menu trigger */}
-        <button
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Tools"
-          aria-expanded={menuOpen}
-          className={cn(iconButton, 'md:hidden', menuOpen && 'bg-surface-offset text-foreground')}
-        >
-          {menuOpen ? <X size={18} aria-hidden="true" /> : <MoreHorizontal size={18} aria-hidden="true" />}
+      {/* Location scope and activity history live in the sidebar; the header
+          keeps only what acts on the page in front of you. */}
+      <div className="flex shrink-0 items-center gap-1 md:gap-2">
+        <DumaAgent />
+
+        <button onClick={handleReload} aria-label="Reload data" className={iconButton}>
+          <RotateCcw size={18} aria-hidden="true" className={cn('transition-transform duration-500', spinning && 'rotate-180')} />
         </button>
 
-        <div className="flex items-center gap-1 md:gap-2">
-          {reloadButton('hidden md:flex')}
-          {auditButton('hidden md:flex')}
+        <ThemeToggle />
 
-          {/* Divider */}
-          <div className="hidden md:block w-px h-6 bg-divider mx-1" aria-hidden="true" />
-
-          <div className="hidden md:block">
-            <LocationPicker />
-          </div>
-
-          <ThemeToggle />
-
-          {/* Page sidebar (right panel) toggle — drawer mode below lg only */}
-          {hasPageSidebar && (
-            <button
-              onClick={togglePageSidebar}
-              aria-label="Toggle page panel"
-              aria-expanded={pageSidebarOpen}
-              className={cn(iconButton, 'lg:hidden', pageSidebarOpen && 'bg-surface-offset text-primary')}
-            >
-              <PanelRight size={18} aria-hidden="true" />
-            </button>
-          )}
-        </div>
-
-        {/* Mobile tools menu — location, reload, audit */}
-        {menuOpen && (
-          <div className="absolute top-full inset-x-0 z-30 md:hidden bg-surface border-b border-divider shadow-lg p-3 flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <LocationPicker align="left" />
-              <div className="flex-1" />
-              {reloadButton()}
-              {auditButton()}
-            </div>
-          </div>
+        {/* Page sidebar (right panel) toggle — drawer mode below lg only */}
+        {hasPageSidebar && (
+          <button
+            onClick={togglePageSidebar}
+            aria-label="Toggle page panel"
+            aria-expanded={pageSidebarOpen}
+            className={cn(iconButton, 'lg:hidden', pageSidebarOpen && 'bg-band text-primary')}
+          >
+            <PanelRight size={18} aria-hidden="true" />
+          </button>
         )}
-      </header>
-
-      {canViewAudit && <AuditDrawer open={auditOpen} onClose={() => setAuditOpen(false)} />}
-    </>
+      </div>
+    </header>
   );
 }

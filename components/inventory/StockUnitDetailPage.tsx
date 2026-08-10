@@ -45,7 +45,7 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
       refresh();
       toast('success', 'Container balance adjusted.');
     },
-    onError: (error) => toast('error', error.message || 'Unable to adjust the container.'),
+    onError: (error) => toast('error', error.message || 'The container balance wasn’t adjusted. Review the quantity and try again.'),
   });
   const waste = useMutation({
     mutationFn: () => wasteStockUnit(stockUnitId, { quantity: Number(wasteQuantity), reason: wasteReason }),
@@ -54,7 +54,7 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
       refresh();
       toast('success', 'Waste recorded in the ledger.');
     },
-    onError: (error) => toast('error', error.message || 'Unable to record waste.'),
+    onError: (error) => toast('error', error.message || 'The waste wasn’t recorded. Review the quantity and try again.'),
   });
 
   const backHref = unit ? `/inventory/items/${unit.stockItemId}` : '/inventory';
@@ -82,7 +82,7 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
             </StatCardGrid>
 
             <div className="grid lg:grid-cols-2 gap-4 items-start">
-              <section className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
+              <section className="rounded-sm border border-rule bg-card shadow-sm p-5 space-y-4">
                 <div className="flex items-center gap-2">
                   <Scale size={15} className="text-primary" />
                   <div>
@@ -95,14 +95,14 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
                     value={quantity ?? unit.remainingQuantity}
                     onChange={(event) => setQuantity(event.target.value)}
                     inputMode="decimal"
-                    className="h-9 flex-1 rounded-lg bg-surface-offset px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 flex-1 rounded-sm bg-band px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <Button onClick={() => adjust.mutate()} disabled={adjust.isPending}>
                     Save balance
                   </Button>
                 </div>
               </section>
-              <section className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
+              <section className="rounded-sm border border-rule bg-card shadow-sm p-5 space-y-4">
                 <div className="flex items-center gap-2">
                   <Boxes size={15} className="text-primary" />
                   <div>
@@ -116,14 +116,14 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
                     onChange={(event) => setWasteQuantity(event.target.value)}
                     placeholder="Quantity"
                     inputMode="decimal"
-                    className="h-9 min-w-0 flex-1 rounded-lg bg-surface-offset px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 min-w-0 flex-1 rounded-sm bg-band px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <Select
                     value={wasteReason}
                     onValueChange={(value) => setWasteReason(value as typeof wasteReason)}
                     options={['SPILL', 'DAMAGED', 'QUALITY', 'EXPIRED', 'OTHER'].map((value) => ({ value, label: value }))}
                     ariaLabel="Waste reason"
-                    className="bg-surface-offset"
+                    className="bg-band"
                   />
                   <Button variant="destructive" onClick={() => waste.mutate()} disabled={waste.isPending || !(Number(wasteQuantity) > 0)}>
                     Log waste
@@ -132,8 +132,8 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
               </section>
             </div>
 
-            <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-              <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+            <section className="rounded-sm border border-rule bg-card shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-rule flex items-center gap-2">
                 <History size={15} className="text-muted-foreground" />
                 <h2 className="font-semibold text-foreground">Container history</h2>
               </div>

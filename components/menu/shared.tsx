@@ -3,10 +3,10 @@ import { cn } from '@/lib/utils/cn';
 import { MenuCategory } from '@/types/menu';
 
 export const CATEGORY_COLORS: Record<MenuCategory, string> = {
-  coffee: 'bg-warning/10 text-warning',
-  'other-hot-drinks': 'bg-info/10 text-info',
-  'coffee-over-ice': 'bg-primary/10 text-primary',
-  tea: 'bg-success/10 text-success',
+  coffee: 'bg-warning/6 text-warning',
+  'other-hot-drinks': 'bg-info/6 text-info',
+  'coffee-over-ice': 'bg-band text-primary',
+  tea: 'bg-success/6 text-success',
   snacks: 'bg-muted text-muted-foreground',
 };
 
@@ -21,10 +21,10 @@ export const CATEGORY_LABELS: Record<MenuCategory, string> = {
 export const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS) as [MenuCategory, string][];
 
 export const inputClass =
-  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
 export const selectClass =
-  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150 cursor-pointer';
+  'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150 cursor-pointer';
 
 export const labelClass = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
@@ -41,10 +41,10 @@ export function AvailabilityToggle({ on, pending, onToggle }: { on: boolean; pen
       aria-pressed={on}
       title={on ? 'Tap to hide from the POS' : 'Tap to make available'}
       className={cn(
-        'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-bold uppercase tracking-wide transition-all active:translate-y-px disabled:opacity-50',
+        'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border text-label font-semibold uppercase tracking-label transition-all active:translate-y-px disabled:opacity-50',
         on
-          ? 'bg-success/10 text-success border-success/30 hover:bg-success/20'
-          : 'bg-muted text-muted-foreground border-border hover:text-foreground',
+          ? 'bg-success/6 text-success border-success/30 hover:bg-band'
+          : 'bg-muted text-muted-foreground border-rule hover:text-foreground',
       )}
     >
       <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', on ? 'bg-success' : 'bg-muted-foreground')} />
@@ -59,14 +59,14 @@ export function FormActions({ onClose, isPending, isEdit }: { onClose: () => voi
       <button
         type="button"
         onClick={onClose}
-        className="flex-1 h-10 border border-border rounded-xl text-sm font-medium text-muted-foreground hover:bg-surface-offset transition-colors"
+        className="flex-1 h-10 border border-rule rounded-sm text-sm font-medium text-muted-foreground hover:bg-band transition-colors"
       >
         Cancel
       </button>
       <button
         type="submit"
         disabled={isPending}
-        className="flex-1 h-10 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="flex-1 h-10 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {isPending ? 'Saving…' : isEdit ? 'Update' : 'Create'}
       </button>

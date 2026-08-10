@@ -2,47 +2,19 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 
-import {
-  AlertCircle,
-  Banknote,
-  Calculator,
-  CircleDashed,
-  LayoutGrid,
-  Mail,
-  Plug,
-  PlugZap,
-  Printer,
-  Settings,
-  Zap,
-} from '@/components/icons';
+import { Plug, PlugZap, Settings, Zap } from '@/components/icons';
+import { Badge } from '@/components/ui/badge';
 
 import { getEmailConnection } from '@/lib/api/email.service';
 import { getPaymentMethods } from '@/lib/api/payments.service';
-import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { type ConnectorAccount, type ConnectorAction, ConnectorCard } from './ConnectorCard';
 import { emailConnectorState } from './EmailConnector';
 import { PROVIDER_LABELS, paymentsConnectorState } from './PaymentsConnector';
-import { CONNECTORS, type ConnectorFilter, type ConnectorId, type ConnectorState } from './registry';
+import { CONNECTORS, type ConnectorDefinition, type ConnectorId, type ConnectorState } from './registry';
 import { relativeTime } from './shared';
-
-const FILTERS: { value: ConnectorFilter; label: string; icon: typeof LayoutGrid }[] = [
-  { value: 'all', label: 'All connectors', icon: LayoutGrid },
-  { value: 'connected', label: 'Connected', icon: PlugZap },
-  { value: 'attention', label: 'Needs attention', icon: AlertCircle },
-  { value: 'disconnected', label: 'Not connected', icon: CircleDashed },
-];
-
-/** Which chip a card answers to. Coming-soon connectors only ever show under "All". */
-function matchesFilter(state: ConnectorState, filter: ConnectorFilter): boolean {
-  if (filter === 'all') return true;
-  if (filter === 'connected') return state === 'connected' || state === 'paused';
-  if (filter === 'attention') return state === 'attention';
-  return state === 'disconnected';
-}
 
 /**
  * The Connectors tab: every integration on one screen with its live status, the
@@ -53,7 +25,6 @@ function matchesFilter(state: ConnectorState, filter: ConnectorFilter): boolean 
 export function ConnectorsGrid() {
   const router = useRouter();
   const { tenantId, locationId } = useWorkspaceStore();
-  const [filter, setFilter] = useState<ConnectorFilter>('all');
 
   const { data: emailConnection } = useQuery({
     queryKey: ['email-connection', tenantId],
@@ -116,90 +87,62 @@ export function ConnectorsGrid() {
   });
 
   const connectedCount = cards.filter((card) => card.state === 'connected' || card.state === 'paused').length;
-  const counts: Record<ConnectorFilter, number> = {
-    all: cards.length,
-    connected: connectedCount,
-    attention: cards.filter((card) => card.state === 'attention').length,
-    disconnected: cards.filter((card) => card.state === 'disconnected').length,
-  };
-  const visible = cards.filter((card) => matchesFilter(card.state, filter));
+  const attentionCount = cards.filter((card) => card.state === 'attention').length;
+  const available = cards.filter((card) => card.definition.available);
+  const upcoming = cards.filter((card) => !card.definition.available);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Connectors</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {connectedCount} of {cards.length} connected — email, card readers and the exports that follow.
-          </p>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-rule/65 bg-band/45 px-4 py-3 text-sm">
+        <div className="flex items-center gap-2 font-medium text-foreground">
+          <PlugZap size={16} className="text-success" aria-hidden="true" />
+          {connectedCount} connected
+        </div>
+        {attentionCount > 0 && <Badge variant="destructive">{attentionCount} needs attention</Badge>}
+        <span className="text-muted-foreground">
+          Connections apply to the current workspace and, for card readers, the active location.
+        </span>
+      </div>
+
+      <div>
+        <h3 className="mb-3 text-base font-semibold text-foreground">Available now</h3>
+        <div className="space-y-3">
+          {available.map((card) => (
+            <ConnectorCard key={card.definition.id} {...card} />
+          ))}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter connectors">
-        {FILTERS.map(({ value, label, icon: Icon }) => {
-          const active = filter === value;
-          return (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setFilter(value)}
-              className={cn(
-                'flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors',
-                active
-                  ? 'border-primary/30 bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-surface-offset hover:text-foreground',
-              )}
-            >
-              <Icon size={15} aria-hidden="true" />
-              {label}
-              <span className="tabular-nums opacity-70">({counts[value]})</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {visible.map((card) => (
-          <ConnectorCard key={card.definition.id} {...card} />
-        ))}
-        {filter === 'all' && <ComingSoonTile />}
-      </div>
-
-      {visible.length === 0 && (
-        <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          Nothing here right now.
-        </p>
-      )}
+      <ComingSoonTile cards={upcoming} />
     </div>
   );
 }
 
-/** Closes the grid off with what is coming, rather than a ragged last row. */
-function ComingSoonTile() {
+function ComingSoonTile({ cards }: { cards: { definition: ConnectorDefinition }[] }) {
   return (
-    <article className="relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted/40 p-8 text-center">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-primary/10 via-warning/5 to-transparent"
-      />
-      <div className="relative">
-        <div className="flex items-center justify-center gap-2">
-          {[Mail, Banknote, Calculator, Printer].map((Icon, index) => (
+    <section>
+      <h3 className="mb-3 text-base font-semibold text-foreground">Planned connectors</h3>
+      <div className="grid overflow-hidden rounded-lg border border-rule/65 bg-card sm:grid-cols-2">
+        {cards.map(({ definition }, index) => {
+          const Icon = definition.icon;
+          return (
             <div
-              key={index}
-              className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground"
+              key={definition.id}
+              className={`flex items-center gap-3 px-4 py-3 ${index > 0 ? 'border-t border-rule/45 sm:border-t-0' : ''} ${index > 1 ? 'sm:border-t' : ''} ${index % 2 === 1 ? 'sm:border-l sm:border-rule/45' : ''}`}
             >
-              <Icon size={16} aria-hidden="true" />
+              <Icon size={17} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">{definition.name}</p>
+                <p className="truncate text-xs text-muted-foreground">{definition.tags.slice(0, 2).join(' · ')}</p>
+              </div>
+              <Badge variant="muted" className="ml-auto shrink-0">
+                Planned
+              </Badge>
             </div>
-          ))}
-        </div>
-        <p className="mt-5 text-base font-semibold text-foreground">More connectors are on the way</p>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Payroll, accounting and printing will appear here as they are released — nothing to do until then.
-        </p>
+          );
+        })}
       </div>
-    </article>
+      <p className="mt-2 text-xs text-muted-foreground">These will appear here automatically when they are released.</p>
+    </section>
   );
 }

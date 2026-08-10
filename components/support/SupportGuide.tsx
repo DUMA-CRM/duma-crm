@@ -117,7 +117,7 @@ const serviceTopics: GuideTopic[] = [
     href: '/dashboard',
     linkLabel: 'Open dashboard',
     steps: [
-      'Confirm the active location in the top bar before reviewing any figures.',
+      'Confirm the active location in the location picker before reviewing any figures.',
       'Use the operational cards to spot current service and stock activity.',
       'Follow the links on each card to open the relevant workspace and take action.',
     ],
@@ -268,7 +268,7 @@ const managementTopics: GuideTopic[] = [
     title: 'Workspaces & locations',
     description: 'Structure the organisation, create locations, and control where teams operate.',
     icon: Building2,
-    href: '/workspaces',
+    href: '/settings/workspaces',
     linkLabel: 'Manage workspaces',
     access: 'Franchise owner+',
     steps: [
@@ -313,10 +313,10 @@ const peopleTopics: GuideTopic[] = [
     href: '/my-hr',
     linkLabel: 'Open My HR',
     steps: [
-      'Use Overview to check open actions and your recent people information.',
-      'Submit leave with the correct dates and explain anything the approver needs to know.',
-      'Review attendance before requesting a correction to a missed or incorrect clock event.',
-      'Use Helpdesk for a private HR request and continue the conversation on the same ticket.',
+      'Use Overview for your details, bank record and documents held by HR.',
+      'Submit leave from Time & attendance with the correct dates and anything the approver needs to know.',
+      'Review the attendance calendar before requesting a correction to a missed or incorrect clock event.',
+      'Use Requests for a private HR request and continue the conversation on the same ticket.',
     ],
   },
   {
@@ -351,7 +351,7 @@ const peopleTopics: GuideTopic[] = [
     title: 'Helpdesk requests',
     description: 'Raise a tracked request for HR, payroll, scheduling, workplace, or IT help, and follow the reply.',
     icon: Headphones,
-    href: '/my-hr?tab=helpdesk',
+    href: '/my-hr?tab=requests',
     linkLabel: 'Open helpdesk',
     steps: [
       'Choose the category that matches your problem so it reaches the right person.',
@@ -389,7 +389,7 @@ const accessAreas: AccessArea[] = [
   },
   {
     area: 'Pay, bank details, payslips',
-    detail: 'Money held on an employee record, wherever it appears.',
+    detail: 'Money held on an employee record, wherever it appears. Everyone can see and manage their own in My HR.',
     who: ['HR manager', 'Franchise owner', 'Super admin'],
   },
   {
@@ -441,7 +441,7 @@ const playbooks: Playbook[] = [
     icon: KeyRound,
     steps: [
       'Check the Roles & access tab to see who can open that area.',
-      'Confirm the correct location is selected in the top bar.',
+      'Confirm the correct location is selected in the location picker.',
       'Ask a manager to review your role and location assignment if it should be available.',
     ],
   },
@@ -537,7 +537,7 @@ const playbooks: Playbook[] = [
     cause: 'Hours come from clock events and leave from your entitlement, so both are corrected by a person.',
     icon: CalendarDays,
     steps: [
-      'Check Attendance in My HR for the day in question.',
+      'Check Time & attendance in My HR for the day in question.',
       'Raise an attendance correction from that day rather than emailing separately.',
       'For a balance, check the entitlement year shown before reporting a difference.',
     ],
@@ -566,7 +566,7 @@ const glossary: GlossaryEntry[] = [
   },
   {
     term: 'Location',
-    definition: 'A single site. The location picker in the top bar decides which site you are working in.',
+    definition: 'A single site. The location picker decides which site you are working in.',
     group: 'Workspace',
   },
   { term: 'Role', definition: 'What your account may do. Roles rank, so a higher role generally sees more.', group: 'Workspace' },
@@ -658,7 +658,7 @@ const faqs = [
   {
     question: 'How do I change the location I am working in?',
     answer:
-      'Use the location picker in the top bar. Always confirm it before taking orders, counting stock, receiving deliveries, or reading location-specific reports. If the location is missing, your staff assignment may need updating.',
+      'Use the location picker. Always confirm it before taking orders, counting stock, receiving deliveries, or reading location-specific reports. If the location is missing, your staff assignment may need updating.',
   },
   {
     question: 'What happens if the POS loses its internet connection?',
@@ -693,7 +693,7 @@ const faqs = [
   {
     question: 'How do I report a leave or attendance problem?',
     answer:
-      'Open My HR. Use Leave for a new request and Attendance for a clocking correction. For a private or more complex issue, raise a Helpdesk ticket and keep replies in that ticket so the history stays together.',
+      'Open My HR. Use Time & attendance for a new leave request or a clocking correction. For a private or more complex issue, raise a ticket under Requests and keep replies in that ticket so the history stays together.',
   },
   {
     question: 'What should I include when contacting support?',
@@ -708,7 +708,7 @@ const faqs = [
   {
     question: 'Why does the same figure differ between two pages?',
     answer:
-      'Almost always the location or the date range differs. Check the location picker in the top bar and the period control on the page. Reports compare the period you choose against the equivalent period immediately before it, so the comparison figure changes when the period does.',
+      'Almost always the location or the date range differs. Check the location picker and the period control on the page. Reports compare the period you choose against the equivalent period immediately before it, so the comparison figure changes when the period does.',
   },
   {
     question: 'What is a container, and why not just edit the total?',
@@ -723,7 +723,7 @@ const faqs = [
   {
     question: 'Who can see pay, bank details and payslips?',
     answer:
-      'Only HR managers, franchise owners and super admins, wherever that information appears. A store manager can manage the team and the rota without seeing pay. This is deliberate and is not something a manager can grant locally.',
+      'Other people’s pay is visible only to HR managers, franchise owners and super admins, wherever that information appears. A store manager can manage the team and the rota without seeing pay. This is deliberate and is not something a manager can grant locally. Your own payslips, bank details and National Insurance number are always yours to see and update, in My HR.',
   },
   {
     question: 'Can I use DUMA on more than one device at a time?',
@@ -758,16 +758,16 @@ function TopicCard({ topic }: { topic: GuideTopic }) {
   const Icon = topic.icon;
 
   return (
-    <article className="rounded-2xl border border-border bg-card shadow-sm p-5 md:p-6">
+    <article className="rounded-sm border border-rule bg-card shadow-sm p-5 md:p-6">
       <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-band text-primary">
           <Icon size={18} aria-hidden="true" />
         </span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold text-foreground">{topic.title}</h3>
             {topic.access && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              <span className="rounded-full bg-muted px-2 py-0.5 text-micro font-semibold uppercase tracking-micro text-muted-foreground">
                 {topic.access}
               </span>
             )}
@@ -779,7 +779,7 @@ function TopicCard({ topic }: { topic: GuideTopic }) {
       <ol className="mt-5 space-y-3">
         {topic.steps.map((step, index) => (
           <li key={step} className="flex gap-3 text-sm leading-5 text-foreground">
-            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-bold text-muted-foreground">
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-micro font-semibold text-muted-foreground">
               {index + 1}
             </span>
             <span>{step}</span>
@@ -788,7 +788,7 @@ function TopicCard({ topic }: { topic: GuideTopic }) {
       </ol>
 
       {topic.tips?.map((tip) => (
-        <p key={tip} className="mt-4 rounded-xl bg-info-highlight px-3 py-2.5 text-xs leading-5 text-info">
+        <p key={tip} className="mt-4 rounded-sm bg-info-highlight px-3 py-2.5 text-xs leading-5 text-info">
           <span className="font-semibold">Good to know:</span> {tip}
         </p>
       ))}
@@ -821,23 +821,23 @@ function OpenRequests() {
   if (open.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-border bg-card shadow-sm">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+    <section className="rounded-sm border border-rule bg-card shadow-sm">
+      <div className="flex items-center justify-between gap-3 border-b border-rule px-5 py-3.5">
         <div>
           <h2 className="font-semibold text-foreground">Your open requests</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">Already with the team — pick one up where you left off.</p>
         </div>
-        <Link href="/my-hr?tab=helpdesk" className="shrink-0 text-xs font-semibold text-primary hover:underline">
+        <Link href="/my-hr?tab=requests" className="shrink-0 text-xs font-semibold text-primary hover:underline">
           Open helpdesk
         </Link>
       </div>
       <ul className="divide-y divide-border/60">
         {open.slice(0, 4).map((ticket) => (
           <li key={ticket.id}>
-            <Link href="/my-hr?tab=helpdesk" className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-offset/50">
-              <span className="font-mono text-[11px] font-bold text-muted-foreground">{ticketKey(ticket)}</span>
+            <Link href="/my-hr?tab=requests" className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-band">
+              <span className="font-mono text-label font-semibold text-muted-foreground">{ticketKey(ticket)}</span>
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{ticket.subject}</span>
-              <span className="hidden text-[11px] text-muted-foreground sm:inline">{fmtAgo(ticket.updatedAt)}</span>
+              <span className="hidden text-label text-muted-foreground sm:inline">{fmtAgo(ticket.updatedAt)}</span>
               <StatusLozenge status={ticket.status} />
             </Link>
           </li>
@@ -907,15 +907,15 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
       icon={<LifeBuoy size={20} aria-hidden="true" />}
       actions={
         <>
-          <Button asChild variant="outline" className="h-10 gap-1.5">
+          <Button asChild variant="outline" className="h-9 gap-1.5">
             <a href={supportHref}>
               <Mail size={15} aria-hidden="true" />
               <span className="hidden md:inline">Email support</span>
             </a>
           </Button>
           {/* The app's own ticket queue — a tracked request beats an untracked email. */}
-          <Button asChild className="h-10 gap-1.5">
-            <Link href="/my-hr?tab=helpdesk">
+          <Button asChild className="h-9 gap-1.5">
+            <Link href="/my-hr?tab=requests">
               <MessageSquarePlus size={15} aria-hidden="true" />
               <span className="hidden md:inline">Raise a request</span>
             </Link>
@@ -1000,7 +1000,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
               </div>
             )}
             {resultCount === 0 && (
-              <div className="mt-5 rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+              <div className="mt-5 rounded-sm border border-dashed border-rule bg-card p-8 text-center">
                 <CircleHelp className="mx-auto text-muted-foreground" size={24} aria-hidden="true" />
                 <p className="mt-3 text-sm font-medium text-foreground">
                   Try a feature name such as “POS”, “stock”, “rota”, or “password”.
@@ -1021,7 +1021,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                     <Sparkles size={17} className="text-primary" aria-hidden="true" />
                     <h2 className="text-xl font-semibold text-foreground">A good place to begin</h2>
                   </div>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                  <p className="mt-2 max-w-[70ch] text-base leading-7 text-muted-foreground">
                     DUMA keeps work organised by workspace, location, and staff role. Start every task by checking the active location; the
                     pages and actions you can see then reflect your access.
                   </p>
@@ -1048,10 +1048,10 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-border bg-card shadow-sm p-5 md:p-7">
+                <section className="rounded-sm border border-rule bg-card shadow-sm p-5 md:p-7">
                   <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Recommended next step</p>
+                      <p className="text-micro font-semibold uppercase tracking-micro text-primary">Recommended next step</p>
                       <h2 className="mt-1 text-lg font-semibold text-foreground">
                         {isOwner
                           ? 'Set up and review your locations'
@@ -1059,7 +1059,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                             ? 'Review today’s operations'
                             : 'Get ready for your shift'}
                       </h2>
-                      <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                      <p className="mt-1 max-w-[70ch] text-base leading-7 text-muted-foreground">
                         {isOwner
                           ? 'Confirm workspace locations and staff access before moving into menu, stock, and reporting.'
                           : isManager
@@ -1068,8 +1068,8 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                       </p>
                     </div>
                     <Link
-                      href={isOwner ? '/workspaces' : '/dashboard'}
-                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-semibold text-foreground hover:bg-muted"
+                      href={isOwner ? '/settings/workspaces' : '/dashboard'}
+                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-sm border border-rule bg-background px-4 text-sm font-semibold text-foreground hover:bg-muted"
                     >
                       {isOwner ? 'Open workspaces' : 'Open dashboard'}
                       <ArrowRight size={14} aria-hidden="true" />
@@ -1156,7 +1156,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                 </section>
 
                 <section className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+                  <div className="rounded-sm border border-rule bg-card shadow-sm p-5">
                     <div className="flex items-center gap-2">
                       <WifiOff size={17} className="text-warning" aria-hidden="true" />
                       <h2 className="font-semibold text-foreground">If something goes wrong</h2>
@@ -1168,7 +1168,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                       <li>4. Take a safe screenshot, then contact support if the problem remains.</li>
                     </ol>
                   </div>
-                  <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+                  <div className="rounded-sm border border-primary/20 bg-band p-5">
                     <div className="flex items-center gap-2">
                       <Headphones size={17} className="text-primary" aria-hidden="true" />
                       <h2 className="font-semibold text-foreground">Support checklist</h2>
@@ -1231,7 +1231,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                     if (articles.length === 0) return null;
                     return (
                       <section key={category}>
-                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-primary">{category}</h3>
+                        <h3 className="text-micro font-semibold uppercase tracking-micro text-primary">{category}</h3>
                         <div className="mt-3 grid items-start gap-4 md:grid-cols-2">
                           {articles.map((article) => (
                             <ArticleCard key={article.slug} article={article} />
@@ -1251,8 +1251,8 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                 description="Access follows your role and your assigned locations. If an area is missing for you, this is why."
               >
                 <div className="space-y-6">
-                  <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-                    <div className="hidden border-b border-border bg-muted/60 px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,17rem)] md:gap-4">
+                  <div className="overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
+                    <div className="hidden border-b border-rule bg-muted/60 px-5 py-2.5 text-micro font-semibold uppercase tracking-micro text-muted-foreground md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,17rem)] md:gap-4">
                       <span>Area</span>
                       <span>Who can open it</span>
                     </div>
@@ -1268,10 +1268,10 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                               <span
                                 key={who}
                                 className={cn(
-                                  'inline-flex items-center rounded-lg border px-2 py-0.5 text-[11px] font-semibold',
+                                  'inline-flex items-center rounded-sm border px-2 py-0.5 text-label font-semibold',
                                   role && who === roleLabels[role]
-                                    ? 'border-primary/40 bg-primary/10 text-primary'
-                                    : 'border-border bg-background text-muted-foreground',
+                                    ? 'border-primary/40 bg-band text-primary'
+                                    : 'border-rule bg-background text-muted-foreground',
                                 )}
                               >
                                 {who}
@@ -1284,7 +1284,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-border bg-card shadow-sm p-5">
+                    <div className="rounded-sm border border-rule bg-card shadow-sm p-5">
                       <div className="flex items-center gap-2">
                         <ShieldCheck size={17} className="text-primary" aria-hidden="true" />
                         <h3 className="font-semibold text-foreground">Two things decide what you see</h3>
@@ -1300,7 +1300,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                         </p>
                       )}
                     </div>
-                    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+                    <div className="rounded-sm border border-primary/20 bg-band p-5">
                       <div className="flex items-center gap-2">
                         <KeyRound size={17} className="text-primary" aria-hidden="true" />
                         <h3 className="font-semibold text-foreground">Need more access?</h3>
@@ -1310,7 +1310,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                         bank details are restricted by design and stay restricted even for a store manager.
                       </p>
                       <Link
-                        href="/my-hr?tab=helpdesk"
+                        href="/my-hr?tab=requests"
                         className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
                       >
                         Raise an access request
@@ -1333,7 +1333,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                     <PlaybookCard key={item.symptom} playbook={item} />
                   ))}
                 </div>
-                <div className="mt-6 rounded-2xl border border-warning/25 bg-warning/5 p-5">
+                <div className="mt-6 rounded-sm border border-warning/25 bg-warning/5 p-5">
                   <div className="flex items-center gap-2">
                     <ShieldCheck size={17} className="text-warning" aria-hidden="true" />
                     <h3 className="font-semibold text-foreground">Before you re-enter anything</h3>
@@ -1358,7 +1358,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                     if (entries.length === 0) return null;
                     return (
                       <section key={group}>
-                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-primary">{group}</h3>
+                        <h3 className="text-micro font-semibold uppercase tracking-micro text-primary">{group}</h3>
                         <div className="mt-3">
                           <GlossaryGrid entries={entries} />
                         </div>
@@ -1380,7 +1380,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                     <FaqItem key={item.question} {...item} />
                   ))}
                 </div>
-                <div className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-5 md:flex md:items-center md:justify-between md:gap-5">
+                <div className="mt-6 rounded-sm border border-primary/20 bg-band p-5 md:flex md:items-center md:justify-between md:gap-5">
                   <div>
                     <h3 className="font-semibold text-foreground">Didn’t find your answer?</h3>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -1390,7 +1390,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                   </div>
                   <a
                     href={supportHref}
-                    className="mt-4 inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-hover md:mt-0"
+                    className="mt-4 inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-sm bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-hover md:mt-0"
                   >
                     <Mail size={15} aria-hidden="true" />
                     Email support
@@ -1418,9 +1418,9 @@ function GuideSection({
 }) {
   return (
     <section>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-primary">{eyebrow}</p>
+      <p className="text-micro font-semibold uppercase tracking-micro text-primary">{eyebrow}</p>
       <h2 className="mt-1 text-2xl font-semibold text-foreground">{title}</h2>
-      <p className="mb-6 mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
+      <p className="mb-6 mt-2 max-w-[70ch] text-base leading-7 text-muted-foreground">{description}</p>
       {children}
     </section>
   );
@@ -1438,11 +1438,11 @@ function OverviewCard({
   description: string;
 }) {
   return (
-    <article className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm p-5">
+    <article className="relative overflow-hidden rounded-sm border border-rule bg-card shadow-sm p-5">
       <span className="absolute right-4 top-3 text-3xl font-semibold text-muted/80" aria-hidden="true">
         {number}
       </span>
-      <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+      <span className="flex size-9 items-center justify-center rounded-sm bg-band text-primary">
         <Icon size={17} aria-hidden="true" />
       </span>
       <h3 className="mt-4 font-semibold text-foreground">{title}</h3>
@@ -1466,10 +1466,10 @@ function BrowseCard({
     <button
       type="button"
       onClick={onClick}
-      className="group rounded-2xl border border-border bg-card shadow-sm p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+      className="group rounded-sm border border-rule bg-card shadow-sm p-4 text-left transition-colors hover:border-primary/40 hover:bg-band"
     >
       <div className="flex items-start justify-between gap-3">
-        <span className="flex size-9 items-center justify-center rounded-xl bg-muted text-foreground group-hover:bg-primary/10 group-hover:text-primary">
+        <span className="flex size-9 items-center justify-center rounded-sm bg-muted text-foreground group-hover:bg-band group-hover:text-primary">
           <Icon size={17} aria-hidden="true" />
         </span>
         <ArrowRight
@@ -1489,13 +1489,13 @@ function ArticleCard({ article }: { article: SupportArticle }) {
   return (
     <Link
       href={`/support/${article.slug}`}
-      className="group flex h-full flex-col rounded-2xl border border-border bg-card shadow-sm p-5 transition-colors hover:border-primary/35 hover:bg-surface"
+      className="group flex h-full flex-col rounded-sm border border-rule bg-card shadow-sm p-5 transition-colors hover:border-primary/35 hover:bg-surface"
     >
       <div className="flex items-start justify-between gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-band text-primary">
           <FileText size={18} aria-hidden="true" />
         </span>
-        <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="rounded-full bg-muted px-2 py-1 text-micro font-semibold uppercase tracking-micro text-muted-foreground">
           {article.category}
         </span>
       </div>
@@ -1516,9 +1516,9 @@ function ArticleCard({ article }: { article: SupportArticle }) {
 function PlaybookCard({ playbook }: { playbook: Playbook }) {
   const Icon = playbook.icon;
   return (
-    <article className="rounded-2xl border border-border bg-card shadow-sm p-5 md:p-6">
+    <article className="rounded-sm border border-rule bg-card shadow-sm p-5 md:p-6">
       <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-warning/6 text-warning">
           <Icon size={18} aria-hidden="true" />
         </span>
         <div className="min-w-0">
@@ -1529,7 +1529,7 @@ function PlaybookCard({ playbook }: { playbook: Playbook }) {
       <ol className="mt-4 space-y-2.5">
         {playbook.steps.map((step, index) => (
           <li key={step} className="flex gap-3 text-sm leading-6 text-muted-foreground">
-            <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-foreground">
+            <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-label font-semibold text-foreground">
               {index + 1}
             </span>
             {step}
@@ -1550,7 +1550,7 @@ function GlossaryGrid({ entries }: { entries: GlossaryEntry[] }) {
   return (
     <dl className="grid gap-3 md:grid-cols-2">
       {entries.map((entry) => (
-        <div key={entry.term} className="rounded-2xl border border-border bg-card shadow-sm p-4">
+        <div key={entry.term} className="rounded-sm border border-rule bg-card shadow-sm p-4">
           <dt className="text-sm font-semibold text-foreground">{entry.term}</dt>
           <dd className="mt-1 text-sm leading-6 text-muted-foreground">{entry.definition}</dd>
         </div>
@@ -1561,12 +1561,12 @@ function GlossaryGrid({ entries }: { entries: GlossaryEntry[] }) {
 
 function FaqItem({ question, answer }: { question: string; answer: string }) {
   return (
-    <details className="group rounded-2xl border border-border bg-card shadow-sm">
+    <details className="group rounded-sm border border-rule bg-card shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-foreground md:px-6">
         {question}
         <ChevronDown size={17} className="shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
-      <div className="border-t border-border px-5 py-4 text-sm leading-6 text-muted-foreground md:px-6">{answer}</div>
+      <div className="border-t border-rule px-5 py-4 text-sm leading-6 text-muted-foreground md:px-6">{answer}</div>
     </details>
   );
 }

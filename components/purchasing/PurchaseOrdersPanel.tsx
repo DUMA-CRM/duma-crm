@@ -150,7 +150,7 @@ function CreatePoForm({
       </div>
 
       {activeSuppliers.length === 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-warning/20 bg-warning/5 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3 rounded-sm border border-warning/20 bg-warning/5 px-3 py-2.5">
           <p className="text-xs text-warning">Add an active supplier before creating a purchase order.</p>
           {onManageSuppliers && (
             <Button type="button" variant="outline" size="sm" onClick={onManageSuppliers}>
@@ -221,13 +221,13 @@ function CreatePoForm({
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={inputClass + ' h-auto py-2 resize-none'} />
       </div>
 
-      <div className="flex items-center justify-between border-t border-border pt-3">
+      <div className="flex items-center justify-between border-t border-rule pt-3">
         <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total</span>
         <span className="text-lg font-bold text-primary tabular-nums">{money(total)}</span>
       </div>
 
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
-      <FormActions onClose={onClose} isPending={isPending} disabled={!supplierId || validLines.length === 0} submitLabel="Create PO" />
+      <FormActions onClose={onClose} isPending={isPending} disabled={!supplierId || validLines.length === 0} submitLabel="Create purchase order" />
     </form>
   );
 }
@@ -260,7 +260,7 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
       setCancelOpen(false);
       toast('success', 'Purchase order updated.');
     },
-    onError: (err) => toast('error', err.message || 'Failed to update the PO.'),
+    onError: (err) => toast('error', err.message || 'The purchase order wasn’t updated. Try again.'),
   });
 
   const receive = useMutation({
@@ -304,12 +304,12 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
       setReceiveContainers({});
       setReceiveExpiry({});
       setReceiveLot({});
-      toast('success', res.status === 'received' ? 'All goods received — PO complete.' : 'Delivery recorded.');
+      toast('success', res.status === 'received' ? 'All goods received — purchase order complete.' : 'Delivery recorded.');
     },
-    onError: (err) => toast('error', err.message || 'Failed to record the delivery.'),
+    onError: (err) => toast('error', err.message || 'The delivery wasn’t recorded. Check the quantities and try again.'),
   });
 
-  if (!po) return <div className="h-40 rounded-lg bg-muted animate-pulse" />;
+  if (!po) return <div className="h-40 rounded-sm bg-muted animate-pulse" />;
 
   const meta = STATUS_META[po.status];
   const total = linesTotal(po.lines);
@@ -333,10 +333,10 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
       </div>
 
       {/* Lines */}
-      <div className="border border-border rounded-xl overflow-hidden">
+      <div className="border border-rule rounded-sm overflow-hidden">
         <DataTable className="w-full text-sm">
           <thead>
-            <tr className="bg-muted text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+            <tr className="bg-muted text-micro font-semibold text-muted-foreground uppercase tracking-micro">
               <th className="px-3 py-2 text-left">Item</th>
               <th className="px-3 py-2 text-right">Ordered</th>
               <th className="px-3 py-2 text-right">Cost/unit</th>
@@ -346,7 +346,7 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
           </thead>
           <tbody>
             {(po.lines ?? []).map((l) => (
-              <tr key={l.id} className="border-t border-border/50">
+              <tr key={l.id} className="border-t border-rule">
                 <td className="px-3 py-2 font-medium text-foreground">{l.stockItem?.name}</td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {fmtQty(l.quantityOrdered)} {l.stockItem?.unit}
@@ -358,8 +358,8 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
                 <td className="px-3 py-2 text-right tabular-nums font-semibold">{money(lineTotal(l))}</td>
               </tr>
             ))}
-            <tr className="border-t border-border bg-surface-offset/50">
-              <td colSpan={4} className="px-3 py-2 text-right text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+            <tr className="border-t border-rule bg-band">
+              <td colSpan={4} className="px-3 py-2 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                 Total
               </td>
               <td className="px-3 py-2 text-right tabular-nums font-bold text-primary">{money(total)}</td>
@@ -372,12 +372,12 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
 
       {/* Receive goods */}
       {receiveOpen && (
-        <div className="border border-primary/30 bg-primary/5 rounded-xl p-3 space-y-2">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Receive delivery</p>
+        <div className="border border-primary/30 bg-band rounded-sm p-3 space-y-2">
+          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Receive delivery</p>
           {(po.lines ?? []).map((l) => (
             <div key={l.id} className="grid grid-cols-[1fr_6rem_4.5rem_8rem_7rem] items-end gap-2">
               <span className="text-sm text-foreground truncate pb-2">{l.stockItem?.name}</span>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">
                 Total
                 <input
                   value={receiveQty[l.id] ?? String(outstanding(l))}
@@ -387,7 +387,7 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
                   className={cn(inputClass, 'mt-1 w-full text-right tabular-nums')}
                 />
               </label>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">
                 Units
                 <input
                   value={receiveContainers[l.id] ?? ''}
@@ -405,7 +405,7 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
                 aria-label={`Expiry of ${l.stockItem?.name}`}
                 required={l.stockItem?.isPerishable}
               />
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">
                 Lot
                 <input
                   value={receiveLot[l.id] ?? ''}
@@ -430,8 +430,8 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
 
       {/* Invoice matching */}
       {po.status !== 'draft' && po.status !== 'cancelled' && (
-        <div className="border border-border rounded-xl p-3 space-y-2">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Invoice</p>
+        <div className="border border-rule rounded-sm p-3 space-y-2">
+          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Invoice</p>
           <div className="grid grid-cols-2 gap-2">
             <input
               value={invoiceNumValue}
@@ -450,7 +450,7 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
           {invoiceDelta !== null && (
             <p className={cn('text-xs', invoiceDelta <= 0.01 ? 'text-success' : 'text-warning')}>
               {invoiceDelta <= 0.01
-                ? 'Invoice matches the PO total.'
+                ? 'Invoice matches the purchase order total.'
                 : `Invoice differs from the PO total (${money(total)}) by ${money(invoiceDelta)}.`}
             </p>
           )}
@@ -564,8 +564,8 @@ export function PurchaseOrdersPanel({
   const pos = data?.data ?? [];
 
   return (
-    <div className="min-h-0 bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
-      <div className="grid gap-2 border-b border-border p-3 sm:grid-cols-2 xl:grid-cols-[14rem_16rem_1fr]">
+    <div className="min-h-0 bg-card border border-rule rounded-sm overflow-hidden flex flex-col">
+      <div className="grid gap-2 border-b border-rule p-3 sm:grid-cols-2 xl:grid-cols-[14rem_16rem_1fr]">
         <Select
           value={statusFilter}
           onValueChange={(value) => {
@@ -575,7 +575,7 @@ export function PurchaseOrdersPanel({
             setPage(1);
           }}
           options={[
-            { value: 'all', label: 'All PO statuses' },
+            { value: 'all', label: 'All purchase order statuses' },
             { value: 'draft', label: 'Draft' },
             { value: 'submitted', label: 'Awaiting delivery' },
             { value: 'partially_received', label: 'Partially received' },
@@ -611,23 +611,23 @@ export function PurchaseOrdersPanel({
           </div>
         ) : pos.length === 0 ? (
           <div className="py-24">
-            <EmptyState icon={Truck} title="No purchase orders" description='Click "New PO" to order stock from a supplier.' />
+            <EmptyState icon={Truck} title="No purchase orders yet" description="Create a purchase order to order stock from a supplier." />
           </div>
         ) : (
           <DataTable className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
-              <tr className="border-b border-border bg-muted">
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">PO</th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <tr className="border-b border-rule bg-muted">
+                <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">PO</th>
+                <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Supplier
                 </th>
-                <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <th className="hidden md:table-cell px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Expected
                 </th>
-                <th className="px-3 md:px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Status
                 </th>
-                <th className="hidden md:table-cell px-5 py-3.5 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <th className="hidden md:table-cell px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Invoice
                 </th>
               </tr>
@@ -639,7 +639,7 @@ export function PurchaseOrdersPanel({
                   <tr
                     key={po.id}
                     onClick={() => setDetailId(po.id)}
-                    className="border-b border-border/50 last:border-0 hover:bg-surface-offset transition-colors cursor-pointer"
+                    className="border-b border-rule last:border-0 hover:bg-band transition-colors cursor-pointer"
                   >
                     <td className="px-3 md:px-5 py-3.5 font-mono font-bold text-foreground">{po.reference}</td>
                     <td className="px-3 md:px-5 py-3.5 text-foreground">{po.supplier?.name}</td>
@@ -665,7 +665,7 @@ export function PurchaseOrdersPanel({
       </div>
 
       {!isLoading && (data?.pages ?? 0) > 1 && (
-        <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3">
+        <div className="flex items-center justify-between border-t border-rule bg-muted/30 px-4 py-3">
           <p className="text-xs text-muted-foreground">
             Page {page} of {data?.pages}
           </p>

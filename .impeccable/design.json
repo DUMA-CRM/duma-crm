@@ -1,375 +1,853 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-04T20:18:50Z",
+  "generatedAt": "2026-08-10T00:00:00Z",
   "title": "Design System: DUMA",
   "extensions": {
     "colorMeta": {
-      "bluerocratic": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Warm Oat",
+        "canonical": "#f4f0e7",
+        "tonalRamp": [
+          "oklch(0.15 0.014 82)",
+          "oklch(0.27 0.014 82)",
+          "oklch(0.39 0.014 82)",
+          "oklch(0.51 0.014 82)",
+          "oklch(0.63 0.014 82)",
+          "oklch(0.75 0.014 82)",
+          "oklch(0.87 0.014 82)",
+          "oklch(0.95 0.014 82)"
+        ]
+      },
+      "field": {
+        "role": "neutral",
+        "displayName": "Porcelain Field",
+        "canonical": "#fffcf7",
+        "tonalRamp": [
+          "oklch(0.15 0.008 82)",
+          "oklch(0.27 0.008 82)",
+          "oklch(0.39 0.008 82)",
+          "oklch(0.51 0.008 82)",
+          "oklch(0.63 0.008 82)",
+          "oklch(0.75 0.008 82)",
+          "oklch(0.87 0.008 82)",
+          "oklch(0.98 0.008 82)"
+        ]
+      },
+      "band": {
+        "role": "neutral",
+        "displayName": "Board Band",
+        "canonical": "#eae4d8",
+        "tonalRamp": [
+          "oklch(0.15 0.018 82)",
+          "oklch(0.27 0.018 82)",
+          "oklch(0.39 0.018 82)",
+          "oklch(0.51 0.018 82)",
+          "oklch(0.63 0.018 82)",
+          "oklch(0.75 0.018 82)",
+          "oklch(0.87 0.018 82)",
+          "oklch(0.95 0.018 82)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Forest Ink",
+        "canonical": "#20372d",
+        "tonalRamp": [
+          "oklch(0.15 0.03 157)",
+          "oklch(0.27 0.03 157)",
+          "oklch(0.39 0.03 157)",
+          "oklch(0.51 0.03 157)",
+          "oklch(0.63 0.03 157)",
+          "oklch(0.75 0.03 157)",
+          "oklch(0.87 0.03 157)",
+          "oklch(0.95 0.03 157)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Sage Ink",
+        "canonical": "#5c6c63",
+        "tonalRamp": [
+          "oklch(0.15 0.018 157)",
+          "oklch(0.27 0.018 157)",
+          "oklch(0.39 0.018 157)",
+          "oklch(0.51 0.018 157)",
+          "oklch(0.63 0.018 157)",
+          "oklch(0.75 0.018 157)",
+          "oklch(0.87 0.018 157)",
+          "oklch(0.95 0.018 157)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Soft Rule",
+        "canonical": "#aaa397",
+        "tonalRamp": [
+          "oklch(0.15 0.012 82)",
+          "oklch(0.27 0.012 82)",
+          "oklch(0.39 0.012 82)",
+          "oklch(0.51 0.012 82)",
+          "oklch(0.63 0.012 82)",
+          "oklch(0.75 0.012 82)",
+          "oklch(0.87 0.012 82)",
+          "oklch(0.95 0.012 82)"
+        ]
+      },
+      "grid-minor": {
+        "role": "neutral",
+        "displayName": "Minor Board Rule",
+        "canonical": "#e8e1d5",
+        "tonalRamp": [
+          "oklch(0.15 0.014 82)",
+          "oklch(0.27 0.014 82)",
+          "oklch(0.39 0.014 82)",
+          "oklch(0.51 0.014 82)",
+          "oklch(0.63 0.014 82)",
+          "oklch(0.75 0.014 82)",
+          "oklch(0.87 0.014 82)",
+          "oklch(0.95 0.014 82)"
+        ]
+      },
+      "grid-major": {
+        "role": "neutral",
+        "displayName": "Major Board Rule",
+        "canonical": "#d7cfc1",
+        "tonalRamp": [
+          "oklch(0.15 0.016 82)",
+          "oklch(0.27 0.016 82)",
+          "oklch(0.39 0.016 82)",
+          "oklch(0.51 0.016 82)",
+          "oklch(0.63 0.016 82)",
+          "oklch(0.75 0.016 82)",
+          "oklch(0.87 0.016 82)",
+          "oklch(0.95 0.016 82)"
+        ]
+      },
+      "brand": {
         "role": "primary",
-        "displayName": "Bluerocratic",
-        "canonical": "oklch(0.5767 0.2301 262.3)",
-        "hex": "#236bfe",
-        "darkModeValue": "oklch(0.68 0.19 262)",
+        "displayName": "Brand Green",
+        "canonical": "#1f6146",
         "tonalRamp": [
-          "oklch(0.20 0.09 262.3)",
-          "oklch(0.30 0.14 262.3)",
-          "oklch(0.40 0.19 262.3)",
-          "oklch(0.50 0.22 262.3)",
-          "oklch(0.5767 0.2301 262.3)",
-          "oklch(0.68 0.19 262.3)",
-          "oklch(0.80 0.12 262.3)",
-          "oklch(0.94 0.04 262.3)"
+          "oklch(0.15 0.04 163)",
+          "oklch(0.27 0.06 163)",
+          "oklch(0.39 0.075 163)",
+          "oklch(0.51 0.08 163)",
+          "oklch(0.63 0.075 163)",
+          "oklch(0.75 0.06 163)",
+          "oklch(0.87 0.04 163)",
+          "oklch(0.95 0.018 163)"
         ]
       },
-      "dark-eclipse": {
+      "brand-hover": {
+        "role": "primary",
+        "displayName": "Pressed Brand Green",
+        "canonical": "#174c38",
+        "tonalRamp": [
+          "oklch(0.15 0.04 165)",
+          "oklch(0.27 0.06 165)",
+          "oklch(0.39 0.075 165)",
+          "oklch(0.51 0.08 165)",
+          "oklch(0.63 0.075 165)",
+          "oklch(0.75 0.06 165)",
+          "oklch(0.87 0.04 165)",
+          "oklch(0.95 0.018 165)"
+        ]
+      },
+      "apricot": {
         "role": "secondary",
-        "displayName": "Dark Eclipse",
-        "canonical": "oklch(0.2347 0.0732 269.9)",
-        "hex": "#111a40",
+        "displayName": "Service Apricot",
+        "canonical": "#b84e2d",
         "tonalRamp": [
-          "oklch(0.16 0.05 269.9)",
-          "oklch(0.2347 0.0732 269.9)",
-          "oklch(0.32 0.07 269.9)",
-          "oklch(0.45 0.06 269.9)",
-          "oklch(0.58 0.05 269.9)",
-          "oklch(0.70 0.035 269.9)",
-          "oklch(0.83 0.02 269.9)",
-          "oklch(0.95 0.008 269.9)"
+          "oklch(0.15 0.07 43)",
+          "oklch(0.27 0.11 43)",
+          "oklch(0.39 0.15 43)",
+          "oklch(0.51 0.17 43)",
+          "oklch(0.63 0.15 43)",
+          "oklch(0.75 0.11 43)",
+          "oklch(0.87 0.07 43)",
+          "oklch(0.95 0.03 43)"
         ]
       },
-      "cool-paper": {
-        "role": "neutral",
-        "displayName": "Cool Paper",
-        "canonical": "oklch(0.957 0.003 248)",
-        "hex": "#eff1f3",
-        "darkModeValue": "oklch(0.215 0.012 270)",
+      "periwinkle": {
+        "role": "secondary",
+        "displayName": "Kitchen Periwinkle",
+        "canonical": "#505fb8",
         "tonalRamp": [
-          "oklch(0.215 0.012 270)",
-          "oklch(0.295 0.013 270)",
-          "oklch(0.42 0.012 270)",
-          "oklch(0.55 0.010 270)",
-          "oklch(0.68 0.008 270)",
-          "oklch(0.80 0.006 270)",
-          "oklch(0.90 0.005 265)",
-          "oklch(0.957 0.003 248)"
+          "oklch(0.15 0.06 275)",
+          "oklch(0.27 0.09 275)",
+          "oklch(0.39 0.12 275)",
+          "oklch(0.51 0.14 275)",
+          "oklch(0.63 0.13 275)",
+          "oklch(0.75 0.1 275)",
+          "oklch(0.87 0.06 275)",
+          "oklch(0.95 0.025 275)"
         ]
       },
-      "surface-offset": {
-        "role": "neutral",
-        "displayName": "Surface Offset",
-        "canonical": "oklch(0.935 0.008 265)",
-        "hex": "#e7e9ef",
-        "darkModeValue": "oklch(0.295 0.013 270)"
-      },
-      "slate-muted": {
-        "role": "neutral",
-        "displayName": "Slate Muted",
-        "canonical": "oklch(0.5 0.03 265)",
-        "hex": "#5b6375",
-        "darkModeValue": "oklch(0.75 0.012 270)",
-        "note": "AA on every surface in the ladder — that constraint set this value."
-      },
-      "hairline": {
-        "role": "neutral",
-        "displayName": "Hairline",
-        "canonical": "oklch(0.865 0.014 265)",
-        "hex": "#ced3dc",
-        "darkModeValue": "oklch(0.355 0.015 270)"
-      },
-      "inspiration-peak": {
+      "green": {
         "role": "tertiary",
-        "displayName": "Inspiration Peak",
-        "canonical": "oklch(0.52 0.105 166)",
-        "hex": "#0c7c5b",
-        "darkModeValue": "oklch(0.6546 0.0946 165.8)",
+        "displayName": "Team Green",
+        "canonical": "#2b7355",
         "tonalRamp": [
-          "oklch(0.22 0.06 166)",
-          "oklch(0.32 0.08 166)",
-          "oklch(0.42 0.095 166)",
-          "oklch(0.52 0.105 166)",
-          "oklch(0.6546 0.0946 165.8)",
-          "oklch(0.78 0.075 166)",
-          "oklch(0.88 0.05 166)",
-          "oklch(0.945 0.03 166)"
+          "oklch(0.15 0.045 158)",
+          "oklch(0.27 0.065 158)",
+          "oklch(0.39 0.085 158)",
+          "oklch(0.51 0.09 158)",
+          "oklch(0.63 0.085 158)",
+          "oklch(0.75 0.065 158)",
+          "oklch(0.87 0.04 158)",
+          "oklch(0.95 0.018 158)"
         ]
       },
-      "pumpkin-pie": {
-        "role": "tertiary",
-        "displayName": "Pumpkin Pie",
-        "canonical": "oklch(0.55 0.13 64)",
-        "hex": "#a55e00",
-        "darkModeValue": "oklch(0.7601 0.124 63.6)",
+      "saffron": {
+        "role": "secondary",
+        "displayName": "Stock Saffron",
+        "canonical": "#8a5b02",
         "tonalRamp": [
-          "oklch(0.25 0.07 64)",
-          "oklch(0.35 0.10 64)",
-          "oklch(0.45 0.12 64)",
-          "oklch(0.55 0.13 64)",
-          "oklch(0.66 0.13 64)",
-          "oklch(0.7601 0.124 63.6)",
-          "oklch(0.87 0.08 64)",
-          "oklch(0.955 0.035 64)"
+          "oklch(0.15 0.05 79)",
+          "oklch(0.27 0.08 79)",
+          "oklch(0.39 0.1 79)",
+          "oklch(0.51 0.11 79)",
+          "oklch(0.63 0.1 79)",
+          "oklch(0.75 0.08 79)",
+          "oklch(0.87 0.05 79)",
+          "oklch(0.95 0.02 79)"
         ]
       },
-      "youthful-coral": {
+      "exception": {
         "role": "tertiary",
-        "displayName": "Youthful Coral",
-        "canonical": "oklch(0.55 0.18 29)",
-        "hex": "#c5372c",
-        "darkModeValue": "oklch(0.7224 0.1353 29.1)",
+        "displayName": "Exception Red",
+        "canonical": "#b33a45",
         "tonalRamp": [
-          "oklch(0.25 0.09 29)",
-          "oklch(0.35 0.13 29)",
-          "oklch(0.45 0.16 29)",
-          "oklch(0.55 0.18 29)",
-          "oklch(0.64 0.16 29)",
-          "oklch(0.7224 0.1353 29.1)",
-          "oklch(0.85 0.08 29)",
-          "oklch(0.95 0.03 29)"
+          "oklch(0.15 0.07 22)",
+          "oklch(0.27 0.11 22)",
+          "oklch(0.39 0.15 22)",
+          "oklch(0.51 0.18 22)",
+          "oklch(0.63 0.15 22)",
+          "oklch(0.75 0.11 22)",
+          "oklch(0.87 0.07 22)",
+          "oklch(0.95 0.03 22)"
+        ]
+      },
+      "forest": {
+        "role": "primary",
+        "displayName": "Deep Forest",
+        "canonical": "#174c38",
+        "tonalRamp": [
+          "oklch(0.15 0.04 158)",
+          "oklch(0.27 0.06 158)",
+          "oklch(0.39 0.075 158)",
+          "oklch(0.51 0.08 158)",
+          "oklch(0.63 0.075 158)",
+          "oklch(0.75 0.06 158)",
+          "oklch(0.87 0.04 158)",
+          "oklch(0.95 0.018 158)"
+        ]
+      },
+      "forest-2": {
+        "role": "primary",
+        "displayName": "Forest Active",
+        "canonical": "#28624d",
+        "tonalRamp": [
+          "oklch(0.15 0.035 158)",
+          "oklch(0.27 0.055 158)",
+          "oklch(0.39 0.07 158)",
+          "oklch(0.51 0.075 158)",
+          "oklch(0.63 0.07 158)",
+          "oklch(0.75 0.055 158)",
+          "oklch(0.87 0.035 158)",
+          "oklch(0.95 0.016 158)"
+        ]
+      },
+      "forest-rule": {
+        "role": "neutral",
+        "displayName": "Forest Rule",
+        "canonical": "#3d6d59",
+        "tonalRamp": [
+          "oklch(0.15 0.025 158)",
+          "oklch(0.27 0.04 158)",
+          "oklch(0.39 0.05 158)",
+          "oklch(0.51 0.055 158)",
+          "oklch(0.63 0.05 158)",
+          "oklch(0.75 0.04 158)",
+          "oklch(0.87 0.025 158)",
+          "oklch(0.95 0.012 158)"
+        ]
+      },
+      "sidebar-ink": {
+        "role": "neutral",
+        "displayName": "Warm Sidebar Ink",
+        "canonical": "#f8f1e5",
+        "tonalRamp": [
+          "oklch(0.15 0.012 82)",
+          "oklch(0.27 0.012 82)",
+          "oklch(0.39 0.012 82)",
+          "oklch(0.51 0.012 82)",
+          "oklch(0.63 0.012 82)",
+          "oklch(0.75 0.012 82)",
+          "oklch(0.87 0.012 82)",
+          "oklch(0.96 0.012 82)"
+        ]
+      },
+      "ground-dark": {
+        "role": "neutral",
+        "displayName": "Night Charcoal Ground",
+        "canonical": "#121110",
+        "tonalRamp": [
+          "oklch(0.15 0.008 82)",
+          "oklch(0.27 0.008 82)",
+          "oklch(0.39 0.008 82)",
+          "oklch(0.51 0.008 82)",
+          "oklch(0.63 0.008 82)",
+          "oklch(0.75 0.008 82)",
+          "oklch(0.87 0.008 82)",
+          "oklch(0.95 0.008 82)"
+        ]
+      },
+      "field-dark": {
+        "role": "neutral",
+        "displayName": "Night Field",
+        "canonical": "#1c1b18",
+        "tonalRamp": [
+          "oklch(0.15 0.006 82)",
+          "oklch(0.27 0.006 82)",
+          "oklch(0.39 0.006 82)",
+          "oklch(0.51 0.006 82)",
+          "oklch(0.63 0.006 82)",
+          "oklch(0.75 0.006 82)",
+          "oklch(0.87 0.006 82)",
+          "oklch(0.95 0.006 82)"
+        ]
+      },
+      "band-dark": {
+        "role": "neutral",
+        "displayName": "Night Band",
+        "canonical": "#272521",
+        "tonalRamp": [
+          "oklch(0.15 0.008 82)",
+          "oklch(0.27 0.008 82)",
+          "oklch(0.39 0.008 82)",
+          "oklch(0.51 0.008 82)",
+          "oklch(0.63 0.008 82)",
+          "oklch(0.75 0.008 82)",
+          "oklch(0.87 0.008 82)",
+          "oklch(0.95 0.008 82)"
+        ]
+      },
+      "ink-dark": {
+        "role": "neutral",
+        "displayName": "Night Warm Ink",
+        "canonical": "#f6f0e6",
+        "tonalRamp": [
+          "oklch(0.15 0.012 82)",
+          "oklch(0.27 0.012 82)",
+          "oklch(0.39 0.012 82)",
+          "oklch(0.51 0.012 82)",
+          "oklch(0.63 0.012 82)",
+          "oklch(0.75 0.012 82)",
+          "oklch(0.87 0.012 82)",
+          "oklch(0.95 0.012 82)"
+        ]
+      },
+      "ink-2-dark": {
+        "role": "neutral",
+        "displayName": "Night Warm Sage Ink",
+        "canonical": "#c3bcae",
+        "tonalRamp": [
+          "oklch(0.15 0.014 82)",
+          "oklch(0.27 0.014 82)",
+          "oklch(0.39 0.014 82)",
+          "oklch(0.51 0.014 82)",
+          "oklch(0.63 0.014 82)",
+          "oklch(0.75 0.014 82)",
+          "oklch(0.87 0.014 82)",
+          "oklch(0.95 0.014 82)"
+        ]
+      },
+      "rule-dark": {
+        "role": "neutral",
+        "displayName": "Night Rule",
+        "canonical": "#787264",
+        "tonalRamp": [
+          "oklch(0.15 0.014 82)",
+          "oklch(0.27 0.014 82)",
+          "oklch(0.39 0.014 82)",
+          "oklch(0.51 0.014 82)",
+          "oklch(0.63 0.014 82)",
+          "oklch(0.75 0.014 82)",
+          "oklch(0.87 0.014 82)",
+          "oklch(0.95 0.014 82)"
+        ]
+      },
+      "forest-dark": {
+        "role": "primary",
+        "displayName": "Night Deep Forest",
+        "canonical": "#0e241b",
+        "tonalRamp": [
+          "oklch(0.15 0.04 158)",
+          "oklch(0.27 0.04 158)",
+          "oklch(0.39 0.04 158)",
+          "oklch(0.51 0.04 158)",
+          "oklch(0.63 0.04 158)",
+          "oklch(0.75 0.04 158)",
+          "oklch(0.87 0.04 158)",
+          "oklch(0.95 0.04 158)"
+        ]
+      },
+      "forest-2-dark": {
+        "role": "primary",
+        "displayName": "Night Forest 2",
+        "canonical": "#204734",
+        "tonalRamp": [
+          "oklch(0.15 0.045 158)",
+          "oklch(0.27 0.045 158)",
+          "oklch(0.39 0.045 158)",
+          "oklch(0.51 0.045 158)",
+          "oklch(0.63 0.045 158)",
+          "oklch(0.75 0.045 158)",
+          "oklch(0.87 0.045 158)",
+          "oklch(0.95 0.045 158)"
+        ]
+      },
+      "forest-rule-dark": {
+        "role": "primary",
+        "displayName": "Night Forest Rule",
+        "canonical": "#2a4b3a",
+        "tonalRamp": [
+          "oklch(0.15 0.03 158)",
+          "oklch(0.27 0.03 158)",
+          "oklch(0.39 0.03 158)",
+          "oklch(0.51 0.03 158)",
+          "oklch(0.63 0.03 158)",
+          "oklch(0.75 0.03 158)",
+          "oklch(0.87 0.03 158)",
+          "oklch(0.95 0.03 158)"
+        ]
+      },
+      "brand-dark": {
+        "role": "primary",
+        "displayName": "Night Brand Green",
+        "canonical": "#4fb187",
+        "tonalRamp": [
+          "oklch(0.15 0.04 163)",
+          "oklch(0.27 0.06 163)",
+          "oklch(0.39 0.085 163)",
+          "oklch(0.51 0.11 163)",
+          "oklch(0.63 0.112 163)",
+          "oklch(0.75 0.095 163)",
+          "oklch(0.87 0.055 163)",
+          "oklch(0.95 0.02 163)"
+        ]
+      },
+      "apricot-dark": {
+        "role": "secondary",
+        "displayName": "Night Apricot",
+        "canonical": "#ef936b",
+        "tonalRamp": [
+          "oklch(0.15 0.06 43)",
+          "oklch(0.27 0.09 43)",
+          "oklch(0.39 0.12 43)",
+          "oklch(0.51 0.15 43)",
+          "oklch(0.63 0.15 43)",
+          "oklch(0.75 0.13 43)",
+          "oklch(0.87 0.08 43)",
+          "oklch(0.95 0.03 43)"
+        ]
+      },
+      "periwinkle-dark": {
+        "role": "secondary",
+        "displayName": "Night Periwinkle",
+        "canonical": "#a7b0ff",
+        "tonalRamp": [
+          "oklch(0.15 0.05 275)",
+          "oklch(0.27 0.08 275)",
+          "oklch(0.39 0.11 275)",
+          "oklch(0.51 0.13 275)",
+          "oklch(0.63 0.13 275)",
+          "oklch(0.75 0.11 275)",
+          "oklch(0.87 0.07 275)",
+          "oklch(0.95 0.03 275)"
+        ]
+      },
+      "green-dark": {
+        "role": "tertiary",
+        "displayName": "Night Team Green",
+        "canonical": "#75c7a2",
+        "tonalRamp": [
+          "oklch(0.15 0.04 158)",
+          "oklch(0.27 0.06 158)",
+          "oklch(0.39 0.08 158)",
+          "oklch(0.51 0.09 158)",
+          "oklch(0.63 0.09 158)",
+          "oklch(0.75 0.075 158)",
+          "oklch(0.87 0.045 158)",
+          "oklch(0.95 0.02 158)"
+        ]
+      },
+      "saffron-dark": {
+        "role": "secondary",
+        "displayName": "Night Stock Saffron",
+        "canonical": "#e8bd67",
+        "tonalRamp": [
+          "oklch(0.15 0.04 79)",
+          "oklch(0.27 0.065 79)",
+          "oklch(0.39 0.085 79)",
+          "oklch(0.51 0.1 79)",
+          "oklch(0.63 0.1 79)",
+          "oklch(0.75 0.085 79)",
+          "oklch(0.87 0.055 79)",
+          "oklch(0.95 0.02 79)"
+        ]
+      },
+      "exception-dark": {
+        "role": "tertiary",
+        "displayName": "Night Exception Red",
+        "canonical": "#ff9298",
+        "tonalRamp": [
+          "oklch(0.15 0.06 22)",
+          "oklch(0.27 0.09 22)",
+          "oklch(0.39 0.12 22)",
+          "oklch(0.51 0.15 22)",
+          "oklch(0.63 0.15 22)",
+          "oklch(0.75 0.13 22)",
+          "oklch(0.87 0.08 22)",
+          "oklch(0.95 0.03 22)"
+        ]
+      },
+      "brand-hover-dark": {
+        "role": "primary",
+        "displayName": "Brand Green Hover (night)",
+        "canonical": "#5cbf95",
+        "tonalRamp": [
+          "oklch(0.15 0.04 163)",
+          "oklch(0.27 0.06 163)",
+          "oklch(0.39 0.085 163)",
+          "oklch(0.51 0.11 163)",
+          "oklch(0.63 0.112 163)",
+          "oklch(0.75 0.095 163)",
+          "oklch(0.87 0.055 163)",
+          "oklch(0.95 0.02 163)"
         ]
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Marketing surfaces only — the landing hero. Never inside the CRM." },
-      "headline": { "displayName": "Headline", "purpose": "The PageLayout page title. One per screen, and suppressible by a device setting." },
-      "title": { "displayName": "Title", "purpose": "Card headings, dialog titles, section names." },
-      "metric": { "displayName": "Metric", "purpose": "The figure on a StatCard — the loudest element in the system. Always tabular." },
-      "body": { "displayName": "Body", "purpose": "The default: prose and table content." },
-      "label": { "displayName": "Label", "purpose": "Field labels and segmented-control options. Bold, tracked, optionally uppercase." },
-      "micro": { "displayName": "Micro", "purpose": "Table column headers, page eyebrows, sidebar group names. Scanned, never read." },
-      "mono": { "displayName": "Mono", "purpose": "Identifiers, keys, payloads, raw values." }
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "Time ticks, dense headers, and terse eyebrows that are scanned rather than read."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Compact field labels, annotations, and count metadata."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default prose, task text, tables, and form content."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel headings, board headings, dialogs, and workbench titles."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The PageLayout-owned page title."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Auth and marketing-scale statements only; never a dashboard KPI."
+      },
+      "metric": {
+        "displayName": "Metric",
+        "purpose": "Prominent aligned values when numeric comparison genuinely matters."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Timestamps, money, identifiers, and values that benefit from stable columns."
+      }
     },
     "shadows": [
       {
-        "name": "clearance-sm",
-        "value": "0 1px 2px color-mix(in oklab, var(--shadow-tint) 7%, transparent), 0 3px 10px -3px color-mix(in oklab, var(--shadow-tint) 10%, transparent)",
-        "purpose": "The resting card. Two layers exist for one reason: so white clears the #eff1f3 page."
+        "name": "magnetic-low",
+        "value": "0 2px 8px -4px color-mix(in oklab, var(--shadow-tint) 18%, transparent)",
+        "purpose": "Lane tasks, selected segmented labels, buttons, and attention rows."
       },
       {
-        "name": "raised-md",
-        "value": "0 2px 4px -1px color-mix(in oklab, var(--shadow-tint) 8%, transparent), 0 8px 20px -6px color-mix(in oklab, var(--shadow-tint) 14%, transparent)",
-        "purpose": "Raised panels and hovering interactive tiles."
+        "name": "raised-medium",
+        "value": "0 5px 16px -8px color-mix(in oklab, var(--shadow-tint) 22%, transparent)",
+        "purpose": "Auth cards and intentionally raised work surfaces."
       },
       {
-        "name": "popover-lg",
-        "value": "0 4px 8px -2px color-mix(in oklab, var(--shadow-tint) 9%, transparent), 0 16px 40px -12px color-mix(in oklab, var(--shadow-tint) 18%, transparent)",
-        "purpose": "Select menus, dropdowns, popovers."
+        "name": "overlay-large",
+        "value": "0 2px 4px color-mix(in oklab, var(--shadow-tint) 10%, transparent), 0 12px 28px -8px color-mix(in oklab, var(--shadow-tint) 22%, transparent)",
+        "purpose": "Menus and popovers."
       },
       {
-        "name": "float-xl",
-        "value": "0 8px 16px -4px color-mix(in oklab, var(--shadow-tint) 11%, transparent), 0 28px 64px -20px color-mix(in oklab, var(--shadow-tint) 22%, transparent)",
-        "purpose": "Modals and toasts — things that genuinely float above everything."
-      },
-      {
-        "name": "shadow-tint",
-        "value": "light: oklch(0.2347 0.0732 269.9) / dark: oklch(0.08 0.01 270)",
-        "purpose": "Every shadow mixes from this, not from neutral black. A grey shadow on cool grey paper reads as dirt; a navy shadow on dark charcoal reads as mud — hence two values."
+        "name": "float-extra-large",
+        "value": "0 4px 8px color-mix(in oklab, var(--shadow-tint) 12%, transparent), 0 24px 56px -16px color-mix(in oklab, var(--shadow-tint) 28%, transparent)",
+        "purpose": "Drawers, modals, and toasts."
       }
     ],
     "motion": [
-      { "name": "state-fast", "value": "150ms (colors, border-color, box-shadow)", "purpose": "Nav items, controls, fields — every hover, focus and active change." },
-      { "name": "shell-slide", "value": "300ms cubic-bezier(0, 0, 0.2, 1)", "purpose": "Sidebar width and off-canvas transform." },
-      { "name": "figure-settle", "value": "500ms", "purpose": "Stat ring stroke-dashoffset and progress-bar width, so a value visibly arrives." },
-      { "name": "press", "value": "translateY(1px) on :active", "purpose": "The one piece of button theatre. Suppressed on menu triggers, which must not move while their popover is open." },
-      { "name": "overlay-in", "value": "fade + zoom from 95% (tw-animate-css)", "purpose": "Popovers, selects, toasts, modals." },
-      { "name": "reduced-motion", "value": "all animation and transition durations forced to 0.01ms", "purpose": "Global prefers-reduced-motion override in the base layer. Non-negotiable." }
+      {
+        "name": "state",
+        "value": "150ms",
+        "purpose": "Colour, border, translate, and low-lift control transitions."
+      },
+      {
+        "name": "press",
+        "value": "translateY(1px)",
+        "purpose": "Physical press feedback for buttons that do not open popovers."
+      },
+      {
+        "name": "magnetic-lift",
+        "value": "translateY(-1px)",
+        "purpose": "Shows a magnetic label or row is clickable without introducing a large hover animation."
+      },
+      {
+        "name": "shell",
+        "value": "300ms ease-out",
+        "purpose": "Sidebar width and off-canvas movement."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms globally; 1.6s for indeterminate progress",
+        "purpose": "Removes decorative movement while preserving loading information."
+      }
     ],
     "breakpoints": [
-      { "name": "sm", "value": "640px" },
-      { "name": "md", "value": "768px", "purpose": "Does most of the responsive work: gutters, densities, type steps." },
-      { "name": "lg", "value": "1024px", "purpose": "The shell boundary — sidebar goes from off-canvas drawer to static rail." },
-      { "name": "xl", "value": "1280px", "purpose": "Adds table columns only." },
-      { "name": "2xl", "value": "1536px", "purpose": "Six-across stat rows only." }
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "purpose": "Gutters, type density, and secondary table detail."
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "purpose": "Sidebar shell and board/workbench split."
+      },
+      {
+        "name": "xl",
+        "value": "1280px",
+        "purpose": "Additional table and supporting analytics columns."
+      },
+      {
+        "name": "2xl",
+        "value": "1536px",
+        "purpose": "Widens high-density reporting layouts."
+      }
     ],
     "dimensions": [
-      { "name": "sidebar-width", "value": "220px" },
-      { "name": "sidebar-collapsed-width", "value": "60px" },
-      { "name": "header-height", "value": "56px", "purpose": "Zeroed at lg+ when the 'hide top bar' device setting is on." }
+      {
+        "name": "sidebar-width",
+        "value": "220px"
+      },
+      {
+        "name": "sidebar-collapsed-width",
+        "value": "60px"
+      },
+      {
+        "name": "header-height",
+        "value": "56px"
+      },
+      {
+        "name": "context-workbench",
+        "value": "320px",
+        "purpose": "Stable right column beside the service board on large screens."
+      },
+      {
+        "name": "touch-floor",
+        "value": "44px",
+        "purpose": "Touch-first POS, KDS, cash-up, and tablet controls."
+      }
     ]
   },
   "components": [
     {
-      "name": "Primary Button",
+      "name": "Primary Action",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The one solid-blue action per view. Presses down 1px.",
-      "html": "<button class=\"ds-btn ds-btn-primary\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M12 5v14\"/></svg>New order</button>",
-      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.625rem; border: 1px solid transparent; border-radius: var(--radius-lg, 0.5rem); font-size: 0.875rem; font-weight: 600; white-space: nowrap; cursor: pointer; transition: all 150ms; } .ds-btn-primary { background: var(--primary); color: var(--primary-foreground); } .ds-btn-primary:hover { background: var(--primary-hover); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); }"
+      "description": "The compact brand-green magnetic key for the clearest next useful action.",
+      "html": "<button class=\"ds-btn-primary\">Open orders <svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"m13 6 6 6-6 6\"/></svg></button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:.375rem; height:2.25rem; padding:0 .75rem; border:1px solid transparent; border-radius:7px; background:var(--primary,#1f6146); color:var(--primary-foreground,#fffaf4); font:600 .875rem/1 Archivo,ui-sans-serif,system-ui,sans-serif; cursor:pointer; box-shadow:0 2px 8px -4px color-mix(in oklab,var(--shadow-tint,#20372d) 18%,transparent); transition:background-color 150ms,transform 150ms,box-shadow 150ms; } .ds-btn-primary:hover { background:var(--primary-hover,#174c38); } .ds-btn-primary:active { transform:translateY(1px); } .ds-btn-primary:focus-visible { outline:2px solid var(--ring,#1f6146); outline-offset:2px; }"
     },
     {
-      "name": "Outline Button",
+      "name": "Outline Action",
       "kind": "button",
       "refersTo": "button-outline",
-      "description": "The workhorse. White field fill, hairline border, muted hover.",
-      "html": "<button class=\"ds-btn ds-btn-outline\">Export CSV</button>",
-      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.625rem; border: 1px solid var(--border); border-radius: var(--radius-lg, 0.5rem); background: var(--field); color: var(--foreground); font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 150ms; } .ds-btn-outline:hover { background: var(--muted); } .ds-btn-outline:active { transform: translateY(1px); } .ds-btn-outline:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); }"
+      "description": "The porcelain workhorse key behind the shared soft rule.",
+      "html": "<button class=\"ds-btn-outline\">Filters</button>",
+      "css": ".ds-btn-outline { display:inline-flex; align-items:center; justify-content:center; height:2.25rem; padding:0 .75rem; border:1px solid var(--rule,#aaa397); border-radius:7px; background:var(--field,#fffcf7); color:var(--ink,#20372d); font:600 .875rem/1 Archivo,ui-sans-serif,system-ui,sans-serif; cursor:pointer; transition:background-color 150ms,transform 150ms; } .ds-btn-outline:hover { background:var(--band,#eae4d8); } .ds-btn-outline:active { transform:translateY(1px); } .ds-btn-outline:focus-visible { outline:2px solid var(--ring,#1f6146); outline-offset:2px; }"
     },
     {
-      "name": "Status Badge",
-      "kind": "chip",
-      "refersTo": "badge-primary",
-      "description": "Status vocabulary: a 10% tint of the hue with the hue as text. Never a saturated block.",
-      "html": "<span class=\"ds-badge ds-badge-success\">Paid</span> <span class=\"ds-badge ds-badge-warning\">Low stock</span> <span class=\"ds-badge ds-badge-destructive\">Refunded</span> <span class=\"ds-badge ds-badge-primary\">Live</span>",
-      "css": ".ds-badge { display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; height: 1.25rem; padding: 0.125rem 0.5rem; border: 1px solid transparent; border-radius: var(--radius-md, 0.4rem); font-size: 0.75rem; font-weight: 600; white-space: nowrap; } .ds-badge-primary { background: color-mix(in oklab, var(--primary) 10%, transparent); color: var(--primary); } .ds-badge-success { background: color-mix(in oklab, var(--success) 10%, transparent); color: var(--success); } .ds-badge-warning { background: color-mix(in oklab, var(--warning) 10%, transparent); color: var(--warning); } .ds-badge-destructive { background: color-mix(in oklab, var(--destructive) 10%, transparent); color: var(--destructive); }"
+      "name": "Attached Time Control",
+      "kind": "nav",
+      "refersTo": "segmented-control",
+      "description": "Attached Now, This shift, and This week labels in one band-coloured tray.",
+      "html": "<div class=\"ds-segmented\" role=\"group\" aria-label=\"Board range\"><button class=\"ds-segmented-item is-active\" aria-pressed=\"true\">Now</button><button class=\"ds-segmented-item\" aria-pressed=\"false\">This shift</button><button class=\"ds-segmented-item\" aria-pressed=\"false\">This week</button></div>",
+      "css": ".ds-segmented { display:inline-flex; align-items:center; height:2.25rem; padding:2px; overflow:hidden; border:1px solid color-mix(in oklab,var(--rule,#aaa397) 70%,transparent); border-radius:7px; background:var(--band,#eae4d8); } .ds-segmented-item { height:1.75rem; padding:0 1rem; border:0; border-radius:5px; background:transparent; color:var(--ink-2,#5c6c63); font:600 .75rem/1 Archivo,ui-sans-serif,system-ui,sans-serif; cursor:pointer; transition:background-color 150ms,color 150ms,box-shadow 150ms; } .ds-segmented-item:hover { background:color-mix(in oklab,var(--field,#fffcf7) 45%,transparent); color:var(--ink,#20372d); } .ds-segmented-item.is-active { background:var(--field,#fffcf7); color:var(--ink,#20372d); box-shadow:0 2px 8px -4px color-mix(in oklab,var(--shadow-tint,#20372d) 18%,transparent); } .ds-segmented-item:focus-visible { outline:2px solid var(--ring,#1f6146); outline-offset:-2px; }"
+    },
+    {
+      "name": "Service Board Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "The dominant porcelain operational region joined to its quieter context workbench.",
+      "html": "<section class=\"ds-board\"><div class=\"ds-board-main\"><h2>Happening now</h2><p>Live dependencies from open through close.</p></div><aside class=\"ds-workbench\"><h3>Needs attention</h3><p>The few things worth interrupting your flow for.</p></aside></section>",
+      "css": ".ds-board { display:grid; grid-template-columns:minmax(0,1fr) 320px; overflow:hidden; border:1px solid color-mix(in oklab,var(--rule,#aaa397) 70%,transparent); border-radius:8px; background:var(--field,#fffcf7); color:var(--ink,#20372d); font-family:Archivo,ui-sans-serif,system-ui,sans-serif; } .ds-board-main { min-width:0; padding:1.5rem; } .ds-board-main h2,.ds-workbench h3 { margin:0; font-size:1.125rem; line-height:1.15; } .ds-board-main p,.ds-workbench p { margin:.375rem 0 0; color:var(--ink-2,#5c6c63); font-size:.8125rem; line-height:1.5; } .ds-workbench { padding:1.25rem; border-left:1px solid color-mix(in oklab,var(--rule,#aaa397) 65%,transparent); background:color-mix(in oklab,var(--band,#eae4d8) 45%,transparent); } @media(max-width:800px){.ds-board{grid-template-columns:1fr}.ds-workbench{border-left:0;border-top:1px solid color-mix(in oklab,var(--rule,#aaa397) 65%,transparent)}}"
     },
     {
       "name": "Text Field",
       "kind": "input",
       "refersTo": "input",
-      "description": "White fill, control-edge border, tracked micro-label above, primary focus ring.",
-      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-sku\">SKU<span class=\"ds-field-req\" aria-hidden=\"true\">*</span></label><input class=\"ds-input\" id=\"ds-sku\" placeholder=\"e.g. BEAN-HOUSE-1KG\"><p class=\"ds-field-hint\">Must be unique within the location.</p></div>",
-      "css": ".ds-field { display: flex; flex-direction: column; gap: 0.375rem; width: 100%; max-width: 22rem; } .ds-field-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; color: var(--muted-foreground); } .ds-field-req { margin-left: 0.25rem; color: var(--destructive); } .ds-input { width: 100%; height: 2.25rem; padding: 0 0.75rem; background: var(--field); border: 1px solid var(--input); border-radius: var(--radius-lg, 0.5rem); font-size: 0.875rem; color: var(--foreground); outline: none; transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 15%, transparent); } .ds-field-hint { font-size: 0.75rem; color: var(--muted-foreground); }"
+      "description": "A porcelain field with a soft edge, low lift, and hard brand-green focus marker.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-search\">Search</label><input class=\"ds-input\" id=\"ds-search\" placeholder=\"Orders, products, tasks\u2026\" />",
+      "css": ".ds-field-label { display:block; margin-bottom:.375rem; color:var(--ink-2,#5c6c63); font:600 .6875rem/1.25 Archivo,ui-sans-serif,system-ui,sans-serif; letter-spacing:.08em; text-transform:uppercase; } .ds-input { width:100%; height:2.5rem; padding:0 .75rem; border:1px solid var(--rule,#aaa397); border-radius:7px; background:var(--field,#fffcf7); color:var(--ink,#20372d); font:400 .875rem/1.5 Archivo,ui-sans-serif,system-ui,sans-serif; box-shadow:0 2px 8px -4px color-mix(in oklab,var(--shadow-tint,#20372d) 18%,transparent); transition:border-color 150ms,outline-color 150ms,box-shadow 150ms; } .ds-input::placeholder { color:var(--ink-2,#5c6c63); } .ds-input:hover { border-color:var(--ink-2,#5c6c63); } .ds-input:focus-visible { border-color:var(--ring,#1f6146); outline:2px solid var(--ring,#1f6146); outline-offset:0; }"
     },
     {
-      "name": "Stat Card",
-      "kind": "card",
-      "refersTo": "card",
-      "description": "The single metric tile: tinted icon chip, tabular figure, delta pill with a rounded-square trend glyph.",
-      "html": "<div class=\"ds-stat\"><div class=\"ds-stat-head\"><span class=\"ds-stat-chip\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 17l6-6 4 4 8-8\"/><path d=\"M21 7h-5v5\"/></svg></span><p class=\"ds-stat-label\">Net sales<span class=\"ds-stat-qual\"> / today</span></p></div><p class=\"ds-stat-value\">£4,182<span class=\"ds-stat-unit\">.60</span></p><span class=\"ds-delta\"><span class=\"ds-delta-glyph\" aria-hidden=\"true\"><svg viewBox=\"0 0 24 24\" width=\"11\" height=\"11\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 17l6-6 4 4 8-8\"/><path d=\"M21 7h-5v5\"/></svg></span><span class=\"ds-delta-value\">+12.4%</span><span class=\"ds-delta-label\">vs last Tuesday</span></span></div>",
-      "css": ".ds-stat { display: flex; flex-direction: column; max-width: 20rem; padding: 1.25rem; background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: var(--radius-2xl, 0.9rem); box-shadow: 0 1px 2px color-mix(in oklab, var(--shadow-tint) 7%, transparent), 0 3px 10px -3px color-mix(in oklab, var(--shadow-tint) 10%, transparent); } .ds-stat-head { display: flex; align-items: center; gap: 0.75rem; } .ds-stat-chip { display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: var(--radius-xl, 0.7rem); background: color-mix(in oklab, var(--primary) 10%, transparent); color: var(--primary); flex-shrink: 0; } .ds-stat-label { font-size: 0.9375rem; font-weight: 500; color: var(--foreground); } .ds-stat-qual { font-weight: 400; color: var(--muted-foreground); } .ds-stat-value { margin-top: 1rem; font-size: 2rem; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--foreground); } .ds-stat-unit { font-size: 1rem; font-weight: 600; color: var(--muted-foreground); } .ds-delta { display: flex; align-items: center; gap: 0.375rem; margin-top: 0.625rem; font-size: 0.8125rem; line-height: 1; } .ds-delta-glyph { display: flex; align-items: center; justify-content: center; width: 1.125rem; height: 1.125rem; border-radius: 6px; border: 1px solid color-mix(in oklab, var(--success) 25%, transparent); background: color-mix(in oklab, var(--success) 10%, transparent); color: var(--success); flex-shrink: 0; } .ds-delta-value { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--success); } .ds-delta-label { color: var(--muted-foreground); }"
-    },
-    {
-      "name": "Sidebar Nav Item",
+      "name": "Forest Navigation Item",
       "kind": "nav",
-      "refersTo": "nav-item-active",
-      "description": "Active state is a 10% primary fill AND a 3px inner-edge bar — the two together, never one alone.",
-      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item-active\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/></svg><span>Dashboard</span><span class=\"ds-nav-bar\" aria-hidden=\"true\"></span></a><a class=\"ds-nav-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 2h12l-1 6a5 5 0 0 1-10 0z\"/><path d=\"M8 22h8\"/><path d=\"M12 14v8\"/></svg><span>POS Terminal</span><span class=\"ds-nav-count\">7</span></a><a class=\"ds-nav-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 7h18M3 12h18M3 17h18\"/></svg><span>Inventory</span></a></nav>",
-      "css": ".ds-nav { display: flex; flex-direction: column; gap: 0.125rem; width: 13.75rem; padding: 0.5rem 0; background: var(--sidebar); border-right: 1px solid var(--sidebar-border); } .ds-nav-item { position: relative; display: flex; align-items: center; gap: 0.625rem; margin: 0 0.75rem; padding: 0.5625rem 0.75rem; border-radius: var(--radius-lg, 0.5rem); font-size: 0.8125rem; font-weight: 500; text-decoration: none; color: var(--muted-foreground); transition: color 150ms, background-color 150ms; } .ds-nav-item > span:first-of-type { flex: 1; } .ds-nav-item:hover { background: var(--surface-offset); color: var(--foreground); } .ds-nav-item-active { background: color-mix(in oklab, var(--primary) 10%, transparent); color: var(--primary); font-weight: 600; } .ds-nav-item-active:hover { background: color-mix(in oklab, var(--primary) 15%, transparent); } .ds-nav-bar { position: absolute; right: 0; top: 0.375rem; bottom: 0.375rem; width: 3px; border-radius: 2px 0 0 2px; background: var(--primary); } .ds-nav-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.25rem; height: 1.25rem; padding: 0 0.375rem; border-radius: 9999px; background: var(--primary); color: var(--primary-foreground); font-size: 0.625rem; font-weight: 700; font-variant-numeric: tabular-nums; }"
+      "description": "An active role-workspace destination inside the stable forest shell.",
+      "html": "<a class=\"ds-nav-item is-active\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"17\" rx=\"2\"/><path d=\"M8 2v4M16 2v4M3 9h18\"/></svg><span>Today</span></a>",
+      "css": ".ds-nav-item { position:relative; display:flex; align-items:center; gap:.625rem; min-height:2.25rem; padding:.5rem .75rem; border-radius:7px; background:transparent; color:color-mix(in oklab,var(--sidebar-foreground,#f8f1e5) 68%,transparent); font:500 .875rem/1 Archivo,ui-sans-serif,system-ui,sans-serif; text-decoration:none; transition:background-color 100ms,color 100ms; } .ds-nav-item:hover,.ds-nav-item.is-active { background:var(--sidebar-accent,#28624d); color:var(--sidebar-foreground,#f8f1e5); } .ds-nav-item.is-active { font-weight:600; } .ds-nav-item.is-active::after { content:\"\"; position:absolute; top:.5rem; right:0; bottom:.5rem; width:3px; border-radius:5px; background:var(--sidebar-primary,#f8f1e5); } .ds-nav-item:focus-visible { outline:2px solid var(--sidebar-ring,#f8f1e5); outline-offset:2px; }"
     },
     {
-      "name": "Data Table",
-      "kind": "custom",
-      "refersTo": "table-header",
-      "description": "The signature component: card shell, sticky micro-label header, hairline rows, tabular figures right-aligned.",
-      "html": "<div class=\"ds-table-shell\"><table class=\"ds-table\"><thead><tr><th scope=\"col\">Item</th><th scope=\"col\">Location</th><th scope=\"col\" class=\"ds-num\">On hand</th><th scope=\"col\" class=\"ds-num\">Value</th></tr></thead><tbody><tr><td>House Blend 1kg</td><td>Bridge Street</td><td class=\"ds-num\">18</td><td class=\"ds-num\">£342.00</td></tr><tr><td>Oat Milk 1L</td><td>Bridge Street</td><td class=\"ds-num ds-warn\">4</td><td class=\"ds-num\">£7.60</td></tr><tr><td>Decaf 250g</td><td>Quayside</td><td class=\"ds-num\">31</td><td class=\"ds-num\">£186.00</td></tr></tbody></table></div>",
-      "css": ".ds-table-shell { overflow: hidden; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-2xl, 0.9rem); } .ds-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; color: var(--foreground); } .ds-table th { padding: 0.75rem 1.25rem; text-align: left; background: color-mix(in oklab, var(--muted) 90%, transparent); border-bottom: 1px solid var(--border); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted-foreground); } .ds-table td { padding: 0.75rem 1.25rem; } .ds-table tbody tr:not(:last-child) > * { border-bottom: 1px solid var(--border); } .ds-table tbody tr { transition: background-color 150ms; } .ds-table tbody tr:hover { background: color-mix(in oklab, var(--surface-offset) 70%, transparent); } .ds-num { text-align: right; font-variant-numeric: tabular-nums; } .ds-warn { color: var(--warning); font-weight: 600; }"
+      "name": "Stat Tile",
+      "kind": "card",
+      "refersTo": "stat-tile",
+      "description": "The single figure tile used for every metric in the product, carrying the comparison it was judged against.",
+      "html": "<div class=\"ds-stat\"><div class=\"ds-stat-head\"><span class=\"ds-stat-chip\" aria-hidden=\"true\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 2h12l-1 6a5 5 0 0 1-10 0Z\"/><path d=\"M9 14v6\"/><path d=\"M6 22h12\"/></svg></span><p class=\"ds-stat-label\">Orders</p></div><div class=\"ds-stat-value-row\"><span class=\"ds-stat-value\">142</span><span class=\"ds-stat-delta\"><svg viewBox=\"0 0 24 24\" width=\"12\" height=\"12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 17 17 7\"/><path d=\"M9 7h8v8\"/></svg>+4%<em>vs typical Thursday</em></span></div><p class=\"ds-stat-hint\">136 by now on a typical Thursday</p></div>",
+      "css": ".ds-stat { display:flex; flex-direction:column; padding:1.25rem; background:var(--field,#fffcf7); border:1px solid var(--rule,#aaa397); border-radius:5px; color:var(--ink,#20372d); font-family:Archivo,ui-sans-serif,system-ui,sans-serif; }.ds-stat-head { display:flex; align-items:center; gap:.75rem; }.ds-stat-chip { display:flex; align-items:center; justify-content:center; width:2.5rem; height:2.5rem; border:1px solid color-mix(in oklab,var(--reference,#505fb8) 60%,transparent); border-radius:5px; color:var(--reference,#505fb8); }.ds-stat-label { margin:0; font-size:1rem; font-weight:500; }.ds-stat-value-row { display:flex; align-items:baseline; flex-wrap:wrap; gap:.625rem; margin-top:1rem; }.ds-stat-value { font-family:'Chivo Mono',ui-monospace,monospace; font-size:2rem; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }.ds-stat-delta { display:inline-flex; align-items:center; gap:.375rem; padding:.125rem .5rem; border:1px solid color-mix(in oklab,var(--momentum,#2b7355) 60%,transparent); border-radius:5px; background:color-mix(in oklab,var(--momentum,#2b7355) 6%,transparent); color:var(--momentum,#2b7355); font-size:.75rem; font-weight:600; font-variant-numeric:tabular-nums; }.ds-stat-delta em { font-style:normal; font-weight:400; color:var(--ink-2,#5c6c63); }.ds-stat-hint { margin:.5rem 0 0; font-size:.75rem; line-height:1.6; color:var(--ink-2,#5c6c63); }"
     },
     {
-      "name": "Segmented Control",
+      "name": "Exception Strip",
       "kind": "custom",
-      "refersTo": "button-outline",
-      "description": "Muted trough, hairline border; the active segment lifts onto a white card with clearance shadow and primary text.",
-      "html": "<div class=\"ds-seg\" role=\"group\" aria-label=\"Period\"><button class=\"ds-seg-btn ds-seg-btn-active\" aria-pressed=\"true\">Today</button><button class=\"ds-seg-btn\" aria-pressed=\"false\">Week</button><button class=\"ds-seg-btn\" aria-pressed=\"false\">Month</button></div>",
-      "css": ".ds-seg { display: inline-flex; align-items: center; gap: 0.125rem; height: 2.25rem; padding: 0 0.25rem; width: fit-content; background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-xl, 0.7rem); } .ds-seg-btn { display: inline-flex; align-items: center; justify-content: center; height: 1.75rem; padding: 0 1rem; border: none; background: transparent; border-radius: var(--radius-lg, 0.5rem); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-foreground); cursor: pointer; transition: background-color 150ms, color 150ms; } .ds-seg-btn:hover { color: var(--foreground); } .ds-seg-btn-active { background: var(--card); color: var(--primary); box-shadow: 0 1px 2px color-mix(in oklab, var(--shadow-tint) 7%, transparent), 0 3px 10px -3px color-mix(in oklab, var(--shadow-tint) 10%, transparent); } .ds-seg-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }"
+      "refersTo": "exception-row",
+      "description": "The one-line live triage row at the head of an operational surface, opening into a ruled ledger of what needs doing.",
+      "html": "<div class=\"ds-exceptions\"><div class=\"ds-exceptions-summary\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"ds-exceptions-glyph\" aria-hidden=\"true\"><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/><path d=\"M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z\"/></svg><p class=\"ds-exceptions-count\">3 things need you</p><p class=\"ds-exceptions-preview\">Order #4C19A2 is over 5 minutes \u00b7 Alex Rowe has not clocked in \u00b7 Oat milk runs out soon</p><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"ds-exceptions-chev\" aria-hidden=\"true\"><path d=\"m6 9 6 6 6-6\"/></svg></div><ul class=\"ds-exceptions-list\"><li><a class=\"ds-exception-row\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"ds-tone-exception\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/></svg><span><strong>Order #4C19A2 is over 5 minutes</strong><em>8 minutes in preparation</em></span><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"ds-exception-go\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"m13 6 6 6-6 6\"/></svg></a></li><li><a class=\"ds-exception-row\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"ds-tone-stock\" aria-hidden=\"true\"><path d=\"M3 7l9-4 9 4-9 4Z\"/><path d=\"M3 12l9 4 9-4\"/><path d=\"M3 17l9 4 9-4\"/></svg><span><strong>Oat milk runs out soon</strong><em>0.5 days of stock left</em></span><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"ds-exception-go\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"m13 6 6 6-6 6\"/></svg></a></li></ul></div>",
+      "css": ".ds-exceptions { background:var(--field,#fffcf7); border:1px solid color-mix(in oklab,var(--exception,#b33a45) 35%,transparent); border-radius:8px; color:var(--ink,#20372d); font-family:Archivo,ui-sans-serif,system-ui,sans-serif; overflow:hidden; }.ds-exceptions-summary { display:flex; align-items:center; gap:.75rem; padding:.75rem 1rem; cursor:pointer; transition:background-color 150ms; }.ds-exceptions-summary:hover { background:color-mix(in oklab,var(--band,#eae4d8) 50%,transparent); }.ds-exceptions-glyph { flex:none; color:var(--exception,#b33a45); }.ds-exceptions-count { margin:0; flex:none; font-size:.875rem; font-weight:600; }.ds-exceptions-preview { margin:0; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.875rem; color:var(--ink-2,#5c6c63); }.ds-exceptions-chev { flex:none; color:var(--ink-2,#5c6c63); }.ds-exceptions-list { margin:0; padding:0; list-style:none; border-top:1px solid color-mix(in oklab,var(--rule,#aaa397) 45%,transparent); }.ds-exceptions-list li + li { border-top:1px solid color-mix(in oklab,var(--rule,#aaa397) 45%,transparent); }.ds-exception-row { display:flex; align-items:center; gap:.75rem; padding:.625rem 1rem; text-decoration:none; color:inherit; transition:background-color 150ms; }.ds-exception-row:hover { background:color-mix(in oklab,var(--band,#eae4d8) 50%,transparent); }.ds-exception-row:focus-visible { outline:2px solid var(--ring,#1f6146); outline-offset:-2px; }.ds-exception-row span { display:flex; flex-direction:column; min-width:0; flex:1; }.ds-exception-row strong { font-size:.875rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.ds-exception-row em { font-style:normal; font-size:.75rem; color:var(--ink-2,#5c6c63); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.ds-exception-row svg { flex:none; }.ds-tone-exception { color:var(--exception,#b33a45); }.ds-tone-stock { color:var(--stock,#8a5b02); }.ds-exception-go { color:var(--ink-2,#5c6c63); }"
     },
     {
-      "name": "Empty State",
+      "name": "Day Curve",
       "kind": "custom",
-      "refersTo": "card",
-      "description": "Deliberately quiet — an empty table is a normal state in a café at 6am, not an error.",
-      "html": "<div class=\"ds-empty\"><div class=\"ds-empty-disc\"><svg viewBox=\"0 0 24 24\" width=\"28\" height=\"28\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 7h13a3 3 0 0 1 0 6h-1\"/><path d=\"M4 7v6a5 5 0 0 0 5 5h3a5 5 0 0 0 5-5\"/><path d=\"M3 21h18\"/></svg></div><p class=\"ds-empty-title\">No orders yet today</p><p class=\"ds-empty-desc\">Sales will appear here as they are taken.</p></div>",
-      "css": ".ds-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 4rem 1.5rem; } .ds-empty-disc { display: flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; margin-bottom: 0.75rem; border-radius: 9999px; background: var(--muted); color: var(--muted-foreground); } .ds-empty-title { font-size: 0.875rem; font-weight: 600; color: var(--muted-foreground); } .ds-empty-desc { margin-top: 0.25rem; font-size: 0.75rem; color: color-mix(in oklab, var(--muted-foreground) 60%, transparent); }"
+      "refersTo": null,
+      "description": "The signature component: today's cumulative takings against a typical same-weekday, on the location's real trading-hours axis, with a Now rule that advances through the shift.",
+      "html": "<div class=\"ds-curve\"><div class=\"ds-curve-head\"><span class=\"ds-curve-figure\">\u00a31,284</span><span class=\"ds-curve-pace\"><svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 17 17 7\"/><path d=\"M9 7h8v8\"/></svg>\u00a3140 ahead of typical</span></div><div class=\"ds-curve-plot\"><svg viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\" role=\"img\" aria-label=\"Taken \u00a31,284 by 14:32, \u00a3140 ahead of a typical Thursday.\"><line x1=\"0\" x2=\"100\" y1=\"25\" y2=\"25\" class=\"ds-curve-guide\"/><line x1=\"0\" x2=\"100\" y1=\"50\" y2=\"50\" class=\"ds-curve-guide\"/><line x1=\"0\" x2=\"100\" y1=\"75\" y2=\"75\" class=\"ds-curve-guide\"/><line x1=\"0\" x2=\"100\" y1=\"18\" y2=\"18\" class=\"ds-curve-target\"/><path d=\"M0,100 L14,86 L28,70 L42,52 L56,40 L70,30 L84,22 L100,14\" class=\"ds-curve-typical\"/><path d=\"M0,100 L14,84 L28,64 L42,44 L56,31 L56,100 L0,100 Z\" class=\"ds-curve-area\"/><path d=\"M0,100 L14,84 L28,64 L42,44 L56,31\" class=\"ds-curve-today\"/><line x1=\"56\" x2=\"56\" y1=\"0\" y2=\"100\" class=\"ds-curve-now\"/></svg><span class=\"ds-curve-head-dot\" aria-hidden=\"true\"></span><span class=\"ds-curve-now-label\" aria-hidden=\"true\">14:32</span><span class=\"ds-curve-target-label\">Target \u00a31,600</span></div><div class=\"ds-curve-axis\" aria-hidden=\"true\"><span>07:00</span><span>11:00</span><span>15:00</span><span>18:00</span></div><div class=\"ds-curve-legend\"><span class=\"ds-key-today\">Today</span><span class=\"ds-key-typical\">Typical Thursday \u00b7 8 weeks</span></div></div>",
+      "css": ".ds-curve { padding:1.5rem; background:var(--field,#fffcf7); border:1px solid color-mix(in oklab,var(--rule,#aaa397) 65%,transparent); border-radius:8px; color:var(--ink,#20372d); font-family:Archivo,ui-sans-serif,system-ui,sans-serif; }.ds-curve-head { display:flex; align-items:baseline; flex-wrap:wrap; gap:.75rem; }.ds-curve-figure { font-family:'Chivo Mono',ui-monospace,monospace; font-size:2rem; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }.ds-curve-pace { display:inline-flex; align-items:center; gap:.375rem; padding:.25rem .5rem; border:1px solid color-mix(in oklab,var(--momentum,#2b7355) 60%,transparent); border-radius:5px; background:color-mix(in oklab,var(--momentum,#2b7355) 6%,transparent); color:var(--momentum,#2b7355); font-size:.75rem; font-weight:600; }.ds-curve-plot { position:relative; height:11rem; margin-top:1.25rem; }.ds-curve-plot svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }.ds-curve-guide { stroke:color-mix(in oklab,var(--rule,#aaa397) 50%,transparent); stroke-width:1; stroke-dasharray:2 3; vector-effect:non-scaling-stroke; }.ds-curve-target { stroke:color-mix(in oklab,var(--brand,#1f6146) 70%,transparent); stroke-width:1.5; stroke-dasharray:5 3; vector-effect:non-scaling-stroke; }.ds-curve-typical { fill:none; stroke:var(--reference,#505fb8); stroke-width:1.5; stroke-dasharray:4 3; vector-effect:non-scaling-stroke; }.ds-curve-area { fill:color-mix(in oklab,var(--measured,#b84e2d) 12%,transparent); stroke:none; }.ds-curve-today { fill:none; stroke:var(--measured,#b84e2d); stroke-width:2.5; stroke-linejoin:round; vector-effect:non-scaling-stroke; }.ds-curve-now { stroke:color-mix(in oklab,var(--ink,#20372d) 35%,transparent); stroke-width:1; stroke-dasharray:3 3; vector-effect:non-scaling-stroke; }.ds-curve-head-dot { position:absolute; left:56%; top:31%; width:.625rem; height:.625rem; transform:translate(-50%,-50%); border-radius:9999px; background:var(--measured,#b84e2d); box-shadow:0 0 0 2px var(--field,#fffcf7); }.ds-curve-now-label { position:absolute; left:56%; top:-.5rem; transform:translateX(-50%); padding:.125rem .375rem; border:1px solid var(--rule,#aaa397); border-radius:5px; background:var(--field,#fffcf7); font-size:.625rem; font-weight:700; letter-spacing:.14em; white-space:nowrap; }.ds-curve-target-label { position:absolute; right:0; top:18%; transform:translateY(-50%); padding:0 .375rem; background:var(--field,#fffcf7); color:var(--brand,#1f6146); font-size:.625rem; font-weight:700; letter-spacing:.14em; white-space:nowrap; }.ds-curve-axis { display:flex; justify-content:space-between; margin-top:.5rem; font-size:.625rem; font-weight:600; letter-spacing:.14em; color:var(--ink-2,#5c6c63); }.ds-curve-legend { display:flex; flex-wrap:wrap; gap:1rem; margin-top:.75rem; font-size:.75rem; color:var(--ink-2,#5c6c63); }.ds-curve-legend span { display:inline-flex; align-items:center; gap:.375rem; }.ds-curve-legend span::before { content:\"\"; width:1rem; height:2px; border-radius:9999px; }.ds-key-today::before { background:var(--measured,#b84e2d); }.ds-key-typical::before { background:var(--reference,#505fb8); }"
+    },
+    {
+      "name": "Ruled Ledger Row",
+      "kind": "custom",
+      "description": "The ruled list row used for activity, attendance, requests and records: identifier, action and timestamp on one baseline.",
+      "html": "<a class=\"ds-activity\" href=\"#\"><strong>#4C19A2F0</strong><span>Moved to <b>ready</b></span><time>09:18</time></a>",
+      "css": ".ds-activity { display:grid; grid-template-columns:120px minmax(0,1fr) auto; align-items:center; gap:1rem; min-height:3rem; padding:.625rem 1.25rem; border-bottom:1px solid color-mix(in oklab,var(--rule,#aaa397) 45%,transparent); color:var(--ink,#20372d); font:400 .875rem/1.4 Archivo,ui-sans-serif,system-ui,sans-serif; text-decoration:none; transition:background-color 150ms; } .ds-activity:hover { background:color-mix(in oklab,var(--band,#eae4d8) 45%,transparent); } .ds-activity strong,.ds-activity time { font-family:'Chivo Mono',ui-monospace,monospace; font-size:.75rem; font-variant-numeric:tabular-nums; } .ds-activity time,.ds-activity span { color:var(--ink-2,#5c6c63); } .ds-activity:focus-visible { outline:2px solid var(--ring,#1f6146); outline-offset:-2px; }",
+      "refersTo": "ledger-row"
     }
   ],
   "narrative": {
-    "northStar": "The Daylight Ledger",
-    "overview": "DUMA looks like a well-kept book read in good light. The page is cool paper (#eff1f3), the records sit on it as pure white cards with hairline rules, and every figure lines up in its column. Nothing is dramatised: the interface is a surface for reading a business accurately at 6am and at 3pm, on a tablet by the grinder and on a laptop in the back office. Where a lesser system would reach for a gradient, this one reaches for alignment.\n\nBecause the same application serves a barista mid-rush and an owner comparing sites, the system carries hierarchy in weight, case, tracking and space rather than in colour. Uppercase tracked micro-labels name a region; a hairline separates it; the number itself is the loudest thing in the frame. Bluerocratic blue appears sparingly and always with meaning — where you are, what is live, what to do next. The result reads calm at rest and specific under pressure, which is exactly the reading order an operator needs.\n\nThe material behaviour is tonal, not theatrical. Depth comes from a ladder of surfaces (page → card → offset → muted), and the one small navy-tinted shadow exists for a single reason: so that white clears cool paper. Real elevation is reserved for things that genuinely float — modals, popovers, drawers. Components are calm and tactile: soft 14px corners, honest hover response, a 1px press-down under the thumb, and touch targets sized for a wet hand.",
-    "antiReferences": [
-      "The consumer POS toy — candy tiles, emoji, gradients, playful illustration",
-      "The enterprise grey admin panel — dense unstyled tables, grey-on-grey 12px, no rhythm",
-      "The marketing-led dashboard — purple gradients, glassmorphism, decorative charts, hero numbers with nothing to compare against",
-      "The coffee-shop cliché — kraft texture, chalkboard type, sepia beans, hand-drawn signage"
-    ],
+    "northStar": "The Service Board",
+    "overview": "DUMA is a friendly, practical caf\u00e9 service board: a warm oat canvas held by a deep forest navigation shell, with compact magnetic controls and time-based lanes that show how work moves through a shift. The interface is role-shaped rather than permission-subtracted. Each operator opens a workspace organised around their job, reads the few dependencies that matter now, and acts without having to decode a generic admin dashboard.\n\nThe system feels calm but never passive. Brand green is the action colour, drawn from the forest shell so the key and the column read as one product. Apricot, periwinkle, saffron, and green belong to operational domains\u2014orders, kitchen/reference, stock, and team/success\u2014so colour helps a person scan work before they read it. White and lightly tinted fields sit on the oat ground with soft one-pixel edges and restrained lift. Corners stay compact at 6\u20138px, giving controls the feel of magnetic labels on a real board rather than floating pills.\n\nThe first viewport establishes the grammar: forest sidebar, warm header, \u201cToday at [location]\u201d, a compact exception strip, the day curve on its real trading-hours axis, a stable context workbench of live counts, and the day\u2019s figures beneath. Specialist pages inherit the materials, typography, controls, and domain colours; they do not inherit the dashboard timeline when a form, table, till, or kitchen queue better fits the job. Confirmed anti-references are the graphite monitoring instrument, the floating KPI dashboard, glassmorphism, candy-tile POS UI, and coffee-shop nostalgia.",
     "keyCharacteristics": [
-      "Cool paper page, pure white records, hairline rules — the ledger, not the panel",
-      "One blue accent, rationed to state, position and action",
-      "Tonal depth first; shadow only to clear the page, elevation only for what floats",
-      "Figures always tabular, aligned, and comparable",
-      "Uppercase tracked micro-labels as the naming device",
-      "Calm and tactile controls: 14px corners, 1px press, real hover, thumb-sized targets",
-      "Light and dark are equal citizens, defined token-for-token in the same file"
+      "Role-shaped workspaces organised around the next useful action",
+      "Warm oat canvas held by a deep forest navigation shell",
+      "Brand green action, apricot orders, periwinkle kitchen/reference, saffron stock/warning, green team/success",
+      "Compact 5\u20138px magnetic corners, soft one-pixel edges, and restrained lift",
+      "Attached controls and edge labels instead of floating pills",
+      "A time-based day curve as the dashboard signature, not a universal page template",
+      "Marks placed only where real data puts them; missing history is stated, never drawn",
+      "Stable right context workbench and activity ledger for operational continuity"
     ],
     "rules": [
       {
-        "name": "The Call-Light Rule",
-        "body": "Bluerocratic means one of three things: where you are (active nav, active tab), what is live (focus ring, selected state, series one), or what to do next (the primary action). It is never decoration, never a section ornament, and never used to make a heading feel important. A screen with blue in four unrelated places has lost the rule.",
+        "name": "The Domain Ownership Rule",
+        "body": "Brand green belongs to action and focus, apricot to orders and the measured trace, periwinkle to kitchen/reference and info, saffron to stock and every warning, team green to staffing/success, and red to exceptions. Do not shuffle these roles between screens, and never give a role a raw Tailwind colour \u2014 every hue in the product comes from the token layer.",
         "section": "colors"
       },
       {
-        "name": "The Two-Theme Rule",
-        "body": "Every colour token is defined twice — once in :root, once in .dark — in app/globals.css, in the same edit. A token that exists in only one theme is a bug, not a shortcut. Dark mode is not a filter over light mode: its surfaces are deliberately near-achromatic charcoal and several tokens (primary foreground, field fill, shadow tint) invert their logic rather than their value.",
+        "name": "The Warm Ground Rule",
+        "body": "Oat is the page; porcelain is the work surface; band is the quiet trough. Keep this three-step material ladder intact so specialist pages still feel like the same caf\u00e9 operation.",
         "section": "colors"
       },
       {
-        "name": "The Clear-Both-Surfaces Rule",
-        "body": "Any fill used on a control, chip or row must read against both #ffffff and #eff1f3, because the same component appears on a card and directly on the page. Test both before committing a value.",
+        "name": "The Two-Channel Rule",
+        "body": "Colour may accelerate recognition, but every state also needs text, position, an icon, shape, or bar length. No meaning is communicated by hue alone.",
         "section": "colors"
       },
       {
-        "name": "The Ledger Rule",
-        "body": "Every number that could be compared to another number is tabular-nums. Figures in a table are right-aligned; figures in a card are left-aligned under their label with the delta beside or below them. A metric with no comparison available says so (\"No comparison\") rather than showing a bare number — the absence of a baseline is information.",
+        "name": "The Lights-Off Rule",
+        "body": "Night mode is the same room after close, not an inverted page and not a green one. The material ladder keeps its three steps and its warmth in the ink, but the hue leaves the surfaces: ground, field and band become a warm near-black charcoal (`#121110` \u2192 `#1c1b18` \u2192 `#272521`) so the domain roles have something neutral to sit against. The navigation shell keeps its forest \u2014 that is the place-memory \u2014 dropped to the deepest tier (`#0e241b`, roughly four times darker than the daytime column) with the active step at `#204734`. Green anywhere else at night means team, success or a healthy state; no work surface is green.",
+        "section": "colors"
+      },
+      {
+        "name": "The Practical Voice Rule",
+        "body": "Use sentence case, compact headings, and plain operator language. Avoid theatrical tracking, oversized dashboard headlines, exclamation marks, and feature-speak.",
         "section": "typography"
       },
       {
-        "name": "The Ten-Pixel Rule",
-        "body": "The 0.625rem tier is for uppercase tracked labels and column headers only — text that is scanned, never read. No value, no body copy, no error message, and nothing a barista needs mid-shift may live at that size.",
+        "name": "The Spare Mono Rule",
+        "body": "Use Chivo Mono for figures that must align or compare, not for every numeral that happens to appear in a sentence.",
         "section": "typography"
       },
       {
-        "name": "The Weight-Is-Not-A-Colour Rule",
-        "body": "Emphasis comes from the weight ladder (400 → 500 → 600 → 700) and from case and tracking. It does not come from turning text blue.",
-        "section": "typography"
+        "name": "The Board-Then-Workbench Rule",
+        "body": "Give the current shift the widest column and keep urgent context in a stable narrower panel. Never let summary metrics displace the operator\u2019s next action above the fold.",
+        "section": "layout"
+      },
+      {
+        "name": "The Signature-Not-Template Rule",
+        "body": "The day curve belongs on time-based operational surfaces. Forms, settings, records, till screens, and dense tables inherit the system\u2019s materials and controls without being forced into a timeline.",
+        "section": "layout"
+      },
+      {
+        "name": "The Real Marks Rule",
+        "body": "Nothing on a time axis may be placed by a hardcoded position, and no control may claim to scope data it does not scope. A component that cannot be driven by real data does not ship in a decorative form.",
+        "section": "layout"
       },
       {
         "name": "The Thumb Rule",
-        "body": "On touch-first surfaces — POS, KDS, cash-up — no interactive target goes below 44px, and the primary ones run 48–96px. Desktop controls stay at the 36px standard. SegmentedControl exposes size=\"lg\" (44px) for exactly this reason; use it rather than restyling.",
+        "body": "POS, KDS, cash-up, and other touch-first surfaces use the named 44px touch sizes. Desktop defaults may remain 36\u201340px.",
         "section": "layout"
       },
       {
-        "name": "The Titleless Rule",
-        "body": "Both the page title and the top bar can be switched off per device. Every screen must remain navigable and self-explanatory with neither present, which means header slots carry their own context and never rely on the h1 above them.",
-        "section": "layout"
+        "name": "The Restrained Lift Rule",
+        "body": "A shadow should make a magnetic label feel graspable or establish real overlay depth. It must not turn every panel into a floating dashboard tile.",
+        "section": "elevation-depth"
       },
       {
-        "name": "The Clearance Rule",
-        "body": "shadow-sm on a resting card is clearance, not decoration. If a surface already sits on a distinct tonal step (a well inside a card, a table row, a chip on grey), it gets no shadow at all — the ladder has already said what the shadow would say.",
-        "section": "elevation"
-      },
-      {
-        "name": "The Float-Or-Flat Rule",
-        "body": "Anything above shadow-md must actually float above the page: modal, drawer, popover, toast, dragged item. A card that merely wants attention gets a border shift (hover:border-primary/35) or a tonal change, never a bigger shadow.",
-        "section": "elevation"
-      },
-      {
-        "name": "The One-Block Rule",
-        "body": "A parent and its open children form a single rounded block: the parent loses its bottom radius, the last child gains one, and the group shares a muted/50 ground. Never render an open group as separate rounded items.",
+        "name": "The Magnetic Label Rule",
+        "body": "Controls and tasks should feel like small labels placed on a board: compact radii, decisive edges, a short lift, and no pill silhouette.",
         "section": "shapes"
       },
       {
-        "name": "The Hairline Rule",
-        "body": "Definition comes from a 1px hairline, not from a heavier fill or a drop shadow. Form controls step one shade darker (control-edge) because they must hold an edge on white; everything else uses hairline on the outside and divider on the inside.",
-        "section": "shapes"
+        "name": "The Named Comparison Rule",
+        "body": "A figure ships with the thing it is measured against, in words \u2014 \"vs typical Thursday\", \"on a typical day by now\". A bare delta with no stated basis is a number pretending to be a judgement.",
+        "section": "components"
       }
     ],
     "dos": [
-      "Do define every colour once in app/globals.css, in both :root and .dark, in the same edit — the Two-Theme Rule.",
-      "Do build a card as rounded-2xl border border-border bg-card shadow-sm p-5. That exact recipe appears throughout the app; matching it is how a new screen looks like DUMA.",
-      "Do put tabular-nums on every figure, and give it something to compare against or say explicitly that there is nothing to compare.",
-      "Do express status as a 10% tint of the hue with the hue as text (bg-success/10 text-success), which is what every Badge variant does.",
-      "Do reach for the existing dials before writing new CSS: DataTable density, StatCard size, SegmentedControl size, PageLayout fullHeight.",
-      "Do use StatCard for any metric tile and DataTable for any tabular data — both exist specifically to have replaced a drawer full of bespoke variants.",
-      "Do take icons only from @/components/icons, the single Hugeicons re-export, at 15–18px with aria-hidden=\"true\".",
-      "Do keep interactive things interactive elements: a clickable card is an <a> or <button>, a clickable row carries role=\"button\" and key handling.",
-      "Do hold 44px minimum touch targets on POS, KDS and cash-up — the Thumb Rule.",
-      "Do design every screen to survive both device toggles: no page title, no top bar."
+      "**Do** make the next useful action obvious for the signed-in role.",
+      "**Do** preserve the oat \u2192 porcelain \u2192 band material ladder across specialist pages.",
+      "**Do** keep domain colour ownership stable: action brand green, orders apricot, kitchen/reference periwinkle, stock/warning saffron, team/success green, exception red.",
+      "**Do** build attached tabs and segmented controls with compact 5\u20138px corners.",
+      "**Do** use a dominant service board with a stable context workbench when the surface is genuinely time-based.",
+      "**Do** keep touch-first actions at least 44px and use `dvh` for full-height shop-floor views.",
+      "**Do** use Chivo Mono sparingly for aligned figures, timestamps, IDs, and money.",
+      "**Do** ship every figure with the comparison it was judged against, named in words.",
+      "**Do** state a missing comparison plainly (\"not enough history yet\") instead of drawing a faint or placeholder one.",
+      "**Do** provide a textual or structural channel in addition to colour for every state.",
+      "**Do** retain explicit loading, empty, error, offline, and healthy states in the same practical voice."
     ],
     "donts": [
-      "Don't add tokens to tailwind.config.ts. It is dead: globals.css has no @config directive, so Tailwind v4 never loads it, and it still references variables (--color-text, --color-bg, --color-error) that no longer exist. @theme inline in app/globals.css is the only wired layer.",
-      "Don't write a raw hex, rgb() or arbitrary colour in a component. If a value is missing, add the token.",
-      "Don't assume Tailwind's stock shadow values — the entire scale is re-tuned to --shadow-tint in a utilities layer, and any new hover:/md: shadow variant must be listed there or it silently falls back to neutral black.",
-      "Don't put a shadow on a surface that already sits on its own tonal step, and don't push past shadow-md for anything that doesn't genuinely float.",
-      "Don't use the 0.625rem tier for anything a person reads rather than scans — no values, no messages, no body copy.",
-      "Don't add a fifth thing for blue to mean. State, position, action; that is the list.",
-      "Don't introduce a new font weight step, a second icon set, a second charting palette, or a second card radius.",
-      "Don't restore scrollbars globally; use .kds-scrollbar where an off-screen queue must be discoverable.",
-      "Don't tint the dark-mode surface ladder navy. It was tried; every panel read blue. Dark Eclipse is an accent, and dark surfaces stay near-achromatic charcoal.",
-      "Don't ship a solid red fill for destruction, a gradient, a glassmorphic panel, a decorative chart, or a coffee-shop texture. All four anti-references are confirmed."
-    ],
-    "committedChanges": [
-      {
-        "name": "Real UI text family",
-        "body": "Questrial ships a single 400 weight, yet the interface uses font-semibold 408 times and font-bold 334 times — nearly every emphasised word is browser-synthesised faux bold, which thickens strokes unevenly and blurs at small sizes, precisely where this system does its most important work. The committed direction is to adopt a variable sans with genuine 400/500/600/700 for all UI and data text, keeping Questrial for the wordmark and display moments only. Recommended face: Geist Sans — the project already loads Geist Mono, so the pair is designed together, it is variable with real weights, and its tabular figures suit the Ledger Rule. Not yet implemented.",
-        "section": "typography"
-      }
+      "**Don't** return to the graphite monitoring instrument, chart-paper lattice, or square 1\u20132px control world.",
+      "**Don't** lead with floating KPI cards, decorative charts, or uncontextualised hero numbers.",
+      "**Don't** use pills for tabs, filters, tasks, or statuses when an attached or compact magnetic label works.",
+      "**Don't** apply the day-curve timeline to forms, settings, records, or tables that have a better native structure.",
+      "**Don't** position a mark on a time axis by hand, or ship a control whose selection changes nothing but a heading.",
+      "**Don't** use gradients, glassmorphism, candy-tile POS styling, chalkboard nostalgia, kraft texture, beans, or sepia caf\u00e9 clich\u00e9s.",
+      "**Don't** invent a new domain colour, border family, icon system, or figure font.",
+      "**Don't** communicate urgency by colour alone or allow exception red to become decorative.",
+      "**Don't** add tokens to a Tailwind JavaScript config; `@theme` in `app/globals.css` is the wired styling layer."
     ]
   }
 }

@@ -16,4 +16,4 @@ export function relativeTime(iso?: string | null): string {
 
 export const panelClass = 'rounded-2xl border border-border bg-card p-5';
 
-export const eyebrowClass = 'text-[10px] font-bold uppercase tracking-widest text-muted-foreground';
+export const eyebrowClass = 'text-micro uppercase text-muted-foreground';

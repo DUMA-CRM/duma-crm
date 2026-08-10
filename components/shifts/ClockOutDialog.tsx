@@ -29,7 +29,7 @@ export function ClockOutDialog({ locationId, onClose, onClockedOut }: ClockOutDi
       onClockedOut();
       onClose();
     },
-    onError: (error) => toast('error', (error as Error).message || 'Could not clock out.'),
+    onError: (error) => toast('error', (error as Error).message || 'You weren’t clocked out. Try again before leaving.'),
   });
 
   return (

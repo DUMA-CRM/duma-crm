@@ -102,10 +102,10 @@ function NutritionFields({
               onClick={() => onChange({ ...draft, basis: draft.basis === b.value ? '' : b.value })}
               aria-pressed={draft.basis === b.value}
               className={cn(
-                'flex-1 h-9 rounded-lg border text-xs font-medium transition-colors',
+                'flex-1 h-9 rounded-sm border text-xs font-medium transition-colors',
                 draft.basis === b.value
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:text-foreground',
+                  ? 'border-primary bg-band text-primary'
+                  : 'border-rule text-muted-foreground hover:text-foreground',
               )}
             >
               {b.label}
@@ -140,10 +140,10 @@ function NutritionFields({
               onClick={() => toggle(a)}
               aria-pressed={allergens.includes(a)}
               className={cn(
-                'px-2.5 h-8 rounded-lg border text-xs font-medium capitalize transition-colors',
+                'px-2.5 h-8 rounded-sm border text-xs font-medium capitalize transition-colors',
                 allergens.includes(a)
-                  ? 'border-warning bg-warning/10 text-warning'
-                  : 'border-border text-muted-foreground hover:text-foreground',
+                  ? 'border-warning bg-warning/6 text-warning'
+                  : 'border-rule text-muted-foreground hover:text-foreground',
               )}
             >
               {a}
@@ -326,7 +326,7 @@ export function AddItemDrawer({
                 className={selectClass}
               />
             </div>
-            <label className="flex items-center gap-2 self-end h-9 rounded-lg bg-surface-offset px-3 text-sm text-foreground">
+            <label className="flex items-center gap-2 self-end h-9 rounded-sm bg-band px-3 text-sm text-foreground">
               <input type="checkbox" checked={newPerishable} onChange={(e) => setNewPerishable(e.target.checked)} /> Perishable
             </label>
             <Input
@@ -509,7 +509,7 @@ export function RestockDrawer({ item, onClose, onSuccess }: { item: LocationStoc
       }
     >
       <form id={RESTOCK_FORM} onSubmit={handleSubmit} className="space-y-4">
-        <div className="rounded-xl bg-surface-offset px-4 py-3 text-sm">
+        <div className="rounded-sm bg-band px-4 py-3 text-sm">
           <p className="font-medium text-foreground">{itemName}</p>
           <p className="text-xs text-muted-foreground mt-0.5">
             Current:{' '}
@@ -552,7 +552,7 @@ export function RestockDrawer({ item, onClose, onSuccess }: { item: LocationStoc
             placeholder="Urgency, supplier preference…"
             rows={2}
             className={cn(
-              'w-full bg-field border border-input rounded-lg px-3 py-2 text-sm text-foreground',
+              'w-full bg-field border border-input rounded-sm px-3 py-2 text-sm text-foreground',
               'placeholder:text-muted-foreground outline-none resize-none',
               'focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150',
             )}
@@ -712,7 +712,7 @@ export function LogLossDrawer({
           </div>
           <div
             className={cn(
-              'h-9 px-3 bg-surface-offset rounded-lg flex items-center text-sm font-medium shrink-0 border border-input',
+              'h-9 px-3 bg-band rounded-sm flex items-center text-sm font-medium shrink-0 border border-input',
               selectedItem?.stockItem?.unit ? 'text-foreground' : 'text-muted-foreground',
             )}
           >
@@ -743,7 +743,7 @@ export function LogLossDrawer({
             maxLength={500}
             rows={3}
             className={cn(
-              'w-full bg-field border border-input rounded-lg px-3 py-2 text-sm text-foreground',
+              'w-full bg-field border border-input rounded-sm px-3 py-2 text-sm text-foreground',
               'placeholder:text-muted-foreground outline-none resize-none',
               'focus:border-primary focus:ring-2 focus:ring-primary/15',
               'transition-[border-color,box-shadow] duration-150',
@@ -855,7 +855,7 @@ export function EditStockItemDrawer({
               className={selectClass}
             />
           </div>
-          <label className="flex items-center gap-2 self-end h-9 rounded-lg bg-surface-offset px-3 text-sm">
+          <label className="flex items-center gap-2 self-end h-9 rounded-sm bg-band px-3 text-sm">
             <input type="checkbox" checked={isPerishable} onChange={(e) => setIsPerishable(e.target.checked)} /> Perishable
           </label>
           <Input

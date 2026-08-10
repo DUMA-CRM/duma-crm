@@ -80,7 +80,7 @@ export function ScanCustomer({ onSelect, onClose }: ScanCustomerProps) {
           Looking up customer…
         </p>
       )}
-      {error && !looking && <p className="text-xs text-destructive text-center py-1">{error}</p>}
+      {error && !looking && <p className="text-xs text-exception text-center py-1">{error}</p>}
 
       <Button variant="outline" size="sm" onClick={onClose} className="w-full">
         Cancel

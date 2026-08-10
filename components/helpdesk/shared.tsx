@@ -14,10 +14,10 @@ export const TICKET_STATUSES: TicketStatus[] = ['open', 'in_progress', 'waiting_
 
 export const STATUS_META: Record<TicketStatus, { label: string; group: StatusGroup; lozenge: string }> = {
   open: { label: 'To do', group: 'todo', lozenge: 'bg-muted text-muted-foreground' },
-  in_progress: { label: 'In progress', group: 'progress', lozenge: 'bg-info/15 text-info' },
-  waiting_employee: { label: 'Waiting for reply', group: 'progress', lozenge: 'bg-warning/15 text-warning' },
-  resolved: { label: 'Resolved', group: 'done', lozenge: 'bg-success/15 text-success' },
-  closed: { label: 'Closed', group: 'done', lozenge: 'bg-surface-offset text-muted-foreground' },
+  in_progress: { label: 'In progress', group: 'progress', lozenge: 'bg-info/6 text-info' },
+  waiting_employee: { label: 'Waiting for reply', group: 'progress', lozenge: 'bg-warning/6 text-warning' },
+  resolved: { label: 'Resolved', group: 'done', lozenge: 'bg-success/6 text-success' },
+  closed: { label: 'Closed', group: 'done', lozenge: 'bg-band text-muted-foreground' },
 };
 
 export const isOpenStatus = (status: TicketStatus) => STATUS_META[status].group !== 'done';
@@ -28,7 +28,7 @@ export function StatusLozenge({ status, className }: { status: TicketStatus; cla
   return (
     <span
       className={cn(
-        'inline-flex h-5 items-center rounded px-1.5 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap',
+        'inline-flex h-5 items-center rounded px-1.5 text-label font-semibold uppercase tracking-label whitespace-nowrap',
         meta.lozenge,
         className,
       )}
@@ -106,11 +106,11 @@ export function fmtAgo(iso: string): string {
 // ── Author avatar ─────────────────────────────────────────────────────────────
 
 const AVATAR_TINTS = [
-  'bg-primary/15 text-primary',
-  'bg-info/15 text-info',
-  'bg-success/15 text-success',
-  'bg-warning/15 text-warning',
-  'bg-destructive/15 text-destructive',
+  'bg-band text-primary',
+  'bg-info/6 text-info',
+  'bg-success/6 text-success',
+  'bg-warning/6 text-warning',
+  'bg-destructive/6 text-destructive',
 ];
 
 /** Deterministic initials bubble for a comment author. */
@@ -123,7 +123,7 @@ export function AuthorAvatar({ name, size = 'md' }: { name: string; size?: 'sm' 
       aria-hidden="true"
       className={cn(
         'flex shrink-0 items-center justify-center rounded-full font-bold select-none',
-        size === 'sm' ? 'size-6 text-[10px]' : 'size-8 text-xs',
+        size === 'sm' ? 'size-6 text-micro' : 'size-8 text-xs',
         tint,
       )}
     >

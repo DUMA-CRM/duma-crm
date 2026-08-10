@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowDown, ArrowUp, ChevronsUpDown } from '@/components/icons';
 import * as React from 'react';
+
+import { ArrowDown, ArrowUp, ChevronsUpDown } from '@/components/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -221,7 +222,7 @@ function DataTable<T>(props: DataTableProps<T>) {
       className={cn(
         'min-w-0 bg-card',
         (hasOuterBorder || isDeclarative) && 'overflow-hidden',
-        hasOuterBorder && 'rounded-2xl border border-border',
+        hasOuterBorder && 'rounded-sm border border-rule',
         isDeclarative && className,
       )}
     >
@@ -232,7 +233,7 @@ function DataTable<T>(props: DataTableProps<T>) {
       ) : (
         table
       )}
-      {footer && <div className={cn('border-t border-border bg-muted/20 px-4 py-3', footerClassName)}>{footer}</div>}
+      {footer && <div className={cn('border-t border-rule bg-muted/20 px-4 py-3', footerClassName)}>{footer}</div>}
     </div>
   );
 }
@@ -267,7 +268,7 @@ function DeclarativeTableContent<T>({
               <button
                 type="button"
                 className={cn(
-                  'inline-flex min-h-7 items-center gap-1 rounded-md outline-none hover:text-foreground',
+                  'inline-flex min-h-7 items-center gap-1 rounded-sm outline-none hover:text-foreground',
                   'focus-visible:ring-2 focus-visible:ring-primary/30',
                   column.align === 'right' && 'ml-auto',
                   column.align === 'center' && 'mx-auto',
@@ -295,7 +296,7 @@ function DeclarativeTableContent<T>({
                 aria-sort={column.onSort ? (direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none') : undefined}
                 className={cn(
                   densityClasses[density].header,
-                  'bg-muted/90 text-[10px] font-bold uppercase tracking-widest text-muted-foreground',
+                  'bg-muted/90 text-micro uppercase text-muted-foreground',
                   alignClasses[column.align ?? 'left'],
                   visibilityClasses[column.visibility ?? 'always'],
                   column.wrap && wrapClasses[column.wrap],
@@ -371,7 +372,7 @@ function DeclarativeTableContent<T>({
                   className={cn(
                     'group transition-colors',
                     isInteractive &&
-                      'cursor-pointer hover:bg-surface-offset/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30',
+                      'cursor-pointer hover:bg-band focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30',
                     rowClasses,
                   )}
                 >

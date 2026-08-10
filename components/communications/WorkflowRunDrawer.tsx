@@ -31,12 +31,12 @@ export function WorkflowRunDrawer({ runId, onClose }: { runId: string; onClose: 
           <Loader2 className="animate-spin" /> Loading run…
         </div>
       ) : error || !run ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="rounded-sm border border-destructive/30 bg-destructive/6 p-4 text-sm text-destructive">
           This workflow run could not be loaded.
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-surface-offset/50 p-4 text-sm">
+          <div className="grid grid-cols-2 gap-3 rounded-sm border border-rule bg-band p-4 text-sm">
             <div>
               <p className="text-xs text-muted-foreground">Status</p>
               <Badge
@@ -69,14 +69,14 @@ export function WorkflowRunDrawer({ runId, onClose }: { runId: string; onClose: 
                 const pending = step.status === 'queued' || step.status === 'running';
                 const Icon = failed ? TriangleAlert : pending ? Clock : CheckCircle2;
                 return (
-                  <div key={step.id} className="relative flex gap-3 rounded-xl border border-border p-4">
+                  <div key={step.id} className="relative flex gap-3 rounded-sm border border-rule p-4">
                     <span
                       className={`flex size-8 shrink-0 items-center justify-center rounded-full ${
                         failed
-                          ? 'bg-destructive/10 text-destructive'
+                          ? 'bg-destructive/6 text-destructive'
                           : pending
-                            ? 'bg-primary/10 text-primary'
-                            : 'bg-success/10 text-success'
+                            ? 'bg-band text-primary'
+                            : 'bg-success/6 text-success'
                       }`}
                     >
                       <Icon size={15} className={step.status === 'running' ? 'animate-pulse' : undefined} />
@@ -93,9 +93,9 @@ export function WorkflowRunDrawer({ runId, onClose }: { runId: string; onClose: 
                       <p className="mt-1 text-xs capitalize text-muted-foreground">
                         {step.nodeType.replaceAll('_', ' ')} · scheduled {formatDate(step.scheduledAt)} · attempt {step.attemptCount}
                       </p>
-                      {step.lastError && <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-xs text-destructive">{step.lastError}</p>}
+                      {step.lastError && <p className="mt-2 rounded-sm bg-destructive/6 p-2 text-xs text-destructive">{step.lastError}</p>}
                       {step.output && Object.keys(step.output).length > 0 && (
-                        <pre className="mt-2 overflow-auto rounded-lg bg-muted p-2 text-[11px] text-muted-foreground">
+                        <pre className="mt-2 overflow-auto rounded-sm bg-muted p-2 text-label text-muted-foreground">
                           {JSON.stringify(step.output, null, 2)}
                         </pre>
                       )}
@@ -103,7 +103,7 @@ export function WorkflowRunDrawer({ runId, onClose }: { runId: string; onClose: 
                   </div>
                 );
               })}
-              {!run.steps.length && <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">No steps have started yet.</p>}
+              {!run.steps.length && <p className="rounded-sm bg-muted p-4 text-sm text-muted-foreground">No steps have started yet.</p>}
             </div>
           </div>
         </div>

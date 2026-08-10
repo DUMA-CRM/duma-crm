@@ -49,7 +49,7 @@ export function CreateCustomerDrawer({ tenantId, onClose }: CreateCustomerDrawer
   return (
     <Drawer
       title="New customer"
-      description="Add the contact details — loyalty starts at Bronze with no points."
+      description="Create a loyalty profile now; optional details can be added later."
       onClose={onClose}
       footer={
         <div className="flex gap-2">
@@ -68,36 +68,72 @@ export function CreateCustomerDrawer({ tenantId, onClose }: CreateCustomerDrawer
           e.preventDefault();
           mutate();
         }}
-        className="space-y-4"
+        className="space-y-6"
       >
-        <div className="grid grid-cols-1 gap-2">
-          <div className="grid grid-cols-2 gap-2">
-            <Input label="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required placeholder="Adam" />
-            <Input label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} required placeholder="Smith" />
+        <fieldset>
+          <legend className="text-sm font-semibold text-foreground">Customer details</legend>
+          <p className="mt-1 text-xs text-muted-foreground">Name and phone number are required for a usable profile.</p>
+          <div className="mt-4 grid gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                label="First name"
+                autoComplete="given-name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+                placeholder="Adam"
+              />
+              <Input
+                label="Last name"
+                autoComplete="family-name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+                placeholder="Smith"
+              />
+            </div>
+            <Input
+              label="Phone"
+              type="tel"
+              autoComplete="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+              placeholder="+44 7911 123456"
+              hint="Include the country code when possible."
+            />
+            <Input
+              label="Email (optional)"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="adam@example.com"
+            />
+            <Input label="Date of birth (optional)" type="date" value={dob} onChange={(event) => setDob(event.target.value)} />
           </div>
-          <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+447911123456" />
-          <Input
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="adam@duma.com (optional)"
-          />
-          <Input label="Date of birth" type="date" value={dob} onChange={(event) => setDob(event.target.value)} />
-          <label className="flex items-start gap-2 rounded-xl border border-border bg-surface-offset/40 p-3 text-sm">
+        </fieldset>
+
+        <fieldset>
+          <legend className="text-sm font-semibold text-foreground">Communication</legend>
+          <label className="mt-3 flex min-h-12 items-start gap-3 rounded-md border border-rule/65 bg-band/55 p-3 text-sm transition-colors hover:bg-band">
             <input
               type="checkbox"
-              className="mt-0.5"
+              className="mt-0.5 size-4 accent-primary"
               checked={marketingOptIn}
               onChange={(event) => setMarketingOptIn(event.target.checked)}
             />
             <span>
               <span className="block font-medium text-foreground">Marketing email consent</span>
-              <span className="block text-xs text-muted-foreground">Allow birthday and promotional email automations.</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">Only enable this when the customer has clearly agreed.</span>
             </span>
           </label>
-        </div>
-        {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
+        </fieldset>
+        {error && (
+          <p role="alert" className="rounded-md bg-exception/8 px-3 py-2 text-sm text-destructive">
+            {(error as Error).message}
+          </p>
+        )}
       </form>
     </Drawer>
   );

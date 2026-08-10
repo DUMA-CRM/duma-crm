@@ -53,10 +53,10 @@ export const STATUS_BAR: Record<StockStatus, string> = {
 };
 
 export const STATUS_ICON_BG: Record<StockStatus, string> = {
-  ok: 'bg-primary/10',
-  low: 'bg-warning/10',
-  critical: 'bg-destructive/10',
-  out: 'bg-destructive/10',
+  ok: 'bg-band',
+  low: 'bg-warning/6',
+  critical: 'bg-destructive/6',
+  out: 'bg-destructive/6',
   unavailable: 'bg-border/50',
 };
 
@@ -129,7 +129,7 @@ export function reasonVariant(type: string): 'warning' | 'destructive' | 'muted'
 // ── Misc ──────────────────────────────────────────────────────────────────────
 
 export const selectClass = cn(
-  'w-full h-9 bg-field border border-input rounded-lg px-3 pr-8 text-sm text-foreground',
+  'w-full h-9 bg-field border border-input rounded-sm px-3 pr-8 text-sm text-foreground',
   'outline-none focus:border-primary focus:ring-2 focus:ring-primary/15',
   'transition-[border-color,box-shadow] duration-150 appearance-none cursor-pointer',
   'disabled:opacity-50 disabled:cursor-not-allowed',

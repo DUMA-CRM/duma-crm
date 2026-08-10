@@ -42,12 +42,12 @@ export function EmailPreviewDrawer({
         {meta}
 
         {/* The white frame is the email itself — it keeps light colours in either theme. */}
-        <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+        <div className="overflow-hidden rounded-sm border border-rule bg-white shadow-sm">
           <div className="border-b border-gray-200 bg-gray-50 px-5 py-4 text-black">
             <p className="text-base font-semibold">{subject || 'Email subject'}</p>
             <p className="mt-1 text-xs text-gray-500">{recipient}</p>
           </div>
-          <iframe title="Email preview" sandbox="" srcDoc={htmlBody} className="h-[calc(100vh-17rem)] min-h-80 w-full border-0 bg-white" />
+          <iframe title="Email preview" sandbox="" srcDoc={htmlBody} className="h-[calc(100dvh-17rem)] min-h-80 w-full border-0 bg-white" />
         </div>
 
         {note && <p className="text-center text-xs text-muted-foreground">{note}</p>}

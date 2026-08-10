@@ -156,7 +156,7 @@ export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePri
       setDraft(null);
       toast('success', 'Recipe saved.');
     },
-    onError: (err) => toast('error', err.message || 'Failed to save the recipe.'),
+    onError: (err) => toast('error', err.message || 'The recipe wasn’t saved. Review the ingredients and try again.'),
   });
 
   const itemMap = new Map(stockItems.map((s) => [s.id, s]));

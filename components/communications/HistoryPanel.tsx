@@ -51,7 +51,7 @@ const STATUS_HELP: Record<EmailDelivery['status'], string> = {
   queued: 'Waiting to be sent',
   sending: 'Being sent right now',
   sent: 'Handed to the mail server',
-  failed: 'Could not be sent',
+  failed: 'Not sent',
   cancelled: 'Stopped before sending',
 };
 
@@ -158,7 +158,7 @@ export function HistoryPanel({ onPreview }: { onPreview: (delivery: EmailDeliver
       cell: ({ row: delivery }) => (
         <div className="flex items-center gap-2.5">
           <span
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-bold uppercase text-primary"
+            className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-band text-label font-semibold uppercase text-primary"
             aria-hidden="true"
           >
             {(delivery.toName || delivery.toEmail).trim().slice(0, 2)}
@@ -182,7 +182,7 @@ export function HistoryPanel({ onPreview }: { onPreview: (delivery: EmailDeliver
             {delivery.template?.name ?? delivery.trigger.replaceAll('_', ' ')}
           </p>
           {delivery.lastError && (
-            <p className="mt-1.5 line-clamp-2 rounded-md border border-destructive/25 bg-destructive/5 px-2 py-1 text-[11px] text-destructive">
+            <p className="mt-1.5 line-clamp-2 rounded-sm border border-destructive/25 bg-destructive/5 px-2 py-1 text-label text-destructive">
               {delivery.lastError}
             </p>
           )}
@@ -199,7 +199,7 @@ export function HistoryPanel({ onPreview }: { onPreview: (delivery: EmailDeliver
             <span className={cn('size-1.5 rounded-full', STATUS_DOT[delivery.status])} aria-hidden="true" />
             {delivery.status}
           </Badge>
-          <p className="mt-1 text-[10px] text-muted-foreground">{STATUS_HELP[delivery.status]}</p>
+          <p className="mt-1 text-micro text-muted-foreground">{STATUS_HELP[delivery.status]}</p>
         </>
       ),
     },
@@ -213,7 +213,7 @@ export function HistoryPanel({ onPreview }: { onPreview: (delivery: EmailDeliver
         <>
           {formatDateTime(delivery.sentAt ?? delivery.createdAt)}
           {delivery.attemptCount > 1 && (
-            <span className="block text-[10px]">
+            <span className="block text-micro">
               attempt {delivery.attemptCount}/{delivery.maxAttempts}
             </span>
           )}
@@ -249,7 +249,7 @@ export function HistoryPanel({ onPreview }: { onPreview: (delivery: EmailDeliver
     return (
       <div className="space-y-4">
         <PanelHeader title="History" description="Every automatic and manual email lands here, so you can see what customers received." />
-        <div className="rounded-2xl border border-dashed border-border bg-card">
+        <div className="rounded-sm border border-dashed border-rule bg-card">
           <EmptyState
             icon={Send}
             title="No emails sent yet"
@@ -267,7 +267,7 @@ export function HistoryPanel({ onPreview }: { onPreview: (delivery: EmailDeliver
         count={data?.total}
         description="Every email your business has sent. Click a row to see exactly what the customer received."
         actions={
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-sm border border-rule bg-card px-2.5 py-1.5 text-xs text-muted-foreground">
             <span className="relative flex size-1.5" aria-hidden="true">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-success/70" />
               <span className="relative inline-flex size-1.5 rounded-full bg-success" />
@@ -348,7 +348,7 @@ export function HistoryPanel({ onPreview }: { onPreview: (delivery: EmailDeliver
         minWidth={760}
         footer={
           (data?.pages ?? 1) > 1 ? (
-            <div className="flex items-center justify-between gap-2 border-t border-border p-3">
+            <div className="flex items-center justify-between gap-2 border-t border-rule p-3">
               <span className="text-xs text-muted-foreground tabular-nums">
                 Page {page} of {data?.pages}
               </span>

@@ -33,7 +33,7 @@ const RANGE_OPTIONS: Array<{ value: DashboardRange; label: string }> = [
 ];
 
 const METRIC_ICON = { revenue: WalletCards, orders: ShoppingBag, average: ReceiptText, retention: Users } as const;
-const panel = 'rounded-2xl border border-border bg-card shadow-sm';
+const panel = 'rounded-sm border border-rule bg-card shadow-sm';
 
 export function MetricReportPage({ metric }: { metric: MetricKey }) {
   const router = useRouter();
@@ -166,7 +166,7 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
 
         {/* Hero */}
         <section className={cn(panel, 'border-primary/20 bg-[color-mix(in_oklab,var(--primary)_3%,var(--card))] p-5 md:p-6')}>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{detail.description}</p>
+          <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">{detail.description}</p>
           <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-2">
             <p className="text-4xl font-bold tabular-nums tracking-tight text-foreground">{loading ? '—' : detail.headline}</p>
             <DeltaBadge delta={changeDelta(headlineChange, { label: window.comparisonLabel, points: metric === 'retention' })} />
@@ -176,7 +176,7 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
           </p>
 
           {metric !== 'retention' && (
-            <div className="mt-5 border-t border-border pt-4">
+            <div className="mt-5 border-t border-rule pt-4">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Trend</h2>
                 <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
@@ -222,7 +222,7 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
               <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Breakdown</h2>
               <div className="mt-3 space-y-2">
                 {detail.breakdown.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between gap-4 rounded-xl bg-muted/45 px-4 py-3">
+                  <div key={item.label} className="flex items-center justify-between gap-4 rounded-sm bg-muted/45 px-4 py-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium capitalize text-foreground">{item.label}</p>
                       {item.note && <p className="text-xs text-muted-foreground">{item.note}</p>}
@@ -245,7 +245,7 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
                       key={row.locationId}
                       type="button"
                       onClick={() => setLocationId(row.locationId)}
-                      className="block w-full rounded-xl px-1 py-1 text-left transition-colors hover:bg-muted/50"
+                      className="block w-full rounded-sm px-1 py-1 text-left transition-colors hover:bg-muted/50"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <span className="truncate text-sm font-medium text-foreground">{row.locationName ?? 'Unknown location'}</span>
@@ -259,12 +259,12 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
                           style={{ width: `${(value / locationMax) * 100}%` }}
                         />
                       </div>
-                      <p className="mt-1 text-[11px] text-muted-foreground">{row.orderCount} orders</p>
+                      <p className="mt-1 text-label text-muted-foreground">{row.orderCount} orders</p>
                     </button>
                   );
                 })}
               </div>
-              <p className="mt-3 text-[11px] text-muted-foreground">Select a location to scope this report to it.</p>
+              <p className="mt-3 text-label text-muted-foreground">Select a location to scope this report to it.</p>
             </div>
           )}
         </section>
@@ -277,7 +277,7 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
               {(topItems.data ?? []).map((item, i) => (
                 <div key={item.menuItemId} className="flex items-center justify-between gap-4 py-2.5">
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-muted text-label font-semibold text-muted-foreground">
                       {i + 1}
                     </span>
                     <span className="truncate text-sm font-medium text-foreground">{item.name}</span>

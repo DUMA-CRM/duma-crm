@@ -1,5 +1,6 @@
-import { Coffee } from '@/components/icons';
 import Link from 'next/link';
+
+import { Coffee } from '@/components/icons';
 
 export default function NotFound() {
   return (
@@ -9,11 +10,13 @@ export default function NotFound() {
       </div>
       <div>
         <h1 className="text-xl font-semibold text-foreground">Page not found</h1>
-        <p className="text-sm text-muted-foreground mt-1">The page you&apos;re looking for doesn&apos;t exist or has moved.</p>
+        <p className="mt-1 max-w-[60ch] text-base leading-6 text-muted-foreground">
+          The page you&apos;re looking for doesn&apos;t exist or has moved.
+        </p>
       </div>
       <Link
         href="/dashboard"
-        className="h-9 px-4 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-lg flex items-center transition-colors"
+        className="h-9 px-4 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-sm flex items-center transition-colors"
       >
         Back to dashboard
       </Link>

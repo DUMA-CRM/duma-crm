@@ -231,7 +231,7 @@ export function ItemTransfersSection({ stockItemId, locationId }: { stockItemId:
     },
     onError: (err) => {
       setConfirm(null);
-      toast('error', err.message || 'Failed to complete the transfer.');
+      toast('error', err.message || 'The transfer wasn’t completed. Confirm the stock has moved, then try again.');
     },
   });
   const cancel = useMutation({
@@ -243,7 +243,7 @@ export function ItemTransfersSection({ stockItemId, locationId }: { stockItemId:
     },
     onError: (err) => {
       setConfirm(null);
-      toast('error', err.message || 'Failed to cancel.');
+      toast('error', err.message || 'The transfer wasn’t cancelled. Try again.');
     },
   });
 
@@ -251,26 +251,26 @@ export function ItemTransfersSection({ stockItemId, locationId }: { stockItemId:
 
   return (
     <section>
-      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5">Transfers</p>
+      <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-2.5">Transfers</p>
       {isLoading ? (
-        <div className="bg-background rounded-2xl border border-border overflow-hidden">
+        <div className="bg-background rounded-sm border border-rule overflow-hidden">
           {[1, 2].map((i) => (
-            <div key={i} className="h-13 border-b border-border/50 last:border-0 animate-pulse" />
+            <div key={i} className="h-13 border-b border-rule last:border-0 animate-pulse" />
           ))}
         </div>
       ) : transfers.length === 0 ? (
-        <div className="bg-background rounded-2xl border border-border p-4 text-center">
+        <div className="bg-background rounded-sm border border-rule p-4 text-center">
           <p className="text-sm text-muted-foreground">No transfers for this item yet</p>
         </div>
       ) : (
-        <div className="bg-background rounded-2xl border border-border overflow-hidden">
+        <div className="bg-background rounded-sm border border-rule overflow-hidden">
           {transfers.map((t) => {
             const meta = STATUS_META[t.status];
             const outgoing = t.fromLocationId === locationId;
             const qty = t.lines.find((l) => l.stockItemId === stockItemId)?.quantity;
             const unit = t.lines.find((l) => l.stockItemId === stockItemId)?.stockItem?.unit ?? '';
             return (
-              <div key={t.id} className="px-3 py-2.5 border-b border-border/50 last:border-0">
+              <div key={t.id} className="px-3 py-2.5 border-b border-rule last:border-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground min-w-0">
                     <span className="truncate">{t.fromLocation?.name}</span>
@@ -280,7 +280,7 @@ export function ItemTransfersSection({ stockItemId, locationId }: { stockItemId:
                   <Badge variant={meta.variant}>{meta.label}</Badge>
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-1">
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-label text-muted-foreground">
                     <span className={cn('font-semibold', outgoing ? 'text-warning' : 'text-success')}>
                       {outgoing ? 'Outgoing' : 'Incoming'}
                     </span>
@@ -291,14 +291,14 @@ export function ItemTransfersSection({ stockItemId, locationId }: { stockItemId:
                       <button
                         onClick={() => setConfirm({ transfer: t, action: 'complete' })}
                         disabled={busy}
-                        className="h-7 px-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-[11px] font-semibold transition-colors disabled:opacity-50"
+                        className="h-7 px-2 rounded-sm bg-primary hover:bg-primary-hover text-white text-label font-semibold transition-colors disabled:opacity-50"
                       >
                         Complete
                       </button>
                       <button
                         onClick={() => setConfirm({ transfer: t, action: 'cancel' })}
                         disabled={busy}
-                        className="h-7 px-2 rounded-lg border border-destructive/30 text-destructive text-[11px] font-medium hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                        className="h-7 px-2 rounded-sm border border-destructive/30 text-destructive text-label font-medium hover:bg-band transition-colors disabled:opacity-50"
                       >
                         Cancel
                       </button>

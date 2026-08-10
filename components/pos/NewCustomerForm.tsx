@@ -36,7 +36,7 @@ export function NewCustomerForm({ defaultPhone = '', onCreated, onClose }: { def
         <Input label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} required placeholder="Smith" />
       </div>
       <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+447911123456" type="tel" />
-      {error && <p className="text-xs text-destructive">Failed to create customer. Please try again.</p>}
+      {error && <p role="alert" className="text-xs text-exception">The customer wasn’t created. Check the details and try again.</p>}
       <div className="grid grid-cols-2 gap-2 pt-0.5">
         <Button variant="outline" onClick={onClose} size="sm">
           Cancel

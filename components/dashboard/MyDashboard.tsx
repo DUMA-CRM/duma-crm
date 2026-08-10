@@ -46,7 +46,7 @@ function startOfWeek(): Date {
 }
 
 const inp =
-  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
 // ── Component ───────────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ export function MyDashboard() {
   const clockInM = useMutation({
     mutationFn: () => clockIn({ locationId: locationId! }),
     onSuccess: invalidateShifts,
-    onError: (e) => addToast('error', (e as Error).message || 'Could not clock in.'),
+    onError: (e) => addToast('error', (e as Error).message || 'You weren’t clocked in. Check the location and try again.'),
   });
   // Order completion already consumed recipe inventory; clock-out only ends the shift.
   const [clockOutOpen, setClockOutOpen] = useState(false);
@@ -111,9 +111,9 @@ export function MyDashboard() {
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-50" />
                 <span className="relative inline-flex size-2 rounded-full bg-success" />
               </span>
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">My workday</p>
+              <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">My workday</p>
             </div>
-            <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground md:text-[32px]">
+            <h1 className="text-2xl font-semibold tracking-headline text-foreground md:text-metric">
               {greeting(now.getHours())}
               {user?.name ? `, ${user.name.split(' ')[0]}` : ''}
             </h1>
@@ -121,19 +121,19 @@ export function MyDashboard() {
               {now.toLocaleDateString('en-GB', { weekday: 'long' })}, {formatDate(now)}
             </p>
           </div>
-          <div className="flex items-center gap-3 rounded-xl border border-border/80 bg-card px-4 py-2.5 shadow-sm">
+          <div className="flex items-center gap-3 rounded-sm border border-rule bg-card px-4 py-2.5 shadow-sm">
             <Clock size={15} className="text-muted-foreground" aria-hidden="true" />
-            <p className="text-xl font-bold tabular-nums tracking-[-0.03em] text-foreground">{mounted ? fmtClock(now) : ' '}</p>
+            <p className="text-xl font-bold tabular-nums tracking-figure text-foreground">{mounted ? fmtClock(now) : ' '}</p>
           </div>
         </div>
 
         {/* Clock in / out card */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent),0_10px_32px_color-mix(in_oklab,var(--foreground)_3%,transparent)] md:p-6">
+        <div className="relative overflow-hidden rounded-sm border border-rule bg-card p-5 shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent),0_10px_32px_color-mix(in_oklab,var(--foreground)_3%,transparent)] md:p-6">
           <div className="pointer-events-none absolute -right-12 -top-20 size-56 rounded-full bg-primary/8 blur-3xl" aria-hidden="true" />
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="relative flex min-w-0 items-center gap-4">
               <div
-                className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${active ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}
+                className={`flex size-12 shrink-0 items-center justify-center rounded-sm ${active ? 'bg-success/6 text-success' : 'bg-muted text-muted-foreground'}`}
               >
                 <Clock size={21} aria-hidden="true" />
               </div>
@@ -153,7 +153,7 @@ export function MyDashboard() {
                   <>
                     <p className="text-sm font-semibold text-foreground">Ready to start your shift?</p>
                     <p className="text-sm text-muted-foreground">
-                      {locationId ? 'Tap clock in to start your shift.' : 'Select your location in the header to clock in.'}
+                      {locationId ? 'Tap clock in to start your shift.' : 'Use the location picker before you clock in.'}
                     </p>
                   </>
                 )}
@@ -164,7 +164,7 @@ export function MyDashboard() {
               <button
                 onClick={() => setClockOutOpen(true)}
                 disabled={busy}
-                className="relative flex h-11 items-center gap-2 rounded-xl bg-destructive px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-destructive/90 active:translate-y-px disabled:opacity-60"
+                className="relative flex h-11 items-center gap-2 rounded-sm bg-destructive px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-destructive/90 active:translate-y-px disabled:opacity-60"
               >
                 <LogOut size={20} />
                 Clock Out
@@ -173,7 +173,7 @@ export function MyDashboard() {
               <button
                 onClick={() => clockInM.mutate()}
                 disabled={busy || !locationId}
-                className="relative flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary-hover active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                className="relative flex h-11 items-center gap-2 rounded-sm bg-primary px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary-hover active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <LogIn size={20} />
                 {clockInM.isPending ? 'Clocking in…' : 'Clock In'}
@@ -184,8 +184,8 @@ export function MyDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* My rota this week */}
-          <section className="flex flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
-            <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+          <section className="flex flex-col overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-rule px-5 py-3.5">
               <div className="flex items-center gap-2">
                 <CalendarClock size={15} className="text-muted-foreground" />
                 <p className="text-sm font-semibold text-foreground">My rota this week</p>
@@ -199,7 +199,7 @@ export function MyDashboard() {
                 <EmptyState icon={CalendarClock} title="No shifts this week" description="Published shifts will appear here." />
               ) : (
                 upcoming.map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0">
+                  <div key={s.id} className="flex items-center gap-3 py-2.5 border-b border-rule last:border-0">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground">{fmtDayDate(s.startsAt)}</p>
@@ -266,16 +266,16 @@ function SuggestShiftCard({
       setNotes('');
       reset();
     },
-    onError: (e) => onError((e as Error).message || 'Could not send suggestion.'),
+    onError: (e) => onError((e as Error).message || 'Your suggestion wasn’t sent. Try again.'),
   });
 
   const valid = !!(locationId && date && start && end && durationMins > 0);
 
   return (
-    <details className="group flex flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+    <details className="group flex flex-col overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 hover:bg-muted/40">
         <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+          <div className="flex size-9 items-center justify-center rounded-sm bg-muted text-muted-foreground">
             <Send size={15} aria-hidden="true" />
           </div>
           <div>
@@ -286,7 +286,7 @@ function SuggestShiftCard({
         <ChevronDown size={16} className="text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
       <form
-        className="border-t border-border px-5 py-4 space-y-3.5"
+        className="border-t border-rule px-5 py-4 space-y-3.5"
         onSubmit={(e) => {
           e.preventDefault();
           if (valid) mutate();
@@ -309,11 +309,11 @@ function SuggestShiftCard({
           <label className={lbl}>Notes (optional)</label>
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the manager should know" className={inp} />
         </div>
-        {!locationId && <p className="text-xs text-muted-foreground">Select your location in the header first.</p>}
+        {!locationId && <p className="text-xs text-muted-foreground">Select your location before sending a suggestion.</p>}
         <button
           type="submit"
           disabled={!valid || isPending}
-          className="w-full h-10 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full h-10 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-sm flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Send size={15} />
           {isPending ? 'Sending…' : 'Send suggestion'}

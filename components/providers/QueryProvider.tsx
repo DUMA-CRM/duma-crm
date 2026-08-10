@@ -12,6 +12,21 @@ import { GlobalToaster } from '@/components/shared/Toast';
 import { ApiError } from '@/lib/api/client';
 import { toast } from '@/stores/toastStore';
 
+function queryErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.status === 401) return 'Your session has expired. Sign in again to refresh this workspace.';
+    if (error.status === 403) return 'You don’t have permission to load this information.';
+    if (error.status === 404) return 'This information is no longer available.';
+    if (error.status === 429) return 'DUMA is receiving too many requests. Wait a moment, then try again.';
+    if (error.status >= 500) return 'DUMA’s service is temporarily unavailable. Your existing data is unchanged.';
+  }
+  if (error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+    return 'The request took too long. Check your connection, then try again.';
+  }
+  if (error instanceof TypeError) return 'DUMA couldn’t reach the service. Check your connection, then try again.';
+  return 'The latest data couldn’t load. Try again.';
+}
+
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   // One QueryClient per browser session — created inside useState so it's
   // never shared across SSR requests.
@@ -26,7 +41,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             if (query.meta?.silentError) return;
             // Offline is expected, not an error — the POS banner covers it.
             if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-            toast('error', error instanceof Error && error.message ? error.message : 'Something went wrong loading data.');
+            toast('error', queryErrorMessage(error));
           },
         }),
         defaultOptions: {

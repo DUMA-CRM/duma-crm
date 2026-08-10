@@ -108,13 +108,13 @@ export function HelpdeskBoard({
       {/* Queue */}
       <aside
         className={cn(
-          'w-full min-w-0 flex-col border-border bg-card lg:flex lg:w-88 lg:shrink-0 lg:border-r',
+          'w-full min-w-0 flex-col border-rule bg-card lg:flex lg:w-88 lg:shrink-0 lg:border-r',
           selectedId ? 'hidden' : 'flex',
         )}
       >
-        <div className="shrink-0 border-b border-border px-4 py-3">
+        <div className="shrink-0 border-b border-rule px-4 py-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">
               {visible.length} {visible.length === 1 ? 'request' : 'requests'}
             </p>
             {onNew && (
@@ -189,17 +189,17 @@ export function HelpdeskBoard({
                   type="button"
                   onClick={() => onSelect(ticket.id)}
                   className={cn(
-                    'w-full border-b border-border/60 px-4 py-3 text-left transition-colors last:border-0',
-                    selected ? 'border-l-2 border-l-primary bg-primary/5 pl-3.5' : 'hover:bg-surface-offset/50',
+                    'w-full border-b border-rule px-4 py-3 text-left transition-colors last:border-0',
+                    selected ? 'border-l-2 border-l-primary bg-band pl-3.5' : 'hover:bg-band',
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-[11px] font-bold text-muted-foreground">{ticketKey(ticket)}</span>
+                    <span className="font-mono text-label font-semibold text-muted-foreground">{ticketKey(ticket)}</span>
                     <PriorityTag priority={ticket.priority} showLabel={false} />
                     <StatusLozenge status={ticket.status} className="ml-auto" />
                   </div>
                   <p className="mt-1 line-clamp-2 text-sm font-medium text-foreground">{ticket.subject}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className="mt-1 text-label text-muted-foreground">
                     {isAgent && ticket.employee ? `${ticket.employee.name ?? ticket.employee.email} · ` : ''}
                     {CATEGORY_META[ticket.category].label} · {fmtAgo(ticket.updatedAt)}
                   </p>
@@ -262,7 +262,7 @@ function TicketView({
       setComment('');
       refresh();
     },
-    onError: (error) => toast('error', (error as Error).message || 'Failed to add the comment.'),
+    onError: (error) => toast('error', (error as Error).message || 'The comment wasn’t added. Try again.'),
   });
 
   const setField = useMutation({
@@ -271,7 +271,7 @@ function TicketView({
       refresh();
       toast('success', 'Request updated.');
     },
-    onError: (error) => toast('error', (error as Error).message || 'Failed to update the request.'),
+    onError: (error) => toast('error', (error as Error).message || 'The request wasn’t updated. Try again.'),
   });
 
   if (isLoading || !ticket) {
@@ -289,7 +289,7 @@ function TicketView({
   return (
     <>
       {/* Issue header */}
-      <div className="shrink-0 border-b border-border bg-card px-4 py-4 md:px-6">
+      <div className="shrink-0 border-b border-rule bg-card px-4 py-4 md:px-6">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 gap-1.5 lg:hidden">
             <ArrowLeft size={14} /> Queue
@@ -323,15 +323,15 @@ function TicketView({
         <div className="grid items-start gap-5 p-4 md:p-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="min-w-0 space-y-5">
             <section>
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Description</h3>
-              <div className="mt-2 rounded-xl border border-border bg-card shadow-sm p-4">
+              <h3 className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Description</h3>
+              <div className="mt-2 rounded-sm border border-rule bg-card shadow-sm p-4">
                 {description ? (
                   <p className="whitespace-pre-wrap text-sm text-foreground">{description.body}</p>
                 ) : (
                   <p className="text-sm text-muted-foreground">No description was given.</p>
                 )}
                 {description && (
-                  <p className="mt-3 text-[11px] text-muted-foreground">
+                  <p className="mt-3 text-label text-muted-foreground">
                     {description.authorName} · {fmtWhen(description.createdAt)}
                   </p>
                 )}
@@ -339,7 +339,7 @@ function TicketView({
             </section>
 
             <section>
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <h3 className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">
                 Activity {activity.length > 0 && <span className="text-muted-foreground/70">({activity.length})</span>}
               </h3>
               {activity.length === 0 ? (
@@ -352,17 +352,17 @@ function TicketView({
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">{message.authorName}</span>
-                          <span className="text-[11px] text-muted-foreground">{fmtAgo(message.createdAt)}</span>
+                          <span className="text-label text-muted-foreground">{fmtAgo(message.createdAt)}</span>
                           {message.internal && (
-                            <span className="inline-flex h-5 items-center gap-1 rounded bg-warning/15 px-1.5 text-[10px] font-bold uppercase tracking-wide text-warning">
+                            <span className="inline-flex h-5 items-center gap-1 rounded bg-warning/6 px-1.5 text-micro font-semibold uppercase tracking-micro text-warning">
                               <Lock size={10} aria-hidden="true" /> Internal
                             </span>
                           )}
                         </div>
                         <div
                           className={cn(
-                            'mt-1.5 rounded-xl border p-3 text-sm whitespace-pre-wrap',
-                            message.internal ? 'border-warning/30 bg-warning/5' : 'border-border bg-card',
+                            'mt-1.5 rounded-sm border p-3 text-sm whitespace-pre-wrap',
+                            message.internal ? 'border-warning/30 bg-warning/5' : 'border-rule bg-card',
                           )}
                         >
                           {message.body}
@@ -383,7 +383,7 @@ function TicketView({
                     onKeyDown={(event) => {
                       if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && comment.trim()) send.mutate();
                     }}
-                    className="w-full rounded-xl border border-input bg-field p-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus:border-primary focus:ring-2 focus:ring-primary/15"
+                    className="w-full rounded-sm border border-input bg-field p-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus:border-primary focus:ring-2 focus:ring-primary/15"
                   />
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
                     {isAgent ? (
@@ -401,7 +401,7 @@ function TicketView({
                   </div>
                 </div>
               ) : (
-                <p className="mt-4 rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                <p className="mt-4 rounded-sm border border-dashed border-rule p-4 text-sm text-muted-foreground">
                   This request is {STATUS_META[ticket.status].label.toLowerCase()}. Raise a new request if you still need help.
                 </p>
               )}
@@ -409,8 +409,8 @@ function TicketView({
           </div>
 
           {/* Details panel */}
-          <aside className="rounded-xl border border-border bg-card shadow-sm xl:sticky xl:top-0">
-            <div className="border-b border-border px-4 py-2.5">
+          <aside className="rounded-sm border border-rule bg-card shadow-sm xl:sticky xl:top-0">
+            <div className="border-b border-rule px-4 py-2.5">
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Details</h3>
             </div>
             <dl className="divide-y divide-border/60 px-4">

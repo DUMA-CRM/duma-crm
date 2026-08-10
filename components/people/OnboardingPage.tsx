@@ -89,7 +89,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
       toast('success', `${f.name} onboarded.`);
       onCreated(res.userId);
     },
-    onError: (err) => toast('error', (err as Error).message || 'Could not onboard the employee.'),
+    onError: (err) => toast('error', (err as Error).message || 'The employee wasn’t onboarded. Review their details and try again.'),
   });
 
   // Per-step validity gates the Next/Finish button.
@@ -107,20 +107,20 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
   return (
     <div className="fixed inset-0 z-[60] bg-background flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-4 md:px-8 py-3.5 border-b border-border shrink-0 bg-card">
+      <div className="flex items-center justify-between gap-3 px-4 md:px-8 py-3.5 border-b border-rule shrink-0 bg-card">
         <div className="flex items-center gap-3 min-w-0">
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Cancel onboarding" className="size-11 shrink-0">
             <ArrowLeft size={20} />
           </Button>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Onboarding</p>
+            <p className="text-micro font-semibold text-primary uppercase tracking-micro">Onboarding</p>
             <h1 className="text-lg font-semibold text-foreground truncate">{f.name.trim() || 'New employee'}</h1>
           </div>
         </div>
       </div>
 
       {/* Step indicator */}
-      <div className="flex items-center gap-2 px-4 md:px-8 py-3 border-b border-border shrink-0 overflow-x-auto">
+      <div className="flex items-center gap-2 px-4 md:px-8 py-3 border-b border-rule shrink-0 overflow-x-auto">
         {STEPS.map((label, i) => (
           <button
             key={label}
@@ -129,12 +129,12 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
             disabled={i > step}
             className={cn(
               'flex items-center gap-2 px-3 h-8 rounded-full text-xs font-semibold whitespace-nowrap transition-colors',
-              i === step ? 'bg-primary/10 text-primary' : i < step ? 'text-foreground' : 'text-muted-foreground/50',
+              i === step ? 'bg-band text-primary' : i < step ? 'text-foreground' : 'text-muted-foreground/50',
             )}
           >
             <span
               className={cn(
-                'w-5 h-5 rounded-full flex items-center justify-center text-[10px]',
+                'w-5 h-5 rounded-full flex items-center justify-center text-micro',
                 i === step ? 'bg-primary text-white' : i < step ? 'bg-success text-white' : 'bg-muted',
               )}
             >
@@ -163,7 +163,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                     placeholder="jane@cafe.co.uk"
                   />
                 </Field>
-                <p className="self-end rounded-xl bg-muted p-3 text-sm text-muted-foreground">
+                <p className="self-end rounded-sm bg-muted p-3 text-sm text-muted-foreground">
                   A single-use activation link will be emailed after onboarding.
                 </p>
               </div>
@@ -198,8 +198,8 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                           type="button"
                           onClick={() => set({ locationIds: on ? f.locationIds.filter((x) => x !== l.id) : [...f.locationIds, l.id] })}
                           className={cn(
-                            'px-3 h-9 rounded-lg border text-xs font-medium transition-colors',
-                            on ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground',
+                            'px-3 h-9 rounded-sm border text-xs font-medium transition-colors',
+                            on ? 'border-primary bg-band text-primary' : 'border-rule text-muted-foreground hover:text-foreground',
                           )}
                         >
                           {l.name}
@@ -221,7 +221,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                 <label className={lbl}>Home address</label>
                 <AddressFields value={f.address ?? ''} onChange={(v) => set({ address: v })} />
               </div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pt-2">Emergency contact</p>
+              <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro pt-2">Emergency contact</p>
               <div className="grid md:grid-cols-3 gap-4">
                 <Field label="Name">
                   <input
@@ -282,7 +282,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                 <DatePicker label="Start date" value={f.startDate} onValueChange={(startDate) => set({ startDate })} required />
               </div>
 
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pt-2">Pay</p>
+              <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro pt-2">Pay</p>
               <div className="flex gap-1.5">
                 {PAY_TYPES.map((p) => (
                   <button
@@ -290,10 +290,10 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                     type="button"
                     onClick={() => set({ payType: p })}
                     className={cn(
-                      'flex-1 h-10 rounded-lg border text-sm font-medium transition-colors',
+                      'flex-1 h-10 rounded-sm border text-sm font-medium transition-colors',
                       f.payType === p
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-muted-foreground hover:text-foreground',
+                        ? 'border-primary bg-band text-primary'
+                        : 'border-rule text-muted-foreground hover:text-foreground',
                     )}
                   >
                     {PAY_CONFIG[p].label}
@@ -340,7 +340,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                 </Field>
               </div>
               {belowAgeRate && (
-                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 flex gap-2 text-sm">
+                <div className="rounded-sm border border-destructive/30 bg-destructive/5 p-3 flex gap-2 text-sm">
                   <AlertTriangle size={17} className="text-destructive shrink-0" />
                   <p>
                     This is below the £{ageRate.rate.toFixed(2)} age-based minimum from 1 April 2026. Apprentice rules may differ and must
@@ -348,7 +348,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                   </p>
                 </div>
               )}
-              <p className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
+              <p className="rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
                 Do not automatically deduct a planned break when it was not taken. Review all actual and unscheduled working time before
                 payroll.
               </p>
@@ -357,7 +357,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
 
           {step === 3 && (
             <>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">UK statutory</p>
+              <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">UK statutory</p>
               <div className="grid md:grid-cols-2 gap-4">
                 <Field label="National Insurance no." hint="Encrypted; visible only to HR/owners.">
                   <input
@@ -376,7 +376,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                   />
                 </Field>
               </div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pt-2">Bank account (UK)</p>
+              <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro pt-2">Bank account (UK)</p>
               <div className="grid md:grid-cols-2 gap-4">
                 <Field label="Account holder">
                   <input className={inp} value={f.accountHolder ?? ''} onChange={(e) => set({ accountHolder: e.target.value })} />
@@ -404,7 +404,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
               <p className="text-xs text-muted-foreground">
                 Statutory and bank details are optional here — you can add them later on the employee record.
               </p>
-              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+              <div className="rounded-sm border border-primary/20 bg-band p-4">
                 <div className="flex items-center gap-2">
                   <ShieldCheck size={17} className="text-primary" />
                   <p className="font-semibold">Required follow-up before work starts</p>
@@ -423,7 +423,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
       </div>
 
       {/* Footer nav */}
-      <div className="flex items-center justify-between gap-3 px-4 md:px-8 py-3.5 border-t border-border shrink-0 bg-card">
+      <div className="flex items-center justify-between gap-3 px-4 md:px-8 py-3.5 border-t border-rule shrink-0 bg-card">
         <Button variant="outline" onClick={() => (step === 0 ? onClose() : setStep(step - 1))} className="h-11">
           {step === 0 ? 'Cancel' : 'Back'}
         </Button>
@@ -448,7 +448,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     <div>
       <label className={lbl}>{label}</label>
       {children}
-      {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
+      {hint && <p className="text-label text-muted-foreground mt-1">{hint}</p>}
     </div>
   );
 }

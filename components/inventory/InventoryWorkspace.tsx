@@ -173,7 +173,7 @@ export function InventoryWorkspace() {
           locationId && <StartStocktakeButton locationId={locationId} />
         ) : actionLabel ? (
           <Button
-            className="h-10 gap-1.5"
+            className="h-9 gap-1.5"
             onClick={() => {
               setPoDraft(null);
               setCreateOpen(true);
@@ -197,7 +197,7 @@ export function InventoryWorkspace() {
               <EmptyState
                 icon={Boxes}
                 title="No location selected"
-                description="Select a location from the header to view and manage its stock."
+                description="Use the location picker to choose the stock you want to manage."
               />
             ) : (
               <StockOverview locationId={locationId} addOpen={createOpen} onAddOpenChange={setCreateOpen} />
@@ -213,7 +213,7 @@ export function InventoryWorkspace() {
             <SuppliersPanel suppliers={suppliers} createOpen={createOpen} onCreateOpenChange={setCreateOpen} />
           ) : tab === 'stocktakes' ? (
             !locationId ? (
-              <EmptyState icon={MapPin} title="No location selected" description="Select a location from the header to count its stock." />
+              <EmptyState icon={MapPin} title="No location selected" description="Use the location picker to choose the stock you want to count." />
             ) : (
               <StocktakePanel locationId={locationId} />
             )
@@ -221,7 +221,7 @@ export function InventoryWorkspace() {
             <EmptyState
               icon={MapPin}
               title="No location selected"
-              description="Select a location from the header to see its purchase orders."
+              description="Use the location picker to view purchase orders for a location."
             />
           ) : (
             <PurchaseOrdersPanel

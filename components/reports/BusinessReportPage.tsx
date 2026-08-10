@@ -30,7 +30,7 @@ import { formatCompact, formatMoney, orderMetrics } from '@/lib/utils/dashboard'
 import { previousDateRange, reportDateRange, shortDateLabel, trailingDateRange } from '@/lib/utils/reporting';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-const panel = 'rounded-2xl border border-border bg-card shadow-sm';
+const panel = 'rounded-sm border border-rule bg-card shadow-sm';
 
 const SECTION_META = {
   labour: {
@@ -60,7 +60,7 @@ const SECTION_META = {
 } as const;
 
 function LoadingBlock({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-xl bg-muted', className)} aria-hidden="true" />;
+  return <div className={cn('animate-pulse rounded-sm bg-muted', className)} aria-hidden="true" />;
 }
 
 function ErrorBlock({ onRetry }: { onRetry: () => void }) {
@@ -88,7 +88,7 @@ function DataNotice({ children, tone = 'info' }: { children: React.ReactNode; to
   return (
     <div
       className={cn(
-        'flex items-start gap-3 rounded-xl border px-4 py-3 text-xs leading-relaxed',
+        'flex items-start gap-3 rounded-sm border px-4 py-3 text-xs leading-relaxed',
         tone === 'warning' ? 'border-warning/25 bg-warning/5 text-warning' : 'border-info/20 bg-info/5 text-muted-foreground',
       )}
     >
@@ -235,7 +235,7 @@ function LabourReport({ context }: { context: ReportContext }) {
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-120 text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-b border-rule text-left text-micro uppercase tracking-micro text-muted-foreground">
                     <th className="pb-2 font-semibold">Team member</th>
                     <th className="pb-2 text-right font-semibold">Shifts</th>
                     <th className="pb-2 text-right font-semibold">Hours</th>
@@ -244,7 +244,7 @@ function LabourReport({ context }: { context: ReportContext }) {
                 </thead>
                 <tbody>
                   {ranked.map((row) => (
-                    <tr key={row.userId} className="border-b border-border/60 last:border-0">
+                    <tr key={row.userId} className="border-b border-rule last:border-0">
                       <td className="py-3 font-medium text-foreground">{row.userName ?? 'Unknown staff member'}</td>
                       <td className="py-3 text-right tabular-nums text-muted-foreground">{row.totalShifts}</td>
                       <td className="py-3 text-right font-semibold tabular-nums text-foreground">{Number(row.totalHours).toFixed(1)}h</td>
@@ -271,7 +271,7 @@ function LabourReport({ context }: { context: ReportContext }) {
               },
               { label: 'Variance from previous period', value: `${(workedHours - oldWorkedHours).toFixed(1)}h` },
             ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between gap-4 rounded-xl bg-muted/40 px-4 py-3">
+              <div key={item.label} className="flex items-center justify-between gap-4 rounded-sm bg-muted/40 px-4 py-3">
                 <span className="text-xs text-muted-foreground">{item.label}</span>
                 <span className="text-sm font-bold tabular-nums text-foreground">{item.value}</span>
               </div>
@@ -409,7 +409,7 @@ function InventoryReport({ context }: { context: ReportContext }) {
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-b border-rule text-left text-micro uppercase tracking-micro text-muted-foreground">
                     <th className="pb-2 font-semibold">Stock item</th>
                     <th className="pb-2 text-right font-semibold">Deducted</th>
                     <th className="pb-2 text-right font-semibold">Restocked</th>
@@ -419,7 +419,7 @@ function InventoryReport({ context }: { context: ReportContext }) {
                 </thead>
                 <tbody>
                   {rows.slice(0, 25).map((row) => (
-                    <tr key={row.stockItemId} className="border-b border-border/60 last:border-0">
+                    <tr key={row.stockItemId} className="border-b border-rule last:border-0">
                       <td className="py-3 font-medium text-foreground">{row.name}</td>
                       <td className="py-3 text-right tabular-nums text-muted-foreground">
                         {row.deducted.toLocaleString()} {row.unit}
@@ -446,10 +446,10 @@ function InventoryReport({ context }: { context: ReportContext }) {
               .sort((a, b) => (a.daysOfStockRemaining ?? Number.POSITIVE_INFINITY) - (b.daysOfStockRemaining ?? Number.POSITIVE_INFINITY))
               .slice(0, 10)
               .map((item) => (
-                <div key={item.locationStockId} className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-3">
+                <div key={item.locationStockId} className="flex items-center justify-between gap-3 rounded-sm bg-muted/40 px-3 py-3">
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold text-foreground">{item.stockItemName}</p>
-                    <p className="text-[10px] text-muted-foreground">{item.locationName ?? context.locationName}</p>
+                    <p className="text-micro text-muted-foreground">{item.locationName ?? context.locationName}</p>
                   </div>
                   <div className="text-right">
                     <p
@@ -460,7 +460,7 @@ function InventoryReport({ context }: { context: ReportContext }) {
                     >
                       {item.daysOfStockRemaining == null ? '—' : `${item.daysOfStockRemaining.toFixed(1)}d`}
                     </p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-micro text-muted-foreground">
                       {Number(item.currentQuantity).toLocaleString()} {item.unit}
                     </p>
                   </div>
@@ -593,10 +593,10 @@ function PurchasingReport({ context }: { context: ReportContext }) {
           ) : (
             <div className="mt-4 space-y-2">
               {suppliers.map((supplier) => (
-                <div key={supplier.name} className="flex items-center justify-between gap-4 rounded-xl bg-muted/40 px-4 py-3">
+                <div key={supplier.name} className="flex items-center justify-between gap-4 rounded-sm bg-muted/40 px-4 py-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-foreground">{supplier.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-label text-muted-foreground">
                       {supplier.orders} orders · {supplier.ordered ? ((supplier.received / supplier.ordered) * 100).toFixed(1) : '0.0'}%
                       filled
                     </p>
@@ -615,16 +615,16 @@ function PurchasingReport({ context }: { context: ReportContext }) {
               .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
               .slice(0, 12)
               .map((order) => (
-                <div key={order.id} className="flex items-center justify-between gap-4 rounded-xl border border-border/70 px-3 py-3">
+                <div key={order.id} className="flex items-center justify-between gap-4 rounded-sm border border-rule px-3 py-3">
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold text-foreground">{order.reference}</p>
-                    <p className="truncate text-[10px] text-muted-foreground">
+                    <p className="truncate text-micro text-muted-foreground">
                       {order.supplier?.name ?? 'Unknown supplier'} · {order.status.replaceAll('_', ' ')}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold tabular-nums text-foreground">{formatMoney(purchaseOrderValue(order))}</p>
-                    <p className="text-[10px] text-muted-foreground">{shortDateLabel(order.createdAt.slice(0, 10))}</p>
+                    <p className="text-micro text-muted-foreground">{shortDateLabel(order.createdAt.slice(0, 10))}</p>
                   </div>
                 </div>
               ))}
@@ -739,7 +739,7 @@ function ProfitabilityReport({ context }: { context: ReportContext }) {
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[820px] text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-rule text-left text-micro uppercase tracking-micro text-muted-foreground">
                   <th className="pb-2 font-semibold">Menu item</th>
                   <th className="pb-2 text-right font-semibold">Units</th>
                   <th className="pb-2 text-right font-semibold">Revenue</th>
@@ -753,10 +753,10 @@ function ProfitabilityReport({ context }: { context: ReportContext }) {
                 {[...rows]
                   .sort((a, b) => (b.contribution ?? -1) - (a.contribution ?? -1))
                   .map((row) => (
-                    <tr key={row.menuItemId} className="border-b border-border/60 last:border-0">
+                    <tr key={row.menuItemId} className="border-b border-rule last:border-0">
                       <td className="py-3">
                         <p className="font-medium text-foreground">{row.name}</p>
-                        {!row.complete && <p className="text-[10px] font-medium text-warning">Recipe or ingredient cost incomplete</p>}
+                        {!row.complete && <p className="text-micro font-medium text-warning">Recipe or ingredient cost incomplete</p>}
                       </td>
                       <td className="py-3 text-right tabular-nums text-muted-foreground">{row.units.toLocaleString()}</td>
                       <td className="py-3 text-right font-semibold tabular-nums text-foreground">{formatMoney(row.revenue)}</td>

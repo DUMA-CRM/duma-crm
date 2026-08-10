@@ -132,7 +132,7 @@ export function TemplatesPanel({
               already sent stay in History.
             </>
           }
-          confirmLabel="Delete"
+          confirmLabel="Delete template"
           pendingLabel="Deleting…"
           isPending={remove.isPending}
           onConfirm={() => remove.mutate(deleteTarget)}
@@ -165,13 +165,13 @@ function TemplateCard({
   onDelete: () => void;
 }) {
   return (
-    <article className="group/card flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-primary/40">
+    <article className="group/card flex flex-col overflow-hidden rounded-sm border border-rule bg-card shadow-sm transition-colors hover:border-primary/40">
       {/* The thumbnail is the preview affordance — the whole plate is the button. */}
       <button
         type="button"
         onClick={onPreview}
         aria-label={`Preview ${template.name}`}
-        className="relative block aspect-4/3 w-full overflow-hidden border-b border-border bg-white text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="relative block aspect-4/3 w-full overflow-hidden border-b border-rule bg-white text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <iframe
           title=""
@@ -182,7 +182,7 @@ function TemplateCard({
         />
         {/* Rendered emails are white in both themes, so the scrim is fixed dark. */}
         <span className="absolute inset-0 flex items-center justify-center bg-foreground/25 opacity-0 transition-opacity group-hover/card:opacity-100">
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-card px-3 py-2 text-xs font-semibold text-foreground shadow-md">
+          <span className="inline-flex items-center gap-1.5 rounded-sm bg-card px-3 py-2 text-xs font-semibold text-foreground shadow-md">
             <Eye size={14} aria-hidden="true" /> Open preview
           </span>
         </span>
@@ -199,13 +199,13 @@ function TemplateCard({
           <Badge variant="muted" className="capitalize">
             {template.category}
           </Badge>
-          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1 text-label text-muted-foreground">
             {uses > 0 && <Sparkles size={11} aria-hidden="true" />}
             {uses ? `Used by ${uses} automation${uses === 1 ? '' : 's'}` : 'Not automated yet'}
           </span>
         </div>
 
-        <div className="mt-4 flex items-center gap-1.5 border-t border-border pt-3">
+        <div className="mt-4 flex items-center gap-1.5 border-t border-rule pt-3">
           <Button variant="outline" size="sm" onClick={onEdit} className="flex-1">
             <Pencil /> Edit
           </Button>
@@ -240,8 +240,8 @@ function TemplateCard({
 
 function TemplateCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-hidden="true">
-      <div className="aspect-4/3 w-full animate-pulse border-b border-border bg-muted" />
+    <div className="overflow-hidden rounded-sm border border-rule bg-card shadow-sm" aria-hidden="true">
+      <div className="aspect-4/3 w-full animate-pulse border-b border-rule bg-muted" />
       <div className="space-y-2 p-4">
         <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
         <div className="h-3 w-full animate-pulse rounded bg-muted" />
@@ -253,8 +253,8 @@ function TemplateCardSkeleton() {
 
 function FirstRunCard({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
-      <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+    <div className="rounded-sm border border-dashed border-rule bg-card p-10 text-center">
+      <div className="mx-auto flex size-14 items-center justify-center rounded-sm bg-band text-primary">
         <Mail size={24} />
       </div>
       <p className="mt-4 text-base font-semibold text-foreground">Create your first email template</p>

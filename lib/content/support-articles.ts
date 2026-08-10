@@ -32,7 +32,7 @@ A shift goes wrong in small ways long before anyone notices a number is off. Thi
 
 ## Before you open
 
-1. Confirm the **location picker** in the top bar shows the site you are standing in. Everything else on this page follows from it.
+1. Confirm the **location picker** at the bottom of the sidebar shows the site you are standing in. Everything else on this page follows from it.
 2. Open the **Dashboard** and read the alert cards. Low stock and pending requests are cheaper to deal with now than mid-rush.
 3. Put the KDS device on the kitchen screen and leave DUMA open on it.
 4. On each till, check the scanner and camera choice in **Settings → Devices**.
@@ -272,7 +272,7 @@ Offboard from their record. Their history is retained and the account is marked 
 
 ## Always check three things first
 
-1. **Location** — the picker in the top bar. Reports for "all accessible locations" and one site are different reports.
+1. **Location** — the picker at the bottom of the sidebar. Reports for "all locations" and one site are different reports.
 2. **Period** — the 7/30/90 day control on the page.
 3. **What it is compared against** — the immediately preceding period of the same length. Change the period and the comparison changes with it.
 
