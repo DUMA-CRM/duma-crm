@@ -20,6 +20,35 @@ const TREND_ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: ArrowRight } 
  * sentence, and it is built from tool output rather than from model text.
  */
 export function AgentMetrics({ card }: { card: AgentCard }) {
+  if (card.kind === 'list') {
+    return (
+      <section className="mt-3 overflow-hidden rounded-md border border-rule bg-field" aria-label={card.title}>
+        <header className="border-b border-divider px-3 py-2">
+          <p className="text-label uppercase tracking-wide text-muted-foreground">{card.title}</p>
+          {card.caption && <p className="mt-0.5 text-label leading-4 text-muted-foreground">{card.caption}</p>}
+        </header>
+        {card.rows.length ? (
+          <ul className="divide-y divide-divider">
+            {card.rows.map((row, index) => (
+              <li key={`${row.label}-${index}`} className="flex items-start justify-between gap-3 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{row.label}</p>
+                  {row.meta ? <p className="mt-0.5 line-clamp-2 text-label leading-4 text-muted-foreground">{row.meta}</p> : null}
+                </div>
+                {row.value ? (
+                  <span className={cn('shrink-0 font-mono text-xs font-semibold tabular-nums', TONE[row.tone ?? 'default'])}>
+                    {row.value}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="px-3 py-4 text-sm text-muted-foreground">{card.emptyLabel ?? 'Nothing to show.'}</p>
+        )}
+      </section>
+    );
+  }
   if (card.metrics.length === 0) return null;
   return (
     <section className="mt-3 rounded-md border border-rule bg-field" aria-label={card.title}>

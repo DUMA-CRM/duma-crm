@@ -170,7 +170,11 @@ export function InventoryWorkspace() {
       icon={<Package size={20} aria-hidden="true" />}
       actions={
         !tenantId ? undefined : tab === 'stocktakes' ? (
-          locationId && <StartStocktakeButton locationId={locationId} />
+          locationId && (
+            <span>
+              <StartStocktakeButton locationId={locationId} />
+            </span>
+          )
         ) : actionLabel ? (
           <Button
             className="h-9 gap-1.5"
@@ -213,7 +217,11 @@ export function InventoryWorkspace() {
             <SuppliersPanel suppliers={suppliers} createOpen={createOpen} onCreateOpenChange={setCreateOpen} />
           ) : tab === 'stocktakes' ? (
             !locationId ? (
-              <EmptyState icon={MapPin} title="No location selected" description="Use the location picker to choose the stock you want to count." />
+              <EmptyState
+                icon={MapPin}
+                title="No location selected"
+                description="Use the location picker to choose the stock you want to count."
+              />
             ) : (
               <StocktakePanel locationId={locationId} />
             )

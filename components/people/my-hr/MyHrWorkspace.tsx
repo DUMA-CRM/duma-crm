@@ -1,7 +1,7 @@
 'use client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
 import { HelpdeskBoard } from '@/components/helpdesk/HelpdeskBoard';
 import {
@@ -38,7 +38,7 @@ import { ExpensesPanel } from './ExpensesPanel';
 import { Overview } from './Overview';
 import { TimeOffPanel } from './TimeOffPanel';
 import { EditDetailsDrawer, ExpenseClaimDrawer, LeaveRequestDrawer, NewTicketDrawer, type TicketPreset } from './forms';
-import { MY_HR_TABS, type BankVisibility, type MyHrTab } from './shared';
+import { type BankVisibility, MY_HR_TABS, type MyHrTab } from './shared';
 
 /**
  * The employee's own HR workspace.
@@ -50,6 +50,7 @@ import { MY_HR_TABS, type BankVisibility, type MyHrTab } from './shared';
  */
 export function MyHrWorkspace() {
   const qc = useQueryClient();
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   // `?tab=` lets other pages (Support, notifications) link to a section.
   const searchParams = useSearchParams();
@@ -69,6 +70,19 @@ export function MyHrWorkspace() {
   const { data: documents = [] } = useQuery({ queryKey: ['documents-me'], queryFn: getMyDocuments });
   const { data: payslips = [] } = useQuery({ queryKey: ['payslips-me'], queryFn: getMyPayslips, retry: false });
   const { data: expenses = [] } = useQuery({ queryKey: ['expense-claims-me'], queryFn: () => getMyExpenseClaims(), retry: false });
+
+  // AI and notifications may deep-link to a specific self-service action. Once
+  // the employee record has loaded, open the existing form and consume the
+  // intent so closing the drawer does not immediately reopen it.
+  useEffect(() => {
+    if (!employee || searchParams.get('action') !== 'edit-details') return;
+    const timer = window.setTimeout(() => {
+      setTab('overview');
+      setEditOpen(true);
+      router.replace('/my-hr?tab=overview', { scroll: false });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [employee, router, searchParams]);
 
   // The bank endpoint is manager-scoped; for ordinary staff it refuses. A
   // refusal means "cannot tell", never "none held" — so nothing downstream is

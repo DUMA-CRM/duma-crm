@@ -137,7 +137,7 @@ components:
     typography: '{typography.body}'
     rounded: '{rounded.md}'
     padding: '0 0.75rem'
-    height: '2.5rem'
+    height: '2.25rem'
   segmented-control:
     backgroundColor: '{colors.band}'
     textColor: '{colors.ink-2}'
@@ -312,7 +312,7 @@ Common panels use a porcelain field, 7–8px corners, a soft one-pixel rule, and
 
 ### Fields
 
-Inputs are 40px tall with a porcelain fill, soft rule, 7px corner, and low shadow. Small-screen text stays at 16px to prevent iOS zoom; desktop returns to the compact body size. Focus uses a hard brand-green border/outline; error switches both edge and message to exception red and connects the message through `aria-describedby`.
+Inputs are 36px tall with a porcelain fill, soft rule, 7px corner, and low shadow — the same height as a button, a select, the date picker and a segmented control, so any of them can stand in a filter toolbar row without a step in the baseline. Touch-first surfaces reach for the named 44px touch sizes rather than lifting this default. Small-screen text stays at 16px to prevent iOS zoom; desktop returns to the compact body size. Focus uses a hard brand-green border/outline; error switches both edge and message to exception red and connects the message through `aria-describedby`.
 
 ### Navigation
 

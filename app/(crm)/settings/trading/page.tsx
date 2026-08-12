@@ -1,2 +1,2 @@
-import { redirect } from 'next/navigation'; import { TradingAndPaymentsSettings } from '@/components/settings/TradingAndPaymentsSettings'; import { getCurrentStaffProfile } from '@/lib/auth/current-staff'; import { roleAtLeast } from '@/lib/api/staff.service';
-export default async function Page(){const p=await getCurrentStaffProfile();if(!p||!roleAtLeast(p.role,'franchise_owner'))redirect('/settings');return <TradingAndPaymentsSettings/>}
+import { redirect } from 'next/navigation'; import { TradingAndPaymentsSettings } from '@/components/settings/TradingAndPaymentsSettings'; import { getCurrentStaffProfile } from '@/lib/auth/current-staff'; import { hasCapability } from '@/lib/auth/capabilities';
+export default async function Page(){const p=await getCurrentStaffProfile();if(!p||!hasCapability(p,'settings:write'))redirect('/settings');return <TradingAndPaymentsSettings/>}

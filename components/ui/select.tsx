@@ -1,7 +1,7 @@
 'use client';
 
 import { Select as SelectPrimitive } from 'radix-ui';
-import type { ReactNode } from 'react';
+import { type ReactNode, useRef } from 'react';
 
 import { Check, ChevronDown } from '@/components/icons';
 
@@ -48,15 +48,24 @@ function Select({
   contentClassName,
   disabled,
 }: SelectProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
   return (
     <SelectPrimitive.Root
       value={value || EMPTY_VALUE}
-      onValueChange={(nextValue) => onValueChange(nextValue === EMPTY_VALUE ? '' : nextValue)}
+      onValueChange={(nextValue) => {
+        const resolvedValue = nextValue === EMPTY_VALUE ? '' : nextValue;
+        onValueChange(resolvedValue);
+        triggerRef.current?.dispatchEvent(
+          new CustomEvent('duma:select-change', { bubbles: true, detail: { value: resolvedValue } }),
+        );
+      }}
       disabled={disabled}
       name={name}
       required={required}
     >
       <SelectPrimitive.Trigger
+        ref={triggerRef}
         id={id}
         aria-label={ariaLabel}
         aria-describedby={ariaDescribedBy}

@@ -1,6 +1,6 @@
-import { requireAnyRole } from '@/lib/auth/require-role';
+import { requireCapability } from '@/lib/auth/require-capability';
 
 export default async function CommunicationsLayout({ children }: { children: React.ReactNode }) {
-  await requireAnyRole(['franchise_owner', 'store_manager', 'marketing_manager']);
+  await requireCapability('email:read');
   return children;
 }

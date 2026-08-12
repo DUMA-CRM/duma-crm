@@ -1,6 +1,6 @@
-import { requireMinimumRole } from '@/lib/auth/require-role';
+import { requireAnyCapability } from '@/lib/auth/require-capability';
 
 export default async function SettingsConnectorsLayout({ children }: { children: React.ReactNode }) {
-  await requireMinimumRole('franchise_owner');
+  await requireAnyCapability('email.connections:write', 'payments.connections:write');
   return children;
 }

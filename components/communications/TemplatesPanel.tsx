@@ -3,9 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { Copy, Eye, Mail, Pencil, Plus, Sparkles, Trash2 } from '@/components/icons';
+import { Copy, Eye, Mail, Pencil, Plus, Trash2 } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -18,7 +17,7 @@ import {
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { PanelHeader } from './PanelChrome';
+import { TEMPLATE_CATEGORIES, templateCategoryLabel } from './shared';
 import { workflowForAutomation } from './workflowModel';
 
 export function TemplatesPanel({
@@ -75,7 +74,7 @@ export function TemplatesPanel({
 
   // Deleting a template only flags it inactive, so the list shows live ones and
   // nothing else — grouped by category, alphabetical within each.
-  const visible = useMemo(
+  const live = useMemo(
     () =>
       templates
         .filter((template) => template.isActive)
@@ -83,21 +82,30 @@ export function TemplatesPanel({
     [templates],
   );
 
+  /**
+   * The sort already puts categories together; without headings that grouping is
+   * only implied, and a staff member scanning for "the birthday one" has to read
+   * every card to find where one category ends and the next begins.
+   */
+  const groups = useMemo(() => {
+    const buckets = new Map<string, typeof live>();
+    for (const template of live) buckets.set(template.category, [...(buckets.get(template.category) ?? []), template]);
+    const rank = (value: string) => {
+      const at = TEMPLATE_CATEGORIES.findIndex((category) => category.value === value);
+      // Anything from the old free-text era sorts after the known five.
+      return at === -1 ? TEMPLATE_CATEGORIES.length : at;
+    };
+    return [...buckets.entries()].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
+  }, [live]);
+
   const usageCount = (templateId: string) =>
     automations.filter((automation) =>
       workflowForAutomation(automation).nodes.some((node) => node.type === 'send_email' && node.config.templateId === templateId),
     ).length;
-  const isFirstRun = !visible.length && !isLoading;
+  const isFirstRun = !live.length && !isLoading;
 
   return (
     <div className="space-y-4">
-      {/* The "New template" action lives in the page header, next to the tabs. */}
-      <PanelHeader
-        title="Templates"
-        count={visible.length}
-        description="A template is an email you write once and reuse — order updates, birthday notes, thank-yous."
-      />
-
       {isLoading ? (
         <TemplateGrid>
           {Array.from({ length: 6 }, (_, index) => (
@@ -107,20 +115,29 @@ export function TemplatesPanel({
       ) : isFirstRun ? (
         <FirstRunCard onCreate={() => onEdit({})} />
       ) : (
-        <TemplateGrid>
-          {visible.map((template) => (
-            <TemplateCard
-              key={template.id}
-              template={template}
-              uses={usageCount(template.id)}
-              duplicating={duplicate.isPending}
-              onEdit={() => onEdit({ template })}
-              onPreview={() => onPreview(template)}
-              onDuplicate={() => duplicate.mutate(template)}
-              onDelete={() => setDeleteTarget(template)}
-            />
+        <div className="space-y-5">
+          {groups.map(([category, items]) => (
+            <section key={category}>
+              <h3 className="mb-2 text-micro font-semibold uppercase tracking-micro text-muted-foreground">
+                {templateCategoryLabel(category)} <span className="tabular-nums">· {items.length}</span>
+              </h3>
+              <TemplateGrid>
+                {items.map((template) => (
+                  <TemplateCard
+                    key={template.id}
+                    template={template}
+                    uses={usageCount(template.id)}
+                    duplicating={duplicate.isPending}
+                    onEdit={() => onEdit({ template })}
+                    onPreview={() => onPreview(template)}
+                    onDuplicate={() => duplicate.mutate(template)}
+                    onDelete={() => setDeleteTarget(template)}
+                  />
+                ))}
+              </TemplateGrid>
+            </section>
           ))}
-        </TemplateGrid>
+        </div>
       )}
 
       {deleteTarget && (
@@ -188,29 +205,27 @@ function TemplateCard({
         </span>
       </button>
 
-      <div className="flex min-w-0 flex-1 flex-col p-4">
-        <p className="truncate font-semibold text-foreground" title={template.name}>
+      {/* Four things, not six.
+          - The category badge went: these cards sit under a category heading, so
+            it restated the line directly above them.
+          - The preview icon went: the whole thumbnail is already the preview
+            button and says so on hover. Two controls for one action is how a
+            card ends up with a toolbar.
+          - "Not automated yet" went: it was on most cards and told nobody
+            anything. The count now appears only when the template IS in use,
+            which is the case where it changes a decision — deleting it breaks
+            something. */}
+      <div className="flex min-w-0 flex-1 flex-col p-3.5">
+        <p className="truncate text-sm font-semibold text-foreground" title={template.name}>
           {template.name}
         </p>
-        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground" title={template.subject}>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground" title={template.subject}>
           {template.subject}
         </p>
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <Badge variant="muted" className="capitalize">
-            {template.category}
-          </Badge>
-          <span className="inline-flex items-center gap-1 text-label text-muted-foreground">
-            {uses > 0 && <Sparkles size={11} aria-hidden="true" />}
-            {uses ? `Used by ${uses} automation${uses === 1 ? '' : 's'}` : 'Not automated yet'}
-          </span>
-        </div>
 
-        <div className="mt-4 flex items-center gap-1.5 border-t border-rule pt-3">
+        <div className="mt-3 flex items-center gap-1.5">
           <Button variant="outline" size="sm" onClick={onEdit} className="flex-1">
             <Pencil /> Edit
-          </Button>
-          <Button variant="ghost" size="icon-sm" onClick={onPreview} aria-label={`Preview ${template.name}`} title="Preview">
-            <Eye />
           </Button>
           <Button
             variant="ghost"
@@ -233,6 +248,12 @@ function TemplateCard({
             <Trash2 />
           </Button>
         </div>
+
+        {uses > 0 && (
+          <p className="mt-2 text-label text-muted-foreground">
+            In {uses} automation{uses === 1 ? '' : 's'}
+          </p>
+        )}
       </div>
     </article>
   );

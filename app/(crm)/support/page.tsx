@@ -10,7 +10,7 @@ export default async function SupportPage() {
   // The guide reads `?tab=` for deep links, which needs a Suspense boundary.
   return (
     <Suspense fallback={null}>
-      <SupportGuide role={profile?.role ?? null} />
+      <SupportGuide role={profile?.role ?? null} capabilities={profile?.capabilities ?? []} />
     </Suspense>
   );
 }

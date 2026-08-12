@@ -48,7 +48,7 @@ import {
   revokeOtherSessions,
   revokeSession,
 } from '@/lib/api/auth.service';
-import { roleAtLeast } from '@/lib/api/staff.service';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { useTenants } from '@/lib/hooks/useTenants';
 import { chime } from '@/lib/utils/chime';
@@ -552,7 +552,7 @@ function ChoiceGroup<T extends string>({
 export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const role = useAuthStore((s) => s.role);
+  const capabilities = useAuthStore((s) => s.capabilities);
   const { tenantId, locationId } = useWorkspaceStore();
   const { theme, setTheme } = useTheme();
   const { scannerMode, setScannerMode } = usePosSettingsStore();
@@ -579,7 +579,7 @@ export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
 
   // Workspaces and connectors are franchise-owner+ only (mirrors the old nav
   // gating), so neither tab appears for a role that cannot use it.
-  const showOwnerTabs = roleAtLeast(role, 'franchise_owner');
+  const showOwnerTabs = hasCapability(capabilities, 'settings:write');
   // A stale link to an owner tab without the role falls back to general.
   const active: SettingsTab = (tab === 'connectors' || tab === 'workspaces') && !showOwnerTabs ? 'general' : tab;
   const activeDetails = TAB_DETAILS[active];

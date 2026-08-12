@@ -33,7 +33,7 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
       {/* Hydrates the Zustand auth store with the server-fetched user. */}
-      <AuthInitializer user={session.user} role={profile?.role ?? null} />
+      <AuthInitializer user={session.user} role={profile?.role ?? null} capabilities={profile?.capabilities ?? []} />
       <WorkspaceInitializer
         profile={profile ? { tenantId: profile.tenantId, role: profile.role, locationIds: profile.locationIds } : null}
       />
@@ -41,7 +41,7 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
       {/* Plays only when a sign-in armed it; renders nothing otherwise. */}
       <LoginIntro />
 
-      <Sidebar role={profile?.role ?? null} />
+      <Sidebar capabilities={profile?.capabilities ?? []} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto p-4 md:p-8">{children}</main>

@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { PanelHeader, PanelSearch, PanelToolbar, ResultCount } from './PanelChrome';
+import { PanelSearch, PanelToolbar, ResultCount } from './PanelChrome';
 import { deliveryBadge } from './shared';
 
 type StatusFilter = 'all' | 'sent' | 'queued' | 'failed' | 'cancelled';
@@ -248,7 +248,6 @@ export function HistoryPanel({ onPreview }: { onPreview: (delivery: EmailDeliver
   if (!deliveries.length && !isLoading) {
     return (
       <div className="space-y-4">
-        <PanelHeader title="History" description="Every automatic and manual email lands here, so you can see what customers received." />
         <div className="rounded-sm border border-dashed border-rule bg-card">
           <EmptyState
             icon={Send}
@@ -262,21 +261,6 @@ export function HistoryPanel({ onPreview }: { onPreview: (delivery: EmailDeliver
 
   return (
     <div className="space-y-4">
-      <PanelHeader
-        title="History"
-        count={data?.total}
-        description="Every email your business has sent. Click a row to see exactly what the customer received."
-        actions={
-          <span className="inline-flex items-center gap-1.5 rounded-sm border border-rule bg-card px-2.5 py-1.5 text-xs text-muted-foreground">
-            <span className="relative flex size-1.5" aria-hidden="true">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-success/70" />
-              <span className="relative inline-flex size-1.5 rounded-full bg-success" />
-            </span>
-            Live
-          </span>
-        }
-      />
-
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           size="sm"

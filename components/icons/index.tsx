@@ -69,6 +69,7 @@ import {
   ComputerIcon,
   CopyIcon,
   CreditCardIcon,
+  CursorMove01Icon,
   DashboardSquare01Icon,
   Delete02Icon,
   DownloadIcon,
@@ -116,6 +117,7 @@ import {
   Logout03Icon,
   MailIcon,
   MailRemove01Icon,
+  Maximize04Icon,
   MegaphoneIcon,
   MenuIcon,
   MessageAdd01Icon,
@@ -257,6 +259,7 @@ export const Coins = /*#__PURE__*/ glyph(CoinsIcon, 'Coins');
 export const Combine = /*#__PURE__*/ glyph(CombineIcon, 'Combine');
 export const Copy = /*#__PURE__*/ glyph(CopyIcon, 'Copy');
 export const CreditCard = /*#__PURE__*/ glyph(CreditCardIcon, 'CreditCard');
+export const CursorMove = /*#__PURE__*/ glyph(CursorMove01Icon, 'CursorMove');
 export const Download = /*#__PURE__*/ glyph(DownloadIcon, 'Download');
 export const Droplet = /*#__PURE__*/ glyph(DropletIcon, 'Droplet');
 export const Droplets = /*#__PURE__*/ glyph(DropletsIcon, 'Droplets');
@@ -302,6 +305,7 @@ export const LogOut = /*#__PURE__*/ glyph(Logout03Icon, 'LogOut');
 export const Mail = /*#__PURE__*/ glyph(MailIcon, 'Mail');
 export const MailX = /*#__PURE__*/ glyph(MailRemove01Icon, 'MailX');
 export const MapPin = /*#__PURE__*/ glyph(Location01Icon, 'MapPin');
+export const Maximize = /*#__PURE__*/ glyph(Maximize04Icon, 'Maximize');
 export const Megaphone = /*#__PURE__*/ glyph(MegaphoneIcon, 'Megaphone');
 export const Menu = /*#__PURE__*/ glyph(MenuIcon, 'Menu');
 export const MessageSquarePlus = /*#__PURE__*/ glyph(MessageAdd01Icon, 'MessageSquarePlus');

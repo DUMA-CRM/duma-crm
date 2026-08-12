@@ -8,21 +8,27 @@ import type {
   StaffHoursAnalytics,
   TopItemAnalytics,
 } from '@/lib/api/analytics.service';
+import type { AuditLogsResponse } from '@/lib/api/audit.service';
+import type { EmailAutomation, EmailConnection, EmailDeliveriesResponse, EmailTemplate } from '@/lib/api/email.service';
+import type { HrEmployee } from '@/lib/api/hr.service';
 import type { InventoryForecast, LowStockAlert } from '@/lib/api/inventory.service';
 import type { LossLogResponse } from '@/lib/api/loss.service';
+import type { CashUp } from '@/lib/api/operations.service';
 import type { Order, OrderDetail } from '@/lib/api/orders.service';
-import type { HelpdeskTicket, LeaveRequest } from '@/lib/api/people-ops.service';
+import type { PayrollPreview, PayrollRun } from '@/lib/api/payroll.service';
+import type { EmployeeDocument, ExpenseClaim, HelpdeskTicket, LeaveEntitlement, LeaveRequest, Payslip } from '@/lib/api/people-ops.service';
+import type { PrivacyRequest } from '@/lib/api/privacy.service';
 import type { PurchaseOrdersResponse } from '@/lib/api/purchasing.service';
 import type { RestockRequestsResponse } from '@/lib/api/restock.service';
 import { decodeNotes } from '@/lib/api/restock.service';
 import type { ScheduledShift } from '@/lib/api/scheduling.service';
 import type { Shift } from '@/lib/api/shifts.service';
-import type { StaffRole } from '@/lib/api/staff.service';
-import { roleAtLeast } from '@/lib/api/staff.service';
 import type { StocktakesResponse } from '@/lib/api/stocktakes.service';
 import type { StockTransfersResponse } from '@/lib/api/transfers.service';
 import type { Location } from '@/lib/api/workspace.service';
-import type { CustomersResponse } from '@/types/customers';
+import { type Capability, hasCapability } from '@/lib/auth/capabilities';
+import { leaveBalance, myHrActions } from '@/lib/utils/my-hr';
+import type { CustomerSegment, CustomersResponse } from '@/types/customers';
 
 import {
   addDays,
@@ -45,7 +51,7 @@ type JsonObject = Record<string, unknown>;
 
 export interface ToolResult {
   output: unknown;
-  /** One line for the "Checked" trail under the answer. */
+  /** Internal provenance retained for diagnostics; it is not rendered in chat. */
   evidence?: string;
   shortcuts?: AgentShortcut[];
   cards?: AgentCard[];
@@ -54,7 +60,8 @@ export interface ToolResult {
 export interface ToolDefinition {
   name: string;
   description: string;
-  minRole: StaffRole;
+  /** Capability required to offer this tool. Omit when every signed-in user may use it. */
+  capability?: Capability;
   parameters: JsonObject;
   /** Short present-tense line shown while the tool runs. */
   step: string;
@@ -99,7 +106,7 @@ const searchSupport: ToolDefinition = {
   name: 'search_support',
   description:
     'Search DUMA product documentation. Use for questions about how the app works, workflows, setup, or why a screen behaves a certain way.',
-  minRole: 'barista',
+  // No capability — product documentation is open to every signed-in user.
   step: 'Searching DUMA guides',
   parameters: schema({ query: { type: 'string', description: 'A concise description of the workflow or product question.' } }),
   async run(args) {
@@ -161,7 +168,7 @@ const listLocations: ToolDefinition = {
   name: 'list_locations',
   description:
     'List the locations the operator can access, with their address, phone, timezone and trading hours — today’s opening and closing time, whether the site is open right now, and the full weekly pattern. Use this for any question about when a site opens or closes.',
-  minRole: 'barista',
+  // No capability — GET /locations is authenticated but ungated on the API.
   step: 'Checking locations and trading hours',
   parameters: schema({}),
   async run(_args, runtime) {
@@ -192,7 +199,7 @@ const listLocations: ToolDefinition = {
 const listSuppliers: ToolDefinition = {
   name: 'list_suppliers',
   description: 'List active suppliers with their contact details.',
-  minRole: 'barista',
+  capability: 'suppliers:read',
   step: 'Checking suppliers',
   parameters: schema({}),
   async run(_args, runtime) {
@@ -207,6 +214,18 @@ const listSuppliers: ToolDefinition = {
         notes: notes?.slice(0, 200) ?? null,
       })),
       evidence: `${suppliers.length} active supplier${suppliers.length === 1 ? '' : 's'}`,
+      cards: [
+        {
+          kind: 'list',
+          title: 'Active suppliers',
+          caption: `${suppliers.length} available`,
+          rows: suppliers.slice(0, 6).map((supplier) => ({
+            label: supplier.name,
+            value: supplier.phone ?? undefined,
+            meta: [supplier.contactName, supplier.email].filter(Boolean).join(' · ') || 'No contact details',
+          })),
+        },
+      ],
       shortcuts: [page('Open suppliers', '/inventory?tab=suppliers', 'Inventory · Suppliers')],
     };
   },
@@ -215,7 +234,7 @@ const listSuppliers: ToolDefinition = {
 const listStockItems: ToolDefinition = {
   name: 'list_stock_items',
   description: 'Find active stock items with their units, last known costs and default reorder quantities.',
-  minRole: 'barista',
+  // No capability — GET /stock-items is authenticated but ungated on the API.
   step: 'Checking stock items',
   parameters: schema({ query: { type: 'string', description: 'Case-insensitive item name search; use an empty string to list all.' } }),
   async run(args, runtime) {
@@ -233,6 +252,20 @@ const listStockItems: ToolDefinition = {
         defaultReorderQuantity: defaultReorderQuantity == null ? null : toNumber(defaultReorderQuantity),
       })),
       evidence: `${items.length} stock item${items.length === 1 ? '' : 's'}${query ? ` matching “${query}”` : ''}`,
+      cards: query
+        ? [
+            {
+              kind: 'list',
+              title: 'Matching stock',
+              caption: items.length > 6 ? `Showing 6 of ${items.length}` : undefined,
+              rows: items.slice(0, 6).map((item) => ({
+                label: item.name,
+                value: item.costPerUnit == null ? undefined : gbp(item.costPerUnit),
+                meta: `${item.category} · ${item.unit}`,
+              })),
+            },
+          ]
+        : undefined,
       shortcuts: [page('Open stock', '/inventory', 'Inventory · Stock')],
     };
   },
@@ -241,7 +274,7 @@ const listStockItems: ToolDefinition = {
 const listMenuItems: ToolDefinition = {
   name: 'list_menu_items',
   description: 'List menu items with their brand-wide price, category and availability.',
-  minRole: 'barista',
+  // No capability — the menu is readable by every signed-in user.
   step: 'Reading the menu',
   parameters: schema({ query: { type: 'string', description: 'Case-insensitive name search; empty string lists all.' } }),
   async run(args, runtime) {
@@ -253,6 +286,21 @@ const listMenuItems: ToolDefinition = {
     return {
       output: items.map(({ id, name, category, price, isAvailable }) => ({ id, name, category, priceGbp: toNumber(price), isAvailable })),
       evidence: `${items.length} menu item${items.length === 1 ? '' : 's'}${unavailable ? `, ${unavailable} hidden` : ''}`,
+      cards: query
+        ? [
+            {
+              kind: 'list',
+              title: 'Matching menu items',
+              caption: items.length > 6 ? `Showing 6 of ${items.length}` : undefined,
+              rows: items.slice(0, 6).map((item) => ({
+                label: item.name,
+                value: gbp(item.price),
+                meta: `${item.category} · ${item.isAvailable ? 'Available' : 'Hidden'}`,
+                tone: item.isAvailable ? ('default' as const) : ('warning' as const),
+              })),
+            },
+          ]
+        : undefined,
       shortcuts: [page('Open menu', '/menu', 'Menu')],
     };
   },
@@ -261,7 +309,7 @@ const listMenuItems: ToolDefinition = {
 const listStaff: ToolDefinition = {
   name: 'list_staff',
   description: 'List active staff with their role and scope. Use to resolve a person’s name to a user id.',
-  minRole: 'store_manager',
+  capability: 'staff:read',
   step: 'Checking the team',
   parameters: schema({}),
   async run(_args, runtime) {
@@ -277,6 +325,18 @@ const listStaff: ToolDefinition = {
         locationIds: locationIds ?? [],
       })),
       evidence: `${staff.length} active team member${staff.length === 1 ? '' : 's'}`,
+      cards: [
+        {
+          kind: 'list',
+          title: 'Team',
+          caption: staff.length > 6 ? `Showing 6 of ${staff.length}` : undefined,
+          rows: staff.slice(0, 6).map((member) => ({
+            label: member.name || member.email || 'Unnamed team member',
+            value: ROLE_LABELS[member.role] ?? member.role,
+            meta: member.email ?? member.scope,
+          })),
+        },
+      ],
       shortcuts: [page('Open team', '/staff', 'Team')],
     };
   },
@@ -310,7 +370,7 @@ const getSalesReport: ToolDefinition = {
   name: 'get_sales_report',
   description:
     'Compare orders, revenue and item sales across two date ranges. Use the calendar anchors in the brief rather than guessing dates.',
-  minRole: 'barista',
+  capability: 'analytics:read',
   step: 'Reading live sales data',
   parameters: schema({
     currentFrom: { type: 'string', description: DATE },
@@ -400,7 +460,7 @@ const getBusinessAnalytics: ToolDefinition = {
   name: 'get_business_analytics',
   description:
     'Read one analytics view over a date range: hourly_volume (trade by hour of day), revenue_by_location, customer_retention (new vs returning), or staff_hours (worked hours per person).',
-  minRole: 'barista',
+  capability: 'analytics:read',
   step: 'Reading analytics',
   parameters: schema({
     metric: { type: 'string', enum: ['hourly_volume', 'revenue_by_location', 'customer_retention', 'staff_hours'] },
@@ -491,7 +551,7 @@ const listOrders: ToolDefinition = {
   name: 'list_orders',
   description:
     'List recent orders with their status, total and time. Use before proposing a status change or investigating a specific sale.',
-  minRole: 'barista',
+  capability: 'orders:read',
   step: 'Reading orders',
   parameters: schema({
     status: nullableString('pending, preparing, ready, done, cancelled, or null for all.'),
@@ -524,6 +584,20 @@ const listOrders: ToolDefinition = {
         })),
       },
       evidence: `${orders.length} order${orders.length === 1 ? '' : 's'}${status ? ` with status ${status}` : ''}`,
+      cards: [
+        {
+          kind: 'list',
+          title: status ? `${status} orders` : 'Recent orders',
+          caption: orders.length > 6 ? `Showing 6 of ${orders.length}` : undefined,
+          rows: orders.slice(0, 6).map((order) => ({
+            label: `Order #${order.id.slice(0, 8)}`,
+            value: gbp(order.totalAmount),
+            meta: `${order.status} · ${formatDateTime(order.createdAt, 'Europe/London')}`,
+            tone:
+              order.status === 'cancelled' ? ('negative' as const) : order.status === 'done' ? ('positive' as const) : ('default' as const),
+          })),
+        },
+      ],
       shortcuts: [page('Open orders', '/orders', 'Orders')],
     };
   },
@@ -532,7 +606,7 @@ const listOrders: ToolDefinition = {
 const getOrderDetail: ToolDefinition = {
   name: 'get_order',
   description: 'Read one order in full: items, modifiers, payment, refunds, void reason and status history.',
-  minRole: 'barista',
+  capability: 'orders:read',
   step: 'Opening the order',
   parameters: schema({ orderId: { type: 'string' } }),
   async run(args, runtime) {
@@ -577,7 +651,7 @@ const getInventoryStatus: ToolDefinition = {
   name: 'get_inventory_status',
   description:
     'Read stock health for a location: what is below its low threshold, days of cover remaining and the recommended reorder quantity. Returns the locationStockId needed to change thresholds.',
-  minRole: 'barista',
+  capability: 'inventory:read',
   step: 'Checking stock levels',
   parameters: schema({
     locationId: nullableString('Restrict to one location, or null for the active one.'),
@@ -653,7 +727,7 @@ const getInventoryStatus: ToolDefinition = {
 const listPurchaseOrders: ToolDefinition = {
   name: 'list_purchase_orders',
   description: 'List purchase orders with supplier, status, expected date and value.',
-  minRole: 'store_manager',
+  capability: 'purchasing:read',
   step: 'Reading purchase orders',
   parameters: schema({
     status: nullableString('draft, submitted, partially_received, received, cancelled, or null.'),
@@ -683,6 +757,24 @@ const listPurchaseOrders: ToolDefinition = {
         lines: (order.lines ?? []).length,
       })),
       evidence: `${orders.length} purchase order${orders.length === 1 ? '' : 's'}${status ? ` (${status})` : ''}`,
+      cards: [
+        {
+          kind: 'list',
+          title: 'Purchase orders',
+          caption: orders.length > 6 ? `Showing 6 of ${orders.length}` : undefined,
+          rows: orders.slice(0, 6).map((order) => ({
+            label: order.reference || `PO #${order.id.slice(0, 8)}`,
+            value: gbp((order.lines ?? []).reduce((sum, line) => sum + toNumber(line.quantityOrdered) * toNumber(line.unitCost), 0)),
+            meta: [order.supplier?.name, order.status, order.expectedAt?.slice(0, 10)].filter(Boolean).join(' · '),
+            tone:
+              order.status === 'cancelled'
+                ? ('negative' as const)
+                : order.status === 'received'
+                  ? ('positive' as const)
+                  : ('default' as const),
+          })),
+        },
+      ],
       shortcuts: [page('Open purchase orders', '/inventory?tab=orders', 'Inventory · Purchase orders')],
     };
   },
@@ -691,7 +783,7 @@ const listPurchaseOrders: ToolDefinition = {
 const listRestockRequests: ToolDefinition = {
   name: 'list_restock_requests',
   description: 'List internal restock requests with their status, quantity and priority.',
-  minRole: 'barista',
+  capability: 'restock:read',
   step: 'Reading restock requests',
   parameters: schema({ status: nullableString('pending, approved, fulfilled, rejected, or null.') }),
   async run(args, runtime) {
@@ -717,6 +809,22 @@ const listRestockRequests: ToolDefinition = {
         };
       }),
       evidence: `${requests.length} restock request${requests.length === 1 ? '' : 's'}${status ? ` (${status})` : ''}`,
+      cards: [
+        {
+          kind: 'list',
+          title: 'Restock requests',
+          caption: requests.length > 6 ? `Showing 6 of ${requests.length}` : undefined,
+          rows: requests.slice(0, 6).map((request) => {
+            const decoded = decodeNotes(request.notes);
+            return {
+              label: request.stockItem?.name ?? request.stockItemId,
+              value: `${toNumber(request.requestedQty)} ${request.stockItem?.unit ?? ''}`.trim(),
+              meta: `${request.status} · ${decoded.priority}`,
+              tone: decoded.priority === 'urgent' ? ('warning' as const) : ('default' as const),
+            };
+          }),
+        },
+      ],
       shortcuts: [page('Open restock requests', '/inventory?tab=demand', 'Inventory · Demand')],
     };
   },
@@ -725,7 +833,7 @@ const listRestockRequests: ToolDefinition = {
 const getStockOperations: ToolDefinition = {
   name: 'get_stock_operations',
   description: 'Read open stock work: pending transfers between locations and stocktakes in progress.',
-  minRole: 'store_manager',
+  capability: 'stock:read',
   step: 'Checking stock operations',
   parameters: schema({ locationId: nullableString('Restrict to one location, or null for the active one.') }),
   async run(args, runtime) {
@@ -762,7 +870,7 @@ const getStockOperations: ToolDefinition = {
 const getLossLog: ToolDefinition = {
   name: 'get_loss_log',
   description: 'Read stock written off over a date range, with reasons — waste, spoilage, breakage or theft.',
-  minRole: 'store_manager',
+  capability: 'loss:read',
   step: 'Reading the loss log',
   parameters: schema({
     from: nullableString(DATE),
@@ -802,7 +910,7 @@ const getLossLog: ToolDefinition = {
 const searchCustomers: ToolDefinition = {
   name: 'search_customers',
   description: 'Find customers by name, phone or email. Returns loyalty tier, points balance and spend.',
-  minRole: 'barista',
+  capability: 'customers:read',
   step: 'Searching customers',
   parameters: schema({ query: { type: 'string', description: 'Name, phone or email fragment; empty string lists recent customers.' } }),
   async run(args, runtime) {
@@ -824,7 +932,48 @@ const searchCustomers: ToolDefinition = {
         marketingOptIn: customer.marketingOptIn,
       })),
       evidence: `${customers.length} customer${customers.length === 1 ? '' : 's'}${search ? ` matching “${search}”` : ''}`,
+      cards: [
+        {
+          kind: 'list',
+          title: search ? 'Matching customers' : 'Recent customers',
+          caption: customers.length > 6 ? `Showing 6 of ${customers.length}` : undefined,
+          rows: customers.slice(0, 6).map((customer) => ({
+            label: `${customer.firstName} ${customer.lastName}`.trim(),
+            value: `${customer.pointsBalance} pts`,
+            meta: [customer.tier, customer.email || customer.phone].filter(Boolean).join(' · '),
+          })),
+        },
+      ],
       shortcuts: [page('Open customers', '/customers', 'Customers')],
+    };
+  },
+};
+
+const listCustomerSegments: ToolDefinition = {
+  name: 'list_customer_segments',
+  description: 'List saved customer segments and the filters each segment uses. Segment membership is evaluated live when opened.',
+  capability: 'segments:read',
+  step: 'Checking customer segments',
+  parameters: schema({}),
+  async run(_args, runtime) {
+    const response = await runtime.get<{ data: CustomerSegment[] }>('/customer-segments');
+    const segments = response.data ?? [];
+    return {
+      output: segments,
+      evidence: `${segments.length} saved customer segment${segments.length === 1 ? '' : 's'}`,
+      cards: [
+        {
+          kind: 'list',
+          title: 'Customer segments',
+          caption: 'Membership updates from live customer data',
+          rows: segments.slice(0, 6).map((segment) => ({
+            label: segment.name,
+            meta: segment.description || `${Object.keys(segment.filters ?? {}).length} active filters`,
+          })),
+          emptyLabel: 'No saved customer segments.',
+        },
+      ],
+      shortcuts: [page('Open customer segments', '/customers', 'Customers · Segments')],
     };
   },
 };
@@ -835,7 +984,7 @@ const getSchedule: ToolDefinition = {
   name: 'get_schedule',
   description:
     'Read the rota for a date range plus who is clocked in right now. Defaults to today. Returns draft and published shifts with the person’s name, their local start and end times, and how long anyone on shift has been clocked in.',
-  minRole: 'store_manager',
+  capability: 'scheduling:read',
   step: 'Reading the rota',
   parameters: schema({
     from: nullableString(`${DATE} Defaults to today.`),
@@ -901,7 +1050,7 @@ const getSchedule: ToolDefinition = {
 const listLeaveRequests: ToolDefinition = {
   name: 'list_leave_requests',
   description: 'List staff leave requests and their status, with the request id needed to approve or decline one.',
-  minRole: 'store_manager',
+  capability: 'hr.leave:read',
   step: 'Reading leave requests',
   parameters: schema({ status: nullableString('pending, approved, declined, cancelled, or null for pending.') }),
   async run(args, runtime) {
@@ -923,6 +1072,24 @@ const listLeaveRequests: ToolDefinition = {
         notes: request.notes ?? null,
       })),
       evidence: `${requests.length} ${status} leave request${requests.length === 1 ? '' : 's'}`,
+      cards: [
+        {
+          kind: 'list',
+          title: `${status[0]?.toUpperCase() ?? ''}${status.slice(1)} leave`,
+          caption: requests.length > 6 ? `Showing 6 of ${requests.length}` : undefined,
+          rows: requests.slice(0, 6).map((request) => ({
+            label: request.employee?.name || names.get(request.userId) || request.userId,
+            value: `${toNumber(request.totalDays)} days`,
+            meta: `${request.startDate} → ${request.endDate}${request.leaveType?.name ? ` · ${request.leaveType.name}` : ''}`,
+            tone:
+              request.status === 'declined'
+                ? ('negative' as const)
+                : request.status === 'approved'
+                  ? ('positive' as const)
+                  : ('warning' as const),
+          })),
+        },
+      ],
       shortcuts: [page('Open leave requests', '/staff/requests', 'Team · Requests')],
     };
   },
@@ -931,7 +1098,7 @@ const listLeaveRequests: ToolDefinition = {
 const listHelpdeskTickets: ToolDefinition = {
   name: 'list_helpdesk_tickets',
   description: 'List internal helpdesk tickets raised by staff — HR, payroll, scheduling, IT and workplace issues.',
-  minRole: 'store_manager',
+  capability: 'helpdesk:manage',
   step: 'Reading helpdesk tickets',
   parameters: schema({ status: nullableString('open, in_progress, waiting_employee, resolved, closed, or null.') }),
   async run(args, runtime) {
@@ -950,7 +1117,412 @@ const listHelpdeskTickets: ToolDefinition = {
         updatedAt: ticket.updatedAt,
       })),
       evidence: `${tickets.length} helpdesk ticket${tickets.length === 1 ? '' : 's'}${status ? ` (${status})` : ''}`,
+      cards: [
+        {
+          kind: 'list',
+          title: 'Helpdesk tickets',
+          caption: tickets.length > 6 ? `Showing 6 of ${tickets.length}` : undefined,
+          rows: tickets.slice(0, 6).map((ticket) => ({
+            label: ticket.subject,
+            value: ticket.status.replaceAll('_', ' '),
+            meta: `${ticket.category} · ${ticket.priority}${ticket.employee?.name ? ` · ${ticket.employee.name}` : ''}`,
+            tone:
+              ticket.priority === 'urgent'
+                ? ('negative' as const)
+                : ticket.priority === 'high'
+                  ? ('warning' as const)
+                  : ('default' as const),
+          })),
+        },
+      ],
       shortcuts: [page('Open helpdesk', '/staff/helpdesk', 'Team · Helpdesk')],
+    };
+  },
+};
+
+// ── Governance, finance and communications ──────────────────────────────────
+
+const getCashUpStatus: ToolDefinition = {
+  name: 'get_cash_up_status',
+  description: 'Read cash-up records for a location, including expected cash/card totals, counted totals, status and variance.',
+  capability: 'cashups:read',
+  step: 'Checking cash-up records',
+  parameters: schema({ locationId: nullableString('Location to inspect, or null for the active location.') }),
+  async run(args, runtime) {
+    const locationId = typeof args.locationId === 'string' && args.locationId ? args.locationId : runtime.locationId;
+    if (!locationId) return { output: { error: 'Select a location before checking cash-up records.' } };
+    const records = await runtime.get<CashUp[]>(`/cash-ups?${new URLSearchParams({ locationId })}`);
+    return {
+      output: records.slice(0, 30),
+      evidence: `${records.length} cash-up record${records.length === 1 ? '' : 's'}`,
+      cards: [
+        {
+          kind: 'list',
+          title: 'Cash-up status',
+          caption: (await runtime.locationName(locationId)) || undefined,
+          rows: records.slice(0, 6).map((record) => ({
+            label: record.tradingDate,
+            value: record.cashVariance == null ? record.status : gbp(record.cashVariance),
+            meta: `${record.status} · cash variance ${record.cashVariance == null ? 'pending' : gbp(record.cashVariance)} · card variance ${record.cardVariance == null ? 'pending' : gbp(record.cardVariance)}`,
+            tone:
+              record.status !== 'closed'
+                ? ('warning' as const)
+                : Math.abs(toNumber(record.cashVariance)) > 0.01 || Math.abs(toNumber(record.cardVariance)) > 0.01
+                  ? ('warning' as const)
+                  : ('positive' as const),
+          })),
+          emptyLabel: 'No cash-up records for this location.',
+        },
+      ],
+      shortcuts: [page('Open cash-up', '/cash-up', 'Cash-up', locationId)],
+    };
+  },
+};
+
+const listPrivacyRequests: ToolDefinition = {
+  name: 'list_privacy_requests',
+  description: 'List GDPR/privacy requests with type, status, customer and due date.',
+  capability: 'privacy:read',
+  step: 'Checking privacy requests',
+  parameters: schema({ status: nullableString('received, in_progress, awaiting_identity, completed, declined, or null for all.') }),
+  async run(args, runtime) {
+    const status = optionalText(args.status, 30);
+    const query = status ? `?${new URLSearchParams({ status })}` : '';
+    const requests = await runtime.get<PrivacyRequest[]>(`/privacy-requests${query}`);
+    return {
+      output: requests.slice(0, 40),
+      evidence: `${requests.length} privacy request${requests.length === 1 ? '' : 's'}${status ? ` (${status})` : ''}`,
+      cards: [
+        {
+          kind: 'list',
+          title: 'Privacy requests',
+          caption: requests.length > 6 ? `Showing 6 of ${requests.length}` : undefined,
+          rows: requests.slice(0, 6).map((request) => ({
+            label:
+              request.customerSnapshot?.name ||
+              (request.customer ? `${request.customer.firstName} ${request.customer.lastName}` : 'Unknown customer'),
+            value: request.status.replaceAll('_', ' '),
+            meta: `${request.type} · due ${request.dueAt.slice(0, 10)}`,
+            tone:
+              !['completed', 'declined'].includes(request.status) && Date.parse(request.dueAt) < Date.now()
+                ? ('negative' as const)
+                : ('default' as const),
+          })),
+          emptyLabel: 'No privacy requests match this status.',
+        },
+      ],
+      shortcuts: [page('Open compliance', '/compliance', 'Compliance')],
+    };
+  },
+};
+
+const getAuditActivity: ToolDefinition = {
+  name: 'get_audit_activity',
+  description: 'Read recent audit activity, optionally filtered by action, resource type or date range.',
+  capability: 'audit:read',
+  step: 'Reading the audit trail',
+  parameters: schema({
+    action: nullableString('Action to filter, or null.'),
+    resourceType: nullableString('Resource type to filter, or null.'),
+    from: nullableString('ISO date or timestamp, or null.'),
+    to: nullableString('ISO date or timestamp, or null.'),
+  }),
+  async run(args, runtime) {
+    const query = new URLSearchParams({ page: '1', limit: '30' });
+    for (const key of ['action', 'resourceType', 'from', 'to'] as const) {
+      const value = optionalText(args[key], 80);
+      if (value) query.set(key, value);
+    }
+    const response = await runtime.get<AuditLogsResponse>(`/audit-logs?${query}`);
+    return {
+      output: response.data,
+      evidence: `${response.total} matching audit event${response.total === 1 ? '' : 's'}`,
+      cards: [
+        {
+          kind: 'list',
+          title: 'Recent audit activity',
+          caption: response.total > 6 ? `Showing 6 of ${response.total}` : undefined,
+          rows: response.data.slice(0, 6).map((entry) => ({
+            label: entry.action.replaceAll('_', ' '),
+            value: entry.statusCode ? String(entry.statusCode) : undefined,
+            meta: `${entry.resourceType} · ${entry.userName || entry.userEmail || 'System'} · ${formatDateTime(entry.createdAt, 'Europe/London')}`,
+            tone: entry.statusCode && entry.statusCode >= 400 ? ('negative' as const) : ('default' as const),
+          })),
+        },
+      ],
+      shortcuts: [page('Open audit log', '/audit-log', 'Audit log')],
+    };
+  },
+};
+
+const getCommunicationsStatus: ToolDefinition = {
+  name: 'get_communications_status',
+  description: 'Read email connection health, templates, automations and recent delivery results.',
+  capability: 'email:read',
+  step: 'Checking customer communications',
+  parameters: schema({}),
+  async run(_args, runtime) {
+    const tenant = runtime.tenantId ? `?tenantId=${encodeURIComponent(runtime.tenantId)}` : '';
+    const deliveriesQuery = new URLSearchParams({ page: '1', limit: '20', ...(runtime.tenantId ? { tenantId: runtime.tenantId } : {}) });
+    const [connection, templates, automations, deliveries] = await Promise.all([
+      runtime.get<EmailConnection | null>(`/email/connection${tenant}`),
+      runtime.get<EmailTemplate[]>(`/email/templates${tenant}`),
+      runtime.get<EmailAutomation[]>(`/email/automations${tenant}`),
+      runtime.get<EmailDeliveriesResponse>(`/email/deliveries?${deliveriesQuery}`),
+    ]);
+    const failed = deliveries.data.filter((delivery) => delivery.status === 'failed').length;
+    return {
+      output: { connection, templates, automations, deliveries: deliveries.data },
+      evidence: `${templates.length} templates, ${automations.length} automations, ${failed} recent failures`,
+      cards: [
+        {
+          title: 'Customer email',
+          caption: connection?.fromEmail || 'No sender connected',
+          metrics: [
+            {
+              label: 'Connection',
+              value: connection?.isEnabled ? 'Enabled' : 'Needs setup',
+              tone: connection?.isEnabled ? 'positive' : 'warning',
+            },
+            { label: 'Active templates', value: String(templates.filter((item) => item.isActive).length) },
+            { label: 'Live automations', value: String(automations.filter((item) => item.isEnabled).length) },
+            { label: 'Recent failures', value: String(failed), tone: failed ? 'negative' : 'positive' },
+          ],
+        },
+      ],
+      shortcuts: [page('Open communications', '/communications', 'Communications')],
+    };
+  },
+};
+
+const getPayrollOverview: ToolDefinition = {
+  name: 'get_payroll_overview',
+  description: 'Preview payroll gross pay and paid hours for a date range, plus recent payroll runs.',
+  capability: 'hr.payroll:read',
+  step: 'Checking payroll',
+  parameters: schema({
+    period: { type: 'string', enum: ['weekly', 'monthly'] },
+    from: { type: 'string', description: DATE },
+    to: { type: 'string', description: DATE },
+  }),
+  async run(args, runtime) {
+    if (!isIsoDate(args.from) || !isIsoDate(args.to)) return { output: { error: 'Payroll dates must use YYYY-MM-DD.' } };
+    const period = args.period === 'monthly' ? 'monthly' : 'weekly';
+    const [preview, runs] = await Promise.all([
+      runtime.get<PayrollPreview>(`/payroll/preview?${new URLSearchParams({ period, from: String(args.from), to: String(args.to) })}`),
+      runtime.get<PayrollRun[]>('/payroll/runs'),
+    ]);
+    return {
+      output: { preview, recentRuns: runs.slice(0, 10) },
+      evidence: `${preview.totals.employees} payroll employee${preview.totals.employees === 1 ? '' : 's'} ${String(args.from)}–${String(args.to)}`,
+      cards: [
+        {
+          title: 'Payroll preview',
+          caption: `${String(args.from)} → ${String(args.to)}`,
+          metrics: [
+            { label: 'Employees', value: String(preview.totals.employees) },
+            { label: 'Gross pay', value: gbp(preview.totals.gross) },
+            {
+              label: 'Paid hours',
+              value: String(
+                round(
+                  preview.lines.reduce((sum, line) => sum + line.paidHours, 0),
+                  1,
+                ),
+              ),
+            },
+            { label: 'Recent runs', value: String(runs.length) },
+          ],
+        },
+      ],
+      shortcuts: [page('Open payroll', '/staff/payroll', 'Team · Payroll')],
+    };
+  },
+};
+
+const getMyWorkspace: ToolDefinition = {
+  name: 'get_my_workspace',
+  description:
+    'Read the signed-in operator’s own Dashboard and My HR summary: current and upcoming shifts, leave balance, HR warnings, documents, payslips, expenses and support requests. Use for broad questions about my workday, my pay, my leave, my rota, or what needs my attention. For a simple name, address, emergency-contact or personal-details question, use get_my_profile instead.',
+  step: 'Checking your Dashboard and My HR',
+  parameters: schema({}),
+  async run(_args, runtime) {
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    const year = now.getFullYear();
+
+    const employee = await runtime.get<HrEmployee>('/hr/employees/me');
+    const optional = await Promise.allSettled([
+      runtime.get<LeaveEntitlement[]>(`/hr/entitlements/me?year=${year}`),
+      runtime.get<LeaveRequest[]>('/hr/leave-requests/my'),
+      runtime.get<HelpdeskTicket[]>('/helpdesk/my'),
+      runtime.get<EmployeeDocument[]>('/hr/documents/me'),
+      runtime.get<Payslip[]>('/hr/payslips/my'),
+      runtime.get<ExpenseClaim[]>('/hr/expense-claims/my'),
+      runtime.get<Shift[]>('/shifts/my'),
+      runtime.get<ScheduledShift[]>(
+        `/scheduled-shifts/my?${new URLSearchParams({ from: weekStart.toISOString(), to: weekEnd.toISOString() })}`,
+      ),
+    ]);
+    const value = <T>(index: number): T[] => (optional[index]?.status === 'fulfilled' ? (optional[index].value as T[]) : []);
+    const entitlements = value<LeaveEntitlement>(0);
+    const requests = value<LeaveRequest>(1);
+    const tickets = value<HelpdeskTicket>(2);
+    const documents = value<EmployeeDocument>(3);
+    const payslips = value<Payslip>(4);
+    const expenses = value<ExpenseClaim>(5);
+    const shifts = value<Shift>(6);
+    const rota = value<ScheduledShift>(7);
+    const unavailable = [
+      'leave entitlement',
+      'leave requests',
+      'HR requests',
+      'documents',
+      'payslips',
+      'expenses',
+      'clock records',
+      'rota',
+    ].filter((_, index) => optional[index]?.status === 'rejected');
+
+    const actions = myHrActions({ employee, documents, tickets, expenses, now });
+    const balance = leaveBalance(entitlements);
+    const activeShift = shifts.find((shift) => !shift.clockedOut) ?? null;
+    const upcoming = rota
+      .filter((shift) => new Date(shift.endsAt).getTime() >= now.getTime())
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    const latestPayslip = [...payslips].sort((a, b) => b.payPeriodEnd.localeCompare(a.payPeriodEnd))[0] ?? null;
+    const openTickets = tickets.filter((ticket) => !['resolved', 'closed'].includes(ticket.status));
+    const pendingLeave = requests.filter((request) => request.status === 'pending');
+
+    return {
+      output: {
+        profile: {
+          displayName: runtime.profile.name ?? null,
+          email: runtime.profile.email ?? null,
+          jobTitle: employee.jobTitle,
+          department: employee.department ?? null,
+          employmentType: employee.employmentType,
+          startDate: employee.startDate,
+          address: employee.address ?? null,
+          emergencyContactComplete: Boolean(employee.emergencyContactName && employee.emergencyContactPhone),
+          nationalInsuranceNumberHeld: Boolean(employee.hasNiNumber),
+        },
+        dashboard: {
+          activeShift: activeShift
+            ? {
+                clockedIn: activeShift.clockedIn,
+                location: activeShift.location?.name ?? activeShift.locationId,
+                elapsedMinutes: Math.max(0, Math.round((now.getTime() - new Date(activeShift.clockedIn).getTime()) / 60_000)),
+              }
+            : null,
+          upcomingShifts: upcoming.slice(0, 12).map((shift) => ({
+            startsAt: shift.startsAt,
+            endsAt: shift.endsAt,
+            location: shift.location?.name ?? shift.locationId,
+            role: shift.role ?? null,
+          })),
+        },
+        myHr: {
+          warnings: actions,
+          leave: balance,
+          pendingLeaveRequests: pendingLeave,
+          openRequests: openTickets.map(({ id, subject, category, priority, status, updatedAt }) => ({
+            id,
+            subject,
+            category,
+            priority,
+            status,
+            updatedAt,
+          })),
+          documents: documents.map(({ id, title, documentType, issuedAt, expiresAt }) => ({
+            id,
+            title,
+            documentType,
+            issuedAt: issuedAt ?? null,
+            expiresAt: expiresAt ?? null,
+          })),
+          latestPayslip: latestPayslip
+            ? {
+                periodStart: latestPayslip.payPeriodStart,
+                periodEnd: latestPayslip.payPeriodEnd,
+                grossPayGbp: toNumber(latestPayslip.grossPay),
+                netPayGbp: toNumber(latestPayslip.netPay),
+                finalisedAt: latestPayslip.finalisedAt,
+              }
+            : null,
+          recentExpenses: expenses.slice(0, 10),
+          unavailableSections: unavailable,
+        },
+      },
+      evidence: `Your Dashboard and My HR · ${actions.length} notice${actions.length === 1 ? '' : 's'}`,
+      cards: [
+        {
+          title: 'My workday',
+          caption: activeShift ? 'Currently on shift' : 'Not clocked in',
+          metrics: [
+            { label: 'Upcoming shifts', value: String(upcoming.length) },
+            { label: 'Leave remaining', value: balance.hasEntitlement ? `${balance.remaining} days` : 'Not set' },
+            {
+              label: 'Needs attention',
+              value: String(actions.filter((action) => action.severity !== 'info').length),
+              tone: actions.some((action) => action.severity !== 'info') ? 'warning' : 'positive',
+            },
+            { label: 'Open HR requests', value: String(openTickets.length) },
+          ],
+        },
+        {
+          kind: 'list',
+          title: 'My HR notices',
+          caption: actions.length ? 'Most urgent first' : 'Everything looks up to date',
+          rows: actions.slice(0, 6).map((action) => ({
+            label: action.title,
+            meta: action.detail,
+            tone:
+              action.severity === 'blocking'
+                ? ('negative' as const)
+                : action.severity === 'attention'
+                  ? ('warning' as const)
+                  : ('default' as const),
+          })),
+          emptyLabel: 'Nothing needs your attention.',
+        },
+      ],
+      shortcuts: [
+        page('Edit your details', '/my-hr?tab=overview&action=edit-details', 'My HR · Review your name and edit personal details'),
+      ],
+    };
+  },
+};
+
+const getMyProfile: ToolDefinition = {
+  name: 'get_my_profile',
+  description:
+    'Read only the signed-in operator’s basic employment and editable personal-detail status. Always use this for questions about my name, my address, my emergency contact, my National Insurance number, or where to edit my personal details. This intentionally excludes payslips, expenses, documents and private HR requests.',
+  step: 'Checking your personal details',
+  parameters: schema({}),
+  async run(_args, runtime) {
+    const employee = await runtime.get<HrEmployee>('/hr/employees/me');
+    return {
+      output: {
+        displayName: runtime.profile.name ?? null,
+        email: runtime.profile.email ?? null,
+        jobTitle: employee.jobTitle,
+        department: employee.department ?? null,
+        employmentType: employee.employmentType,
+        startDate: employee.startDate,
+        addressHeld: Boolean(employee.address),
+        emergencyContactComplete: Boolean(employee.emergencyContactName && employee.emergencyContactPhone),
+        nationalInsuranceNumberHeld: Boolean(employee.hasNiNumber),
+        editableInDetailsDrawer: ['address', 'emergency contact', 'bank details', 'National Insurance number'],
+      },
+      evidence: 'Your My HR profile',
+      shortcuts: [
+        page('Edit your details', '/my-hr?tab=overview&action=edit-details', 'My HR · Review your name and edit personal details'),
+      ],
     };
   },
 };
@@ -972,15 +1544,26 @@ export const TOOLS: ToolDefinition[] = [
   getStockOperations,
   getLossLog,
   searchCustomers,
+  listCustomerSegments,
   getSchedule,
   listLeaveRequests,
   listHelpdeskTickets,
+  getCashUpStatus,
+  listPrivacyRequests,
+  getAuditActivity,
+  getCommunicationsStatus,
+  getMyProfile,
+  getMyWorkspace,
+  getPayrollOverview,
 ];
 
 const TOOL_BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
 
-export function toolsForRole(role: StaffRole | null | undefined) {
-  return TOOLS.filter((tool) => roleAtLeast(role, tool.minRole));
+export function toolsForCapabilities(capabilities: readonly string[]) {
+  // A tool with no capability is open to everyone; otherwise the caller must
+  // hold it. The API re-checks on every call the tool makes — this only decides
+  // which tools the model is even offered, so it cannot be the security boundary.
+  return TOOLS.filter((tool) => !tool.capability || hasCapability(capabilities, tool.capability));
 }
 
 export function toolByName(name: string) {

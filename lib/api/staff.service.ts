@@ -3,22 +3,13 @@ import { ApiError, apiFetch } from './client';
 export type StaffRole = 'super_admin' | 'franchise_owner' | 'store_manager' | 'barista' | 'hr_manager' | 'marketing_manager' | 'auditor';
 export type StaffScope = 'global' | 'franchise' | 'location';
 
-// Role ranks — same ordering the API uses for requireMinRole.
-export const ROLE_RANK: Record<StaffRole, number> = {
-  super_admin: 100,
-  franchise_owner: 80,
-  store_manager: 60,
-  hr_manager: 40,
-  marketing_manager: 40,
-  auditor: 40,
-  barista: 20,
-};
-
-// True if `role` meets or exceeds `min`. A null role (unknown) never qualifies.
-export function roleAtLeast(role: StaffRole | null | undefined, min: StaffRole): boolean {
-  if (!role) return false;
-  return (ROLE_RANK[role] ?? 0) >= (ROLE_RANK[min] ?? 0);
-}
+// There is deliberately no ROLE_RANK / roleAtLeast here any more. Authority is
+// not a single number: ranking `marketing_manager` below `store_manager` hid the
+// customer base from the role that owns it, and ranking `auditor` above
+// `barista` let a read-only role take payments. Gate features on capabilities
+// instead — see lib/auth/capabilities.ts. `role` remains for display and for the
+// few genuinely role-shaped questions, such as which accounts are pinned to a
+// set of locations.
 
 // The API returns the account details nested under `user`. We flatten `name`/
 // `email`/`image` onto the profile (see `normalizeStaff`) so callers can read
@@ -43,6 +34,10 @@ export interface StaffProfile {
   locationIds?: string[];
   createdAt: string;
   user?: StaffUser;
+  // The capabilities this role holds, exactly as the API authorises on them.
+  // Only `GET /staff/me` returns these — rows from `GET /staff` (the team list)
+  // describe other people and carry no capability list, hence optional.
+  capabilities?: string[];
 }
 
 // Lift the nested `user` fields to the top level so `profile.name` / `profile.email`

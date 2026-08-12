@@ -35,7 +35,8 @@ import { getEmployees } from '@/lib/api/hr.service';
 import { getPayrollRuns } from '@/lib/api/payroll.service';
 import { getScheduledShifts, getVariance, publishScheduledShifts } from '@/lib/api/scheduling.service';
 import { type Shift, getActiveShifts, getShifts } from '@/lib/api/shifts.service';
-import { getStaff, roleAtLeast } from '@/lib/api/staff.service';
+import { getStaff } from '@/lib/api/staff.service';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
@@ -117,10 +118,11 @@ export function ShiftsWorkspace({
   const { tenantId, locationId } = useWorkspaceStore();
   const qc = useQueryClient();
   const role = useAuthStore((s) => s.role);
+  const capabilities = useAuthStore((s) => s.capabilities);
   const money = canSeeMoney(role);
-  // Running the clock for someone else is store_manager+ on the API — hr_manager
-  // out-ranks nobody here, so check the rank rather than team access.
-  const canClock = roleAtLeast(role, 'store_manager');
+  // Running the clock for someone else is a write on another person's shift —
+  // distinct from clocking yourself in, which needs no capability at all.
+  const canClock = hasCapability(capabilities, 'shifts:write');
 
   // Only the row's identity is held — the record itself is re-read from the
   // live rows below, so clocking in or out updates the open drawer in place.

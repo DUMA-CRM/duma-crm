@@ -57,6 +57,12 @@ export function workflowErrors(definition: EmailWorkflowDefinition) {
   if (trigger.length !== 1) errors.push('Use exactly one trigger.');
   if (!definition.nodes.some((node) => node.type === 'send_email')) errors.push('Add at least one email step.');
   if (!definition.nodes.some((node) => node.type === 'end')) errors.push('Add an end step.');
+  // A segment trigger with no segment publishes happily and then never fires.
+  // The API refuses it too; catching it here is what lets the editor say so.
+  const first = trigger[0];
+  if (first?.type === 'trigger' && first.config.event === 'segment_entered' && !first.config.segmentId) {
+    errors.push('Choose the segment this automation watches.');
+  }
   for (const node of definition.nodes) {
     if (node.type === 'send_email' && !node.config.templateId) errors.push(`Choose a template for “${node.name}”.`);
     const outgoing = definition.edges.filter((edge) => edge.source === node.id);
@@ -164,6 +170,103 @@ export function removeWorkflowNode(definition: EmailWorkflowDefinition, nodeId: 
     nodes: candidate.nodes.filter((item) => reachable.has(item.id)),
     edges: candidate.edges.filter((edge) => reachable.has(edge.source) && reachable.has(edge.target)),
   };
+}
+
+/** Steps that can be picked up and dropped somewhere else. */
+export const isMovableNode = (node: EmailWorkflowNode) => node.type === 'send_email' || node.type === 'delay';
+
+/** Every node reachable from `nodeId`, itself included. */
+function subtreeIds(definition: EmailWorkflowDefinition, nodeId: string) {
+  const seen = new Set<string>();
+  const visit = (current: string) => {
+    if (seen.has(current)) return;
+    seen.add(current);
+    for (const edge of definition.edges.filter((candidate) => candidate.source === current)) visit(edge.target);
+  };
+  visit(nodeId);
+  return seen;
+}
+
+/**
+ * Detach a step, splicing the flow closed around it, and hand the step back.
+ *
+ * Unlike `removeWorkflowNode` this never prunes: the caller is about to put the
+ * step back somewhere else, and pruning would delete the very node being moved.
+ * Only linear steps qualify — a condition owns two branches, and dragging one
+ * means dragging a subtree, which is a different (and much easier to get wrong)
+ * operation than reordering.
+ */
+function detachNode(definition: EmailWorkflowDefinition, nodeId: string) {
+  const node = definition.nodes.find((candidate) => candidate.id === nodeId);
+  if (!node || !isMovableNode(node)) return null;
+
+  const continuation = definition.edges.find((edge) => edge.source === nodeId)?.target;
+  if (!continuation) return null;
+
+  const incoming = definition.edges.filter((edge) => edge.target === nodeId);
+  const edges = definition.edges
+    .filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+    .concat(
+      incoming.map<EmailWorkflowEdge>((edge) => ({
+        id: id('edge'),
+        source: edge.source,
+        target: continuation,
+        branch: edge.branch ?? 'next',
+      })),
+    );
+
+  return {
+    node,
+    definition: { ...definition, nodes: definition.nodes.filter((candidate) => candidate.id !== nodeId), edges },
+  };
+}
+
+/** Put an existing step on the connection leaving `afterNodeId` down `branch`. */
+function attachAfter(definition: EmailWorkflowDefinition, node: EmailWorkflowNode, afterNodeId: string, branch: string) {
+  const edge = definition.edges.find(
+    (candidate) => candidate.source === afterNodeId && (candidate.branch ?? 'next') === branch,
+  );
+  if (!edge) return definition;
+  return {
+    ...definition,
+    nodes: [...definition.nodes, node],
+    edges: [
+      ...definition.edges.filter((candidate) => candidate.id !== edge.id),
+      { id: id('edge'), source: edge.source, target: node.id, branch: edge.branch ?? 'next' },
+      { id: id('edge'), source: node.id, target: edge.target, branch: 'next' as const },
+    ],
+  };
+}
+
+/**
+ * Move a step to sit directly after another one.
+ *
+ * The destination is named as "after this node, down this branch" rather than by
+ * edge id, because detaching rewires the edges around the gap and any id the
+ * caller was holding would already be stale by the time we used it.
+ */
+export function moveWorkflowNode(
+  definition: EmailWorkflowDefinition,
+  nodeId: string,
+  afterNodeId: string,
+  branch = 'next',
+): EmailWorkflowDefinition {
+  if (nodeId === afterNodeId) return definition;
+  // Dropping a step inside its own downstream would cut the flow loose from the
+  // trigger, so the drop is refused rather than repaired.
+  if (subtreeIds(definition, nodeId).has(afterNodeId)) return definition;
+
+  const detached = detachNode(definition, nodeId);
+  if (!detached) return definition;
+  return attachAfter(detached.definition, detached.node, afterNodeId, branch);
+}
+
+/** Copy a step in directly below itself. Linear steps only, same as moving. */
+export function duplicateWorkflowNode(definition: EmailWorkflowDefinition, nodeId: string): EmailWorkflowDefinition {
+  const node = definition.nodes.find((candidate) => candidate.id === nodeId);
+  if (!node || !isMovableNode(node)) return definition;
+  const copy = { ...node, id: id(node.type), name: `${node.name} copy` } as EmailWorkflowNode;
+  return attachAfter(definition, copy, nodeId, 'next');
 }
 
 export function orderedWorkflowNodes(definition: EmailWorkflowDefinition) {

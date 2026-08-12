@@ -9,7 +9,8 @@ export type EmailTrigger =
   | 'order_cancelled'
   | 'customer_created'
   | 'customer_birthday'
-  | 'customer_inactive';
+  | 'customer_inactive'
+  | 'segment_entered';
 export type EmailDeliveryStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'cancelled';
 export type EmailWorkflowConditionField =
   | 'customer.marketingOptIn'
@@ -23,7 +24,14 @@ export type EmailWorkflowNode =
       id: string;
       type: 'trigger';
       name: string;
-      config: { event: Exclude<EmailTrigger, 'manual'>; locationId?: string | null; offsetDays?: number; timezone?: string };
+      config: {
+        event: Exclude<EmailTrigger, 'manual'>;
+        locationId?: string | null;
+        offsetDays?: number;
+        timezone?: string;
+        /** Required by `segment_entered`, ignored by every other trigger. */
+        segmentId?: string | null;
+      };
     }
   | { id: string; type: 'send_email'; name: string; config: { templateId: string } }
   | { id: string; type: 'delay'; name: string; config: { amount: number; unit: 'minutes' | 'hours' | 'days' } }

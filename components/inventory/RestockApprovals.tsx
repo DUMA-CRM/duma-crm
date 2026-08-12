@@ -34,7 +34,7 @@ import {
   getRestockRequests,
   updateRestockRequest,
 } from '@/lib/api/restock.service';
-import { roleAtLeast } from '@/lib/api/staff.service';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { timeAgo } from '@/lib/utils/format';
@@ -282,7 +282,7 @@ export function RestockApprovals({
   onStatusChange?: (status: RestockStatus) => void;
 } = {}) {
   const { tenantId, locationId } = useWorkspaceStore();
-  const role = useAuthStore((state) => state.role);
+  const capabilities = useAuthStore((state) => state.capabilities);
   const [ownStatus, setOwnStatus] = useState<RestockStatus>('pending');
   const activeTab = status ?? ownStatus;
   // Requests are listed across every location — the row carries its own — so the
@@ -290,7 +290,7 @@ export function RestockApprovals({
   const [itemFilter, setItemFilter] = useState('all');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
-  const canDelete = roleAtLeast(role, 'franchise_owner');
+  const canDelete = hasCapability(capabilities, 'restock:delete');
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['restock-requests', 'list', activeTab, itemFilter, page],

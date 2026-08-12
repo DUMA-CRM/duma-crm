@@ -18,13 +18,13 @@ import {
   Trash2,
   TriangleAlert,
 } from '@/components/icons';
-import { CategoryCombobox } from '@/components/shared/CategoryCombobox';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 import {
   type EmailTemplate,
@@ -33,7 +33,6 @@ import {
   createEmailTemplate,
   getEmailAutomations,
   getEmailConnection,
-  getEmailTemplates,
   getEmailVariables,
   sendEmail,
   updateEmailTemplate,
@@ -63,6 +62,7 @@ import {
   templateDesignToPlainText,
   updateTemplateBlock,
 } from './templateDesign';
+import { DEFAULT_TEMPLATE_CATEGORY, TEMPLATE_CATEGORIES } from './shared';
 import { workflowForAutomation } from './workflowModel';
 
 const FORM_ID = 'email-template-form';
@@ -104,7 +104,7 @@ export function TemplateEditorPage({
       ? legacyHtmlToDesign(source.htmlBody)
       : defaultTemplateDesign();
   const [name, setName] = useState(source?.name ?? '');
-  const [category, setCategory] = useState(source?.category ?? 'general');
+  const [category, setCategory] = useState(source?.category ?? DEFAULT_TEMPLATE_CATEGORY);
   const [subject, setSubject] = useState(source?.subject ?? '');
   const [design, setDesign] = useState<TemplateDesign>(initialDesign);
   const [htmlBody, setHtmlBody] = useState(source?.htmlBody ?? renderTemplateDesign(initialDesign));
@@ -141,11 +141,6 @@ export function TemplateEditorPage({
   const dirty = snapshot !== initialSnapshot;
 
   const { data: variables = [] } = useQuery({ queryKey: ['email-variables'], queryFn: getEmailVariables });
-  const { data: templates = [] } = useQuery({
-    queryKey: ['email-templates', tenantId],
-    queryFn: () => getEmailTemplates(tenantId ?? undefined),
-    enabled: !!tenantId,
-  });
   const { data: automations = [] } = useQuery({
     queryKey: ['email-automations', tenantId],
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
@@ -157,10 +152,16 @@ export function TemplateEditorPage({
     enabled: !!tenantId,
     retry: false,
   });
-  const categories = useMemo(
-    () => [...new Set(templates.map((item) => item.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
-    [templates],
-  );
+  // A template saved under an older free-text category keeps its own entry, so
+  // it stays selectable instead of silently jumping to another bucket on save.
+  const categoryOptions = useMemo(() => {
+    const known = TEMPLATE_CATEGORIES.map(({ value, label }) => ({ value, label }));
+    return known.some((option) => option.value === category)
+      ? known
+      : [...known, { value: category, label: `${category} (old category)` }];
+  }, [category]);
+  const categoryHint = TEMPLATE_CATEGORIES.find((option) => option.value === category)?.hint ?? 'Kept from an earlier category.';
+
   const usedBy = automations.filter((automation) =>
     workflowForAutomation(automation).nodes.some((node) => node.type === 'send_email' && node.config.templateId === savedId),
   );
@@ -174,7 +175,7 @@ export function TemplateEditorPage({
     const payload: EmailTemplatePayload = {
       tenantId: tenantId ?? undefined,
       name: name.trim(),
-      category: category.trim() || 'general',
+      category: category.trim() || DEFAULT_TEMPLATE_CATEGORY,
       subject,
       htmlBody: compiledHtml,
       textBody: compiledText,
@@ -357,8 +358,18 @@ export function TemplateEditorPage({
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Template</p>
             <Input label="Name" value={name} onChange={(event) => setName(event.target.value)} required />
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted-foreground">Category</label>
-              <CategoryCombobox value={category} onChange={setCategory} categories={categories} allowEmpty={false} />
+              <label htmlFor="template-category" className="text-xs font-bold text-muted-foreground">
+                Category
+              </label>
+              <Select
+                id="template-category"
+                value={category}
+                onValueChange={setCategory}
+                options={categoryOptions}
+                ariaLabel="Template category"
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">{categoryHint}</p>
             </div>
           </div>
         </aside>

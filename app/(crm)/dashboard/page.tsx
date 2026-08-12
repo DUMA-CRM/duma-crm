@@ -1,13 +1,13 @@
 import { MyDashboard } from '@/components/dashboard/MyDashboard';
 import { TodayDashboard } from '@/components/dashboard/TodayDashboard';
 
-import { roleAtLeast } from '@/lib/api/staff.service';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
 
 export default async function DashboardPage() {
   const profile = await getCurrentStaffProfile();
 
-  if (profile && roleAtLeast(profile.role, 'store_manager')) {
+  if (profile && hasCapability(profile, 'analytics:read')) {
     return <TodayDashboard role={profile.role} />;
   }
 

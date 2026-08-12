@@ -21,7 +21,16 @@ export const NODE_META: Record<NodeType, { label: string; icon: IconComponent; c
   end: { label: 'End', icon: CheckCircle2, chip: 'bg-band text-muted-foreground', ink: 'text-faint' },
 };
 
-/** The dotted canvas backdrop — a workflow always sits on graph paper. */
+/**
+ * The dotted backdrop a workflow sits on.
+ *
+ * This was removed for a while on the argument that graph paper promises a
+ * free canvas the model cannot honour — there are no coordinates, position is
+ * derived from the edges. That was true when the only thing you could do to a
+ * step was click it. Now that steps can be picked up and dropped between any
+ * two others, the grid is describing something real: a surface you rearrange
+ * things on. The problem was never the grid, it was the grid without the verb.
+ */
 export const DOT_GRID_STYLE: React.CSSProperties = {
   backgroundImage: 'radial-gradient(circle, color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px)',
   backgroundSize: '16px 16px',

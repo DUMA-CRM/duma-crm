@@ -1,6 +1,8 @@
-import { requireMinimumRole } from '@/lib/auth/require-role';
+import { requireCapability } from '@/lib/auth/require-capability';
 
 export default async function OrdersLayout({ children }: { children: React.ReactNode }) {
-  await requireMinimumRole('store_manager');
+  // The management surface — refunds, bulk status, export. Every till user holds
+  // `orders:read` for their own order flow, which is not enough for this page.
+  await requireCapability('orders:bulk');
   return children;
 }

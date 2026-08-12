@@ -8,10 +8,10 @@ import { Logo } from '@/components/shared/Logo';
 import { Tooltip } from '@/components/shared/Tooltip';
 
 import { getOrders } from '@/lib/api/orders.service';
-import type { StaffRole } from '@/lib/api/staff.service';
-import { analyticsNavItems, filterNavByRole, footerNavItems, mainNavItems } from '@/lib/constants/nav';
+import { analyticsNavItems, filterNavByCapability, footerNavItems, mainNavItems } from '@/lib/constants/nav';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
+import { useAuthStore } from '@/stores/authStore';
 import { useLoginIntroStore } from '@/stores/loginIntroStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -19,15 +19,22 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { LocationPicker } from './LocationPicker';
 import { SidebarNavItem } from './SidebarNavItem';
 
-export function Sidebar({ role }: { role: StaffRole | null }) {
+export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
   const { collapsed, mobileOpen, closeMobile } = useSidebarStore();
   // True until the sign-in intro's mark has finished flying into the brand slot.
   const introPending = useLoginIntroStore((s) => s.pending);
   const { logout } = useAuth();
   const { locationId } = useWorkspaceStore();
 
-  const mainItems = filterNavByRole(mainNavItems, role);
-  const analyticsItems = filterNavByRole(analyticsNavItems, role);
+  // Prefer the store once AuthInitializer has hydrated it, so a role change
+  // reflected by a refetch updates the nav without a full reload. The prop is
+  // the server-rendered value and covers the first paint.
+  const hydrated = useAuthStore((state) => state.isLoaded);
+  const storeCapabilities = useAuthStore((state) => state.capabilities);
+  const effective = hydrated ? storeCapabilities : capabilities;
+
+  const mainItems = filterNavByCapability(mainNavItems, effective);
+  const analyticsItems = filterNavByCapability(analyticsNavItems, effective);
 
   // Badge the Orders nav item with the exact active count. Three count-only
   // responses are much smaller than downloading 200 complete orders globally

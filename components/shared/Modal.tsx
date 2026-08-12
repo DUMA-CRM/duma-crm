@@ -10,14 +10,37 @@ import { Button } from '../ui/button';
 
 interface ModalProps {
   title: string;
+  /** Sub-line under the title. Say what the dialog does, not that it is a dialog. */
+  description?: string;
   onClose: () => void;
+  /**
+   * Pinned below the scrolling body — Cancel / confirm live here.
+   *
+   * Every dialog in the app used to draw its own button row inside `children`,
+   * which meant three different footers for three equally-weighted tasks and,
+   * worse, confirm buttons that scrolled out of sight on a long form. Same
+   * contract as `Drawer`, so a task reads the same whichever chrome it lands in.
+   */
+  footer?: React.ReactNode;
+  /** Extra controls right of the title, left of the close button. */
+  actions?: React.ReactNode;
+  size?: ModalSize;
   children: React.ReactNode;
   className?: string;
 }
 
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
+
+const SIZES: Record<ModalSize, string> = {
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-xl',
+  xl: 'max-w-2xl',
+};
+
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
-export function Modal({ title, onClose, children, className }: ModalProps) {
+export function Modal({ title, description, onClose, footer, actions, size = 'md', children, className }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   // Portal to <body> so `fixed` positioning is relative to the viewport, not a
   // transformed ancestor (e.g. the slide-in page sidebar). Mount-gate for SSR.
@@ -76,17 +99,28 @@ export function Modal({ title, onClose, children, className }: ModalProps) {
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'relative bg-card border border-rule rounded-sm shadow-xl w-full max-w-md flex flex-col max-h-[90vh] outline-none',
+          'relative flex max-h-[90vh] w-full flex-col rounded-sm border border-rule bg-card shadow-xl outline-none',
+          'duration-150 animate-in fade-in-0 zoom-in-95',
+          SIZES[size],
           className,
         )}
       >
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-rule shrink-0">
-          <h2 className="text-base font-semibold text-foreground">{title}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog">
-            <X size={16} aria-hidden="true" />
-          </Button>
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-rule px-6 pb-4 pt-5">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-foreground">{title}</h2>
+            {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {actions}
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog">
+              <X size={16} aria-hidden="true" />
+            </Button>
+          </div>
         </div>
-        <div className="px-6 py-5 overflow-y-auto">{children}</div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+
+        {footer && <div className="shrink-0 border-t border-rule bg-band/65 px-6 py-4">{footer}</div>}
       </div>
     </div>,
     document.body,

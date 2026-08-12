@@ -74,6 +74,16 @@ export function Drawer({ title, description, onClose, footer, actions, children,
     };
   }, [onClose]);
 
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    window.dispatchEvent(new CustomEvent('duma:drawer-change'));
+    return () => {
+      window.dispatchEvent(new CustomEvent('duma:drawer-change'));
+    };
+  }, []);
+
   if (!mounted) return null;
 
   return createPortal(
@@ -81,6 +91,7 @@ export function Drawer({ title, description, onClose, footer, actions, children,
       <div className="absolute inset-0 bg-black/35" onClick={onClose} />
       <div
         ref={panelRef}
+        data-duma-drawer
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -106,7 +117,11 @@ export function Drawer({ title, description, onClose, footer, actions, children,
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
 
-        {footer && <div className="shrink-0 border-t border-rule/55 bg-band/65 px-5 py-4 sm:px-6">{footer}</div>}
+        {footer && (
+          <div data-drawer-footer className="shrink-0 border-t border-rule/55 bg-band/65 px-5 py-4 sm:px-6">
+            {footer}
+          </div>
+        )}
       </div>
     </div>,
     document.body,

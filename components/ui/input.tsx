@@ -83,7 +83,12 @@ function Input({ className, type, label, hint, error, leftIcon, rightIcon, right
             // alone cannot carry both. The rule clears 3:1 on every surface.
             // Keep focused fields at 16px on small screens so iOS does not zoom
             // the entire interface; the established 14px density resumes at sm.
-            'w-full h-10 bg-field border border-input rounded-md text-base sm:text-sm text-foreground shadow-sm',
+            // 36px, the same as a button, a select and the date picker: a field
+            // standing 4px taller than the control beside it in a toolbar row
+            // reads as a mistake, and every control in this product lines up on
+            // the one height. Touch-first surfaces reach for the named touch
+            // sizes rather than lifting this default.
+            'w-full h-9 bg-field border border-input rounded-md text-base sm:text-sm text-foreground shadow-sm',
             'placeholder:text-muted-foreground outline-none',
             'transition-[border-color,outline-color,box-shadow] duration-150',
             // Focus is the crosshair marker: a hard amber outline, no soft glow.

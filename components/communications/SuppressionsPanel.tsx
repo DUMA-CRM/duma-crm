@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { Info, Plus, Search, ShieldOff } from '@/components/icons';
+import { Info, Search, ShieldOff } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,7 @@ import { formatDate } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { PanelHeader, PanelSearch, PanelToolbar, ResultCount } from './PanelChrome';
+import { PanelSearch, PanelToolbar, ResultCount } from './PanelChrome';
 
 const REASONS = [
   { value: 'customer_request', label: 'Customer request' },
@@ -25,10 +25,14 @@ const REASONS = [
   { value: 'other', label: 'Other' },
 ];
 
-export function SuppressionsPanel() {
+/**
+ * `adding` is controlled by the page rather than held here: the "Add email"
+ * button lives in the masthead with every other tab's primary action, and a
+ * button cannot open a dialog whose state is two components below it.
+ */
+export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean; onAddingChange: (open: boolean) => void }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [reason, setReason] = useState('customer_request');
   const [search, setSearch] = useState('');
@@ -43,7 +47,7 @@ export function SuppressionsPanel() {
     mutationFn: () => addMarketingSuppression({ tenantId: tenantId ?? undefined, email, reason, source: 'staff' }),
     onSuccess: () => {
       void refresh();
-      setOpen(false);
+      onAddingChange(false);
       setEmail('');
       toast('success', 'Email added to the suppression list.');
     },
@@ -69,18 +73,6 @@ export function SuppressionsPanel() {
 
   return (
     <div className="space-y-4">
-      <PanelHeader
-        title="Suppressions"
-        count={data.length}
-        description="Addresses excluded from promotional and lifecycle email, including manual marketing sends."
-        actions={
-          <Button onClick={() => setOpen(true)}>
-            <Plus />
-            Add email
-          </Button>
-        }
-      />
-
       <div className="flex items-start gap-3 rounded-sm border border-info/30 bg-info/5 p-4">
         <Info size={16} className="mt-0.5 shrink-0 text-info" aria-hidden="true" />
         <p className="text-sm leading-relaxed text-foreground">
@@ -158,8 +150,8 @@ export function SuppressionsPanel() {
         )}
       </div>
 
-      {open && (
-        <Modal title="Add marketing suppression" onClose={() => setOpen(false)}>
+      {adding && (
+        <Modal title="Add marketing suppression" onClose={() => onAddingChange(false)}>
           <div className="space-y-4">
             <Input
               label="Email"
@@ -175,7 +167,7 @@ export function SuppressionsPanel() {
               <Select value={reason} onValueChange={setReason} options={REASONS} ariaLabel="Suppression reason" className="w-full" />
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
+              <Button variant="outline" onClick={() => onAddingChange(false)} className="flex-1">
                 Cancel
               </Button>
               <Button onClick={() => add.mutate()} disabled={add.isPending || !email.includes('@')} className="flex-1">

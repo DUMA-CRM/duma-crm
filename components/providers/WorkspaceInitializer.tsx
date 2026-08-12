@@ -3,7 +3,6 @@
 import { useLayoutEffect } from 'react';
 
 import type { StaffProfile } from '@/lib/api/staff.service';
-import { roleAtLeast } from '@/lib/api/staff.service';
 import { useTenants } from '@/lib/hooks/useTenants';
 import { useAuthStore } from '@/stores/authStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
@@ -34,7 +33,15 @@ export function WorkspaceInitializer({ profile }: { profile: AssignedWorkspace |
     // Every non-super-admin is fixed to their profile tenant. Restricted roles
     // cannot visit Workspaces, so also keep a valid assigned location or choose
     // their first one. Owners may select any location within their tenant.
-    const locationId = roleAtLeast(profile.role, 'franchise_owner')
+    //
+    // This stays a role check rather than a capability one: it is not asking
+    // "may you do X", it is asking whether this account is pinned to a set of
+    // locations at all. That is a property of the role itself, not a permission.
+    // super_admin already returned above, so franchise_owner is the only
+    // tenant-wide, unpinned case left here.
+    const tenantWide = profile.role === 'franchise_owner';
+
+    const locationId = tenantWide
       ? tenantChanged
         ? null
         : current.locationId

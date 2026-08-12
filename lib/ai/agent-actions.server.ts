@@ -5,8 +5,7 @@ import type { Order } from '@/lib/api/orders.service';
 import type { LeaveRequest } from '@/lib/api/people-ops.service';
 import type { PurchaseOrder } from '@/lib/api/purchasing.service';
 import { encodeNotes } from '@/lib/api/restock.service';
-import type { StaffRole } from '@/lib/api/staff.service';
-import { roleAtLeast } from '@/lib/api/staff.service';
+import { type Capability, hasCapability } from '@/lib/auth/capabilities';
 import type { Customer, CustomersResponse } from '@/types/customers';
 import type { MenuItem } from '@/types/menu';
 
@@ -80,7 +79,7 @@ export interface ActionResult {
 
 export interface ActionDefinition {
   kind: string;
-  minRole: StaffRole;
+  capability: Capability;
   /** Tool the model calls to prepare this action. It never writes anything. */
   tool: { name: string; description: string; parameters: JsonObject };
   draft(args: JsonObject, runtime: AgentRuntime): Promise<AgentPendingAction | { error: string }>;
@@ -116,7 +115,7 @@ const inventoryShortcut = (tab: keyof typeof INVENTORY_TABS, locationId?: string
 
 const createPurchaseOrder: ActionDefinition = {
   kind: 'create_purchase_order',
-  minRole: 'store_manager',
+  capability: 'purchasing:write',
   tool: {
     name: 'draft_purchase_order',
     description:
@@ -244,7 +243,7 @@ const createPurchaseOrder: ActionDefinition = {
 
 const createRestockRequest: ActionDefinition = {
   kind: 'create_restock_request',
-  minRole: 'barista',
+  capability: 'restock:write',
   tool: {
     name: 'draft_restock_request',
     description: 'Prepare an internal restock request for approval — the way a site asks for stock without raising a supplier order.',
@@ -313,7 +312,7 @@ const createRestockRequest: ActionDefinition = {
 
 const createStockTransfer: ActionDefinition = {
   kind: 'create_stock_transfer',
-  minRole: 'store_manager',
+  capability: 'stock.transfers:write',
   tool: {
     name: 'draft_stock_transfer',
     description: 'Prepare a stock transfer between two locations for approval. Use when one site has spare stock another site needs.',
@@ -407,7 +406,7 @@ const createStockTransfer: ActionDefinition = {
 
 const recordStockLoss: ActionDefinition = {
   kind: 'record_stock_loss',
-  minRole: 'store_manager',
+  capability: 'loss:write',
   tool: {
     name: 'draft_stock_loss',
     description:
@@ -489,7 +488,7 @@ const ORDER_STATUSES: Array<[string, string]> = [
 
 const updateOrderStatus: ActionDefinition = {
   kind: 'update_order_status',
-  minRole: 'barista',
+  capability: 'orders:status',
   tool: {
     name: 'draft_order_status_change',
     description: 'Prepare a change to one order’s status for approval. Cancelling an order also needs a void reason.',
@@ -577,7 +576,7 @@ const updateOrderStatus: ActionDefinition = {
 
 const adjustCustomerPoints: ActionDefinition = {
   kind: 'adjust_customer_points',
-  minRole: 'store_manager',
+  capability: 'customers:points',
   tool: {
     name: 'draft_points_adjustment',
     description:
@@ -645,7 +644,7 @@ const adjustCustomerPoints: ActionDefinition = {
 
 const updateMenuItem: ActionDefinition = {
   kind: 'update_menu_item',
-  minRole: 'store_manager',
+  capability: 'menu:write',
   tool: {
     name: 'draft_menu_item_update',
     description: 'Prepare a menu item price or availability change for approval. Price is brand-wide — there is no per-location pricing.',
@@ -725,7 +724,7 @@ function timeOptions(): AgentFieldOption[] {
 
 const scheduleShift: ActionDefinition = {
   kind: 'schedule_shift',
-  minRole: 'store_manager',
+  capability: 'scheduling:write',
   tool: {
     name: 'draft_scheduled_shift',
     description:
@@ -801,7 +800,7 @@ const scheduleShift: ActionDefinition = {
 
 const reviewLeaveRequest: ActionDefinition = {
   kind: 'review_leave_request',
-  minRole: 'hr_manager',
+  capability: 'hr.leave:review',
   tool: {
     name: 'draft_leave_decision',
     description: 'Prepare an approve or decline decision on a pending leave request. Read list_leave_requests first to get the id.',
@@ -859,7 +858,7 @@ const reviewLeaveRequest: ActionDefinition = {
 
 const updateStockThresholds: ActionDefinition = {
   kind: 'update_stock_thresholds',
-  minRole: 'store_manager',
+  capability: 'stock.locations:write',
   tool: {
     name: 'draft_stock_threshold_update',
     description:
@@ -942,8 +941,8 @@ export const ACTIONS: ActionDefinition[] = [
 const ACTION_BY_TOOL = new Map(ACTIONS.map((action) => [action.tool.name, action]));
 const ACTION_BY_KIND = new Map(ACTIONS.map((action) => [action.kind, action]));
 
-export function actionsForRole(role: StaffRole | null | undefined) {
-  return ACTIONS.filter((action) => roleAtLeast(role, action.minRole));
+export function actionsForCapabilities(capabilities: readonly string[]) {
+  return ACTIONS.filter((action) => hasCapability(capabilities, action.capability));
 }
 
 export function actionForTool(name: string) {

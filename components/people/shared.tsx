@@ -51,11 +51,21 @@ export const PAY_CONFIG: Record<PayType, { label: string; variant: 'primary' | '
 // ── UK allergen-free helpers ──────────────────────────────────────────────────
 
 // The "money" roles — the only ones allowed to see/edit pay, bank and statutory
-// data, and to onboard. NOTE store_manager out-ranks hr_manager in the rank
-// table, so roleAtLeast('hr_manager') is WRONG here — check membership.
+// data, and to onboard.
+//
+// These two predicates predate capabilities and are still expressed as role
+// allow-lists. They existed because the old rank table could not say
+// "hr_manager but not store_manager" — the very problem capabilities solve.
+// Their role sets are currently identical to the API grants they mirror:
+//
+//   canSeeMoney   ≡ hr.sensitive:read / hr.payroll:read  (super_admin, franchise_owner, hr_manager)
+//   canManageTeam ≡ hr.people:read                       (+ store_manager)
+//
+// so the UI and the API agree today. They should still move to
+// hasCapability() — see lib/auth/capabilities.ts — which means threading
+// capabilities through the people components instead of `role`.
 export const MONEY_ROLES: StaffRole[] = ['super_admin', 'franchise_owner', 'hr_manager'];
 export const canSeeMoney = (role: StaffRole | null | undefined): boolean => !!role && MONEY_ROLES.includes(role);
-// Managing the team (view records, hours, onboard entry point) is store_manager+.
 export const canManageTeam = (role: StaffRole | null | undefined): boolean =>
   !!role && ['super_admin', 'franchise_owner', 'store_manager', 'hr_manager'].includes(role);
 

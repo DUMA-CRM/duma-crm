@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { Activity, Clock3, Loader2, Pencil, Sparkles, Trash2, TriangleAlert } from '@/components/icons';
+import { Activity, Clock3, Loader2, Pencil, Trash2, TriangleAlert, Zap } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +23,6 @@ import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { PanelHeader } from './PanelChrome';
 import { TRIGGER_LABELS } from './shared';
 import { orderedWorkflowNodes, workflowForAutomation, workflowSummary } from './workflowModel';
 import { FlowStrip } from './workflowNodes';
@@ -84,24 +83,6 @@ export function AutomationsPanel({
 
   return (
     <div className="space-y-4">
-      {/* The "New automation" action lives in the page header, next to the tabs. */}
-      <PanelHeader
-        title="Automations"
-        count={automations.length}
-        description="An automation watches for something happening — an order, a birthday — and emails one of your templates."
-        actions={
-          automations.length > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-sm border border-rule bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">
-              <span
-                className={cn('size-1.5 rounded-full', sendingCount ? 'bg-success' : 'bg-muted-foreground')}
-                aria-hidden="true"
-              />
-              {sendingCount} of {automations.length} sending
-            </span>
-          ) : undefined
-        }
-      />
-
       {!canCreate && (
         <div className="flex flex-wrap items-center gap-3 rounded-sm border border-warning/40 bg-warning/6 p-4">
           <TriangleAlert size={16} className="shrink-0 text-warning" aria-hidden="true" />
@@ -123,7 +104,7 @@ export function AutomationsPanel({
       ) : !automations.length ? (
         <div className="rounded-sm border border-dashed border-rule bg-card">
           <EmptyState
-            icon={Sparkles}
+            icon={Zap}
             title="No automations yet"
             description="Create a workflow to send the right email when an order or customer event happens."
           />
@@ -142,6 +123,13 @@ export function AutomationsPanel({
             />
           ))}
         </div>
+      )}
+
+      {automations.length > 0 && (
+        <p className="flex items-center justify-end gap-1.5 text-xs font-semibold text-muted-foreground">
+          <span className={cn('size-1.5 rounded-full', sendingCount ? 'bg-success' : 'bg-muted-foreground')} aria-hidden="true" />
+          {sendingCount} of {automations.length} sending
+        </p>
       )}
 
       {deleteTarget && (
@@ -189,8 +177,24 @@ function AutomationCard({
 
   return (
     <article
+      role="button"
+      tabIndex={0}
+      aria-label={`Edit ${automation.name}`}
+      onClick={(event) => {
+        // The switch, the buttons and the flow strip own their own clicks.
+        if ((event.target as HTMLElement).closest('button, a, [role="switch"]')) return;
+        onEdit();
+      }}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onEdit();
+        }
+      }}
       className={cn(
-        'rounded-sm border bg-card p-4 shadow-sm transition-colors md:p-5',
+        'cursor-pointer rounded-sm border bg-card p-4 shadow-sm transition-colors md:p-5',
+        'hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
         automation.isEnabled ? 'border-success/30' : 'border-rule',
       )}
     >
@@ -202,7 +206,7 @@ function AutomationCard({
           )}
           aria-hidden="true"
         >
-          <Sparkles size={17} />
+          <Zap size={17} />
         </span>
 
         <div className="min-w-0 flex-1">
@@ -227,8 +231,11 @@ function AutomationCard({
             aria-label={`${automation.isEnabled ? 'Pause' : 'Switch on'} ${automation.name}`}
             disabled={toggling}
             onClick={onToggle}
+            // Compact corners, not a pill: this sits inches from the Edit and
+            // Delete buttons, and a full-round control beside 7px ones reads as
+            // a different control family. The Magnetic Label Rule.
             className={cn(
-              'inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 transition-colors disabled:opacity-60',
+              'inline-flex h-9 items-center gap-2 rounded-md border py-1 pl-1 pr-3 transition-colors disabled:opacity-60',
               automation.isEnabled
                 ? 'border-success/30 bg-success/6 hover:bg-band'
                 : 'border-rule bg-muted hover:bg-secondary',
@@ -236,14 +243,14 @@ function AutomationCard({
           >
             <span
               className={cn(
-                'inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
+                'inline-flex h-5 w-9 shrink-0 items-center rounded-sm border transition-colors',
                 automation.isEnabled ? 'border-success bg-success' : 'border-rule bg-card',
               )}
               aria-hidden="true"
             >
               <span
                 className={cn(
-                  'ml-0.5 flex size-4 items-center justify-center rounded-full shadow-sm transition-transform',
+                  'ml-0.5 flex size-4 items-center justify-center rounded-[3px] shadow-sm transition-transform',
                   automation.isEnabled ? 'translate-x-4 bg-white' : 'translate-x-0 bg-muted-foreground/60',
                 )}
               >

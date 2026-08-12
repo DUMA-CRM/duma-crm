@@ -1,6 +1,6 @@
-import { requireMinimumRole } from '@/lib/auth/require-role';
+import { requireCapability } from '@/lib/auth/require-capability';
 
 export default async function SettingsWorkspacesLayout({ children }: { children: React.ReactNode }) {
-  await requireMinimumRole('franchise_owner');
+  await requireCapability('settings:write');
   return children;
 }

@@ -18,11 +18,30 @@ export interface AgentMetric {
   tone?: 'default' | 'positive' | 'negative' | 'warning';
 }
 
-export interface AgentCard {
+export interface AgentMetricCard {
+  kind?: 'metrics';
   title: string;
   caption?: string;
   metrics: AgentMetric[];
 }
+
+export interface AgentListRow {
+  label: string;
+  value?: string;
+  meta?: string;
+  tone?: 'default' | 'positive' | 'negative' | 'warning';
+}
+
+/** Compact records rendered from tool output, not generated Markdown. */
+export interface AgentListCard {
+  kind: 'list';
+  title: string;
+  caption?: string;
+  rows: AgentListRow[];
+  emptyLabel?: string;
+}
+
+export type AgentCard = AgentMetricCard | AgentListCard;
 
 // ── Editable action cards ────────────────────────────────────────────────────
 // Every write the agent proposes arrives as a field spec rather than a fixed
@@ -119,6 +138,8 @@ export interface AgentChatMessage {
   followUps?: string[];
   /** Names the backup model when the primary was out of capacity for this answer. */
   fallbackModel?: string;
+  /** Reveal a newly-arrived assistant message progressively in the client. */
+  live?: boolean;
 }
 
 export interface AgentChatResponse {

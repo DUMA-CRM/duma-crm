@@ -28,6 +28,7 @@ import {
   X,
 } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { FilterChip } from '@/components/shared/FilterChip';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,8 @@ import { Input } from '@/components/ui/input';
 import { Select, type SelectOption } from '@/components/ui/select';
 
 import { type AuditLog, getAuditLogs, parseAuditMeta } from '@/lib/api/audit.service';
-import { getStaff, roleAtLeast } from '@/lib/api/staff.service';
+import { getStaff } from '@/lib/api/staff.service';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { cn } from '@/lib/utils/cn';
 import { formatDateTime } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
@@ -289,28 +291,13 @@ function initialPage(value: string | null) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
-function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
-  return (
-    <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/8 pl-2.5 pr-1.5 text-xs font-medium text-primary">
-      <span className="max-w-52 truncate">{label}</span>
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`Remove ${label} filter`}
-        className="flex size-5 items-center justify-center rounded-full hover:bg-band focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-      >
-        <X size={11} aria-hidden="true" />
-      </button>
-    </span>
-  );
-}
-
 function AuditLogPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   // Same gate as the header's audit drawer — franchise_owner and above only.
   const role = useAuthStore((s) => s.role);
-  const canView = roleAtLeast(role, 'franchise_owner');
+  const capabilities = useAuthStore((s) => s.capabilities);
+  const canView = hasCapability(capabilities, 'audit:read');
   useEffect(() => {
     if (role && !canView) router.replace('/dashboard');
   }, [role, canView, router]);

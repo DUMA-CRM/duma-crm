@@ -1,13 +1,13 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import QRCode from 'react-qr-code';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useMemo, useState } from 'react';
 
-import { CustomerEmails } from '@/components/customers/CustomerEmails';
-import { CustomerOrders } from '@/components/customers/CustomerOrders';
-import { EditForm } from '@/components/customers/EditForm';
+import { CustomerFormDrawer } from '@/components/customers/CustomerForm';
+import { CustomerTimeline } from '@/components/customers/CustomerTimeline';
+import { CustomerWorkbench, type WorkbenchAction } from '@/components/customers/CustomerWorkbench';
+import { GuestSafetyBlock } from '@/components/customers/GuestSafetyBlock';
 import { LoyaltyProgress } from '@/components/customers/LoyaltyProgress';
 import { MarketingPreferencesPanel } from '@/components/customers/MarketingPreferencesPanel';
 import { PointsForm } from '@/components/customers/PointsForm';
@@ -16,64 +16,143 @@ import { VisitCalendar } from '@/components/customers/VisitCalendar';
 import { SendEmailModal } from '@/components/email/SendEmailModal';
 import {
   Activity,
-  Calendar,
-  Check,
+  AlertTriangle,
   Coins,
-  FileText,
-  LayoutDashboard,
+  Combine,
   Loader2,
-  Mail,
-  Pencil,
-  Phone,
   Receipt,
   Repeat,
+  RotateCcw,
   ShieldCheck,
   ShoppingBag,
   Star,
   UserCircle2,
   Wallet,
 } from '@/components/icons';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
-import { Modal } from '@/components/shared/Modal';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
+import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { getCustomer } from '@/lib/api/customers.service';
+import { getCustomer, getCustomerLedger, unmergeCustomer } from '@/lib/api/customers.service';
 import { getOrders } from '@/lib/api/orders.service';
+import { getPrivacyRequests } from '@/lib/api/privacy.service';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { TIER_CONFIG } from '@/lib/constants/customers';
-import { customerQrValue } from '@/lib/utils/customer-qr';
 import { formatDate } from '@/lib/utils/date';
+import { cn } from '@/lib/utils/cn';
+import { toast } from '@/stores/toastStore';
+import { useAuthStore } from '@/stores/authStore';
 
-type Section = 'overview' | 'activity' | 'emails' | 'privacy';
+type Section = 'guest' | 'timeline' | 'compliance';
 
-const SECTIONS: SectionTab<Section>[] = [
-  { value: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { value: 'activity', label: 'Visits & orders', icon: Activity },
-  { value: 'emails', label: 'Emails', icon: Mail },
-  { value: 'privacy', label: 'Privacy & consent', icon: ShieldCheck },
-];
+const SECTION_VALUES: Section[] = ['guest', 'timeline', 'compliance'];
 
 const fmtDate = (iso: string) => formatDate(iso);
 
+const monthYear = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+
+/**
+ * A single customer.
+ *
+ * The page is a dossier with a stable workbench beside it: the wide column
+ * answers "what do I know about this guest", the narrow one answers "what can I
+ * do about it", and the second column does not change when the tab does. That is
+ * the Board-Then-Workbench rule applied to a record rather than a shift.
+ *
+ * Two things this fixes. Every action used to be an unlabelled icon square in
+ * the top bar — an envelope, a pile of coins, a pencil — which staff had to
+ * learn by trial. And writing one line about a guest meant opening the edit
+ * drawer and saving the whole record; notes are now a box in the workbench that
+ * saves itself.
+ *
+ * Allergies, alerts and preferences lead the Guest tab, which is the tab this
+ * page opens on. A compact marker rides in the masthead so the fact does not
+ * disappear entirely while someone is reading the timeline.
+ */
 export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const qc = useQueryClient();
-  const [section, setSection] = useState<Section>('overview');
-  const [modal, setModal] = useState<'edit' | 'points' | 'email' | null>(null);
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const [modal, setModal] = useState<WorkbenchAction | 'unmerge' | null>(null);
+
+  // The open tab lives in the URL: a colleague can be sent straight to the
+  // compliance history, and the back button steps out of it the way it should.
+  const requested = searchParams.get('tab');
+  const section: Section = SECTION_VALUES.includes(requested as Section) ? (requested as Section) : 'guest';
+
+  const setSection = useCallback(
+    (next: Section) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === 'guest') params.delete('tab');
+      else params.set('tab', next);
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   const { data: customer, isLoading, isError } = useQuery({ queryKey: ['customer', customerId], queryFn: () => getCustomer(customerId) });
 
+  // Only the visit heatmap needs order rows, and it lives on the Guest tab.
   const { data: ordersData } = useQuery({
     queryKey: ['customer-visits', customerId],
     queryFn: () => getOrders({ customerId, limit: 200 }),
+    enabled: section === 'guest',
+  });
+
+  // The ledger is read here purely to surface a drift warning: if the cached
+  // balance and the ledger disagree, points were written outside a transaction
+  // and the number on screen cannot be trusted.
+  const { data: ledger } = useQuery({
+    queryKey: ['customer-ledger', customerId],
+    queryFn: () => getCustomerLedger(customerId, 1),
+    enabled: hasCapability(capabilities, 'customers:read'),
+  });
+
+  // Fetched for the tab badge, not for the panel — an outstanding erasure
+  // request is exactly the thing you should not have to open a tab to discover.
+  const { data: privacyRequests } = useQuery({
+    queryKey: ['privacy-requests', undefined, customerId],
+    queryFn: () => getPrivacyRequests({ customerId }),
+  });
+
+  const openPrivacy = useMemo(
+    () => (privacyRequests ?? []).filter((request) => request.status !== 'completed' && request.status !== 'declined'),
+    [privacyRequests],
+  );
+  // Pinned once on mount: "overdue" must not flip mid-render, and a live clock
+  // buys nothing on a statutory deadline measured in days.
+  const [now] = useState(() => Date.now());
+  const overduePrivacy = openPrivacy.some((request) => Date.parse(request.dueAt) < now);
+
+  const unmerge = useMutation({
+    mutationFn: () => unmergeCustomer(customerId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['customer', customerId] });
+      void qc.invalidateQueries({ queryKey: ['customers'] });
+      setModal(null);
+      toast('success', 'Records separated.');
+    },
+    onError: (error) => toast('error', error.message || 'Could not separate these records.'),
   });
 
   const visits = (ordersData?.data ?? []).map((order) => ({ date: order.createdAt.slice(0, 10), spend: Number(order.totalAmount) }));
-  const avgTicket = visits.length > 0 ? visits.reduce((sum, visit) => sum + visit.spend, 0) / visits.length : 0;
+
+  // From the customer's own running totals, not from the fetched page of orders:
+  // deriving it from a `limit: 200` fetch gave a heavy regular the average of
+  // their most recent 200 orders, presented as a lifetime figure.
+  const avgTicket = customer && customer.totalVisits > 0 ? Number(customer.totalSpent) / customer.totalVisits : 0;
+
+  const canEdit = hasCapability(capabilities, 'customers:write');
+  const canAdjustPoints = hasCapability(capabilities, 'customers:points');
+  const canMerge = hasCapability(capabilities, 'customers:merge');
 
   function handleSaved() {
     void qc.invalidateQueries({ queryKey: ['customer', customerId] });
@@ -82,6 +161,22 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
 
   const name = customer ? `${customer.firstName} ${customer.lastName}` : isLoading ? 'Loading…' : 'Customer';
   const tier = customer ? TIER_CONFIG[customer.tier] : null;
+  const erased = Boolean(customer?.anonymisedAt);
+  const hasAllergies = (customer?.allergies?.length ?? 0) > 0;
+  const hasCriticalAlert = customer?.alerts?.some((alert) => alert.severity === 'critical') ?? false;
+
+  const sections: SectionTab<Section>[] = [
+    { value: 'guest', label: 'Guest', icon: UserCircle2 },
+    { value: 'timeline', label: 'Timeline', icon: Activity },
+    {
+      value: 'compliance',
+      label: 'Compliance',
+      icon: ShieldCheck,
+      count: openPrivacy.length,
+      countTone: overduePrivacy ? 'danger' : 'default',
+      countLabel: `${openPrivacy.length} open privacy request${openPrivacy.length === 1 ? '' : 's'}${overduePrivacy ? ', one or more overdue' : ''}`,
+    },
+  ];
 
   return (
     <EditorShell
@@ -96,167 +191,216 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
         customer && tier ? (
           <>
             <Badge variant={tier.variant}>{tier.label}</Badge>
+            {/* The safety block itself lives on the Guest tab. This marker rides
+                in the masthead so the fact does not vanish when someone is two
+                tabs deep in a timeline — one glyph, not a second copy. */}
+            {(hasAllergies || hasCriticalAlert) && (
+              <Badge
+                variant="destructive"
+                title={hasAllergies ? `Allergies: ${customer.allergies!.join(', ')}` : 'Has a critical alert'}
+              >
+                <AlertTriangle aria-hidden="true" />
+                {hasAllergies ? 'Allergies' : 'Critical alert'}
+              </Badge>
+            )}
             <span className="text-xs text-muted-foreground">
-              {customer.lastVisitAt ? `Last visit ${fmtDate(customer.lastVisitAt)}` : 'No visits yet'}
+              {customer.lastVisitAt ? `Last visit ${fmtDate(customer.lastVisitAt)}` : 'No visits yet'} · guest since{' '}
+              {monthYear(customer.createdAt)}
             </span>
           </>
         ) : undefined
       }
       actions={
-        customer && (
-          <>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-9"
-              onClick={() => setModal('email')}
-              aria-label="Send email"
-              disabled={!customer.email}
-              title={customer.email ? 'Send email' : 'Add an email address first'}
-            >
-              <Mail size={16} />
-            </Button>
-            <Button variant="outline" size="icon" className="size-9" onClick={() => setModal('points')} aria-label="Adjust points">
-              <Coins size={16} />
-            </Button>
-            <Button variant="outline" size="icon" className="size-9" onClick={() => setModal('edit')} aria-label="Edit customer">
-              <Pencil size={16} />
-            </Button>
-            <Button className="h-9 gap-1.5" onClick={() => router.push(`/pos?customer=${customer.id}`)}>
-              <ShoppingBag size={15} />
-              <span className="hidden md:inline">Open in POS</span>
-            </Button>
-          </>
-        )
+        customer && !erased ? (
+          <Button className="gap-1.5" onClick={() => router.push(`/pos?customer=${customer.id}`)} aria-label="Start an order in the POS">
+            <ShoppingBag size={15} aria-hidden="true" />
+            <span className="hidden md:inline">Start an order</span>
+          </Button>
+        ) : undefined
       }
       subheader={
-        customer ? <SectionTabs tabs={SECTIONS} value={section} onChange={setSection} ariaLabel="Customer record sections" /> : undefined
+        customer ? <SectionTabs tabs={sections} value={section} onChange={setSection} ariaLabel="Customer record sections" /> : undefined
       }
     >
       {isLoading ? (
         <div className="flex items-center justify-center py-24 text-muted-foreground">
-          <Loader2 size={22} className="animate-spin" />
+          <Loader2 size={22} className="animate-spin" aria-label="Loading customer" />
         </div>
       ) : isError || !customer ? (
-        <div className="mx-auto max-w-md rounded-lg border border-rule/65 bg-card p-8 text-center">
+        <div className="mx-auto max-w-md rounded-sm border border-rule bg-card p-8 text-center">
           <EmptyState icon={UserCircle2} title="Customer not found" description="It may have been removed, or the link is out of date." />
           <Button variant="outline" onClick={() => router.push('/customers')}>
             Back to customers
           </Button>
         </div>
-      ) : section === 'overview' ? (
+      ) : (
         <div className="space-y-4">
-          <section className="overflow-hidden rounded-lg border border-rule/65 bg-card" aria-label="Customer relationship summary">
-            <div className="grid grid-cols-2 lg:grid-cols-4">
-              {[
-                { label: 'Total spent', value: `£${Number(customer.totalSpent).toFixed(0)}`, icon: Wallet, tone: 'text-momentum' },
-                { label: 'Visits', value: customer.totalVisits.toLocaleString(), icon: Repeat, tone: 'text-reference' },
-                { label: 'Average order', value: `£${avgTicket.toFixed(0)}`, icon: Receipt, tone: 'text-measured' },
-                { label: 'Points', value: customer.pointsBalance.toLocaleString(), icon: Star, tone: 'text-stock' },
-              ].map(({ label, value, icon: Icon, tone }, index) => (
-                <div
-                  key={label}
-                  className={`flex min-h-24 items-center gap-3 p-4 sm:p-5 ${index % 2 ? 'border-l border-rule/45' : ''} ${index > 1 ? 'border-t border-rule/45 lg:border-t-0' : ''} ${index > 0 ? 'lg:border-l lg:border-rule/45' : ''}`}
-                >
-                  <span className={`flex size-9 shrink-0 items-center justify-center rounded-md bg-band ${tone}`}>
-                    <Icon size={16} aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p data-figure className="mt-0.5 truncate text-lg font-semibold text-foreground">
-                      {value}
-                    </p>
-                  </div>
-                </div>
-              ))}
+          {/* ── Record-level state, before anything else ─────────────────── */}
+
+          {customer.anonymisedAt && (
+            <p className="flex items-start gap-2 rounded-sm border border-rule bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+              <ShieldCheck size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <span>
+                This record was erased on {fmtDate(customer.anonymisedAt)} to fulfil a GDPR request. Order history is retained for
+                financial reporting; the personal details are gone and cannot be restored.
+              </span>
+            </p>
+          )}
+
+          {customer.mergedIntoId && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-warning/25 bg-warning/6 px-4 py-3">
+              <p className="flex items-start gap-2 text-sm text-warning">
+                <Combine size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <span>
+                  This record was merged into another on {customer.mergedAt ? fmtDate(customer.mergedAt) : 'an earlier date'}. It is hidden
+                  from lists, and its history now shows on the surviving record.
+                </span>
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => router.push(`/customers/${customer.mergedIntoId}`)}>
+                  Open surviving record
+                </Button>
+                {canMerge && (
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setModal('unmerge')}>
+                    <RotateCcw size={14} aria-hidden="true" />
+                    Separate
+                  </Button>
+                )}
+              </div>
             </div>
-          </section>
+          )}
 
-          <div className="grid items-start gap-4 lg:grid-cols-2">
-            {/* Loyalty and the QR that identifies this customer at the till */}
-            <section className="rounded-lg border border-rule/65 bg-card p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="font-semibold text-foreground">Loyalty</h2>
-                {tier && <Badge variant={tier.variant}>{tier.label}</Badge>}
-              </div>
-              <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <LoyaltyProgress customer={customer} />
-                <div className="flex flex-col items-center gap-2">
-                  {/* Always on white so it scans in dark mode too */}
-                  <div className="rounded-md border border-rule/65 bg-white p-2.5">
-                    <QRCode
-                      value={customerQrValue(customer.id)}
-                      size={104}
-                      bgColor="#ffffff"
-                      fgColor="#111a40"
-                      aria-label="Customer loyalty QR code"
+          {/* ── Dossier ── workbench ──────────────────────────────────────── */}
+
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+            {/* Second in DOM below lg so the verbs sit above the analytics on a
+                phone; ordered back to the right on a desk. */}
+            <CustomerWorkbench
+              customer={customer}
+              canEdit={canEdit}
+              canAdjustPoints={canAdjustPoints}
+              onAction={setModal}
+              className="lg:sticky lg:top-0 lg:col-start-2 lg:row-start-1"
+            />
+
+            <div className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
+              {section === 'guest' ? (
+                <>
+                  {/* Allergies, alerts and preferences lead the Guest tab: it is
+                      the tab this page opens on, so this is the first thing read. */}
+                  <GuestSafetyBlock customer={customer} onEdit={canEdit && !erased ? () => setModal('edit') : undefined} />
+
+                  <StatCardGrid columns={4}>
+                    <StatCard
+                      label="Total spent"
+                      value={`£${Number(customer.totalSpent).toFixed(0)}`}
+                      icon={Wallet}
+                      accent="success"
+                      size="sm"
                     />
-                  </div>
-                  <p className="font-mono text-micro font-semibold uppercase tracking-micro text-muted-foreground">
-                    {customer.id.slice(0, 8)}
-                  </p>
-                  <p className="max-w-32 text-center text-micro leading-tight text-muted-foreground/70">Scan at the till to attach</p>
-                </div>
-              </div>
-            </section>
+                    <StatCard
+                      label="Visits"
+                      value={customer.totalVisits.toLocaleString()}
+                      icon={Repeat}
+                      accent="info"
+                      size="sm"
+                    />
+                    <StatCard
+                      label="Average order"
+                      value={`£${avgTicket.toFixed(0)}`}
+                      icon={Receipt}
+                      accent="warning"
+                      size="sm"
+                    />
+                    <StatCard
+                      label="Points"
+                      value={customer.pointsBalance.toLocaleString()}
+                      icon={Star}
+                      accent="purple"
+                      size="sm"
+                    />
+                  </StatCardGrid>
 
-            <section className="rounded-lg border border-rule/65 bg-card p-5">
-              <h2 className="mb-4 font-semibold text-foreground">Contact</h2>
-              <InfoGroup>
-                <InfoRow icon={Phone} label="Phone" value={customer.phone} copyable />
-                {customer.email && <InfoRow icon={Mail} label="Email" value={customer.email} copyable />}
-                {customer.dob && <InfoRow icon={Calendar} label="Date of birth" value={fmtDate(customer.dob)} />}
-                {customer.lastVisitAt && <InfoRow icon={Check} label="Last visit" value={fmtDate(customer.lastVisitAt)} />}
-                <InfoRow icon={Star} label="Points balance" value={`${customer.pointsBalance.toLocaleString()} pts`} />
-                <InfoRow icon={ShoppingBag} label="Total orders" value={String(ordersData?.total ?? customer.totalVisits)} />
-              </InfoGroup>
-              {customer.notes && (
-                <div className="mt-3">
-                  <InfoGroup>
-                    <InfoRow icon={FileText} label="Notes" value={customer.notes} />
-                  </InfoGroup>
+                  {/* The projection and the ledger disagreeing is a data-integrity
+                      problem, not a cosmetic one, so it is stated rather than hidden. */}
+                  {ledger && !ledger.reconciles && (
+                    <p className="flex items-start gap-2 rounded-sm border border-warning/25 bg-warning/6 px-4 py-2.5 text-xs text-warning">
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                      <span>
+                        The points balance ({ledger.pointsBalance.toLocaleString()}) does not match the loyalty ledger (
+                        {ledger.ledgerTotal.toLocaleString()}). Points were changed outside the ledger, or the opening backfill has not
+                        been run.
+                      </span>
+                    </p>
+                  )}
+
+                  {/* Loyalty and the visit heatmap are the same question asked
+                      two ways — how engaged is this guest — so they share a row
+                      once there is width for both to stay legible. */}
+                  <div className={cn('grid gap-4', visits.length > 0 && 'xl:grid-cols-2')}>
+                    <section className="flex flex-col rounded-sm border border-rule bg-card p-4 h-fit">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <h2 className="text-sm font-semibold text-foreground">Loyalty</h2>
+                        <div className="flex items-center gap-2">
+                          {tier && <Badge variant={tier.variant}>{tier.label}</Badge>}
+                          {canAdjustPoints && !erased && (
+                            <Button variant="ghost" size="xs" onClick={() => setModal('points')}>
+                              <Coins data-icon="inline-start" />
+                              Adjust
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <LoyaltyProgress customer={customer} />
+                    </section>
+
+                    {visits.length > 0 && (
+                      <section className="flex min-w-0 flex-col rounded-sm border border-rule bg-card p-4">
+                        <h2 className="text-sm font-semibold text-foreground">Visit pattern</h2>
+                        <div className="min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                          <VisitCalendar visits={visits} months={6} />
+                        </div>
+                      </section>
+                    )}
+                  </div>
+                </>
+              ) : section === 'timeline' ? (
+                <CustomerTimeline customerId={customer.id} />
+              ) : (
+                <div className="space-y-4">
+                  <MarketingPreferencesPanel customerId={customer.id} email={customer.email} />
+                  <PrivacyRequestsPanel customerId={customer.id} tenantId={customer.tenantId} />
                 </div>
               )}
-            </section>
+            </div>
           </div>
-        </div>
-      ) : section === 'activity' ? (
-        <div className="space-y-4">
-          {visits.length > 0 && (
-            <section className="rounded-lg border border-rule/65 bg-card p-5">
-              <h2 className="mb-4 font-semibold text-foreground">Visit pattern</h2>
-              <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <VisitCalendar visits={visits} months={6} />
-              </div>
-            </section>
-          )}
-          <CustomerOrders customerId={customer.id} />
-        </div>
-      ) : section === 'emails' ? (
-        <CustomerEmails customerId={customer.id} />
-      ) : (
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          <MarketingPreferencesPanel customerId={customer.id} hasEmail={Boolean(customer.email)} />
-          <PrivacyRequestsPanel customerId={customer.id} tenantId={customer.tenantId} />
         </div>
       )}
 
-      {/* Modals */}
-      {modal === 'edit' && customer && (
-        <Modal title="Edit Customer" onClose={() => setModal(null)}>
-          <EditForm customer={customer} onClose={() => setModal(null)} onSaved={handleSaved} />
-        </Modal>
-      )}
-      {modal === 'points' && customer && (
-        <Modal title="Adjust Points" onClose={() => setModal(null)}>
-          <PointsForm customer={customer} onClose={() => setModal(null)} onSaved={handleSaved} />
-        </Modal>
-      )}
+      {/* ── Dialogs ─────────────────────────────────────────────────────── */}
+
+      {modal === 'edit' && customer && <CustomerFormDrawer customer={customer} onClose={() => setModal(null)} onSaved={handleSaved} />}
+
+      {modal === 'points' && customer && <PointsForm customer={customer} onClose={() => setModal(null)} onSaved={handleSaved} />}
+
       {modal === 'email' && customer?.email && (
         <SendEmailModal
           customerId={customer.id}
-          recipientLabel={`${customer.firstName} ${customer.lastName} · ${customer.email}`}
+          recipientName={`${customer.firstName} ${customer.lastName}`}
+          recipientEmail={customer.email}
           onClose={() => setModal(null)}
+        />
+      )}
+
+      {modal === 'unmerge' && customer && (
+        <ConfirmModal
+          title="Separate these records?"
+          message="This record becomes independent again. Points the merge moved are handed back, and both records’ totals are recalculated. Anything that happened after the merge stays where it happened."
+          confirmLabel="Separate records"
+          pendingLabel="Separating…"
+          isPending={unmerge.isPending}
+          onClose={() => setModal(null)}
+          onConfirm={() => unmerge.mutate()}
         />
       )}
     </EditorShell>

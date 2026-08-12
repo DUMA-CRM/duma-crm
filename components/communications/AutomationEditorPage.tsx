@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { CheckCircle2, Eye, Loader2, Play, Plus, Trash2, TriangleAlert } from '@/components/icons';
+import { CheckCircle2, Eye, Loader2, Play, Trash2, TriangleAlert } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
 import { Badge } from '@/components/ui/badge';
@@ -22,32 +22,28 @@ import {
   publishEmailAutomation,
   updateEmailAutomation,
 } from '@/lib/api/email.service';
+import { getSegments } from '@/lib/api/segments.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
-import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { EmailPreviewDrawer } from './EmailPreviewDrawer';
+import { PublishDialog } from './PublishDialog';
+import { type InsertType, WorkflowTree } from './WorkflowTree';
 import { WorkflowRunDrawer } from './WorkflowRunDrawer';
 import { TRIGGER_HELP, TRIGGER_OPTIONS } from './shared';
 import {
   defaultWorkflow,
+  duplicateWorkflowNode,
   insertWorkflowNode,
+  moveWorkflowNode,
   removeWorkflowNode,
   updateWorkflowNode,
   workflowErrors,
   workflowForAutomation,
   workflowSummary,
 } from './workflowModel';
-import { DOT_GRID_STYLE, NODE_META, nodeDetail } from './workflowNodes';
-
-/**
- * The two branch columns under a condition. Shared by the columns themselves and
- * by BranchConnector, which mirrors this geometry to draw the join — if the gap
- * changes here, the connector's half-gap bridge (`-right-4` / `-left-4`) has to
- * change with it.
- */
-const BRANCH_GRID = 'grid w-full grid-cols-2 gap-8';
+import { DOT_GRID_STYLE } from './workflowNodes';
 
 const CONDITION_FIELDS = [
   { value: 'customer.marketingOptIn', label: 'Customer · marketing opt-in' },
@@ -89,6 +85,7 @@ export function AutomationEditorPage({
   const [selectedId, setSelectedId] = useState(definition.nodes[0]?.id ?? '');
   const [savedId, setSavedId] = useState(automation?.id ?? null);
   const [previewing, setPreviewing] = useState(false);
+  const [confirmingPublish, setConfirmingPublish] = useState(false);
   const [openedRunId, setOpenedRunId] = useState<string | null>(null);
   const snapshot = JSON.stringify({ name, definition });
   const [initialSnapshot, setInitialSnapshot] = useState(snapshot);
@@ -103,6 +100,8 @@ export function AutomationEditorPage({
     queryFn: () => getLocationsByTenant(tenantId ?? ''),
     enabled: !!tenantId,
   });
+  const { data: segmentsData } = useQuery({ queryKey: ['customer-segments'], queryFn: getSegments, enabled: !!tenantId });
+  const segments = segmentsData?.data ?? [];
   const { data: connection } = useQuery({
     queryKey: ['email-connection', tenantId],
     queryFn: () => getEmailConnection(tenantId ?? undefined),
@@ -143,18 +142,39 @@ export function AutomationEditorPage({
   });
 
   const updateNode = (node: EmailWorkflowNode) => setDefinition((current) => updateWorkflowNode(current, node));
-  const addNode = (edgeId: string, type: 'send_email' | 'delay' | 'condition') => {
-    const next = insertWorkflowNode(definition, edgeId, type, usableTemplates[0]?.id ?? '');
+
+  /** Insert on the connection leaving `afterNodeId` down `branch`. */
+  const addNode = (afterNodeId: string, branch: string, type: InsertType) => {
+    const edge = definition.edges.find((candidate) => candidate.source === afterNodeId && (candidate.branch ?? 'next') === branch);
+    if (!edge) return;
+    const next = insertWorkflowNode(definition, edge.id, type, usableTemplates[0]?.id ?? '');
     const added = next.nodes.find((node) => !definition.nodes.some((current) => current.id === node.id) && node.type !== 'end');
     setDefinition(next);
     if (added) setSelectedId(added.id);
   };
-  const removeNode = () => {
-    if (!selected || selected.type === 'trigger' || selected.type === 'end') return;
-    const next = removeWorkflowNode(definition, selected.id);
+
+  const removeNode = (nodeId: string) => {
+    const node = definition.nodes.find((candidate) => candidate.id === nodeId);
+    if (!node || node.type === 'trigger' || node.type === 'end') return;
+    const next = removeWorkflowNode(definition, nodeId);
     setDefinition(next);
-    setSelectedId(next.nodes.find((node) => node.type === 'trigger')?.id ?? next.nodes[0]?.id ?? '');
+    // Selection has to land somewhere real — the removed step's id is gone.
+    if (!next.nodes.some((candidate) => candidate.id === selectedId)) {
+      setSelectedId(next.nodes.find((candidate) => candidate.type === 'trigger')?.id ?? next.nodes[0]?.id ?? '');
+    }
   };
+
+  const moveNode = (nodeId: string, afterNodeId: string, branch: string) =>
+    setDefinition((current) => moveWorkflowNode(current, nodeId, afterNodeId, branch));
+
+  const duplicateNode = (nodeId: string) => {
+    const next = duplicateWorkflowNode(definition, nodeId);
+    const added = next.nodes.find((node) => !definition.nodes.some((current) => current.id === node.id));
+    setDefinition(next);
+    if (added) setSelectedId(added.id);
+  };
+
+  const templateNameFor = (id: string) => templates.find((template) => template.id === id)?.name ?? 'an email';
 
   return (
     <EditorShell
@@ -176,10 +196,12 @@ export function AutomationEditorPage({
           <Button variant="outline" className="h-9" disabled={!name.trim() || save.isPending} onClick={() => save.mutate(false)}>
             Save draft
           </Button>
+          {/* Publishing goes through the blast-radius dialog rather than firing
+              straight from the button — see PublishDialog. */}
           <Button
             className="h-9 gap-2 px-5"
             disabled={!name.trim() || !!errors.length || save.isPending}
-            onClick={() => save.mutate(true)}
+            onClick={() => setConfirmingPublish(true)}
           >
             {save.isPending && <Loader2 size={14} className="animate-spin" />}Publish
           </Button>
@@ -193,7 +215,7 @@ export function AutomationEditorPage({
               <div>
                 <p className="text-sm font-semibold">{summary}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Select a step to configure it. Use + on a connection to insert another step.
+                  Select a step to configure it. Drag a step by its handle to reorder, or use + on a connection to insert one.
                 </p>
               </div>
               <Badge variant={automation?.isEnabled ? 'success' : 'muted'}>
@@ -209,11 +231,17 @@ export function AutomationEditorPage({
                 </Button>
               </div>
             )}
-            <div
-              className="min-h-150 overflow-auto rounded-sm border border-rule bg-card p-5 shadow-sm"
-              style={DOT_GRID_STYLE}
-            >
-              <WorkflowCanvas definition={definition} selectedId={selectedId} onSelect={setSelectedId} onAdd={addNode} />
+            <div className="min-h-150 overflow-auto rounded-sm border border-rule bg-card p-5 shadow-sm" style={DOT_GRID_STYLE}>
+              <WorkflowTree
+                definition={definition}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                onInsert={addNode}
+                onMove={moveNode}
+                onDuplicate={duplicateNode}
+                onRemove={removeNode}
+                templateName={templateNameFor}
+              />
             </div>
           </div>
         </main>
@@ -232,9 +260,10 @@ export function AutomationEditorPage({
                 node={selected}
                 templates={usableTemplates}
                 locations={locations}
+                segments={segments}
                 onChange={updateNode}
                 onPreview={() => setPreviewing(true)}
-                onRemove={removeNode}
+                onRemove={() => removeNode(selected.id)}
               />
             ) : (
               <p className="text-sm text-muted-foreground">Select a workflow step.</p>
@@ -303,160 +332,25 @@ export function AutomationEditorPage({
           onClose={() => setPreviewing(false)}
         />
       )}
+      {confirmingPublish && (
+        <PublishDialog
+          name={name.trim() || 'Untitled workflow'}
+          definition={definition}
+          isRepublish={Boolean(automation?.isEnabled)}
+          publishedVersion={automation?.publishedVersion}
+          emailReady={Boolean(emailReady)}
+          isPending={save.isPending}
+          templateName={templateNameFor}
+          onConfirm={() =>
+            save.mutate(true, {
+              onSuccess: () => setConfirmingPublish(false),
+            })
+          }
+          onClose={() => setConfirmingPublish(false)}
+        />
+      )}
       {openedRunId && <WorkflowRunDrawer runId={openedRunId} onClose={() => setOpenedRunId(null)} />}
     </EditorShell>
-  );
-}
-
-function WorkflowCanvas({
-  definition,
-  selectedId,
-  onSelect,
-  onAdd,
-}: {
-  definition: EmailWorkflowDefinition;
-  selectedId: string;
-  onSelect: (id: string) => void;
-  onAdd: (edgeId: string, type: 'send_email' | 'delay' | 'condition') => void;
-}) {
-  const trigger = definition.nodes.find((node) => node.type === 'trigger');
-  if (!trigger) return <p className="text-sm text-destructive">Add a trigger to continue.</p>;
-  const render = (node: EmailWorkflowNode, visited: Set<string>): React.ReactNode => {
-    if (visited.has(node.id)) return null;
-    const nextVisited = new Set(visited).add(node.id);
-    const edges = definition.edges.filter((edge) => edge.source === node.id);
-    return (
-      <div className="flex min-w-60 flex-col items-center">
-        <WorkflowNodeCard node={node} selected={node.id === selectedId} onClick={() => onSelect(node.id)} />
-        {node.type === 'condition' ? (
-          <>
-            <BranchConnector />
-            <div className={BRANCH_GRID}>
-              {(['yes', 'no'] as const).map((branch) => {
-                const edge = edges.find((candidate) => candidate.branch === branch);
-                const target = edge && definition.nodes.find((candidate) => candidate.id === edge.target);
-                return (
-                  <div key={branch} className="flex flex-col items-center">
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-0.5 text-micro font-semibold uppercase',
-                        branch === 'yes' ? 'bg-success/6 text-success' : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      {branch}
-                    </span>
-                    {edge && <EdgeAdder onAdd={(type) => onAdd(edge.id, type)} />}
-                    {target && render(target, nextVisited)}
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        ) : edges[0] ? (
-          <>
-            <EdgeAdder onAdd={(type) => onAdd(edges[0].id, type)} />
-            {(() => {
-              const target = definition.nodes.find((candidate) => candidate.id === edges[0].target);
-              return target ? render(target, nextVisited) : null;
-            })()}
-          </>
-        ) : null}
-      </div>
-    );
-  };
-  return <div className="flex min-w-max justify-center">{render(trigger, new Set())}</div>;
-}
-
-/**
- * Joins a condition card to its yes/no columns: a stem down from the card, a rail
- * across to each branch, and a drop into it. Without this the branches read as
- * floating, unconnected to the step that produced them.
- *
- * The rail repeats BRANCH_GRID, so each half ends at its own column's centre and
- * each drop lands where that column centres its label. Equal columns sit
- * symmetrically either side of the middle whatever the gap is, and the middle is
- * where the stem lands — so the join is exact rather than eyeballed. Each half
- * also reaches `-4` (half of the grid's `gap-8`) past its cell, or the gap would
- * leave the rail split in two right under the stem.
- */
-function BranchConnector() {
-  return (
-    <div className="flex w-full flex-col items-center" aria-hidden="true">
-      <span className="h-4 w-px bg-border" />
-      <div className={BRANCH_GRID}>
-        {(['left', 'right'] as const).map((side) => (
-          <div key={side} className="relative h-4">
-            <span className={cn('absolute top-0 h-px bg-border', side === 'left' ? 'left-1/2 -right-4' : '-left-4 right-1/2')} />
-            <span className="absolute left-1/2 top-0 h-full w-px bg-border" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function WorkflowNodeCard({ node, selected, onClick }: { node: EmailWorkflowNode; selected: boolean; onClick: () => void }) {
-  // Icon and colour come from the shared step language, so a step looks the same
-  // here as it does on its automation card in the list.
-  const { icon: Icon, chip } = NODE_META[node.type];
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex w-64 items-center gap-3 rounded-sm border bg-card p-3 text-left shadow-sm transition',
-        selected ? 'border-primary ring-2 ring-primary/15' : 'border-rule hover:border-primary/40',
-      )}
-    >
-      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-sm', chip)}>
-        <Icon size={18} />
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold">{node.name}</span>
-        <span className="block truncate text-label capitalize text-muted-foreground">{nodeDetail(node)}</span>
-      </span>
-    </button>
-  );
-}
-
-function EdgeAdder({ onAdd }: { onAdd: (type: 'send_email' | 'delay' | 'condition') => void }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative flex h-15 flex-col items-center">
-      <span className="h-5 w-px bg-border" />
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="flex size-6 items-center justify-center rounded-full border border-rule bg-card text-primary shadow-sm hover:border-primary"
-        aria-label="Insert workflow step"
-      >
-        <Plus size={13} />
-      </button>
-      <span className="h-4 w-px bg-border" />
-      {open && (
-        <div className="absolute left-8 top-3 z-20 flex w-40 flex-col rounded-sm border border-rule bg-card p-1 shadow-lg">
-          {(
-            [
-              ['send_email', 'Send email'],
-              ['delay', 'Wait'],
-              ['condition', 'Condition'],
-            ] as const
-          ).map(([type, label]) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => {
-                onAdd(type);
-                setOpen(false);
-              }}
-              className="rounded-sm px-3 py-2 text-left text-xs font-semibold hover:bg-muted"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -464,6 +358,7 @@ function NodeSettings({
   node,
   templates,
   locations,
+  segments,
   onChange,
   onPreview,
   onRemove,
@@ -471,6 +366,7 @@ function NodeSettings({
   node: EmailWorkflowNode;
   templates: Array<{ id: string; name: string; subject: string }>;
   locations: Array<{ id: string; name: string }>;
+  segments: Array<{ id: string; name: string }>;
   onChange: (node: EmailWorkflowNode) => void;
   onPreview: () => void;
   onRemove: () => void;
@@ -495,6 +391,9 @@ function NodeSettings({
                     event: value as typeof node.config.event,
                     offsetDays: value === 'customer_inactive' ? 30 : 0,
                     locationId: value.startsWith('order_') ? node.config.locationId : null,
+                    // Dropped when the trigger stops being segment-driven, so a
+                    // leftover id cannot silently scope a different trigger.
+                    segmentId: value === 'segment_entered' ? node.config.segmentId : null,
                   },
                 })
               }
@@ -504,6 +403,26 @@ function NodeSettings({
             />
             <p className="mt-1 text-xs text-muted-foreground">{TRIGGER_HELP[node.config.event]}</p>
           </div>
+          {node.config.event === 'segment_entered' && (
+            <div>
+              <label className="text-xs font-bold text-muted-foreground">Segment</label>
+              <Select
+                value={node.config.segmentId ?? ''}
+                onValueChange={(value) => onChange({ ...node, config: { ...node.config, segmentId: value || null } })}
+                options={[
+                  { value: '', label: segments.length ? 'Choose a segment…' : 'No saved segments' },
+                  ...segments.map((segment) => ({ value: segment.id, label: segment.name })),
+                ]}
+                ariaLabel="Segment to watch"
+                className="mt-1.5 w-full"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {segments.length
+                  ? 'Save a filtered customer list as a segment to use it here.'
+                  : 'Filter the customer list, then save it as a segment — it will appear here.'}
+              </p>
+            </div>
+          )}
           {node.config.event.startsWith('order_') && (
             <div>
               <label className="text-xs font-bold text-muted-foreground">Location</label>

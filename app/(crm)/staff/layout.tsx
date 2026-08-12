@@ -1,6 +1,6 @@
-import { requireAnyRole } from '@/lib/auth/require-role';
+import { requireAnyCapability } from '@/lib/auth/require-capability';
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
-  await requireAnyRole(['franchise_owner', 'store_manager', 'hr_manager']);
+  await requireAnyCapability('staff:read', 'hr.people:read');
   return children;
 }

@@ -262,6 +262,38 @@ Work through:
 Offboard from their record. Their history is retained and the account is marked inactive, so past orders and payroll stay intact and they can be re-onboarded later if they come back.`,
   },
   {
+    slug: 'use-my-hr',
+    title: 'Use My HR for your own work details',
+    summary:
+      'Where to update personal details, check warnings, review shifts and leave, read payslips, claim expenses, and contact HR privately.',
+    category: 'People',
+    readMinutes: 5,
+    updated: '2026-08-12',
+    body: `My HR is the self-service workspace for information about **you**. It brings together anything that needs your attention with your time off, attendance, documents, expenses and private requests.
+
+## Start with Overview
+
+Overview puts the most important notices first. A missing address, emergency contact or National Insurance number appears here, along with expiring documents, HR replies waiting for you and declined expenses.
+
+Use **Edit your details** to review your address, emergency contact, bank details and National Insurance number. Changes go to your own HR record; pay rates and employment terms remain controlled by authorised HR staff.
+
+## The other sections
+
+- **Time off** shows your current entitlement and leave requests.
+- **Attendance** compares recorded time with your rota and lets you report a correction.
+- **Documents** lists the employment documents held for you and their expiry dates.
+- **Expenses** shows claims and their review status.
+- **Requests** keeps HR, payroll, scheduling and workplace conversations private.
+
+## Ask DUMA from anywhere
+
+Ask DUMA can read the same personal summary and notices shown on your Dashboard and in My HR. Ask a question such as “What needs my attention?” or “How can I update my details?”. When there is an exact destination, the answer includes one **Open in DUMA** action that takes you straight to the right page or form.
+
+Ask DUMA no longer runs an interactive guide over the page. It gives a concise answer and a direct action, so you stay in control of the form you open.
+
+> Your personal HR information follows the same access rules as My HR. Other employees cannot use Ask DUMA to read it.`,
+  },
+  {
     slug: 'read-your-reports',
     title: 'Read your reports without being misled',
     summary: 'What each headline metric counts, what the comparison is against, and the three traps that make figures look wrong.',
@@ -313,6 +345,81 @@ Read the completeness warnings on profitability. A recipe missing an ingredient 
 - **Comparing a part period to a whole one.** Today is incomplete until it ends.
 - **Reading a rate on tiny volumes.** One cancellation out of four orders is 25%.
 - **Assuming stock value equals cost of goods.** Waste and variance sit between them.`,
+  },
+  {
+    slug: 'cash-up-and-reconcile',
+    title: 'Cash up and reconcile the trading day',
+    summary: 'Open the day with the real float, close it from independent counts, and investigate cash or card variance.',
+    category: 'Service',
+    readMinutes: 5,
+    updated: '2026-08-11',
+    body: `Cash-up belongs to one **location** and one trading date. Confirm both before entering a figure; the wrong location creates a clean-looking record for the wrong shop.
+
+## Open the day
+
+1. Open **Cash-up** and confirm the active location.
+2. Enter the opening float you physically counted.
+3. Open the cash-up. Do not copy yesterday's float unless that is what is actually in the till.
+
+## Close the day
+
+Count the till and read the card terminal independently of DUMA. Enter counted cash and the terminal card total, then compare them with the expected figures.
+
+| Result | Next check |
+| --- | --- |
+| Cash variance | Recount notes and coins, check paid-outs and refunds |
+| Card variance | Check terminal batches, failed payments and the selected location |
+| Both differ | Confirm the trading date and whether every till is included |
+
+Add a concise note explaining any known difference. A variance should preserve the explanation, not be edited until it disappears.
+
+## Before signing off
+
+- No order is still waiting in preparing or ready.
+- Refunds and cancellations for the day are recorded.
+- The card terminal total covers the same devices and period as DUMA.
+- Any unresolved variance has a note and a named follow-up owner.`,
+  },
+  {
+    slug: 'admin-security-and-compliance',
+    title: 'Administer DUMA safely: access, settings and privacy',
+    summary: 'A map of workspaces, locations, connectors, security, audit history, customer duplicates and privacy requests.',
+    category: 'Customers',
+    readMinutes: 8,
+    updated: '2026-08-11',
+    body: `Administrative work is split so everyday managers can run service without automatically seeing payroll, private HR data or business-wide settings.
+
+## Where each job lives
+
+| Job | Page |
+| --- | --- |
+| Business and location structure, opening hours, targets | Settings → Workspaces |
+| Currency, VAT, legal and receipt details | Settings → Trading |
+| Payment providers and external integrations | Settings → Connectors |
+| Signed-in devices and account protection | Settings → Security |
+| Customer data requests | Compliance |
+| Who changed a record and when | Audit log |
+| Possible duplicate customer records | Customers → Duplicates |
+
+If a page is absent, the signed-in role does not hold its required capability. Ask an owner or administrator to review the role; changing location does not grant a missing capability.
+
+## Privacy requests
+
+Record the request type, customer, channel and received date. Verify identity before exporting, correcting or erasing data. Keep the status current, watch the due date, and add resolution notes before completion. Use the audit log to verify sensitive changes.
+
+Never copy exported customer data, passwords, payment-card details or provider secrets into an AI chat or support request.
+
+## Duplicate customers
+
+Use matching phone, email and name signals together. Open both records when the match is uncertain, choose the correct surviving record, and review the loyalty balance and history that will move. Do not merge on a similar name alone.
+
+## Connections and secrets
+
+Set up payment and email connections only in their dedicated settings. Test with the intended location and device before service. Support and Ask DUMA may explain connection state, but secrets belong only in the protected connection form.
+
+## Audit evidence
+
+Filter by date, actor, action or resource. An audit event tells you who did what and when; it does not by itself explain why. Match it to the order, customer, staff member or setting, then follow up with the actor when context is needed.`,
   },
 ];
 

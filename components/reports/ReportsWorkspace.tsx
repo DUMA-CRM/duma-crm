@@ -1217,15 +1217,17 @@ export function ReportsWorkspace({ tab = 'overview' }: { tab?: ReportsTab }) {
       icon={<BarChart3 size={20} aria-hidden="true" />}
       actions={
         tab === 'overview' ? (
-          <PeriodSelector
-            preset={preset}
-            dates={overviewDates}
-            onPresetChange={changePreset}
-            onCustomChange={(from, to) => {
-              setCustomFrom(from);
-              setCustomTo(to);
-            }}
-          />
+          <div>
+            <PeriodSelector
+              preset={preset}
+              dates={overviewDates}
+              onPresetChange={changePreset}
+              onCustomChange={(from, to) => {
+                setCustomFrom(from);
+                setCustomTo(to);
+              }}
+            />
+          </div>
         ) : undefined
       }
       subheader={

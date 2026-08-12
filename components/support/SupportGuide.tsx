@@ -51,9 +51,8 @@ import { Input } from '@/components/ui/input';
 
 import { getMyTickets } from '@/lib/api/people-ops.service';
 import type { StaffRole } from '@/lib/api/staff.service';
-import { roleAtLeast } from '@/lib/api/staff.service';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { ARTICLE_CATEGORIES, SUPPORT_ARTICLES, type SupportArticle } from '@/lib/content/support-articles';
-import { cn } from '@/lib/utils/cn';
 
 type GuideTab = 'overview' | 'guides' | 'service' | 'management' | 'people' | 'access' | 'fix' | 'glossary' | 'faq';
 
@@ -164,6 +163,21 @@ const serviceTopics: GuideTopic[] = [
     ],
   },
   {
+    title: 'Cash-up',
+    description: 'Open and close the trading day, reconcile cash and card totals, and investigate a variance before signing off.',
+    icon: Boxes,
+    href: '/cash-up',
+    linkLabel: 'Open cash-up',
+    access: 'Cash-up access',
+    steps: [
+      'Confirm the active location and trading date before opening the cash-up.',
+      'Enter the physical opening float rather than copying a previous day.',
+      'At close, count cash and enter the terminal card total independently.',
+      'Read any variance, add a useful explanation, and resolve unexplained differences before closing.',
+    ],
+    tips: ['A variance is a signal to investigate, not a number to edit away.'],
+  },
+  {
     title: 'Customers & loyalty',
     description: 'Find customer records, review visits and orders, and manage loyalty points.',
     icon: Users,
@@ -173,9 +187,24 @@ const serviceTopics: GuideTopic[] = [
     steps: [
       'Search by customer details, then open the customer record.',
       'Review loyalty progress, visit history, recent orders, and past communications.',
+      'Use Segments to save a reusable live audience; review consent before sending customer email.',
       'Use the points adjustment action only when a correction is needed, and include a clear reason.',
     ],
     tips: ['At the till, use the customer QR code or phone search instead of creating a duplicate record.'],
+  },
+  {
+    title: 'Customer duplicates',
+    description: 'Review likely duplicate customer records and merge only when the identity evidence is strong enough.',
+    icon: Users,
+    href: '/customers/duplicates',
+    linkLabel: 'Review duplicates',
+    access: 'Customer merge access',
+    steps: [
+      'Review the matching phone, email and name signals on both records.',
+      'Open each record when the evidence is ambiguous; do not merge on a similar name alone.',
+      'Choose the surviving record, check what history and loyalty balance will move, then confirm the merge.',
+    ],
+    tips: ['Merging changes customer history and should be treated as a controlled action.'],
   },
 ];
 
@@ -251,6 +280,20 @@ const managementTopics: GuideTopic[] = [
     ],
   },
   {
+    title: 'Report library, comparisons & refunds',
+    description: 'Move from headline reporting into a focused saved view, side-by-side comparison, item ranking, or refund analysis.',
+    icon: BarChart3,
+    href: '/reports/library',
+    linkLabel: 'Open report library',
+    access: 'Store manager+',
+    steps: [
+      'Choose Library when you know the operational question but not the report name.',
+      'Use Compare for like-for-like periods or locations, keeping the same metric and date basis.',
+      'Use Top items to find volume and revenue leaders; use Refunds to separate refund timing from sale timing.',
+      'Open a metric detail page when you need the definition and supporting trend behind one headline figure.',
+    ],
+  },
+  {
     title: 'Customer communications',
     description: 'Connect email, build reusable templates, automate messages, and review delivery history.',
     icon: Mail,
@@ -276,6 +319,36 @@ const managementTopics: GuideTopic[] = [
       'Complete each location record so staff, stock, reporting, and service data are scoped correctly.',
       'Assign staff only to the locations they need, then verify their access after changes.',
     ],
+  },
+  {
+    title: 'Trading, payments & connectors',
+    description: 'Configure legal trading details, tax behaviour, payment connections, and external service integrations.',
+    icon: Settings,
+    href: '/settings/trading',
+    linkLabel: 'Open trading settings',
+    access: 'Owner or settings access',
+    steps: [
+      'Complete legal name, address, currency, VAT and receipt details before taking live payments.',
+      'Connect each payment provider with the intended location scope and verify it before service.',
+      'Open Connectors to review external integrations and their current connection state.',
+      'Test on the intended device and location before relying on a new connection during service.',
+    ],
+    tips: ['Never paste secret keys into support messages or the AI chat.'],
+  },
+  {
+    title: 'Compliance & privacy requests',
+    description: 'Track customer data requests, deadlines, identity checks, exports, and completion evidence.',
+    icon: ShieldCheck,
+    href: '/compliance',
+    linkLabel: 'Open compliance',
+    access: 'Privacy access',
+    steps: [
+      'Record the request with the correct type, channel, received date and customer.',
+      'Confirm identity before exposing or changing personal data.',
+      'Track the due date and keep the status current while the request is being handled.',
+      'Add resolution notes and complete the request only when the required work and evidence are ready.',
+    ],
+    tips: ['Use the audit log to verify sensitive changes; do not copy personal data into support requests.'],
   },
   {
     title: 'Audit log',
@@ -370,32 +443,37 @@ const accessAreas: AccessArea[] = [
   {
     area: 'Orders, Customers, Menu, Inventory, Reports',
     detail: 'Trading history, customer records, the menu, stock and analysis.',
-    who: ['Store manager', 'Franchise owner', 'Super admin'],
+    who: ['Area-specific read or write permission'],
   },
   {
     area: 'Communications',
     detail: 'Customer email templates, automations and delivery history.',
-    who: ['Marketing manager', 'Store manager', 'Franchise owner', 'Super admin'],
+    who: ['Email read or send permission'],
   },
   {
     area: 'Staff — team, rota, shifts',
     detail: 'Employee records, team cover and shift management.',
-    who: ['Store manager', 'HR manager', 'Franchise owner', 'Super admin'],
+    who: ['Staff or scheduling permission'],
   },
   {
     area: 'Staff — leave, helpdesk, payroll',
     detail: 'Approving leave, triaging HR requests and running payroll.',
-    who: ['HR manager', 'Franchise owner', 'Super admin'],
+    who: ['Leave, helpdesk, or payroll permission'],
   },
   {
     area: 'Pay, bank details, payslips',
     detail: 'Money held on an employee record, wherever it appears. Everyone can see and manage their own in My HR.',
-    who: ['HR manager', 'Franchise owner', 'Super admin'],
+    who: ['HR people or payroll permission'],
   },
   {
-    area: 'Workspaces & locations, Audit log',
-    detail: 'Creating locations, staff access and reviewing who changed what.',
-    who: ['Franchise owner', 'Super admin'],
+    area: 'Workspaces & locations',
+    detail: 'Creating locations and controlling where teams operate.',
+    who: ['Location or tenant settings permission'],
+  },
+  {
+    area: 'Audit log',
+    detail: 'Reviewing who changed what, including auditor access.',
+    who: ['Audit read permission'],
   },
 ];
 
@@ -849,7 +927,7 @@ function OpenRequests() {
 
 const TAB_VALUES = tabs.map((tab) => tab.value);
 
-export function SupportGuide({ role }: { role: StaffRole | null }) {
+export function SupportGuide({ role, capabilities }: { role: StaffRole | null; capabilities: readonly string[] }) {
   // `?tab=guides` lets an article return to the section it was opened from.
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get('tab');
@@ -858,8 +936,9 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
   );
   const [query, setQuery] = useState('');
   const normalisedQuery = query.trim().toLowerCase();
-  const isManager = roleAtLeast(role, 'store_manager');
-  const isOwner = roleAtLeast(role, 'franchise_owner');
+  // Which guidance is relevant, keyed off what the reader can actually do.
+  const isManager = hasCapability(capabilities, 'analytics:read');
+  const isOwner = hasCapability(capabilities, 'settings:write');
 
   const searchResults = useMemo(() => {
     if (!normalisedQuery) return [];
@@ -925,7 +1004,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
       subheader={
         <SectionTabs
           tabs={tabs}
-          value={normalisedQuery ? ('search' as GuideTab) : activeTab}
+          value={activeTab}
           onChange={(next) => {
             setQuery('');
             setActiveTab(next);
@@ -961,9 +1040,9 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
         </div>
 
         {normalisedQuery ? (
-          <section>
+          <section aria-label="Help centre search results">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Search results</p>
-            <h2 className="mt-1 text-xl font-semibold text-foreground">
+            <h2 className="mt-1 text-xl font-semibold text-foreground" aria-live="polite" aria-atomic="true">
               {resultCount
                 ? `${resultCount} result${resultCount === 1 ? '' : 's'} for “${query.trim()}”`
                 : `No results for “${query.trim()}”`}
@@ -1248,13 +1327,13 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
               <GuideSection
                 eyebrow="Roles & access"
                 title="Who can open what"
-                description="Access follows your role and your assigned locations. If an area is missing for you, this is why."
+                description="The API returns your effective permissions at sign-in. Your role supplies the defaults; the live permission is what the app enforces."
               >
                 <div className="space-y-6">
                   <div className="overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
                     <div className="hidden border-b border-rule bg-muted/60 px-5 py-2.5 text-micro font-semibold uppercase tracking-micro text-muted-foreground md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,17rem)] md:gap-4">
                       <span>Area</span>
-                      <span>Who can open it</span>
+                      <span>Required access</span>
                     </div>
                     <ul className="divide-y divide-border/60">
                       {accessAreas.map((entry) => (
@@ -1267,12 +1346,7 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                             {entry.who.map((who) => (
                               <span
                                 key={who}
-                                className={cn(
-                                  'inline-flex items-center rounded-sm border px-2 py-0.5 text-label font-semibold',
-                                  role && who === roleLabels[role]
-                                    ? 'border-primary/40 bg-band text-primary'
-                                    : 'border-rule bg-background text-muted-foreground',
-                                )}
+                                className="inline-flex items-center rounded-sm border border-rule bg-background px-2 py-0.5 text-label font-semibold text-muted-foreground"
                               >
                                 {who}
                               </span>
@@ -1290,13 +1364,14 @@ export function SupportGuide({ role }: { role: StaffRole | null }) {
                         <h3 className="font-semibold text-foreground">Two things decide what you see</h3>
                       </div>
                       <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                        Your <span className="font-semibold text-foreground">role</span> decides which areas exist for you. Your{' '}
-                        <span className="font-semibold text-foreground">assigned locations</span> decide whose data you see inside them. A
-                        missing figure is often the location picker rather than a permission.
+                        Your <span className="font-semibold text-foreground">effective permissions</span> decide which areas exist for you.
+                        Your <span className="font-semibold text-foreground">assigned locations</span> decide whose data you see inside
+                        them. A missing figure is often the location picker rather than a permission.
                       </p>
                       {role && (
                         <p className="mt-3 text-sm text-muted-foreground">
-                          You are signed in as <span className="font-semibold text-foreground">{roleLabels[role]}</span>, highlighted above.
+                          You are signed in as <span className="font-semibold text-foreground">{roleLabels[role]}</span>. DUMA checks the
+                          live permissions attached to that account on every request.
                         </p>
                       )}
                     </div>

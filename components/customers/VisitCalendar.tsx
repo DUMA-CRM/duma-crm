@@ -105,8 +105,6 @@ export function VisitCalendar({ visits, months = 6 }: VisitCalendarProps) {
       )}
 
       <div>
-        <p className="mb-4 text-xs font-semibold text-foreground">Six-month activity</p>
-
         <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div style={{ minWidth: 'max-content' }}>
             {/* ── Month labels ─────────────────────────────────

@@ -1,11 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Check, ChevronDown, MapPin, Search } from '@/components/icons';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { ArrowRight, Check, ChevronDown, MapPin, Search } from '@/components/icons';
 import { Tooltip } from '@/components/shared/Tooltip';
 
 import { type Location, getLocationsByTenant } from '@/lib/api/workspace.service';

@@ -10,11 +10,39 @@ export const runtime = 'nodejs';
 const MAX_HISTORY = 40;
 /** Above this the payload is malformed or hostile rather than merely chatty. */
 const MAX_HISTORY_PAYLOAD = 500;
+const APP_PAGES = new Set([
+  'audit-log',
+  'cash-up',
+  'communications',
+  'compliance',
+  'customers',
+  'dashboard',
+  'inventory',
+  'kds',
+  'menu',
+  'my-hr',
+  'orders',
+  'pos',
+  'reports',
+  'scheduling',
+  'settings',
+  'staff',
+  'support',
+]);
 
 interface AgentRequestBody {
   messages?: AgentChatMessage[];
   context?: AgentContext;
   confirmedAction?: AgentActionSubmission;
+}
+
+function safeContext(context: AgentContext | undefined): AgentContext {
+  if (!context) return {};
+  return {
+    locationId: typeof context.locationId === 'string' ? context.locationId.slice(0, 100) : null,
+    tenantId: typeof context.tenantId === 'string' ? context.tenantId.slice(0, 100) : null,
+    page: typeof context.page === 'string' && APP_PAGES.has(context.page) ? context.page : undefined,
+  };
 }
 
 function errorResponse(error: unknown, status = 500) {
@@ -87,7 +115,7 @@ export async function POST(request: Request) {
     if (body.confirmedAction) {
       if (typeof body.confirmedAction.approvalToken !== 'string')
         return errorResponse(new Error('This approval is missing its token.'), 400);
-      return Response.json(await executeConfirmedAction(body.confirmedAction, body.context ?? {}, cookieHeader, profile));
+      return Response.json(await executeConfirmedAction(body.confirmedAction, safeContext(body.context), cookieHeader, profile));
     }
 
     if (!Array.isArray(body.messages) || body.messages.length === 0) {
@@ -99,7 +127,7 @@ export async function POST(request: Request) {
       return errorResponse(new Error('That conversation is too large to send. Clear the chat and ask again.'), 413);
     }
 
-    return streamTurn(body.messages.slice(-MAX_HISTORY), body.context ?? {}, cookieHeader, profile);
+    return streamTurn(body.messages.slice(-MAX_HISTORY), safeContext(body.context), cookieHeader, profile);
   } catch (error) {
     return errorResponse(error, statusFor(error));
   }

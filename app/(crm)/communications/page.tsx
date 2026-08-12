@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useMemo, useState } from 'react';
 
@@ -8,15 +8,17 @@ import { AutomationEditorPage } from '@/components/communications/AutomationEdit
 import { AutomationsPanel } from '@/components/communications/AutomationsPanel';
 import { DeliveryPreviewDrawer, EmailPreviewDrawer } from '@/components/communications/EmailPreviewDrawer';
 import { HistoryPanel } from '@/components/communications/HistoryPanel';
-import { SetupChecklist } from '@/components/communications/SetupChecklist';
+import { OverviewPanel } from '@/components/communications/OverviewPanel';
 import { SuppressionsPanel } from '@/components/communications/SuppressionsPanel';
 import { TemplateEditorPage } from '@/components/communications/TemplateEditorPage';
 import { TemplatesPanel } from '@/components/communications/TemplatesPanel';
-import { CheckCircle2, Loader2, Mail, MailX, Plug, Plus, RefreshCw, Send, ShieldOff, Sparkles, TriangleAlert } from '@/components/icons';
+import { Activity, CheckCircle2, FileText, Loader2, MailX, Plus, Send, ShieldOff, TriangleAlert, Zap } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
+
+import { cn } from '@/lib/utils/cn';
 
 import {
   type EmailDelivery,
@@ -24,14 +26,23 @@ import {
   getEmailConnection,
   getEmailDeliveries,
   getEmailTemplates,
-  getMarketingSuppressions,
 } from '@/lib/api/email.service';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-type Tab = 'templates' | 'automations' | 'history' | 'suppressions';
+/**
+ * Four tabs that were never peers.
+ *
+ * History was *evidence about* automations, suppressions were *settings*, and
+ * templates are *components of* automations — a flat list of four things that
+ * have a hierarchy is why everything felt scattered. Overview is now the front
+ * door (is this working?), automations are the centre of gravity, templates are
+ * the parts they are built from, and the compliance plumbing sits in settings
+ * where it is looked at twice a year rather than every visit.
+ */
+type Tab = 'overview' | 'automations' | 'templates' | 'history' | 'suppressions';
 
-const TAB_VALUES: Tab[] = ['templates', 'automations', 'history', 'suppressions'];
+const TAB_VALUES: Tab[] = ['overview', 'automations', 'templates', 'history', 'suppressions'];
 
 /** The mail account itself is a connector, so setting it up happens in Settings. */
 const EMAIL_CONNECTOR = '/settings/connectors?connector=email';
@@ -54,13 +65,12 @@ function CommunicationsView() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const role = useAuthStore((state) => state.role);
   const canConfigure = role === 'super_admin' || role === 'franchise_owner';
 
   const requestedTab = searchParams.get('tab');
-  const tab: Tab = TAB_VALUES.includes(requestedTab as Tab) ? (requestedTab as Tab) : 'templates';
+  const tab: Tab = TAB_VALUES.includes(requestedTab as Tab) ? (requestedTab as Tab) : 'overview';
   const templateParam = searchParams.get('template');
   const automationParam = searchParams.get('automation');
   const previewParam = searchParams.get('preview');
@@ -68,6 +78,8 @@ function CommunicationsView() {
   // Deliveries are paginated with no single-record endpoint, so the row hands the
   // record over. Nothing to put in the URL — a shared link could not resolve it.
   const [openedDelivery, setOpenedDelivery] = useState<EmailDelivery | null>(null);
+  // Owned here so the masthead button can open the panel's dialog.
+  const [addingSuppression, setAddingSuppression] = useState(false);
 
   const navigate = (patch: Record<string, string | null>, mode: 'push' | 'replace' = 'push') => {
     const next = new URLSearchParams(searchParams.toString());
@@ -105,14 +117,7 @@ function CommunicationsView() {
     // (The history table shares this key and polls faster while it is open.)
     refetchInterval: 60_000,
   });
-  // Shares its cache key with SuppressionsPanel — fetched here only for the tab count.
-  const { data: suppressions = [] } = useQuery({
-    queryKey: ['marketing-suppressions', tenantId],
-    queryFn: () => getMarketingSuppressions(tenantId ?? undefined),
-    enabled: !!tenantId,
-  });
-
-  const emailReady = Boolean(connection?.isEnabled && connection?.lastTestSucceeded);
+  const emailReady = Boolean(connection?.isEnabled && connection.lastTestSucceeded);
   const activeTemplates = useMemo(() => templates.filter((template) => template.isActive), [templates]);
   const sendingCount = automations.filter((automation) => automation.isEnabled).length;
   // Failures on the newest page — surfaced on the History tab so they aren't missed.
@@ -120,19 +125,22 @@ function CommunicationsView() {
 
   const tabs = useMemo<SectionTab<Tab>[]>(
     () => [
-      {
-        value: 'templates',
-        label: 'Templates',
-        icon: Mail,
-        count: activeTemplates.length,
-        countLabel: `${activeTemplates.length} templates`,
-      },
+      { value: 'overview', label: 'Overview', icon: Activity },
+      // Zap is the trigger glyph inside the workflow editor, so an automation
+      // wears the same mark in the nav as it does on its own canvas.
       {
         value: 'automations',
         label: 'Automations',
-        icon: Sparkles,
+        icon: Zap,
         count: sendingCount,
         countLabel: `${sendingCount} sending`,
+      },
+      {
+        value: 'templates',
+        label: 'Templates',
+        icon: FileText,
+        count: activeTemplates.length,
+        countLabel: `${activeTemplates.length} templates`,
       },
       {
         value: 'history',
@@ -142,20 +150,14 @@ function CommunicationsView() {
         countTone: 'danger',
         countLabel: `${failedCount} recent ${failedCount === 1 ? 'failure' : 'failures'}`,
       },
-      {
-        value: 'suppressions',
-        label: 'Suppressions',
-        icon: ShieldOff,
-        count: suppressions.length,
-        countLabel: `${suppressions.length} suppressed ${suppressions.length === 1 ? 'address' : 'addresses'}`,
-      },
+      { value: 'suppressions', label: 'Suppressions', icon: ShieldOff },
     ],
-    [activeTemplates.length, sendingCount, failedCount, suppressions.length],
+    [activeTemplates.length, sendingCount, failedCount],
   );
 
   if (!tenantId) {
     return (
-      <EditorShell eyebrow="Customer engagement" title="Communications" icon={<Mail size={20} aria-hidden="true" />}>
+      <EditorShell eyebrow="Customer engagement" title="Communications" icon={<Send size={20} aria-hidden="true" />}>
         <EmptyState icon={MailX} title="No workspace selected" description="Choose a workspace to manage its customer emails." />
       </EditorShell>
     );
@@ -199,26 +201,19 @@ function CommunicationsView() {
 
   // One primary action, always in the same place — whatever the open tab is for.
   const action =
-    tab === 'templates'
-      ? { icon: Plus, label: 'New template', onClick: () => navigate({ template: 'new' }) }
-      : tab === 'automations'
-        ? {
-            icon: Plus,
-            label: 'New automation',
-            onClick: () => navigate({ automation: 'new' }),
-            disabled: activeTemplates.length === 0,
-            title: activeTemplates.length === 0 ? 'Create a ready-to-use template first' : undefined,
-          }
-        : tab === 'history'
-          ? {
-              icon: RefreshCw,
-              label: 'Refresh',
-              variant: 'outline' as const,
-              onClick: () => queryClient.invalidateQueries({ queryKey: ['email-deliveries'] }),
-            }
-          : canConfigure
-            ? { icon: Plug, label: 'Email setup', variant: 'outline' as const, onClick: () => router.push(EMAIL_CONNECTOR) }
-            : null;
+    tab === 'automations'
+      ? {
+          icon: Plus,
+          label: 'New automation',
+          onClick: () => navigate({ automation: 'new' }),
+          disabled: activeTemplates.length === 0,
+          title: activeTemplates.length === 0 ? 'Create a ready-to-use template first' : undefined,
+        }
+      : tab === 'templates'
+        ? { icon: Plus, label: 'New template', onClick: () => navigate({ template: 'new' }) }
+        : tab === 'suppressions'
+          ? { icon: Plus, label: 'Add email', onClick: () => setAddingSuppression(true) }
+          : null;
   const ActionIcon = action?.icon;
 
   // Previewing a template keeps `?preview=` so the link is shareable; a bad id
@@ -229,12 +224,18 @@ function CommunicationsView() {
     <EditorShell
       eyebrow="Customer engagement"
       title="Communications"
-      icon={<Mail size={20} aria-hidden="true" />}
+      icon={<Send size={20} aria-hidden="true" />}
+      meta={
+        <ConnectionStatus
+          ready={emailReady}
+          configured={Boolean(connection)}
+          onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined}
+        />
+      }
       actions={
         action && ActionIcon ? (
           <Button
             className="h-9 gap-1.5"
-            variant={action.variant}
             disabled={action.disabled}
             title={action.title}
             onClick={action.onClick}
@@ -254,22 +255,11 @@ function CommunicationsView() {
       }
     >
       <div className="space-y-5">
-        <SetupChecklist
-          emailConnected={emailReady}
-          hasTemplate={templates.some((template) => template.isActive)}
-          hasEnabledAutomation={automations.some((automation) => automation.isEnabled)}
-          hasDeliveries={Boolean(deliveries?.total)}
-          canConfigure={canConfigure}
-          onOpenConnection={() => router.push(EMAIL_CONNECTOR)}
-          onNewTemplate={() => navigate({ tab: 'templates', template: 'new' })}
-          onNewAutomation={() => navigate({ tab: 'automations' }, 'replace')}
-          onOpenHistory={() => navigate({ tab: 'history' }, 'replace')}
-        />
-
-        {tab === 'templates' && (
-          <TemplatesPanel
-            onEdit={({ template }) => navigate({ template: template?.id ?? 'new', preset: null })}
-            onPreview={(template) => navigate({ preview: template.id })}
+        {tab === 'overview' && (
+          <OverviewPanel
+            onOpenAutomations={() => navigate({ tab: 'automations' }, 'replace')}
+            onOpenTemplates={() => navigate({ tab: 'templates' }, 'replace')}
+            onOpenFailures={() => navigate({ tab: 'history' }, 'replace')}
           />
         )}
         {tab === 'automations' && (
@@ -278,8 +268,14 @@ function CommunicationsView() {
             onOpenTemplates={() => navigate({ tab: 'templates' }, 'replace')}
           />
         )}
+        {tab === 'templates' && (
+          <TemplatesPanel
+            onEdit={({ template }) => navigate({ template: template?.id ?? 'new', preset: null })}
+            onPreview={(template) => navigate({ preview: template.id })}
+          />
+        )}
         {tab === 'history' && <HistoryPanel onPreview={setOpenedDelivery} />}
-        {tab === 'suppressions' && <SuppressionsPanel />}
+        {tab === 'suppressions' && <SuppressionsPanel adding={addingSuppression} onAddingChange={setAddingSuppression} />}
       </div>
 
       {previewTemplate && (
@@ -310,20 +306,33 @@ function CommunicationsView() {
 }
 
 /**
- * Whether email can actually leave the building — the one fact that decides if
- * anything on this page has an effect, so it sits under the title on every tab.
+ * Whether email can actually leave the building — the one fact that decides
+ * whether anything on this page has an effect. It rides in the masthead rather
+ * than as a banner on the body: it is true of the whole feature, not of the tab
+ * you happen to have open, and a full-width banner repeating it on every tab was
+ * the loudest thing on a page whose job is the work underneath.
  */
-function ConnectionStatus({ ready, onOpenConnection }: { ready: boolean; onOpenConnection?: () => void }) {
+function ConnectionStatus({
+  ready,
+  configured,
+  onOpenConnection,
+}: {
+  ready: boolean;
+  configured: boolean;
+  onOpenConnection?: () => void;
+}) {
   const Icon = ready ? CheckCircle2 : TriangleAlert;
+  const label = ready ? 'Email connected' : configured ? 'Email not verified' : 'Email not set up';
+  const className = cn(
+    'inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 text-xs font-semibold',
+    ready ? 'border-momentum/40 bg-momentum/6 text-momentum' : 'border-warning/40 bg-warning/6 text-warning',
+  );
   const body = (
     <>
       <Icon size={12} aria-hidden="true" />
-      {ready ? 'Email connected' : 'Email not verified'}
+      {label}
     </>
   );
-  const className = `inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-xs font-semibold ${
-    ready ? 'bg-success/6 text-success' : 'bg-warning/6 text-warning'
-  }`;
 
   // Only owners and admins can act on it, so only they get a button.
   if (!onOpenConnection) return <span className={className}>{body}</span>;
@@ -331,7 +340,7 @@ function ConnectionStatus({ ready, onOpenConnection }: { ready: boolean; onOpenC
     <button
       type="button"
       onClick={onOpenConnection}
-      className={`${className} transition-opacity hover:opacity-80`}
+      className={cn(className, 'transition-opacity hover:opacity-80')}
       title={ready ? 'Review the email connection' : 'Set up email sending'}
     >
       {body}
