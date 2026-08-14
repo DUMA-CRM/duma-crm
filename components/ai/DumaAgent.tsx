@@ -442,36 +442,49 @@ function shortcutKey(shortcut: AgentShortcut) {
  * spinner that might mean anything.
  */
 function ThinkingTrail({ steps }: { steps: string[] }) {
-  const visible = steps.slice(-4);
+  const current = steps[steps.length - 1];
+  if (!current) return null;
   return (
-    <div className="mt-5 border-l border-reference pl-3" role="status" aria-live="polite">
-      <ul className="space-y-1.5">
-        {visible.map((step, index) => {
-          const current = index === visible.length - 1;
-          return (
-            <li key={`${step}-${index}`} className="flex items-center gap-2">
-              {current ? (
-                <Loader2 size={13} className="shrink-0 animate-spin text-reference" aria-hidden="true" />
-              ) : (
-                <Check size={13} className="shrink-0 text-reference/60" aria-hidden="true" />
-              )}
-              <span className={cn('text-sm', current ? 'font-medium text-foreground' : 'text-muted-foreground')}>
-                {step}
-                {current ? '…' : ''}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+    <div className="mt-6 flex items-center gap-2" role="status" aria-live="polite">
+      <Loader2 size={13} className="shrink-0 animate-spin text-muted-foreground" aria-hidden="true" />
+      <span className="min-w-0 truncate text-sm text-muted-foreground">{current}…</span>
+      {steps.length > 1 && <span className="shrink-0 text-label tabular-nums text-muted-foreground/70">{steps.length}</span>}
     </div>
+  );
+}
+
+/**
+ * What the agent did, folded away under the answer.
+ *
+ * Shut by default because the answer is the point; kept at all because "how did
+ * it know that" is the first question anyone asks of a figure, and a sweep that
+ * read five pages of the audit log should be able to say so.
+ */
+function StepsTaken({ steps }: { steps: string[] }) {
+  if (steps.length === 0) return null;
+  return (
+    <details className="group mt-2">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-sm py-0.5 text-label font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+        <ChevronRight size={11} aria-hidden="true" className="shrink-0 transition-transform duration-150 group-open:rotate-90" />
+        {steps.length} {steps.length === 1 ? 'step' : 'steps'} taken
+      </summary>
+      <ol className="mt-1.5 space-y-1 border-l border-rule pl-3">
+        {steps.map((step, index) => (
+          <li key={`${step}-${index}`} className="flex items-start gap-1.5 text-label leading-4 text-muted-foreground">
+            <Check size={10} className="mt-0.5 shrink-0 text-momentum" aria-hidden="true" />
+            {step}
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }
 
 function AgentMark({ nonce, busy, size = 36 }: { nonce: number; busy: boolean; size?: number }) {
   return (
     <span className={cn('relative shrink-0', busy && 'animate-pulse')} style={{ width: size, height: size }}>
-      <Logo key={nonce} size={size} variant="onDark" className="animate-in fade-in zoom-in-75 duration-500 motion-reduce:animate-none" />
-      {busy ? <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-stock ring-2 ring-sidebar" aria-hidden="true" /> : null}
+      <Logo key={nonce} size={size} className="animate-in fade-in zoom-in-75 duration-500 motion-reduce:animate-none" />
+      {busy ? <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-stock ring-2 ring-card" aria-hidden="true" /> : null}
     </span>
   );
 }
@@ -486,9 +499,8 @@ function ShortcutList({
   onOpen: (shortcut: AgentShortcut) => void;
 }) {
   return (
-    <section className="mt-3 border-t border-reference/25 pt-3" aria-label="Open in DUMA">
-      <p className="text-label font-semibold uppercase tracking-wide text-reference">Open in DUMA</p>
-      <div className="mt-1.5 space-y-1">
+    <section className="mt-4" aria-label="Open in DUMA">
+      <div className="-mx-2 space-y-0.5">
         {shortcuts.map((shortcut) => {
           const key = shortcutKey(shortcut);
           const opening = openingKey === key;
@@ -504,15 +516,15 @@ function ShortcutList({
               type="button"
               onClick={() => onOpen(shortcut)}
               disabled={Boolean(openingKey)}
-              className="group flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left transition-colors hover:bg-reference/8 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-wait disabled:opacity-60"
+              className="group flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-wait disabled:opacity-60"
             >
               {opening ? (
-                <Loader2 size={14} className="shrink-0 animate-spin text-reference" aria-hidden="true" />
+                <Loader2 size={14} className="shrink-0 animate-spin text-muted-foreground" aria-hidden="true" />
               ) : (
-                <Icon size={14} className="shrink-0 text-reference" aria-hidden="true" />
+                <Icon size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
               )}
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-semibold text-foreground">{shortcut.label}</span>
+                <span className="block truncate text-sm text-foreground">{shortcut.label}</span>
                 {opening || shortcut.description ? (
                   <span className="mt-0.5 block text-label leading-4 text-muted-foreground">
                     {opening ? progressLabel : shortcut.description}
@@ -571,6 +583,8 @@ export function DumaAgent() {
   const [testMode, setTestMode] = useState(true);
   const [busy, setBusy] = useState(false);
   const [steps, setSteps] = useState<string[]>([]);
+  /** Mirrors `steps` for the stream handler, which closes over stale state. */
+  const takenRef = useRef<string[]>([]);
   const [openingShortcut, setOpeningShortcut] = useState<string>();
   const [error, setError] = useState('');
   const [drawerRect, setDrawerRect] = useState<DOMRect>();
@@ -703,11 +717,12 @@ export function DumaAgent() {
     setLogoNonce(Date.now());
   };
 
-  const applyResponse = useCallback((result: AgentChatResponse) => {
+  const applyResponse = useCallback((result: AgentChatResponse, taken: string[] = []) => {
     setMessages((current) => [
       ...current,
       {
         role: 'assistant',
+        steps: taken,
         content: result.message,
         evidence: result.evidence,
         scope: result.scope,
@@ -778,6 +793,7 @@ export function DumaAgent() {
     setPendingAction(undefined);
     setError('');
     setSteps([]);
+    takenRef.current = [];
     setBusy(true);
     const startedAt = performance.now();
 
@@ -819,11 +835,16 @@ export function DumaAgent() {
           if (!line.trim()) continue;
           const event = JSON.parse(line) as AgentStreamEvent;
           if (event.type === 'step')
-            setSteps((current) => (current[current.length - 1] === event.label ? current : [...current, event.label]));
+            setSteps((current) => {
+              if (current[current.length - 1] === event.label) return current;
+              const next = [...current, event.label];
+              takenRef.current = next;
+              return next;
+            });
           else if (event.type === 'error') throw new Error(event.message);
           else if (event.type === 'result') {
             await waitForMinimum(startedAt);
-            applyResponse(event.response);
+            applyResponse(event.response, takenRef.current);
             answered = true;
           }
         }
@@ -1113,7 +1134,8 @@ export function DumaAgent() {
                                     </p>
                                   ) : null}
                                   {message.role === 'assistant' ? (
-                                    <div className="mt-1 flex justify-end">
+                                    <div className="mt-1 flex items-center justify-between gap-3">
+                                      <StepsTaken steps={message.steps ?? []} />
                                       <CopyAnswer content={message.content} />
                                     </div>
                                   ) : null}

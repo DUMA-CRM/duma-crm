@@ -19,12 +19,27 @@ import type { AgentFieldOption } from './agent-types';
 export class AgentRuntime {
   private readonly cache = new Map<string, Promise<unknown>>();
 
+  /**
+   * Set by the turn generator so a long-running tool can narrate itself.
+   *
+   * Tools run inside a `Promise.all`, which the generator cannot yield from, so
+   * progress is pushed here and drained by the generator between awaits. A tool
+   * that pages through hundreds of records otherwise sits behind one static
+   * step label for the whole sweep.
+   */
+  onProgress: ((label: string) => void) | null = null;
+
   constructor(
     readonly cookieHeader: string,
     readonly profile: StaffProfile,
     readonly locationId: string | null,
     readonly tenantId: string | null,
   ) {}
+
+  /** Report progress mid-tool. Silently ignored when nothing is listening. */
+  progress(label: string) {
+    this.onProgress?.(label);
+  }
 
   private once<T>(key: string, load: () => Promise<T>): Promise<T> {
     const existing = this.cache.get(key) as Promise<T> | undefined;

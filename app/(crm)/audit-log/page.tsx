@@ -3,257 +3,43 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Popover } from 'radix-ui';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import {
-  AlertCircle,
-  Building2,
-  CalendarDays,
-  ChevronDown,
-  Clock,
-  Fingerprint,
-  Globe,
-  History,
-  Link2,
-  Loader2,
-  Mail,
-  Monitor,
-  Route,
-  Search,
-  Shield,
-  ShieldCheck,
-  SlidersHorizontal,
-  Timer,
-  User,
-  X,
-} from '@/components/icons';
+import { AuditCopyButton, AuditInspector, type AuditPivot } from '@/components/audit/AuditInspector';
+import { AuditTable, auditRowId } from '@/components/audit/AuditTable';
+import { AlertCircle, CalendarDays, History, Layers3, ListView, Loader2, Search, SlidersHorizontal, User, X } from '@/components/icons';
+import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
-import { FilterChip } from '@/components/shared/FilterChip';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
+import { FilterChip } from '@/components/shared/FilterChip';
+import { SegmentedControl, type SegmentedOption } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
-import { DataTable } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select, type SelectOption } from '@/components/ui/select';
 
-import { type AuditLog, getAuditLogs, parseAuditMeta } from '@/lib/api/audit.service';
+import { type AuditLog, getAuditLogs } from '@/lib/api/audit.service';
 import { getStaff } from '@/lib/api/staff.service';
+import { groupAuditLogs } from '@/lib/audit/groups';
+import { auditActor, auditPhrase, auditRole, auditSeverity, fullTimestamp } from '@/lib/audit/narrative';
+import { COMMON_ACTIONS, actionFilterLabel, actionResource, resourceMeta, resourcePickerOptions } from '@/lib/audit/vocabulary';
 import { hasCapability } from '@/lib/auth/capabilities';
-import { cn } from '@/lib/utils/cn';
-import { formatDateTime } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-const ROLE_LABEL: Record<string, string> = {
-  super_admin: 'Super Admin',
-  franchise_owner: 'Franchise Owner',
-  store_manager: 'Store Manager',
-  barista: 'Barista',
-  hr_manager: 'HR Manager',
-  marketing_manager: 'Marketing',
-  auditor: 'Auditor',
-};
-
-function fmtDuration(ms?: number | null) {
-  if (ms == null) return null;
-  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`;
-}
-
-function statusColor(code?: number | null) {
-  if (code == null) return 'bg-muted text-muted-foreground';
-  if (code < 300) return 'bg-success/6 text-success';
-  if (code < 400) return 'bg-band text-primary';
-  if (code < 500) return 'bg-warning/6 text-warning';
-  return 'bg-destructive/6 text-destructive';
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function actionColor(action: string) {
-  if (/delete|remove/i.test(action)) return 'text-destructive bg-destructive/6 border-destructive/20';
-  if (/create|add/i.test(action)) return 'text-success bg-success/6 border-success/20';
-  if (/update|patch|edit/i.test(action)) return 'text-primary bg-band border-primary/20';
-  if (/transfer|receive|adjust/i.test(action)) return 'text-warning bg-warning/6 border-warning/20';
-  return 'text-muted-foreground bg-muted border-rule';
-}
-
-function humanise(str: string) {
-  return str.replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-const formatDate = (iso: string) => formatDateTime(iso);
-
-// ── Detail panel (details + metadata) ──────────────────────────────────────────
-
-function AuditDetailPanel({ log }: { log: AuditLog }) {
-  const meta = parseAuditMeta(log.metadata);
-  const response = parseAuditMeta(log.response);
-  const duration = fmtDuration(log.durationMs);
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
-      {/* Details */}
-      <div className="flex flex-col gap-3">
-        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Details</p>
-        <InfoGroup>
-          <InfoRow icon={User} label="Actor" value={log.userName ?? 'System / anonymous'} />
-          {log.userRole && <InfoRow icon={Shield} label="Role" value={ROLE_LABEL[log.userRole] ?? log.userRole} />}
-          {log.userEmail && <InfoRow icon={Mail} label="Email" value={log.userEmail} copyable />}
-          {log.method && <InfoRow icon={Route} label="Method" value={log.method} />}
-          {log.path && <InfoRow icon={Link2} label="Path" value={log.path} copyable />}
-          {log.statusCode != null && <InfoRow icon={ShieldCheck} label="Status" value={String(log.statusCode)} />}
-          {duration && <InfoRow icon={Timer} label="Duration" value={duration} />}
-          {log.tenantId && <InfoRow icon={Building2} label="Workspace" value={log.tenantId} copyable />}
-          {log.resourceId && <InfoRow icon={Link2} label="Resource ID" value={log.resourceId} copyable />}
-          {log.ipAddress && <InfoRow icon={Globe} label="IP address" value={log.ipAddress} copyable />}
-          {log.requestId && <InfoRow icon={Fingerprint} label="Request ID" value={log.requestId} copyable />}
-          {log.userAgent && <InfoRow icon={Monitor} label="User agent" value={log.userAgent} />}
-        </InfoGroup>
-      </div>
-
-      {/* Metadata + response */}
-      <div className="flex flex-col gap-3">
-        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Metadata</p>
-        {meta ? (
-          <pre className="text-xs text-muted-foreground bg-background border border-rule rounded-sm px-3 py-2.5 overflow-x-auto whitespace-pre-wrap break-all">
-            {JSON.stringify(meta, null, 2)}
-          </pre>
-        ) : (
-          <p className="text-label text-muted-foreground">No metadata.</p>
-        )}
-
-        {response && (
-          <>
-            <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Response</p>
-            <pre className="text-xs text-muted-foreground bg-background border border-rule rounded-sm px-3 py-2.5 overflow-x-auto whitespace-pre-wrap break-all">
-              {JSON.stringify(response, null, 2)}
-            </pre>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Log row ───────────────────────────────────────────────────────────────────
-
-function LogRow({ log }: { log: AuditLog }) {
-  const [open, setOpen] = useState(false);
-  const duration = fmtDuration(log.durationMs);
-
-  return (
-    <>
-      <tr
-        className="group border-b border-rule transition-colors align-top cursor-pointer hover:bg-band"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <td className="px-3 md:px-5 py-4 w-6 align-top">
-          <ChevronDown
-            size={14}
-            className={cn('text-muted-foreground transition-transform duration-150 mt-0.5', open && 'rotate-180')}
-            aria-hidden="true"
-          />
-        </td>
-        <td className="px-3 md:px-5 py-4 w-40 align-top">
-          <span
-            className={cn(
-              'inline-block text-micro font-semibold uppercase tracking-micro px-1.5 py-0.5 rounded-sm border whitespace-nowrap',
-              actionColor(log.action),
-            )}
-          >
-            {humanise(log.action)}
-          </span>
-        </td>
-        <td className="px-3 md:px-5 py-4 align-top">
-          <p className="text-sm font-medium text-foreground leading-snug">{humanise(log.resourceType)}</p>
-          {(log.method || log.path) && (
-            <p className="text-xs text-muted-foreground font-mono mt-0.5 opacity-70 truncate max-w-md">
-              {log.method && <span className="font-semibold">{log.method}</span>} {log.path}
-            </p>
-          )}
-        </td>
-        <td className="hidden lg:table-cell px-5 py-4 w-48 align-top">
-          {log.userName || log.userEmail ? (
-            <>
-              <div className="flex items-center gap-1.5">
-                <p className="text-sm text-foreground leading-snug truncate max-w-36">{log.userName ?? '—'}</p>
-                {log.userRole && (
-                  <span className="text-micro font-semibold uppercase tracking-micro px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
-                    {ROLE_LABEL[log.userRole] ?? log.userRole}
-                  </span>
-                )}
-              </div>
-              {log.userEmail && <p className="text-xs text-muted-foreground truncate max-w-44 mt-0.5">{log.userEmail}</p>}
-            </>
-          ) : (
-            <span className="text-sm text-muted-foreground">System / anonymous</span>
-          )}
-        </td>
-        <td className="hidden md:table-cell px-5 py-4 pr-6 w-44 align-top">
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
-            <Clock size={11} aria-hidden="true" className="shrink-0" />
-            {formatDate(log.createdAt)}
-          </span>
-          <div className="flex items-center gap-1.5 mt-1">
-            {log.statusCode != null && (
-              <span className={cn('text-micro font-semibold tabular-nums px-1.5 py-0.5 rounded-sm', statusColor(log.statusCode))}>
-                {log.statusCode}
-              </span>
-            )}
-            {duration && <span className="text-label text-muted-foreground tabular-nums">{duration}</span>}
-          </div>
-        </td>
-      </tr>
-      {open && (
-        <tr className="border-b border-rule bg-band">
-          <td colSpan={5} className="px-4 md:px-8 pt-3 pb-5">
-            <AuditDetailPanel log={log} />
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
-
-// ── Page ──────────────────────────────────────────────────────────────────────
-
-const LIMIT = 50;
+/**
+ * The audit endpoint is mounted with `getPagination(c, 50, 200)`, so 200 is a
+ * hard ceiling — a 500 option would be silently clamped and the control would
+ * be claiming a page size the API will not serve.
+ */
+const PAGE_SIZES = [50, 100, 200] as const;
+const DEFAULT_PAGE_SIZE = 50;
+/** Long enough not to churn the list under someone reading it. */
+const LIVE_INTERVAL_MS = 20_000;
 
 type DatePreset = 'all' | 'today' | '7d' | '30d' | 'custom';
+type GroupMode = 'record' | 'entry';
 
-const ACTION_OPTIONS: SelectOption[] = [
-  { value: 'all', label: 'All actions' },
-  { value: 'order.create', label: 'Order created' },
-  { value: 'order.status_update', label: 'Order status updated' },
-  { value: 'order.cancel', label: 'Order cancelled' },
-  { value: 'staff.create', label: 'Staff created' },
-  { value: 'staff.update', label: 'Staff updated' },
-  { value: 'stock.adjust', label: 'Stock adjusted' },
-  { value: 'stock.transfer', label: 'Stock transferred' },
-  { value: 'stock.bulk_update', label: 'Stock bulk updated' },
-  { value: 'data.export', label: 'Data exported' },
-  { value: 'tenant.delete', label: 'Workspace deleted' },
-  { value: 'location.delete', label: 'Location deleted' },
-  { value: 'hr.leave_approved', label: 'Leave approved' },
-  { value: 'hr.leave_declined', label: 'Leave declined' },
-  { value: 'hr.expense_approved', label: 'Expense approved' },
-  { value: 'hr.expense_declined', label: 'Expense declined' },
-  { value: 'hr.payslip_finalised', label: 'Payslip finalised' },
-];
-
-const RESOURCE_OPTIONS: SelectOption[] = [
-  { value: 'all', label: 'All resources' },
-  { value: 'order', label: 'Orders' },
-  { value: 'staff', label: 'Staff' },
-  { value: 'stock', label: 'Stock' },
-  { value: 'tenant', label: 'Workspaces' },
-  { value: 'location', label: 'Locations' },
-  { value: 'leave_request', label: 'Leave requests' },
-  { value: 'expense_claim', label: 'Expense claims' },
-  { value: 'payslip', label: 'Payslips' },
-];
-
-const DATE_OPTIONS: SelectOption[] = [
+const DATE_FILTERS: SelectOption[] = [
   { value: 'all', label: 'Any time' },
   { value: 'today', label: 'Today' },
   { value: '7d', label: 'Last 7 days' },
@@ -261,8 +47,32 @@ const DATE_OPTIONS: SelectOption[] = [
   { value: 'custom', label: 'Custom range' },
 ];
 
+const RANGE_LABEL: Record<DatePreset, string> = {
+  today: 'Today',
+  '7d': 'Last 7 days',
+  '30d': 'Last 30 days',
+  all: 'Any time',
+  custom: 'Custom range',
+};
+
+const GROUP_OPTIONS: SegmentedOption<GroupMode>[] = [
+  { value: 'record', label: 'By record', icon: Layers3 },
+  { value: 'entry', label: 'Every entry', icon: ListView },
+];
+
+const ACTION_OPTIONS: SelectOption[] = [
+  { value: 'all', label: 'All actions' },
+  ...COMMON_ACTIONS.map((value) => ({ value, label: actionFilterLabel(value) })),
+];
+
+// The whole known vocabulary, not a shortlist: a record type missing from the
+// picker is indistinguishable from one the log has never seen.
+const RESOURCE_OPTIONS: SelectOption[] = [{ value: 'all', label: 'All records' }, ...resourcePickerOptions()];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function optionLabel(options: SelectOption[], value: string) {
-  return options.find((option) => option.value === value)?.label ?? humanise(value);
+  return options.find((option) => option.value === value)?.label ?? value;
 }
 
 function dateInputValue(date: Date) {
@@ -291,10 +101,31 @@ function initialPage(value: string | null) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
+/** A hand-edited `?limit=` outside the offered sizes falls back rather than being sent. */
+function initialPageSize(value: string | null) {
+  const parsed = Number(value);
+  return PAGE_SIZES.includes(parsed as (typeof PAGE_SIZES)[number]) ? parsed : DEFAULT_PAGE_SIZE;
+}
+
+/** The inspector docks beside the table on wide screens and slides over below it. */
+function useWideLayout() {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1280px)');
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return wide;
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 function AuditLogPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Same gate as the header's audit drawer — franchise_owner and above only.
+  // Same gate as the header's audit drawer.
   const role = useAuthStore((s) => s.role);
   const capabilities = useAuthStore((s) => s.capabilities);
   const canView = hasCapability(capabilities, 'audit:read');
@@ -303,37 +134,130 @@ function AuditLogPageContent() {
   }, [role, canView, router]);
 
   const tenantId = useWorkspaceStore((s) => s.tenantId);
+  const wide = useWideLayout();
+
   const initialFrom = searchParams.get('from') ?? '';
   const initialTo = searchParams.get('to') ?? '';
   const requestedPreset = searchParams.get('range') as DatePreset | null;
-  const validPreset = requestedPreset && DATE_OPTIONS.some((option) => option.value === requestedPreset) ? requestedPreset : null;
+  const validPreset = requestedPreset && requestedPreset in RANGE_LABEL ? requestedPreset : null;
 
   const [page, setPage] = useState(() => initialPage(searchParams.get('page')));
+  const [pageSize, setPageSize] = useState(() => initialPageSize(searchParams.get('limit')));
   const [action, setAction] = useState(searchParams.get('action') ?? 'all');
   const [resourceType, setResourceType] = useState(searchParams.get('resourceType') ?? 'all');
   const [actorId, setActorId] = useState(searchParams.get('userId') ?? 'all');
-  const [resourceSearch, setResourceSearch] = useState(searchParams.get('resourceId') ?? '');
-  const [debouncedResourceId, setDebouncedResourceId] = useState(resourceSearch);
+  const [resourceId, setResourceId] = useState(searchParams.get('resourceId') ?? '');
   const [datePreset, setDatePreset] = useState<DatePreset>(validPreset ?? (initialFrom || initialTo ? 'custom' : 'all'));
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
 
+  const [search, setSearch] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [groupMode, setGroupMode] = useState<GroupMode>('record');
+  const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string>>(new Set());
+  // Highlight and inspection are one thing on wide screens and two on narrow:
+  // there the slide-over only opens on an explicit click.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Auto-refresh never stops now, so an entry being read can drop off page one
+  // mid-read. Retaining the last one keeps the inspector from blanking; the row
+  // highlight goes with it, which is the honest signal that it has scrolled out
+  // of the live view.
+  const [lastSelected, setLastSelected] = useState<AuditLog | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Relative times stay honest while the page is left open.
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const timeout = window.setTimeout(() => setDebouncedResourceId(resourceSearch.trim()), resourceSearch ? 400 : 0);
-    return () => window.clearTimeout(timeout);
-  }, [resourceSearch]);
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const invalidDateRange = Boolean(from && to && from > to);
-  const hasFilters =
-    action !== 'all' || resourceType !== 'all' || actorId !== 'all' || !!debouncedResourceId || datePreset !== 'all' || !!from || !!to;
-  const advancedFilterCount = Number(actorId !== 'all') + Number(datePreset === 'custom' && (!!from || !!to));
+  const hasFilters = action !== 'all' || resourceType !== 'all' || actorId !== 'all' || !!resourceId || datePreset !== 'all';
+  // Everything the popover now owns, so its badge counts what is out of sight.
+  const advancedFilterCount =
+    Number(actorId !== 'all') + Number(resourceType !== 'all') + Number(!!resourceId) + Number(datePreset === 'custom' && (!!from || !!to));
 
   const { data: staff = [] } = useQuery({
     queryKey: ['staff', tenantId],
     queryFn: () => getStaff(tenantId ?? undefined),
     enabled: canView && !!tenantId,
   });
+
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
+    queryKey: ['audit-logs', page, pageSize, action, resourceType, actorId, resourceId, from, to],
+    queryFn: () =>
+      getAuditLogs({
+        page,
+        limit: pageSize,
+        action: action === 'all' ? undefined : action,
+        resourceType: resourceType === 'all' ? undefined : resourceType,
+        userId: actorId === 'all' ? undefined : actorId,
+        resourceId: resourceId || undefined,
+        from: from ? startOfLocalDay(from) : undefined,
+        to: to ? endOfLocalDay(to) : undefined,
+      }),
+    enabled: canView && !invalidDateRange,
+    placeholderData: (previousData) => previousData,
+    // Always on: the log keeps itself current with no switch to find.
+    refetchInterval: LIVE_INTERVAL_MS,
+  });
+
+  const logs = useMemo(() => data?.data ?? [], [data?.data]);
+  const totalPages = data?.pages ?? 1;
+
+  /**
+   * Text search runs over the loaded page only — the API has no free-text
+   * filter — so the placeholder states its scope rather than implying it
+   * searched everything.
+   */
+  const visibleLogs = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return logs;
+    return logs.filter((log) => {
+      return `${auditActor(log)} ${auditRole(log) ?? ''} ${auditPhrase(log)} ${resourceMeta(log.resourceType).plural}`
+        .toLowerCase()
+        .includes(needle);
+    });
+  }, [logs, search]);
+
+  const groups = useMemo(() => groupAuditLogs(visibleLogs, auditSeverity, groupMode === 'record'), [groupMode, visibleLogs]);
+
+  // Actions and records the API returned that the shipped lists don't name yet.
+  const actionOptions = useMemo(() => {
+    const discovered = logs
+      .map((log) => log.action)
+      .filter((value, index, values) => values.indexOf(value) === index)
+      .filter((value) => !ACTION_OPTIONS.some((option) => option.value === value))
+      .map((value) => ({ value, label: actionFilterLabel(value) }));
+    if (action !== 'all' && ![...ACTION_OPTIONS, ...discovered].some((option) => option.value === action)) {
+      discovered.unshift({ value: action, label: actionFilterLabel(action) });
+    }
+
+    const all = [...ACTION_OPTIONS, ...discovered];
+    if (resourceType === 'all') return all;
+    // Picking a record type narrows the action list to that type's own events —
+    // an unmapped action stays visible rather than being hidden on a guess.
+    return all.filter((option) => {
+      if (option.value === 'all' || option.value === action) return true;
+      const owner = actionResource(option.value);
+      return owner === null || owner === resourceType;
+    });
+  }, [action, logs, resourceType]);
+
+  const resourceOptions = useMemo(() => {
+    const discovered = logs
+      .map((log) => log.resourceType)
+      .filter((value, index, values) => values.indexOf(value) === index)
+      .filter((value) => !RESOURCE_OPTIONS.some((option) => option.value === value))
+      .map((value) => ({ value, label: resourceMeta(value).plural }));
+    if (resourceType !== 'all' && ![...RESOURCE_OPTIONS, ...discovered].some((option) => option.value === resourceType)) {
+      discovered.unshift({ value: resourceType, label: resourceMeta(resourceType).plural });
+    }
+    return [...RESOURCE_OPTIONS, ...discovered];
+  }, [logs, resourceType]);
 
   const actorOptions = useMemo<SelectOption[]>(() => {
     const options = staff
@@ -345,59 +269,17 @@ function AuditLogPageContent() {
     return [{ value: 'all', label: 'All actors' }, ...options];
   }, [actorId, staff]);
 
-  const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ['audit-logs', page, action, resourceType, actorId, debouncedResourceId, from, to],
-    queryFn: () =>
-      getAuditLogs({
-        page,
-        limit: LIMIT,
-        action: action === 'all' ? undefined : action,
-        resourceType: resourceType === 'all' ? undefined : resourceType,
-        userId: actorId === 'all' ? undefined : actorId,
-        resourceId: debouncedResourceId || undefined,
-        from: from ? startOfLocalDay(from) : undefined,
-        to: to ? endOfLocalDay(to) : undefined,
-      }),
-    enabled: canView && !invalidDateRange,
-    placeholderData: (previousData) => previousData,
-  });
-
-  const logs = useMemo(() => data?.data ?? [], [data?.data]);
-  const totalPages = data?.pages ?? 1;
-
-  const actionOptions = useMemo(() => {
-    const discovered = logs
-      .map((log) => log.action)
-      .filter((value, index, values) => values.indexOf(value) === index)
-      .filter((value) => !ACTION_OPTIONS.some((option) => option.value === value))
-      .map((value) => ({ value, label: humanise(value) }));
-    return [...ACTION_OPTIONS, ...discovered];
-  }, [logs]);
-
-  const resourceOptions = useMemo(() => {
-    const discovered = logs
-      .map((log) => log.resourceType)
-      .filter((value, index, values) => values.indexOf(value) === index)
-      .filter((value) => !RESOURCE_OPTIONS.some((option) => option.value === value))
-      .map((value) => ({ value, label: humanise(value) }));
-    if (
-      resourceType !== 'all' &&
-      !RESOURCE_OPTIONS.some((option) => option.value === resourceType) &&
-      !discovered.some((option) => option.value === resourceType)
-    ) {
-      discovered.unshift({ value: resourceType, label: humanise(resourceType) });
-    }
-    return [...RESOURCE_OPTIONS, ...discovered];
-  }, [logs, resourceType]);
+  // ── URL sync ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    ['page', 'action', 'resourceType', 'userId', 'resourceId', 'range', 'from', 'to'].forEach((key) => params.delete(key));
+    ['page', 'limit', 'action', 'resourceType', 'userId', 'resourceId', 'range', 'from', 'to'].forEach((key) => params.delete(key));
     if (page > 1) params.set('page', String(page));
+    if (pageSize !== DEFAULT_PAGE_SIZE) params.set('limit', String(pageSize));
     if (action !== 'all') params.set('action', action);
     if (resourceType !== 'all') params.set('resourceType', resourceType);
     if (actorId !== 'all') params.set('userId', actorId);
-    if (debouncedResourceId) params.set('resourceId', debouncedResourceId);
+    if (resourceId) params.set('resourceId', resourceId);
     if (datePreset !== 'all') params.set('range', datePreset);
     if (from) params.set('from', from);
     if (to) params.set('to', to);
@@ -406,11 +288,17 @@ function AuditLogPageContent() {
     const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
     const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     if (nextUrl !== currentUrl) window.history.replaceState(null, '', nextUrl);
-  }, [action, actorId, datePreset, debouncedResourceId, from, page, resourceType, to]);
+  }, [action, actorId, datePreset, resourceId, from, page, pageSize, resourceType, to]);
 
-  function resetPage() {
-    setPage(1);
-  }
+  // ── Filter actions ──────────────────────────────────────────────────────────
+
+  const resetPage = useCallback(() => setPage(1), []);
+
+  const clearDates = useCallback(() => {
+    setDatePreset('all');
+    setFrom('');
+    setTo('');
+  }, []);
 
   function changeDatePreset(value: string) {
     const next = value as DatePreset;
@@ -419,58 +307,158 @@ function AuditLogPageContent() {
     if (next === 'all') {
       setFrom('');
       setTo('');
-    } else if (next === 'custom') {
-      window.setTimeout(() => setAdvancedOpen(true), 0);
-    } else {
-      const dates = datesForPreset(next);
-      setFrom(dates.from);
-      setTo(dates.to);
+      return;
     }
+    if (next === 'custom') {
+      window.setTimeout(() => setAdvancedOpen(true), 0);
+      return;
+    }
+    const dates = datesForPreset(next);
+    setFrom(dates.from);
+    setTo(dates.to);
   }
 
   function clearFilters() {
     setAction('all');
     setResourceType('all');
     setActorId('all');
-    setResourceSearch('');
-    setDebouncedResourceId('');
-    setDatePreset('all');
-    setFrom('');
-    setTo('');
-    setPage(1);
+    setResourceId('');
+    setSearch('');
+    clearDates();
+    resetPage();
   }
 
-  const filterBar = (
+  /**
+   * A pivot promises "everything", so it clears the date range too — otherwise
+   * a trace started from a Today view would silently hide the record's history.
+   */
+  function applyPivot(pivot: AuditPivot) {
+    if (pivot.kind === 'actor') setActorId(pivot.value);
+    if (pivot.kind === 'action') setAction(pivot.value);
+    if (pivot.kind === 'resourceId') setResourceId(pivot.value);
+    clearDates();
+    setSearch('');
+    resetPage();
+  }
+
+  function toggleGroup(key: string) {
+    setExpandedKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  const leaveCurrentRows = useCallback(() => {
+    setSelectedId(null);
+    setLastSelected(null);
+    setDrawerOpen(false);
+    setExpandedKeys(new Set());
+  }, []);
+
+  function goToPage(next: number) {
+    setPage(Math.min(Math.max(1, next), totalPages));
+    leaveCurrentRows();
+  }
+
+  function changePageSize(next: number) {
+    setPageSize(next);
+    // Page 4 of 50-row pages is not page 4 of 200-row pages, so the offset is
+    // meaningless after a resize.
+    setPage(1);
+    leaveCurrentRows();
+  }
+
+  // ── Selection & keyboard ────────────────────────────────────────────────────
+
+  const selected = useMemo(
+    () => visibleLogs.find((log) => log.id === selectedId) ?? (selectedId ? lastSelected : null),
+    [lastSelected, selectedId, visibleLogs],
+  );
+
+  const selectEntry = useCallback((log: AuditLog) => {
+    setSelectedId(log.id);
+    setLastSelected(log);
+  }, []);
+
+  /** Every entry currently on screen, in display order — what the arrows walk. */
+  const walkable = useMemo(
+    () => groups.flatMap((group) => (group.entries.length > 1 && !expandedKeys.has(group.key) ? [] : group.entries)),
+    [expandedKeys, groups],
+  );
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const typing = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable === true);
+
+      if (event.key === '/' && !typing) {
+        event.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
+      if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
+      // A dialog on top owns its own keys.
+      if (document.querySelector('[role="dialog"]')) return;
+
+      if (event.key === 'Escape') {
+        setSelectedId(null);
+        setLastSelected(null);
+        return;
+      }
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      if (walkable.length === 0) return;
+
+      event.preventDefault();
+      const index = walkable.findIndex((log) => log.id === selectedId);
+      const next =
+        event.key === 'ArrowDown'
+          ? index < 0
+            ? 0
+            : Math.min(index + 1, walkable.length - 1)
+          : index < 0
+            ? walkable.length - 1
+            : Math.max(index - 1, 0);
+
+      const nextLog = walkable[next];
+      selectEntry(nextLog);
+      document.getElementById(auditRowId(nextLog.id))?.scrollIntoView({ block: 'nearest' });
+    }
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [selectEntry, selectedId, walkable]);
+
+  if (!canView) return null;
+
+  // ── Toolbar ─────────────────────────────────────────────────────────────────
+
+  const toolbar = (
     <div className="space-y-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <div className="min-w-56 flex-1 lg:max-w-sm">
           <Input
+            ref={searchRef}
             type="search"
-            value={resourceSearch}
-            onChange={(event) => {
-              setResourceSearch(event.target.value);
-              resetPage();
-            }}
-            aria-label="Find by resource ID"
-            placeholder="Find by resource ID…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            aria-label="Search the entries loaded below"
+            placeholder={logs.length ? `Search these ${logs.length} entries…` : 'Search these entries…'}
             leftIcon={<Search size={14} />}
             rightAction={
-              resourceSearch ? (
+              search ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setResourceSearch('');
-                    setDebouncedResourceId('');
-                    resetPage();
-                  }}
-                  aria-label="Clear resource ID search"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
                   className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   <X size={13} aria-hidden="true" />
                 </button>
               ) : undefined
             }
-            className="bg-background border-rule"
+            className="border-rule bg-background"
           />
         </div>
 
@@ -485,19 +473,9 @@ function AuditLogPageContent() {
           className="w-[calc(50%-0.25rem)] sm:w-48"
         />
         <Select
-          value={resourceType}
-          onValueChange={(value) => {
-            setResourceType(value);
-            resetPage();
-          }}
-          options={resourceOptions}
-          ariaLabel="Filter by resource type"
-          className="w-[calc(50%-0.25rem)] sm:w-44"
-        />
-        <Select
           value={datePreset}
           onValueChange={changeDatePreset}
-          options={DATE_OPTIONS}
+          options={DATE_FILTERS}
           ariaLabel="Filter by date range"
           icon={<CalendarDays />}
           className="w-[calc(50%-0.25rem)] sm:w-40"
@@ -520,12 +498,12 @@ function AuditLogPageContent() {
               align="end"
               sideOffset={8}
               collisionPadding={16}
-              className="z-[90] w-[calc(100vw-2rem)] max-w-sm rounded-sm border border-rule bg-surface p-4 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
+              className="z-90 w-[calc(100vw-2rem)] max-w-sm rounded-sm border border-rule bg-surface p-4 shadow-xl outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
             >
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">More filters</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Narrow results by actor or an exact date range.</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Narrow to one record or an exact date range.</p>
                 </div>
                 <Popover.Close asChild>
                   <button
@@ -540,7 +518,7 @@ function AuditLogPageContent() {
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Actor</label>
+                  <span className="text-micro font-semibold tracking-micro uppercase text-muted-foreground">Actor</span>
                   <Select
                     value={actorId}
                     onValueChange={(value) => {
@@ -556,7 +534,38 @@ function AuditLogPageContent() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Custom dates</label>
+                  <span className="text-micro font-semibold tracking-micro uppercase text-muted-foreground">Record type</span>
+                  <Select
+                    value={resourceType}
+                    onValueChange={(value) => {
+                      setResourceType(value);
+                      resetPage();
+                    }}
+                    options={resourceOptions}
+                    ariaLabel="Filter by record type"
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="audit-record-id" className="text-micro font-semibold tracking-micro uppercase text-muted-foreground">
+                    Record ID
+                  </label>
+                  <Input
+                    id="audit-record-id"
+                    value={resourceId}
+                    onChange={(event) => {
+                      setResourceId(event.target.value.trim());
+                      resetPage();
+                    }}
+                    placeholder="Paste an exact ID…"
+                    className="border-rule bg-background"
+                  />
+                  <p className="text-xs text-muted-foreground">Matched in full — the audit API has no partial text search.</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-micro font-semibold tracking-micro uppercase text-muted-foreground">Custom dates</span>
                   <div className="grid grid-cols-2 gap-2">
                     <Input
                       type="date"
@@ -566,8 +575,8 @@ function AuditLogPageContent() {
                         setDatePreset('custom');
                         resetPage();
                       }}
-                      aria-label="Audit logs from date"
-                      className="bg-background border-rule px-2"
+                      aria-label="Audit entries from date"
+                      className="border-rule bg-background px-2"
                     />
                     <Input
                       type="date"
@@ -577,12 +586,12 @@ function AuditLogPageContent() {
                         setDatePreset('custom');
                         resetPage();
                       }}
-                      aria-label="Audit logs to date"
-                      className="bg-background border-rule px-2"
+                      aria-label="Audit entries to date"
+                      className="border-rule bg-background px-2"
                     />
                   </div>
                   {invalidDateRange && (
-                    <p role="alert" className="flex items-center gap-1.5 text-xs text-destructive">
+                    <p role="alert" className="flex items-center gap-1.5 text-xs text-exception">
                       <AlertCircle size={12} aria-hidden="true" /> The end date must be on or after the start date.
                     </p>
                   )}
@@ -591,205 +600,216 @@ function AuditLogPageContent() {
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
-
-        <span
-          className="ml-auto flex min-w-24 items-center justify-end gap-1.5 text-xs text-muted-foreground tabular-nums"
-          aria-live="polite"
-        >
-          {isFetching && !isLoading && <Loader2 size={12} className="animate-spin" aria-label="Updating results" />}
-          {data ? `${data.total.toLocaleString()} entries` : ''}
-        </span>
       </div>
 
-      {hasFilters && (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
-          {action !== 'all' && (
-            <FilterChip
-              label={`Action: ${optionLabel(actionOptions, action)}`}
-              onRemove={() => {
-                setAction('all');
-                resetPage();
-              }}
-            />
-          )}
-          {resourceType !== 'all' && (
-            <FilterChip
-              label={`Resource: ${optionLabel(resourceOptions, resourceType)}`}
-              onRemove={() => {
-                setResourceType('all');
-                resetPage();
-              }}
-            />
-          )}
-          {actorId !== 'all' && (
-            <FilterChip
-              label={`Actor: ${optionLabel(actorOptions, actorId)}`}
-              onRemove={() => {
-                setActorId('all');
-                resetPage();
-              }}
-            />
-          )}
-          {debouncedResourceId && (
-            <FilterChip
-              label={`ID: ${debouncedResourceId}`}
-              onRemove={() => {
-                setResourceSearch('');
-                setDebouncedResourceId('');
-                resetPage();
-              }}
-            />
-          )}
-          {datePreset !== 'all' && (
-            <FilterChip
-              label={datePreset === 'custom' ? `Date: ${from || 'Any'} – ${to || 'Any'}` : `Date: ${optionLabel(DATE_OPTIONS, datePreset)}`}
-              onRemove={() => {
-                setDatePreset('all');
-                setFrom('');
-                setTo('');
-                resetPage();
-              }}
-            />
-          )}
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="ml-1 h-7 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            Clear all
-          </button>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {hasFilters && (
+          <>
+            {actorId !== 'all' && (
+              <FilterChip
+                label={`Actor: ${optionLabel(actorOptions, actorId)}`}
+                onRemove={() => {
+                  setActorId('all');
+                  resetPage();
+                }}
+              />
+            )}
+            {action !== 'all' && (
+              <FilterChip
+                label={`Action: ${optionLabel(actionOptions, action)}`}
+                onRemove={() => {
+                  setAction('all');
+                  resetPage();
+                }}
+              />
+            )}
+            {resourceType !== 'all' && (
+              <FilterChip
+                label={`Record: ${optionLabel(resourceOptions, resourceType)}`}
+                onRemove={() => {
+                  setResourceType('all');
+                  resetPage();
+                }}
+              />
+            )}
+            {resourceId && (
+              <FilterChip
+                label={`ID: ${resourceId}`}
+                onRemove={() => {
+                  setResourceId('');
+                  resetPage();
+                }}
+              />
+            )}
+            {datePreset !== 'all' && (
+              <FilterChip
+                label={datePreset === 'custom' ? `Dates: ${from || 'any'} – ${to || 'any'}` : `Range: ${RANGE_LABEL[datePreset]}`}
+                onRemove={() => {
+                  clearDates();
+                  resetPage();
+                }}
+              />
+            )}
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="ml-1 h-7 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              Clear all
+            </button>
+          </>
+        )}
+
+        {/* A view control, not a filter — it changes how the same entries read. */}
+        <SegmentedControl
+          options={GROUP_OPTIONS}
+          value={groupMode}
+          onChange={setGroupMode}
+          ariaLabel="Group entries by record, or list every entry"
+          className="ml-auto"
+        />
+      </div>
     </div>
   );
 
-  if (!canView) return null;
+  // ── Table states ────────────────────────────────────────────────────────────
+
+  const constraints = [
+    actorId !== 'all' ? `by ${optionLabel(actorOptions, actorId)}` : null,
+    action !== 'all' ? `matching “${optionLabel(actionOptions, action)}”` : null,
+    resourceType !== 'all' ? `on ${optionLabel(resourceOptions, resourceType).toLowerCase()}` : null,
+    resourceId ? `for record ${resourceId}` : null,
+    datePreset !== 'all' ? `in ${RANGE_LABEL[datePreset].toLowerCase()}` : null,
+  ].filter(Boolean);
+
+  const emptyState = search ? (
+    <EmptyState
+      icon={Search}
+      title="Nothing on this page matches"
+      description={`No loaded entry mentions “${search}”. The search only covers the ${logs.length} entries fetched for this page.`}
+    />
+  ) : (
+    <EmptyState
+      icon={History}
+      title={hasFilters ? 'No entries match' : 'No activity recorded yet'}
+      description={
+        hasFilters
+          ? `Nothing was recorded ${constraints.join(', ')}. Clear a filter or widen the range.`
+          : 'Every action taken in this workspace lands here — who did it, what changed, and whether it worked.'
+      }
+    />
+  );
+
+  const pagination = {
+    page,
+    totalPages,
+    onPageChange: goToPage,
+    pageSize,
+    pageSizeOptions: PAGE_SIZES,
+    onPageSizeChange: changePageSize,
+    rowLabel: 'Entries',
+  };
+
+  // The total is a property of the page, not of the toolbar, so it reads once
+  // in the masthead where every other page states its own scale.
+  const meta = data ? (
+    <span className="flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground" aria-live="polite">
+      {isFetching && !isLoading && <Loader2 size={12} className="animate-spin" aria-label="Updating results" />}
+      {data.total.toLocaleString()} {data.total === 1 ? 'entry' : 'entries'}
+    </span>
+  ) : undefined;
 
   return (
-    <EditorShell eyebrow="System" title="Audit log" icon={<History size={20} aria-hidden="true" />} flush>
-      {/* The table owns the scrolling, so the filters above it stay put. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-4 px-3 py-4 md:px-6 md:py-6">
-        <div className="shrink-0">{filterBar}</div>
-        {/* Audit table */}
-        <div className="min-h-0 bg-card border border-rule rounded-sm overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-auto">
-            <DataTable className="w-full text-sm border-collapse">
-              <thead className="sticky top-0 z-10">
-                <tr className="border-b border-rule bg-muted">
-                  <th className="px-3 md:px-5 py-3.5 w-6" />
-                  <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro w-40">
-                    Action
-                  </th>
-                  <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
-                    Resource
-                  </th>
-                  <th className="hidden lg:table-cell px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro w-48">
-                    User
-                  </th>
-                  <th className="hidden md:table-cell px-5 py-3.5 pr-6 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro w-44">
-                    Time
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {invalidDateRange ? (
-                  <tr>
-                    <td colSpan={5} className="py-24">
-                      <EmptyState
-                        icon={CalendarDays}
-                        title="Check the date range"
-                        description="The end date must be on or after the start date."
-                      />
-                    </td>
-                  </tr>
-                ) : isError ? (
-                  <tr>
-                    <td colSpan={5} className="py-24">
-                      <div className="flex flex-col items-center gap-3 px-6 text-center">
-                        <span className="flex size-11 items-center justify-center rounded-sm bg-destructive/6 text-destructive">
-                          <AlertCircle size={22} aria-hidden="true" />
-                        </span>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">Couldn’t load audit logs</p>
-                          <p className="mt-1 text-xs text-muted-foreground">Check your connection and try again.</p>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={() => refetch()}>
-                          Try again
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ) : isLoading ? (
-                  Array.from({ length: 10 }).map((_, i) => (
-                    <tr key={i} className="border-b border-rule">
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <td
-                          key={j}
-                          className={cn('px-3 md:px-5 py-4', j === 3 && 'hidden lg:table-cell', j === 4 && 'hidden md:table-cell')}
-                        >
-                          <div className="h-4 bg-muted rounded animate-pulse" style={{ width: `${45 + ((i * 13 + j * 17) % 40)}%` }} />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                ) : logs.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-24">
-                      <EmptyState
-                        icon={History}
-                        title="No audit logs found"
-                        description={hasFilters ? 'Try adjusting your filters.' : 'Actions performed in the system will appear here.'}
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  logs.map((log) => <LogRow key={log.id} log={log} />)
-                )}
-              </tbody>
-            </DataTable>
-          </div>
+    <EditorShell title="Audit log" icon={<History size={20} aria-hidden="true" />} meta={meta} flush>
+      {/* One scroll region holding toolbar and table, so the filters scroll
+          away with the page. It still needs `min-h-0` to be a scroll container
+          at all — without it the column's intrinsic minimum is the full table
+          height and the whole shell grows instead. The table's own sticky
+          header then pins to the top of this region as the toolbar leaves. */}
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4 md:px-6 md:py-6">
+            {toolbar}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-5 py-3 border-t border-rule shrink-0">
-              <p className="text-xs text-muted-foreground tabular-nums">
-                Page {page} of {totalPages} · {(data?.total ?? 0).toLocaleString()} entries
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="h-7 px-3 text-xs font-medium border border-rule rounded-sm text-muted-foreground hover:bg-band transition-colors disabled:opacity-40"
-                >
-                  Prev
-                </button>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="h-7 px-3 text-xs font-medium border border-rule rounded-sm text-muted-foreground hover:bg-band transition-colors disabled:opacity-40"
-                >
-                  Next
-                </button>
+            {invalidDateRange ? (
+              <EmptyState icon={CalendarDays} title="Check the date range" description="The end date must be on or after the start date." />
+            ) : isError ? (
+              <div className="flex min-h-72 flex-col items-center justify-center rounded-sm border border-exception/30 bg-card px-6 text-center">
+                <span className="flex size-12 items-center justify-center rounded-md bg-exception/8 text-exception">
+                  <AlertCircle size={22} aria-hidden="true" />
+                </span>
+                <h2 className="mt-4 text-base font-semibold text-foreground">The audit log could not be loaded</h2>
+                <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                  Check your connection and try again. Your search and filters will stay in place.
+                </p>
+                <Button variant="outline" className="mt-4" onClick={() => void refetch()}>
+                  Try again
+                </Button>
               </div>
-            </div>
-          )}
+            ) : (
+              <AuditTable
+                groups={groups}
+                now={now}
+                selectedId={selectedId}
+                expandedKeys={expandedKeys}
+                onToggleGroup={toggleGroup}
+                onSelect={(log) => {
+                  selectEntry(log);
+                  if (!wide) setDrawerOpen(true);
+                }}
+                isLoading={isLoading}
+                emptyState={emptyState}
+                pagination={pagination}
+              />
+            )}
+          </div>
         </div>
+
+        {/* The workbench: band-tinted so it reads as attached to the table. */}
+        <aside aria-label="Entry detail" className="hidden w-110 shrink-0 flex-col border-l border-rule bg-band/45 xl:flex 2xl:w-125">
+          <AuditInspector log={selected} activeActorId={actorId} activeAction={action} activeResourceId={resourceId} onPivot={applyPivot} />
+        </aside>
       </div>
+
+      {/* Below the split breakpoint the same panel slides over the table. */}
+      {!wide && drawerOpen && selected && (
+        <Drawer
+          title={`${auditActor(selected)}${auditRole(selected) ? ` (${auditRole(selected)})` : ''} ${auditPhrase(selected)}`}
+          description={fullTimestamp(selected.createdAt)}
+          onClose={() => setDrawerOpen(false)}
+          actions={<AuditCopyButton value={JSON.stringify(selected, null, 2)} label="entry as JSON" />}
+        >
+          <AuditInspector
+            log={selected}
+            activeActorId={actorId}
+            activeAction={action}
+            activeResourceId={resourceId}
+            onPivot={(pivot) => {
+              applyPivot(pivot);
+              setDrawerOpen(false);
+              setSelectedId(null);
+            }}
+            chrome="drawer"
+          />
+        </Drawer>
+      )}
     </EditorShell>
   );
 }
 
 function AuditLogPageFallback() {
   return (
-    <EditorShell eyebrow="System" title="Audit log" icon={<History size={20} aria-hidden="true" />} flush>
-      <div className="flex min-h-0 flex-1 flex-col px-3 py-4 md:px-6 md:py-6">
-        <div className="min-h-0 flex-1 rounded-sm border border-rule bg-card p-5 shadow-sm">
-          <div className="h-9 w-full max-w-2xl animate-pulse rounded-sm bg-muted" />
-          <div className="mt-6 space-y-3">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div key={index} className="h-12 animate-pulse rounded-sm bg-muted/70" />
+    <EditorShell title="Audit log" icon={<History size={20} aria-hidden="true" />} flush>
+      <div className="flex min-h-0 flex-1">
+        <div className="min-w-0 flex-1 px-3 py-4 md:px-6 md:py-6">
+          <div className="h-9 w-full max-w-sm animate-pulse rounded-sm bg-muted" />
+          <div className="mt-4 space-y-2">
+            {Array.from({ length: 10 }).map((_, index) => (
+              <div key={index} className="h-11 animate-pulse rounded-sm bg-muted/70" />
             ))}
           </div>
         </div>
+        <div className="hidden w-110 shrink-0 border-l border-rule bg-band/45 xl:block 2xl:w-125" />
       </div>
     </EditorShell>
   );

@@ -33,7 +33,10 @@ export function LiveMarkdown({ content, active, onDone }: { content: string; act
     <div className="relative">
       <Markdown content={content.slice(0, visible)} variant="compact" />
       {active && visible < content.length ? (
-        <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-primary align-text-bottom motion-reduce:hidden" aria-hidden="true" />
+        <span
+          className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-primary align-text-bottom motion-reduce:hidden"
+          aria-hidden="true"
+        />
       ) : null}
     </div>
   );

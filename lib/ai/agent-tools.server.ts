@@ -26,6 +26,8 @@ import type { Shift } from '@/lib/api/shifts.service';
 import type { StocktakesResponse } from '@/lib/api/stocktakes.service';
 import type { StockTransfersResponse } from '@/lib/api/transfers.service';
 import type { Location } from '@/lib/api/workspace.service';
+import { auditChangeSet, auditSubject } from '@/lib/audit/change';
+import { auditActor, auditPhrase, auditRole, auditSeverity, resourceLabel, severityLabel } from '@/lib/audit/narrative';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
 import { leaveBalance, myHrActions } from '@/lib/utils/my-hr';
 import type { CustomerSegment, CustomersResponse } from '@/types/customers';
@@ -74,6 +76,9 @@ function schema(properties: JsonObject): JsonObject {
 
 const nullableString = (description: string) => ({ type: ['string', 'null'], description });
 const DATE = 'Inclusive YYYY-MM-DD calendar date.';
+
+/** "partially_received" → "Partially received", for card titles and empty states. */
+const sentence = (value: string) => value.replaceAll('_', ' ').replace(/^./, (character) => character.toUpperCase());
 
 function page(label: string, href: string, description: string, locationId?: string): AgentShortcut {
   return { label, href, description, ...(locationId ? { locationId, kind: 'filtered' as const } : { kind: 'page' as const }) };
@@ -218,6 +223,7 @@ const listSuppliers: ToolDefinition = {
         {
           kind: 'list',
           title: 'Active suppliers',
+          emptyLabel: 'No active suppliers are set up yet.',
           caption: `${suppliers.length} available`,
           rows: suppliers.slice(0, 6).map((supplier) => ({
             label: supplier.name,
@@ -256,7 +262,8 @@ const listStockItems: ToolDefinition = {
         ? [
             {
               kind: 'list',
-              title: 'Matching stock',
+              title: `Stock matching “${query}”`,
+              emptyLabel: `No stock item matches “${query}”.`,
               caption: items.length > 6 ? `Showing 6 of ${items.length}` : undefined,
               rows: items.slice(0, 6).map((item) => ({
                 label: item.name,
@@ -290,7 +297,8 @@ const listMenuItems: ToolDefinition = {
         ? [
             {
               kind: 'list',
-              title: 'Matching menu items',
+              title: `Menu items matching “${query}”`,
+              emptyLabel: `No menu item matches “${query}”.`,
               caption: items.length > 6 ? `Showing 6 of ${items.length}` : undefined,
               rows: items.slice(0, 6).map((item) => ({
                 label: item.name,
@@ -329,6 +337,7 @@ const listStaff: ToolDefinition = {
         {
           kind: 'list',
           title: 'Team',
+          emptyLabel: 'No active team members in this workspace.',
           caption: staff.length > 6 ? `Showing 6 of ${staff.length}` : undefined,
           rows: staff.slice(0, 6).map((member) => ({
             label: member.name || member.email || 'Unnamed team member',
@@ -587,7 +596,8 @@ const listOrders: ToolDefinition = {
       cards: [
         {
           kind: 'list',
-          title: status ? `${status} orders` : 'Recent orders',
+          title: status ? `${sentence(status)} orders` : 'Recent orders',
+          emptyLabel: status ? `No ${status} orders in this range.` : 'No orders in this range.',
           caption: orders.length > 6 ? `Showing 6 of ${orders.length}` : undefined,
           rows: orders.slice(0, 6).map((order) => ({
             label: `Order #${order.id.slice(0, 8)}`,
@@ -760,7 +770,8 @@ const listPurchaseOrders: ToolDefinition = {
       cards: [
         {
           kind: 'list',
-          title: 'Purchase orders',
+          title: status ? `${sentence(status)} purchase orders` : 'Purchase orders',
+          emptyLabel: status ? `No ${sentence(status).toLowerCase()} purchase orders.` : 'No purchase orders raised yet.',
           caption: orders.length > 6 ? `Showing 6 of ${orders.length}` : undefined,
           rows: orders.slice(0, 6).map((order) => ({
             label: order.reference || `PO #${order.id.slice(0, 8)}`,
@@ -812,7 +823,8 @@ const listRestockRequests: ToolDefinition = {
       cards: [
         {
           kind: 'list',
-          title: 'Restock requests',
+          title: status ? `${sentence(status)} restock requests` : 'Restock requests',
+          emptyLabel: status ? `No ${status} restock requests.` : 'No restock has been requested.',
           caption: requests.length > 6 ? `Showing 6 of ${requests.length}` : undefined,
           rows: requests.slice(0, 6).map((request) => {
             const decoded = decodeNotes(request.notes);
@@ -935,7 +947,8 @@ const searchCustomers: ToolDefinition = {
       cards: [
         {
           kind: 'list',
-          title: search ? 'Matching customers' : 'Recent customers',
+          title: search ? `Customers matching “${search}”` : 'Recent customers',
+          emptyLabel: search ? `No customer matches “${search}”.` : 'No customers on record yet.',
           caption: customers.length > 6 ? `Showing 6 of ${customers.length}` : undefined,
           rows: customers.slice(0, 6).map((customer) => ({
             label: `${customer.firstName} ${customer.lastName}`.trim(),
@@ -1075,7 +1088,8 @@ const listLeaveRequests: ToolDefinition = {
       cards: [
         {
           kind: 'list',
-          title: `${status[0]?.toUpperCase() ?? ''}${status.slice(1)} leave`,
+          title: `${sentence(status)} leave`,
+          emptyLabel: `No ${status} leave requests.`,
           caption: requests.length > 6 ? `Showing 6 of ${requests.length}` : undefined,
           rows: requests.slice(0, 6).map((request) => ({
             label: request.employee?.name || names.get(request.userId) || request.userId,
@@ -1120,7 +1134,8 @@ const listHelpdeskTickets: ToolDefinition = {
       cards: [
         {
           kind: 'list',
-          title: 'Helpdesk tickets',
+          title: status ? `${sentence(status)} helpdesk tickets` : 'Helpdesk tickets',
+          emptyLabel: status ? `No ${sentence(status).toLowerCase()} helpdesk tickets.` : 'No helpdesk tickets have been raised.',
           caption: tickets.length > 6 ? `Showing 6 of ${tickets.length}` : undefined,
           rows: tickets.slice(0, 6).map((ticket) => ({
             label: ticket.subject,
@@ -1195,7 +1210,8 @@ const listPrivacyRequests: ToolDefinition = {
       cards: [
         {
           kind: 'list',
-          title: 'Privacy requests',
+          title: status ? `${sentence(status)} privacy requests` : 'Privacy requests',
+          emptyLabel: status ? `No ${sentence(status).toLowerCase()} privacy requests.` : 'No privacy requests have been received.',
           caption: requests.length > 6 ? `Showing 6 of ${requests.length}` : undefined,
           rows: requests.slice(0, 6).map((request) => ({
             label:
@@ -1208,7 +1224,6 @@ const listPrivacyRequests: ToolDefinition = {
                 ? ('negative' as const)
                 : ('default' as const),
           })),
-          emptyLabel: 'No privacy requests match this status.',
         },
       ],
       shortcuts: [page('Open compliance', '/compliance', 'Compliance')],
@@ -1216,38 +1231,195 @@ const listPrivacyRequests: ToolDefinition = {
   },
 };
 
+/**
+ * The audit trail, told the way the audit page tells it.
+ *
+ * This used to hand the model `response.data` — raw rows carrying
+ * `orders.status_update`, a bare `orders`, UUIDs and two JSON strings. The
+ * model then had strictly less to work with than a person looking at the page,
+ * and had to guess at the vocabulary. It now runs the same narrative layer the
+ * page does, so a tool result reads "Sam Reed (Store Manager) cancelled order
+ * PO-0912 — Status: pending → cancelled".
+ *
+ * `notes` states the scope explicitly. Without it a model asked "did anyone
+ * delete anything this month?" will answer from one page of results as though
+ * it had seen every entry.
+ */
+const AUDIT_TOOL_LIMIT = 50;
+/**
+ * Outcome is not a server filter — the API has no status parameter — so it is
+ * applied to what was fetched. Pulling the endpoint's maximum first makes that
+ * sample as close to "everything recent" as the API allows, and `notes` says
+ * exactly how many entries were actually examined.
+ */
+const AUDIT_SCAN_LIMIT = 200;
+/**
+ * A sweep pages until it runs out of matches or hits this many entries. The cap
+ * is a cost bound, not a claim about completeness — whatever it did not reach is
+ * stated in `notes` so the model cannot present a partial sweep as the whole log.
+ */
+const AUDIT_SCAN_MAX = 1_000;
+
 const getAuditActivity: ToolDefinition = {
   name: 'get_audit_activity',
-  description: 'Read recent audit activity, optionally filtered by action, resource type or date range.',
+  description:
+    'Read the audit trail: who did what to which record, whether it worked, and what changed. Filter by actor, action, record type, a specific record ID, or a date range.',
   capability: 'audit:read',
   step: 'Reading the audit trail',
   parameters: schema({
-    action: nullableString('Action to filter, or null.'),
-    resourceType: nullableString('Resource type to filter, or null.'),
-    from: nullableString('ISO date or timestamp, or null.'),
-    to: nullableString('ISO date or timestamp, or null.'),
+    userId: nullableString('Actor user ID to filter to one person, or null.'),
+    action: nullableString('Exact action key such as "orders.cancel" or "hr.leave_approved", or null.'),
+    resourceType: nullableString('Record type such as "orders", "customers", "stock-items" — plural, as the API stores it. Or null.'),
+    resourceId: nullableString('A single record ID, to trace everything that happened to it. Matched in full. Or null.'),
+    from: nullableString(`Start of the range. ${DATE} Or null.`),
+    to: nullableString(`End of the range. ${DATE} Or null.`),
+    outcome: nullableString(
+      'Narrow by result: "failed" for anything that failed or was refused, "destructive" for deletions, cancellations, refunds and erasures. Null for everything.',
+    ),
   }),
   async run(args, runtime) {
-    const query = new URLSearchParams({ page: '1', limit: '30' });
-    for (const key of ['action', 'resourceType', 'from', 'to'] as const) {
-      const value = optionalText(args[key], 80);
+    const outcome = optionalText(args.outcome, 20)?.toLowerCase();
+    const wantsFailed = outcome === 'failed';
+    const wantsDestructive = outcome === 'destructive';
+    const filtering = wantsFailed || wantsDestructive;
+
+    const perPage = filtering ? AUDIT_SCAN_LIMIT : AUDIT_TOOL_LIMIT;
+    const query = new URLSearchParams({ page: '1', limit: String(perPage) });
+    for (const key of ['userId', 'action', 'resourceType', 'resourceId', 'from', 'to'] as const) {
+      const value = optionalText(args[key], 120);
       if (value) query.set(key, value);
     }
-    const response = await runtime.get<AuditLogsResponse>(`/audit-logs?${query}`);
+
+    // Outcome is not a server filter, so answering "show me everything that
+    // failed" honestly means walking the pages rather than judging the first
+    // one. Only a filtered sweep pages; an unfiltered read is a recent-activity
+    // question and one page answers it.
+    const first = await runtime.get<AuditLogsResponse>(`/audit-logs?${query}`);
+    const rows = [...first.data];
+    let pagesRead = 1;
+
+    if (filtering && first.pages > 1) {
+      const lastPage = Math.min(first.pages, Math.ceil(AUDIT_SCAN_MAX / perPage));
+      for (let next = 2; next <= lastPage; next += 1) {
+        runtime.progress(`Reading the audit trail — page ${next} of ${lastPage}, ${rows.length} entries scanned`);
+        query.set('page', String(next));
+        const batch = await runtime.get<AuditLogsResponse>(`/audit-logs?${query}`);
+        rows.push(...batch.data);
+        pagesRead = next;
+        if (batch.data.length === 0) break;
+      }
+    }
+
+    const response = { ...first, data: rows };
+    const scanned = rows.length;
+    const completeSweep = scanned >= response.total;
+    if (pagesRead > 1) runtime.progress(`Scanned ${scanned} audit entries across ${pagesRead} pages`);
+
+    const entries = response.data.map((log) => {
+      const severity = auditSeverity(log);
+      const { changes, facts } = auditChangeSet(log);
+      const subject = auditSubject(log);
+      return {
+        at: log.createdAt,
+        when: formatDateTime(log.createdAt, 'Europe/London'),
+        actor: auditActor(log),
+        role: auditRole(log),
+        did: auditPhrase(log),
+        record: {
+          type: resourceLabel(log.resourceType),
+          name: subject,
+          id: log.resourceId ?? null,
+        },
+        outcome: severityLabel(severity, log.statusCode) ?? 'Succeeded',
+        destructive: severity === 'destructive',
+        // Only a handful of handlers record prior values, so `from` is often
+        // absent. Never present a missing `from` as "no change".
+        changed: changes.length ? changes.map((change) => ({ field: change.label, from: change.before ?? null, to: change.after })) : null,
+        details: facts.length ? facts.map((fact) => ({ label: fact.label, value: fact.value })) : null,
+      };
+    });
+
+    const matches = wantsFailed
+      ? entries.filter((entry) => entry.outcome !== 'Succeeded')
+      : wantsDestructive
+        ? entries.filter((entry) => entry.destructive)
+        : entries;
+
+    const failures = entries.filter((entry) => entry.outcome !== 'Succeeded');
+    const actors = [...new Set(entries.map((entry) => entry.actor))];
+    const records = new Set(response.data.filter((log) => log.resourceId).map((log) => `${log.resourceType}:${log.resourceId}`));
+
+    const notes = [
+      completeSweep
+        ? `All ${response.total} matching entries were examined${pagesRead > 1 ? ` across ${pagesRead} pages` : ''}.`
+        : `Only the ${scanned} most recent of ${response.total} matching entries were examined${pagesRead > 1 ? ` across ${pagesRead} pages` : ''}. Do not describe this as a complete history — narrow the filters or say what was not seen.`,
+      'Entries are newest first.',
+      'Where a changed field has no "from" value, the API stored only the new value — say the field was set, not that it changed from nothing.',
+    ];
+    if (filtering) {
+      notes.push(
+        `The audit API cannot filter by outcome, so the "${outcome}" filter was applied to the ${scanned} entries fetched. ${matches.length} of them matched.`,
+      );
+      if (!completeSweep) {
+        notes.push(
+          `The sweep stopped at ${AUDIT_SCAN_MAX} entries. Say the count is "at least ${matches.length}" and offer a narrower date range for a complete answer.`,
+        );
+      }
+    }
+    if (!query.has('from') && !query.has('to')) notes.push('No date range was applied, so this is simply the most recent activity.');
+
+    // The card names what was actually asked for, and uses the real actor and
+    // record names from the results rather than echoing the ID that was filtered on.
+    const distinctActors = [...new Set(matches.map((entry) => entry.actor))];
+    const distinctNames = [...new Set(matches.map((entry) => entry.record.name).filter(Boolean))];
+    const scope: string[] = [];
+    if (query.has('userId') && distinctActors.length === 1) scope.push(`by ${distinctActors[0]}`);
+    if (query.has('resourceId') && distinctNames.length === 1) scope.push(`on ${distinctNames[0]}`);
+    else if (query.has('resourceType') && matches.length > 0) scope.push(`on ${matches[0].record.type.toLowerCase()}`);
+    const title = [
+      wantsFailed ? 'Failed and refused' : wantsDestructive ? 'Deletions, cancellations and refunds' : 'Audit activity',
+      ...scope,
+    ].join(' ');
+
+    const shown = matches.slice(0, 8);
+
     return {
-      output: response.data,
-      evidence: `${response.total} matching audit event${response.total === 1 ? '' : 's'}`,
+      output: {
+        summary: {
+          matchedOnServer: response.total,
+          examined: scanned,
+          returned: matches.length,
+          failedOrRefused: failures.length,
+          distinctActors: actors.length,
+          distinctRecords: records.size,
+        },
+        entries: matches,
+        notes,
+      },
+      evidence: `${response.total} matching audit event${response.total === 1 ? '' : 's'}${filtering ? `, ${matches.length} matching "${outcome}" in the ${scanned} examined` : failures.length ? `, ${failures.length} failed or refused` : ''}`,
       cards: [
         {
           kind: 'list',
-          title: 'Recent audit activity',
-          caption: response.total > 6 ? `Showing 6 of ${response.total}` : undefined,
-          rows: response.data.slice(0, 6).map((entry) => ({
-            label: entry.action.replaceAll('_', ' '),
-            value: entry.statusCode ? String(entry.statusCode) : undefined,
-            meta: `${entry.resourceType} · ${entry.userName || entry.userEmail || 'System'} · ${formatDateTime(entry.createdAt, 'Europe/London')}`,
-            tone: entry.statusCode && entry.statusCode >= 400 ? ('negative' as const) : ('default' as const),
+          title,
+          caption:
+            matches.length > shown.length
+              ? `Showing ${shown.length} of ${matches.length}`
+              : filtering
+                ? completeSweep
+                  ? `${matches.length} of all ${scanned} matching entries`
+                  : `${matches.length} of the ${scanned} most recent entries`
+                : undefined,
+          rows: shown.map((entry) => ({
+            label: `${entry.actor}${entry.role ? ` (${entry.role})` : ''} ${entry.did}`,
+            value: entry.outcome === 'Succeeded' ? (entry.destructive ? 'Destructive' : undefined) : entry.outcome,
+            meta: `${entry.record.type} · ${entry.when}`,
+            tone: entry.outcome !== 'Succeeded' ? ('negative' as const) : entry.destructive ? ('warning' as const) : ('default' as const),
           })),
+          emptyLabel: wantsFailed
+            ? `Nothing failed or was refused in the ${scanned} entries examined.`
+            : wantsDestructive
+              ? `Nothing was deleted, cancelled or refunded in the ${scanned} entries examined.`
+              : 'No audit entries match those filters.',
         },
       ],
       shortcuts: [page('Open audit log', '/audit-log', 'Audit log')],
@@ -1477,6 +1649,7 @@ const getMyWorkspace: ToolDefinition = {
         {
           kind: 'list',
           title: 'My HR notices',
+          emptyLabel: 'Nothing needs you — your HR record is up to date.',
           caption: actions.length ? 'Most urgent first' : 'Everything looks up to date',
           rows: actions.slice(0, 6).map((action) => ({
             label: action.title,
@@ -1488,7 +1661,6 @@ const getMyWorkspace: ToolDefinition = {
                   ? ('warning' as const)
                   : ('default' as const),
           })),
-          emptyLabel: 'Nothing needs your attention.',
         },
       ],
       shortcuts: [

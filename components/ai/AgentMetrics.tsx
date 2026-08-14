@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDownRight, ArrowRight, ArrowUpRight } from '@/components/icons';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, CheckCircle2 } from '@/components/icons';
 
 import type { AgentCard } from '@/lib/ai/agent-types';
 import { cn } from '@/lib/utils/cn';
@@ -24,7 +24,9 @@ export function AgentMetrics({ card }: { card: AgentCard }) {
     return (
       <section className="mt-3 overflow-hidden rounded-md border border-rule bg-field" aria-label={card.title}>
         <header className="border-b border-divider px-3 py-2">
-          <p className="text-label uppercase tracking-wide text-muted-foreground">{card.title}</p>
+          <p className="text-label font-semibold tracking-label uppercase text-muted-foreground" title={card.title}>
+            {card.title}
+          </p>
           {card.caption && <p className="mt-0.5 text-label leading-4 text-muted-foreground">{card.caption}</p>}
         </header>
         {card.rows.length ? (
@@ -44,7 +46,10 @@ export function AgentMetrics({ card }: { card: AgentCard }) {
             ))}
           </ul>
         ) : (
-          <p className="px-3 py-4 text-sm text-muted-foreground">{card.emptyLabel ?? 'Nothing to show.'}</p>
+          <p className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
+            <CheckCircle2 size={14} className="shrink-0 text-momentum" aria-hidden="true" />
+            {card.emptyLabel ?? 'Nothing to show.'}
+          </p>
         )}
       </section>
     );
@@ -53,9 +58,11 @@ export function AgentMetrics({ card }: { card: AgentCard }) {
   return (
     <section className="mt-3 rounded-md border border-rule bg-field" aria-label={card.title}>
       <header className="border-b border-divider px-3 py-2">
-        <p className="text-label uppercase tracking-wide text-muted-foreground">{card.title}</p>
+        <p className="text-label font-semibold tracking-label uppercase text-muted-foreground">{card.title}</p>
         {card.caption && <p className="mt-0.5 text-label leading-4 text-muted-foreground">{card.caption}</p>}
       </header>
+      {/* Two columns keeps figures aligned in a narrow panel; an odd count
+          leaves the last cell wide rather than half-empty. */}
       <dl className="grid grid-cols-2">
         {card.metrics.map((metric, index) => {
           const Trend = metric.trend ? TREND_ICON[metric.trend] : null;

@@ -221,7 +221,21 @@ export async function* runDumaAgent(
       yield { type: 'step', label: tool?.step ?? draftLabel };
     }
 
-    const outputs = await Promise.all(
+    // Tools narrate themselves through `runtime.progress`. Their labels land in
+    // this queue and are drained below, so a sweep that pages through hundreds
+    // of records reports as it goes instead of stalling on one static line.
+    const progressQueue: string[] = [];
+    let wake: (() => void) | null = null;
+    const nudge = () => {
+      wake?.();
+      wake = null;
+    };
+    runtime.onProgress = (label: string) => {
+      progressQueue.push(label);
+      nudge();
+    };
+
+    const work = Promise.all(
       calls.map(async (call) => {
         const reply = (payload: unknown) => ({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(payload) });
         let args: JsonObject = {};
@@ -268,6 +282,33 @@ export async function* runDumaAgent(
         }
       }),
     );
+
+    let settled = false;
+    // Flip on rejection too, or a failing tool would leave the drain loop parked.
+    void work.then(
+      () => {
+        settled = true;
+        nudge();
+      },
+      () => {
+        settled = true;
+        nudge();
+      },
+    );
+
+    while (!settled || progressQueue.length > 0) {
+      const label = progressQueue.shift();
+      if (label !== undefined) {
+        yield { type: 'step', label };
+        continue;
+      }
+      await new Promise<void>((resolve) => {
+        wake = resolve;
+      });
+    }
+
+    runtime.onProgress = null;
+    const outputs = await work;
 
     conversation.push(assistantMessage, ...outputs);
   }

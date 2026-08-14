@@ -6,6 +6,9 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from '@/components/icons';
 
 import { cn } from '@/lib/utils';
 
+import { Button } from './button';
+import { Select } from './select';
+
 type DataTableAlign = 'left' | 'center' | 'right';
 type DataTableDensity = 'compact' | 'default' | 'comfortable';
 type DataTableSortDirection = 'asc' | 'desc' | false;
@@ -55,6 +58,26 @@ export interface DataTableColumn<T> {
   ariaLabel?: string;
 }
 
+/**
+ * The paging bar the table draws for itself: page position, the two step
+ * buttons, and how many rows to fetch at a time.
+ *
+ * `pageSizeOptions` is the caller's to state, because only the caller knows
+ * what its endpoint will actually honour — an option the API silently clamps
+ * is a control lying about its own scope.
+ */
+export interface DataTablePagination {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  /** Omit the three size props to render paging alone. */
+  pageSize?: number;
+  pageSizeOptions?: readonly number[];
+  onPageSizeChange?: (size: number) => void;
+  /** Noun for the rows, e.g. "entries". Defaults to "rows". */
+  rowLabel?: string;
+}
+
 interface DataTableSharedProps {
   'aria-label'?: string;
   'aria-labelledby'?: string;
@@ -72,6 +95,7 @@ interface DataTableSharedProps {
   maxHeight?: number | string;
   footer?: React.ReactNode;
   footerClassName?: string;
+  pagination?: DataTablePagination;
 }
 
 interface DataTableDeclarativeProps<T> extends DataTableSharedProps {
@@ -99,6 +123,51 @@ interface DataTableCompositionalProps extends DataTableSharedProps {
 }
 
 export type DataTableProps<T> = DataTableDeclarativeProps<T> | DataTableCompositionalProps;
+
+function TablePagination({
+  page,
+  totalPages,
+  onPageChange,
+  pageSize,
+  pageSizeOptions,
+  onPageSizeChange,
+  rowLabel = 'rows',
+}: DataTablePagination) {
+  const canResize = pageSize !== undefined && onPageSizeChange !== undefined && (pageSizeOptions?.length ?? 0) > 0;
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      {canResize ? (
+        <div className="flex items-center gap-2">
+          {/* A Radix trigger is a button, so the text is a sibling and the
+              control carries its own accessible name rather than a <label>. */}
+          <span className="text-xs whitespace-nowrap text-muted-foreground">{rowLabel} per page</span>
+          <Select
+            value={String(pageSize)}
+            onValueChange={(next) => onPageSizeChange(Number(next))}
+            options={pageSizeOptions!.map((size) => ({ value: String(size), label: String(size) }))}
+            ariaLabel={`${rowLabel} per page`}
+            className="w-20"
+          />
+        </div>
+      ) : (
+        <span />
+      )}
+
+      <div className="flex items-center gap-2">
+        <p className="text-xs tabular-nums whitespace-nowrap text-muted-foreground" aria-live="polite">
+          Page {page.toLocaleString()} of {totalPages.toLocaleString()}
+        </p>
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+          Previous
+        </Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+          Next
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 const densityClasses: Record<DataTableDensity, { header: string; cell: string }> = {
   compact: {
@@ -190,6 +259,7 @@ function DataTable<T>(props: DataTableProps<T>) {
     maxHeight,
     footer,
     footerClassName,
+    pagination,
   } = props;
   const hasOuterBorder = borders.outer ?? isDeclarative;
   const hasScrollContainer = isDeclarative || Boolean(containerClassName) || maxHeight !== undefined;
@@ -233,7 +303,12 @@ function DataTable<T>(props: DataTableProps<T>) {
       ) : (
         table
       )}
-      {footer && <div className={cn('border-t border-rule bg-muted/20 px-4 py-3', footerClassName)}>{footer}</div>}
+      {(footer || pagination) && (
+        <div className={cn('flex flex-col gap-3 border-t border-rule bg-muted/20 px-4 py-3', footerClassName)}>
+          {footer}
+          {pagination && <TablePagination {...pagination} />}
+        </div>
+      )}
     </div>
   );
 }

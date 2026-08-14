@@ -1,3 +1,5 @@
+import { parseJsonObject } from '../utils/json';
+
 import { apiFetch } from './client';
 
 export interface AuditLog {
@@ -24,16 +26,8 @@ export interface AuditLog {
   createdAt: string;
 }
 
-// The API stores metadata as a JSON string. Parse it defensively for display.
-export function parseAuditMeta(raw?: string | null): Record<string, unknown> | null {
-  if (!raw) return null;
-  try {
-    const v = JSON.parse(raw);
-    return v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
+// The API stores metadata and response as JSON strings.
+export const parseAuditMeta = parseJsonObject;
 
 export interface AuditLogsResponse {
   data: AuditLog[];

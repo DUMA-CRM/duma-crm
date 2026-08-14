@@ -140,6 +140,14 @@ export interface AgentChatMessage {
   fallbackModel?: string;
   /** Reveal a newly-arrived assistant message progressively in the client. */
   live?: boolean;
+  /**
+   * The steps taken to reach this answer, kept with it once it arrives.
+   *
+   * Client-side only — the panel records what it saw stream past. A sweep that
+   * paged through hundreds of records is provenance an auditor may need later,
+   * and losing it the moment the answer lands makes the answer unverifiable.
+   */
+  steps?: string[];
 }
 
 export interface AgentChatResponse {
