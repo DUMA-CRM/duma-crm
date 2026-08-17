@@ -56,8 +56,9 @@ export function auditSeverity(log: AuditLog): AuditSeverity {
 }
 
 /**
- * The chip on a row — words, not a number. An auditor needs "Denied"; the code
- * behind it is a support fact and lives in the technical detail.
+ * The exceptional label only, or null when nothing went wrong. Callers that
+ * report problems and treat silence as success read this — the agent says
+ * "Succeeded" for the null case.
  */
 export function severityLabel(severity: AuditSeverity, code?: number | null): string | null {
   if (severity === 'failed') return 'Failed';
@@ -68,6 +69,28 @@ export function severityLabel(severity: AuditSeverity, code?: number | null): st
     return 'Rejected';
   }
   return null;
+}
+
+export interface AuditStatus {
+  label: string;
+  tone: 'success' | 'warning' | 'exception';
+}
+
+/**
+ * What a Status column shows — every entry gets one, because a column that is
+ * blank for anything that worked reports only failures and leaves the reader
+ * to infer the rest from an em dash.
+ *
+ * Destructive work is amber, not red: in a status column red has to mean "this
+ * did not happen". A completed deletion painted the same as a rejected one
+ * would hide the difference that matters most to an auditor. Its prominence is
+ * carried by the row glyph, which keeps the exception ink.
+ */
+export function auditStatus(severity: AuditSeverity, code?: number | null): AuditStatus {
+  const failure = severityLabel(severity, code);
+  if (failure) return { label: failure, tone: 'exception' };
+  if (severity === 'destructive') return { label: 'Destructive', tone: 'warning' };
+  return { label: 'Success', tone: 'success' };
 }
 
 export function severityClass(severity: AuditSeverity, domain: AuditDomain): string {

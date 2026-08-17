@@ -306,6 +306,44 @@ export interface RosterSlot {
   endsAt: string;
 }
 
+/** Just enough of an absence log to place it on a calendar. */
+export interface AbsenceMark {
+  date: string;
+  isHalfDay?: boolean;
+  reason?: string | null;
+}
+
+/** An attendance day, plus whether absence was logged against it. */
+export interface AttendanceDayWithAbsence extends AttendanceDay {
+  absence?: { isHalfDay: boolean; reason?: string | null };
+}
+
+/**
+ * Tags the days an absence was logged against, so the calendar can show them.
+ *
+ * The mark rides alongside the attendance status rather than replacing it: a
+ * day somebody worked short while unwell is still a day they worked, and the
+ * hours are what they will be paid on. Days with no attendance record at all
+ * get an entry so the absence is visible rather than falling through a gap.
+ */
+export function mergeAbsenceDays(days: AttendanceDay[], absences: AbsenceMark[]): AttendanceDayWithAbsence[] {
+  if (absences.length === 0) return days;
+
+  const marks = new Map(absences.map((a) => [a.date.slice(0, 10), { isHalfDay: !!a.isHalfDay, reason: a.reason ?? null }]));
+  const merged: AttendanceDayWithAbsence[] = days.map((day) => {
+    const mark = marks.get(day.date);
+    return mark ? { ...day, absence: mark } : day;
+  });
+
+  const known = new Set(days.map((day) => day.date));
+  for (const [date, mark] of marks) {
+    if (known.has(date)) continue;
+    merged.push({ date, status: 'no_shift', plannedMinutes: 0, workedMinutes: 0, absence: mark });
+  }
+
+  return merged.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 /**
  * Folds the published rota into the attendance record so upcoming shifts show
  * on the calendar too.

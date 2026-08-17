@@ -21,8 +21,100 @@ export function percentChange(current: number, previous: number) {
   return round(((current - previous) / Math.abs(previous)) * 100, 1);
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/** "2026-08-14" → "14 Aug". Date-only values, so no timezone is involved. */
+export function calendarLabel(iso: string, withYear = false): string {
+  const [year, month, day] = iso.slice(0, 10).split('-');
+  const name = MONTHS[Number(month) - 1];
+  if (!name) return iso;
+  return `${Number(day)} ${name}${withYear ? ` ${year}` : ''}`;
+}
+
+/**
+ * A date range said the way a person says it: "14 Aug", "9–14 Aug",
+ * "28 Jul – 4 Aug". Cards used to print raw ISO on both ends of an arrow, which
+ * is a database value standing in for a period a reader has to decode.
+ *
+ * The year appears only when the range leaves the current one, so a question
+ * about last week does not carry a year it never needed.
+ */
+export function rangeLabel(from: string, to: string, now = new Date()): string {
+  const start = from.slice(0, 10);
+  const end = to.slice(0, 10);
+  const [startYear, startMonth] = start.split('-');
+  const [endYear, endMonth] = end.split('-');
+  const thisYear = String(now.getFullYear());
+  const needsYear = startYear !== thisYear || endYear !== thisYear;
+
+  if (start === end) return calendarLabel(start, needsYear);
+  if (startYear === endYear && startMonth === endMonth) {
+    return `${Number(start.slice(8, 10))}–${calendarLabel(end, needsYear)}`;
+  }
+  return `${calendarLabel(start, needsYear && startYear !== endYear)} – ${calendarLabel(end, needsYear)}`;
+}
+
 export function isIsoDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+}
+
+/**
+ * Openers that make a suggestion the assistant's question rather than the
+ * operator's next request. Ordered longest-first so "would you like me to"
+ * is taken before "would you like".
+ */
+const ASSISTANT_VOICE = [
+  'would you like me to',
+  'would you like us to',
+  'would you like to',
+  'would you like',
+  'would it help if i',
+  'would it help to',
+  'do you want me to',
+  'do you want to',
+  'do you need me to',
+  'shall i',
+  'shall we',
+  'should i',
+  'should we',
+  'want me to',
+  'can i',
+  'may i',
+];
+
+/**
+ * Rewrites a follow-up into something the operator could have typed.
+ *
+ * A suggestion chip is a shortcut for the *next message*, so clicking
+ * "Would you like to check the failures?" used to send the assistant's own
+ * question back to it. Stripping the opener leaves the request underneath —
+ * "Check the failures" — which is what the click was always meant to say.
+ *
+ * A question in the operator's own voice ("What needs attention today?") is
+ * already sendable and is left exactly as it is, question mark included.
+ */
+export function asOperatorRequest(value: string): string {
+  const trimmed = value.trim();
+  const lower = trimmed.toLowerCase();
+  // Anything non-alphanumeric ends the opener — a space, a comma, or the
+  // question mark in "Would you like to?", which would otherwise match the
+  // shorter phrase and leave a stranded particle behind.
+  const opener = ASSISTANT_VOICE.find((phrase) => {
+    if (!lower.startsWith(phrase)) return false;
+    const next = lower.charAt(phrase.length);
+    return next === '' || !/[a-z0-9]/.test(next);
+  });
+  if (!opener) return trimmed;
+
+  // Only now is the remainder an imperative, so only now does the question
+  // mark stop making sense.
+  const rest = trimmed
+    .slice(opener.length)
+    .replace(/^[\s,:;—-]+/, '')
+    .replace(/\s*\?+\s*$/, '');
+  // Nothing but a particle left means the opener was the whole sentence.
+  if (rest.length < 3) return trimmed;
+  return rest.charAt(0).toUpperCase() + rest.slice(1);
 }
 
 export function text(value: unknown, max = 500) {

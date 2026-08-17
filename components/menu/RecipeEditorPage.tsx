@@ -1,24 +1,24 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ChefHat, Flame, Loader2, Pencil, Plus, Trash2, TriangleAlert } from '@/components/icons';
+import { ChefHat, Flame, Loader2, Pencil, TriangleAlert } from '@/components/icons';
 import { useState } from 'react';
 
 import { ModifierRecipeEditor } from '@/components/menu/ModifierRecipeEditor';
-import { inputClass, selectClass } from '@/components/menu/shared';
+import { RecipeIngredientEditor } from '@/components/menu/RecipeIngredientEditor';
 import { DEFAULT_COL, type SizeColumn, computeRecipeTotals, mergeNutrition, useRecipeDraft } from '@/components/menu/useRecipeDraft';
-import { EditorShell } from '@/components/shared/EditorShell';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
-import { Select } from '@/components/ui/select';
 
 import { NUTRITION_FIELDS, type NutritionFacts } from '@/lib/api/inventory.service';
 import { getMenuItemModifiers } from '@/lib/api/menu.service';
 import { getMenuItemRecipe, getModifierRecipe, setMenuItemRecipe } from '@/lib/api/recipes.service';
+import { useVatContext } from '@/lib/hooks/useVatContext';
+import { computeCosting } from '@/lib/menu/costing';
 import { cn } from '@/lib/utils/cn';
-import { parseModifierName } from '@/lib/utils/modifiers';
+import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import type { AttachedModifier } from '@/types/menu';
 
 /** Compact macro list (skips kcal — shown separately — and absent fields). */
@@ -44,54 +44,63 @@ function MacroList({ nutrition, missing }: { nutrition: NutritionFacts; missing?
  * Compact read-only summary shown on the Recipe & Cost card in the item modal:
  * ingredient count, default cost/margin/energy and allergen count.
  */
-export function RecipeSummaryChips({ menuItemId, price }: { menuItemId: string; price: string }) {
+export function RecipeSummaryChips({ menuItemId, price, vatRate }: { menuItemId: string; price: string; vatRate?: string | null }) {
   const { rows, summary, allAllergens, isLoading, hasIngredients } = useRecipeDraft({
     queryKey: ['menu-item-recipe', menuItemId],
     fetchLines: () => getMenuItemRecipe(menuItemId),
     saveLines: () => Promise.resolve(),
     sizes: [],
     basePrice: Number(price) || 0,
+    vatRate,
   });
 
   if (isLoading) return <div className="h-6 w-2/3 rounded bg-muted animate-pulse" />;
   if (!hasIngredients) return <p className="text-xs text-muted-foreground">No ingredients linked yet.</p>;
 
   const s = summary[0];
-  const margin = (s.price ?? 0) - s.cogs;
+  const margin = s.costing?.margin ?? 0;
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-xs">
       <Badge variant="muted">{rows.filter((r) => r.stockItemId).length} ingredients</Badge>
       <Badge variant="muted">cost £{s.cogs.toFixed(2)}</Badge>
       <Badge variant={margin >= 0 ? 'success' : 'destructive'}>margin £{margin.toFixed(2)}</Badge>
+      {/* Only worth the space when VAT actually changes the number. */}
+      {(s.costing?.vat ?? 0) > 0 && <Badge variant="muted">after £{s.costing?.vat.toFixed(2)} VAT</Badge>}
       <Badge variant="muted">{Math.round(s.kcal)} kcal</Badge>
       {allAllergens.length > 0 && <Badge variant="warning">{allAllergens.length} allergens</Badge>}
     </div>
   );
 }
 
-interface RecipeEditorPageProps {
+interface RecipeEditorProps {
   menuItemId: string;
-  itemName: string;
   /** Sale price of the menu item (decimal string). */
   price: string;
-  onClose: () => void;
+  /** Per-item VAT override; falls back to the tenant default. */
+  vatRate?: string | null;
 }
 
 /**
- * In-page recipe editor (fills the content area, keeping the app chrome visible):
- * roomy per-ingredient cards with a quantity input per size, and a sticky summary
- * sidebar showing cost, margin, energy and allergens for every size. Opens from
- * the menu item modal's Recipe & Cost card.
+ * Recipe editor body: per-ingredient rows with a quantity per size, and a
+ * summary sidebar showing cost, margin, energy and allergens for every size.
+ *
+ * Deliberately renders no EditorShell. It is a tab inside the menu item detail
+ * now, not a page of its own — the shell lives in the menu layout, and two
+ * mounted at once would both try to claim the app top bar. Being a tab also
+ * removes what used to be a fourth level of nesting to get here.
  */
-export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: RecipeEditorPageProps) {
+export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) {
+  const { ctx: vat } = useVatContext();
   // Size columns = this item's attached modifiers in the "Size" category.
   const { data: attached = [] } = useQuery({
     queryKey: ['menu-item-modifiers', menuItemId],
     queryFn: () => getMenuItemModifiers(menuItemId),
   });
+  // isSizeModifier reads the real column when the API provides it and only
+  // falls back to the old category === 'size' string match otherwise.
   const sizes: SizeColumn[] = attached
-    .filter((m) => parseModifierName(m.name).category?.toLowerCase() === 'size')
-    .map((m) => ({ id: m.id, label: parseModifierName(m.name).label, priceAdjust: m.priceAdjust }));
+    .filter(isSizeModifier)
+    .map((m) => ({ id: m.id, label: modifierLabel(m), priceAdjust: m.priceAdjust }));
   const { rows, edit, dirty, isLoading, save, stockItems, itemMap, usedIds, columns, summary, allAllergens, hasIngredients } =
     useRecipeDraft({
       queryKey: ['menu-item-recipe', menuItemId],
@@ -99,6 +108,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
       saveLines: (lines) => setMenuItemRecipe(menuItemId, lines),
       sizes,
       basePrice: Number(price) || 0,
+      vatRate,
     });
 
   const missingData = summary.some((s) => s.missingCost > 0 || s.missingKcal > 0);
@@ -118,13 +128,13 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
   const selected = comboSel ?? attached.filter((m) => m.isDefault).map((m) => m.id);
   const selectedSet = new Set(selected);
   const toggleCombo = (m: AttachedModifier) => {
-    const { category } = parseModifierName(m.name);
+    const category = modifierCategory(m);
     let next: string[];
     if (selectedSet.has(m.id)) {
       next = selected.filter((id) => id !== m.id);
     } else if (category) {
       // Categorised modifiers (incl. Size) are single-select — replace siblings.
-      const siblings = new Set(attached.filter((x) => parseModifierName(x.name).category === category).map((x) => x.id));
+      const siblings = new Set(attached.filter((x) => modifierCategory(x) === category).map((x) => x.id));
       next = [...selected.filter((id) => !siblings.has(id)), m.id];
     } else {
       next = [...selected, m.id];
@@ -151,7 +161,9 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
     missing: comboAll.reduce((s, p) => s + p.missingCost + p.missingNutrition, 0),
     price: (Number(price) || 0) + selected.reduce((s, id) => s + Number(attached.find((m) => m.id === id)?.priceAdjust ?? 0), 0),
   };
-  const comboMargin = combo.price - combo.cost;
+  // Modifier price adjustments are part of the taxable amount, exactly as the
+  // till treats them, so VAT comes off the combined price rather than the base.
+  const comboCosting = computeCosting({ price: combo.price, cogs: combo.cost, itemVatRate: vatRate, ctx: vat });
 
   // Modifier being edited in the overlay (read-only page + jump link).
   const [editTarget, setEditTarget] = useState<AttachedModifier | null>(null);
@@ -160,27 +172,28 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
   const comboGroups = (() => {
     const groups = new Map<string, AttachedModifier[]>();
     for (const m of attached) {
-      const cat = parseModifierName(m.name).category ?? 'Extras';
+      const cat = modifierCategory(m) ?? 'Extras';
       groups.set(cat, [...(groups.get(cat) ?? []), m]);
     }
     return [...groups.entries()];
   })();
 
   return (
-    <EditorShell
-      eyebrow="Recipe & Cost"
-      title={itemName}
-      onClose={onClose}
-      dirty={dirty && !save.isPending}
-      discardMessage="This recipe has unsaved ingredient changes. Leaving now discards them."
-      icon={<ChefHat size={20} aria-hidden="true" />}
-      actions={
-        <Button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className="h-9 px-5 shrink-0 gap-2">
+    <div className="flex flex-col">
+      {/* Sticky because the ingredient list is long and unsaved work must never
+          scroll out of sight — this tab has no shell-level discard guard. */}
+      <div className="sticky top-0 z-20 -mx-3 mb-4 flex items-center justify-between gap-3 border-b border-rule bg-card px-3 py-2.5 md:-mx-6 md:px-6">
+        <div className="flex min-w-0 items-center gap-2">
+          <ChefHat size={16} className="shrink-0 text-primary" aria-hidden="true" />
+          <p className="truncate text-sm font-semibold text-foreground">Recipe &amp; cost</p>
+          {dirty && !save.isPending && <span className="shrink-0 text-label font-semibold text-warning">Unsaved changes</span>}
+        </div>
+        <Button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className="h-9 shrink-0 gap-2 px-5">
           {save.isPending && <Loader2 size={15} className="animate-spin" />}
-          {save.isPending ? 'Saving…' : dirty ? 'Save Recipe' : 'Saved'}
+          {save.isPending ? 'Saving…' : dirty ? 'Save recipe' : 'Saved'}
         </Button>
-      }
-    >
+      </div>
+
       <>
         {isLoading ? (
           <div className="flex items-center justify-center py-24 text-muted-foreground">
@@ -195,91 +208,16 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                 {sizes.length > 0 && <p className="text-label text-muted-foreground">Blank size fields inherit the Default amount.</p>}
               </div>
 
-              {rows.length === 0 && (
-                <div className="bg-card border border-dashed border-rule rounded-sm p-6 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Add the ingredients <span className="font-semibold text-foreground">every variant</span> of this item uses (beans,
-                    lid…). Milk and syrups belong on their modifiers — edit a modifier in the Modifiers tab to set what it adds.
-                  </p>
-                </div>
-              )}
-
-              {rows.map((row, i) => {
-                const item = itemMap.get(row.stockItemId);
-                return (
-                  <div key={`${row.stockItemId}-${i}`} className="bg-card border border-rule rounded-sm p-4">
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={row.stockItemId}
-                        onValueChange={(value) => edit(rows.map((r, j) => (j === i ? { ...r, stockItemId: value } : r)))}
-                        options={[
-                          { value: '', label: 'Select ingredient…' },
-                          ...stockItems
-                            .filter((item) => item.id === row.stockItemId || !usedIds.has(item.id))
-                            .map((item) => ({ value: item.id, label: `${item.name} (${item.unit})` })),
-                        ]}
-                        ariaLabel="Select recipe ingredient"
-                        className={cn(selectClass, 'flex-1 min-w-0 h-11')}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => edit(rows.filter((_, j) => j !== i))}
-                        aria-label="Remove ingredient"
-                        className="size-11 text-muted-foreground/60 hover:text-destructive shrink-0"
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-
-                    <div className="flex flex-wrap gap-4 mt-3">
-                      {columns.map((c) => (
-                        <div key={c.id}>
-                          <label className="block text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-1">
-                            {c.label}
-                          </label>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              value={row.qty[c.id] ?? ''}
-                              onChange={(e) =>
-                                edit(rows.map((r, j) => (j === i ? { ...r, qty: { ...r.qty, [c.id]: e.target.value } } : r)))
-                              }
-                              inputMode="decimal"
-                              placeholder={c.id === DEFAULT_COL ? '0' : row.qty[DEFAULT_COL] || '—'}
-                              aria-label={`${item?.name ?? 'Ingredient'} ${c.label} quantity`}
-                              className={cn(
-                                inputClass,
-                                'w-24 h-11 text-right tabular-nums text-base',
-                                c.id !== DEFAULT_COL && !row.qty[c.id]?.trim() && 'text-muted-foreground',
-                              )}
-                            />
-                            <span className="text-xs text-muted-foreground w-8">{item?.unit ?? ''}</span>
-                          </div>
-                        </div>
-                      ))}
-                      {item?.costPerUnit != null && (
-                        <div className="ml-auto self-end text-right">
-                          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-1">Cost</p>
-                          <p className="text-sm font-semibold text-foreground tabular-nums h-11 flex items-center justify-end">
-                            £{((Number(row.qty[DEFAULT_COL]) || 0) * Number(item.costPerUnit)).toFixed(2)}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => edit([...rows, { stockItemId: '', qty: {} }])}
-                className="w-full h-12 gap-2 border-dashed"
-              >
-                <Plus size={16} />
-                Add ingredient
-              </Button>
+              <RecipeIngredientEditor
+                rows={rows}
+                onChange={edit}
+                columns={columns}
+                stockItems={stockItems}
+                itemMap={itemMap}
+                usedIds={usedIds}
+                sizes={sizes}
+                emptyHint="Add the ingredients every variant of this item uses — beans, a cup, a lid. Milk and syrups belong on their modifiers instead, so they only cost what was actually chosen."
+              />
 
               {/* ── Modifier add-ons (read-only + jump link) ── */}
               {attached.length > 0 && (
@@ -302,7 +240,8 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                         </thead>
                         <tbody>
                           {attached.map((m) => {
-                            const { category, label } = parseModifierName(m.name);
+                            const category = modifierCategory(m);
+                            const label = modifierLabel(m);
                             const lines = modRecipeMap.get(m.id) ?? [];
                             return (
                               <tr key={m.id} className="border-t border-rule">
@@ -385,7 +324,7 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                                     : 'border-rule text-muted-foreground hover:text-foreground',
                                 )}
                               >
-                                {parseModifierName(m.name).label}
+                                {modifierLabel(m)}
                               </button>
                             );
                           })}
@@ -397,19 +336,33 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                   <div className="mt-3 pt-3 border-t border-rule space-y-1.5 text-sm tabular-nums">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Price</span>
-                      <span className="font-bold text-primary">£{combo.price.toFixed(2)}</span>
+                      <span className="font-bold text-primary">£{comboCosting.grossCharged.toFixed(2)}</span>
                     </div>
+                    {/* Only shown when VAT applies — an unregistered tenant
+                        should not see a line that is always zero. */}
+                    {comboCosting.vat > 0 && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">VAT ({comboCosting.vatRate}%)</span>
+                          <span className="text-muted-foreground">−£{comboCosting.vat.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">You keep</span>
+                          <span className="font-semibold text-foreground">£{comboCosting.netRevenue.toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Ingredient cost</span>
                       <span className="font-semibold text-foreground">
-                        £{combo.cost.toFixed(2)}
+                        −£{comboCosting.cogs.toFixed(2)}
                         {combo.missing > 0 && <span className="text-warning">*</span>}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Margin</span>
-                      <span className={cn('font-semibold', comboMargin >= 0 ? 'text-success' : 'text-destructive')}>
-                        £{comboMargin.toFixed(2)} ({combo.price > 0 ? ((comboMargin / combo.price) * 100).toFixed(0) : 0}%)
+                      <span className={cn('font-semibold', comboCosting.margin >= 0 ? 'text-success' : 'text-destructive')}>
+                        £{comboCosting.margin.toFixed(2)} ({comboCosting.marginPct.toFixed(0)}%)
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -452,26 +405,31 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
                 </div>
               ) : (
                 summary.map((s) => {
-                  const margin = (s.price ?? 0) - s.cogs;
-                  const pct = s.price ? (margin / s.price) * 100 : 0;
+                  const c = s.costing;
                   return (
                     <div key={s.col.id} className="bg-card border border-rule rounded-sm p-4">
                       <div className="flex items-center justify-between mb-3">
                         <p className="font-semibold text-foreground">{s.col.label}</p>
-                        <p className="text-sm font-bold text-primary tabular-nums">£{(s.price ?? 0).toFixed(2)}</p>
+                        <p className="text-sm font-bold text-primary tabular-nums">£{(c?.grossCharged ?? s.price ?? 0).toFixed(2)}</p>
                       </div>
                       <div className="space-y-1.5 text-sm tabular-nums">
+                        {(c?.vat ?? 0) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">VAT ({c?.vatRate}%)</span>
+                            <span className="text-muted-foreground">−£{c?.vat.toFixed(2)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Ingredient cost</span>
                           <span className="font-semibold text-foreground">
-                            £{s.cogs.toFixed(2)}
+                            −£{s.cogs.toFixed(2)}
                             {s.missingCost > 0 && <span className="text-warning">*</span>}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Margin</span>
-                          <span className={cn('font-semibold', margin >= 0 ? 'text-success' : 'text-destructive')}>
-                            £{margin.toFixed(2)} ({pct.toFixed(0)}%)
+                          <span className={cn('font-semibold', (c?.margin ?? 0) >= 0 ? 'text-success' : 'text-destructive')}>
+                            £{(c?.margin ?? 0).toFixed(2)} ({(c?.marginPct ?? 0).toFixed(0)}%)
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -521,11 +479,11 @@ export function RecipeEditorPage({ menuItemId, itemName, price, onClose }: Recip
 
         {/* Modifier recipe editor overlay — same grid as the Modifiers tab. */}
         {editTarget && (
-          <Modal title={`${parseModifierName(editTarget.name).label} — Recipe`} onClose={() => setEditTarget(null)} className="max-w-xl">
+          <Modal title={`${modifierLabel(editTarget)} — Recipe`} onClose={() => setEditTarget(null)} className="max-w-xl">
             <ModifierRecipeEditor modifierId={editTarget.id} sizes={sizes.filter((s) => s.id !== editTarget.id)} />
           </Modal>
         )}
       </>
-    </EditorShell>
+    </div>
   );
 }

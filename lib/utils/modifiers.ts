@@ -47,3 +47,39 @@ export function groupByCategory<T>(items: T[], categoryOf: (item: T) => string |
     return 0;
   });
 }
+
+// ── Transition-tolerant readers ──────────────────────────────────────────────
+//
+// Migration 0046 gave modifiers real `label` / `category` / `isSize` columns,
+// but the API only returns them from 1.22. These read the columns when present
+// and fall back to parsing the legacy prefixed `name`, so the UI behaves the
+// same before and after that deploy.
+
+interface ModifierLike {
+  name: string;
+  label?: string | null;
+  category?: string | null;
+  isSize?: boolean;
+}
+
+export function modifierLabel(modifier: ModifierLike): string {
+  return modifier.label?.trim() || parseModifierName(modifier.name).label;
+}
+
+export function modifierCategory(modifier: ModifierLike): string | null {
+  if (modifier.category !== undefined) return modifier.category?.trim() || null;
+  return parseModifierName(modifier.name).category;
+}
+
+/**
+ * Whether this modifier is a size variant, which makes it a per-size column in
+ * the recipe editors.
+ *
+ * The fallback is the old rule — category equal to the literal 'size' — which
+ * is exactly the fragility the column was added to remove: typing "Sizes" used
+ * to silently disable size costing with nothing on screen to explain it.
+ */
+export function isSizeModifier(modifier: ModifierLike): boolean {
+  if (typeof modifier.isSize === 'boolean') return modifier.isSize;
+  return modifierCategory(modifier)?.toLowerCase() === 'size';
+}

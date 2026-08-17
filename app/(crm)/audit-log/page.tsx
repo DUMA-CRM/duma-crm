@@ -7,7 +7,19 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 
 import { AuditCopyButton, AuditInspector, type AuditPivot } from '@/components/audit/AuditInspector';
 import { AuditTable, auditRowId } from '@/components/audit/AuditTable';
-import { AlertCircle, CalendarDays, History, Layers3, ListView, Loader2, Search, SlidersHorizontal, User, X } from '@/components/icons';
+import {
+  AlertCircle,
+  CalendarDays,
+  History,
+  Layers3,
+  ListView,
+  Loader2,
+  PanelRight,
+  Search,
+  SlidersHorizontal,
+  User,
+  X,
+} from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -23,6 +35,7 @@ import { groupAuditLogs } from '@/lib/audit/groups';
 import { auditActor, auditPhrase, auditRole, auditSeverity, fullTimestamp } from '@/lib/audit/narrative';
 import { COMMON_ACTIONS, actionFilterLabel, actionResource, resourceMeta, resourcePickerOptions } from '@/lib/audit/vocabulary';
 import { hasCapability } from '@/lib/auth/capabilities';
+import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -164,6 +177,11 @@ function AuditLogPageContent() {
   // of the live view.
   const [lastSelected, setLastSelected] = useState<AuditLog | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Closed until an entry is picked: the page opens on a table nobody has
+  // chosen a row in yet, so ~440px of empty inspector would be width the log
+  // could have used. Selecting a row opens it; the header button and a second
+  // click on the same row put it away again.
+  const [inspectorOpen, setInspectorOpen] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -602,7 +620,10 @@ function AuditLogPageContent() {
         </Popover.Root>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      {/* Only present when something is filtered — with the view switcher moved
+          to the masthead this row has nothing else to hold, and an empty one
+          would still take a gap from the stack above it. */}
+      <div className={cn('flex flex-wrap items-center gap-1.5', !hasFilters && 'hidden')}>
         {hasFilters && (
           <>
             {actorId !== 'all' && (
@@ -659,15 +680,6 @@ function AuditLogPageContent() {
             </button>
           </>
         )}
-
-        {/* A view control, not a filter — it changes how the same entries read. */}
-        <SegmentedControl
-          options={GROUP_OPTIONS}
-          value={groupMode}
-          onChange={setGroupMode}
-          ariaLabel="Group entries by record, or list every entry"
-          className="ml-auto"
-        />
       </div>
     </div>
   );
@@ -720,7 +732,39 @@ function AuditLogPageContent() {
   ) : undefined;
 
   return (
-    <EditorShell title="Audit log" icon={<History size={20} aria-hidden="true" />} meta={meta} flush>
+    <EditorShell
+      title="Audit log"
+      icon={<History size={20} aria-hidden="true" />}
+      meta={meta}
+      // A view control, not a filter — it changes how the same entries read, so
+      // it belongs with the page's own chrome rather than among the filters
+      // that change which entries are there at all.
+      actions={
+        <>
+          <SegmentedControl
+            options={GROUP_OPTIONS}
+            value={groupMode}
+            onChange={setGroupMode}
+            ariaLabel="Group entries by record, or list every entry"
+          />
+          {/* Gated by CSS, not the `wide` state: that starts false and flips
+              after mount, which would blink the control on every load. Below
+              this breakpoint the panel is a slide-over and has its own close. */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden size-9 shrink-0 xl:inline-flex"
+            aria-expanded={inspectorOpen}
+            aria-label={inspectorOpen ? 'Hide the entry detail panel' : 'Show the entry detail panel'}
+            title={inspectorOpen ? 'Hide detail panel' : 'Show detail panel'}
+            onClick={() => setInspectorOpen((open) => !open)}
+          >
+            <PanelRight size={17} aria-hidden="true" />
+          </Button>
+        </>
+      }
+      flush
+    >
       {/* One scroll region holding toolbar and table, so the filters scroll
           away with the page. It still needs `min-h-0` to be a scroll container
           at all — without it the column's intrinsic minimum is the full table
@@ -754,8 +798,18 @@ function AuditLogPageContent() {
                 expandedKeys={expandedKeys}
                 onToggleGroup={toggleGroup}
                 onSelect={(log) => {
+                  // Clicking the row already being read toggles the panel shut,
+                  // so the same gesture that opened it closes it. The highlight
+                  // stays — that row is still where the reader is.
+                  if (wide && log.id === selectedId) {
+                    setInspectorOpen((open) => !open);
+                    return;
+                  }
                   selectEntry(log);
-                  if (!wide) setDrawerOpen(true);
+                  // Choosing a different entry is asking to read it. With the
+                  // panel away, a click that only moved a highlight looks broken.
+                  if (wide) setInspectorOpen(true);
+                  else setDrawerOpen(true);
                 }}
                 isLoading={isLoading}
                 emptyState={emptyState}
@@ -766,9 +820,17 @@ function AuditLogPageContent() {
         </div>
 
         {/* The workbench: band-tinted so it reads as attached to the table. */}
-        <aside aria-label="Entry detail" className="hidden w-110 shrink-0 flex-col border-l border-rule bg-band/45 xl:flex 2xl:w-125">
-          <AuditInspector log={selected} activeActorId={actorId} activeAction={action} activeResourceId={resourceId} onPivot={applyPivot} />
-        </aside>
+        {inspectorOpen && (
+          <aside aria-label="Entry detail" className="hidden w-110 shrink-0 flex-col border-l border-rule bg-band/45 xl:flex 2xl:w-125">
+            <AuditInspector
+              log={selected}
+              activeActorId={actorId}
+              activeAction={action}
+              activeResourceId={resourceId}
+              onPivot={applyPivot}
+            />
+          </aside>
+        )}
       </div>
 
       {/* Below the split breakpoint the same panel slides over the table. */}
@@ -809,7 +871,8 @@ function AuditLogPageFallback() {
             ))}
           </div>
         </div>
-        <div className="hidden w-110 shrink-0 border-l border-rule bg-band/45 xl:block 2xl:w-125" />
+        {/* No inspector placeholder: the real page opens with it closed, so
+            reserving the column here would flash a panel that then vanishes. */}
       </div>
     </EditorShell>
   );

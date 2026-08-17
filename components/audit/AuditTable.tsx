@@ -6,15 +6,16 @@ import { DataTable, type DataTableColumn, type DataTablePagination } from '@/com
 import type { AuditLog } from '@/lib/api/audit.service';
 import { type AuditGroup, summariseActors, summariseVerbs } from '@/lib/audit/groups';
 import {
+  type AuditStatus,
   auditActor,
   auditDomain,
   auditRole,
   auditSentence,
   auditSeverity,
+  auditStatus,
   relativeTime,
   resourceLabel,
   severityClass,
-  severityLabel,
   stampLabel,
 } from '@/lib/audit/narrative';
 import { cn } from '@/lib/utils/cn';
@@ -28,18 +29,24 @@ export function auditRowId(logId: string) {
 
 // ── Cells ─────────────────────────────────────────────────────────────────────
 
+/** Same boxed-annotation construction as `Badge`: role hairline, role wash, role ink. */
+const STATUS_TONE: Record<AuditStatus['tone'], string> = {
+  success: 'border-momentum/30 bg-momentum/8 text-momentum',
+  warning: 'border-measured/40 bg-measured/8 text-measured',
+  exception: 'border-exception/30 bg-exception/8 text-exception',
+};
+
 function SeverityCell({ log }: { log: AuditLog }) {
-  const label = severityLabel(auditSeverity(log), log.statusCode);
-  if (!label) {
-    return (
-      <span className="text-xs text-muted-foreground" title="Completed without error">
-        —
-      </span>
-    );
-  }
+  const status = auditStatus(auditSeverity(log), log.statusCode);
   return (
-    <span className="inline-flex items-center rounded-sm border border-exception/30 bg-exception/8 px-1.5 py-px text-micro font-semibold tracking-micro uppercase text-exception">
-      {label}
+    <span
+      className={cn(
+        'inline-flex items-center rounded-sm border px-1.5 py-px text-micro font-semibold tracking-micro uppercase',
+        STATUS_TONE[status.tone],
+      )}
+      title={log.statusCode == null ? undefined : `HTTP ${log.statusCode}`}
+    >
+      {status.label}
     </span>
   );
 }

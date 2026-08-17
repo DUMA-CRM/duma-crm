@@ -10,6 +10,7 @@ const {
   formatNiNumber,
   formatSortCode,
   leaveBalance,
+  mergeAbsenceDays,
   mergeRosteredDays,
   myHrActions,
   payPeriodHours,
@@ -316,6 +317,40 @@ test('a recorded day always beats the rota that planned it', () => {
   const merged = mergeRosteredDays([att('2026-08-03', 'missed', 0, 480)], [slot('2026-08-03T09:00:00', '2026-08-03T17:00:00')]);
   assert.equal(merged.length, 1);
   assert.equal(merged[0].status, 'missed');
+});
+
+test('absence is marked on the day it was logged, without changing what was recorded', () => {
+  const merged = mergeAbsenceDays(
+    [att('2026-08-03', 'missed', 0, 480), att('2026-08-04', 'partial', 240, 480)],
+    [
+      { date: '2026-08-03', reason: 'Flu' },
+      { date: '2026-08-04', isHalfDay: true },
+    ],
+  );
+  // The attendance reading survives — the hours are what pay is calculated on.
+  assert.equal(merged[0].status, 'missed');
+  assert.equal(merged[0].absence?.reason, 'Flu');
+  assert.equal(merged[1].status, 'partial');
+  assert.equal(merged[1].workedMinutes, 240);
+  assert.equal(merged[1].absence?.isHalfDay, true);
+});
+
+test('an absence on a day with no attendance record still gets a place in the month', () => {
+  const merged = mergeAbsenceDays([att('2026-08-03', 'full', 480, 480)], [{ date: '2026-08-06', reason: 'Sick' }]);
+  assert.equal(merged.length, 2);
+  const added = merged.find((d) => d.date === '2026-08-06');
+  assert.equal(added?.status, 'no_shift');
+  assert.equal(added?.plannedMinutes, 0, 'an absence invents no rostered hours');
+  assert.equal(added?.absence?.reason, 'Sick');
+});
+
+test('absence marks tolerate timestamps and leave untouched days alone', () => {
+  const merged = mergeAbsenceDays([att('2026-08-03', 'full', 480, 480)], [{ date: '2026-08-03T00:00:00.000Z' }]);
+  assert.equal(merged.length, 1);
+  assert.ok(merged[0].absence);
+  // No absences at all is a pass-through, not a rebuild.
+  const days = [att('2026-08-03', 'full', 480, 480)];
+  assert.equal(mergeAbsenceDays(days, []), days);
 });
 
 test('a rostered day replaces an explicit no_shift, and two slots on one day are summed', () => {

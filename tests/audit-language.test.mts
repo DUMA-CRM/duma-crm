@@ -247,3 +247,40 @@ test('summaries stay short however many entries a record collects', () => {
   assert.equal(summariseActors(['Sam Reed', 'Ana Ruiz']), 'Sam Reed and 1 other');
   assert.equal(summariseActors(['Sam Reed', 'Ana Ruiz', 'Kai Obi']), 'Sam Reed and 2 others');
 });
+
+// ── Status ────────────────────────────────────────────────────────────────────
+
+const { auditStatus, severityLabel } = await import('../lib/audit/narrative.ts');
+
+/**
+ * The Status column used to render a label only for entries that failed, and an
+ * em dash for everything else — so it reported problems and left the reader to
+ * infer that a dash meant success. Every severity now states itself.
+ */
+test('every severity states its own status', () => {
+  assert.deepEqual(auditStatus('ok'), { label: 'Success', tone: 'success' });
+  assert.deepEqual(auditStatus('destructive'), { label: 'Destructive', tone: 'warning' });
+  assert.deepEqual(auditStatus('failed', 500), { label: 'Failed', tone: 'exception' });
+});
+
+test('a refusal is named by what the code meant, and always reads as an exception', () => {
+  assert.deepEqual(auditStatus('refused', 403), { label: 'Denied', tone: 'exception' });
+  assert.equal(auditStatus('refused', 404).label, 'Not found');
+  assert.equal(auditStatus('refused', 409).label, 'Conflicted');
+  assert.equal(auditStatus('refused', 422).label, 'Rejected');
+});
+
+test('destructive work is amber, never red', () => {
+  // Red in a status column has to mean "this did not happen". A completed
+  // deletion painted like a rejected one hides the difference that matters.
+  assert.notEqual(auditStatus('destructive').tone, auditStatus('failed', 500).tone);
+  assert.equal(auditStatus('destructive').tone, 'warning');
+});
+
+test('severityLabel still reports problems only, for callers that treat silence as success', () => {
+  // The agent renders `severityLabel(...) ?? 'Succeeded'`; giving ok a label
+  // here would make it say "Success" twice over.
+  assert.equal(severityLabel('ok'), null);
+  assert.equal(severityLabel('destructive'), null);
+  assert.equal(severityLabel('failed', 500), 'Failed');
+});

@@ -8,6 +8,10 @@ export interface MenuItem {
   category: MenuCategory;
   // Brand-wide price (decimal string, e.g. "3.20"). There is no per-location pricing.
   price: string;
+  // Per-item VAT rate as a percentage string ("20", "0"). Absent = use the
+  // tenant's defaultVatRate. Matters because hot food and cold takeaway food
+  // are rated differently, and margin is wrong without it.
+  vatRate?: string | null;
   isAvailable: boolean;
   imageUrl?: string;
   createdAt: string;
@@ -18,6 +22,8 @@ export interface MenuItemPayload {
   name: string;
   category: MenuCategory;
   price: string;
+  /** Percentage string, or null to clear the override and use the tenant default. */
+  vatRate?: string | null;
   description?: string;
   isAvailable?: boolean;
   imageUrl?: string;
@@ -28,7 +34,15 @@ export interface MenuItemPayload {
 export interface Modifier {
   id: string;
   tenantId: string;
+  /** Still carries the legacy "<Category>: <Label>" prefix. Prefer `label`. */
   name: string;
+  // Real columns as of migration 0046. Optional because the API only started
+  // returning them in 1.22 — read them through the helpers in
+  // lib/utils/modifiers.ts, which fall back to parsing `name`.
+  label?: string | null;
+  category?: string | null;
+  isSize?: boolean;
+  sortOrder?: number;
   priceAdjust?: string;
   isAvailable: boolean;
   createdAt: string;
@@ -36,7 +50,12 @@ export interface Modifier {
 
 export interface ModifierPayload {
   tenantId: string;
+  /** Encoded "<Category>: <Label>" — still required by the pre-1.22 API. */
   name: string;
+  /** Sent alongside `name`; older API versions ignore these. */
+  label?: string;
+  category?: string | null;
+  isSize?: boolean;
   priceAdjust?: string;
   isAvailable?: boolean;
 }

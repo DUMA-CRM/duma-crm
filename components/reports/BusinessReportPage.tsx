@@ -21,9 +21,12 @@ import {
 import { getInventoryForecast, getStockItems } from '@/lib/api/inventory.service';
 import { getLossLog } from '@/lib/api/loss.service';
 import { type PurchaseOrder, getPurchaseOrders } from '@/lib/api/purchasing.service';
+import { getMenuItems } from '@/lib/api/menu.service';
 import { getMenuItemRecipe } from '@/lib/api/recipes.service';
 import { getVariance } from '@/lib/api/scheduling.service';
 import { getLocations } from '@/lib/api/workspace.service';
+import { useVatContext } from '@/lib/hooks/useVatContext';
+import { computeCosting } from '@/lib/menu/costing';
 import type { BusinessReportSection } from '@/lib/utils/business-reports';
 import { cn } from '@/lib/utils/cn';
 import { formatCompact, formatMoney, orderMetrics } from '@/lib/utils/dashboard';
@@ -641,10 +644,20 @@ function PurchasingReport({ context }: { context: ReportContext }) {
 }
 
 function ProfitabilityReport({ context }: { context: ReportContext }) {
+  const { tenantId } = useWorkspaceStore();
+  const { ctx: vat } = useVatContext();
   const topItems = useQuery({
     queryKey: ['report-profitability-top-items', context.dates.from, context.dates.to, context.locationId],
     queryFn: () => getTopItems(context.current, 25),
   });
+  // Needed for each item's VAT rate — hot and cold food are rated differently,
+  // so a single tenant default would misstate margin per line.
+  const menuQuery = useQuery({
+    queryKey: ['menu-items', tenantId, 'report-profitability'],
+    queryFn: () => getMenuItems(tenantId ?? undefined),
+    enabled: !!tenantId,
+  });
+  const menuById = new Map((menuQuery.data ?? []).map((item) => [item.id, item]));
   const recipeQueries = useQueries({
     queries: (topItems.data ?? []).map((item) => ({
       queryKey: ['menu-item-recipe', item.menuItemId, 'report-profitability'],
@@ -664,24 +677,34 @@ function ProfitabilityReport({ context }: { context: ReportContext }) {
     const units = Number(item.totalQuantity ?? 0);
     const revenue = Number(item.totalRevenue ?? 0);
     const estimatedCost = unitCost == null ? null : unitCost * units;
-    const contribution = estimatedCost == null ? null : revenue - estimatedCost;
+    // Net of VAT, via the shared helper — contribution against gross revenue
+    // overstates margin by the entire VAT fraction.
+    const costing = computeCosting({
+      price: revenue,
+      cogs: estimatedCost ?? 0,
+      itemVatRate: menuById.get(item.menuItemId)?.vatRate,
+      ctx: vat,
+    });
     return {
       ...item,
       units,
       revenue,
+      netRevenue: costing.netRevenue,
       unitCost,
       estimatedCost,
-      contribution,
-      margin: contribution == null || revenue === 0 ? null : (contribution / revenue) * 100,
+      contribution: estimatedCost == null ? null : costing.margin,
+      margin: estimatedCost == null || costing.netRevenue === 0 ? null : costing.marginPct,
       complete,
     };
   });
   const covered = rows.filter((row) => row.complete);
+  const coveredNetRevenue = covered.reduce((sum, row) => sum + row.netRevenue, 0);
   const coveredRevenue = covered.reduce((sum, row) => sum + row.revenue, 0);
   const estimatedCost = covered.reduce((sum, row) => sum + (row.estimatedCost ?? 0), 0);
-  const contribution = coveredRevenue - estimatedCost;
-  const margin = coveredRevenue ? (contribution / coveredRevenue) * 100 : 0;
+  const contribution = coveredNetRevenue - estimatedCost;
+  const margin = coveredNetRevenue ? (contribution / coveredNetRevenue) * 100 : 0;
   const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
+  // Coverage compares gross with gross — it is a share of recorded revenue.
   const revenueCoverage = totalRevenue ? (coveredRevenue / totalRevenue) * 100 : 0;
 
   if (error) {
@@ -696,7 +719,10 @@ function ProfitabilityReport({ context }: { context: ReportContext }) {
     <>
       <DataNotice tone="warning">
         This is a current-cost estimate, not historical accounting COGS. It applies today’s base-recipe ingredient costs to period sales and
-        excludes modifier recipes, historical supplier prices, labour, tax and overhead.
+        excludes modifier recipes, historical supplier prices, labour and overhead.{' '}
+        {vat.vatRegistered
+          ? 'Contribution is measured against revenue net of VAT, at each item’s rate.'
+          : 'This workspace is not VAT registered, so revenue is counted in full.'}
       </DataNotice>
 
       <StatCardGrid>

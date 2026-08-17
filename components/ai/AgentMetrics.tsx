@@ -1,8 +1,9 @@
 'use client';
 
-import { ArrowDownRight, ArrowRight, ArrowUpRight, CheckCircle2 } from '@/components/icons';
+import { CheckCircle2, CircleDashed, Search } from '@/components/icons';
+import { DeltaBadge } from '@/components/shared/StatCard';
 
-import type { AgentCard } from '@/lib/ai/agent-types';
+import type { AgentCard, AgentEmptyTone } from '@/lib/ai/agent-types';
 import { cn } from '@/lib/utils/cn';
 
 const TONE = {
@@ -12,33 +13,48 @@ const TONE = {
   warning: 'text-stock',
 } as const;
 
-const TREND_ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: ArrowRight } as const;
+/** The glyph an empty result earns: reassurance, a miss, or a plain absence. */
+const EMPTY_MARK: Record<AgentEmptyTone, { icon: typeof CheckCircle2; className: string }> = {
+  clean: { icon: CheckCircle2, className: 'text-momentum' },
+  search: { icon: Search, className: 'text-muted-foreground' },
+  none: { icon: CircleDashed, className: 'text-muted-foreground' },
+};
+
+/** Money, counts and percentages align in columns; words do not. */
+const FIGURE = /^[£$€]?\s*[\d][\d.,\s]*%?$/;
 
 /**
  * Figures the agent read, shown as figures. The prose above still carries the
- * reasoning — this strip exists so the numbers can be scanned without parsing a
- * sentence, and it is built from tool output rather than from model text.
+ * reasoning — these exist so the numbers can be scanned without parsing a
+ * sentence, and they are built from tool output rather than from model text.
+ *
+ * The title sits outside the frame rather than in a filled header bar: inside a
+ * chat the card is a quotation from the data, and a banded strip above every one
+ * of them was more chrome than the answer it supported.
  */
 export function AgentMetrics({ card }: { card: AgentCard }) {
   if (card.kind === 'list') {
     return (
-      <section className="mt-3 overflow-hidden rounded-md border border-rule bg-field" aria-label={card.title}>
-        <header className="border-b border-divider px-3 py-2">
-          <p className="text-label font-semibold tracking-label uppercase text-muted-foreground" title={card.title}>
-            {card.title}
-          </p>
-          {card.caption && <p className="mt-0.5 text-label leading-4 text-muted-foreground">{card.caption}</p>}
-        </header>
+      <section className="mt-4" aria-label={card.title}>
+        <CardLabel title={card.title} caption={card.caption} />
         {card.rows.length ? (
-          <ul className="divide-y divide-divider">
+          <ul className="mt-1.5 divide-y divide-divider overflow-hidden rounded-sm border border-rule">
             {card.rows.map((row, index) => (
-              <li key={`${row.label}-${index}`} className="flex items-start justify-between gap-3 px-3 py-2.5">
+              <li key={`${row.label}-${index}`} className="flex items-baseline justify-between gap-3 px-3 py-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">{row.label}</p>
-                  {row.meta ? <p className="mt-0.5 line-clamp-2 text-label leading-4 text-muted-foreground">{row.meta}</p> : null}
+                  <p className="truncate text-sm text-foreground">{row.label}</p>
+                  {row.meta ? <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground">{row.meta}</p> : null}
                 </div>
                 {row.value ? (
-                  <span className={cn('shrink-0 font-mono text-xs font-semibold tabular-nums', TONE[row.tone ?? 'default'])}>
+                  <span
+                    className={cn(
+                      'shrink-0 text-xs font-semibold',
+                      // A status word set in the figure face is monospace worn as
+                      // a costume; only actual figures earn the column alignment.
+                      FIGURE.test(row.value) ? 'font-mono tracking-figure tabular-nums' : 'tracking-normal',
+                      TONE[row.tone ?? 'default'],
+                    )}
+                  >
                     {row.value}
                   </span>
                 ) : null}
@@ -46,54 +62,57 @@ export function AgentMetrics({ card }: { card: AgentCard }) {
             ))}
           </ul>
         ) : (
-          <p className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
-            <CheckCircle2 size={14} className="shrink-0 text-momentum" aria-hidden="true" />
-            {card.emptyLabel ?? 'Nothing to show.'}
-          </p>
+          <EmptyResult tone={card.emptyTone ?? 'none'} label={card.emptyLabel ?? 'Nothing to show.'} />
         )}
       </section>
     );
   }
+
   if (card.metrics.length === 0) return null;
+
   return (
-    <section className="mt-3 rounded-md border border-rule bg-field" aria-label={card.title}>
-      <header className="border-b border-divider px-3 py-2">
-        <p className="text-label font-semibold tracking-label uppercase text-muted-foreground">{card.title}</p>
-        {card.caption && <p className="mt-0.5 text-label leading-4 text-muted-foreground">{card.caption}</p>}
-      </header>
-      {/* Two columns keeps figures aligned in a narrow panel; an odd count
-          leaves the last cell wide rather than half-empty. */}
-      <dl className="grid grid-cols-2">
-        {card.metrics.map((metric, index) => {
-          const Trend = metric.trend ? TREND_ICON[metric.trend] : null;
-          return (
-            <div
-              key={`${metric.label}-${index}`}
-              className={cn('min-w-0 px-3 py-2', index % 2 === 1 && 'border-l border-divider', index > 1 && 'border-t border-divider')}
+    <section className="mt-4" aria-label={card.title}>
+      <CardLabel title={card.title} caption={card.caption} />
+      {/* Separate tiles rather than one ruled grid: an internal lattice is the
+          chart-paper look the design system lists as an anti-reference, and it
+          left an empty cell whenever the count was odd. */}
+      <dl className="mt-1.5 grid grid-cols-2 gap-1.5">
+        {card.metrics.map((metric, index) => (
+          <div key={`${metric.label}-${index}`} className="min-w-0 rounded-sm border border-rule bg-field px-3 py-2.5">
+            <dt className="truncate text-label text-muted-foreground">{metric.label}</dt>
+            <dd
+              className={cn('mt-1 truncate font-mono text-base font-semibold tracking-figure tabular-nums', TONE[metric.tone ?? 'default'])}
             >
-              <dt className="truncate text-label text-muted-foreground">{metric.label}</dt>
-              <dd className={cn('mt-0.5 truncate font-mono text-sm font-semibold tabular-nums', TONE[metric.tone ?? 'default'])}>
-                {metric.value}
-              </dd>
-              {metric.hint && (
-                <p className="mt-0.5 flex items-center gap-1 truncate text-label text-muted-foreground">
-                  {Trend && (
-                    <Trend
-                      size={11}
-                      className={cn(
-                        'shrink-0',
-                        metric.trend === 'up' ? 'text-success' : metric.trend === 'down' ? 'text-exception' : 'text-muted-foreground',
-                      )}
-                      aria-hidden="true"
-                    />
-                  )}
-                  {metric.hint}
-                </p>
-              )}
-            </div>
-          );
-        })}
+              {metric.value}
+            </dd>
+            {metric.hint && (
+              // The product's own delta pill, so a change in chat reads exactly
+              // as it does on a dashboard — glyph, figure, and the comparison it
+              // was measured against, in words.
+              <DeltaBadge delta={{ value: metric.hint, trend: metric.trend ?? 'flat' }} size="sm" className="mt-1.5 flex-wrap" />
+            )}
+          </div>
+        ))}
       </dl>
     </section>
+  );
+}
+
+function EmptyResult({ tone, label }: { tone: AgentEmptyTone; label: string }) {
+  const { icon: Icon, className } = EMPTY_MARK[tone];
+  return (
+    <p className="mt-1.5 flex items-center gap-2 text-sm text-muted-foreground">
+      <Icon size={14} className={cn('shrink-0', className)} aria-hidden="true" />
+      {label}
+    </p>
+  );
+}
+
+function CardLabel({ title, caption }: { title: string; caption?: string }) {
+  return (
+    <p className="flex flex-wrap items-baseline gap-x-2 text-label font-semibold tracking-label uppercase text-muted-foreground">
+      <span title={title}>{title}</span>
+      {caption && <span className="font-normal tracking-normal normal-case">{caption}</span>}
+    </p>
   );
 }

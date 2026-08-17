@@ -34,6 +34,10 @@ const badgeVariants = cva(
         warning: 'border-measured/60 bg-measured/6 text-measured',
         amber: 'border-measured/60 bg-measured/6 text-measured',
         destructive: 'border-exception/60 bg-exception/6 text-exception',
+        // Periwinkle, for states that are neither good nor bad — booked leave,
+        // scheduled work. Same construction as the three above, so it clears
+        // contrast in both themes.
+        reference: 'border-reference/60 bg-reference/6 text-reference',
         outline: 'border-rule text-foreground',
         ghost: 'text-muted-foreground hover:bg-band',
         link: 'text-reference underline decoration-1 underline-offset-4',

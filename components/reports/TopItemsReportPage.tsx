@@ -13,6 +13,8 @@ import { type TopItemAnalytics, getTopItems } from '@/lib/api/analytics.service'
 import { getMenuItems } from '@/lib/api/menu.service';
 import { getMenuItemRecipe } from '@/lib/api/recipes.service';
 import { getLocations } from '@/lib/api/workspace.service';
+import { useVatContext } from '@/lib/hooks/useVatContext';
+import { computeCosting } from '@/lib/menu/costing';
 import { cn } from '@/lib/utils/cn';
 import { type DashboardRange, formatCompact, formatMoney, getDateWindow, percentageChange } from '@/lib/utils/dashboard';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -34,6 +36,8 @@ interface AggregatedItem extends TopItemAnalytics {
 interface MenuPerformanceRow extends AggregatedItem {
   category: MenuCategory | 'uncategorised';
   unitCost: number | null;
+  /** Recorded revenue with VAT removed — the part the business actually keeps. */
+  netRevenue: number;
   estimatedCost: number | null;
   contribution: number | null;
   margin: number | null;
@@ -93,6 +97,7 @@ function MarginBadge({ margin }: { margin: number | null }) {
 }
 
 export function TopItemsReportPage() {
+  const { ctx: vat } = useVatContext();
   const router = useRouter();
   const { tenantId, locationId } = useWorkspaceStore();
   const [range, setRange] = useState<DashboardRange>('30d');
@@ -150,15 +155,20 @@ export function TopItemsReportPage() {
       : null;
     const units = qtyOf(item);
     const revenue = revOf(item);
+    const menuItem = menuById.get(item.menuItemId);
     const estimatedCost = unitCost === null ? null : unitCost * units;
-    const contribution = estimatedCost === null ? null : revenue - estimatedCost;
+    // Contribution is taken against revenue NET of VAT. Against gross revenue
+    // it overstates margin by the whole VAT fraction — the bug this shared
+    // helper exists to stop being rewritten in each report.
+    const costing = computeCosting({ price: revenue, cogs: estimatedCost ?? 0, itemVatRate: menuItem?.vatRate, ctx: vat });
     return {
       ...item,
-      category: menuById.get(item.menuItemId)?.category ?? 'uncategorised',
+      category: menuItem?.category ?? 'uncategorised',
       unitCost,
+      netRevenue: costing.netRevenue,
       estimatedCost,
-      contribution,
-      margin: contribution === null || revenue === 0 ? null : (contribution / revenue) * 100,
+      contribution: estimatedCost === null ? null : costing.margin,
+      margin: estimatedCost === null || costing.netRevenue === 0 ? null : costing.marginPct,
       costComplete,
     };
   });
@@ -176,11 +186,15 @@ export function TopItemsReportPage() {
   const totalUnits = rows.reduce((sum, row) => sum + qtyOf(row), 0);
   const totalRevenue = rows.reduce((sum, row) => sum + revOf(row), 0);
   const coveredRows = rows.filter((row) => row.costComplete);
-  const coveredRevenue = coveredRows.reduce((sum, row) => sum + revOf(row), 0);
+  // Two different denominators, deliberately: contribution is measured against
+  // net revenue, while cost coverage is a share of gross revenue and so must be
+  // compared against the gross total.
+  const coveredNetRevenue = coveredRows.reduce((sum, row) => sum + row.netRevenue, 0);
+  const coveredGrossRevenue = coveredRows.reduce((sum, row) => sum + revOf(row), 0);
   const estimatedCost = coveredRows.reduce((sum, row) => sum + (row.estimatedCost ?? 0), 0);
-  const contribution = coveredRevenue - estimatedCost;
-  const contributionMargin = coveredRevenue ? (contribution / coveredRevenue) * 100 : 0;
-  const costCoverage = totalRevenue ? (coveredRevenue / totalRevenue) * 100 : 0;
+  const contribution = coveredNetRevenue - estimatedCost;
+  const contributionMargin = coveredNetRevenue ? (contribution / coveredNetRevenue) * 100 : 0;
+  const costCoverage = totalRevenue ? (coveredGrossRevenue / totalRevenue) * 100 : 0;
   const maxValue = Math.max(1, ...rows.map((row) => Math.max(0, value(row))));
 
   const categories = [
@@ -191,7 +205,8 @@ export function TopItemsReportPage() {
         current.revenue += revOf(row);
         if (row.contribution !== null) {
           current.contribution += row.contribution;
-          current.coveredRevenue += revOf(row);
+          // Net, to match the contribution it is the denominator for.
+          current.coveredRevenue += row.netRevenue;
         }
         map.set(row.category, current);
         return map;
@@ -269,14 +284,18 @@ export function TopItemsReportPage() {
             size="sm"
             label="Contribution estimate"
             value={formatMoney(contribution)}
-            hint="On cost-covered revenue only"
+            hint={vat.vatRegistered ? 'Cost-covered items, net of VAT' : 'On cost-covered revenue only'}
             loading={loading}
           />
           <StatCard
             size="sm"
             label="Contribution margin"
             value={`${contributionMargin.toFixed(1)}%`}
-            hint={`${formatMoney(estimatedCost)} estimated base cost`}
+            hint={
+              vat.vatRegistered
+                ? `${formatMoney(estimatedCost)} cost against ${formatMoney(coveredNetRevenue)} net revenue`
+                : `${formatMoney(estimatedCost)} estimated base cost`
+            }
             loading={loading}
           />
         </StatCardGrid>

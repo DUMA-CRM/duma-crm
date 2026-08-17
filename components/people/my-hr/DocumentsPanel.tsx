@@ -23,31 +23,33 @@ import { fmt, money } from './shared';
 export function DocumentsPanel({
   employee,
   documents,
-  onRequest,
   onDataRequest,
 }: {
   employee?: HrEmployee;
   documents: EmployeeDocument[];
-  onRequest: () => void;
   onDataRequest: () => void;
 }) {
   return (
-    <div className="space-y-8">
-      <PayslipsSection employee={employee} />
-      <section className="border-t border-rule pt-8">
-        <DocumentsSection documents={documents} onRequest={onRequest} />
-        {/* The UK GDPR access right, exercised where the record lives. There is
-            no staff privacy-request endpoint — `/privacy-requests` requires a
-            `customerId` — so it raises a tagged helpdesk ticket, which gives HR
-            an auditable trail and the employee a thread to follow. */}
-        <p className="mt-4 text-sm text-muted-foreground">
-          Your employer also holds pay, attendance and leave records about you.{' '}
-          <button type="button" onClick={onDataRequest} className="font-medium text-primary underline-offset-2 hover:underline">
-            Ask for a copy of your data
-          </button>
-          .
-        </p>
-      </section>
+    <div className="space-y-6">
+      {/* Two independent lists that are read, not worked through, so they sit
+          side by side rather than stacking one below a fold. `items-start` keeps
+          each as tall as its own contents. */}
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <PayslipsSection employee={employee} />
+        <DocumentsSection documents={documents} />
+      </div>
+
+      {/* The UK GDPR access right, exercised where the record lives. There is
+          no staff privacy-request endpoint — `/privacy-requests` requires a
+          `customerId` — so it raises a tagged helpdesk ticket, which gives HR
+          an auditable trail and the employee a thread to follow. */}
+      <p className="border-t border-rule pt-5 text-sm text-muted-foreground">
+        Your employer also holds pay, attendance and leave records about you.{' '}
+        <button type="button" onClick={onDataRequest} className="font-medium text-primary underline-offset-2 hover:underline">
+          Ask for a copy of your data
+        </button>
+        .
+      </p>
     </div>
   );
 }
@@ -133,7 +135,7 @@ function payslipSpan(payslips: Payslip[]): { from: string; to: string } | null {
   return { from: starts[0], to: ends[ends.length - 1] };
 }
 
-function DocumentsSection({ documents, onRequest }: { documents: EmployeeDocument[]; onRequest: () => void }) {
+function DocumentsSection({ documents }: { documents: EmployeeDocument[] }) {
   // Read once on mount: a clock read during render is not idempotent, and an
   // expiry badge must not flicker between renders of the same list.
   const [now] = useState(() => Date.now());
@@ -141,14 +143,9 @@ function DocumentsSection({ documents, onRequest }: { documents: EmployeeDocumen
 
   return (
     <section className="space-y-4">
-      <PanelHeading
-        title="Documents"
-        action={
-          <Button variant="outline" size="sm" onClick={onRequest}>
-            Request a document
-          </Button>
-        }
-      />
+      {/* Requesting one is the header's primary action on this tab — a second
+          button for the same thing is just another thing to read. */}
+      <PanelHeading title="Documents" />
       {documents.length === 0 ? (
         <div className="rounded-md border border-rule bg-card shadow-sm">
           <EmptyState

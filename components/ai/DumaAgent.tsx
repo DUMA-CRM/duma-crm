@@ -16,7 +16,7 @@ import { ActionCard } from '@/components/ai/ActionCard';
 import { AgentMetrics } from '@/components/ai/AgentMetrics';
 import { LiveMarkdown } from '@/components/ai/LiveMarkdown';
 import {
-  ArrowRight,
+  ArrowUpRight,
   BarChart3,
   BookOpen,
   CalendarDays,
@@ -441,14 +441,79 @@ function shortcutKey(shortcut: AgentShortcut) {
  * stay ticked so a slow answer reads as progress on real work rather than as a
  * spinner that might mean anything.
  */
+/**
+ * What the agent is doing right now.
+ *
+ * One live line rather than a growing stack: the current step is the only one
+ * that matters while waiting, and a list that reflows on every event pushes the
+ * conversation around. The three things it adds are the ones a person actually
+ * wants during a wait — what it is doing, how long it has been at it, and what
+ * it has already finished.
+ *
+ * The elapsed count is deliberately absent for the first few seconds. Most
+ * turns finish inside that window, and a timer on a fast answer reads as an
+ * apology for speed it did not need to make.
+ */
 function ThinkingTrail({ steps }: { steps: string[] }) {
+  const [elapsed, setElapsed] = useState(0);
+  const [showDone, setShowDone] = useState(false);
+
+  useEffect(() => {
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => setElapsed(Math.round((Date.now() - startedAt) / 1000)), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const current = steps[steps.length - 1];
   if (!current) return null;
+  const done = steps.slice(0, -1);
+
   return (
-    <div className="mt-6 flex items-center gap-2" role="status" aria-live="polite">
-      <Loader2 size={13} className="shrink-0 animate-spin text-muted-foreground" aria-hidden="true" />
-      <span className="min-w-0 truncate text-sm text-muted-foreground">{current}…</span>
-      {steps.length > 1 && <span className="shrink-0 text-label tabular-nums text-muted-foreground/70">{steps.length}</span>}
+    <div className="mt-6">
+      <div className="flex items-center gap-2">
+        <Loader2 size={13} className="shrink-0 animate-spin text-muted-foreground" aria-hidden="true" />
+        {/* Keyed on the label so a new step crossfades in rather than swapping
+            character-for-character under the reader. */}
+        <span
+          key={current}
+          role="status"
+          aria-live="polite"
+          className="min-w-0 flex-1 truncate text-sm text-muted-foreground duration-300 animate-in fade-in slide-in-from-bottom-1 motion-reduce:animate-none"
+        >
+          {current}…
+        </span>
+        {elapsed >= 3 && (
+          <span aria-hidden="true" className="shrink-0 font-mono text-label tabular-nums text-muted-foreground/70">
+            {elapsed}s
+          </span>
+        )}
+        {done.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowDone((value) => !value)}
+            aria-expanded={showDone}
+            className="flex shrink-0 items-center gap-1 rounded-sm text-label font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+          >
+            <ChevronRight
+              size={11}
+              aria-hidden="true"
+              className={cn('shrink-0 transition-transform duration-150', showDone && 'rotate-90')}
+            />
+            {done.length} done
+          </button>
+        )}
+      </div>
+
+      {showDone && (
+        <ol className="mt-2 space-y-1 border-l border-rule pl-3">
+          {done.map((step, index) => (
+            <li key={`${step}-${index}`} className="flex items-start gap-1.5 text-label leading-4 text-muted-foreground">
+              <Check size={10} className="mt-0.5 shrink-0 text-momentum" aria-hidden="true" />
+              {step}
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }
@@ -489,6 +554,17 @@ function AgentMark({ nonce, busy, size = 36 }: { nonce: number; busy: boolean; s
   );
 }
 
+/**
+ * Where an answer can be carried on to — the pages that hold the records it
+ * was built from.
+ *
+ * Chips rather than rows, and bordered rather than filled, so they read as
+ * destinations at a glance: the follow-up suggestions below an answer are
+ * band-filled text, and two stacks of near-identical rows under every reply
+ * made it ambiguous which ones navigated. The glyph takes the reference ink the
+ * system gives links, which is the affordance the old section heading was
+ * carrying on their behalf.
+ */
 function ShortcutList({
   shortcuts,
   openingKey,
@@ -499,49 +575,33 @@ function ShortcutList({
   onOpen: (shortcut: AgentShortcut) => void;
 }) {
   return (
-    <section className="mt-4" aria-label="Open in DUMA">
-      <div className="-mx-2 space-y-0.5">
-        {shortcuts.map((shortcut) => {
-          const key = shortcutKey(shortcut);
-          const opening = openingKey === key;
-          const Icon = shortcut.kind === 'support' ? BookOpen : shortcut.locationId ? MapPin : ArrowRight;
-          const progressLabel = shortcut.locationId
-            ? 'Switching active location…'
-            : shortcut.kind === 'support'
-              ? 'Opening guide…'
-              : 'Opening page…';
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => onOpen(shortcut)}
-              disabled={Boolean(openingKey)}
-              className="group flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-wait disabled:opacity-60"
-            >
-              {opening ? (
-                <Loader2 size={14} className="shrink-0 animate-spin text-muted-foreground" aria-hidden="true" />
-              ) : (
-                <Icon size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-              )}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm text-foreground">{shortcut.label}</span>
-                {opening || shortcut.description ? (
-                  <span className="mt-0.5 block text-label leading-4 text-muted-foreground">
-                    {opening ? progressLabel : shortcut.description}
-                  </span>
-                ) : null}
-              </span>
-              {!opening ? (
-                <ArrowRight
-                  size={13}
-                  className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                  aria-hidden="true"
-                />
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+    <section className="mt-4 flex flex-wrap gap-1.5" aria-label="Open in DUMA">
+      {shortcuts.map((shortcut) => {
+        const key = shortcutKey(shortcut);
+        const opening = openingKey === key;
+        const Icon = shortcut.kind === 'support' ? BookOpen : shortcut.locationId ? MapPin : ArrowUpRight;
+        const progressLabel = shortcut.locationId ? 'Switching location…' : shortcut.kind === 'support' ? 'Opening guide…' : 'Opening…';
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onOpen(shortcut)}
+            disabled={Boolean(openingKey)}
+            title={shortcut.description}
+            className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-sm border border-rule bg-field px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors duration-150 hover:border-primary/45 hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-wait disabled:opacity-60"
+          >
+            {opening ? (
+              <Loader2 size={12} className="shrink-0 animate-spin text-reference" aria-hidden="true" />
+            ) : (
+              <Icon size={12} className="shrink-0 text-reference" aria-hidden="true" />
+            )}
+            <span className="truncate">{opening ? progressLabel : shortcut.label}</span>
+            {/* Changing the active location changes what every other page shows,
+                so it is stated on the control rather than left to the tooltip. */}
+            {shortcut.locationId && !opening && <span className="shrink-0 text-muted-foreground">· switches location</span>}
+          </button>
+        );
+      })}
     </section>
   );
 }
@@ -958,7 +1018,7 @@ export function DumaAgent() {
                   )}
                 >
                   {minimized ? (
-                    <header className="flex h-full w-full items-center gap-2 bg-sidebar px-2.5 text-sidebar-foreground">
+                    <header className="flex h-full w-full items-center gap-2 border-b border-divider bg-card px-2.5">
                       <div
                         {...dragHandleProps}
                         role={isDesktop ? 'group' : undefined}
@@ -966,17 +1026,17 @@ export function DumaAgent() {
                         aria-label={isDesktop ? 'Drag Ask DUMA. Hold Alt and use arrow keys to move it.' : undefined}
                         title={isDesktop ? 'Drag Ask DUMA' : undefined}
                         className={cn(
-                          'flex min-w-0 flex-1 touch-none items-center gap-2 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sidebar-ring sm:cursor-grab',
+                          'flex min-w-0 flex-1 touch-none items-center gap-2 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring sm:cursor-grab',
                           dragging && 'sm:cursor-grabbing',
                         )}
                       >
-                        <CursorMove size={14} className="hidden shrink-0 text-sidebar-foreground/55 sm:block" aria-hidden="true" />
+                        <CursorMove size={14} className="hidden shrink-0 text-muted-foreground/60 sm:block" aria-hidden="true" />
                         <AgentMark nonce={logoNonce} busy={busy} size={34} />
                         <div className="min-w-0 flex-1">
                           <h2 id="duma-agent-title" className="truncate text-sm font-semibold">
                             Ask DUMA
                           </h2>
-                          <p className="truncate text-label text-sidebar-foreground/70">
+                          <p className="truncate text-label text-muted-foreground">
                             {busy ? `${steps[steps.length - 1] ?? 'Working'}…` : `Following ${currentPage}`}
                           </p>
                         </div>
@@ -987,23 +1047,16 @@ export function DumaAgent() {
                         size="icon-sm"
                         onClick={() => setMinimized(false)}
                         aria-label="Restore Ask DUMA"
-                        className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
                       >
                         <Maximize aria-hidden="true" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => setOpen(false)}
-                        aria-label="Close Ask DUMA"
-                        className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                      >
+                      <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label="Close Ask DUMA">
                         <X aria-hidden="true" />
                       </Button>
                     </header>
                   ) : (
                     <>
-                      <header className="flex items-center gap-2 bg-sidebar px-3 py-2.5 text-sidebar-foreground">
+                      <header className="flex shrink-0 items-center gap-2 border-b border-divider bg-card px-3 py-2">
                         <div
                           {...dragHandleProps}
                           role={isDesktop ? 'group' : undefined}
@@ -1012,78 +1065,62 @@ export function DumaAgent() {
                           title={isDesktop ? 'Drag Ask DUMA' : undefined}
                           onDoubleClick={() => isDesktop && setMinimized(true)}
                           className={cn(
-                            'flex min-w-0 flex-1 touch-none items-center gap-2 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sidebar-ring sm:cursor-grab',
+                            'flex min-w-0 flex-1 touch-none items-center gap-2 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring sm:cursor-grab',
                             dragging && 'sm:cursor-grabbing',
                           )}
                         >
-                          <CursorMove size={14} className="hidden shrink-0 text-sidebar-foreground/55 sm:block" aria-hidden="true" />
-                          <AgentMark nonce={logoNonce} busy={busy} />
+                          <CursorMove size={14} className="hidden shrink-0 text-muted-foreground/60 sm:block" aria-hidden="true" />
+                          <AgentMark nonce={logoNonce} busy={busy} size={26} />
                           <div className="min-w-0 flex-1">
-                            <h2 id="duma-agent-title" className="truncate text-base font-semibold">
+                            <h2 id="duma-agent-title" className="truncate text-sm font-semibold text-foreground">
                               Ask DUMA
                             </h2>
-                            <p className="truncate text-label text-sidebar-foreground/70">Works alongside the page you are on</p>
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => setMinimized(true)}
-                          aria-label="Minimize Ask DUMA"
-                          className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                        >
+                        <Button variant="ghost" size="icon-sm" onClick={() => setMinimized(true)} aria-label="Minimize Ask DUMA">
                           <Minus aria-hidden="true" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => setOpen(false)}
-                          aria-label="Close Ask DUMA"
-                          className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                        >
+                        <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label="Close Ask DUMA">
                           <X aria-hidden="true" />
                         </Button>
                       </header>
 
                       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-5" aria-live="polite">
                         {messages.length === 0 ? (
-                          <div className="animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
-                            <section className="rounded-md bg-band/65 px-4 py-4" aria-labelledby="duma-welcome-title">
-                              <div className="flex items-start gap-3">
-                                <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-card text-primary shadow-sm">
-                                  <WelcomeIcon size={17} aria-hidden="true" />
-                                </span>
-                                <div className="min-w-0">
-                                  <h3 id="duma-welcome-title" className="text-lg font-semibold tracking-tight text-foreground">
-                                    {welcome.title}
-                                  </h3>
-                                  <p className="mt-1 max-w-[39ch] text-sm leading-6 text-muted-foreground">{welcome.description}</p>
-                                </div>
-                              </div>
+                          /* Fills the scroller so the greeting can float in the
+                             free space and the prompts sit against the composer,
+                             where the hand already is. */
+                          <div className="flex min-h-full flex-col duration-200 animate-in fade-in slide-in-from-bottom-1 motion-reduce:animate-none">
+                            <section
+                              className="flex flex-1 flex-col items-center justify-center py-6 text-center"
+                              aria-labelledby="duma-welcome-title"
+                            >
+                              <span className="mx-auto flex size-10 items-center justify-center rounded-md bg-band text-primary">
+                                <WelcomeIcon size={18} aria-hidden="true" />
+                              </span>
+                              <h3 id="duma-welcome-title" className="mt-3 text-base font-semibold tracking-title text-foreground">
+                                {welcome.title}
+                              </h3>
+                              <p className="mx-auto mt-1 max-w-[40ch] text-sm leading-6 text-muted-foreground">{welcome.description}</p>
                             </section>
 
-                            <div className="mt-5">
-                              <h4 className="text-sm font-semibold text-foreground">Suggested for {currentPage}</h4>
-                              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                                Choose one to start, or write your own request below.
-                              </p>
-                            </div>
+                            <p className="mt-6 shrink-0 text-label font-semibold tracking-label uppercase text-muted-foreground">
+                              Suggested for {currentPage}
+                            </p>
 
-                            <div className="mt-2 overflow-hidden rounded-md border border-rule bg-field divide-y divide-divider">
+                            <div className="-mx-2 mt-1 shrink-0">
                               {visiblePrompts.map(({ icon: Icon, label, prompt }, index) => (
                                 <button
                                   key={label}
                                   ref={index === 0 ? firstSuggestionRef : undefined}
                                   type="button"
                                   onClick={() => void send(prompt)}
-                                  className="group flex w-full items-center gap-3 px-3 py-3 text-left transition-colors duration-150 hover:bg-band/55 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
+                                  className="group flex w-full items-center gap-3 rounded-sm px-2 py-2.5 text-left transition-colors duration-150 hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
                                 >
-                                  <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-band text-primary transition-colors group-hover:bg-card">
-                                    <Icon size={15} aria-hidden="true" />
-                                  </span>
+                                  <Icon size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
                                   <span className="min-w-0">
-                                    <span className="block text-sm font-semibold text-foreground">{label}</span>
-                                    <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{prompt}</span>
+                                    <span className="block text-sm text-foreground">{label}</span>
+                                    <span className="mt-0.5 block line-clamp-1 text-xs leading-5 text-muted-foreground">{prompt}</span>
                                   </span>
                                   <ChevronRight
                                     size={14}
@@ -1095,7 +1132,7 @@ export function DumaAgent() {
                             </div>
                           </div>
                         ) : (
-                          <div className="space-y-5">
+                          <div className="space-y-6">
                             {messages.map((message, index) => (
                               <div
                                 key={`${message.role}-${index}`}
@@ -1103,10 +1140,14 @@ export function DumaAgent() {
                               >
                                 <div
                                   className={cn(
-                                    'text-sm leading-6',
+                                    // The answer is prose on the page, with no rule
+                                    // or bubble competing with it; only the question
+                                    // is boxed, and quietly, so a turn reads as one
+                                    // continuous conversation rather than two columns.
+                                    'text-sm',
                                     message.role === 'user'
-                                      ? 'max-w-[88%] whitespace-pre-wrap rounded-md bg-foreground px-3 py-2 text-background'
-                                      : 'w-full border-l border-reference pl-3 text-foreground',
+                                      ? 'max-w-[85%] rounded-md bg-band px-3 py-2 leading-6 whitespace-pre-wrap text-foreground'
+                                      : 'w-full leading-7 text-foreground',
                                   )}
                                 >
                                   {message.role === 'assistant' ? (
@@ -1162,13 +1203,13 @@ export function DumaAgent() {
                         )}
 
                         {followUps.length > 0 && (
-                          <div className="mt-4 flex flex-wrap gap-1.5" aria-label="Suggested follow-ups">
+                          <div className="mt-5 flex flex-wrap gap-1.5" aria-label="Suggested follow-ups">
                             {followUps.map((followUp) => (
                               <button
                                 key={followUp}
                                 type="button"
                                 onClick={() => void send(followUp)}
-                                className="rounded-sm border border-rule bg-field px-2 py-1 text-xs text-foreground transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                                className="rounded-sm bg-band px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                               >
                                 {followUp}
                               </button>
@@ -1178,13 +1219,13 @@ export function DumaAgent() {
                       </div>
 
                       <form
-                        className="shrink-0 border-t border-divider bg-band/55 p-3"
+                        className="shrink-0 border-t border-divider bg-card px-3 pt-3 pb-2.5"
                         onSubmit={(event) => {
                           event.preventDefault();
                           void send();
                         }}
                       >
-                        <div className="flex items-end gap-2 rounded-md border border-input bg-field p-2 shadow-sm focus-within:outline-2 focus-within:outline-measured">
+                        <div className="flex items-end gap-2 rounded-md border border-input bg-field py-1.5 pr-1.5 pl-2 shadow-sm focus-within:border-measured focus-within:outline-2 focus-within:outline-measured">
                           <textarea
                             ref={inputRef}
                             value={draft}
@@ -1195,11 +1236,11 @@ export function DumaAgent() {
                                 void send();
                               }
                             }}
-                            rows={2}
+                            rows={1}
                             maxLength={4_000}
-                            placeholder="Ask about the business or request guidance…"
+                            placeholder="Ask anything…"
                             aria-label="Message Ask DUMA"
-                            className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-1 py-1 text-base text-foreground outline-none placeholder:text-muted-foreground sm:text-sm"
+                            className="max-h-40 min-h-9 flex-1 resize-none self-center bg-transparent px-1 py-1.5 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground sm:text-sm"
                             disabled={busy}
                           />
                           {busy ? (
@@ -1218,7 +1259,7 @@ export function DumaAgent() {
                             </Button>
                           )}
                         </div>
-                        <div className="mt-2 flex items-center justify-between gap-3 px-1 text-label text-muted-foreground">
+                        <div className="mt-1.5 flex items-center justify-between gap-3 px-1 text-label text-muted-foreground">
                           <span>{testMode ? 'Test mode · writes are simulated' : 'Live mode · writes need approval'}</span>
                           {messages.length > 0 && (
                             <button

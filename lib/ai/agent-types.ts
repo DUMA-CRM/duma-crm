@@ -33,12 +33,24 @@ export interface AgentListRow {
 }
 
 /** Compact records rendered from tool output, not generated Markdown. */
+export type AgentEmptyTone = 'clean' | 'search' | 'none';
+
 export interface AgentListCard {
   kind: 'list';
   title: string;
   caption?: string;
   rows: AgentListRow[];
   emptyLabel?: string;
+  /**
+   * What an empty result *means*, so the card can mark it correctly.
+   *
+   * `clean` — the absence is the good news ("nothing failed").
+   * `search` — a query matched nothing.
+   * `none` — the set is simply empty. The default, because most absences are
+   * neither reassuring nor a failed search, and a green tick over "no orders in
+   * this range" congratulates the reader on nothing at all.
+   */
+  emptyTone?: AgentEmptyTone;
 }
 
 export type AgentCard = AgentMetricCard | AgentListCard;

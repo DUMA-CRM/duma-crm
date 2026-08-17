@@ -4,7 +4,7 @@ import type { StaffProfile } from '@/lib/api/staff.service';
 import { hasCapability } from '@/lib/auth/capabilities';
 
 import { ACTIONS, actionForTool, actionsForCapabilities, resolveSubmission, sealAction } from './agent-actions.server';
-import { calendarAnchors } from './agent-format.ts';
+import { asOperatorRequest, calendarAnchors } from './agent-format.ts';
 import { chatProviders } from './agent-provider.server';
 import { AgentRuntime, ROLE_LABELS } from './agent-runtime.server';
 import { isAppRelatedRequest } from './agent-scope.ts';
@@ -81,7 +81,7 @@ Rules:
 - For how-to questions, answer directly and briefly. Use the available read tools so the app can attach one verified action that opens the exact page, tab, or form. Prefer that direct action over a long walkthrough.
 - Do not include raw or invented URLs. The app may render one verified shortcut when it is directly relevant or the operator asks to open something.
 - Keep answers short and specific. Ask only for facts that change the result.
-- End your final answer with one line "${FOLLOW_UP_MARKER} question | question" offering up to three short follow-up questions the operator is likely to ask next. Omit the line if nothing useful follows.`;
+- End your final answer with one line "${FOLLOW_UP_MARKER} request | request" offering up to three short next requests. Write them as the operator's own words, ready to send — "Check yesterday's refunds", "Compare with last week". Never write them as your own question: no "Would you like…", "Shall I…", "Do you want me to…". Omit the line if nothing useful follows.`;
 }
 
 function capabilitySummary(profile: StaffProfile) {
@@ -114,7 +114,9 @@ function splitFollowUps(content: string) {
   const followUps = content
     .slice(index + FOLLOW_UP_MARKER.length)
     .split('|')
-    .map((entry) => entry.replace(/^[\s*-]+|[\s*]+$/g, '').slice(0, 90))
+    // Models drift back into "Would you like…" whatever the brief says, and the
+    // chip sends its text verbatim, so the voice is corrected here as well.
+    .map((entry) => asOperatorRequest(entry.replace(/^[\s*-]+|[\s*]+$/g, '')).slice(0, 90))
     .filter((entry) => entry.length > 3)
     .slice(0, 3);
   return { message: content.slice(0, index).trim(), followUps };
@@ -259,7 +261,7 @@ export async function* runDumaAgent(
 
           const definition = actionForTool(call.function.name);
           if (!definition) return reply({ error: `Unknown tool: ${call.function.name}` });
-          if (!hasCapability(profile, definition.capability))
+          if (definition.capability && !hasCapability(profile, definition.capability))
             return reply({ error: `This operator lacks the ${definition.capability} capability.` });
 
           const drafted = await definition.draft(args, runtime);
@@ -328,7 +330,8 @@ export async function executeConfirmedAction(
   const model = chatProviders()[0]?.model ?? 'none';
   const testMode = isAgentTestMode();
   const { action, definition } = resolveSubmission(submission);
-  if (!hasCapability(profile, definition.capability)) throw new Error(`You lack the ${definition.capability} capability.`);
+  if (definition.capability && !hasCapability(profile, definition.capability))
+    throw new Error(`You lack the ${definition.capability} capability.`);
 
   const runtime = new AgentRuntime(cookieHeader, profile, context.locationId ?? null, context.tenantId ?? profile.tenantId ?? null);
   const result = testMode ? await definition.rehearse(action, runtime) : await definition.execute(action, runtime);

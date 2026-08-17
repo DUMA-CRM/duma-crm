@@ -31,11 +31,11 @@ const hrs = (hours: number) => `${Math.round(hours * 10) / 10}h`;
 const toHours = (minutes: number) => (Number(minutes) || 0) / 60;
 const duration = (from: string, to: string) => hrs((new Date(to).getTime() - new Date(from).getTime()) / 3600000);
 
-const STATUS_LABEL: Record<string, { label: string; variant: 'success' | 'warning' | 'destructive' | 'muted' | 'outline' }> = {
+const STATUS_LABEL: Record<string, { label: string; variant: 'success' | 'warning' | 'destructive' | 'muted' | 'reference' }> = {
   full: { label: 'Worked', variant: 'success' },
   partial: { label: 'Short', variant: 'warning' },
   missed: { label: 'Missed', variant: 'destructive' },
-  leave: { label: 'Leave', variant: 'outline' },
+  leave: { label: 'Leave', variant: 'reference' },
   scheduled: { label: 'Rostered', variant: 'muted' },
   no_shift: { label: 'No shift', variant: 'muted' },
 };

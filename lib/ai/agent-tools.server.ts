@@ -16,7 +16,16 @@ import type { LossLogResponse } from '@/lib/api/loss.service';
 import type { CashUp } from '@/lib/api/operations.service';
 import type { Order, OrderDetail } from '@/lib/api/orders.service';
 import type { PayrollPreview, PayrollRun } from '@/lib/api/payroll.service';
-import type { EmployeeDocument, ExpenseClaim, HelpdeskTicket, LeaveEntitlement, LeaveRequest, Payslip } from '@/lib/api/people-ops.service';
+import type {
+  AbsenceLog,
+  AttendanceDay,
+  EmployeeDocument,
+  ExpenseClaim,
+  HelpdeskTicket,
+  LeaveEntitlement,
+  LeaveRequest,
+  Payslip,
+} from '@/lib/api/people-ops.service';
 import type { PrivacyRequest } from '@/lib/api/privacy.service';
 import type { PurchaseOrdersResponse } from '@/lib/api/purchasing.service';
 import type { RestockRequestsResponse } from '@/lib/api/restock.service';
@@ -29,17 +38,27 @@ import type { Location } from '@/lib/api/workspace.service';
 import { auditChangeSet, auditSubject } from '@/lib/audit/change';
 import { auditActor, auditPhrase, auditRole, auditSeverity, resourceLabel, severityLabel } from '@/lib/audit/narrative';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
-import { leaveBalance, myHrActions } from '@/lib/utils/my-hr';
+import {
+  attendanceTotals,
+  groupAttendanceByWeek,
+  leaveBalance,
+  mergeAbsenceDays,
+  myHrActions,
+  payslipDeductions,
+  payslipReconciles,
+} from '@/lib/utils/my-hr';
 import type { CustomerSegment, CustomersResponse } from '@/types/customers';
 
 import {
   addDays,
+  calendarAnchors,
   formatDateTime,
   gbp,
   isIsoDate,
   isWithinHours,
   optionalText,
   percentChange,
+  rangeLabel,
   round,
   toNumber,
   zonedIso,
@@ -263,6 +282,7 @@ const listStockItems: ToolDefinition = {
             {
               kind: 'list',
               title: `Stock matching “${query}”`,
+              emptyTone: 'search' as const,
               emptyLabel: `No stock item matches “${query}”.`,
               caption: items.length > 6 ? `Showing 6 of ${items.length}` : undefined,
               rows: items.slice(0, 6).map((item) => ({
@@ -298,6 +318,7 @@ const listMenuItems: ToolDefinition = {
             {
               kind: 'list',
               title: `Menu items matching “${query}”`,
+              emptyTone: 'search' as const,
               emptyLabel: `No menu item matches “${query}”.`,
               caption: items.length > 6 ? `Showing 6 of ${items.length}` : undefined,
               rows: items.slice(0, 6).map((item) => ({
@@ -418,7 +439,20 @@ const getSalesReport: ToolDefinition = {
       netRevenue: percentChange(currentSummary.netRevenueGbp, previousSummary.netRevenueGbp),
       averageOrderValue: percentChange(currentSummary.averageOrderValueGbp, previousSummary.averageOrderValueGbp),
     };
-    const delta = (change: number | null) => (change == null ? undefined : `${change > 0 ? '+' : ''}${change}% vs previous`);
+    const basis = rangeLabel(previousFrom as string, previousTo as string);
+    /**
+     * `percentChange` returns 0 when both periods are zero, which is true as
+     * arithmetic and a lie as a reading: "0% vs previous" claims a comparison
+     * that had nothing on either side of it. A delta is only printed when the
+     * earlier period actually traded, and it names what it was measured
+     * against rather than saying "previous".
+     */
+    const delta = (change: number | null, previousValue: number) => {
+      if (previousValue === 0) return currentSummary.orders === 0 ? 'No trade either period' : `Nothing on ${basis} to compare`;
+      if (change == null) return undefined;
+      return `${change > 0 ? '+' : ''}${change}% vs ${basis}`;
+    };
+    const comparable = (previousValue: number) => previousValue !== 0;
 
     return {
       output: {
@@ -436,21 +470,26 @@ const getSalesReport: ToolDefinition = {
       evidence: `Sales ${String(currentFrom)}–${String(currentTo)} vs ${String(previousFrom)}–${String(previousTo)}`,
       cards: [
         {
-          title: `${currentFrom} → ${currentTo}`,
-          caption: `Compared with ${previousFrom} → ${previousTo}`,
+          title: rangeLabel(currentFrom as string, currentTo as string),
+          caption: `vs ${basis}`,
           metrics: [
             {
               label: 'Net revenue',
               value: gbp(currentSummary.netRevenueGbp),
-              hint: delta(changes.netRevenue),
-              trend: trendOf(changes.netRevenue),
+              hint: delta(changes.netRevenue, previousSummary.netRevenueGbp),
+              trend: comparable(previousSummary.netRevenueGbp) ? trendOf(changes.netRevenue) : undefined,
             },
-            { label: 'Orders', value: String(currentSummary.orders), hint: delta(changes.orders), trend: trendOf(changes.orders) },
+            {
+              label: 'Orders',
+              value: String(currentSummary.orders),
+              hint: delta(changes.orders, previousSummary.orders),
+              trend: comparable(previousSummary.orders) ? trendOf(changes.orders) : undefined,
+            },
             {
               label: 'Avg order',
               value: gbp(currentSummary.averageOrderValueGbp),
-              hint: delta(changes.averageOrderValue),
-              trend: trendOf(changes.averageOrderValue),
+              hint: delta(changes.averageOrderValue, previousSummary.averageOrderValueGbp),
+              trend: comparable(previousSummary.averageOrderValueGbp) ? trendOf(changes.averageOrderValue) : undefined,
             },
             ...(currentSummary.refundsGbp > 0
               ? [{ label: 'Refunds', value: gbp(currentSummary.refundsGbp), tone: 'warning' as const }]
@@ -491,7 +530,7 @@ const getBusinessAnalytics: ToolDefinition = {
           ? [
               {
                 title: 'Trade by hour',
-                caption: `${query.get('from')} → ${query.get('to')}`,
+                caption: rangeLabel(query.get('from') ?? '', query.get('to') ?? ''),
                 metrics: [
                   { label: 'Busiest hour', value: `${String(busiest.hour).padStart(2, '0')}:00` },
                   { label: 'Orders then', value: String(busiest.orderCount) },
@@ -948,6 +987,7 @@ const searchCustomers: ToolDefinition = {
         {
           kind: 'list',
           title: search ? `Customers matching “${search}”` : 'Recent customers',
+          emptyTone: search ? ('search' as const) : ('none' as const),
           emptyLabel: search ? `No customer matches “${search}”.` : 'No customers on record yet.',
           caption: customers.length > 6 ? `Showing 6 of ${customers.length}` : undefined,
           rows: customers.slice(0, 6).map((customer) => ({
@@ -1415,6 +1455,7 @@ const getAuditActivity: ToolDefinition = {
             meta: `${entry.record.type} · ${entry.when}`,
             tone: entry.outcome !== 'Succeeded' ? ('negative' as const) : entry.destructive ? ('warning' as const) : ('default' as const),
           })),
+          emptyTone: filtering ? ('clean' as const) : ('none' as const),
           emptyLabel: wantsFailed
             ? `Nothing failed or was refused in the ${scanned} entries examined.`
             : wantsDestructive
@@ -1490,7 +1531,7 @@ const getPayrollOverview: ToolDefinition = {
       cards: [
         {
           title: 'Payroll preview',
-          caption: `${String(args.from)} → ${String(args.to)}`,
+          caption: rangeLabel(String(args.from), String(args.to)),
           metrics: [
             { label: 'Employees', value: String(preview.totals.employees) },
             { label: 'Gross pay', value: gbp(preview.totals.gross) },
@@ -1649,6 +1690,7 @@ const getMyWorkspace: ToolDefinition = {
         {
           kind: 'list',
           title: 'My HR notices',
+          emptyTone: 'clean' as const,
           emptyLabel: 'Nothing needs you — your HR record is up to date.',
           caption: actions.length ? 'Most urgent first' : 'Everything looks up to date',
           rows: actions.slice(0, 6).map((action) => ({
@@ -1699,6 +1741,98 @@ const getMyProfile: ToolDefinition = {
   },
 };
 
+// ── My HR: attendance and pay ────────────────────────────────────────────────
+
+const getMyAttendance: ToolDefinition = {
+  name: 'get_my_attendance',
+  description:
+    'Read the signed-in operator’s own attendance for a period: hours worked against hours rostered, the shortfall or overtime, each working day, and any absence logged against them. Use for "how many hours did I work", "was I short last month", "when did I clock in", "what absence is on my record". Defaults to the current calendar month.',
+  step: 'Checking your hours',
+  parameters: schema({
+    from: nullableString(`Start of the period. ${DATE} Null for the start of this month.`),
+    to: nullableString(`End of the period. ${DATE} Null for the end of this month.`),
+  }),
+  async run(args, runtime) {
+    const anchors = calendarAnchors();
+    // The month runs to the day before the next one starts, so a 30- or 31-day
+    // month needs no special case.
+    const monthEnd = addDays(`${addDays(anchors.monthStart, 31).slice(0, 7)}-01`, -1);
+    const from = isIsoDate(args.from) ? String(args.from) : anchors.monthStart;
+    const to = isIsoDate(args.to) ? String(args.to) : monthEnd;
+
+    const [attendance, absences] = await Promise.all([
+      runtime.get<AttendanceDay[]>(`/hr/attendance/me?from=${from}&to=${to}`),
+      runtime.get<AbsenceLog[]>('/hr/absence-logs/my').catch(() => [] as AbsenceLog[]),
+    ]);
+
+    const inRange = absences.filter((absence) => absence.date.slice(0, 10) >= from && absence.date.slice(0, 10) <= to);
+    const days = mergeAbsenceDays(attendance, inRange);
+    const totals = attendanceTotals(days);
+    const weeks = groupAttendanceByWeek(days);
+
+    return {
+      output: {
+        period: { from, to },
+        // Shifts still to come are excluded from the totals — counting a rota
+        // that has not run yet reads as a shortfall the employee cannot fix.
+        hoursWorked: totals.workedHours,
+        hoursRostered: totals.plannedHours,
+        varianceHours: totals.varianceHours,
+        varianceMeaning: totals.varianceHours < 0 ? 'short of roster' : totals.varianceHours > 0 ? 'over roster' : 'matches roster',
+        weeks: weeks.map((week) => ({
+          weekStart: week.weekStart,
+          weekEnd: week.weekEnd,
+          workedHours: week.workedHours,
+          rosteredHours: week.plannedHours,
+        })),
+        days: days
+          .filter((day) => day.status !== 'no_shift' || day.absence)
+          .map((day) => ({
+            date: day.date,
+            status: day.status,
+            workedHours: round(day.workedMinutes / 60, 2),
+            rosteredHours: round(day.plannedMinutes / 60, 2),
+            leave: day.leaveName ?? null,
+            absence: day.absence ? { halfDay: day.absence.isHalfDay, reason: day.absence.reason } : null,
+          })),
+      },
+      evidence: `Your attendance · ${rangeLabel(from, to)}`,
+      shortcuts: [page('Open your attendance', '/my-hr?tab=attendance', 'My HR · Attendance')],
+    };
+  },
+};
+
+const getMyPayslips: ToolDefinition = {
+  name: 'get_my_payslips',
+  description:
+    'Read the signed-in operator’s own payslips, itemised: gross pay, each deduction named separately (tax, National Insurance, pension, other) and take-home pay. Use for "what was I paid", "how much tax did I pay", "why is my pay different this month", "show my last payslip".',
+  step: 'Checking your payslips',
+  parameters: schema({ limit: { type: ['number', 'null'], description: 'How many recent payslips to return. Null for 6.' } }),
+  async run(args, runtime) {
+    const payslips = await runtime.get<Payslip[]>('/hr/payslips/my');
+    const recent = [...payslips].sort((a, b) => b.payPeriodEnd.localeCompare(a.payPeriodEnd)).slice(0, limit(args.limit, 6, 24));
+
+    return {
+      output: {
+        count: payslips.length,
+        payslips: recent.map((payslip) => ({
+          periodStart: payslip.payPeriodStart,
+          periodEnd: payslip.payPeriodEnd,
+          grossPayGbp: toNumber(payslip.grossPay),
+          deductions: payslipDeductions(payslip).map((line) => ({ label: line.label, amountGbp: line.amount })),
+          netPayGbp: toNumber(payslip.netPay),
+          // Surfaced rather than hidden: a statement that does not add up is
+          // exactly what the employee should be querying with payroll.
+          figuresReconcile: payslipReconciles(payslip),
+          issuedAt: payslip.finalisedAt ?? null,
+        })),
+      },
+      evidence: `Your payslips · ${payslips.length} issued`,
+      shortcuts: [page('Open your payslips', '/my-hr?tab=documents', 'My HR · Documents')],
+    };
+  },
+};
+
 export const TOOLS: ToolDefinition[] = [
   searchSupport,
   listLocations,
@@ -1726,6 +1860,8 @@ export const TOOLS: ToolDefinition[] = [
   getCommunicationsStatus,
   getMyProfile,
   getMyWorkspace,
+  getMyAttendance,
+  getMyPayslips,
   getPayrollOverview,
 ];
 

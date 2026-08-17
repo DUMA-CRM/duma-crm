@@ -228,9 +228,7 @@ export function MyHrWorkspace() {
       )}
       {tab === 'time-off' && <TimeOffPanel requests={requests} entitlements={entitlements} />}
       {tab === 'attendance' && <AttendancePanel onCorrection={requestCorrection} />}
-      {tab === 'documents' && (
-        <DocumentsPanel employee={employee} documents={documents} onRequest={requestDocument} onDataRequest={requestData} />
-      )}
+      {tab === 'documents' && <DocumentsPanel employee={employee} documents={documents} onDataRequest={requestData} />}
       {tab === 'expenses' && <ExpensesPanel />}
       {tab === 'requests' && (
         <HelpdeskBoard

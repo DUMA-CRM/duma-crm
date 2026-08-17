@@ -29,18 +29,26 @@ import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { type AuditLog, parseAuditMeta } from '@/lib/api/audit.service';
 import { auditChangeSet, shortId } from '@/lib/audit/change';
 import {
+  type AuditStatus,
   auditActor,
   auditDomain,
   auditPhrase,
   auditRole,
   auditSeverity,
+  auditStatus,
   formatDuration,
   fullTimestamp,
   resourceLabel,
   severityClass,
-  severityLabel,
 } from '@/lib/audit/narrative';
 import { cn } from '@/lib/utils/cn';
+
+/** Same boxed-annotation construction as the table's status cell. */
+const INSPECTOR_TONE: Record<AuditStatus['tone'], string> = {
+  success: 'border-momentum/30 bg-momentum/8 text-momentum',
+  warning: 'border-measured/40 bg-measured/8 text-measured',
+  exception: 'border-exception/30 bg-exception/8 text-exception',
+};
 
 import { AuditGlyph, auditIcon } from './AuditGlyph';
 import { auditRecordLink } from './auditLinks';
@@ -83,7 +91,7 @@ export function AuditInspector({ log, activeActorId, activeAction, activeResourc
 
   const severity = auditSeverity(log);
   const domain = auditDomain(log.resourceType);
-  const chip = severityLabel(severity, log.statusCode);
+  const chip = auditStatus(severity, log.statusCode);
   const duration = formatDuration(log.durationMs);
   const role = auditRole(log);
   const link = auditRecordLink(log);
@@ -123,11 +131,16 @@ export function AuditInspector({ log, activeActorId, activeAction, activeResourc
 
   const body = (
     <>
-      {chip && (
-        <p className="mb-4 inline-flex items-center rounded-sm border border-exception/30 bg-exception/8 px-2 py-0.5 text-micro font-semibold tracking-micro uppercase text-exception">
-          {chip}
-        </p>
-      )}
+      {/* Stated for every entry, not only the ones that went wrong — otherwise
+          a reader cannot tell "this succeeded" from "the panel forgot to say". */}
+      <p
+        className={cn(
+          'mb-4 inline-flex items-center rounded-sm border px-2 py-0.5 text-micro font-semibold tracking-micro uppercase',
+          INSPECTOR_TONE[chip.tone],
+        )}
+      >
+        {chip.label}
+      </p>
 
       {/* 1 — What changed */}
       <SectionLabel>What changed</SectionLabel>

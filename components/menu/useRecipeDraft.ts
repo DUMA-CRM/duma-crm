@@ -5,6 +5,8 @@ import { useState } from 'react';
 
 import { NUTRITION_FIELDS, type NutritionFacts, type StockItem, getStockItems } from '@/lib/api/inventory.service';
 import type { RecipeLine, RecipeLineInput } from '@/lib/api/recipes.service';
+import { useVatContext } from '@/lib/hooks/useVatContext';
+import { computeCosting } from '@/lib/menu/costing';
 import { toast } from '@/stores/toastStore';
 
 export const DEFAULT_COL = '';
@@ -108,6 +110,8 @@ interface UseRecipeDraftArgs {
   sizes: SizeColumn[];
   /** Sale price (£) — enables margin in the summary. */
   basePrice?: number;
+  /** Per-item VAT override; falls back to the tenant default. */
+  vatRate?: string | null;
 }
 
 /**
@@ -116,8 +120,9 @@ interface UseRecipeDraftArgs {
  * per-size overrides; the summary computes cost/margin/kcal/allergens per
  * column from the ingredients' stock data.
  */
-export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePrice }: UseRecipeDraftArgs) {
+export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePrice, vatRate }: UseRecipeDraftArgs) {
   const qc = useQueryClient();
+  const { ctx: vat } = useVatContext();
   const { data: recipe = [], isLoading } = useQuery({ queryKey, queryFn: fetchLines });
   const { data: stockItems = [] } = useQuery({ queryKey: ['stock-items'], queryFn: getStockItems });
 
@@ -179,6 +184,10 @@ export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePri
   const summary = columns.map((col) => {
     const t = computeRecipeTotals(draftLines, col.id === DEFAULT_COL ? new Set<string>() : new Set([col.id]), itemMap);
     const price = basePrice !== undefined ? basePrice + Number(col.priceAdjust ?? 0) : undefined;
+    // Margin is computed here, once, so no consumer is tempted to write
+    // `price - cogs` again — that formula ignores VAT and overstates margin on
+    // a VAT-registered tenant.
+    const costing = price !== undefined ? computeCosting({ price, cogs: t.cost, itemVatRate: vatRate, ctx: vat }) : undefined;
     // `cogs`/`kcal`/`missingKcal` kept as aliases so existing consumers work.
     return {
       col,
@@ -190,6 +199,7 @@ export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePri
       missingNutrition: t.missingNutrition,
       allergens: t.allergens,
       price,
+      costing,
     };
   });
 

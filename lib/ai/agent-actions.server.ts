@@ -1,11 +1,13 @@
 import 'server-only';
 
+import type { HrEmployee } from '@/lib/api/hr.service';
 import type { LocationStock } from '@/lib/api/inventory.service';
 import type { Order } from '@/lib/api/orders.service';
-import type { LeaveRequest } from '@/lib/api/people-ops.service';
+import type { ExpenseClaim, LeaveEntitlement, LeaveRequest, LeaveType } from '@/lib/api/people-ops.service';
 import type { PurchaseOrder } from '@/lib/api/purchasing.service';
 import { encodeNotes } from '@/lib/api/restock.service';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
+import { isValidNiNumber, normaliseNiNumber } from '@/lib/utils/my-hr';
 import type { Customer, CustomersResponse } from '@/types/customers';
 import type { MenuItem } from '@/types/menu';
 
@@ -79,7 +81,15 @@ export interface ActionResult {
 
 export interface ActionDefinition {
   kind: string;
-  capability: Capability;
+  /**
+   * Capability required to offer this action. Omit for self-service writes an
+   * employee makes about their own record — booking their own leave, claiming
+   * their own expenses — which every signed-in operator may do. Same contract
+   * as `ToolDefinition.capability`; there is no capability standing for "is a
+   * person", and inventing one the API does not grant would fail closed and
+   * lock everybody out.
+   */
+  capability?: Capability;
   /** Tool the model calls to prepare this action. It never writes anything. */
   tool: { name: string; description: string; parameters: JsonObject };
   draft(args: JsonObject, runtime: AgentRuntime): Promise<AgentPendingAction | { error: string }>;
@@ -925,7 +935,417 @@ const updateStockThresholds: ActionDefinition = {
   },
 };
 
+// ── Self-service: what an employee may do about their own record ─────────────
+//
+// These carry no capability. They write only to the signed-in operator's own
+// record through the `/me` and `/my` endpoints, which the API scopes to the
+// caller — so the authorisation is the session, not a grant. Every one of them
+// mirrors something the My HR page offers, so chat and page stay in step.
+
+const requestLeave: ActionDefinition = {
+  kind: 'request_leave',
+  tool: {
+    name: 'draft_leave_request',
+    description:
+      'Prepare a time-off request for the signed-in operator themselves. Use for "book me off", "request holiday", "I need Friday off". To approve or decline somebody else’s request, use draft_leave_decision instead.',
+    parameters: schema({
+      leaveTypeId: nullableString('Leave type id, or null to pick the only one or let the operator choose.'),
+      startDate: nullableString(`First day off. Inclusive YYYY-MM-DD calendar date.Null to let the operator fill it in.`),
+      endDate: nullableString(`Last day off, inclusive. Inclusive YYYY-MM-DD calendar date.Null to use the first day.`),
+      partialDay: { type: ['string', 'null'], enum: ['none', 'start', 'end', null], description: 'Half day on the first or last day.' },
+      notes: nullableString('Note for the approving manager, or null.'),
+    }),
+  },
+  async draft(args, runtime) {
+    const types = await runtime.get<LeaveType[]>('/hr/leave-types');
+    if (types.length === 0) return { error: 'No leave types are configured, so there is nothing to book against. HR sets these up.' };
+
+    const entitlements = await runtime.get<LeaveEntitlement[]>(`/hr/entitlements/me?year=${new Date().getFullYear()}`).catch(() => []);
+    const remaining = new Map(
+      entitlements.map((item) => [item.leaveType.id, round(toNumber(item.totalDays) - toNumber(item.usedDays), 2)] as const),
+    );
+    const options = types.map((type) => {
+      const left = remaining.get(type.id);
+      return {
+        value: type.id,
+        label: type.isPaid ? type.name : `${type.name} (unpaid)`,
+        hint: left === undefined ? 'No allowance recorded' : `${left} days left`,
+      };
+    });
+
+    const start = isIsoDate(args.startDate) ? String(args.startDate) : '';
+    const requested = typeof args.leaveTypeId === 'string' ? args.leaveTypeId : '';
+    return {
+      kind: 'request_leave',
+      title: 'Time off request',
+      summary: 'Book time away for approval',
+      confirmLabel: 'Submit request',
+      note: 'Goes to your manager to approve. Nothing is booked until they do.',
+      fields: [
+        // One configured type is not a choice, so it arrives already made.
+        selectField('leaveTypeId', 'Type of leave', options, requested || (types.length === 1 ? types[0].id : '')),
+        field('startDate', 'First day', { type: 'date', value: start }),
+        field('endDate', 'Last day', { type: 'date', value: isIsoDate(args.endDate) ? String(args.endDate) : start }),
+        field('partialDay', 'Day length', {
+          type: 'select',
+          options: choice([
+            ['none', 'Full days'],
+            ['start', 'Half day on the first day'],
+            ['end', 'Half day on the last day'],
+          ]),
+          value: args.partialDay === 'start' || args.partialDay === 'end' ? String(args.partialDay) : 'none',
+        }),
+        field('notes', 'Note for your manager', { type: 'text', value: optionalText(args.notes, 300), optional: true }),
+      ],
+    };
+  },
+  async rehearse(action) {
+    return {
+      message: `Test run complete — nothing was submitted. Time off from ${str(action.fields, 'startDate')} to ${str(action.fields, 'endDate')} passed validation.`,
+    };
+  },
+  async execute(action, runtime) {
+    const startDate = str(action.fields, 'startDate');
+    const endDate = str(action.fields, 'endDate') || startDate;
+    if (!startDate) return { message: 'No start date was given, so nothing was submitted.' };
+    if (endDate < startDate) return { message: 'The last day is before the first day, so nothing was submitted.' };
+
+    await runtime.send('/hr/leave-requests', 'POST', {
+      leaveTypeId: str(action.fields, 'leaveTypeId'),
+      startDate,
+      endDate,
+      partialDay: str(action.fields, 'partialDay') || 'none',
+      ...(str(action.fields, 'notes') ? { notes: str(action.fields, 'notes') } : {}),
+    });
+    return {
+      message: `Time off requested for ${startDate} to ${endDate}. Your manager reviews it, and the outcome appears under Time off.`,
+      shortcuts: [{ label: 'Open your time off', href: '/my-hr?tab=time-off', description: 'My HR · Time off', kind: 'page' }],
+    };
+  },
+};
+
+const cancelLeaveRequest: ActionDefinition = {
+  kind: 'cancel_leave_request',
+  tool: {
+    name: 'draft_leave_cancellation',
+    description:
+      'Prepare the cancellation of one of the signed-in operator’s own pending time-off requests. Use for "cancel my holiday", "I no longer need Friday off".',
+    parameters: schema({ requestId: nullableString('Id of the request to cancel, or null to choose from the pending list.') }),
+  },
+  async draft(args, runtime) {
+    const requests = await runtime.get<LeaveRequest[]>('/hr/leave-requests/my');
+    const pending = requests.filter((request) => request.status === 'pending');
+    if (pending.length === 0) return { error: 'You have no pending time-off requests to cancel. Approved leave has to be cancelled by HR.' };
+
+    return {
+      kind: 'cancel_leave_request',
+      title: 'Cancel time off',
+      summary: 'Withdraw a request you have not had a decision on yet',
+      confirmLabel: 'Cancel request',
+      note: 'Only pending requests can be withdrawn here.',
+      fields: [
+        selectField(
+          'requestId',
+          'Request',
+          pending.map((request) => ({
+            value: request.id,
+            label: request.leaveType?.name ?? 'Leave',
+            hint: `${request.startDate} → ${request.endDate} · ${request.totalDays} days`,
+          })),
+          args.requestId,
+        ),
+      ],
+    };
+  },
+  async rehearse() {
+    return { message: 'Test run complete — nothing was cancelled. The request is still pending.' };
+  },
+  async execute(action, runtime) {
+    await runtime.send(`/hr/leave-requests/${str(action.fields, 'requestId')}/cancel`, 'PATCH');
+    return {
+      message: 'Time-off request withdrawn. Any days it held are back in your allowance.',
+      shortcuts: [{ label: 'Open your time off', href: '/my-hr?tab=time-off', description: 'My HR · Time off', kind: 'page' }],
+    };
+  },
+};
+
+const EXPENSE_CATEGORIES: Array<[string, string]> = [
+  ['travel', 'Travel'],
+  ['meals', 'Meals'],
+  ['equipment', 'Equipment'],
+  ['training', 'Training'],
+  ['uniform', 'Uniform'],
+  ['other', 'Other'],
+];
+
+const claimExpense: ActionDefinition = {
+  kind: 'claim_expense',
+  tool: {
+    name: 'draft_expense_claim',
+    description:
+      'Prepare an expense claim for the signed-in operator themselves — money they spent on work and want back. Use for "claim my train fare", "expense this", "I paid for X".',
+    parameters: schema({
+      description: nullableString('What the money was spent on.'),
+      amount: { type: ['number', 'null'], description: 'Amount in pounds.' },
+      category: { type: ['string', 'null'], enum: ['travel', 'meals', 'equipment', 'training', 'uniform', 'other', null] },
+    }),
+  },
+  async draft(args) {
+    return {
+      kind: 'claim_expense',
+      title: 'Expense claim',
+      summary: 'Claim back what you paid for out of your own pocket',
+      confirmLabel: 'Submit claim',
+      note: 'Your manager approves it, then payroll pays it back. Keep the receipt — they may ask for it.',
+      fields: [
+        field('description', 'What was it for', { type: 'text', value: optionalText(args.description, 1000) }),
+        field('amount', 'Amount', { type: 'money', min: 0, step: 0.01, value: toNumber(args.amount) || null }),
+        field('category', 'Category', {
+          type: 'select',
+          options: choice(EXPENSE_CATEGORIES),
+          value: EXPENSE_CATEGORIES.some(([value]) => value === args.category) ? String(args.category) : 'travel',
+        }),
+      ],
+    };
+  },
+  async rehearse(action) {
+    return {
+      message: `Test run complete — nothing was submitted. A claim for ${gbp(num(action.fields, 'amount'))} passed validation.`,
+    };
+  },
+  async execute(action, runtime) {
+    const amount = num(action.fields, 'amount');
+    const description = str(action.fields, 'description');
+    if (!description) return { message: 'The claim needs a description, so nothing was submitted.' };
+    if (amount <= 0) return { message: 'The claim needs an amount above zero, so nothing was submitted.' };
+
+    await runtime.send('/hr/expense-claims', 'POST', {
+      description,
+      amount: amount.toFixed(2),
+      currency: 'GBP',
+      category: str(action.fields, 'category') || 'other',
+    });
+    return {
+      message: `Claim for ${gbp(amount)} submitted. You can track it under Expenses.`,
+      shortcuts: [{ label: 'Open your expenses', href: '/my-hr?tab=expenses', description: 'My HR · Expenses', kind: 'page' }],
+    };
+  },
+};
+
+const withdrawExpenseClaim: ActionDefinition = {
+  kind: 'withdraw_expense_claim',
+  tool: {
+    name: 'draft_expense_withdrawal',
+    description: 'Prepare the withdrawal of one of the signed-in operator’s own pending expense claims. Use for "cancel my expense claim".',
+    parameters: schema({ claimId: nullableString('Id of the claim to withdraw, or null to choose from the pending list.') }),
+  },
+  async draft(args, runtime) {
+    const claims = await runtime.get<ExpenseClaim[]>('/hr/expense-claims/my');
+    const pending = claims.filter((claim) => claim.status === 'pending');
+    if (pending.length === 0) return { error: 'You have no pending expense claims to withdraw.' };
+
+    return {
+      kind: 'withdraw_expense_claim',
+      title: 'Withdraw expense claim',
+      summary: 'Take back a claim your manager has not reviewed yet',
+      confirmLabel: 'Withdraw claim',
+      fields: [
+        selectField(
+          'claimId',
+          'Claim',
+          pending.map((claim) => ({
+            value: claim.id,
+            label: claim.description,
+            hint: `${gbp(toNumber(claim.amount))}${claim.category ? ` · ${claim.category}` : ''}`,
+          })),
+          args.claimId,
+        ),
+      ],
+    };
+  },
+  async rehearse() {
+    return { message: 'Test run complete — nothing was withdrawn. The claim is still pending.' };
+  },
+  async execute(action, runtime) {
+    await runtime.send(`/hr/expense-claims/${str(action.fields, 'claimId')}/cancel`, 'PATCH');
+    return {
+      message: 'Expense claim withdrawn.',
+      shortcuts: [{ label: 'Open your expenses', href: '/my-hr?tab=expenses', description: 'My HR · Expenses', kind: 'page' }],
+    };
+  },
+};
+
+const raiseHrRequest: ActionDefinition = {
+  kind: 'raise_hr_request',
+  tool: {
+    name: 'draft_hr_request',
+    description:
+      'Prepare a request from the signed-in operator to HR — a question, a document request, an attendance correction, or a request for a copy of their own data. Use for "ask HR about…", "I need a copy of my contract", "my hours are wrong on the 3rd", "request my data".',
+    parameters: schema({
+      subject: nullableString('One-line summary of the request.'),
+      category: {
+        type: ['string', 'null'],
+        enum: ['hr', 'payroll', 'scheduling', 'leave', 'workplace', 'it', 'other', null],
+        description: 'Which team should pick it up.',
+      },
+      priority: { type: ['string', 'null'], enum: ['low', 'normal', 'high', 'urgent', null] },
+      message: nullableString('The detail HR needs to act on it.'),
+    }),
+  },
+  async draft(args) {
+    const category = typeof args.category === 'string' ? args.category : 'hr';
+    return {
+      kind: 'raise_hr_request',
+      title: 'Request to HR',
+      summary: 'Send a question or request to your HR team',
+      confirmLabel: 'Send to HR',
+      note: 'HR replies in Requests, and you are notified.',
+      fields: [
+        field('subject', 'Subject', { type: 'text', value: optionalText(args.subject, 150) }),
+        field('category', 'About', {
+          type: 'select',
+          options: choice([
+            ['hr', 'HR — contract, records, policy'],
+            ['payroll', 'Payroll — pay, payslips, tax'],
+            ['scheduling', 'Scheduling — rota, hours, attendance'],
+            ['leave', 'Leave — holiday and absence'],
+            ['workplace', 'Workplace — equipment, safety, site'],
+            ['it', 'IT — accounts and devices'],
+            ['other', 'Something else'],
+          ]),
+          value: ['hr', 'payroll', 'scheduling', 'leave', 'workplace', 'it', 'other'].includes(category) ? category : 'hr',
+        }),
+        field('priority', 'Urgency', {
+          type: 'select',
+          options: choice([
+            ['low', 'Low'],
+            ['normal', 'Normal'],
+            ['high', 'High'],
+            ['urgent', 'Urgent'],
+          ]),
+          value: ['low', 'high', 'urgent'].includes(String(args.priority)) ? String(args.priority) : 'normal',
+        }),
+        field('message', 'Details', { type: 'textarea', value: optionalText(args.message, 4000) }),
+      ],
+    };
+  },
+  async rehearse(action) {
+    return { message: `Test run complete — nothing was sent. “${str(action.fields, 'subject')}” passed validation.` };
+  },
+  async execute(action, runtime) {
+    const subject = str(action.fields, 'subject');
+    const message = str(action.fields, 'message');
+    if (subject.length < 3) return { message: 'The request needs a subject, so nothing was sent.' };
+    if (!message) return { message: 'The request needs some detail for HR to act on, so nothing was sent.' };
+
+    await runtime.send('/helpdesk', 'POST', {
+      subject,
+      category: str(action.fields, 'category') || 'hr',
+      priority: str(action.fields, 'priority') || 'normal',
+      message,
+    });
+    return {
+      message: 'Sent to HR. Their reply appears under Requests.',
+      shortcuts: [{ label: 'Open your requests', href: '/my-hr?tab=requests', description: 'My HR · Requests', kind: 'page' }],
+    };
+  },
+};
+
+const updateMyDetails: ActionDefinition = {
+  kind: 'update_my_details',
+  tool: {
+    name: 'draft_my_details_update',
+    description:
+      'Prepare a change to the signed-in operator’s own personal record: home address, emergency contact, bank details or National Insurance number. Use for "I moved house", "change my emergency contact", "update my bank details", "add my NI number". Never use this for anybody else’s record.',
+    parameters: schema({
+      address: nullableString('Full home address, or null to leave unchanged.'),
+      emergencyContactName: nullableString('Emergency contact name, or null.'),
+      emergencyContactRelation: nullableString('Their relationship to the operator, or null.'),
+      emergencyContactPhone: nullableString('Emergency contact phone, or null.'),
+      nationalInsuranceNumber: nullableString('National Insurance number, or null.'),
+    }),
+  },
+  async draft(args, runtime) {
+    const employee = await runtime.get<HrEmployee>('/hr/employees/me');
+    const text = (value: unknown, current: string | null | undefined) =>
+      typeof value === 'string' && value.trim() ? value.trim() : (current ?? '');
+
+    return {
+      kind: 'update_my_details',
+      title: 'Your details',
+      summary: 'Update the record HR holds about you',
+      confirmLabel: 'Save details',
+      // Bank details are deliberately absent: they are never returned to the
+      // employee, so a form could not show what it was about to replace, and a
+      // half-remembered account number is how wages go missing.
+      note: 'Bank details are not editable here — open My HR to change those.',
+      fields: [
+        field('address', 'Home address', { type: 'text', value: text(args.address, employee.address), optional: true }),
+        field('emergencyContactName', 'Emergency contact', {
+          type: 'text',
+          value: text(args.emergencyContactName, employee.emergencyContactName),
+          optional: true,
+        }),
+        field('emergencyContactRelation', 'Their relationship to you', {
+          type: 'text',
+          value: text(args.emergencyContactRelation, employee.emergencyContactRelation),
+          optional: true,
+        }),
+        field('emergencyContactPhone', 'Emergency phone', {
+          type: 'text',
+          value: text(args.emergencyContactPhone, employee.emergencyContactPhone),
+          optional: true,
+        }),
+        field('nationalInsuranceNumber', 'National Insurance number', {
+          type: 'text',
+          value: typeof args.nationalInsuranceNumber === 'string' ? normaliseNiNumber(args.nationalInsuranceNumber) : '',
+          optional: true,
+          hint: employee.hasNiNumber ? 'One is already held — only enter one to correct it.' : 'Two letters, six digits, then A–D.',
+        }),
+      ],
+    };
+  },
+  async rehearse() {
+    return { message: 'Test run complete — nothing was saved. The details passed validation.' };
+  },
+  async execute(action, runtime) {
+    const ni = normaliseNiNumber(str(action.fields, 'nationalInsuranceNumber'));
+    if (ni && !isValidNiNumber(ni)) {
+      return { message: `“${ni}” is not a valid National Insurance number, so nothing was saved. It is two letters, six digits, then A–D.` };
+    }
+
+    const updated = await runtime.send<HrEmployee>('/hr/employees/me', 'PATCH', {
+      address: str(action.fields, 'address'),
+      emergencyContactName: str(action.fields, 'emergencyContactName'),
+      emergencyContactRelation: str(action.fields, 'emergencyContactRelation'),
+      emergencyContactPhone: str(action.fields, 'emergencyContactPhone'),
+      // Both spellings — the documented one and the one every working call site
+      // in this app uses. See UpdateMyEmployeePayload.
+      ...(ni ? { nationalInsuranceNumber: ni, niNumber: ni } : {}),
+    });
+
+    // The endpoint answers 200 for fields it ignored, so the saved record is
+    // checked rather than trusted.
+    if (ni && updated?.hasNiNumber === false) {
+      return {
+        message: 'Your other details were saved, but the server did not accept the National Insurance number. Raise it with HR.',
+        shortcuts: [{ label: 'Open My HR', href: '/my-hr', description: 'My HR · Overview', kind: 'page' }],
+      };
+    }
+    return {
+      message: 'Your details are updated.',
+      shortcuts: [{ label: 'Open My HR', href: '/my-hr', description: 'My HR · Overview', kind: 'page' }],
+    };
+  },
+};
+
 export const ACTIONS: ActionDefinition[] = [
+  requestLeave,
+  cancelLeaveRequest,
+  claimExpense,
+  withdrawExpenseClaim,
+  raiseHrRequest,
+  updateMyDetails,
   createPurchaseOrder,
   createRestockRequest,
   createStockTransfer,
@@ -942,7 +1362,7 @@ const ACTION_BY_TOOL = new Map(ACTIONS.map((action) => [action.tool.name, action
 const ACTION_BY_KIND = new Map(ACTIONS.map((action) => [action.kind, action]));
 
 export function actionsForCapabilities(capabilities: readonly string[]) {
-  return ACTIONS.filter((action) => hasCapability(capabilities, action.capability));
+  return ACTIONS.filter((action) => !action.capability || hasCapability(capabilities, action.capability));
 }
 
 export function actionForTool(name: string) {
