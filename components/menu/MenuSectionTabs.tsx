@@ -2,13 +2,14 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 
-import { SlidersHorizontal, UtensilsCrossed } from '@/components/icons';
+import { LayoutGrid, SlidersHorizontal, UtensilsCrossed } from '@/components/icons';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 
-type Section = 'items' | 'modifiers';
+type Section = 'items' | 'categories' | 'modifiers';
 
 const TABS: SectionTab<Section>[] = [
   { value: 'items', label: 'Menu items', icon: UtensilsCrossed },
+  { value: 'categories', label: 'Categories', icon: LayoutGrid },
   { value: 'modifiers', label: 'Modifiers', icon: SlidersHorizontal },
 ];
 
@@ -23,7 +24,7 @@ const TABS: SectionTab<Section>[] = [
 export function MenuSectionTabs() {
   const pathname = usePathname();
   const router = useRouter();
-  const section: Section = pathname.startsWith('/menu/modifiers') ? 'modifiers' : 'items';
+  const section: Section = pathname.startsWith('/menu/modifiers') ? 'modifiers' : pathname.startsWith('/menu/categories') ? 'categories' : 'items';
 
   return <SectionTabs tabs={TABS} value={section} onChange={(value) => router.push(`/menu/${value}`)} ariaLabel="Menu sections" />;
 }

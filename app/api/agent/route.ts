@@ -1,6 +1,7 @@
+import { ApprovalError } from '@/lib/ai/action-seal';
 import type { AgentActionSubmission, AgentChatMessage, AgentStreamEvent } from '@/lib/ai/agent-types';
 import type { AgentContext } from '@/lib/ai/duma-agent.server';
-import { executeConfirmedAction, runDumaAgent } from '@/lib/ai/duma-agent.server';
+import { CapabilityError, executeConfirmedAction, runDumaAgent } from '@/lib/ai/duma-agent.server';
 import type { StaffProfile } from '@/lib/api/staff.service';
 import { getMyStaffProfile } from '@/lib/api/staff.service';
 
@@ -45,15 +46,27 @@ function safeContext(context: AgentContext | undefined): AgentContext {
   };
 }
 
+/**
+ * A refusal by a security rule, as opposed to something going wrong.
+ *
+ * Both of these mean the operator may not do this, or that we cannot prove they
+ * asked for it: a capability they do not hold, and an approval that would not
+ * verify. Recognised by type rather than by matching the message, so rewording the
+ * copy cannot silently turn a refusal back into a generic failure.
+ */
+function isSecurityRefusal(error: unknown) {
+  return error instanceof CapabilityError || error instanceof ApprovalError;
+}
+
 function errorResponse(error: unknown, status = 500) {
   const message = error instanceof Error ? error.message : 'Ask DUMA could not complete that request.';
-  return Response.json({ message }, { status });
+  return Response.json({ message, ...(isSecurityRefusal(error) ? { refused: 'security' } : {}) }, { status });
 }
 
 function statusFor(error: unknown) {
   const message = error instanceof Error ? error.message : '';
-  if (/role cannot/i.test(message)) return 403;
-  if (/approval|expired|verified|confirm again|still empty/i.test(message)) return 400;
+  if (error instanceof CapabilityError || /role cannot/i.test(message)) return 403;
+  if (error instanceof ApprovalError || /approval|expired|verified|confirm again|still empty/i.test(message)) return 400;
   if (/not configured/i.test(message)) return 503;
   return 500;
 }

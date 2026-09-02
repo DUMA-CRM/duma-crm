@@ -14,6 +14,7 @@ import {
   Flame,
   MapPin,
   Monitor,
+  QrCode,
   Smartphone,
 } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
@@ -78,7 +79,8 @@ function orderQueryKey(locationId: string, status: OrderStatus) {
 
 async function getLaneOrders(locationId: string, status: OrderStatus): Promise<OrdersResponse> {
   const firstPage = await getOrders({ page: 1, limit: 100, locationId, status, paymentStatus: 'paid' });
-  if (firstPage.pages <= 1) return firstPage;
+  const released = (orders: Order[]) => orders.filter((order) => !order.kitchenReleaseAt || new Date(order.kitchenReleaseAt).getTime() <= Date.now());
+  if (firstPage.pages <= 1) return { ...firstPage, data: released(firstPage.data), total: released(firstPage.data).length };
 
   const remainingPages = await Promise.all(
     Array.from({ length: firstPage.pages - 1 }, (_, index) =>
@@ -88,7 +90,7 @@ async function getLaneOrders(locationId: string, status: OrderStatus): Promise<O
 
   return {
     ...firstPage,
-    data: [firstPage, ...remainingPages].flatMap((page) => page.data),
+    data: released([firstPage, ...remainingPages].flatMap((page) => page.data)),
     page: 1,
     limit: firstPage.total,
     pages: 1,
@@ -163,8 +165,8 @@ function KdsCard({
             #{orderNumber}
           </p>
           <span className="mt-1 flex items-center gap-1.5 text-label font-semibold uppercase tracking-label text-muted-foreground">
-            {order.source === 'pos' ? <Monitor size={13} aria-hidden="true" /> : <Smartphone size={13} aria-hidden="true" />}
-            {order.source === 'pos' ? 'POS' : 'Mobile'}
+            {order.source === 'pos' ? <Monitor size={13} aria-hidden="true" /> : order.source === 'qr_code' ? <QrCode size={13} aria-hidden="true" /> : <Smartphone size={13} aria-hidden="true" />}
+            {order.source === 'pos' ? 'POS' : order.source === 'qr_code' ? 'QR code' : 'Mobile'}
           </span>
         </div>
 

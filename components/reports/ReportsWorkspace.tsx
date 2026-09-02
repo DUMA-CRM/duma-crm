@@ -559,9 +559,14 @@ function ReportsOverview({
   );
   const hourlyRows = hourly.data ?? [];
   const peakHour = hourlyRows.reduce<HourlyVolume | null>((best, row) => (!best || row.orderCount > best.orderCount ? row : best), null);
-  const posLeads = current.values.posOrders >= current.values.mobileOrders;
-  const leadingChannelOrders = posLeads ? current.values.posOrders : current.values.mobileOrders;
-  const totalChannelOrders = current.values.posOrders + current.values.mobileOrders;
+  const channelRows = [
+    { label: 'POS', orders: current.values.posOrders, value: current.values.posValue, dot: 'bg-chart-1' },
+    { label: 'Mobile', orders: current.values.mobileOrders, value: current.values.mobileValue, dot: 'bg-chart-2' },
+    { label: 'QR code', orders: current.values.qrOrders, value: current.values.qrValue, dot: 'bg-chart-3' },
+  ];
+  const leadingChannel = channelRows.reduce((leader, channel) => channel.orders > leader.orders ? channel : leader);
+  const leadingChannelOrders = leadingChannel.orders;
+  const totalChannelOrders = channelRows.reduce((total, channel) => total + channel.orders, 0);
   const leadingItem = topItems.data?.[0];
   const retry = () => {
     void currentOrders.refetch();
@@ -608,7 +613,7 @@ function ReportsOverview({
           },
           {
             label: 'Leading channel',
-            value: totalChannelOrders ? (posLeads ? 'POS' : 'Mobile') : 'No channel data',
+            value: totalChannelOrders ? leadingChannel.label : 'No channel data',
             detail: totalChannelOrders
               ? `${((leadingChannelOrders / totalChannelOrders) * 100).toFixed(1)}% of recorded orders`
               : 'No orders attributed',
@@ -693,7 +698,7 @@ function ReportsOverview({
               <p className="text-right text-xs text-muted-foreground">
                 Leader
                 <br />
-                <span className="text-sm font-bold text-foreground">{totalChannelOrders ? (posLeads ? 'POS' : 'Mobile') : '—'}</span>
+                <span className="text-sm font-bold text-foreground">{totalChannelOrders ? leadingChannel.label : '—'}</span>
               </p>
             </div>
             <div className="mt-5 flex h-3 overflow-hidden rounded-full bg-band" aria-label="Order source share">
@@ -705,12 +710,13 @@ function ReportsOverview({
                 className="h-full bg-chart-2 transition-[width] duration-500 motion-reduce:transition-none"
                 style={{ width: `${totalChannelOrders ? (current.values.mobileOrders / totalChannelOrders) * 100 : 0}%` }}
               />
+              <div
+                className="h-full bg-chart-3 transition-[width] duration-500 motion-reduce:transition-none"
+                style={{ width: `${totalChannelOrders ? (current.values.qrOrders / totalChannelOrders) * 100 : 0}%` }}
+              />
             </div>
             <div className="mt-4 space-y-1">
-              {[
-                { label: 'POS', orders: current.values.posOrders, value: current.values.posValue, dot: 'bg-chart-1' },
-                { label: 'Mobile', orders: current.values.mobileOrders, value: current.values.mobileValue, dot: 'bg-chart-2' },
-              ].map((source) => {
+              {channelRows.map((source) => {
                 const share = totalChannelOrders ? (source.orders / totalChannelOrders) * 100 : 0;
                 return (
                   <div

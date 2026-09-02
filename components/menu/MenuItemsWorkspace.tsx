@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react';
 import { ChefHat, CircleDollarSign, Plus, Search, SlidersHorizontal, UtensilsCrossed } from '@/components/icons';
 import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
 import { MenuSetupChecklist } from '@/components/menu/MenuSetupChecklist';
-import { AvailabilityToggle, CATEGORY_COLORS, CATEGORY_LABELS, CATEGORY_OPTIONS, selectClass } from '@/components/menu/shared';
+import { AvailabilityToggle, categoryLabel, categoryTone, selectClass } from '@/components/menu/shared';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
@@ -16,7 +16,7 @@ import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { getMenuItems, updateMenuItem } from '@/lib/api/menu.service';
+import { getMenuCategories, getMenuItems, updateMenuItem } from '@/lib/api/menu.service';
 import { type MenuItemCost, useMenuItemCosts } from '@/lib/hooks/useMenuItemCosts';
 import { cn } from '@/lib/utils/cn';
 import { formatMoney } from '@/lib/utils/dashboard';
@@ -91,12 +91,18 @@ export function MenuItemsWorkspace() {
     queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: !!tenantId,
   });
+  const { data: categories = [] } = useQuery({
+    queryKey: ['menu-categories', tenantId],
+    queryFn: () => getMenuCategories(tenantId!),
+    enabled: Boolean(tenantId),
+  });
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter(
       (i) =>
-        (categoryFilter === 'all' || i.category === categoryFilter) &&
+        (categoryFilter === 'all' || i.categoryId === categoryFilter || i.category === categoryFilter) &&
         (!q || i.name.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q)),
     );
   }, [items, search, categoryFilter]);
@@ -140,10 +146,10 @@ export function MenuItemsWorkspace() {
         <span
           className={cn(
             'inline-flex items-center rounded-sm px-2.5 py-1 text-label font-semibold uppercase tracking-label',
-            CATEGORY_COLORS[row.category],
+            categoryTone(row.category, row.categoryId ? categoryById.get(row.categoryId) : undefined),
           )}
         >
-          {CATEGORY_LABELS[row.category]}
+          {categoryLabel(row.category, row.categoryId ? categoryById.get(row.categoryId) : undefined)}
         </span>
       ),
     },
@@ -248,7 +254,10 @@ export function MenuItemsWorkspace() {
               <Select
                 value={categoryFilter}
                 onValueChange={(value) => setCategoryFilter(value as 'all' | MenuCategory)}
-                options={[{ value: 'all', label: 'All categories' }, ...CATEGORY_OPTIONS.map(([value, label]) => ({ value, label }))]}
+                options={[
+                  { value: 'all', label: 'All categories' },
+                  ...categories.map((category) => ({ value: category.id, label: category.name })),
+                ]}
                 ariaLabel="Filter by category"
                 className={cn(selectClass, 'w-auto')}
               />

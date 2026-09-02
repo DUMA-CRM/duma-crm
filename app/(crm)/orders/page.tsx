@@ -23,6 +23,7 @@ import {
   Mail,
   MapPin,
   Monitor,
+  QrCode,
   Receipt,
   Search,
   ShoppingBag,
@@ -54,6 +55,7 @@ import {
   type RefundReason,
   type VoidReason,
   createRefund,
+  approveCashOrder,
   getOrder,
   getOrders,
   getRefundOptions,
@@ -77,6 +79,7 @@ const STATUS_FILTERS: SelectOption[] = [
   { value: 'ready', label: 'Ready' },
   { value: 'done', label: 'Done' },
   { value: 'cancelled', label: 'Cancelled' },
+  { value: 'expired', label: 'Expired' },
 ];
 
 type StatusFilter = 'all' | OrderStatus;
@@ -88,7 +91,14 @@ const SOURCE_FILTERS: SelectOption[] = [
   { value: 'all', label: 'All sources' },
   { value: 'pos', label: 'POS' },
   { value: 'mobile', label: 'Mobile' },
+  { value: 'qr_code', label: 'QR code' },
 ];
+
+const SOURCE_CONFIG: Record<OrderSource, { label: string; icon: React.ElementType }> = {
+  pos: { label: 'POS', icon: Monitor },
+  mobile: { label: 'Mobile', icon: Smartphone },
+  qr_code: { label: 'QR code', icon: QrCode },
+};
 
 const PAYMENT_FILTERS: SelectOption[] = [
   { value: 'all', label: 'All payments' },
@@ -116,6 +126,7 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; dot: string; text: str
     border: 'border-destructive/40',
     bg: 'bg-destructive/5',
   },
+  expired: { label: 'Expired', dot: 'bg-warning', text: 'text-warning', border: 'border-warning/40', bg: 'bg-warning/5' },
 };
 
 const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
@@ -124,6 +135,7 @@ const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
   ready: ['done', 'cancelled'],
   done: [],
   cancelled: [],
+  expired: [],
 };
 
 const LIVE_STATUSES: OrderStatus[] = ['pending', 'preparing', 'ready'];
@@ -191,7 +203,7 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
   const [voidReason, setVoidReason] = useState<VoidReason>('customer_request');
   const [voidNotes, setVoidNotes] = useState('');
   const s = STATUS_CONFIG[order.status];
-  const nexts = NEXT_STATUSES[order.status];
+  const nexts = order.status === 'expired' ? [] : order.paymentStatus && order.paymentStatus !== 'paid' ? (['cancelled'] as OrderStatus[]) : NEXT_STATUSES[order.status];
 
   const { mutate, isPending } = useMutation({
     mutationFn: ({ status, details }: { status: OrderStatus; details?: { voidReason: VoidReason; voidNotes?: string } }) =>
@@ -387,6 +399,7 @@ const STATUS_ICONS: Record<OrderStatus, React.ElementType> = {
   ready: Bell,
   done: CheckCircle2,
   cancelled: XCircle,
+  expired: Clock,
 };
 
 function formatDuration(ms: number) {
@@ -547,7 +560,7 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
           />
         </label>
         <p className="text-xs text-muted-foreground">
-          The refund is recorded in the internal ledger. Payment execution is a placeholder until a terminal or provider is connected.
+          Stripe online payments are refunded to the original card. Cash refunds are recorded when staff confirm the cash has been returned.
         </p>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onClose} disabled={refund.isPending} className="flex-1">
@@ -655,6 +668,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
   }
 
   const history = data.statusHistory ?? [];
+  const sourceConfig = SOURCE_CONFIG[data.source];
   const refundedAmount = (data.refunds ?? []).reduce((sum, refund) => sum + Number(refund.amount), 0);
   const refundableAmount = Math.max(0, Number(data.totalAmount) - refundedAmount);
 
@@ -784,16 +798,18 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
               <InfoRow
                 icon={data.paymentMethod === 'cash' ? Banknote : CreditCard}
                 label="Payment"
-                value={data.paymentMethod === 'cash' ? 'Cash' : 'Card'}
+                value={`${data.paymentMethod === 'cash' ? 'Cash' : 'Card'}${data.paymentStatus ? ` · ${data.paymentStatus.replaceAll('_', ' ')}` : ''}`}
               />
               <InfoRow
-                icon={data.source === 'pos' ? Monitor : Smartphone}
+                icon={sourceConfig.icon}
                 label="Source"
-                value={data.source === 'pos' ? 'POS' : 'Mobile'}
+                value={sourceConfig.label}
               />
               <InfoRow icon={CalendarDays} label="Created" value={formatDateTime(data.createdAt)} />
+              {data.customerName && <InfoRow icon={User} label="Collection name" value={data.customerName} />}
+              {data.collectionTime && <InfoRow icon={Clock} label="Collection time" value={formatDateTime(data.collectionTime)} />}
               {data.customerId && <InfoRow icon={User} label="Customer ID" value={data.customerId} copyable />}
-              <InfoRow icon={User} label="Staff ID" value={data.createdBy} copyable />
+              {data.createdBy && <InfoRow icon={User} label="Staff ID" value={data.createdBy} copyable />}
               <InfoRow icon={MapPin} label="Location ID" value={data.locationId} copyable />
               {data.voidReason && <InfoRow icon={XCircle} label="Void reason" value={optionLabel(VOID_REASON_OPTIONS, data.voidReason)} />}
             </InfoGroup>
@@ -809,7 +825,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                   <div>
                     <p className="font-semibold text-foreground">{optionLabel(REFUND_REASON_OPTIONS, refund.reason)}</p>
                     <p className="text-muted-foreground">
-                      {formatDateTime(refund.createdAt)} · {refund.kind} · internal ledger
+                      {formatDateTime(refund.createdAt)} · {refund.kind} · {refund.processingMode === 'stripe' ? 'Stripe refund' : refund.processingMode === 'cash_manual' ? 'cash returned' : 'internal ledger'}
                     </p>
                     {refund.lines?.map((line) => (
                       <p key={line.id} className="mt-0.5 text-muted-foreground">
@@ -872,6 +888,8 @@ function OrderRow({
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
+  const sourceConfig = SOURCE_CONFIG[order.source];
+  const SourceIcon = sourceConfig.icon;
 
   function toggle() {
     const next = !open;
@@ -898,8 +916,8 @@ function OrderRow({
         </td>
         <td className="hidden md:table-cell px-5 py-4">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-            {order.source === 'pos' ? <Monitor size={12} className="shrink-0" /> : <Smartphone size={12} className="shrink-0" />}
-            {order.source === 'pos' ? 'POS' : 'Mobile'}
+            <SourceIcon size={12} className="shrink-0" />
+            {sourceConfig.label}
           </span>
         </td>
         <td className="hidden md:table-cell px-5 py-4 max-w-xs">
@@ -932,6 +950,7 @@ function OrderRow({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function OrdersPageContent() {
+  const qc = useQueryClient();
   const searchParams = useSearchParams();
   const { locationId, tenantId } = useWorkspaceStore();
   const requestedStatus = searchParams.get('status');
@@ -965,11 +984,17 @@ function OrdersPageContent() {
   const [activeTicket, setActiveTicket] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
+  const [queueNow, setQueueNow] = useState(() => Date.now());
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedCustomerSearch(customerSearch.trim()), customerSearch ? 400 : 0);
     return () => window.clearTimeout(timeout);
   }, [customerSearch]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setQueueNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const invalidDateRange = Boolean(from && to && from > to);
   const hasFilters =
@@ -1007,13 +1032,27 @@ function OrdersPageContent() {
   });
 
   const allOrders = useMemo(() => allData?.data ?? [], [allData?.data]);
+  const cashApprovals = useMemo(
+    () => allOrders.filter((order) => order.paymentStatus === 'awaiting_cash_approval').sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    [allOrders],
+  );
+  const approveCash = useMutation({
+    mutationFn: (orderId: string) => approveCashOrder(orderId),
+    onSuccess: (order) => {
+      void qc.invalidateQueries({ queryKey: ['orders'] });
+      void qc.invalidateQueries({ queryKey: ['orders-all'] });
+      void qc.invalidateQueries({ queryKey: ['kds-orders'] });
+      toast('success', `Cash received. Order #${order.id.slice(0, 8).toUpperCase()} is now in the kitchen queue.`);
+    },
+    onError: (error) => toast('error', error instanceof Error ? error.message : 'The cash order could not be approved.'),
+  });
 
   const today = new Date().toDateString();
   const todayOrders = useMemo(() => allOrders.filter((o) => new Date(o.createdAt).toDateString() === today), [allOrders, today]);
 
   const totalOrders = todayOrders.length;
   const revenue = todayOrders.reduce((s, o) => s + Number(o.totalAmount), 0);
-  const liveCount = allOrders.filter((o) => LIVE_STATUSES.includes(o.status)).length;
+  const liveCount = allOrders.filter((o) => LIVE_STATUSES.includes(o.status) && o.paymentStatus === 'paid').length;
   const cancelledCount = todayOrders.filter((o) => o.status === 'cancelled').length;
 
   const week7 = useMemo(() => {
@@ -1034,7 +1073,7 @@ function OrdersPageContent() {
   }, [allOrders]);
 
   const liveTickets = useMemo(
-    () => allOrders.filter((o) => LIVE_STATUSES.includes(o.status)).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    () => allOrders.filter((o) => LIVE_STATUSES.includes(o.status) && o.paymentStatus === 'paid').sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     [allOrders],
   );
 
@@ -1400,6 +1439,19 @@ function OrdersPageContent() {
       <div className="flex flex-col gap-4">
         {/* Filters belong to the table they narrow, not to the app chrome. */}
         {filterBar}
+
+        {cashApprovals.length > 0 && (
+          <section className="overflow-hidden rounded-lg bg-card shadow-md" aria-labelledby="cash-approval-title">
+            <div className="flex items-center justify-between border-b border-rule/55 bg-warning/6 px-4 py-3 sm:px-5">
+              <div><h2 id="cash-approval-title" className="font-semibold">Cash orders waiting at the counter</h2><p className="mt-0.5 text-xs text-muted-foreground">Approve only after the customer has paid. Until then, these orders stay out of KDS.</p></div>
+              <span className="flex size-7 items-center justify-center rounded-full bg-warning text-xs font-semibold text-warning-foreground">{cashApprovals.length}</span>
+            </div>
+            <div className="divide-y divide-rule/45">{cashApprovals.map((order) => {
+              const expiresIn = order.expiresAt ? Math.max(0, Math.ceil((new Date(order.expiresAt).getTime() - queueNow) / 60_000)) : 0;
+              return <div key={order.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-x-3 gap-y-1"><p className="font-semibold">{order.customerName || `Order #${order.id.slice(0, 8).toUpperCase()}`}</p><span className="font-mono text-sm font-semibold">£{Number(order.totalAmount).toFixed(2)}</span></div><p className="mt-1 flex items-center gap-1.5 text-xs text-warning"><Clock size={13} aria-hidden="true" />Expires in about {expiresIn} minute{expiresIn === 1 ? '' : 's'} · #{order.id.slice(0, 8).toUpperCase()}</p></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => handleTicketClick(order.id)}>Review</Button><Button size="sm" disabled={approveCash.isPending} onClick={() => approveCash.mutate(order.id)}><Banknote />Cash received — approve</Button></div></div>;
+            })}</div>
+          </section>
+        )}
 
         {/* Stats */}
         <StatCardGrid className="shrink-0">

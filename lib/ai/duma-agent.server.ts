@@ -73,6 +73,8 @@ Rules:
 - Chain tools freely: resolve ids first, then read the data, then answer. Prefer one more tool call over one guess.
 - Respect the active location when present. If an action needs a location and none is selected, list the accessible ones and ask the smallest useful question.
 - Trading hours, addresses and phone numbers live on the location record: answer "when do we open/close", "are we open now" and similar from list_locations. Never send the operator to a printed rota for something the workspace already stores.
+- For QR ordering availability, always call get_qr_ordering_status. Its explanation resolves the location’s own clock, trading hours, pause/enable state, publication and payment readiness; quote that concrete blocker instead of guessing from one setting.
+- Treat qr_code as its own order source, distinct from mobile and POS. Use list_orders with source qr_code when the operator asks about QR orders.
 - Draft tools only prepare an approval card; the operator can still edit every value on it before confirming. Never say something was created, changed or cancelled until the app reports success.
 - Before drafting, resolve real ids for the supplier, item, location, person or order involved. If several plausible matches exist, ask. Never invent an id or a price.
 - When the operator's request is unambiguous, draft the action rather than describing how they could do it themselves.
@@ -150,6 +152,7 @@ export async function* runDumaAgent(
         followUps: ['What needs attention today?', 'Check stock risk', 'Show me how this page works'],
         testMode,
         model: 'scope-guard',
+        refused: 'scope',
       },
     };
     return;
@@ -320,6 +323,15 @@ export async function* runDumaAgent(
   );
 }
 
+/**
+ * The operator is not permitted to run this action.
+ *
+ * A class rather than a message the caller matches on: the route has to answer with
+ * a different status and the panel with a different face, and both were previously
+ * one regex away from being wrong the next time this copy is reworded.
+ */
+export class CapabilityError extends Error {}
+
 export async function executeConfirmedAction(
   submission: AgentActionSubmission,
   context: AgentContext,
@@ -331,7 +343,7 @@ export async function executeConfirmedAction(
   const testMode = isAgentTestMode();
   const { action, definition } = resolveSubmission(submission);
   if (definition.capability && !hasCapability(profile, definition.capability))
-    throw new Error(`You lack the ${definition.capability} capability.`);
+    throw new CapabilityError(`You lack the ${definition.capability} capability.`);
 
   const runtime = new AgentRuntime(cookieHeader, profile, context.locationId ?? null, context.tenantId ?? profile.tenantId ?? null);
   const result = testMode ? await definition.rehearse(action, runtime) : await definition.execute(action, runtime);

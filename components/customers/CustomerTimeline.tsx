@@ -275,7 +275,7 @@ function EntryBody({ entry }: { entry: TimelineEntry }) {
           <span className="text-sm font-semibold text-foreground">Order · £{Number(entry.total ?? 0).toFixed(2)}</span>
           <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <span className="capitalize">{entry.status}</span>
-            {entry.source && <span>· {entry.source === 'pos' ? 'at the till' : 'mobile'}</span>}
+            {entry.source && <span>· {entry.source === 'pos' ? 'at the till' : entry.source === 'qr_code' ? 'QR code' : 'mobile'}</span>}
             {entry.refundStatus && entry.refundStatus !== 'none' && (
               <Badge variant="destructive" className="ml-1">
                 {entry.refundStatus === 'full' ? 'Refunded' : 'Part refunded'}

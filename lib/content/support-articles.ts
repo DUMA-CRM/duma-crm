@@ -21,6 +21,82 @@ export interface SupportArticle {
 
 export const SUPPORT_ARTICLES: SupportArticle[] = [
   {
+    slug: 'set-up-qr-ordering',
+    title: 'Set up QR ordering for collection',
+    summary: 'Connect the menu, opening hours and payments; publish the customer page; then test why ordering is open or blocked.',
+    category: 'Service',
+    readMinutes: 8,
+    updated: '2026-08-18',
+    body: `QR ordering belongs to one **location**. Customers scan that location’s code, browse the same menu items and modifiers as POS, choose a collection time, enter their name and pay. Paid orders follow the normal Orders and KDS workflow.
+
+## Before you enable it
+
+Confirm these dependencies first:
+
+1. **Menu** — items, prices, categories and modifiers are correct and available.
+2. **Location** — the timezone and opening hours in **Settings → Workspaces** match the shop. Checkout uses the location clock, not the customer’s phone clock.
+3. **Card payment** — add an active **Stripe Online** connection in **Settings → Connectors** if card orders will be accepted.
+4. **Cash process** — decide whether staff can approve cash orders at the counter. Unapproved cash orders stay out of KDS and expire after 10 minutes.
+
+## Configure the customer channel
+
+Open **Settings → QR ordering**, select the location, then set:
+
+- **Enable QR ordering** — turns the public channel on or off.
+- **Pause new orders** — keeps the menu browsable but stops checkout until resumed.
+- **Stripe card / Cash at counter** — at least one payment method must remain enabled.
+- **Minimum order** — optional; zero means there is no minimum.
+- **Minimum notice, slot interval, orders per slot and booking horizon** — control scheduled collection capacity.
+- **Welcome message and collection instructions** — explain where and how customers collect.
+- **Menu visibility** — hide an item from QR without removing it from POS.
+
+Save the draft, then choose **Publish QR menu**. Operational switches take effect when saved; customer-facing copy and item visibility take effect when published.
+
+## Test before printing the code
+
+1. Scan the location QR code on a phone that is not signed in to DUMA.
+2. Open an item, select required modifiers and add it to the basket.
+3. Check the collection slots and both enabled payment methods.
+4. Place a small card test order and confirm it appears in **Orders**, then KDS after payment.
+5. If cash is enabled, place a cash order and approve it only after payment is handed to staff.
+6. Verify an email code can link a known customer so the order earns loyalty points.
+
+## Why a customer cannot order now
+
+Ask DUMA: **“Why can’t a customer order here now?”** The answer checks the selected location and states the first real blocker. Common reasons are:
+
+| What DUMA reports | What to fix |
+| --- | --- |
+| QR ordering is disabled | Enable it and save |
+| QR menu is not published | Save, then publish the draft |
+| New orders are paused | Resume orders and save |
+| Store is closed at 19:49 | Correct the location hours, or wait until the store is open |
+| Trading hours are missing | Add hours in Settings → Workspaces |
+| Stripe Online is not connected | Add or activate the location’s Stripe Online connection |
+| No working payment method | Enable cash or configure card payment |
+
+Customers may still browse while the store is closed or ordering is paused, but checkout stays unavailable.
+
+## Use Ask DUMA to manage it
+
+Examples you can type:
+
+- “Is QR ordering available at this location right now?”
+- “Pause QR orders here.”
+- “Resume and enable QR ordering.”
+- “Allow cash orders and set the minimum order to £8.”
+- “Set collection slots to every 15 minutes with six orders per slot.”
+- “Hide the iced latte from the QR menu, then publish it.”
+
+Ask DUMA reads the current setup first. Changes are never silent: it shows an editable approval card, and nothing is saved until an authorised staff member confirms it. Publishing is a separate approval so a draft cannot accidentally reach customers.
+
+## Orders, customers and loyalty
+
+QR orders have the source **QR code**, separate from POS and Mobile in Orders, KDS, customer history and reports. A customer can enter their email and verify a one-time code. If that email matches an account, the order links to it and earns points. QR checkout does not spend points yet.
+
+Card orders enter the normal kitchen flow only after Stripe confirms payment. Cash orders enter it only after staff approve payment at the counter. Unpaid orders expire after 10 minutes and show as **Expired**, not Pending.`,
+  },
+  {
     slug: 'run-a-shift',
     title: 'Run a shift from open to close',
     summary: 'The order to do things in on a normal trading day, and the three checks that stop most end-of-day surprises.',

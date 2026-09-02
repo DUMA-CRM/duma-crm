@@ -1,6 +1,6 @@
 // Shared constants and small helpers for menu components.
 import { cn } from '@/lib/utils/cn';
-import { MenuCategory } from '@/types/menu';
+import type { MenuCategory, MenuCategoryRecord } from '@/types/menu';
 
 export const CATEGORY_COLORS: Record<MenuCategory, string> = {
   coffee: 'bg-warning/6 text-warning',
@@ -19,6 +19,25 @@ export const CATEGORY_LABELS: Record<MenuCategory, string> = {
 };
 
 export const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS) as [MenuCategory, string][];
+
+const CATEGORY_TONES: Record<NonNullable<MenuCategoryRecord['colour']>, string> = {
+  warning: 'bg-warning/6 text-warning',
+  info: 'bg-info/6 text-info',
+  primary: 'bg-band text-primary',
+  success: 'bg-success/6 text-success',
+  muted: 'bg-muted text-muted-foreground',
+  destructive: 'bg-destructive/6 text-destructive',
+};
+
+export function categoryLabel(category: string, record?: MenuCategoryRecord): string {
+  if (record) return record.name;
+  return CATEGORY_LABELS[category] ?? category.replaceAll('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+export function categoryTone(category: string, record?: MenuCategoryRecord): string {
+  if (record?.colour) return CATEGORY_TONES[record.colour];
+  return CATEGORY_COLORS[category] ?? CATEGORY_TONES.muted;
+}
 
 export const inputClass =
   'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';

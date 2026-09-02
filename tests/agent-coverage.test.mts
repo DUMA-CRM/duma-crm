@@ -11,6 +11,7 @@ test('support search covers the previously missing administrative workflows', ()
     'payment connectors',
     'audit log',
     'update my personal details',
+    'set up QR ordering and publish the customer menu',
   ]) {
     assert.ok(searchSupportArticles(query).length > 0, `Expected a support result for “${query}”`);
   }

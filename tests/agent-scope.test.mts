@@ -27,6 +27,7 @@ test('allows operational DUMA questions and UI guidance', () => {
   assert.equal(isAppRelatedRequest('How is my business doing today?'), true);
   assert.equal(isAppRelatedRequest('Review today’s operations'), true);
   assert.equal(isAppRelatedRequest('Summarise our performance and biggest problems'), true);
+  assert.equal(isAppRelatedRequest('Why can’t customers place a QR code order at 19:49?'), true);
 });
 
 test('allows short follow-ups only after an in-scope request', () => {

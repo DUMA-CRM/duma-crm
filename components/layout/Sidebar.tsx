@@ -53,13 +53,16 @@ export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
   const activeOrderQueries = useQueries({
     queries: (['pending', 'preparing', 'ready'] as const).map((status) => ({
       queryKey: ['orders-nav-count', status, locationId],
-      queryFn: () => getOrders({ limit: 1, status, locationId: locationId ?? undefined }),
+      queryFn: () => getOrders({ limit: 100, status, paymentStatus: 'paid', locationId: locationId ?? undefined }),
       enabled: showOrders && badgeEnabled,
       staleTime: 60_000,
       refetchInterval: 60_000,
     })),
   });
-  const activeOrders = activeOrderQueries.reduce((total, query) => total + (query.data?.total ?? 0), 0);
+  const activeOrders = activeOrderQueries.reduce(
+    (total, query) => total + (query.data?.data.filter((order) => !order.kitchenReleaseAt || new Date(order.kitchenReleaseAt).getTime() <= Date.now()).length ?? 0),
+    0,
+  );
   const badges: Record<string, number> = { '/orders': activeOrders, '/kds': activeOrders };
 
   return (

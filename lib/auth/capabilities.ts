@@ -37,6 +37,8 @@ export const FRONTEND_CAPABILITIES = [
   'orders:refund',
   'orders:bulk',
   'menu:write',
+  'qr-ordering:read',
+  'qr-ordering:write',
   'recipes:write',
   'stock:read',
   'stock.transfers:write',

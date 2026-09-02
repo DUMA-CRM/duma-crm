@@ -36,6 +36,7 @@ const ORDER_STATUS_VARIANT: Record<OrderStatus, 'success' | 'warning' | 'destruc
   ready: 'primary',
   done: 'success',
   cancelled: 'destructive',
+  expired: 'warning',
 };
 
 const KIND_TITLE: Record<TimelineEntry['kind'], string> = {
@@ -120,7 +121,7 @@ function OrderDetailBody({ orderId }: { orderId: string }) {
         rows={[
           { label: 'Total', value: fmtGbpExact(Number(order.totalAmount)), figure: true },
           { label: 'Payment', value: order.paymentMethod === 'cash' ? 'Cash' : 'Card' },
-          { label: 'Taken', value: order.source === 'pos' ? 'At the till' : 'Mobile' },
+          { label: 'Taken', value: order.source === 'pos' ? 'At the till' : order.source === 'qr_code' ? 'QR code' : 'Mobile' },
           ...(discount > 0 ? [{ label: 'Discount', value: `−${fmtGbpExact(discount)}`, figure: true }] : []),
           ...(refunded > 0 ? [{ label: 'Refunded', value: `−${fmtGbpExact(refunded)}`, figure: true, tone: 'exception' as const }] : []),
         ]}

@@ -140,11 +140,25 @@ export interface AgentActionSubmission {
   lines?: Array<{ id: string; values: Record<string, string | number | null> }>;
 }
 
+/**
+ * Why a request was declined by a rule rather than answered.
+ *
+ * `scope` — outside what this assistant does at all (code, poems, the weather).
+ *   An ordinary boundary, and the reader has done nothing wrong: they get told
+ *   plainly what it *does* do.
+ * `security` — the operator is not permitted to do this, or an approval could not
+ *   be verified. A different thing entirely, and the only one the mascot is cross
+ *   about.
+ */
+export type AgentRefusal = 'scope' | 'security';
+
 export interface AgentChatMessage {
   role: AgentChatRole;
   content: string;
   evidence?: string[];
   scope?: string;
+  /** Set when a rule declined the request instead of it being answered. */
+  refused?: AgentRefusal;
   shortcuts?: AgentShortcut[];
   cards?: AgentCard[];
   followUps?: string[];
@@ -166,6 +180,15 @@ export interface AgentChatResponse {
   message: string;
   evidence?: string[];
   scope?: string;
+  /**
+   * The request was declined by a rule rather than answered, and by which kind.
+   *
+   * Stated explicitly rather than left for the client to infer from
+   * `model: 'scope-guard'` or by matching words in an error message. The client
+   * presents the two kinds differently, so it needs a fact it can rely on — a model
+   * name is an implementation detail, and a message is copy someone will reword.
+   */
+  refused?: AgentRefusal;
   shortcuts?: AgentShortcut[];
   cards?: AgentCard[];
   followUps?: string[];

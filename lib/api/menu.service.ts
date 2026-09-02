@@ -1,4 +1,13 @@
-import { AttachedModifier, MenuItem, MenuItemPayload, Modifier, ModifierPayload } from '@/types/menu';
+import {
+  AttachedModifier,
+  MenuCategoryRecord,
+  MenuItem,
+  MenuItemModifierGroup,
+  MenuItemPayload,
+  Modifier,
+  ModifierGroup,
+  ModifierPayload,
+} from '@/types/menu';
 
 import { apiFetch } from './client';
 
@@ -20,6 +29,15 @@ export const updateMenuItem = (id: string, data: Partial<Omit<MenuItemPayload, '
 
 export const deleteMenuItem = (id: string) => apiFetch<void>(`/menu-items/${id}`, { method: 'DELETE' });
 
+export const getMenuCategories = (tenantId?: string) =>
+  apiFetch<MenuCategoryRecord[]>(`/menu-categories${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`);
+export const createMenuCategory = (data: { tenantId?: string; name: string; description?: string; imageUrl?: string; colour?: MenuCategoryRecord['colour'] }) =>
+  apiFetch<MenuCategoryRecord>('/menu-categories', { method: 'POST', body: JSON.stringify(data) });
+export const updateMenuCategory = (id: string, data: Partial<Pick<MenuCategoryRecord, 'name' | 'description' | 'imageUrl' | 'colour' | 'isActive' | 'sortOrder'>>) =>
+  apiFetch<MenuCategoryRecord>(`/menu-categories/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+export const reorderMenuCategories = (ids: string[]) =>
+  apiFetch<{ success: true }>('/menu-categories/reorder', { method: 'PATCH', body: JSON.stringify({ ids }) });
+
 // ── Modifiers ─────────────────────────────────────────────────────────────────
 // Reusable, flat modifiers (name + priceAdjust). No groups, no per-location pricing.
 
@@ -34,6 +52,20 @@ export const updateModifier = (id: string, data: Partial<Omit<ModifierPayload, '
   apiFetch<Modifier>(`/modifiers/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 
 export const deleteModifier = (id: string) => apiFetch<void>(`/modifiers/${id}`, { method: 'DELETE' });
+
+export const getModifierGroups = (tenantId?: string) =>
+  apiFetch<ModifierGroup[]>(`/modifier-groups${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`);
+export const createModifierGroup = (data: { tenantId?: string; name: string; isSize?: boolean }) =>
+  apiFetch<ModifierGroup>('/modifier-groups', { method: 'POST', body: JSON.stringify(data) });
+export const updateModifierGroup = (id: string, data: Partial<Pick<ModifierGroup, 'name' | 'isSize' | 'sortOrder'>>) =>
+  apiFetch<ModifierGroup>(`/modifier-groups/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+export const getMenuItemModifierGroups = (menuItemId: string) =>
+  apiFetch<MenuItemModifierGroup[]>(`/modifier-groups/menu-item/${menuItemId}`);
+export const setMenuItemModifierGroupRule = (
+  menuItemId: string,
+  groupId: string,
+  data: { minSelections: number; maxSelections: number | null; sortOrder?: number },
+) => apiFetch(`/modifier-groups/menu-item/${menuItemId}/${groupId}`, { method: 'PUT', body: JSON.stringify(data) });
 
 // ── Menu Item ↔ Modifier links ────────────────────────────────────────────────
 // Attach reusable modifiers to a menu item so they can be chosen when ordering it.

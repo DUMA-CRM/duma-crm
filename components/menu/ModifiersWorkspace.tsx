@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 
-import { getModifiers, updateModifier } from '@/lib/api/menu.service';
+import { createModifierGroup, getModifierGroups, getModifiers, updateModifier } from '@/lib/api/menu.service';
 import { formatMoney } from '@/lib/utils/dashboard';
 import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import { toast } from '@/stores/toastStore';
@@ -36,11 +36,28 @@ export function ModifiersWorkspace() {
   const router = useRouter();
   const { tenantId } = useWorkspaceStore();
   const [search, setSearch] = useState('');
+  const [groupName, setGroupName] = useState('');
+  const [groupIsSize, setGroupIsSize] = useState(false);
 
   const { data: modifiers = [], isLoading } = useQuery({
     queryKey: ['modifiers', tenantId],
     queryFn: () => getModifiers(tenantId ?? undefined),
     enabled: !!tenantId,
+  });
+  const { data: groups = [] } = useQuery({
+    queryKey: ['modifier-groups', tenantId],
+    queryFn: () => getModifierGroups(tenantId ?? undefined),
+    enabled: Boolean(tenantId),
+  });
+  const createGroup = useMutation({
+    mutationFn: () => createModifierGroup({ tenantId: tenantId!, name: groupName, isSize: groupIsSize }),
+    onSuccess: () => {
+      setGroupName('');
+      setGroupIsSize(false);
+      void qc.invalidateQueries({ queryKey: ['modifier-groups'] });
+      toast('success', 'Modifier group created.');
+    },
+    onError: (error) => toast('error', error.message || 'The modifier group was not created.'),
   });
 
   const availability = useMutation({
@@ -129,6 +146,36 @@ export function ModifiersWorkspace() {
         <EmptyState icon={SlidersHorizontal} title="No workspace selected" description="Choose a workspace to manage its modifiers." />
       ) : (
         <div className="flex flex-col gap-4">
+          <section className="rounded-sm border border-rule bg-band/45 p-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="min-w-48 flex-1">
+                <p className="text-sm font-semibold">Modifier groups</p>
+                <p className="text-xs text-muted-foreground">Organise choices such as Size, Milk and Extras.</p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 lg:max-w-md">
+                {groups.map((group) => (
+                  <span key={group.id} className="inline-flex items-center gap-1 rounded-sm border border-rule bg-card px-2 py-1 text-xs text-muted-foreground">
+                    {group.isSize && <Scale size={11} aria-hidden="true" />}
+                    {group.name} · {group.modifierCount}
+                  </span>
+                ))}
+              </div>
+              <form
+                className="flex flex-wrap items-center gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  createGroup.mutate();
+                }}
+              >
+                <Input value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="New group" aria-label="New modifier group name" className="w-40" />
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <input type="checkbox" checked={groupIsSize} onChange={(event) => setGroupIsSize(event.target.checked)} className="accent-primary" />
+                  Sizes
+                </label>
+                <Button type="submit" size="sm" disabled={!groupName.trim() || createGroup.isPending}>Add group</Button>
+              </form>
+            </div>
+          </section>
           {modifiers.length > 0 && (
             <div className="max-w-xs">
               <Input

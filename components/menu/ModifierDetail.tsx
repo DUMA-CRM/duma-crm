@@ -9,13 +9,13 @@ import { RecipeIngredientEditor } from '@/components/menu/RecipeIngredientEditor
 import { RecipeTotals } from '@/components/menu/RecipeTotals';
 import { inputClass, labelClass } from '@/components/menu/shared';
 import { useRecipeDraft } from '@/components/menu/useRecipeDraft';
-import { CategoryCombobox } from '@/components/shared/CategoryCombobox';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 
-import { createModifier, deleteModifier, getModifiers, updateModifier } from '@/lib/api/menu.service';
+import { createModifier, deleteModifier, getModifierGroups, getModifiers, updateModifier } from '@/lib/api/menu.service';
 import { getModifierRecipe, setModifierRecipe } from '@/lib/api/recipes.service';
 import { cn } from '@/lib/utils/cn';
 import { encodeModifierName, isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
@@ -48,14 +48,16 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
     queryFn: () => getModifiers(tenantId ?? undefined),
     enabled: !!tenantId,
   });
+  const { data: groups = [] } = useQuery({
+    queryKey: ['modifier-groups', tenantId],
+    queryFn: () => getModifierGroups(tenantId ?? undefined),
+    enabled: Boolean(tenantId),
+  });
 
   const modifier = modifierId ? modifiers.find((m) => m.id === modifierId) : undefined;
 
   // No useMemo: React Compiler handles it, and manual memoization it cannot
   // prove safe makes it skip optimizing the component entirely.
-  const categories = [...new Set(modifiers.map((m) => modifierCategory(m)).filter((c): c is string => !!c))].sort((a, b) =>
-    a.localeCompare(b),
-  );
   // A size cannot be its own size column.
   const sizes = modifiers
     .filter((m) => isSizeModifier(m) && m.id !== modifierId)
@@ -65,6 +67,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
   // a late-arriving record cannot clobber something already typed.
   const server = {
     label: modifier ? modifierLabel(modifier) : '',
+    groupId: modifier?.groupId ?? '',
     category: (modifier ? modifierCategory(modifier) : '') ?? '',
     isSize: modifier ? isSizeModifier(modifier) : false,
     priceAdjust: modifier?.priceAdjust ?? '0',
@@ -72,7 +75,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
   };
   const [draft, setDraft] = useState<typeof server | null>(null);
   const form = draft ?? server;
-  const { label, category, isSize, priceAdjust, isAvailable } = form;
+  const { label, groupId, category, isSize, priceAdjust, isAvailable } = form;
   const patch = (changes: Partial<typeof server>) => setDraft({ ...form, ...changes });
 
   const recipe = useRecipeDraft({
@@ -95,6 +98,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
           name: encodeModifierName(category, label),
           label: label.trim(),
           category: category.trim() || null,
+          groupId: groupId || null,
           isSize,
           priceAdjust,
           isAvailable,
@@ -224,13 +228,16 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
                   <label className={labelClass} htmlFor="modifier-group">
                     Group
                   </label>
-                  <CategoryCombobox
-                    id="modifier-group"
-                    value={category}
-                    onChange={(value) => patch({ category: value })}
-                    categories={categories}
-                    placeholder="Milk, Size…"
+                  <Select
+                    value={groupId}
+                    onValueChange={(value) => {
+                      const selected = groups.find((group) => group.id === value);
+                      patch({ groupId: value, category: selected?.name ?? '', isSize: selected?.isSize ?? false });
+                    }}
+                    options={groups.map((group) => ({ value: group.id, label: group.name }))}
+                    ariaLabel="Modifier group"
                   />
+                  {!groups.length && <p className="mt-1 text-label text-warning">Create a group from the Modifiers list first.</p>}
                 </div>
               </div>
 

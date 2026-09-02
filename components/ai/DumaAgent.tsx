@@ -15,18 +15,18 @@ import { createPortal } from 'react-dom';
 import { ActionCard } from '@/components/ai/ActionCard';
 import { AgentMetrics } from '@/components/ai/AgentMetrics';
 import { LiveMarkdown } from '@/components/ai/LiveMarkdown';
+import { Mascot } from '@/components/ai/Mascot';
+import { type AgentMood, type AgentPhase, useAgentMood } from '@/components/ai/useAgentMood';
 import {
   ArrowUpRight,
   BarChart3,
   BookOpen,
   CalendarDays,
   Check,
-  ChefHat,
   ChevronRight,
   ClipboardCheck,
   Copy,
   CreditCard,
-  CursorMove,
   type IconComponent,
   Loader2,
   Mail,
@@ -34,6 +34,8 @@ import {
   Maximize,
   Minus,
   Package,
+  Plus,
+  QrCode,
   Receipt,
   Search,
   Send,
@@ -44,7 +46,6 @@ import {
   X,
   Zap,
 } from '@/components/icons';
-import { Logo } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
 
 import type {
@@ -55,7 +56,9 @@ import type {
   AgentShortcut,
   AgentStreamEvent,
 } from '@/lib/ai/agent-types';
+import type { AgentRefusal } from '@/lib/ai/agent-types';
 import { type Capability, hasAllCapabilities } from '@/lib/auth/capabilities';
+import { STATE_BY_ID } from '@/lib/mascot/engine/states';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -69,14 +72,12 @@ interface StarterPrompt {
 interface PageWelcome {
   title: string;
   description: string;
-  icon: IconComponent;
   prompts: StarterPrompt[];
 }
 
 const DEFAULT_WELCOME: PageWelcome = {
   title: 'What should we work on?',
   description: 'Ask about live operations, compare performance, or describe a task for DUMA to prepare.',
-  icon: Zap,
   prompts: [
     { icon: BookOpen, label: 'Learn this workspace', prompt: 'Explain what I can do on this page and show the most useful action.' },
     { icon: Package, label: 'Check stock risk', prompt: 'What runs out first at this location, and what should I reorder?' },
@@ -89,7 +90,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   dashboard: {
     title: 'What needs attention today?',
     description: 'Use the live workspace to find exceptions, understand pace, and decide the next useful action.',
-    icon: BarChart3,
     prompts: [
       {
         icon: ClipboardCheck,
@@ -104,11 +104,11 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   orders: {
     title: 'What do you need from Orders?',
     description: 'Investigate a sale, review fulfilment, or narrow the order history without rebuilding the filters by hand.',
-    icon: Receipt,
     prompts: [
       { icon: ShoppingCart, label: 'Review active orders', prompt: 'Show me the orders that are still pending, preparing, or ready.' },
       { icon: Search, label: 'Investigate an order', prompt: 'Help me find and explain a specific order.' },
       { icon: Receipt, label: 'Check cancellations', prompt: 'Summarise recent cancelled orders and any patterns in their reasons.' },
+      { icon: QrCode, label: 'Review QR orders', prompt: 'Show recent QR code orders separately from POS and Mobile.' },
       {
         icon: BarChart3,
         label: 'Compare order performance',
@@ -119,7 +119,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   inventory: {
     title: 'What should we do with stock?',
     description: 'Check cover, prepare purchasing work, or walk through a physical stock workflow from this workspace.',
-    icon: Package,
     prompts: [
       { icon: Package, label: 'Find low-stock risks', prompt: 'What is low or critical at this location, and what runs out first?' },
       { icon: ShoppingCart, label: 'Prepare a purchase order', prompt: 'Help me order the stock this location needs most.' },
@@ -134,7 +133,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   reports: {
     title: 'What do you want to understand?',
     description: 'Turn the current reporting question into a clear comparison, ranking, or operational recommendation.',
-    icon: BarChart3,
     prompts: [
       {
         icon: BarChart3,
@@ -149,7 +147,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   customers: {
     title: 'How can I help with customers?',
     description: 'Find a guest, understand loyalty activity, review segments, or work through a sensitive customer task.',
-    icon: Users,
     prompts: [
       { icon: Search, label: 'Find a customer', prompt: 'Help me find a customer by their name, phone number, or email.' },
       { icon: Users, label: 'Review customer segments', prompt: 'Show me the saved customer segments and explain what each one targets.' },
@@ -164,7 +161,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   communications: {
     title: 'What should we check in Communications?',
     description: 'Review connection health, active automations, templates, and delivery problems before sending anything.',
-    icon: Mail,
     prompts: [
       {
         icon: Mail,
@@ -187,7 +183,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   staff: {
     title: 'What does the team need?',
     description: 'Check cover, leave, payroll, or people operations using the permissions available to you.',
-    icon: Users,
     prompts: [
       { icon: CalendarDays, label: 'Check rota cover', prompt: 'Review this week’s rota and highlight gaps or unusual shifts.' },
       { icon: ClipboardCheck, label: 'Review leave requests', prompt: 'Show me the pending leave requests that need a decision.' },
@@ -198,7 +193,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   scheduling: {
     title: 'What do you need from the rota?',
     description: 'Check your working pattern or get help resolving a shift, attendance, or leave question.',
-    icon: CalendarDays,
     prompts: [
       { icon: CalendarDays, label: 'Understand my shifts', prompt: 'Summarise my rota and show me where to check each shift’s details.' },
       { icon: BookOpen, label: 'Request leave', prompt: 'Explain how to request leave and open the right place in My HR.' },
@@ -209,7 +203,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   'my-hr': {
     title: 'What can I help you do in My HR?',
     description: 'Get guidance for your personal details, leave, attendance, documents, or a private support request.',
-    icon: Users,
     prompts: [
       { icon: CalendarDays, label: 'Request leave', prompt: 'Guide me through submitting a leave request.' },
       { icon: ClipboardCheck, label: 'Correct attendance', prompt: 'Guide me through reporting a missing or incorrect clock event.' },
@@ -220,7 +213,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   menu: {
     title: 'What should we change in the menu?',
     description: 'Review availability and pricing, or get guided help with recipes and modifiers.',
-    icon: ShoppingCart,
     prompts: [
       { icon: Search, label: 'Check an item', prompt: 'Find a menu item and show its price, category, and availability.' },
       { icon: ShoppingCart, label: 'Update an item', prompt: 'Help me update a menu item’s price or availability.' },
@@ -231,7 +223,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   pos: {
     title: 'How can I help at the till?',
     description: 'Get quick guidance for service, customer identification, payment, or an interrupted transaction.',
-    icon: CreditCard,
     prompts: [
       { icon: BookOpen, label: 'Take an order', prompt: 'Guide me through taking and completing an order in POS.' },
       { icon: Users, label: 'Add a customer', prompt: 'Show me how to identify a customer before payment.' },
@@ -242,7 +233,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   kds: {
     title: 'What does the kitchen need?',
     description: 'Review the live queue or get guidance for moving tickets cleanly through preparation and hand-off.',
-    icon: ChefHat,
     prompts: [
       { icon: ShoppingCart, label: 'Review the active queue', prompt: 'Show orders that are pending, preparing, or ready.' },
       { icon: BookOpen, label: 'Run the KDS workflow', prompt: 'Guide me through moving an order from pending to collected.' },
@@ -257,7 +247,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   'cash-up': {
     title: 'What should we reconcile?',
     description: 'Check the trading-day state, understand a difference, or work through closing the location safely.',
-    icon: CreditCard,
     prompts: [
       { icon: Receipt, label: 'Check cash-up status', prompt: 'Show the latest cash-up record and any cash or card variance.' },
       { icon: BookOpen, label: 'Close the trading day', prompt: 'Guide me through closing and reconciling the trading day.' },
@@ -268,7 +257,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   compliance: {
     title: 'What needs attention in Compliance?',
     description: 'Review privacy deadlines and statuses, or get careful guidance for handling customer data requests.',
-    icon: ShieldCheck,
     prompts: [
       {
         icon: ShieldCheck,
@@ -287,7 +275,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   'audit-log': {
     title: 'What change are you investigating?',
     description: 'Narrow recent activity by actor, action, resource, or period and connect it back to the affected record.',
-    icon: ClipboardCheck,
     prompts: [
       { icon: ClipboardCheck, label: 'Review recent changes', prompt: 'Summarise the most recent audit activity.' },
       { icon: Search, label: 'Investigate a record', prompt: 'Help me find audit events for a specific order, customer, or stock item.' },
@@ -297,9 +284,14 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   },
   settings: {
     title: 'What do you want to configure?',
-    description: 'Get guidance for locations, security, trading details, devices, payments, and external connections.',
-    icon: Settings,
+    description: 'Get guidance or prepare safe changes for QR ordering, locations, security, trading details, payments, and connections.',
     prompts: [
+      {
+        icon: QrCode,
+        label: 'Check QR ordering',
+        prompt: 'Can customers place a QR order at this location right now? Explain any blocker.',
+      },
+      { icon: Settings, label: 'Update QR ordering', prompt: 'Help me enable, disable, pause, or update QR ordering for this location.' },
       { icon: Settings, label: 'Configure a location', prompt: 'Guide me through updating a location and its trading hours.' },
       { icon: ShieldCheck, label: 'Review security', prompt: 'Guide me through reviewing sessions and securing the account.' },
       { icon: CreditCard, label: 'Set up payments', prompt: 'Guide me through connecting and testing a payment provider.' },
@@ -309,7 +301,6 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   support: {
     title: 'What do you need help with?',
     description: 'Describe the task or problem and DUMA will find the closest guide or walk through it with you.',
-    icon: BookOpen,
     prompts: [
       { icon: Search, label: 'Find the right guide', prompt: 'Help me find the guide for the task I am trying to complete.' },
       { icon: ShoppingCart, label: 'Run a service workflow', prompt: 'Show me the guide for running a shift from open to close.' },
@@ -332,6 +323,7 @@ const PROMPT_CAPABILITIES: Partial<Record<string, Capability[]>> = {
   'Review active orders': ['orders:read'],
   'Investigate an order': ['orders:read'],
   'Check cancellations': ['orders:read'],
+  'Review QR orders': ['orders:read'],
   'Compare order performance': ['analytics:read'],
   'Find low-stock risks': ['inventory:read'],
   'Prepare a purchase order': ['purchasing:write'],
@@ -368,6 +360,8 @@ const PROMPT_CAPABILITIES: Partial<Record<string, Capability[]>> = {
   'Review an actor': ['audit:read'],
   'Check sensitive changes': ['audit:read'],
   'Configure a location': ['locations:write'],
+  'Check QR ordering': ['qr-ordering:read'],
+  'Update QR ordering': ['qr-ordering:write'],
   'Set up payments': ['payments.connections:write'],
   'Connect customer email': ['email.connections:write'],
 };
@@ -454,7 +448,7 @@ function shortcutKey(shortcut: AgentShortcut) {
  * turns finish inside that window, and a timer on a fast answer reads as an
  * apology for speed it did not need to make.
  */
-function ThinkingTrail({ steps }: { steps: string[] }) {
+function ThinkingTrail({ steps, caption }: { steps: string[]; caption: string }) {
   const [elapsed, setElapsed] = useState(0);
   const [showDone, setShowDone] = useState(false);
 
@@ -464,21 +458,23 @@ function ThinkingTrail({ steps }: { steps: string[] }) {
     return () => window.clearInterval(timer);
   }, []);
 
-  const current = steps[steps.length - 1];
-  if (!current) return null;
+  // The mood's own caption until a real step arrives, so the row can appear the
+  // moment the request goes out. It used to wait for the first step and render
+  // nothing before it, which left the mascot with no words beside it during the
+  // part of the wait that most needs them.
+  const current = steps[steps.length - 1] ?? caption;
   const done = steps.slice(0, -1);
 
   return (
-    <div className="mt-6">
+    <div>
       <div className="flex items-center gap-2">
-        <Loader2 size={13} className="shrink-0 animate-spin text-muted-foreground" aria-hidden="true" />
         {/* Keyed on the label so a new step crossfades in rather than swapping
             character-for-character under the reader. */}
         <span
           key={current}
           role="status"
           aria-live="polite"
-          className="min-w-0 flex-1 truncate text-sm text-muted-foreground duration-300 animate-in fade-in slide-in-from-bottom-1 motion-reduce:animate-none"
+          className="min-w-0 flex-1 truncate text-sm leading-7 text-muted-foreground duration-300 animate-in fade-in slide-in-from-bottom-1 motion-reduce:animate-none"
         >
           {current}…
         </span>
@@ -545,12 +541,190 @@ function StepsTaken({ steps }: { steps: string[] }) {
   );
 }
 
-function AgentMark({ nonce, busy, size = 36 }: { nonce: number; busy: boolean; size?: number }) {
+/**
+ * The arrival flourish, shared by both of the panel's mascots.
+ *
+ * `swirl` is the engine's own interface transition and the reason it exists:
+ * three rings sweep in around a mascot that keeps both its body and its resting
+ * face, so it is already tracking the cursor on its first frame. Opening a panel
+ * is exactly the occasion it was built for.
+ *
+ * It replaced a spin of the eyes right round the sphere, which was the nicer
+ * effect and is not available to us: anything anchored to the outline is refitted
+ * to the real radius in its own direction, so on a hexagonal body the eyes step
+ * over the flats and corners instead of gliding. See `SPIN` in `lib/mascot/gaze`.
+ *
+ * Returns whether the entrance is still playing. It yields the moment there is
+ * real news to carry — someone who opens the panel and immediately clicks a
+ * starter prompt should see the wait, not the greeting finishing — so any pose
+ * other than resting wins outright.
+ */
+function useEntrance(mood: AgentMood) {
+  const [entering, setEntering] = useState(true);
+
+  useEffect(() => {
+    if (!entering) return;
+    // Held for `swirl`'s own measured length, at the end of which its rings have
+    // already faded — so the handover lands on a frame that is clean anyway.
+    const timer = window.setTimeout(() => setEntering(false), (STATE_BY_ID.get('swirl')?.duration ?? 1.3) * 1_000);
+    return () => window.clearTimeout(timer);
+  }, [entering]);
+
+  return entering && mood.state === 'idle';
+}
+
+/**
+ * The mascot at the top of the open panel: who you are talking to, and what it is
+ * doing right now.
+ *
+ * It tracks the pointer, unlike the minimised bar's, and that is the difference
+ * between chrome and a presence: this is the thing you opened the panel to talk
+ * to, so it looks at you while you type at it. The welcome hero does the same, and
+ * the two are only ever on screen together before the first question, where they
+ * read as one character large and small rather than two disagreeing: same mood,
+ * same cursor.
+ *
+ * 48 for a 30px ball, against the 21px this header carried before. It has to be a
+ * presence rather than a favicon, because it is the whole of the assistant's
+ * embodiment here and it has to hold poses that have somewhere to go — the rings
+ * of a wait, the pastille of an answer landing, the travelling "!" of a failure.
+ * At badge size those were smudges.
+ */
+function PanelMark({ mood }: { mood: AgentMood }) {
+  const arriving = useEntrance(mood);
+  return <Mascot size={48} state={arriving ? 'swirl' : mood.state} expression={mood.expression} follow />;
+}
+
+/**
+ * The mascot in the minimised bar.
+ *
+ * The one place it stays a badge, and only because there is no conversation on
+ * screen to be present in: collapsed, this strip and its status line are all a
+ * reader has. So it plays the arrival and then holds the mood, but it does **not**
+ * track the pointer — a strip in the corner of the screen is chrome, and eyes
+ * following you out of chrome are a distraction rather than a greeting.
+ */
+function MinimizedMark({ mood }: { mood: AgentMood }) {
+  const arriving = useEntrance(mood);
+  return <Mascot size={44} state={arriving ? 'swirl' : mood.state} expression={mood.expression} />;
+}
+
+/**
+ * Frame rate for the header mascot at rest.
+ *
+ * It used to hold a completely still frame, which was the wrong trade: this is the
+ * product's mark, on screen on every page, and a motionless character reads as a
+ * broken image rather than a calm one. But a full 60fps loop running all shift on a
+ * till or kitchen tablet is a real cost for breathing nobody asked to see.
+ *
+ * So it breathes and blinks at a third of the rate. The engine is a pure function
+ * of time, so this is genuinely the same animation with fewer frames drawn, and
+ * everything it does at rest is slow: a 0.5% breath over 3.4s, gaze drift on 4–11s
+ * periods.
+ *
+ * The blink is the one brief thing, at 0.18s, and it set this number. Auditing the
+ * whole pre-drawn 900s blink schedule against each candidate rate, 20fps is the
+ * cheapest that catches **every** blink — 15 drops 6 of 316 and 12 drops 12. A
+ * missed blink is not a rough blink, it is a blink that never happened, and a mascot
+ * that blinks only most of the time reads as one that stutters.
+ */
+const IDLE_FPS = 20;
+
+/**
+ * The mascot in the application header: the control that opens the panel.
+ *
+ * It owns the button rather than sitting inside one, because waking up is a
+ * property of the control and not of the drawing. Both halves of that were bugs
+ * when the mascot was a child: `display: contents` gives an element no box to
+ * hit-test, and `onFocus` on a child never fires for focus that lands on the
+ * button above it — so a keyboard user got no reaction at all.
+ *
+ * **Quiet until it has a reason not to be.** At rest it breathes and blinks at
+ * `IDLE_FPS` and looks straight ahead. Reaching for it — pointer or focus ring —
+ * brings it to full rate, starts it tracking the cursor and plays a wink; so does a
+ * request in flight with the panel shut, which is the one time the header has news
+ * of its own.
+ *
+ * Waking is the reaction, not a decoration on top of one, which is also why the
+ * button drops the hover plate its neighbours carry: a grey rectangle sliding in
+ * behind a character that is already looking at you is the weaker signal and the
+ * redundant one.
+ */
+function AgentLauncher({
+  mood,
+  busy,
+  open,
+  onOpen,
+}: {
+  mood: AgentMood;
+  busy: boolean;
+  open: boolean;
+  onOpen: (opener: HTMLElement) => void;
+}) {
+  const [reached, setReached] = useState(false);
+  /** The greeting, which plays once per arrival rather than for as long as you hover. */
+  const [greeting, setGreeting] = useState(false);
+  const awake = reached || busy;
+
+  // The greeting is *started* by the arrival that causes it and only ended here,
+  // so this effect subscribes to a clock rather than deciding anything. Arriving
+  // again while a wink is still running does not restart it, which keeps a
+  // jittery pointer on the edge of the button from stuttering.
+  useEffect(() => {
+    if (!greeting) return;
+    // Held for `wink`'s own measured duration, so the greeting ends where the
+    // pose does rather than at a number picked to look about right.
+    const timer = window.setTimeout(() => setGreeting(false), (STATE_BY_ID.get('wink')?.duration ?? 1.6) * 1_000);
+    return () => window.clearTimeout(timer);
+  }, [greeting]);
+
+  const arrive = () => {
+    setReached(true);
+    setGreeting(true);
+  };
+
   return (
-    <span className={cn('relative shrink-0', busy && 'animate-pulse')} style={{ width: size, height: size }}>
-      <Logo key={nonce} size={size} className="animate-in fade-in zoom-in-75 duration-500 motion-reduce:animate-none" />
-      {busy ? <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-stock ring-2 ring-card" aria-hidden="true" /> : null}
-    </span>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-touch"
+      onClick={(event) => onOpen(event.currentTarget)}
+      // Touch has no hover, so a tap would wake it and never let it sleep again,
+      // leaving a loop running for the session on exactly the devices that can
+      // least afford one. A tap opens the panel anyway, which is a better greeting.
+      onPointerEnter={(event) => event.pointerType !== 'touch' && arrive()}
+      onPointerLeave={() => setReached(false)}
+      onFocus={arrive}
+      onBlur={() => setReached(false)}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-label="Ask DUMA"
+      className={cn('hover:bg-transparent', open && 'bg-band text-primary')}
+    >
+      <Mascot
+        // Matched to the 44px button — the design system's named touch size — so
+        // the box has no overflow to collide with the controls beside it and the
+        // orbit rings of a wait still land inside it.
+        //
+        // That is a 28px ball against the 22px the logo tile drew here before, and
+        // it sits deliberately past its 36px neighbours: the reload and theme
+        // controls are glyphs, this one is a character and the way into the
+        // assistant, and a taller thing in a row of even ones reads as hierarchy
+        // rather than as misalignment.
+        size={44}
+        // The eyes are holes, so they show the button's ground, and this button
+        // has two: band while the panel is open, porcelain otherwise. Left to the
+        // default the eyes would stay porcelain on a band plate, which is not a
+        // subtle wrongness — it is the one place on the mascot with no ink over it.
+        paper={open ? 'var(--band)' : undefined}
+        // A greeting only makes sense when there is no news to carry: a request in
+        // flight outranks being winked at.
+        state={!busy && greeting ? 'wink' : mood.state}
+        expression={mood.expression}
+        follow={awake}
+        fps={awake ? undefined : IDLE_FPS}
+      />
+    </Button>
   );
 }
 
@@ -636,7 +810,22 @@ export function DumaAgent() {
   const [isDesktop, setIsDesktop] = useState(false);
   const [position, setPosition] = useState<FloatingPosition>();
   const [dragging, setDragging] = useState(false);
-  const [logoNonce, setLogoNonce] = useState(0);
+  /**
+   * How the last turn ended, kept so the mascot can react to it rather than
+   * inferring from the transcript. Sniffing the last message's text for "Stopped"
+   * would tie a pose to a sentence, and the sentence is the part that gets
+   * rewritten. It is never cleared on a timer — `useAgentMood` decays the
+   * reaction itself — only replaced by the next turn.
+   */
+  const [outcome, setOutcome] = useState<'delivered' | 'stopped' | 'completed'>();
+  /**
+   * Which rule declined the last request, if one did.
+   *
+   * Kept apart from `error` because the two are not the same event: a security
+   * refusal also puts a message in the error box, but it is the product refusing to
+   * be talked past rather than something going wrong, and it gets a different face.
+   */
+  const [refusal, setRefusal] = useState<AgentRefusal>();
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [pendingAction, setPendingAction] = useState<AgentPendingAction>();
@@ -774,7 +963,6 @@ export function DumaAgent() {
     openerRef.current = opener;
     setOpen(true);
     setMinimized(false);
-    setLogoNonce(Date.now());
   };
 
   const applyResponse = useCallback((result: AgentChatResponse, taken: string[] = []) => {
@@ -784,6 +972,7 @@ export function DumaAgent() {
         role: 'assistant',
         steps: taken,
         content: result.message,
+        refused: result.refused,
         evidence: result.evidence,
         scope: result.scope,
         shortcuts: result.shortcuts,
@@ -795,6 +984,7 @@ export function DumaAgent() {
     ]);
     setPendingAction(result.pendingAction);
     setTestMode(result.testMode);
+    setOutcome('delivered');
   }, []);
 
   const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
@@ -853,6 +1043,8 @@ export function DumaAgent() {
     setPendingAction(undefined);
     setError('');
     setSteps([]);
+    setOutcome(undefined);
+    setRefusal(undefined);
     takenRef.current = [];
     setBusy(true);
     const startedAt = performance.now();
@@ -913,6 +1105,7 @@ export function DumaAgent() {
       if (!answered) throw new Error('The answer stopped before it arrived. Try again.');
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === 'AbortError') {
+        setOutcome('stopped');
         setMessages((current) => [...current, { role: 'assistant', content: 'Stopped. Ask again when you are ready.' }]);
       } else {
         await waitForMinimum(startedAt);
@@ -923,6 +1116,23 @@ export function DumaAgent() {
       setBusy(false);
       setSteps([]);
     }
+  };
+
+  /**
+   * Back to an empty panel.
+   *
+   * Promoted out of a text link in the composer footer and into the header, where
+   * a destructive-ish action belongs beside the other window controls rather than
+   * a thumb's width from Send. It clears the outcome too: without that, wiping the
+   * transcript left the mascot still holding the pose of an answer that is no
+   * longer on screen.
+   */
+  const startFresh = () => {
+    setMessages([]);
+    setPendingAction(undefined);
+    setError('');
+    setOutcome(undefined);
+    setRefusal(undefined);
   };
 
   const openShortcut = (shortcut: AgentShortcut) => {
@@ -942,6 +1152,8 @@ export function DumaAgent() {
     setError('');
     setSteps(['Checking your approval', 'Validating the details', testMode ? 'Running a safe test' : 'Writing to DUMA']);
     const startedAt = performance.now();
+    /** Carried out of the try so the catch can tell a refusal from a failure. */
+    let refused: AgentRefusal | undefined;
     try {
       const response = await fetch('/api/agent', {
         method: 'POST',
@@ -950,13 +1162,20 @@ export function DumaAgent() {
       });
       const result = (await response.json()) as AgentChatResponse;
       await waitForMinimum(startedAt);
-      if (!response.ok) throw new Error(result.message || 'The action could not be completed.');
+      if (!response.ok) {
+        refused = result.refused;
+        throw new Error(result.message || 'The action could not be completed.');
+      }
       setMessages((current) => [...current, { role: 'assistant', content: result.message, shortcuts: result.shortcuts, live: true }]);
       setPendingAction(undefined);
       setTestMode(result.testMode);
+      // A rehearsal changed nothing, so it does not get the pose of a write that
+      // went through.
+      setOutcome(result.testMode ? 'delivered' : 'completed');
     } catch (caught) {
       await waitForMinimum(startedAt);
       setError(caught instanceof Error ? caught.message : 'The action could not be completed.');
+      if (refused) setRefusal(refused);
     } finally {
       setBusy(false);
       setSteps([]);
@@ -972,8 +1191,80 @@ export function DumaAgent() {
     return !required || hasAllCapabilities(capabilities, ...required);
   });
   const visiblePrompts = permittedPrompts.length > 0 ? permittedPrompts : [DEFAULT_WELCOME.prompts[0]];
-  const WelcomeIcon = welcome.icon;
   const floatingStyle = isDesktop && position ? { left: position.x, top: position.y } : undefined;
+
+  /**
+   * What the panel is doing, in the mascot's terms. Ordered by what a person
+   * would notice first if two were true at once.
+   *
+   * `listening` sits above `delivered` on purpose: an answer that has just landed
+   * is still dwelling on the mascot, and someone who has already started typing
+   * their follow-up should be looked at rather than kept waiting for the pastille
+   * to fade. It sits *below* `writing` for the mirror reason — typing while the
+   * answer is still arriving does not mean the answer stopped arriving.
+   *
+   * `thinking` and `working` split on whether any step has streamed back yet, so
+   * the three dots mean "nothing to report" and the rings mean "it is on the
+   * second thing" — which is the distinction the caption is also making.
+   */
+  /**
+   * Which rule declined the last turn, from either place one can speak: the scope
+   * guard answers with a message that carries the reason, while a security rule
+   * fails the request instead of answering it.
+   */
+  const declined = refusal ?? (lastMessage?.role === 'assistant' ? lastMessage.refused : undefined);
+
+  const phase: AgentPhase = // A security refusal outranks even the error box it also fills. It is the one
+    // thing in this list the mascot is angry about, and that is the point of it.
+    declined === 'security'
+      ? 'blocked'
+      : error
+        ? 'failed'
+        : pendingAction
+          ? 'asking'
+          : busy
+            ? steps.length > 1
+              ? 'working'
+              : 'thinking'
+            : // A refusal is never `writing`: that pose is eager, and being eager
+              // while declining someone is the wrong face on the right words. Both
+              // refusals rank below `listening`, so typing a follow-up gets you
+              // looked at rather than go on being refused at.
+              lastMessage?.role === 'assistant' && lastMessage.live && !declined
+              ? 'writing'
+              : draft.trim()
+                ? 'listening'
+                : declined === 'scope'
+                  ? 'declined'
+                  : outcome === 'completed'
+                    ? 'completed'
+                    : outcome === 'stopped'
+                      ? 'stopped'
+                      : outcome === 'delivered'
+                        ? 'delivered'
+                        : 'resting';
+
+  /**
+   * Resolved once, here, and passed down — not called per mascot.
+   *
+   * Two mascots are on screen together before the first question (the header
+   * badge and the welcome hero) and they have to be the same character: separate
+   * hook instances would run separate timers and could hold different poses, at
+   * which point they read as two mascots that disagree.
+   */
+  const mood = useAgentMood(phase, { canDoze: open && !minimized });
+
+  /**
+   * The mascot's pose in words.
+   *
+   * Not decoration: a pose is colour-and-shape, and the product's Two-Channel
+   * Rule says no state may be carried by that alone. It is also the more useful
+   * of the two channels mid-request — "Reading the order history" says something
+   * the three pulsing dots cannot — so the live step wins over the mood's own
+   * caption whenever there is one.
+   */
+  const status = busy && steps.length > 0 ? `${steps[steps.length - 1]}…` : mood.caption;
+
   const dragHandleProps = {
     onPointerDown: startDrag,
     onPointerMove: moveDrag,
@@ -984,18 +1275,7 @@ export function DumaAgent() {
 
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={(event) => openPanel(event.currentTarget)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label="Ask DUMA"
-        className={open ? 'bg-band text-primary' : undefined}
-      >
-        <Logo size={22} />
-      </Button>
+      <AgentLauncher mood={mood} busy={busy} open={open} onOpen={openPanel} />
 
       {mounted
         ? createPortal(
@@ -1030,14 +1310,16 @@ export function DumaAgent() {
                           dragging && 'sm:cursor-grabbing',
                         )}
                       >
-                        <CursorMove size={14} className="hidden shrink-0 text-muted-foreground/60 sm:block" aria-hidden="true" />
-                        <AgentMark nonce={logoNonce} busy={busy} size={34} />
+                        <MinimizedMark mood={mood} />
                         <div className="min-w-0 flex-1">
                           <h2 id="duma-agent-title" className="truncate text-sm font-semibold">
                             Ask DUMA
                           </h2>
-                          <p className="truncate text-label text-muted-foreground">
-                            {busy ? `${steps[steps.length - 1] ?? 'Working'}…` : `Following ${currentPage}`}
+                          {/* Minimised, this line is the only thing left that can
+                              say what is happening, so it carries the live status
+                              rather than the page being followed. */}
+                          <p className="truncate text-label text-muted-foreground" role="status" aria-live="polite">
+                            {status}
                           </p>
                         </div>
                       </div>
@@ -1069,14 +1351,39 @@ export function DumaAgent() {
                             dragging && 'sm:cursor-grabbing',
                           )}
                         >
-                          <CursorMove size={14} className="hidden shrink-0 text-muted-foreground/60 sm:block" aria-hidden="true" />
-                          <AgentMark nonce={logoNonce} busy={busy} size={26} />
+                          {/*
+                            The panel's face, and the only mascot in it once a
+                            conversation is running.
+
+                            Large enough to be a presence rather than a favicon — a
+                            30px ball, against the 21px this header carried before —
+                            because it is the whole of the assistant's embodiment
+                            here, and it has to hold poses that have somewhere to
+                            go: the orbit rings of a wait, the pastille of an answer
+                            landing, the travelling "!" of a failure. At the old
+                            size those were smudges.
+                          */}
+                          <PanelMark mood={mood} />
                           <div className="min-w-0 flex-1">
                             <h2 id="duma-agent-title" className="truncate text-sm font-semibold text-foreground">
                               Ask DUMA
                             </h2>
+                            {/* The pose is colour and shape, and the product's
+                                Two-Channel Rule says no state travels on that
+                                alone — so the mood's own words sit under the title,
+                                replaced by the live step once there is one. Held to
+                                one line so a changing status cannot reflow the
+                                header under the reader. */}
+                            <p className="truncate text-label text-muted-foreground" role="status" aria-live="polite">
+                              {status}
+                            </p>
                           </div>
                         </div>
+                        {messages.length > 0 && (
+                          <Button variant="ghost" size="icon-sm" onClick={startFresh} aria-label="Start a new chat">
+                            <Plus aria-hidden="true" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon-sm" onClick={() => setMinimized(true)} aria-label="Minimize Ask DUMA">
                           <Minus aria-hidden="true" />
                         </Button>
@@ -1095,10 +1402,21 @@ export function DumaAgent() {
                               className="flex flex-1 flex-col items-center justify-center py-6 text-center"
                               aria-labelledby="duma-welcome-title"
                             >
-                              <span className="mx-auto flex size-10 items-center justify-center rounded-md bg-band text-primary">
-                                <WelcomeIcon size={18} aria-hidden="true" />
-                              </span>
-                              <h3 id="duma-welcome-title" className="mt-3 text-base font-semibold tracking-title text-foreground">
+                              {/*
+                                The greeting, and the one place the mascot is the
+                                character rather than a badge: it spins up on
+                                arrival and then watches the cursor, so an empty
+                                panel is somebody waiting rather than a blank box
+                                with a tip in it.
+
+                                It replaced an icon-in-a-tile that changed per
+                                page — a second, quieter picture of what the page
+                                was, three lines above a heading that already said
+                                so. The mascot says the thing the tile could not,
+                                which is that there is someone here.
+                              */}
+                              <Mascot size={112} state={mood.state} expression={mood.expression} follow label="DUMA's assistant" />
+                              <h3 id="duma-welcome-title" className="mt-2 text-base font-semibold tracking-title text-foreground">
                                 {welcome.title}
                               </h3>
                               <p className="mx-auto mt-1 max-w-[40ch] text-sm leading-6 text-muted-foreground">{welcome.description}</p>
@@ -1132,88 +1450,86 @@ export function DumaAgent() {
                             </div>
                           </div>
                         ) : (
-                          <div className="space-y-6">
-                            {messages.map((message, index) => (
-                              <div
-                                key={`${message.role}-${index}`}
-                                className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}
-                              >
-                                <div
-                                  className={cn(
-                                    // The answer is prose on the page, with no rule
-                                    // or bubble competing with it; only the question
-                                    // is boxed, and quietly, so a turn reads as one
-                                    // continuous conversation rather than two columns.
-                                    'text-sm',
-                                    message.role === 'user'
-                                      ? 'max-w-[85%] rounded-md bg-band px-3 py-2 leading-6 whitespace-pre-wrap text-foreground'
-                                      : 'w-full leading-7 text-foreground',
-                                  )}
-                                >
-                                  {message.role === 'assistant' ? (
-                                    <LiveMarkdown
-                                      content={message.content}
-                                      active={message.live}
-                                      onDone={() =>
-                                        setMessages((current) =>
-                                          current.map((item, itemIndex) => (itemIndex === index ? { ...item, live: false } : item)),
-                                        )
-                                      }
-                                    />
-                                  ) : (
-                                    message.content
-                                  )}
-                                  {message.role === 'assistant' &&
-                                    message.cards?.map((card, cardIndex) => <AgentMetrics key={cardIndex} card={card} />)}
-                                  {message.role === 'assistant' && message.shortcuts?.length ? (
+                          <div className="space-y-5">
+                            {messages.map((message, index) =>
+                              message.role === 'user' ? (
+                                /* Only the question is boxed, and quietly. The
+                                   answer is prose hanging off the mascot column, so
+                                   a turn reads as one conversation with two sides
+                                   rather than a stack of matching bubbles. */
+                                <div key={`user-${index}`} className="flex justify-end">
+                                  <p className="max-w-[85%] rounded-md bg-band px-3 py-2 text-sm leading-6 whitespace-pre-wrap text-foreground">
+                                    {message.content}
+                                  </p>
+                                </div>
+                              ) : (
+                                <div key={`assistant-${index}`} className="text-sm leading-7 text-foreground">
+                                  <LiveMarkdown
+                                    content={message.content}
+                                    active={message.live}
+                                    onDone={() =>
+                                      setMessages((current) =>
+                                        current.map((item, itemIndex) => (itemIndex === index ? { ...item, live: false } : item)),
+                                      )
+                                    }
+                                  />
+                                  {message.cards?.map((card, cardIndex) => (
+                                    <AgentMetrics key={cardIndex} card={card} />
+                                  ))}
+                                  {message.shortcuts?.length ? (
                                     <ShortcutList shortcuts={message.shortcuts} openingKey={openingShortcut} onOpen={openShortcut} />
                                   ) : null}
-                                  {message.role === 'assistant' && message.fallbackModel ? (
+                                  {message.fallbackModel ? (
                                     <p className="mt-1.5 flex items-center gap-1.5 text-label text-muted-foreground">
                                       <Zap size={11} className="shrink-0 text-stock" aria-hidden="true" />
                                       Primary model was at its limit — answered by {message.fallbackModel}
                                     </p>
                                   ) : null}
-                                  {message.role === 'assistant' ? (
-                                    <div className="mt-1 flex items-center justify-between gap-3">
-                                      <StepsTaken steps={message.steps ?? []} />
-                                      <CopyAnswer content={message.content} />
-                                    </div>
-                                  ) : null}
+                                  <div className="mt-1 flex items-center justify-between gap-3">
+                                    <StepsTaken steps={message.steps ?? []} />
+                                    <CopyAnswer content={message.content} />
+                                  </div>
                                 </div>
+                              ),
+                            )}
+
+                            {/* No spinner beside it: the mascot at the top of the
+                                panel is the indicator, and a second animation down
+                                here would be the same news told twice. What this
+                                row owes the reader is the words — which step, how
+                                long, what is already done. */}
+                            {busy && <ThinkingTrail steps={steps} caption={mood.caption} />}
+
+                            {error && (
+                              <p className="rounded-sm border border-exception/50 bg-exception/5 p-3 text-sm text-exception" role="alert">
+                                {error}
+                              </p>
+                            )}
+
+                            {pendingAction && (
+                              <ActionCard
+                                action={pendingAction}
+                                testMode={testMode}
+                                busy={busy}
+                                onConfirm={(submission) => void confirmAction(submission)}
+                                onCancel={() => setPendingAction(undefined)}
+                              />
+                            )}
+
+                            {followUps.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5" aria-label="Suggested follow-ups">
+                                {followUps.map((followUp) => (
+                                  <button
+                                    key={followUp}
+                                    type="button"
+                                    onClick={() => void send(followUp)}
+                                    className="rounded-sm bg-band px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                                  >
+                                    {followUp}
+                                  </button>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {busy && steps.length > 0 ? <ThinkingTrail steps={steps} /> : null}
-                        {error && (
-                          <p className="mt-4 rounded-sm border border-exception/50 bg-exception/5 p-3 text-sm text-exception" role="alert">
-                            {error}
-                          </p>
-                        )}
-                        {pendingAction && (
-                          <ActionCard
-                            action={pendingAction}
-                            testMode={testMode}
-                            busy={busy}
-                            onConfirm={(submission) => void confirmAction(submission)}
-                            onCancel={() => setPendingAction(undefined)}
-                          />
-                        )}
-
-                        {followUps.length > 0 && (
-                          <div className="mt-5 flex flex-wrap gap-1.5" aria-label="Suggested follow-ups">
-                            {followUps.map((followUp) => (
-                              <button
-                                key={followUp}
-                                type="button"
-                                onClick={() => void send(followUp)}
-                                className="rounded-sm bg-band px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                              >
-                                {followUp}
-                              </button>
-                            ))}
+                            )}
                           </div>
                         )}
                       </div>
@@ -1259,22 +1575,9 @@ export function DumaAgent() {
                             </Button>
                           )}
                         </div>
-                        <div className="mt-1.5 flex items-center justify-between gap-3 px-1 text-label text-muted-foreground">
-                          <span>{testMode ? 'Test mode · writes are simulated' : 'Live mode · writes need approval'}</span>
-                          {messages.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setMessages([]);
-                                setPendingAction(undefined);
-                                setError('');
-                              }}
-                              className="font-semibold text-foreground hover:underline"
-                            >
-                              Clear
-                            </button>
-                          )}
-                        </div>
+                        <p className="mt-1.5 px-1 text-label text-muted-foreground">
+                          {testMode ? 'Test mode · writes are simulated' : 'Live mode · writes need approval'}
+                        </p>
                       </form>
                     </>
                   )}

@@ -5,7 +5,7 @@ import { ChefHat, UtensilsCrossed } from '@/components/icons';
 import { useEffect, useState } from 'react';
 
 import { RecipeSummaryChips } from '@/components/menu/RecipeEditorPage';
-import { AvailabilityToggle, CATEGORY_COLORS, CATEGORY_LABELS, CATEGORY_OPTIONS, inputClass, labelClass, selectClass } from '@/components/menu/shared';
+import { AvailabilityToggle, categoryLabel, categoryTone, inputClass, labelClass, selectClass } from '@/components/menu/shared';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
@@ -13,8 +13,11 @@ import {
   attachModifier,
   createMenuItem,
   detachModifier,
+  getMenuCategories,
+  getMenuItemModifierGroups,
   getMenuItemModifiers,
   getModifiers,
+  setMenuItemModifierGroupRule,
   setModifierDefault,
   updateMenuItem,
 } from '@/lib/api/menu.service';
@@ -41,6 +44,10 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
     queryKey: ['modifiers', tenantId],
     queryFn: () => getModifiers(tenantId),
   });
+  const { data: rules = [] } = useQuery({
+    queryKey: ['menu-item-modifier-groups', menuItemId],
+    queryFn: () => getMenuItemModifierGroups(menuItemId),
+  });
 
   const attachedIds = new Set(attached.map((m) => m.id));
   const defaultIds = new Set(attached.filter((m) => m.isDefault).map((m) => m.id));
@@ -50,13 +57,30 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
       if (on) await attachModifier(menuItemId, modifierId);
       else await detachModifier(menuItemId, modifierId);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['menu-item-modifiers', menuItemId] }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['menu-item-modifiers', menuItemId] }),
+        qc.invalidateQueries({ queryKey: ['menu-item-modifier-groups', menuItemId] }),
+      ]);
+    },
   });
 
   const toggleDefault = useMutation({
     mutationFn: ({ modifierId, isDefault }: { modifierId: string; isDefault: boolean }) =>
       setModifierDefault(menuItemId, modifierId, isDefault),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['menu-item-modifiers', menuItemId] }),
+  });
+
+  const updateRule = useMutation({
+    mutationFn: ({ groupId, value }: { groupId: string; value: string }) => {
+      const [minimum, maximum] = value.split(':');
+      return setMenuItemModifierGroupRule(menuItemId, groupId, {
+        minSelections: Number(minimum),
+        maxSelections: maximum === 'many' ? null : Number(maximum),
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['menu-item-modifier-groups', menuItemId] }),
+    onError: (err) => toast('error', err.message || 'The selection rule was not updated.'),
   });
 
   const groups = groupByCategory(all, (m) => modifierCategory(m));
@@ -69,7 +93,29 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
         <div className="flex flex-col gap-2 overflow-y-auto pr-1">
           {groups.map((group) => (
             <div key={group.category}>
-              <p className="px-1 pb-0.5 text-micro font-semibold text-muted-foreground uppercase tracking-micro">{group.category}</p>
+              <div className="flex items-center justify-between gap-3 px-1 pb-1">
+                <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">{group.category}</p>
+                {(() => {
+                  const groupId = group.items.find((modifier) => modifier.groupId)?.groupId;
+                  const rule = rules.find((entry) => entry.id === groupId);
+                  if (!groupId || !rule) return null;
+                  const value = `${rule.minSelections}:${rule.maxSelections ?? 'many'}`;
+                  return (
+                    <Select
+                      value={value}
+                      onValueChange={(next) => updateRule.mutate({ groupId, value: next })}
+                      options={[
+                        { value: '0:1', label: 'Optional · choose one' },
+                        { value: '1:1', label: 'Required · choose one' },
+                        { value: '0:many', label: 'Optional · choose many' },
+                        { value: '1:many', label: 'Required · choose many' },
+                      ]}
+                      ariaLabel={`${group.category} selection rule`}
+                      className="h-8 w-48 text-xs"
+                    />
+                  );
+                })()}
+              </div>
               {group.items.map((m) => {
                 const isAttached = attachedIds.has(m.id);
                 return (
@@ -142,6 +188,7 @@ export function MenuItemForm({
   const { ctx: vat } = useVatContext();
   const [name, setName] = useState(item?.name ?? '');
   const [category, setCategory] = useState<MenuCategory>(item?.category ?? 'coffee');
+  const [categoryId, setCategoryId] = useState(item?.categoryId ?? '');
   const [price, setPrice] = useState(item?.price ?? '');
   // '' means "use the tenant default"; '0' is a real, different answer (zero-rated).
   const [vatRate, setVatRate] = useState(item?.vatRate ?? '');
@@ -149,12 +196,19 @@ export function MenuItemForm({
   const [imageUrl, setImageUrl] = useState(item?.imageUrl ?? '');
   const [isAvailable, setIsAvailable] = useState(item?.isAvailable ?? true);
   const [imageBroken, setImageBroken] = useState(false);
+  const { data: categories = [] } = useQuery({
+    queryKey: ['menu-categories', tenantId],
+    queryFn: () => getMenuCategories(tenantId),
+    enabled: Boolean(tenantId),
+  });
+  const currentCategory = categories.find((entry) => entry.id === categoryId || (!categoryId && entry.slug === category));
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: () => {
       const payload = {
         name,
         category,
+        categoryId: categoryId || currentCategory?.id,
         price,
         // null clears the override on the server; undefined would leave it be.
         vatRate: vatRate.trim() === '' ? null : vatRate.trim(),
@@ -181,6 +235,7 @@ export function MenuItemForm({
   const dirty =
     name !== (item?.name ?? '') ||
     category !== (item?.category ?? 'coffee') ||
+    categoryId !== (item?.categoryId ?? '') ||
     price !== (item?.price ?? '') ||
     vatRate !== (item?.vatRate ?? '') ||
     description !== (item?.description ?? '') ||
@@ -215,10 +270,10 @@ export function MenuItemForm({
             <span
               className={cn(
                 'absolute top-3 left-3 px-2.5 py-1 rounded-sm text-micro font-semibold uppercase tracking-micro backdrop-blur-sm',
-                CATEGORY_COLORS[category],
+                categoryTone(category, currentCategory),
               )}
             >
-              {CATEGORY_LABELS[category]}
+              {categoryLabel(category, currentCategory)}
             </span>
             <div className="absolute top-3 right-3">
               <AvailabilityToggle on={isAvailable} onToggle={() => setIsAvailable((v) => !v)} />
@@ -247,9 +302,17 @@ export function MenuItemForm({
               <div>
                 <label className={labelClass}>Category</label>
                 <Select
-                  value={category}
-                  onValueChange={(value) => setCategory(value as MenuCategory)}
-                  options={CATEGORY_OPTIONS.map(([value, label]) => ({ value, label }))}
+                  value={categoryId || currentCategory?.id || category}
+                  onValueChange={(value) => {
+                    const selected = categories.find((entry) => entry.id === value);
+                    setCategoryId(selected?.id ?? '');
+                    setCategory(selected?.slug ?? value);
+                  }}
+                  options={
+                    categories.length
+                      ? categories.filter((entry) => entry.isActive || entry.id === item?.categoryId).map((entry) => ({ value: entry.id, label: entry.name }))
+                      : [{ value: category, label: categoryLabel(category) }]
+                  }
                   ariaLabel="Menu item category"
                   className={selectClass}
                 />

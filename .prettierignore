@@ -3,3 +3,11 @@ node_modules
 out
 coverage
 pnpm-lock.yaml
+
+# The mascot engine is vendored verbatim from the `bloub` project, which writes
+# without semicolons and at a narrower width. Reformatting it to house style
+# would rewrite all twelve files and make every future pull from upstream an
+# unreadable diff — the only reason to vendor rather than fork is that the diff
+# stays cheap. Our own mascot code (lib/mascot/gaze.ts, components/ai/Mascot.tsx)
+# is house style and is NOT ignored.
+lib/mascot/engine

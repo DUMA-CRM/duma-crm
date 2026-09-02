@@ -17,12 +17,11 @@ import { Button } from '@/components/ui/button';
 
 import { API_PREFIX, ApiError } from '@/lib/api/client';
 import { getCustomer } from '@/lib/api/customers.service';
-import { getMenuItemModifiers, getMenuItems } from '@/lib/api/menu.service';
+import { getMenuCategories, getMenuItemModifiers, getMenuItems } from '@/lib/api/menu.service';
 import { getTradingSettings } from '@/lib/api/operations.service';
 import { type CreateOrderPayload, createOrder } from '@/lib/api/orders.service';
 import { type PaymentAttempt, type PaymentMethod, confirmPayment, getPaymentMethods, startPayment } from '@/lib/api/payments.service';
 import { clockIn, getMyShifts } from '@/lib/api/shifts.service';
-import { CATEGORIES } from '@/lib/constants/pos';
 import { cn } from '@/lib/utils/cn';
 import { formatDateTime } from '@/lib/utils/date';
 import { parseModifierName } from '@/lib/utils/modifiers';
@@ -45,7 +44,7 @@ function toPosItem(api: ApiMenuItem, modifiers: AttachedModifier[], modifiersLoa
   return {
     id: api.id,
     name: api.name,
-    category: api.category,
+    category: api.categoryId ?? api.category,
     price: pence(api.price),
     image: api.imageUrl ?? '',
     modifiersLoaded,
@@ -134,6 +133,16 @@ export default function POSPage() {
     enabled: !!tenantId,
     staleTime: MENU_STALE_MS,
   });
+  const { data: menuCategories = [] } = useQuery({
+    queryKey: ['menu-categories', tenantId],
+    queryFn: () => getMenuCategories(tenantId ?? undefined),
+    enabled: Boolean(tenantId),
+    staleTime: MENU_STALE_MS,
+  });
+  const categoryOptions: { value: Category; label: string }[] = [
+    { value: 'all', label: 'All' },
+    ...menuCategories.filter((category) => category.isActive).map((category) => ({ value: category.id, label: category.name })),
+  ];
 
   // Load modifiers on demand instead of firing one request for every menu item
   // at POS startup. Results remain cached, so repeat taps are immediate.
@@ -479,7 +488,7 @@ export default function POSPage() {
             {/* Categories belong to the menu grid, not to the app chrome — but they
                 stay out of the scroll area so they never leave during service. */}
             <div className="shrink-0 px-3 pt-4 md:px-6">
-              <SegmentedControl options={CATEGORIES} value={activeCategory} onChange={setActiveCategory} size="lg" />
+              <SegmentedControl options={categoryOptions} value={activeCategory} onChange={setActiveCategory} size="lg" />
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto px-3 py-4 md:px-6">

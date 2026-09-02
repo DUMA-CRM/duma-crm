@@ -1,6 +1,6 @@
 import { apiFetch } from './client';
 
-export type PaymentProvider = 'stripe_terminal' | 'sumup' | 'square' | 'custom' | 'manual_terminal' | 'cash';
+export type PaymentProvider = 'stripe_online' | 'stripe_terminal' | 'sumup' | 'square' | 'custom' | 'manual_terminal' | 'cash';
 export interface PaymentMethod {
   id: string;
   provider: PaymentProvider;

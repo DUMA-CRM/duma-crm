@@ -21,6 +21,7 @@ import {
   Monitor,
   Moon,
   Plug,
+  QrCode,
   ScanLine,
   ShieldCheck,
   Smartphone,
@@ -29,6 +30,7 @@ import {
   VolumeX,
 } from '@/components/icons';
 import { SettingsSection as Section } from '@/components/settings/SettingsSection';
+import { QrOrderingSettings } from '@/components/settings/QrOrderingSettings';
 import { ConnectorsGrid } from '@/components/settings/connectors/ConnectorsGrid';
 import { relativeTime } from '@/components/settings/connectors/shared';
 import { LocationList } from '@/components/settings/workspaces/LocationList';
@@ -315,7 +317,7 @@ function SessionsSection() {
   );
 }
 
-export type SettingsTab = 'general' | 'security' | 'workspaces' | 'connectors';
+export type SettingsTab = 'general' | 'security' | 'workspaces' | 'connectors' | 'qr-ordering';
 
 function EmailSection() {
   const user = useAuthStore((state) => state.user);
@@ -460,6 +462,7 @@ const TAB_PATH: Record<SettingsTab, string> = {
   security: '/settings/security',
   workspaces: '/settings/workspaces',
   connectors: '/settings/connectors',
+  'qr-ordering': '/settings/qr-ordering',
 };
 
 const TAB_DETAILS: Record<SettingsTab, { label: string; description: string; icon: IconComponent }> = {
@@ -467,19 +470,27 @@ const TAB_DETAILS: Record<SettingsTab, { label: string; description: string; ico
   security: { label: 'Security', description: 'Email, password and sessions', icon: ShieldCheck },
   workspaces: { label: 'Workspaces', description: 'Businesses and the locations they trade from', icon: Building2 },
   connectors: { label: 'Connectors', description: 'Email, payments and exports', icon: Plug },
+  'qr-ordering': { label: 'QR ordering', description: 'Customer menu, checkout options and publishing', icon: QrCode },
 };
 
 function SettingsNavigation({
   active,
   showOwnerTabs,
+  showQrOrdering,
   onChange,
 }: {
   active: SettingsTab;
   showOwnerTabs: boolean;
+  showQrOrdering: boolean;
   onChange: (tab: SettingsTab) => void;
 }) {
   // Personal first, then the business-wide tabs an owner also administers.
-  const items: SettingsTab[] = ['general', 'security', ...(showOwnerTabs ? (['workspaces', 'connectors'] as const) : [])];
+  const items: SettingsTab[] = [
+    'general',
+    'security',
+    ...(showOwnerTabs ? (['workspaces', 'connectors'] as const) : []),
+    ...(showQrOrdering ? (['qr-ordering'] as const) : []),
+  ];
 
   return (
     <nav aria-label="Settings sections" className="max-w-full overflow-x-auto">
@@ -580,8 +591,10 @@ export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
   // Workspaces and connectors are franchise-owner+ only (mirrors the old nav
   // gating), so neither tab appears for a role that cannot use it.
   const showOwnerTabs = hasCapability(capabilities, 'settings:write');
+  const showQrOrdering = hasCapability(capabilities, 'qr-ordering:read');
   // A stale link to an owner tab without the role falls back to general.
-  const active: SettingsTab = (tab === 'connectors' || tab === 'workspaces') && !showOwnerTabs ? 'general' : tab;
+  const active: SettingsTab =
+    ((tab === 'connectors' || tab === 'workspaces') && !showOwnerTabs) || (tab === 'qr-ordering' && !showQrOrdering) ? 'general' : tab;
   const activeDetails = TAB_DETAILS[active];
 
   return (
@@ -589,7 +602,14 @@ export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
       eyebrow="Account"
       title="Settings"
       leading={<InitialsAvatar firstName={firstName || 'U'} lastName={lastName} email={user?.email} className="size-9" />}
-      actions={<SettingsNavigation active={active} showOwnerTabs={showOwnerTabs} onChange={(next) => router.push(TAB_PATH[next])} />}
+      actions={
+        <SettingsNavigation
+          active={active}
+          showOwnerTabs={showOwnerTabs}
+          showQrOrdering={showQrOrdering}
+          onChange={(next) => router.push(TAB_PATH[next])}
+        />
+      }
     >
       <div className="min-w-0">
         <header className="mb-5 px-1">
@@ -694,6 +714,7 @@ export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
         )}
 
         {active === 'connectors' && showOwnerTabs && <ConnectorsGrid />}
+        {active === 'qr-ordering' && showQrOrdering && <QrOrderingSettings />}
       </div>
     </EditorShell>
   );

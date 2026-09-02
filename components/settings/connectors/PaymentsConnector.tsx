@@ -26,6 +26,13 @@ type Provider = Exclude<PaymentProvider, 'cash'>;
 
 const PROVIDERS: { value: Provider; label: string; icon: typeof CreditCard; hint: string; integrated: boolean }[] = [
   {
+    value: 'stripe_online',
+    label: 'Stripe online checkout',
+    icon: CreditCard,
+    hint: 'Customers pay on Stripe’s hosted checkout after scanning your QR code. Connect once for the whole workspace.',
+    integrated: true,
+  },
+  {
     value: 'stripe_terminal',
     label: 'Stripe Terminal',
     icon: CreditCard,
@@ -63,6 +70,7 @@ const PROVIDERS: { value: Provider; label: string; icon: typeof CreditCard; hint
 ];
 
 export const PROVIDER_LABELS: Record<PaymentProvider, string> = {
+  stripe_online: 'Stripe online checkout',
   stripe_terminal: 'Stripe Terminal',
   sumup: 'SumUp',
   square: 'Square',
@@ -87,6 +95,7 @@ function useAddPaymentConnection() {
   const [merchant, setMerchant] = useState('');
   const [affiliateAppId, setAffiliateAppId] = useState('');
   const [affiliateKey, setAffiliateKey] = useState('');
+  const [webhookSecret, setWebhookSecret] = useState('');
   // Adding a reader is a POST, not an upsert — stepping back to the name and
   // pressing the button again must not create a second one.
   const [added, setAdded] = useState(false);
@@ -96,19 +105,23 @@ function useAddPaymentConnection() {
 
   const credentialsReady =
     !integrated ||
-    (Boolean(secret.trim() && device.trim()) &&
+    (provider === 'stripe_online'
+      ? Boolean(secret.trim() && webhookSecret.trim())
+      : Boolean(secret.trim() && device.trim()) &&
       (provider !== 'sumup' || Boolean(merchant.trim() && affiliateAppId.trim() && affiliateKey.trim())));
 
   const add = useMutation({
     mutationFn: () =>
       addPaymentConnection({
         tenantId: tenantId!,
-        locationId,
+        locationId: provider === 'stripe_online' ? null : locationId,
         provider: provider!,
         displayName: displayName.trim(),
         secret: secret || undefined,
         configuration:
-          provider === 'stripe_terminal'
+          provider === 'stripe_online'
+            ? { webhookSecret }
+            : provider === 'stripe_terminal'
             ? { readerId: device }
             : provider === 'sumup'
               ? { readerId: device, merchantCode: merchant, affiliateAppId, affiliateKey }
@@ -156,6 +169,8 @@ function useAddPaymentConnection() {
       setAffiliateAppId,
       affiliateKey,
       setAffiliateKey,
+      webhookSecret,
+      setWebhookSecret,
     },
     credentialsReady,
     nameReady: Boolean(displayName.trim()),
@@ -179,6 +194,8 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
     setAffiliateAppId,
     affiliateKey,
     setAffiliateKey,
+    webhookSecret,
+    setWebhookSecret,
   } = fields;
 
   const steps: WizardStep[] = [
@@ -212,13 +229,17 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
               <Input label="Affiliate key" type="password" value={affiliateKey} onChange={(event) => setAffiliateKey(event.target.value)} />
             </>
           )}
-          <Input
+          {provider !== 'stripe_online' && <Input
             label="Reader / device ID"
             value={device}
             onChange={(event) => setDevice(event.target.value)}
             hint="Shown next to the reader in your provider’s dashboard."
-          />
-          <Input label="API credential" type="password" value={secret} onChange={(event) => setSecret(event.target.value)} />
+          />}
+          <Input label={provider === 'stripe_online' ? 'Stripe secret key' : 'API credential'} type="password" value={secret} onChange={(event) => setSecret(event.target.value)} />
+          {provider === 'stripe_online' && <>
+            <Input label="Webhook signing secret" type="password" value={webhookSecret} onChange={(event) => setWebhookSecret(event.target.value)} hint="Create a Stripe webhook for /v1/qr-ordering/stripe/webhook and paste its whsec_ secret here." />
+            <div className={panelClass}><p className="text-xs text-muted-foreground">Listen for checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.expired, payment_intent.succeeded and payment_intent.payment_failed.</p></div>
+          </>}
         </div>
       ) : (
         <div className={panelClass}>
@@ -249,7 +270,7 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
               <dt className="text-muted-foreground">Provider</dt>
               <dd className="font-medium text-foreground">{chosen?.label}</dd>
             </div>
-            {integrated && (
+            {integrated && provider !== 'stripe_online' && (
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Reader</dt>
                 <dd className="truncate font-medium text-foreground">{device}</dd>
@@ -257,7 +278,7 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
             )}
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Location</dt>
-              <dd className="font-medium text-foreground">{locationId ? 'This location' : 'All locations'}</dd>
+              <dd className="font-medium text-foreground">{provider === 'stripe_online' ? 'Whole workspace' : locationId ? 'This location' : 'All locations'}</dd>
             </div>
           </dl>
         </div>

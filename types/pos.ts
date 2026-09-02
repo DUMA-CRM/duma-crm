@@ -1,4 +1,4 @@
-export type Category = 'all' | 'coffee' | 'other-hot-drinks' | 'coffee-over-ice' | 'tea' | 'snacks';
+export type Category = string;
 
 // A reusable modifier presented as a toggleable add-on in the POS. Price in pence.
 export interface MenuOption {
@@ -14,7 +14,7 @@ export interface MenuOption {
 export interface MenuItem {
   id: string;
   name: string;
-  category: Exclude<Category, 'all'>;
+  category: Category;
   price: number; // pence
   image: string;
   // Flat list of add-ons attached to this item (multi-select).

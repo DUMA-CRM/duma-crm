@@ -163,6 +163,38 @@
 
   --radius: 0.4375rem;
 
+  /* ── The mascot ───────────────────────────────────────────────
+     Ask DUMA's mascot is one filled shape with two holes for eyes, so it needs
+     exactly three colours and they are not interchangeable with anything above.
+
+     --mascot-ink    the body. Brand green — the same value as --primary, and it
+                     took a reversal to get here.
+
+                     It was deep forest (#174c38) first, on the reasoning that the
+                     mascot should be the logo tile's material and that the action
+                     colour must stay the one thing on a surface meaning "press
+                     this". The first half was right and the second was answering
+                     the wrong question: at the 28px the header renders, forest has
+                     a luminance of 0.06 and simply reads as a black blob. A
+                     mascot nobody can see the colour of is not a brand mark.
+
+                     So it wears the brand green, which is one step up from the
+                     shell and unmistakably green at any size. The competition
+                     worry does not survive contact: a hexagon with eyes is not
+                     button-shaped, and nothing about it invites a press. Kept as
+                     its own token rather than aliased to --primary, because the
+                     day the action colour moves is not the day the mascot should.
+     --mascot-paper  what the eye holes SHOW, which means it has to be the
+                     colour actually behind the mascot, not a colour that looks
+                     like it. Porcelain, because the mascot only ever sits on a
+                     card. A caller on another surface passes its own.
+     --mascot-accent the notification pastille. Periwinkle: the pastille means
+                     "there is something here for you", which is info, and info
+                     is periwinkle everywhere else in the product. */
+  --mascot-ink: #1f6146;
+  --mascot-paper: var(--field);
+  --mascot-accent: var(--reference);
+
   /* ── Layout dimensions (unchanged contract) ──────────────────── */
   --sidebar-width: 220px;
   --sidebar-collapsed-width: 60px;
@@ -235,6 +267,15 @@
   --sidebar-ring: #f8f1e5;
 
   --chart-5: oklch(0.7 0.02 250);
+
+  /* The night tier of the same green, so the mascot is one character across both
+     themes rather than a green one by day and a bone one by night.
+
+     The figure inverts on its own as a consequence: the body is now the light
+     thing and the eye holes — which show --field — are the dark ones. That is the
+     same drawing read the other way up, and both directions are legible, 7.08:1
+     of body against eye by day and 6.83:1 by night. */
+  --mascot-ink: #4fb187;
 }
 
 /* ════════════════════════════════════════════════════════════════

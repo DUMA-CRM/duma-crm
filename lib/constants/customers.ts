@@ -88,4 +88,5 @@ export const STATUS_CONFIG: Record<OrderStatus, { label: string; variant: BadgeV
   ready: { label: 'Ready', variant: 'primary' },
   done: { label: 'Done', variant: 'success' },
   cancelled: { label: 'Cancelled', variant: 'destructive' },
+  expired: { label: 'Expired', variant: 'warning' },
 };

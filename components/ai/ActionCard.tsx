@@ -48,7 +48,9 @@ function isAnswered(field: AgentField, value: FieldValue) {
 
 function FieldControl({ field, value, onChange }: { field: AgentField; value: FieldValue; onChange: (next: FieldValue) => void }) {
   if (field.readOnly) {
-    return <span className="px-1.5 text-sm text-foreground">{asText(value) || '—'}</span>;
+    const textValue = asText(value);
+    const label = field.type === 'select' ? field.options?.find((option) => option.value === textValue)?.label : textValue;
+    return <span className="px-1.5 text-sm text-foreground">{label || '—'}</span>;
   }
   switch (field.type) {
     case 'select':

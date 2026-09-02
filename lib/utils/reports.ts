@@ -121,7 +121,7 @@ export function buildMetricDetail({
     ];
     breakdown = [
       ...(analytics?.bySource ?? []).map((row) => ({
-        label: `${row.source === 'pos' ? 'POS' : 'Mobile'} order value`,
+        label: `${row.source === 'pos' ? 'POS' : row.source === 'qr_code' ? 'QR code' : 'Mobile'} order value`,
         value: formatMoney(Number(row.revenue ?? 0)),
         note: `${row.count} orders`,
       })),
@@ -163,7 +163,7 @@ export function buildMetricDetail({
       { label: 'Orders in calculation', value: formatCompact(current.orders), note: `${formatMoney(current.revenue)} net revenue` },
     ];
     breakdown = (analytics?.bySource ?? []).map((row) => ({
-      label: `${row.source === 'pos' ? 'POS' : 'Mobile'} recorded average`,
+      label: `${row.source === 'pos' ? 'POS' : row.source === 'qr_code' ? 'QR code' : 'Mobile'} recorded average`,
       value: formatMoney(row.count ? Number(row.revenue ?? 0) / row.count : 0, 2),
       note: `${row.count} orders`,
     }));

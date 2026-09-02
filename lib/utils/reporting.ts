@@ -21,8 +21,10 @@ export type ReportMetricKey =
   | 'repeatRate'
   | 'posOrders'
   | 'mobileOrders'
+  | 'qrOrders'
   | 'posValue'
-  | 'mobileValue';
+  | 'mobileValue'
+  | 'qrValue';
 
 export interface ReportMetricDefinition {
   key: ReportMetricKey;
@@ -146,6 +148,14 @@ export const REPORT_METRICS: ReportMetricDefinition[] = [
     category: 'Channels',
   },
   {
+    key: 'qrOrders',
+    label: 'QR code orders',
+    shortLabel: 'QR orders',
+    description: 'Recorded orders created through the customer QR ordering channel.',
+    unit: 'count',
+    category: 'Channels',
+  },
+  {
     key: 'posValue',
     label: 'POS recorded value',
     shortLabel: 'POS value',
@@ -158,6 +168,14 @@ export const REPORT_METRICS: ReportMetricDefinition[] = [
     label: 'Mobile recorded value',
     shortLabel: 'Mobile value',
     description: 'Recorded order value attributed to mobile orders, including any subsequently cancelled orders.',
+    unit: 'money',
+    category: 'Channels',
+  },
+  {
+    key: 'qrValue',
+    label: 'QR code recorded value',
+    shortLabel: 'QR value',
+    description: 'Recorded order value attributed to QR code orders, including any subsequently cancelled orders.',
     unit: 'money',
     category: 'Channels',
   },
@@ -182,6 +200,7 @@ export function buildReportSnapshot(orders?: OrderAnalytics, retention?: Custome
   const completedOrders = statusCount(orders, 'done');
   const pos = sourceRow(orders, 'pos');
   const mobile = sourceRow(orders, 'mobile');
+  const qr = sourceRow(orders, 'qr_code');
 
   return {
     values: {
@@ -198,8 +217,10 @@ export function buildReportSnapshot(orders?: OrderAnalytics, retention?: Custome
       repeatRate: Number(retention?.repeatRate ?? 0),
       posOrders: Number(pos?.count ?? 0),
       mobileOrders: Number(mobile?.count ?? 0),
+      qrOrders: Number(qr?.count ?? 0),
       posValue: Number(pos?.revenue ?? 0),
       mobileValue: Number(mobile?.revenue ?? 0),
+      qrValue: Number(qr?.revenue ?? 0),
     },
   };
 }

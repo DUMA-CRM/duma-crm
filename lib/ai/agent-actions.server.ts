@@ -5,6 +5,7 @@ import type { LocationStock } from '@/lib/api/inventory.service';
 import type { Order } from '@/lib/api/orders.service';
 import type { ExpenseClaim, LeaveEntitlement, LeaveRequest, LeaveType } from '@/lib/api/people-ops.service';
 import type { PurchaseOrder } from '@/lib/api/purchasing.service';
+import type { QrOrderingConfig } from '@/lib/api/qr-ordering.service';
 import { encodeNotes } from '@/lib/api/restock.service';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
 import { isValidNiNumber, normaliseNiNumber } from '@/lib/utils/my-hr';
@@ -1035,7 +1036,8 @@ const cancelLeaveRequest: ActionDefinition = {
   async draft(args, runtime) {
     const requests = await runtime.get<LeaveRequest[]>('/hr/leave-requests/my');
     const pending = requests.filter((request) => request.status === 'pending');
-    if (pending.length === 0) return { error: 'You have no pending time-off requests to cancel. Approved leave has to be cancelled by HR.' };
+    if (pending.length === 0)
+      return { error: 'You have no pending time-off requests to cancel. Approved leave has to be cancelled by HR.' };
 
     return {
       kind: 'cancel_leave_request',
@@ -1311,7 +1313,9 @@ const updateMyDetails: ActionDefinition = {
   async execute(action, runtime) {
     const ni = normaliseNiNumber(str(action.fields, 'nationalInsuranceNumber'));
     if (ni && !isValidNiNumber(ni)) {
-      return { message: `“${ni}” is not a valid National Insurance number, so nothing was saved. It is two letters, six digits, then A–D.` };
+      return {
+        message: `“${ni}” is not a valid National Insurance number, so nothing was saved. It is two letters, six digits, then A–D.`,
+      };
     }
 
     const updated = await runtime.send<HrEmployee>('/hr/employees/me', 'PATCH', {
@@ -1339,6 +1343,330 @@ const updateMyDetails: ActionDefinition = {
   },
 };
 
+const toggleOptions = choice([
+  ['on', 'On'],
+  ['off', 'Off'],
+]);
+
+function toggleValue(requested: unknown, current: boolean) {
+  return typeof requested === 'boolean' ? (requested ? 'on' : 'off') : current ? 'on' : 'off';
+}
+
+const updateQrOrderingSettings: ActionDefinition = {
+  kind: 'update_qr_ordering_settings',
+  capability: 'qr-ordering:write',
+  tool: {
+    name: 'draft_qr_ordering_settings',
+    description:
+      'Prepare QR ordering settings for approval: enable, disable, pause or resume; card and cash acceptance; minimum order; collection timing and capacity; welcome copy, collection instructions and cover image. Read get_qr_ordering_status first. Null means keep the current value.',
+    parameters: schema({
+      locationId: nullableString('Location id, or null for the active location.'),
+      isEnabled: { type: ['boolean', 'null'] },
+      isPaused: { type: ['boolean', 'null'] },
+      cardEnabled: { type: ['boolean', 'null'] },
+      cashEnabled: { type: ['boolean', 'null'] },
+      minimumOrderAmount: { type: ['number', 'null'] },
+      minimumNoticeMinutes: { type: ['number', 'null'] },
+      slotIntervalMinutes: { type: ['number', 'null'] },
+      maxOrdersPerSlot: { type: ['number', 'null'] },
+      bookingHorizonDays: { type: ['number', 'null'] },
+      welcomeMessage: nullableString('New welcome message, or null to keep it.'),
+      collectionInstructions: nullableString('New collection instructions, or null to keep them.'),
+      coverImageUrl: nullableString('New HTTPS cover image URL, an empty string to remove it, or null to keep it.'),
+    }),
+  },
+  async draft(args, runtime) {
+    const locationId = await runtime.resolveLocationId(args.locationId);
+    if (!locationId) return { error: 'Choose a location before changing QR ordering.' };
+    const [locations, current] = await Promise.all([
+      runtime.locationOptions(),
+      runtime.get<QrOrderingConfig | null>(`/qr-ordering/locations/${locationId}`),
+    ]);
+    const content = current?.draftContent ?? {
+      schemaVersion: 1 as const,
+      welcomeMessage: '',
+      collectionInstructions: '',
+      coverImageUrl: null,
+      featuredItemIds: [],
+      categoryOrder: [],
+    };
+    const requestedText = (value: unknown, fallback: string) => (typeof value === 'string' ? value.trim() : fallback);
+    const requestedNumber = (value: unknown, fallback: number) => (typeof value === 'number' && Number.isFinite(value) ? value : fallback);
+
+    return {
+      kind: 'update_qr_ordering_settings',
+      title: 'QR ordering settings',
+      summary: `Review the customer ordering channel for ${await runtime.locationName(locationId)}`,
+      confirmLabel: 'Save QR settings',
+      note: 'Operational switches take effect when saved. Page content remains a draft until you publish it.',
+      fields: [
+        selectField('locationId', 'Location', locations, locationId, { readOnly: true }),
+        field('isEnabled', 'QR ordering', {
+          type: 'select',
+          options: toggleOptions,
+          value: toggleValue(args.isEnabled, current?.isEnabled ?? false),
+        }),
+        field('isPaused', 'Pause new orders', {
+          type: 'select',
+          options: toggleOptions,
+          value: toggleValue(args.isPaused, current?.isPaused ?? false),
+        }),
+        field('cardEnabled', 'Stripe card', {
+          type: 'select',
+          options: toggleOptions,
+          value: toggleValue(args.cardEnabled, current?.cardEnabled ?? true),
+        }),
+        field('cashEnabled', 'Cash at counter', {
+          type: 'select',
+          options: toggleOptions,
+          value: toggleValue(args.cashEnabled, current?.cashEnabled ?? false),
+        }),
+        field('minimumOrderAmount', 'Minimum order', {
+          type: 'money',
+          min: 0,
+          max: 10_000,
+          step: 0.01,
+          value: round(requestedNumber(args.minimumOrderAmount, toNumber(current?.minimumOrderAmount)), 2),
+        }),
+        field('minimumNoticeMinutes', 'Minimum notice', {
+          type: 'number',
+          min: 0,
+          max: 1_440,
+          step: 1,
+          unit: 'min',
+          value: Math.round(requestedNumber(args.minimumNoticeMinutes, current?.minimumNoticeMinutes ?? 20)),
+        }),
+        field('slotIntervalMinutes', 'Slot interval', {
+          type: 'number',
+          min: 5,
+          max: 120,
+          step: 5,
+          unit: 'min',
+          value: Math.round(requestedNumber(args.slotIntervalMinutes, current?.slotIntervalMinutes ?? 15)),
+        }),
+        field('maxOrdersPerSlot', 'Orders per slot', {
+          type: 'number',
+          min: 1,
+          max: 100,
+          step: 1,
+          value: Math.round(requestedNumber(args.maxOrdersPerSlot, current?.maxOrdersPerSlot ?? 5)),
+        }),
+        field('bookingHorizonDays', 'Booking horizon', {
+          type: 'number',
+          min: 1,
+          max: 30,
+          step: 1,
+          unit: 'days',
+          value: Math.round(requestedNumber(args.bookingHorizonDays, current?.bookingHorizonDays ?? 7)),
+        }),
+        field('welcomeMessage', 'Welcome message', {
+          type: 'text',
+          value: requestedText(args.welcomeMessage, content.welcomeMessage),
+          optional: true,
+        }),
+        field('collectionInstructions', 'Collection instructions', {
+          type: 'textarea',
+          value: requestedText(args.collectionInstructions, content.collectionInstructions),
+          optional: true,
+        }),
+        field('coverImageUrl', 'Cover image URL', {
+          type: 'text',
+          value: requestedText(args.coverImageUrl, content.coverImageUrl ?? ''),
+          optional: true,
+        }),
+      ],
+    };
+  },
+  async rehearse(action, runtime) {
+    return {
+      message: `Test run complete — nothing was changed. The QR settings for ${(await runtime.locationName(str(action.fields, 'locationId'))) || 'the selected location'} passed validation.`,
+      shortcuts: [
+        { label: 'Open QR ordering settings', href: '/settings/qr-ordering', description: 'Settings · QR ordering', kind: 'page' },
+      ],
+    };
+  },
+  async execute(action, runtime) {
+    const locationId = str(action.fields, 'locationId');
+    const current = await runtime.get<QrOrderingConfig | null>(`/qr-ordering/locations/${locationId}`);
+    const cardEnabled = str(action.fields, 'cardEnabled') === 'on';
+    const cashEnabled = str(action.fields, 'cashEnabled') === 'on';
+    if (!cardEnabled && !cashEnabled) return { message: 'At least one payment method must remain enabled, so nothing was changed.' };
+    const currentContent = current?.draftContent ?? {
+      schemaVersion: 1 as const,
+      welcomeMessage: '',
+      collectionInstructions: '',
+      coverImageUrl: null,
+      featuredItemIds: [],
+      categoryOrder: [],
+    };
+    const saved = await runtime.send<QrOrderingConfig>(`/qr-ordering/locations/${locationId}`, 'PUT', {
+      isEnabled: str(action.fields, 'isEnabled') === 'on',
+      isPaused: str(action.fields, 'isPaused') === 'on',
+      cardEnabled,
+      cashEnabled,
+      minimumOrderAmount: num(action.fields, 'minimumOrderAmount'),
+      minimumNoticeMinutes: Math.round(num(action.fields, 'minimumNoticeMinutes')),
+      slotIntervalMinutes: Math.round(num(action.fields, 'slotIntervalMinutes')),
+      maxOrdersPerSlot: Math.round(num(action.fields, 'maxOrdersPerSlot')),
+      bookingHorizonDays: Math.round(num(action.fields, 'bookingHorizonDays')),
+      content: {
+        ...currentContent,
+        welcomeMessage: str(action.fields, 'welcomeMessage').slice(0, 160),
+        collectionInstructions: str(action.fields, 'collectionInstructions').slice(0, 500),
+        coverImageUrl: str(action.fields, 'coverImageUrl') || null,
+      },
+    });
+    const state = !saved.isEnabled ? 'disabled' : saved.isPaused ? 'paused' : 'enabled';
+    return {
+      message: `QR ordering is now ${state}. Operational settings are live; publish the QR menu if you also changed its customer-facing content.`,
+      shortcuts: [
+        { label: 'Open QR ordering settings', href: '/settings/qr-ordering', description: 'Settings · QR ordering', kind: 'page' },
+      ],
+    };
+  },
+};
+
+const publishQrOrdering: ActionDefinition = {
+  kind: 'publish_qr_ordering',
+  capability: 'qr-ordering:write',
+  tool: {
+    name: 'draft_publish_qr_menu',
+    description: 'Prepare publishing the saved QR menu draft for approval. Publishing updates customer-facing content and menu visibility.',
+    parameters: schema({ locationId: nullableString('Location id, or null for the active location.') }),
+  },
+  async draft(args, runtime) {
+    const locationId = await runtime.resolveLocationId(args.locationId);
+    if (!locationId) return { error: 'Choose a location before publishing the QR menu.' };
+    const config = await runtime.get<QrOrderingConfig | null>(`/qr-ordering/locations/${locationId}`);
+    if (!config) return { error: 'Set up and save QR ordering before publishing it.' };
+    return {
+      kind: 'publish_qr_ordering',
+      title: 'Publish QR menu',
+      summary: `Make the saved draft live for ${await runtime.locationName(locationId)}`,
+      confirmLabel: 'Publish QR menu',
+      note: 'Customers will see the current draft content and item visibility immediately after publishing.',
+      fields: [selectField('locationId', 'Location', await runtime.locationOptions(), locationId, { readOnly: true })],
+    };
+  },
+  async rehearse(action, runtime) {
+    return {
+      message: `Test run complete — nothing was published. The QR menu for ${await runtime.locationName(str(action.fields, 'locationId'))} is ready.`,
+    };
+  },
+  async execute(action, runtime) {
+    const locationId = str(action.fields, 'locationId');
+    await runtime.send(`/qr-ordering/locations/${locationId}/publish`, 'POST');
+    return {
+      message: 'The QR menu is published. Customers now see the saved content and menu visibility.',
+      shortcuts: [
+        { label: 'Open QR ordering settings', href: '/settings/qr-ordering', description: 'Settings · QR ordering', kind: 'page' },
+      ],
+    };
+  },
+};
+
+const updateQrItemVisibility: ActionDefinition = {
+  kind: 'update_qr_item_visibility',
+  capability: 'qr-ordering:write',
+  tool: {
+    name: 'draft_qr_item_visibility',
+    description:
+      'Prepare showing or hiding specific menu items on the QR channel. Resolve exact menu item ids with list_menu_items first. This changes the draft; publish afterwards to make it customer-visible.',
+    parameters: schema({
+      locationId: nullableString('Location id, or null for the active location.'),
+      changes: {
+        type: 'array',
+        minItems: 1,
+        items: {
+          type: 'object',
+          properties: { menuItemId: { type: 'string' }, visible: { type: 'boolean' } },
+          required: ['menuItemId', 'visible'],
+          additionalProperties: false,
+        },
+      },
+    }),
+  },
+  async draft(args, runtime) {
+    const locationId = await runtime.resolveLocationId(args.locationId);
+    if (!locationId) return { error: 'Choose a location before changing the QR menu.' };
+    const items = await runtime.menuItems();
+    const byId = new Map(items.map((item) => [item.id, item]));
+    const requested = Array.isArray(args.changes) ? args.changes : [];
+    const lines = requested
+      .map((raw) => {
+        const change = (raw ?? {}) as JsonObject;
+        const item = byId.get(String(change.menuItemId ?? ''));
+        if (!item || typeof change.visible !== 'boolean') return null;
+        return {
+          id: item.id,
+          title: item.name,
+          subtitle: `£${toNumber(item.price).toFixed(2)}`,
+          fields: [
+            field('visibility', 'QR menu', {
+              type: 'select',
+              options: choice([
+                ['show', 'Show'],
+                ['hide', 'Hide'],
+              ]),
+              value: change.visible ? 'show' : 'hide',
+            }),
+          ],
+        };
+      })
+      .filter((line): line is NonNullable<typeof line> => Boolean(line));
+    if (!lines.length) return { error: 'None of those menu item ids matched. Call list_menu_items first.' };
+    return {
+      kind: 'update_qr_item_visibility',
+      title: 'QR menu visibility',
+      summary: `Review ${lines.length} item change${lines.length === 1 ? '' : 's'} for ${await runtime.locationName(locationId)}`,
+      confirmLabel: 'Save visibility',
+      note: 'This saves the draft only. Publish the QR menu when you are ready for customers to see it.',
+      fields: [selectField('locationId', 'Location', await runtime.locationOptions(), locationId, { readOnly: true })],
+      lineGroup: {
+        label: 'Menu items',
+        addLabel: 'Add item',
+        emptyLabel: 'No item changes yet.',
+        options: items.map((item) => ({
+          value: item.id,
+          label: item.name,
+          hint: `£${toNumber(item.price).toFixed(2)}`,
+          prefill: { visibility: 'show' },
+        })),
+        template: [
+          field('visibility', 'QR menu', {
+            type: 'select',
+            options: choice([
+              ['show', 'Show'],
+              ['hide', 'Hide'],
+            ]),
+            value: 'show',
+          }),
+        ],
+        lines,
+        minLines: 1,
+        maxLines: 100,
+      },
+    };
+  },
+  async rehearse(action) {
+    return {
+      message: `Test run complete — nothing was changed. ${action.lines.length} QR menu item change${action.lines.length === 1 ? '' : 's'} passed validation.`,
+    };
+  },
+  async execute(action, runtime) {
+    const locationId = str(action.fields, 'locationId');
+    await runtime.send(`/qr-ordering/locations/${locationId}`, 'PUT', {
+      itemVisibility: action.lines.map((line) => ({ menuItemId: line.id, visible: str(line.values, 'visibility') === 'show' })),
+    });
+    return {
+      message: `Saved ${action.lines.length} QR menu visibility change${action.lines.length === 1 ? '' : 's'} to the draft. Publish the QR menu to make the change visible to customers.`,
+      shortcuts: [
+        { label: 'Open QR ordering settings', href: '/settings/qr-ordering', description: 'Settings · QR ordering', kind: 'page' },
+      ],
+    };
+  },
+};
+
 export const ACTIONS: ActionDefinition[] = [
   requestLeave,
   cancelLeaveRequest,
@@ -1356,6 +1684,9 @@ export const ACTIONS: ActionDefinition[] = [
   scheduleShift,
   reviewLeaveRequest,
   updateStockThresholds,
+  updateQrOrderingSettings,
+  publishQrOrdering,
+  updateQrItemVisibility,
 ];
 
 const ACTION_BY_TOOL = new Map(ACTIONS.map((action) => [action.tool.name, action]));

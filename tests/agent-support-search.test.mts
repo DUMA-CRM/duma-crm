@@ -13,3 +13,8 @@ test('support search stays bounded and returns no match for unrelated text', () 
   assert.ok(searchSupportArticles('reports stock shifts email onboarding', 20).length <= 3);
   assert.deepEqual(searchSupportArticles('quasar nebula'), []);
 });
+
+test('QR ordering setup and availability questions find the dedicated guide', () => {
+  const [result] = searchSupportArticles('Why can’t I make a QR order now? The store says closed.');
+  assert.equal(result?.slug, 'set-up-qr-ordering');
+});

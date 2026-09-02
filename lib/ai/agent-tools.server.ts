@@ -28,6 +28,7 @@ import type {
 } from '@/lib/api/people-ops.service';
 import type { PrivacyRequest } from '@/lib/api/privacy.service';
 import type { PurchaseOrdersResponse } from '@/lib/api/purchasing.service';
+import type { QrOrderingConfig } from '@/lib/api/qr-ordering.service';
 import type { RestockRequestsResponse } from '@/lib/api/restock.service';
 import { decodeNotes } from '@/lib/api/restock.service';
 import type { ScheduledShift } from '@/lib/api/scheduling.service';
@@ -66,6 +67,7 @@ import {
 } from './agent-format.ts';
 import { AgentRuntime, ROLE_LABELS } from './agent-runtime.server';
 import type { AgentCard, AgentShortcut } from './agent-types';
+import { explainQrOrderingAvailability } from './qr-ordering.ts';
 import { searchSupportArticles } from './support-search';
 
 type JsonObject = Record<string, unknown>;
@@ -98,6 +100,8 @@ const DATE = 'Inclusive YYYY-MM-DD calendar date.';
 
 /** "partially_received" → "Partially received", for card titles and empty states. */
 const sentence = (value: string) => value.replaceAll('_', ' ').replace(/^./, (character) => character.toUpperCase());
+
+const orderSourceLabel = (source: Order['source']) => (source === 'pos' ? 'POS' : source === 'qr_code' ? 'QR code' : 'Mobile');
 
 function page(label: string, href: string, description: string, locationId?: string): AgentShortcut {
   return { label, href, description, ...(locationId ? { locationId, kind: 'filtered' as const } : { kind: 'page' as const }) };
@@ -216,6 +220,78 @@ const listLocations: ToolDefinition = {
         ...locations.slice(0, 5).map(({ id, name }) => page(`Open ${name}`, '/dashboard', 'Switches the active location', id)),
         page('Edit trading hours', '/settings/workspaces', 'Settings · Locations'),
       ],
+    };
+  },
+};
+
+const getQrOrderingStatus: ToolDefinition = {
+  name: 'get_qr_ordering_status',
+  description:
+    'Read the complete QR ordering setup for one location and explain whether customers can order right now. Use for QR setup, enabled/disabled/paused state, payment options, collection scheduling, published content, visible items, or questions such as “why can’t I order now?”.',
+  capability: 'qr-ordering:read',
+  step: 'Checking QR ordering',
+  parameters: schema({ locationId: nullableString('Location id, or null for the active location.') }),
+  async run(args, runtime) {
+    const locationId = await runtime.resolveLocationId(args.locationId);
+    if (!locationId) return { output: { error: 'Choose a location before checking QR ordering.' } };
+    const location = (await runtime.locations()).find((row) => row.id === locationId);
+    if (!location) return { output: { error: 'That location is not available to this operator.' } };
+    const [config, menuItems] = await Promise.all([
+      runtime.get<QrOrderingConfig | null>(`/qr-ordering/locations/${locationId}`),
+      runtime.menuItems(),
+    ]);
+    let stripeConnected: boolean | null = null;
+    if (config?.publicToken && config.isEnabled && config.publishedContent) {
+      const publicMenu = await runtime
+        .get<{ ordering?: { cardEnabled?: boolean } }>(`/qr-ordering/public/${config.publicToken}`)
+        .catch(() => null);
+      if (publicMenu && config.cardEnabled) stripeConnected = Boolean(publicMenu.ordering?.cardEnabled);
+    }
+    const availability = explainQrOrderingAvailability(config, location, stripeConnected);
+    const publishedVisibility = new Map(config?.itemVisibility.map((item) => [item.menuItemId, item.publishedVisible]) ?? []);
+    const visibleItems = menuItems.filter((item) => item.isAvailable && publishedVisibility.get(item.id) !== false).length;
+
+    return {
+      output: {
+        location: { id: location.id, name: location.name, timezone: location.timezone, isActive: location.isActive },
+        availability,
+        settings: config
+          ? {
+              enabled: config.isEnabled,
+              paused: config.isPaused,
+              published: Boolean(config.publishedContent),
+              publishedAt: config.publishedAt,
+              cardEnabled: config.cardEnabled,
+              stripeConnected,
+              cashEnabled: config.cashEnabled,
+              minimumOrderGbp: toNumber(config.minimumOrderAmount),
+              minimumNoticeMinutes: config.minimumNoticeMinutes,
+              slotIntervalMinutes: config.slotIntervalMinutes,
+              maxOrdersPerSlot: config.maxOrdersPerSlot,
+              bookingHorizonDays: config.bookingHorizonDays,
+              welcomeMessage: config.draftContent.welcomeMessage,
+              collectionInstructions: config.draftContent.collectionInstructions,
+              visiblePublishedItems: visibleItems,
+            }
+          : null,
+      },
+      evidence: `QR ordering at ${location.name}: ${availability.explanation}`,
+      cards: [
+        {
+          title: 'QR ordering',
+          caption: location.name,
+          metrics: [
+            {
+              label: 'Orders now',
+              value: availability.canOrder ? 'Open' : 'Unavailable',
+              tone: availability.canOrder ? 'positive' : 'warning',
+            },
+            { label: 'Local time', value: availability.localTime, hint: location.timezone },
+            { label: 'Published items', value: String(visibleItems) },
+          ],
+        },
+      ],
+      shortcuts: [page('Open QR ordering settings', '/settings/qr-ordering', 'Settings · QR ordering', locationId)],
     };
   },
 };
@@ -598,11 +674,12 @@ const getBusinessAnalytics: ToolDefinition = {
 const listOrders: ToolDefinition = {
   name: 'list_orders',
   description:
-    'List recent orders with their status, total and time. Use before proposing a status change or investigating a specific sale.',
+    'List recent orders with their status, source, total and time. Can isolate QR code, mobile or POS orders. Use before proposing a status change or investigating a specific sale.',
   capability: 'orders:read',
   step: 'Reading orders',
   parameters: schema({
-    status: nullableString('pending, preparing, ready, done, cancelled, or null for all.'),
+    status: nullableString('pending, preparing, ready, done, cancelled, expired, or null for all.'),
+    source: nullableString('qr_code, mobile, pos, or null for all sources.'),
     from: nullableString(DATE),
     to: nullableString(DATE),
     locationId: nullableString('Restrict to one location, or null for the active one.'),
@@ -611,7 +688,9 @@ const listOrders: ToolDefinition = {
   async run(args, runtime) {
     const query = new URLSearchParams({ limit: String(limit(args.limit, 20, 50)) });
     const status = optionalText(args.status, 20);
-    if (['pending', 'preparing', 'ready', 'done', 'cancelled'].includes(status)) query.set('status', status);
+    if (['pending', 'preparing', 'ready', 'done', 'cancelled', 'expired'].includes(status)) query.set('status', status);
+    const source = optionalText(args.source, 20);
+    if (['qr_code', 'mobile', 'pos'].includes(source)) query.set('source', source);
     if (isIsoDate(args.from)) query.set('from', args.from);
     if (isIsoDate(args.to)) query.set('to', args.to);
     const locationId = typeof args.locationId === 'string' && args.locationId ? args.locationId : runtime.locationId;
@@ -626,12 +705,13 @@ const listOrders: ToolDefinition = {
           id: order.id,
           status: order.status,
           source: order.source,
+          sourceLabel: orderSourceLabel(order.source),
           totalGbp: toNumber(order.totalAmount),
           createdAt: order.createdAt,
           itemCount: order.items?.length ?? null,
         })),
       },
-      evidence: `${orders.length} order${orders.length === 1 ? '' : 's'}${status ? ` with status ${status}` : ''}`,
+      evidence: `${orders.length} ${source ? `${orderSourceLabel(source as Order['source'])} ` : ''}order${orders.length === 1 ? '' : 's'}${status ? ` with status ${status}` : ''}`,
       cards: [
         {
           kind: 'list',
@@ -641,7 +721,7 @@ const listOrders: ToolDefinition = {
           rows: orders.slice(0, 6).map((order) => ({
             label: `Order #${order.id.slice(0, 8)}`,
             value: gbp(order.totalAmount),
-            meta: `${order.status} · ${formatDateTime(order.createdAt, 'Europe/London')}`,
+            meta: `${orderSourceLabel(order.source)} · ${order.status} · ${formatDateTime(order.createdAt, 'Europe/London')}`,
             tone:
               order.status === 'cancelled' ? ('negative' as const) : order.status === 'done' ? ('positive' as const) : ('default' as const),
           })),
@@ -671,6 +751,7 @@ const getOrderDetail: ToolDefinition = {
         discountGbp: toNumber(order.discountAmount),
         paymentMethod: order.paymentMethod,
         source: order.source,
+        sourceLabel: orderSourceLabel(order.source),
         createdAt: order.createdAt,
         notes: order.notes ?? null,
         voidReason: order.voidReason ?? null,
@@ -1836,6 +1917,7 @@ const getMyPayslips: ToolDefinition = {
 export const TOOLS: ToolDefinition[] = [
   searchSupport,
   listLocations,
+  getQrOrderingStatus,
   listSuppliers,
   listStockItems,
   listMenuItems,

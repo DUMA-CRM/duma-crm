@@ -1,7 +1,7 @@
 import { apiFetch } from './client';
 
-export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'done' | 'cancelled';
-export type OrderSource = 'pos' | 'mobile';
+export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'done' | 'cancelled' | 'expired';
+export type OrderSource = 'pos' | 'mobile' | 'qr_code';
 
 export interface OrderItemModifier {
   id: string;
@@ -44,10 +44,11 @@ export interface OrderRefund {
   kind: 'full' | 'partial';
   reason: RefundReason;
   notes?: string | null;
-  status: 'recorded';
-  processingMode: 'internal_placeholder';
+  status: 'recorded' | 'succeeded' | 'failed';
+  processingMode: 'internal_placeholder' | 'internal' | 'stripe' | 'cash_manual';
+  providerRefundId?: string | null;
   paymentMethod?: string | null;
-  createdBy: string;
+  createdBy: string | null;
   createdAt: string;
   lines?: OrderRefundLine[];
 }
@@ -88,12 +89,17 @@ export interface OrderDetail {
   tenantId?: string;
   locationId: string;
   customerId?: string;
-  createdBy: string;
+  createdBy: string | null;
   status: OrderStatus;
   refundStatus?: RefundStatus;
   source: OrderSource;
   totalAmount: string;
-  paymentMethod: 'cash' | 'card';
+  paymentMethod: string | null;
+  paymentStatus?: 'unpaid' | 'processing' | 'awaiting_payment' | 'awaiting_cash_approval' | 'paid' | 'failed' | 'cancelled' | 'expired' | 'refunded';
+  customerName?: string | null;
+  collectionTime?: string | null;
+  kitchenReleaseAt?: string | null;
+  expiresAt?: string | null;
   notes?: string;
   items: OrderItem[];
   discountAmount?: string;
@@ -123,6 +129,12 @@ export interface Order {
   locationId: string;
   customerId?: string;
   status: OrderStatus;
+  paymentStatus?: 'unpaid' | 'processing' | 'awaiting_payment' | 'awaiting_cash_approval' | 'paid' | 'failed' | 'cancelled' | 'expired' | 'refunded';
+  paymentMethod?: string | null;
+  customerName?: string | null;
+  collectionTime?: string | null;
+  kitchenReleaseAt?: string | null;
+  expiresAt?: string | null;
   source: OrderSource;
   totalAmount: number;
   notes?: string;
@@ -150,7 +162,7 @@ export interface OrdersParams {
   source?: OrderSource;
   createdBy?: string;
   paymentMethod?: 'cash' | 'card';
-  paymentStatus?: 'unpaid' | 'processing' | 'paid' | 'failed' | 'cancelled';
+  paymentStatus?: 'unpaid' | 'processing' | 'awaiting_payment' | 'awaiting_cash_approval' | 'paid' | 'failed' | 'cancelled' | 'expired' | 'refunded';
   from?: string;
   to?: string;
 }
@@ -198,6 +210,8 @@ export const createRefund = (
   id: string,
   data: { lines: Array<{ orderItemId: string; orderItemModifierId?: string; quantity: number }>; reason: RefundReason; notes?: string },
 ) => apiFetch<OrderRefund>(`/orders/${id}/refunds`, { method: 'POST', body: JSON.stringify(data) });
+
+export const approveCashOrder = (id: string) => apiFetch<Order>(`/orders/${id}/approve-cash`, { method: 'POST' });
 
 export const getOrders = (params: OrdersParams = {}) => {
   const qs = new URLSearchParams();
