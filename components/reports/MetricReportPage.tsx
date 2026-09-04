@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils/cn';
 import { type DashboardRange, formatCompact, formatMoney, getDateWindow, orderMetrics, percentageChange } from '@/lib/utils/dashboard';
 import { formatDate } from '@/lib/utils/date';
 import { type MetricKey, buildMetricDetail } from '@/lib/utils/reports';
+import { serverCache } from '@/lib/api/cache-policy';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ReportTrendChart } from './ReportChart';
@@ -59,31 +60,37 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
   const currentOrders = useQuery({
     queryKey: ['analytics-orders', range, scopeKey, timeZone],
     queryFn: () => getOrderAnalytics(currentParams()),
+    ...serverCache('orders'),
     enabled: ready,
   });
   const previousOrders = useQuery({
     queryKey: ['analytics-orders-previous', range, scopeKey, timeZone],
     queryFn: () => getOrderAnalytics(previousParams()),
+    ...serverCache('orders'),
     enabled: ready,
   });
   const retention = useQuery({
     queryKey: ['analytics-retention', range, scopeKey, timeZone],
     queryFn: () => getCustomerRetention(currentParams()),
+    ...serverCache('customerRetention'),
     enabled: ready && metric === 'retention',
   });
   const previousRetention = useQuery({
     queryKey: ['analytics-retention-previous', range, scopeKey, timeZone],
     queryFn: () => getCustomerRetention(previousParams()),
+    ...serverCache('customerRetention'),
     enabled: ready && metric === 'retention',
   });
   const byLocation = useQuery({
     queryKey: ['analytics-locations', range, scopeKey, timeZone],
     queryFn: () => getRevenueByLocation(currentParams()),
+    ...serverCache('revenueByLocation'),
     enabled: ready && !activeLocationId && metric !== 'retention',
   });
   const topItems = useQuery({
     queryKey: ['analytics-top-items', range, scopeKey, timeZone, 'metric'],
     queryFn: () => getTopItems(currentParams(), 8),
+    ...serverCache('topItems'),
     enabled: ready && (metric === 'revenue' || metric === 'orders'),
   });
   const liveOrderQueries = useQueries({

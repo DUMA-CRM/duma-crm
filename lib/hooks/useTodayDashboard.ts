@@ -22,6 +22,7 @@ import { getDateWindow, orderMetrics } from '@/lib/utils/dashboard';
 import { isLate, stageSince } from '@/lib/utils/kitchen-age';
 import { computePace, computeTargetProgress } from '@/lib/utils/pace';
 import { resolveTradingDay } from '@/lib/utils/trading-day';
+import { serverCache } from '@/lib/api/cache-policy';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // Lateness is not defined here. It comes from lib/utils/kitchen-age, the same
@@ -91,6 +92,7 @@ export function useTodayDashboard() {
   const orders = useQuery({
     queryKey: ['today-orders', dateKey, scopeKey, timeZone],
     queryFn: () => getOrderAnalytics(currentParams()),
+    ...serverCache('orders'),
     enabled: ready,
     refetchInterval: 60_000,
   });
@@ -98,14 +100,17 @@ export function useTodayDashboard() {
   const baseline = useQuery({
     queryKey: ['today-baseline', tradingDay.weekday, scopeKey, timeZone],
     queryFn: () => getDayBaseline({ weekday: tradingDay.weekday, timezone: timeZone, ...(activeLocationId ? { locationId: activeLocationId } : {}) }),
+    // Eight weeks of history doesn't move during a shift, and the API says the
+    // same thing: cacheControl(1800, 300). The 30-minute staleTime that used to
+    // be hard-coded here is now that number, from one place.
+    ...serverCache('baseline'),
     enabled: ready,
-    // Eight weeks of history doesn't move during a shift.
-    staleTime: 30 * 60_000,
   });
 
   const labour = useQuery({
     queryKey: ['today-labour', dateKey, scopeKey, timeZone],
     queryFn: () => getLabourAnalytics(currentParams()),
+    ...serverCache('labour'),
     enabled: ready,
     refetchInterval: 60_000,
   });
@@ -113,6 +118,7 @@ export function useTodayDashboard() {
   const hourly = useQuery({
     queryKey: ['today-hourly', dateKey, scopeKey, timeZone],
     queryFn: () => getHourlyVolume({ ...currentParams(), timezone: timeZone }),
+    ...serverCache('hourlyVolume'),
     enabled: ready,
     refetchInterval: 120_000,
   });
@@ -120,12 +126,14 @@ export function useTodayDashboard() {
   const topItems = useQuery({
     queryKey: ['today-top-items', dateKey, scopeKey, timeZone],
     queryFn: () => getTopItems(currentParams(), 5),
+    ...serverCache('topItems'),
     enabled: ready && secondaryEnabled,
   });
 
   const retention = useQuery({
     queryKey: ['today-retention', dateKey, scopeKey, timeZone],
     queryFn: () => getCustomerRetention(currentParams()),
+    ...serverCache('customerRetention'),
     enabled: ready && secondaryEnabled,
   });
 
@@ -146,6 +154,7 @@ export function useTodayDashboard() {
   const forecast = useQuery({
     queryKey: ['today-forecast', scopeKey],
     queryFn: () => getInventoryForecast(activeLocationId ?? undefined),
+    ...serverCache('inventoryForecast'),
     enabled: ready,
   });
 

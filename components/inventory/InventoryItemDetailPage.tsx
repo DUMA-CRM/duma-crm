@@ -80,6 +80,7 @@ import {
   splitStockUnit,
   updateLocationStock,
 } from '@/lib/api/inventory.service';
+import { serverCache } from '@/lib/api/cache-policy';
 import { type LossRecord, getLossLog } from '@/lib/api/loss.service';
 import { cn } from '@/lib/utils/cn';
 import { formatDate as formatAppDate, formatDateTime } from '@/lib/utils/date';
@@ -174,6 +175,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
   const { data: rawForecast } = useQuery({
     queryKey: ['inventory-forecast', locationId],
     queryFn: () => getInventoryForecast(locationId!),
+    ...serverCache('inventoryForecast'),
     enabled: !!locationId,
   });
   const { data: rawLosses, isLoading: lossesLoading } = useQuery({

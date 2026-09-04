@@ -17,6 +17,7 @@ import { useVatContext } from '@/lib/hooks/useVatContext';
 import { computeCosting } from '@/lib/menu/costing';
 import { cn } from '@/lib/utils/cn';
 import { type DashboardRange, formatCompact, formatMoney, getDateWindow, percentageChange } from '@/lib/utils/dashboard';
+import { serverCache } from '@/lib/api/cache-policy';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { MenuCategory } from '@/types/menu';
 
@@ -126,11 +127,13 @@ export function TopItemsReportPage() {
   const currentQuery = useQuery({
     queryKey: ['analytics-top-items', range, scopeKey, timeZone, 'report'],
     queryFn: () => getTopItems(currentParams(), 100),
+    ...serverCache('topItems'),
     enabled: ready,
   });
   const previousQuery = useQuery({
     queryKey: ['analytics-top-items-previous', range, scopeKey, timeZone, 'report'],
     queryFn: () => getTopItems(previousParams(), 100),
+    ...serverCache('topItems'),
     enabled: ready,
   });
 

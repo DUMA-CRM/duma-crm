@@ -32,6 +32,7 @@ import {
 } from '@/lib/api/inventory.service';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
+import { serverCache } from '@/lib/api/cache-policy';
 import { toast } from '@/stores/toastStore';
 
 // Last track is the row's chevron — fixed so the header grid and the row grids
@@ -118,6 +119,7 @@ export function StockOverview({
   const { data: rawForecast } = useQuery({
     queryKey: ['inventory-forecast', locationId],
     queryFn: () => getInventoryForecast(locationId),
+    ...serverCache('inventoryForecast'),
   });
 
   const { data: rawOverview } = useQuery({

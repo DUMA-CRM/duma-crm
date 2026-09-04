@@ -54,6 +54,7 @@ import {
 } from '@/lib/api/analytics.service';
 import { getLocations } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
+import { serverCache } from '@/lib/api/cache-policy';
 import {
   REPORT_METRICS,
   REPORT_METRIC_MAP,
@@ -521,31 +522,37 @@ function ReportsOverview({
   const currentOrders = useQuery({
     queryKey: ['reports-overview-orders', dates.from, dates.to, scope, timeZone],
     queryFn: () => getOrderAnalytics(scoped(currentRange!)),
+    ...serverCache('orders'),
     enabled: valid,
   });
   const comparisonOrders = useQuery({
     queryKey: ['reports-overview-orders-comparison', previousDates.from, previousDates.to, scope, timeZone],
     queryFn: () => getOrderAnalytics(scoped(comparisonRange!)),
+    ...serverCache('orders'),
     enabled: valid,
   });
   const currentRetention = useQuery({
     queryKey: ['reports-overview-retention', dates.from, dates.to, scope, timeZone],
     queryFn: () => getCustomerRetention(scoped(currentRange!)),
+    ...serverCache('customerRetention'),
     enabled: valid,
   });
   const comparisonRetention = useQuery({
     queryKey: ['reports-overview-retention-comparison', previousDates.from, previousDates.to, scope, timeZone],
     queryFn: () => getCustomerRetention(scoped(comparisonRange!)),
+    ...serverCache('customerRetention'),
     enabled: valid,
   });
   const topItems = useQuery({
     queryKey: ['reports-overview-top-items', dates.from, dates.to, scope, timeZone],
     queryFn: () => getTopItems(scoped(currentRange!), 10),
+    ...serverCache('topItems'),
     enabled: valid,
   });
   const hourly = useQuery({
     queryKey: ['reports-overview-hourly', dates.from, dates.to, scope, timeZone],
     queryFn: () => getHourlyVolume(scoped(currentRange!)),
+    ...serverCache('hourlyVolume'),
     enabled: valid,
   });
   const current = buildReportSnapshot(currentOrders.data, currentRetention.data);
@@ -874,21 +881,25 @@ function ComparisonWorkspace({
   const ordersA = useQuery({
     queryKey: ['reports-compare-orders-a', fromA, toA, locationA, timeZone],
     queryFn: () => getOrderAnalytics(paramsA!),
+    ...serverCache('orders'),
     enabled: Boolean(paramsA),
   });
   const ordersB = useQuery({
     queryKey: ['reports-compare-orders-b', effectiveB.from, effectiveB.to, locationB, timeZone],
     queryFn: () => getOrderAnalytics(paramsB!),
+    ...serverCache('orders'),
     enabled: Boolean(paramsB),
   });
   const retentionA = useQuery({
     queryKey: ['reports-compare-retention-a', fromA, toA, locationA, timeZone],
     queryFn: () => getCustomerRetention(paramsA!),
+    ...serverCache('customerRetention'),
     enabled: Boolean(paramsA),
   });
   const retentionB = useQuery({
     queryKey: ['reports-compare-retention-b', effectiveB.from, effectiveB.to, locationB, timeZone],
     queryFn: () => getCustomerRetention(paramsB!),
+    ...serverCache('customerRetention'),
     enabled: Boolean(paramsB),
   });
 

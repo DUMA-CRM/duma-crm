@@ -31,6 +31,7 @@ import type { BusinessReportSection } from '@/lib/utils/business-reports';
 import { cn } from '@/lib/utils/cn';
 import { formatCompact, formatMoney, orderMetrics } from '@/lib/utils/dashboard';
 import { previousDateRange, reportDateRange, shortDateLabel, trailingDateRange } from '@/lib/utils/reporting';
+import { serverCache } from '@/lib/api/cache-policy';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const panel = 'rounded-sm border border-rule bg-card shadow-sm';
@@ -115,18 +116,22 @@ function LabourReport({ context }: { context: ReportContext }) {
   const currentHours = useQuery({
     queryKey: ['report-labour-hours', context.dates.from, context.dates.to, context.locationId],
     queryFn: () => getStaffHours(context.current),
+    ...serverCache('staffHours'),
   });
   const previousHours = useQuery({
     queryKey: ['report-labour-hours-previous', context.previousDates.from, context.previousDates.to, context.locationId],
     queryFn: () => getStaffHours(context.previous),
+    ...serverCache('staffHours'),
   });
   const currentOrders = useQuery({
     queryKey: ['report-labour-orders', context.dates.from, context.dates.to, context.locationId],
     queryFn: () => getOrderAnalytics(context.current),
+    ...serverCache('orders'),
   });
   const previousOrders = useQuery({
     queryKey: ['report-labour-orders-previous', context.previousDates.from, context.previousDates.to, context.locationId],
     queryFn: () => getOrderAnalytics(context.previous),
+    ...serverCache('orders'),
   });
   const variance = useQuery({
     queryKey: ['report-labour-variance', context.dates.from, context.dates.to, context.locationId],
@@ -295,15 +300,18 @@ function InventoryReport({ context }: { context: ReportContext }) {
   const summary = useQuery({
     queryKey: ['report-stock-summary', context.dates.from, context.dates.to, context.locationId],
     queryFn: () => getStockSummary(context.current),
+    ...serverCache('stockSummary'),
   });
   const previousSummary = useQuery({
     queryKey: ['report-stock-summary-previous', context.previousDates.from, context.previousDates.to, context.locationId],
     queryFn: () => getStockSummary(context.previous),
+    ...serverCache('stockSummary'),
   });
   const stockItems = useQuery({ queryKey: ['stock-items'], queryFn: getStockItems });
   const forecast = useQuery({
     queryKey: ['report-inventory-forecast', context.locationId, context.days],
     queryFn: () => getInventoryForecast(context.locationId ?? undefined, context.days),
+    ...serverCache('inventoryForecast'),
   });
   const losses = useQuery({
     queryKey: ['report-losses', context.dates.from, context.dates.to, context.locationId],
@@ -649,6 +657,7 @@ function ProfitabilityReport({ context }: { context: ReportContext }) {
   const topItems = useQuery({
     queryKey: ['report-profitability-top-items', context.dates.from, context.dates.to, context.locationId],
     queryFn: () => getTopItems(context.current, 25),
+    ...serverCache('topItems'),
   });
   // Needed for each item's VAT rate — hot and cold food are rated differently,
   // so a single tenant default would misstate margin per line.

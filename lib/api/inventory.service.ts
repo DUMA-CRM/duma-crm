@@ -271,21 +271,21 @@ export const getStockUnits = (
   if (params.activeOnly !== undefined) query.set('activeOnly', String(params.activeOnly));
   if (params.expiringWithinDays !== undefined) query.set('expiringWithinDays', String(params.expiringWithinDays));
   const qs = query.toString();
-  return apiFetch<StockUnit[]>(`/stock-units${qs ? `?${qs}` : ''}`);
+  return apiFetch<StockUnit[]>(`/inventory${qs ? `?${qs}` : ''}`);
 };
 
-export const getStockUnit = (id: string) => apiFetch<StockUnit>(`/stock-units/${id}`);
-export const getStockUnitLedger = (id: string) => apiFetch<StockMovement[]>(`/stock-units/${id}/ledger`);
+export const getStockUnit = (id: string) => apiFetch<StockUnit>(`/inventory/${id}`);
+export const getStockUnitLedger = (id: string) => apiFetch<StockMovement[]>(`/inventory/${id}/ledger`);
 
 export const receiveStockUnits = (data: {
   locationId: string;
   stockItemId: string;
   units: Array<{ initialQuantity: number; expiryDate?: string | null; lotNumber?: string; label?: string; barcode?: string }>;
   notes?: string;
-}) => apiFetch<StockUnit[]>('/stock-units', { method: 'POST', body: JSON.stringify(data) });
+}) => apiFetch<StockUnit[]>('/inventory', { method: 'POST', body: JSON.stringify(data) });
 
 export const combineStockUnits = (data: { stockUnitIds: string[]; label?: string; notes?: string }) =>
-  apiFetch<{ unit: StockUnit; sourceUnitIds: string[] }>('/stock-units/combine', {
+  apiFetch<{ unit: StockUnit; sourceUnitIds: string[] }>('/inventory/combine', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -294,16 +294,16 @@ export const splitStockUnit = (
   id: string,
   data: { parts: Array<{ quantity: number; label?: string }>; notes?: string },
 ) =>
-  apiFetch<{ units: StockUnit[]; sourceStockUnitId: string }>(`/stock-units/${id}/split`, {
+  apiFetch<{ units: StockUnit[]; sourceStockUnitId: string }>(`/inventory/${id}/split`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
 export const adjustStockUnit = (id: string, data: { quantity: number; reason?: string; notes?: string }) =>
-  apiFetch<StockUnit>(`/stock-units/${id}/adjust`, { method: 'POST', body: JSON.stringify(data) });
+  apiFetch<StockUnit>(`/inventory/${id}/adjust`, { method: 'POST', body: JSON.stringify(data) });
 
 export const wasteStockUnit = (id: string, data: { quantity: number; reason: 'EXPIRED' | 'SPILL' | 'DAMAGED' | 'QUALITY' | 'OTHER'; notes?: string }) =>
-  apiFetch<StockUnit>(`/stock-units/${id}/waste`, { method: 'POST', body: JSON.stringify(data) });
+  apiFetch<StockUnit>(`/inventory/${id}/waste`, { method: 'POST', body: JSON.stringify(data) });
 
 export const discardStockUnit = (id: string, data: { reason: 'EXPIRED' | 'SPILL' | 'DAMAGED' | 'QUALITY' | 'OTHER'; notes?: string }) =>
-  apiFetch<StockUnit>(`/stock-units/${id}/discard`, { method: 'POST', body: JSON.stringify(data) });
+  apiFetch<StockUnit>(`/inventory/${id}/discard`, { method: 'POST', body: JSON.stringify(data) });
