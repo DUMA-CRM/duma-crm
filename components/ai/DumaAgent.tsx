@@ -664,6 +664,17 @@ function AgentLauncher({
   const [reached, setReached] = useState(false);
   /** The greeting, which plays once per arrival rather than for as long as you hover. */
   const [greeting, setGreeting] = useState(false);
+  /**
+   * Whether the greeting is still owed. It is spent on the first arrival and never
+   * refilled while the page lives.
+   *
+   * It used to play on every arrival, and a wink each time the pointer crosses a
+   * header button is a tic rather than a greeting — it fires while somebody is
+   * travelling to the control beside it, several times a minute, and the mascot ends
+   * up winking at an empty room. Once is a greeting; the waking and the gaze that
+   * follow every arrival are the reaction, and they are the part that should repeat.
+   */
+  const owed = useRef(true);
   const awake = reached || busy;
 
   // The greeting is *started* by the arrival that causes it and only ended here,
@@ -680,7 +691,10 @@ function AgentLauncher({
 
   const arrive = () => {
     setReached(true);
-    setGreeting(true);
+    if (owed.current) {
+      owed.current = false;
+      setGreeting(true);
+    }
   };
 
   return (
@@ -712,11 +726,13 @@ function AgentLauncher({
         // assistant, and a taller thing in a row of even ones reads as hierarchy
         // rather than as misalignment.
         size={44}
-        // The eyes are holes, so they show the button's ground, and this button
-        // has two: band while the panel is open, porcelain otherwise. Left to the
-        // default the eyes would stay porcelain on a band plate, which is not a
-        // subtle wrongness — it is the one place on the mascot with no ink over it.
-        paper={open ? 'var(--band)' : undefined}
+        // No `eye` override, and that is worth a line because there used to be
+        // one. The eyes were holes through to whatever was behind, and this button
+        // has two grounds — band while the panel is open, porcelain otherwise — so
+        // the open state had to hand the mascot its own plate colour or the eyes
+        // stayed porcelain on a band button. They are an opaque well of their own
+        // now, so the character no longer depends on what it is standing on.
+        //
         // A greeting only makes sense when there is no news to carry: a request in
         // flight outranks being winked at.
         state={!busy && greeting ? 'wink' : mood.state}

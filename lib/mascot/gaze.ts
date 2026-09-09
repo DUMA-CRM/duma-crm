@@ -1,5 +1,4 @@
 import type { Look } from '@/lib/mascot/engine/engine';
-import type { ExpressionId } from '@/lib/mascot/engine/expressions';
 
 /**
  * Where the mascot looks when something outside it is steering — the pointer,
@@ -73,27 +72,38 @@ export const PITCH = 8;
  * real radius in its own direction (`radiusAtAngle`), so on a hexagon the eyes
  * follow the profile as they go round: they step in and out over the flats and
  * corners instead of gliding. Callers therefore ask for the spin rather than
- * getting it — see `Aim.spin` — and DUMA's body is a hexagon, so nothing does.
+ * getting it — see `Aim.spin`.
+ *
+ * **And nothing asks.** DUMA's body was a hexagon, which made the question moot;
+ * it is a ball now, so the spin became available and was deliberately left off.
+ * The header launcher starts tracking on every pointer entry, several times a
+ * minute, and sending the eyes the whole way round the back of the head each time
+ * is a trick rather than a reaction. The entrance turn that runs alongside it —
+ * `turn`, on an ease-out over `TURN_TIME` — is the part that reads as looking up
+ * at you, and it survives on its own. Kept here because it is the engine's
+ * behaviour and a one-off greeting is a fair use of it; not because it is unused
+ * by accident.
  */
 export const SPIN = 360;
 
 /** How long that turn takes. Short enough to read as a greeting, not a loop. */
 export const TURN_TIME = 0.9;
 
-/**
- * Moods safe to wear while tracking the pointer.
+/*
+ * There was a `TRACKING_MOODS` allow-list here — the eight moods with zero roll,
+ * the ones safe to wear while tracking the pointer, because tracking neutralised
+ * yaw and pitch but not roll, and roll tips the head and so moves the eyes
+ * vertically. A mood at -15° followed by one at -4° slid them while they were
+ * supposed to be pinned to the cursor.
  *
- * Every one has **zero roll**, and that is the selection criterion rather than
- * a matter of taste. Tracking neutralises yaw and pitch (they are absolute) but
- * not roll, which tips the head and therefore moves the eyes vertically: a mood
- * at -15° followed by one at +8° makes them jump. What still separates one mood
- * from another during tracking is the *shape* of the eyes — narrowed, round,
- * widened, flattened — which is plenty, and which is what reads.
- *
- * So adding `curieux` (roll -15°) here would bring the jump back, however well
- * a tilted head would otherwise suit a mascot that is asking a question.
+ * It is gone because it was never enforceable. Nothing imported it, and the
+ * resting mood the whole product wears — `attentif`, roll -4° — was not on it, so
+ * the defect it described was live on every screen. `Look.roll` in the engine
+ * fixes it at the layer that can: the target is zero, so tracking straightens the
+ * head and a change of mood cannot move the eyes at all. Every mood is now safe to
+ * track in, and what separates them while it does is the *shape* of the eyes,
+ * which is what the original note said was doing the reading anyway.
  */
-export const TRACKING_MOODS: readonly ExpressionId[] = ['surpris', 'heureux', 'hilare', 'excite', 'fier', 'blase', 'triste', 'colere'];
 
 export interface Aim {
   /** Pointer offset from the mascot's centre, -1 to 1, right positive. */
@@ -129,6 +139,10 @@ export function lookTarget({ nx, ny, turn, pointer, spin }: Aim): Look {
     yaw: nx * YAW_MAX,
     // positive pitch looks up, whereas screen y grows downwards
     pitch: PITCH - ny * PITCH_MAX,
+    // Zero, so tracking STRAIGHTENS the head rather than rolling it with the
+    // cursor. The mood's own tilt is what the mascot wears at rest; while it is
+    // looking at you, a change of mood must not move the eyes off the pointer.
+    roll: 0,
     mix: turn,
     spin: spin * (1 - turn),
     // With no pointer the head holds its direction but gets its drift back:

@@ -67,16 +67,37 @@ export interface BotFrame {
 export interface Look {
   yaw: number
   pitch: number
+  /**
+   * DUMA DEVIATION — roulis ABSOLU, au meme titre que `yaw` et `pitch`.
+   *
+   * En amont le roulis n'obeit a personne : c'est la signature de la video, la tete
+   * du bot y est penchee de -13deg. Mais chaque EXPRESSION porte son propre roulis
+   * (`attentif` -4, `curieux` -15, `confus` +8), et le roulis fait tourner la paire
+   * d'yeux autour de l'axe de vue, donc il les deplace verticalement. Pendant un
+   * suivi du curseur, ou les yeux sont censes etre cloues sur le pointeur, un
+   * changement d'humeur les faisait donc glisser de sept unites sans que rien
+   * n'ait bouge a l'ecran.
+   *
+   * Le probleme etait connu : `lib/mascot/gaze.ts` publiait une liste blanche
+   * d'humeurs a roulis nul, `TRACKING_MOODS`, importee nulle part et contredite par
+   * l'humeur de repos elle-meme. Le corriger ici plutot que d'y obeir rend TOUTES
+   * les humeurs utilisables pendant un suivi : ce qui les distingue alors est la
+   * FORME des yeux, ce que la note d'origine disait deja etre l'essentiel.
+   *
+   * Hors suivi (`mix` a 0) le roulis releve sur la video est intact.
+   */
+  roll: number
   mix: number
   spin: number
   wander: number
 }
 
-const NO_LOOK: Look = { yaw: 0, pitch: 0, mix: 0, spin: 0, wander: 1 }
+const NO_LOOK: Look = { yaw: 0, pitch: 0, roll: 0, mix: 0, spin: 0, wander: 1 }
 
 const lerpLook = (a: Look, b: Look, t: number): Look => ({
   yaw: lerp(a.yaw, b.yaw, t),
   pitch: lerp(a.pitch, b.pitch, t),
+  roll: lerp(a.roll, b.roll, t),
   mix: lerp(a.mix, b.mix, t),
   spin: lerp(a.spin, b.spin, t),
   wander: lerp(a.wander, b.wander, t)
@@ -469,9 +490,11 @@ export class BotEngine {
       // doit survivre a une tete tournee sans pointeur.
       yaw: lerp(pose.gaze.yaw, look.yaw, look.mix) + life.dYaw - look.spin,
       pitch: lerp(pose.gaze.pitch, look.pitch, look.mix) + life.dPitch,
-      // le roulis, lui, ne suit rien : la tete du bot est penchee de -13deg dans
-      // la video, et la faire rouler avec le curseur casse cette signature
-      roll: pose.gaze.roll + life.dRoll
+      // DUMA DEVIATION — le roulis se melange comme les deux autres. Il ne suit pas
+      // le curseur pour autant : la cible vaut 0, donc un suivi REDRESSE la tete au
+      // lieu de la faire rouler, et c'est ce qui empeche un changement d'humeur de
+      // deplacer verticalement des yeux censes etre poses sur le pointeur. Cf. `Look`.
+      roll: lerp(pose.gaze.roll, look.roll, look.mix) + life.dRoll
     }
 
     // clignement declenche par le changement d'etat, en plus du calendrier

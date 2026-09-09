@@ -8,32 +8,45 @@ import { clamp, easings } from '@/lib/mascot/engine/math';
 import { DEMI_VIEWBOX, RAYON } from '@/lib/mascot/engine/repere';
 import { SHAPE_BY_ID, type ShapeId } from '@/lib/mascot/engine/skins';
 import { POSES, STATE_BY_ID, type StateId } from '@/lib/mascot/engine/states';
-import { type GazeScript, SPIN, TURN_TIME, lookTarget } from '@/lib/mascot/gaze';
+import { type GazeScript, TURN_TIME, lookTarget } from '@/lib/mascot/gaze';
 import { cn } from '@/lib/utils/cn';
 
 /**
- * DUMA's mascot: one filled shape that morphs between poses, with two eyes
- * punched through it as holes.
+ * DUMA's mascot: one flat filled shape that morphs between poses, with two eyes
+ * set into it.
  *
  * The engine underneath (`lib/mascot/engine/`) is vendored from the `bloub`
  * project and is framework-free and clock-free — `sample(t)` is a pure function
  * of time. This component is one *client* of it, and everything it adds is the
  * part a pure function cannot do: a clock, the pointer, the DOM.
  *
+ * **Flat on purpose.** A shaded version of this was built — a body gradient lit
+ * from the upper left, a specular blob, a bounce along the lower rim, a catchlight
+ * in each eye — and it was rejected on the thing that actually matters here: the
+ * mascot's working size is the 44px header launcher, and at that size every one of
+ * those effects is fighting the two shapes a reader needs to resolve, which are
+ * the silhouette and the eyes. Two flat colours and a hard edge read instantly at
+ * any size, in either theme, on any plate. Do not reintroduce depth without a
+ * reason that survives being looked at at 44px.
+ *
  * Two consequences worth knowing before changing anything here:
  *
- *   - **Colours arrive as CSS colours, not hex.** The engine only ever needed
- *     hex because upstream mixes particle fog itself; we hand that to
- *     `color-mix()` instead, so `ink` and `paper` can be design tokens and the
- *     mascot follows the theme with no JS reading computed styles and no
- *     re-render on a theme flip.
+ *   - **Colours arrive as CSS colours, not hex, and they must go through
+ *     `style`.** The engine only ever needed hex because upstream mixes particle
+ *     fog itself; we hand that to `color-mix()` instead, so `ink` and `eye` can be
+ *     design tokens and the mascot follows the theme with no JS reading computed
+ *     styles and no re-render on a theme flip. The catch is that a presentation
+ *     attribute is not a CSS declaration, so `fill="var(--mascot-ink)"` compiles,
+ *     renders, and is silently black. Anything carrying one of these colours takes
+ *     it as `style`, never as an attribute.
  *
- *   - **`paper` has to be the colour actually behind the mascot.** The eyes are
- *     holes, so they show whatever is drawn under the body — and the back half
- *     of the orbit rings *is* drawn under it, deliberately, to be occluded. The
- *     opaque backing path in `paper` is what stops a ring reappearing inside the
- *     eyes. Get it wrong and the eyes are the wrong colour; leave it out and
- *     rings swim through them.
+ *   - **The eyes are wells, not holes.** They are still *punched* through the body
+ *     by the mask — that is what clips them against the outline for free when they
+ *     slide towards the edge — but what shows through is an opaque layer painted in
+ *     `eye`, in the shape of the body. So the eyes are the same colour on any
+ *     surface and callers no longer have to declare what is behind the mascot; and
+ *     that same opaque layer is what stops the back half of the orbit rings — drawn
+ *     under the body deliberately, to be occluded — from reappearing inside them.
  */
 export interface MascotProps {
   /**
@@ -50,27 +63,43 @@ export interface MascotProps {
   /**
    * Resting mood. Only bites on states that carry the resting face — `idle`,
    * `swirl` and `pondering`; everywhere else the expression *is* the animation
-   * being reproduced. Keep it to a zero-roll mood while `follow` is on — see
-   * `TRACKING_MOODS`.
+   * being reproduced.
+   *
+   * Any mood is safe here, including while `follow` is on. That was not true until
+   * the engine's `Look` grew a `roll`: a mood carries its own head tilt, tracking
+   * used to leave it alone, and so changing mood slid the eyes vertically while they
+   * were supposed to be pinned to the cursor. Tracking now straightens the head, and
+   * what tells two moods apart while it does is the shape of the eyes.
    */
   expression?: ExpressionId;
   /**
    * Resting body outline. Only bites on states that carry the resting body — on
    * every other state the silhouette *is* the animation and must not be replaced.
    *
-   * A hexagon by default, which is DUMA's mascot. Worth knowing what a
-   * non-circular body changes, because the engine handles most of it and not all:
-   * the eyes and the notification pastille are refitted to the real radius in their
-   * own direction, and a per-shape corrective (`engine/eyefit.ts`, resolved once at
-   * import) keeps the eyes off the edge. What it cannot fix is a spin — see `SPIN`
-   * in `lib/mascot/gaze` — because eyes travelling round a profile step over its
-   * flats and corners instead of gliding.
+   * A **circle** by default, which is DUMA's mascot. It was a hexagon, and the
+   * change carries most of the redraw: a ball is the friendlier silhouette at a
+   * glance, it is what the engine's constants were measured against — upstream's
+   * own note is that "the body is a true circle, not a squircle" — so the poses are
+   * more faithful on it, the eye-fit corrective below becomes a no-op, and the gaze
+   * can take the full turn `SPIN` describes instead of stepping over flats and
+   * corners on the way round.
+   *
+   * The other shapes still work. Worth knowing what a non-circular body changes,
+   * because the engine handles most of it and not all: the eyes and the
+   * notification pastille are refitted to the real radius in their own direction,
+   * and a per-shape corrective (`engine/eyefit.ts`, resolved once at import) keeps
+   * the eyes off the edge. What it cannot fix is that spin — see `SPIN` in
+   * `lib/mascot/gaze` — because eyes travelling round a profile step over its flats
+   * and corners instead of gliding.
    */
   shape?: ShapeId;
   /** Body colour. Any CSS colour, so a `var(--token)` is fine. */
   ink?: string;
-  /** The surface behind the mascot — what the eye holes show. See above. */
-  paper?: string;
+  /**
+   * The eye material — an opaque well set into the body, not a hole through to
+   * whatever is behind it. See above. Any CSS colour.
+   */
+  eye?: string;
   /** The notification pastille's colour. */
   accent?: string;
   /** The gaze tracks the pointer, with a turn on the way in. */
@@ -140,9 +169,9 @@ export function Mascot({
   size = 40,
   state = 'idle',
   expression = 'neutre',
-  shape = 'hexagone',
+  shape = 'cercle',
   ink = 'var(--mascot-ink)',
-  paper = 'var(--mascot-paper)',
+  eye = 'var(--mascot-eye)',
   accent = 'var(--mascot-accent)',
   follow = false,
   gaze = null,
@@ -415,10 +444,12 @@ export function Mascot({
           ny: pointer ? clamp((pointer.y - (box.top + box.height / 2)) / halfHeight, -1, 1) : 0,
           turn: easings.easeOutQuint(clamp((clockRef.current - turnRef.current) / TURN_TIME)),
           pointer: pointer !== null,
-          // Only a ball can spin its eyes round itself; on any other profile they
-          // step over the outline. Asked for explicitly so a change of shape cannot
-          // quietly reintroduce the stutter.
-          spin: shape === 'cercle' ? SPIN : 0,
+          // No spin, on a ball that could now take one — see `SPIN`. It was
+          // unreachable while the body was a hexagon, and making the body round
+          // would have switched a full 360° eye-spin on for every pointer entry
+          // into the header button as a side effect of a silhouette change. The
+          // entrance turn below is the reaction; the spin is a trick.
+          spin: 0,
         }),
         clockRef.current,
       );
@@ -461,16 +492,20 @@ export function Mascot({
    * not belong to the frame.
    */
   const inkFill = useMemo(() => ({ fill: ink }), [ink]);
-  const paperFill = useMemo(() => ({ fill: paper }), [paper]);
+  const eyeFill = useMemo(() => ({ fill: eye }), [eye]);
   const accentFill = useMemo(() => ({ fill: accent }), [accent]);
 
   /**
-   * Depth fog on the burst particles: 0 sinks into the surface, 1 is the body's
-   * full colour. Handed to `color-mix()` rather than mixed in JS, which is what
-   * lets `ink` and `paper` stay tokens.
+   * Depth fog on the burst particles: 0 is gone, 1 is the body's full colour.
+   * Handed to `color-mix()` rather than mixed in JS, which is what lets `ink` stay
+   * a token.
+   *
+   * It used to fade towards the surface behind the mascot, which faked a particle
+   * seen through it and needed that surface to be declared. Alpha does the same job
+   * on any ground — the same reason the eyes stopped being holes.
    */
   const fog = (depth: number | undefined) =>
-    depth === undefined ? ink : `color-mix(in srgb, ${ink} ${Math.round(clamp(depth) * 100)}%, ${paper})`;
+    depth === undefined ? ink : `color-mix(in srgb, ${ink} ${Math.round(clamp(depth) * 100)}%, transparent)`;
 
   const dots = (keyPrefix: string) =>
     frame.dots.map((dot, index) =>
@@ -520,10 +555,11 @@ export function Mascot({
     >
       <defs>
         {/*
-          The eyes are real holes punched through the body, not white shapes laid
-          on top, so they clip themselves against the silhouette when they slide
-          towards the edge with no cropping code of ours. The notification
-          pastille's notch is the same mechanism.
+          The eyes are real holes punched through the body, not shapes laid on top,
+          so they clip themselves against the silhouette when they slide towards
+          the edge with no cropping code of ours. What shows through them is the
+          opaque well below, not the page. The notification pastille's notch is the
+          same mechanism.
         */}
         <mask id={maskId} maskUnits="userSpaceOnUse" x={-DEMI_VIEWBOX} y={-DEMI_VIEWBOX} width={DEMI_VIEWBOX * 2} height={DEMI_VIEWBOX * 2}>
           <path d={frame.bodyPath} fill="#fff" />
@@ -562,12 +598,16 @@ export function Mascot({
 
       <g opacity={frame.bodyAlpha}>
         {/*
-          Opaque backing in the exact shape of the body, under the body itself.
-          The eyes are holes, and a hole shows whatever is drawn behind it — and
-          the back half of the rings above is drawn behind on purpose. Without
-          this, a ring passing behind the ball reappears *inside* the eyes.
+          The eye wells: one opaque layer in the exact shape of the body, under the
+          body itself, and the eye holes above are what reveals it.
+
+          It is doing two jobs at once and both are load-bearing. It is the eye
+          material — which is why the eyes are the same colour whatever the mascot
+          is sitting on — and it is the occluder: the back half of the rings above
+          is drawn behind the body on purpose, and without something opaque here a
+          ring passing behind the ball reappears *inside* the eyes.
         */}
-        <path d={frame.bodyPath} style={paperFill} />
+        <path d={frame.bodyPath} style={eyeFill} />
         <g mask={`url(#${maskId})`}>
           <rect x={-DEMI_VIEWBOX} y={-DEMI_VIEWBOX} width={DEMI_VIEWBOX * 2} height={DEMI_VIEWBOX * 2} style={inkFill} />
         </g>

@@ -164,8 +164,14 @@
   --radius: 0.4375rem;
 
   /* ── The mascot ───────────────────────────────────────────────
-     Ask DUMA's mascot is one filled shape with two holes for eyes, so it needs
-     exactly three colours and they are not interchangeable with anything above.
+     Ask DUMA's mascot is one flat filled shape with two eyes set into it, so it
+     needs exactly three colours and they are not interchangeable with anything
+     above.
+
+     Flat, and a shaded version was built and rejected: the mascot's working size
+     is the 44px header launcher, and at that size a gradient, a specular and a
+     rim light all compete with the only two things a reader needs to resolve —
+     the silhouette and the eyes.
 
      --mascot-ink    the body. Brand green — the same value as --primary, and it
                      took a reversal to get here.
@@ -180,19 +186,32 @@
 
                      So it wears the brand green, which is one step up from the
                      shell and unmistakably green at any size. The competition
-                     worry does not survive contact: a hexagon with eyes is not
+                     worry does not survive contact: a ball with eyes is not
                      button-shaped, and nothing about it invites a press. Kept as
                      its own token rather than aliased to --primary, because the
                      day the action colour moves is not the day the mascot should.
-     --mascot-paper  what the eye holes SHOW, which means it has to be the
-                     colour actually behind the mascot, not a colour that looks
-                     like it. Porcelain, because the mascot only ever sits on a
-                     card. A caller on another surface passes its own.
+     --mascot-eye    the eye MATERIAL — an opaque well set into the body, no
+                     longer a hole showing the page.
+
+                     That is the substantive change here. The eyes used to be
+                     punched through to whatever was behind, so the token had to be
+                     the colour actually there and every caller on an unusual plate
+                     had to say so or get eyes the wrong colour — the header
+                     launcher passed --band by hand for exactly that reason. Now an
+                     opaque layer is painted behind the body, so the eyes are the
+                     same colour on any surface and callers pass nothing.
+
+                     Field, in both themes, which is what makes the figure invert
+                     with the theme rather than be restyled by it: a mid-green ball
+                     with bone eyes by day, a light-green ball with charcoal eyes at
+                     night. Both directions are legible — 7.08:1 of body against eye
+                     by day, 6.83:1 by night — and one fixed eye colour could not be,
+                     since either value collapses against one of the two bodies.
      --mascot-accent the notification pastille. Periwinkle: the pastille means
                      "there is something here for you", which is info, and info
                      is periwinkle everywhere else in the product. */
   --mascot-ink: #1f6146;
-  --mascot-paper: var(--field);
+  --mascot-eye: var(--field);
   --mascot-accent: var(--reference);
 
   /* ── Layout dimensions (unchanged contract) ──────────────────── */
@@ -271,10 +290,10 @@
   /* The night tier of the same green, so the mascot is one character across both
      themes rather than a green one by day and a bone one by night.
 
-     The figure inverts on its own as a consequence: the body is now the light
-     thing and the eye holes — which show --field — are the dark ones. That is the
-     same drawing read the other way up, and both directions are legible, 7.08:1
-     of body against eye by day and 6.83:1 by night. */
+     Only the body moves: --mascot-eye is --field in both themes, so the figure
+     inverts on its own — the body becomes the light thing and the eyes the dark
+     ones. That is the same drawing read the other way up, and both directions are
+     legible. See the day block. */
   --mascot-ink: #4fb187;
 }
 

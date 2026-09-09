@@ -11,22 +11,34 @@ import { TAU, clamp, createRng, r2 } from './math'
  * literally that is a rainbow, which would put five colours the product does not
  * own into the one element people look at most.
  *
- * So the measurements are kept and *remapped*: the full wheel is folded onto the
- * arc DUMA's domain palette already occupies, apricot (17deg) round through
- * saffron and team green to periwinkle (231deg) — and the arc is 170deg rather
- * than the whole 214 between them, because `hueSpan` folds by the same factor
- * and rides on top: at 214 the widest ring's own gradient ran out past periwinkle
- * into a violet the product does not own. Ring-to-ring relationships and
- * the direction of every gradient survive the fold, because it is one affine map
- * applied to both `hue` and `hueSpan` — what changes is only which part of the
- * spectrum the bouquet lives in.
+ * So the measurements are kept and *remapped*: the full wheel is folded onto one
+ * arc of DUMA's own palette. Ring-to-ring relationships and the direction of every
+ * gradient survive the fold, because it is one affine map applied to both `hue`
+ * and `hueSpan` — what changes is only which part of the spectrum the bouquet
+ * lives in.
+ *
+ * **The arc was apricot (17deg) to periwinkle, and it is now team green (150deg)
+ * to periwinkle (232deg).** The wide version was chosen to span the domain palette,
+ * which was the right list and the wrong question. These rings only ever appear in
+ * `pondering`, and `pondering` is what the mascot now does for nearly all of every
+ * wait — so what used to be a rare flourish is the animation an operator sees most,
+ * and it was orbiting a green ball with an apricot ring, a saffron ring and a
+ * yellow-green one. Apricot means "measured value" everywhere else in the product
+ * and saffron means stock; neither means "thinking", and on the mascot they simply
+ * read as a rainbow.
+ *
+ * Green through teal to periwinkle is the cool half of the same list, so the rings
+ * now travel from the mascot's own colour to the one the product already uses for
+ * information. 82deg rather than the full 100 to periwinkle, because `hueSpan`
+ * folds by the same factor and rides on top: the widest ring's own gradient has to
+ * land inside the arc rather than run out past it.
  *
  * Deliberately NOT done by rewriting the seeds: they are measured data, and the
  * next upstream pull should still diff cleanly against them. This is a lens over
  * the data, not an edit of it.
  */
-const HUE_ORIGIN = 17
-const HUE_ARC = 170
+const HUE_ORIGIN = 150
+const HUE_ARC = 82
 const HUE_FOLD = HUE_ARC / 360
 
 /**

@@ -1,8 +1,14 @@
 # The mascot
 
-Ask DUMA's mascot: one filled shape that morphs between poses, with two eyes
-punched through it as holes. It is what the assistant looks like — in the header
-button, in the panel's badge, and as the greeting on an empty panel.
+Ask DUMA's mascot: one flat filled ball that morphs between poses, with two eyes
+set into it. It is what the assistant looks like — in the header button, in the
+panel's badge, and as the greeting on an empty panel.
+
+**Flat, and deliberately.** A shaded version was built — a body gradient lit from
+the upper left, a specular blob, a bounce along the lower rim, a catchlight in each
+eye — and rejected. The mascot's working size is the 44px header launcher, and at
+that size every one of those effects competes with the only two things a reader
+needs to resolve: the silhouette and the eyes.
 
 |                                       |                                                                                     |
 | ------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -66,12 +72,23 @@ measured against the resting pose and held above roughly 85% of it — the table
 in `lib/mascot/gaze.ts` (pointer tracking) and beside `scanning`'s `yaw` (the
 sweep). Widen either and re-measure.
 
-`engine/decor.ts` remaps the orbit rings' hue wheel onto the arc DUMA's domain
-palette occupies, apricot through saffron and team green to periwinkle. Rendered
-literally the rings are a rainbow, which would put five colours the product does
-not own into the element people look at most. It is written as a lens over the
-measured seed data rather than an edit of it — one affine map in `wheel()` —
-specifically so the next pull from upstream still diffs cleanly.
+`engine/decor.ts` remaps the orbit rings' hue wheel onto one arc of DUMA's palette,
+**team green (150°) through teal to periwinkle (232°)**. Rendered literally the
+rings are a rainbow, which would put five colours the product does not own into the
+element people look at most.
+
+The arc used to start at apricot (17°) and span 170°, chosen to cover the whole
+domain palette. That was the right list and the wrong question: these rings only
+appear in `pondering`, and `pondering` is now what the mascot does for nearly all of
+every wait — so a rare flourish became the animation operators see most, and it was
+orbiting a green ball with an apricot ring and a saffron one. Apricot means "measured
+value" everywhere else in the product and saffron means stock; neither means
+"thinking". The cool half of the same list travels from the mascot's own colour to
+the one the product already uses for information.
+
+It is written as a lens over the measured seed data rather than an edit of it — one
+affine map in `wheel()` — specifically so the next pull from upstream still diffs
+cleanly.
 
 `engine/` is also in `.prettierignore`, for the same reason: house style would
 rewrite all twelve files and make every future diff unreadable.
@@ -106,48 +123,99 @@ schedule, drifts its gaze, and it follows the cursor. Only `dozing` changes pose
 without an event, and it earns that by being slow and by only starting once the
 panel has been abandoned for 45 seconds.
 
-**Angry is reserved for a security rule.** Two things can decline a request and they
-are not alike: `declined` is an ordinary boundary (someone asked a café operations
-assistant for a poem) and gets a puzzled look, while `blocked` is a capability the
-operator does not hold or an approval that would not verify, and is the only place
-the mascot is cross. Both are typed end to end — `AgentRefusal` in
-`lib/ai/agent-types.ts`, thrown as `CapabilityError` / `ApprovalError` — rather than
-recognised by matching words in a message, so rewording the copy cannot quietly turn
-a refusal back into a generic failure.
+**The mascot is never cross with the reader.** Two things can decline a request and
+they are not alike: `declined` is an ordinary boundary (someone asked a café
+operations assistant for a poem) and gets a puzzled look, while `blocked` is a
+capability the operator does not hold or an approval that would not verify — the
+loud one, opening on the `exclaim` alarm.
 
-The `working` score is where the ordering matters. Most requests finish inside ten
-seconds, so its first beats are the ones that keep a face and read plainly; the
-dramatic ones that collapse the body sit past twenty seconds, where a reader has
-waited long enough that theatre is a reward rather than the mascot going missing
-mid-sentence.
+`blocked`'s middle beat was `colere`, outright anger, and it was the one place in the
+product where the interface was cross with the person using it. Its own justification
+said the quiet part out loud: *"the operator has still done nothing wrong
+personally."* It is `mefiant` now — the product guarding something, which is what
+actually happened. `colere` is referenced by no score.
 
-## The body is a hexagon
+Both refusals are typed end to end — `AgentRefusal` in `lib/ai/agent-types.ts`,
+thrown as `CapabilityError` / `ApprovalError` — rather than recognised by matching
+words in a message, so rewording the copy cannot quietly turn a refusal back into a
+generic failure.
 
-`Mascot`'s default `shape` is `hexagone`. The engine handles most of what a
-non-circular body implies: the eyes and the notification pastille are refitted to
-the real radius in their own direction, and a per-shape corrective
-(`engine/eyefit.ts`, solved once at import and merely looked up at runtime) keeps
-the eyes off the edge.
+### A wait keeps the mascot's body
+
+`StateDef.baseBody` says whether a state keeps the mascot's own silhouette. Seven
+of the seventeen do; the other ten replace it — `thinking` with three dots, `play`
+with a tumbling triangle, `egg` with an egg, `comet` with a streak, `burst` with a
+cloud of particles.
+
+The scores used to reach for all seventeen, putting the theatrical ones past the
+twenty-second mark on the reasoning that a long wait has earned some theatre. That
+read a wait backwards. A wait is the *only* time anybody looks at this mascot for
+more than a second, and it spent most of that time not being the mascot. So a wait
+now alternates `pondering` (rings orbiting a live face) with `scanning` (eyes
+sweeping the ball) and lets the moods carry the variety. `sleep` is the one
+exception, because curling into a dot is what the pose *means* and it cannot happen
+until the panel has been abandoned for 45 seconds.
+
+## The body is a ball
+
+`Mascot`'s default `shape` is `cercle`. It was `hexagone`; a ball is the friendlier
+silhouette, it is what the engine's constants were measured against — upstream's own
+note is that "the body is a true circle, not a squircle" — and it makes
+`engine/eyefit.ts` a no-op, since on a circle the corrective profile and the
+measured one are the same.
+
+The other shapes still work, and the engine handles most of what a non-circular body
+implies: the eyes and the notification pastille are refitted to the real radius in
+their own direction, and that per-shape corrective (solved once at import and merely
+looked up at runtime) keeps the eyes off the edge.
 
 The one thing it cannot fix is a **spin**. Eyes travelling right round the sphere
-step over a hexagon's flats and corners instead of gliding, so the entrance spin is
-gone and `Aim.spin` has to be asked for explicitly — `Mascot` passes it only for a
-circular body, so a change of shape cannot quietly reintroduce the stutter. The
-arrival is `swirl`'s rings instead, which work on any profile.
+step over a hexagon's flats and corners instead of gliding, so `Aim.spin` has to be
+asked for explicitly rather than being implied by the shape. **`Mascot` passes 0
+even now that the body could take one.** Rounding the body would otherwise have
+switched a full 360° eye-spin on for every pointer entry into the header button, as
+a side effect of a silhouette change — several times a minute, and a trick rather
+than a reaction. The entrance turn (`turn`, an ease-out over `TURN_TIME`) is what
+reads as looking up at you, and it stands on its own.
+
+## Any mood is safe while tracking
+
+An expression carries its own head roll — `attentif` -4°, `curieux` -15°, `confus`
++8° — and roll rotates the eye pair about the view axis, so it moves the eyes
+vertically. Tracking neutralises yaw and pitch, because those are absolute in
+`Look`, but it used to leave roll alone: a change of mood therefore slid the eyes
+while they were supposed to be pinned to the cursor.
+
+`gaze.ts` published a `TRACKING_MOODS` allow-list of the eight zero-roll moods to
+work around it. That list was imported nowhere, and the resting mood the whole
+product wears was not on it, so the defect was live everywhere. `Look` now carries
+an absolute `roll` whose target is zero, so **tracking straightens the head** and a
+mood change cannot move the eyes at all. Out of tracking the measured roll is
+intact, which is where the tilt belongs — it is the character, not the reaction.
 
 ## Colours are CSS, not hex
 
 Upstream mixes particle fog in JS and therefore needs hex. `Mascot.tsx` hands
-that to `color-mix()` instead, so `ink`, `paper` and `accent` take any CSS
-colour — including the `--mascot-*` tokens in `app/globals.css`. The mascot then
-follows the theme with no JS reading computed styles and no re-render on a theme
-flip, and it inverts at night (bone body, charcoal eye holes), which is the one
-element in the product that does.
+that to `color-mix()` instead, so `ink`, `eye` and `accent` take any CSS colour —
+including the `--mascot-*` tokens in `app/globals.css`. The mascot then follows the
+theme with no JS reading computed styles and no re-render on a theme flip, and it
+inverts at night (light-green body, charcoal eyes), which is the one element in the
+product that does.
 
-`paper` has to be **the colour actually behind the mascot**, not one that looks
-like it. The eyes are holes, so they show whatever is under the body — and the
-back half of the orbit rings is drawn under it on purpose, to be occluded. The
-opaque backing path in `paper` is what stops a ring reappearing inside the eyes.
+**They have to go through `style`, never a presentation attribute.** A presentation
+attribute is not a CSS declaration, so neither `var()` nor `color-mix()` is
+substituted in one: `fill="var(--mascot-ink)"` compiles, renders, and is silently
+black. This is the easiest way to break the component — it looks right in the source
+and the mascot comes out as a black ball with black eyes.
+
+`eye` is a **material, not a hole**. The eyes are still punched through the body by
+the mask — that is what clips them against the outline for free when they slide
+towards the edge — but what shows through is an opaque layer painted in `eye`, in the
+shape of the body. Two consequences: the eyes are the same colour on any surface, so
+callers no longer have to declare what is behind the mascot (the header launcher used
+to pass its own plate colour by hand); and that same opaque layer is what stops the
+back half of the orbit rings, drawn under the body on purpose to be occluded, from
+reappearing inside the eyes.
 
 ## Cost
 

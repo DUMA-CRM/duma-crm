@@ -18,9 +18,31 @@ import { STATE_BY_ID, type StateId } from '@/lib/mascot/engine/states';
  * thirty seconds stops being a character and becomes a spinner. A phase that is a
  * moment plays its beats once and hands back to rest.
  *
- * Between them the scores below use every one of the engine's 17 states and all 16
- * of its expressions, and none of them is decoration: each one is somewhere a
- * reader can tell what it means.
+ * ## The one rule these scores follow: the mascot keeps its body
+ *
+ * `StateDef.baseBody` says whether a state keeps the mascot's own silhouette.
+ * Seven of the engine's seventeen do — `idle`, `wink`, `wide`, `notify`, `swirl`,
+ * `pondering`, `scanning`. The other ten replace it: `thinking` becomes the middle
+ * of three dots, `play` a tumbling triangle, `egg` an egg, `orbit` a triangle
+ * relaxing into a ball, `comet` a streak, `burst` a cloud of particles, `sleep` a
+ * bobbing dot.
+ *
+ * These scores used to reach for all seventeen, on the reasoning that a long wait
+ * has earned some theatre. That was the wrong reading of what a wait is. A wait is
+ * the *only* time anybody looks at this mascot for more than a second, and it spent
+ * most of that time not being the mascot — a reader watching for their answer saw a
+ * triangle, then an egg, then a comet. Variety was never the problem being solved;
+ * it looked like a demo reel of the engine, which is what it was.
+ *
+ * So a wait now alternates two poses that both keep the face and the ball —
+ * `pondering`, which orbits rings around it, and `scanning`, which sweeps its eyes
+ * — and the moods carry the rest. `sleep` is the single exception, and it earns it:
+ * curling into a dot is *what the pose means*, and it cannot happen until the panel
+ * has been abandoned for 45 seconds.
+ *
+ * The unused states are not dead code — they belong to the vendored engine, not to
+ * this file — but nothing here should reach for one again without an answer to
+ * "what does the reader learn from the mascot disappearing".
  *
  * **The words stay plain while the motion carries the character.** The product's
  * voice rule is sentence case, operator language, and no exclamation marks, and a
@@ -133,69 +155,96 @@ const SCORES: Record<AgentPhase, Score> = {
    * every so often.
    *
    * The only score that changes pose without an event, and it earns it by being
-   * slow — twenty seconds a beat, and it cannot start until the panel has been left
-   * alone. Nobody is watching a dozing mascot; that is what dozing means.
+   * slow — twenty-odd seconds of heavy-lidded idle to every three of curling up, and
+   * it cannot start until the panel has been left alone. Nobody is watching a dozing
+   * mascot; that is what dozing means, and it is also the one place a state that
+   * abandons the body is the right pose rather than a lapse.
+   *
+   * Two beats, not three. The third was a second identical idle, which on a loop only
+   * meant the gap between two curls alternated 22s, 44s, 22s for no reason a reader
+   * could ever detect.
    */
   dozing: {
     loop: true,
     caption: 'Taking a breather',
-    beats: [beat('idle', 20, 'somnolent'), beat('sleep', 3), beat('idle', 20, 'somnolent')],
-  },
-
-  /** Someone is typing at it. Being looked at while you type is most of the effect. */
-  listening: {
-    loop: true,
-    caption: 'Listening',
-    beats: [beat('idle', 0, 'surpris')],
+    beats: [beat('idle', 22, 'somnolent'), beat('sleep', 3)],
   },
 
   /**
-   * Sent, nothing back yet. Opens on the three dots, because that is the universal
-   * "thinking" and worth two seconds of recognition — then hands over to
-   * `pondering`, which has a face, well before the mascot has been away long
-   * enough to be missed.
+   * Someone is typing at it. Being looked at while you type is most of the effect,
+   * so this is a held pose and the life in it comes from the cursor tracking.
+   *
+   * `curieux` rather than `surpris`: a tilted, interested head. Surprise is a
+   * reaction to something that just happened, and holding it for as long as someone
+   * takes to compose a question reads as a mascot permanently startled that anyone
+   * would type at it.
+   */
+  listening: {
+    loop: true,
+    caption: 'Listening',
+    beats: [beat('idle', 0, 'curieux')],
+  },
+
+  /**
+   * Sent, nothing back yet.
+   *
+   * It used to open on `thinking` — the engine's own pose, which turns the ball into
+   * the middle of three pulsing dots — for the universal recognition. But that spends
+   * the first two and a half seconds of every single request with the mascot gone,
+   * and those are the seconds a reader is actually watching. `pondering` says the
+   * same thing with rings while keeping the face, which is the whole reason it was
+   * written; leading with it is just applying that decision at the point it matters.
    */
   thinking: {
     loop: true,
     caption: 'Thinking',
-    beats: [beat('thinking', 2.5), beat('pondering', 3, 'attentif')],
+    beats: [beat('pondering', 3.5, 'attentif'), beat('scanning', 2.5)],
   },
 
   /**
-   * The long wait, and the fullest use of the vocabulary: twelve beats, about
-   * thirty seconds, then round again.
+   * The long wait: two poses, four moods, about eighteen seconds, then round again.
    *
-   * **The order is the design.** Most requests finish inside ten seconds, so the
-   * first four beats are the ones that keep a face and read plainly — rings, dots,
-   * eyes sweeping, a puzzled look. The dramatic ones that collapse the body or take
-   * the face away (`play`, `egg`, `comet`, `hexagon`, `burst`) sit past the
-   * twenty-second mark, where a reader has been waiting long enough that theatre is
-   * a reward rather than the mascot going missing mid-sentence.
+   * This was twelve beats and thirty seconds, five of them collapsing the body — see
+   * the rule at the top of the file for why that is gone. What is left is the pair
+   * that reads as work: rings orbiting a thinking face, and eyes sweeping the width
+   * of the ball as though reading something.
+   *
+   * **The moods are what stops it being a loop.** They go attentive → curious →
+   * attentive → level, so the same two silhouettes are never wearing the same face
+   * twice running, and the beats lengthen slightly as the wait goes on — a mascot
+   * that keeps up its opening tempo through a thirty-second request reads as
+   * agitated, and a wait that is genuinely taking a while should settle rather than
+   * fidget.
    */
   working: {
     loop: true,
     caption: 'Working on it',
     beats: [
       beat('pondering', 3, 'attentif'),
-      beat('thinking', 2.5),
       beat('scanning', 2.5),
-      beat('pondering', 3, 'curieux'),
-      beat('orbit', 3.4),
+      beat('pondering', 3.5, 'curieux'),
       beat('scanning', 2.5),
-      beat('play', 2),
-      beat('pondering', 3, 'neutre'),
-      beat('egg', 1.8),
-      beat('comet', 2.4),
-      beat('hexagon', 1.6),
-      beat('burst', 2.6),
+      beat('pondering', 4.5, 'attentif'),
+      beat('scanning', 3),
+      beat('pondering', 5, 'neutre'),
     ],
   },
 
-  /** The answer is arriving. Eager, and still tracking, so it watches you read. */
+  /**
+   * The answer is arriving. A held pose, and still tracking, so it watches you read.
+   *
+   * It used to cycle eager → laughing → attentive on eight-second rounds. Two things
+   * were wrong with that. The mascot was performing over the top of the one moment
+   * the reader's attention is entirely on the text — motion in the corner of the eye
+   * while you read is a distraction, not warmth — and `hilare` is a laugh, which is a
+   * reaction to something funny and not to a stock report finishing. One warm, calm
+   * face held while it writes is both quieter and more like something paying
+   * attention.
+   */
   writing: {
     loop: true,
     caption: 'Writing',
-    beats: [beat('idle', 3, 'excite'), beat('idle', 2.5, 'hilare'), beat('idle', 3, 'attentif')],
+    beats: [beat('idle', 0, 'heureux')],
   },
 
   /**
@@ -210,14 +259,19 @@ const SCORES: Record<AgentPhase, Score> = {
   },
 
   /**
-   * A write is held, waiting to be approved. Loops, so it keeps at you until you
-   * decide: wide measured eyes, then a narrow sideways look. The one moment the
-   * mascot should stop being charming and check you meant it.
+   * A write is held, waiting to be approved. Loops, so it stays with you until you
+   * decide: wide measured eyes, then attentive.
+   *
+   * The second beat was `mefiant`, a narrow suspicious squint, on the reasoning that
+   * the mascot should check you meant it. Read again at the moment it actually plays,
+   * that is the mascot being suspicious of the one person in the room authorised to
+   * approve the write. Waiting attentively is the honest pose: the card beside it
+   * already spells out exactly what will happen.
    */
   asking: {
     loop: true,
     caption: 'Waiting for your go-ahead',
-    beats: [beat('wide', 1.8), beat('idle', 3, 'mefiant')],
+    beats: [beat('wide', 1.8), beat('idle', 3.5, 'attentif')],
   },
 
   /**
@@ -255,14 +309,19 @@ const SCORES: Record<AgentPhase, Score> = {
    * is off-topic is information, whereas being stopped by a permission or a failed
    * approval is the product refusing to be talked past, and it should look like it.
    *
-   * The alarm lands, the mascot is cross, and then it is a little sheepish — because
-   * the operator has still done nothing wrong personally, and the copy alongside
-   * stays plain about what would be needed instead.
+   * The alarm lands, the mascot is guarded, and then it settles.
+   *
+   * The middle beat was `colere` — outright anger — and it was the one place in the
+   * product where the interface is cross with the reader. Its own justification said
+   * the quiet part out loud: "the operator has still done nothing wrong personally".
+   * Something the reader did not do wrong should not be answered with a face aimed at
+   * them. `mefiant` is the pose that fits: the product is guarding something, which
+   * is what actually happened.
    */
   blocked: {
     loop: false,
     caption: 'Blocked by a security rule',
-    beats: [beat('exclaim', 1.5), beat('idle', 2.4, 'colere'), beat('idle', 1.6, 'timide')],
+    beats: [beat('exclaim', 1.5), beat('idle', 2.4, 'mefiant'), beat('idle', 1.6, 'attentif')],
   },
 
   /** Being stopped mid-sentence earns a little dryness. Flat slits. */
@@ -273,14 +332,19 @@ const SCORES: Record<AgentPhase, Score> = {
   },
 
   /**
-   * The travelling "!", a startled beat, then downcast. It decays rather than
-   * holding, because the error text on screen says what happened and says it better
-   * than a sad face can.
+   * A startle, then downcast. It decays rather than holding, because the error text
+   * on screen says what happened and says it better than a sad face can.
+   *
+   * It opened on `alert` — the mascot replaced by a travelling "!" for 2.2s. The
+   * loud version is kept for `blocked` above, where something is genuinely being
+   * refused and being stopped is the message; a request that simply failed does not
+   * need the character to leave the screen to say so. `wide` is the same startle with
+   * the ball still there.
    */
   failed: {
     loop: false,
     caption: 'That did not work',
-    beats: [beat('alert', 2.2), beat('idle', 1.2, 'effraye'), beat('idle', 2, 'triste')],
+    beats: [beat('wide', 1.8), beat('idle', 1.2, 'effraye'), beat('idle', 2, 'triste')],
   },
 };
 
