@@ -96,10 +96,19 @@ an API redirect; call the canonical path.
 
 ### The endpoint you call must exist
 
-`@duma-crm/api` is a declared dependency imported nowhere, so a wrong path
-compiles cleanly. `tests/api-contract.test.mts` catches renamed and removed paths
-against `openapi.json` — keep that file fresh or the test passes against a
-fossil.
+Nothing type-checks an API path, so a wrong one compiles cleanly.
+`tests/api-contract.test.mts` catches renamed and removed paths against
+`openapi.json` — keep that file fresh or the test passes against a fossil. It
+scans `apiFetch(...)`; the agent's `runtime.get(...)` calls are covered
+separately by `tests/agent-contract.test.mts`.
+
+`@duma-crm/api` — the published Hono RPC types — was **removed on 2026-09-10**.
+It had been declared and imported nowhere since the repository began
+(UI-ADR-004), and being the only private dependency it meant every CI run had
+to authenticate to GitHub Packages. That authentication had never once
+succeeded: every run failed at `pnpm install`. Re-add it if the RPC types are
+ever adopted, and grant `duma-crm` Actions access to the package at the same
+time.
 
 ### Money is a string; margin has one home
 
