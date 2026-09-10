@@ -20,11 +20,9 @@ import type {
   AbsenceLog,
   AttendanceDay,
   EmployeeDocument,
-  ExpenseClaim,
   HelpdeskTicket,
   LeaveEntitlement,
   LeaveRequest,
-  Payslip,
 } from '@/lib/api/people-ops.service';
 import type { PrivacyRequest } from '@/lib/api/privacy.service';
 import type { PurchaseOrdersResponse } from '@/lib/api/purchasing.service';
@@ -45,8 +43,6 @@ import {
   leaveBalance,
   mergeAbsenceDays,
   myHrActions,
-  payslipDeductions,
-  payslipReconciles,
 } from '@/lib/utils/my-hr';
 import type { CustomerSegment, CustomersResponse } from '@/types/customers';
 
@@ -1637,7 +1633,7 @@ const getPayrollOverview: ToolDefinition = {
 const getMyWorkspace: ToolDefinition = {
   name: 'get_my_workspace',
   description:
-    'Read the signed-in operator’s own Dashboard and My HR summary: current and upcoming shifts, leave balance, HR warnings, documents, payslips, expenses and support requests. Use for broad questions about my workday, my pay, my leave, my rota, or what needs my attention. For a simple name, address, emergency-contact or personal-details question, use get_my_profile instead.',
+    'Read the signed-in operator’s own Dashboard and My HR summary: current and upcoming shifts, leave balance, HR warnings, documents and support requests. Use for broad questions about my workday, my leave, my rota, or what needs my attention. For a simple name, address, emergency-contact or personal-details question, use get_my_profile instead. DUMA does not hold payslips or expense claims — say so rather than guessing.',
   step: 'Checking your Dashboard and My HR',
   parameters: schema({}),
   async run(_args, runtime) {
@@ -1655,8 +1651,6 @@ const getMyWorkspace: ToolDefinition = {
       runtime.get<LeaveRequest[]>('/hr/leave-requests/my'),
       runtime.get<HelpdeskTicket[]>('/helpdesk/my'),
       runtime.get<EmployeeDocument[]>('/hr/documents/me'),
-      runtime.get<Payslip[]>('/hr/payslips/my'),
-      runtime.get<ExpenseClaim[]>('/hr/expense-claims/my'),
       runtime.get<Shift[]>('/shifts/my'),
       runtime.get<ScheduledShift[]>(
         `/scheduled-shifts/my?${new URLSearchParams({ from: weekStart.toISOString(), to: weekEnd.toISOString() })}`,
@@ -1667,28 +1661,18 @@ const getMyWorkspace: ToolDefinition = {
     const requests = value<LeaveRequest>(1);
     const tickets = value<HelpdeskTicket>(2);
     const documents = value<EmployeeDocument>(3);
-    const payslips = value<Payslip>(4);
-    const expenses = value<ExpenseClaim>(5);
-    const shifts = value<Shift>(6);
-    const rota = value<ScheduledShift>(7);
-    const unavailable = [
-      'leave entitlement',
-      'leave requests',
-      'HR requests',
-      'documents',
-      'payslips',
-      'expenses',
-      'clock records',
-      'rota',
-    ].filter((_, index) => optional[index]?.status === 'rejected');
+    const shifts = value<Shift>(4);
+    const rota = value<ScheduledShift>(5);
+    const unavailable = ['leave entitlement', 'leave requests', 'HR requests', 'documents', 'clock records', 'rota'].filter(
+      (_, index) => optional[index]?.status === 'rejected',
+    );
 
-    const actions = myHrActions({ employee, documents, tickets, expenses, now });
+    const actions = myHrActions({ employee, documents, tickets, now });
     const balance = leaveBalance(entitlements);
     const activeShift = shifts.find((shift) => !shift.clockedOut) ?? null;
     const upcoming = rota
       .filter((shift) => new Date(shift.endsAt).getTime() >= now.getTime())
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-    const latestPayslip = [...payslips].sort((a, b) => b.payPeriodEnd.localeCompare(a.payPeriodEnd))[0] ?? null;
     const openTickets = tickets.filter((ticket) => !['resolved', 'closed'].includes(ticket.status));
     const pendingLeave = requests.filter((request) => request.status === 'pending');
 
@@ -1739,16 +1723,6 @@ const getMyWorkspace: ToolDefinition = {
             issuedAt: issuedAt ?? null,
             expiresAt: expiresAt ?? null,
           })),
-          latestPayslip: latestPayslip
-            ? {
-                periodStart: latestPayslip.payPeriodStart,
-                periodEnd: latestPayslip.payPeriodEnd,
-                grossPayGbp: toNumber(latestPayslip.grossPay),
-                netPayGbp: toNumber(latestPayslip.netPay),
-                finalisedAt: latestPayslip.finalisedAt,
-              }
-            : null,
-          recentExpenses: expenses.slice(0, 10),
           unavailableSections: unavailable,
         },
       },
@@ -1796,7 +1770,7 @@ const getMyWorkspace: ToolDefinition = {
 const getMyProfile: ToolDefinition = {
   name: 'get_my_profile',
   description:
-    'Read only the signed-in operator’s basic employment and editable personal-detail status. Always use this for questions about my name, my address, my emergency contact, my National Insurance number, or where to edit my personal details. This intentionally excludes payslips, expenses, documents and private HR requests.',
+    'Read only the signed-in operator’s basic employment and editable personal-detail status. Always use this for questions about my name, my address, my emergency contact, my National Insurance number, or where to edit my personal details. This intentionally excludes documents and private HR requests.',
   step: 'Checking your personal details',
   parameters: schema({}),
   async run(_args, runtime) {
@@ -1883,36 +1857,6 @@ const getMyAttendance: ToolDefinition = {
   },
 };
 
-const getMyPayslips: ToolDefinition = {
-  name: 'get_my_payslips',
-  description:
-    'Read the signed-in operator’s own payslips, itemised: gross pay, each deduction named separately (tax, National Insurance, pension, other) and take-home pay. Use for "what was I paid", "how much tax did I pay", "why is my pay different this month", "show my last payslip".',
-  step: 'Checking your payslips',
-  parameters: schema({ limit: { type: ['number', 'null'], description: 'How many recent payslips to return. Null for 6.' } }),
-  async run(args, runtime) {
-    const payslips = await runtime.get<Payslip[]>('/hr/payslips/my');
-    const recent = [...payslips].sort((a, b) => b.payPeriodEnd.localeCompare(a.payPeriodEnd)).slice(0, limit(args.limit, 6, 24));
-
-    return {
-      output: {
-        count: payslips.length,
-        payslips: recent.map((payslip) => ({
-          periodStart: payslip.payPeriodStart,
-          periodEnd: payslip.payPeriodEnd,
-          grossPayGbp: toNumber(payslip.grossPay),
-          deductions: payslipDeductions(payslip).map((line) => ({ label: line.label, amountGbp: line.amount })),
-          netPayGbp: toNumber(payslip.netPay),
-          // Surfaced rather than hidden: a statement that does not add up is
-          // exactly what the employee should be querying with payroll.
-          figuresReconcile: payslipReconciles(payslip),
-          issuedAt: payslip.finalisedAt ?? null,
-        })),
-      },
-      evidence: `Your payslips · ${payslips.length} issued`,
-      shortcuts: [page('Open your payslips', '/my-hr?tab=documents', 'My HR · Documents')],
-    };
-  },
-};
 
 export const TOOLS: ToolDefinition[] = [
   searchSupport,
@@ -1943,7 +1887,6 @@ export const TOOLS: ToolDefinition[] = [
   getMyProfile,
   getMyWorkspace,
   getMyAttendance,
-  getMyPayslips,
   getPayrollOverview,
 ];
 

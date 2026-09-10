@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ThemeProvider } from 'next-themes';
+import { headers } from 'next/headers';
 import { Archivo, Chivo_Mono } from 'next/font/google';
 import Script from 'next/script';
 
@@ -56,7 +57,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // next-themes writes a pre-paint inline script to stop the wrong theme
+  // flashing, and it is the one script Next does not stamp itself. Without the
+  // request nonce from proxy.ts, the CSP blocks it and every load flashes light
+  // before correcting — so read it here and hand it over.
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   return (
     <html lang="en" suppressHydrationWarning className={`${archivo.variable} ${chivoMono.variable}`}>
       <body className="font-sans" suppressHydrationWarning>
@@ -88,7 +95,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Script id="pwa-prompt-capture" strategy="beforeInteractive">
           {`window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaPrompt=e;window.dispatchEvent(new Event('pwa:prompt-captured'))});window.addEventListener('appinstalled',function(){window.__pwaPrompt=null;window.__pwaInstalled=true;window.dispatchEvent(new Event('pwa:installed'))});`}
         </Script>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem nonce={nonce}>
           <QueryProvider>{children}</QueryProvider>
         </ThemeProvider>
       </body>

@@ -4,7 +4,13 @@ import { useEffect, useState } from 'react';
 
 import { Markdown } from '@/components/shared/Markdown';
 
-export function LiveMarkdown({ content, active, onDone }: { content: string; active?: boolean; onDone: () => void }) {
+/**
+ * `active` fakes a typewriter for a message that arrived all at once.
+ *
+ * Genuinely streamed text does not need it — pass neither `active` nor
+ * `onDone` and this is a plain Markdown render that grows as `content` does.
+ */
+export function LiveMarkdown({ content, active, onDone }: { content: string; active?: boolean; onDone?: () => void }) {
   const [visible, setVisible] = useState(() => (active ? 0 : content.length));
 
   useEffect(() => {
@@ -12,7 +18,7 @@ export function LiveMarkdown({ content, active, onDone }: { content: string; act
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const reducedTimer = window.setTimeout(() => {
         setVisible(content.length);
-        onDone();
+        onDone?.();
       }, 0);
       return () => window.clearTimeout(reducedTimer);
     }
@@ -21,7 +27,7 @@ export function LiveMarkdown({ content, active, onDone }: { content: string; act
         const next = Math.min(content.length, current + 3);
         if (next === content.length) {
           window.clearInterval(timer);
-          window.setTimeout(onDone, 0);
+          if (onDone) window.setTimeout(onDone, 0);
         }
         return next;
       });

@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 import { isIsoDate, round, text, toNumber } from './agent-format.ts';
 import type { AgentActionSubmission, AgentField, AgentFieldType, AgentPendingAction } from './agent-types';
@@ -29,6 +29,16 @@ interface SealedField {
 }
 
 interface Seal {
+  /**
+   * A unique id for this approval, so it can be spent exactly once.
+   *
+   * The signature proves the proposal was authorised and `exp` proves it has
+   * not lapsed. Neither says whether it has already been used — the same token
+   * creates the same purchase order as often as it is submitted inside the
+   * window. `duma-api POST /v1/agent/approvals/claim` records this id the
+   * first time and refuses it afterwards.
+   */
+  jti: string;
   k: string;
   f: Record<string, SealedField>;
   l?: {
@@ -50,6 +60,8 @@ export interface ResolvedAction {
   kind: string;
   fields: Record<string, FieldValue>;
   lines: ResolvedLine[];
+  /** The approval's unique id, to be claimed before the write is executed. */
+  approvalId: string;
 }
 
 export class ApprovalError extends Error {}
@@ -70,9 +82,29 @@ function sealFields(fields: AgentField[]) {
   return Object.fromEntries(fields.map((source) => [source.key, sealField(source)]));
 }
 
+/** Below this, an HMAC key is guessable at the rate an attacker can call the route. */
+const MIN_SECRET_LENGTH = 32;
+
+/**
+ * The key that authorises every write the agent can prepare.
+ *
+ * This used to fall back to `GEMINI_API_KEY` (UI-TD-008), which meant one
+ * leaked model key both bought completions *and* forged approvals for all 19
+ * write actions. A model key is handed to a third-party provider on every
+ * request; an approval key must never leave this process. There is no fallback
+ * now, and no default: a deployment without a real secret fails closed on the
+ * first approval rather than signing with something a vendor already holds.
+ */
 function approvalSecret() {
-  const secret = process.env.AI_AGENT_APPROVAL_SECRET || process.env.GEMINI_API_KEY;
-  if (!secret) throw new ApprovalError('Ask DUMA is missing its server approval secret.');
+  const secret = process.env.AI_AGENT_APPROVAL_SECRET;
+  if (!secret || secret.length < MIN_SECRET_LENGTH) {
+    throw new ApprovalError(
+      `Ask DUMA cannot authorise writes: set AI_AGENT_APPROVAL_SECRET to a random value of at least ${MIN_SECRET_LENGTH} characters.`,
+    );
+  }
+  if (secret === process.env.GEMINI_API_KEY || secret === process.env.OPENROUTER_API_KEY) {
+    throw new ApprovalError('AI_AGENT_APPROVAL_SECRET must not be a model API key — that key is shared with a third party.');
+  }
   return secret;
 }
 
@@ -84,6 +116,7 @@ function sign(payload: string) {
 export function sealAction(action: AgentPendingAction, ttlMs = DEFAULT_TTL_MS): AgentPendingAction {
   const group = action.lineGroup;
   const seal: Seal = {
+    jti: randomUUID(),
     k: action.kind,
     f: sealFields(action.fields),
     ...(group
@@ -120,7 +153,7 @@ function openSeal(token: string | undefined): Seal {
   } catch {
     throw expired;
   }
-  if (!seal?.k || !seal.f || !seal.exp || seal.exp < Date.now()) throw expired;
+  if (!seal?.k || !seal.f || !seal.jti || !seal.exp || seal.exp < Date.now()) throw expired;
   return seal;
 }
 
@@ -185,5 +218,5 @@ export function resolveSealedSubmission(submission: AgentActionSubmission): Reso
   );
   if (unanswered) throw new ApprovalError('One of the choices on the card is still empty. Pick a value and confirm again.');
 
-  return { kind: seal.k, fields, lines };
+  return { kind: seal.k, fields, lines, approvalId: seal.jti };
 }

@@ -201,7 +201,6 @@ export interface AgentChatResponse {
   cards?: AgentCard[];
   followUps?: string[];
   pendingAction?: AgentPendingAction;
-  testMode: boolean;
   model: string;
   /** Set when the primary model was out of capacity and a backup answered instead. */
   fallbackModel?: string;
@@ -210,5 +209,16 @@ export interface AgentChatResponse {
 /** NDJSON frames streamed from POST /api/agent while the agent works. */
 export type AgentStreamEvent =
   | { type: 'step'; label: string }
+  /** A fragment of the answer as the model writes it. Append in arrival order. */
+  | { type: 'delta'; text: string }
+  /**
+   * Discard whatever has been streamed so far.
+   *
+   * Some models write a sentence of preamble before deciding to call a tool.
+   * That text is not the answer, so once a round turns out to be a tool round
+   * the client is told to throw it away rather than leave a false start on
+   * screen that the final result would later contradict.
+   */
+  | { type: 'delta-reset' }
   | { type: 'result'; response: AgentChatResponse }
   | { type: 'error'; message: string };

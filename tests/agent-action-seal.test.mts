@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-process.env.AI_AGENT_APPROVAL_SECRET = 'test-approval-secret';
+// At least 32 characters: `approvalSecret()` rejects anything shorter, because
+// an HMAC key short enough to guess is not a key. See lib/ai/action-seal.ts.
+process.env.AI_AGENT_APPROVAL_SECRET = 'test-approval-secret-long-enough-to-pass';
 
 const { ApprovalError, resolveSealedSubmission, sealAction } = await import('../lib/ai/action-seal.ts');
 type PendingAction = Parameters<typeof sealAction>[0];
@@ -119,4 +121,45 @@ test('an expired approval is rejected', () => {
 
 test('an action that needs lines refuses to run without them', () => {
   assert.throws(() => resolveSealedSubmission({ approvalToken: token(), fields: { supplierId: 'sup-1' }, lines: [] }), /at least 1 item/i);
+});
+
+test('a short secret, or the model key, cannot sign an approval', async () => {
+  const original = process.env.AI_AGENT_APPROVAL_SECRET;
+  try {
+    // UI-TD-008: this used to fall back to GEMINI_API_KEY, so a key handed to a
+    // third party on every completion also forged every write approval.
+    process.env.AI_AGENT_APPROVAL_SECRET = '';
+    process.env.GEMINI_API_KEY = 'a-model-key-that-is-long-enough-to-pass-length';
+    assert.throws(() => sealAction(DRAFT), ApprovalError);
+
+    process.env.AI_AGENT_APPROVAL_SECRET = 'too-short';
+    assert.throws(() => sealAction(DRAFT), ApprovalError);
+
+    process.env.AI_AGENT_APPROVAL_SECRET = process.env.GEMINI_API_KEY;
+    assert.throws(() => sealAction(DRAFT), ApprovalError);
+  } finally {
+    process.env.AI_AGENT_APPROVAL_SECRET = original;
+    delete process.env.GEMINI_API_KEY;
+  }
+});
+
+test('every approval carries a unique id, so it can be spent exactly once', () => {
+  // The seal proves a proposal was authorised and when it expires. Neither
+  // fact says it has not already been used, and the same token creates the
+  // same purchase order as often as it is submitted inside the 15 minutes.
+  // duma-api `POST /v1/agent/approvals/claim` records this id the first time.
+  const first = sealAction(DRAFT);
+  const second = sealAction(DRAFT);
+  assert.notEqual(first.approvalToken, second.approvalToken, 'two seals of the same draft must not be interchangeable');
+
+  const submit = (approvalToken: string) =>
+    resolveSealedSubmission({ approvalToken, fields: { supplierId: 'sup-1' }, lines: [{ id: 'item-oat', values: {} }] });
+
+  const resolved = submit(first.approvalToken!);
+  assert.match(resolved.approvalId, /^[0-9a-f-]{36}$/, 'the approval id must be a real uuid');
+  assert.notEqual(resolved.approvalId, submit(second.approvalToken!).approvalId);
+
+  // Replaying the same token yields the same id — which is what lets the API
+  // recognise the replay rather than treat it as a new approval.
+  assert.equal(submit(first.approvalToken!).approvalId, resolved.approvalId);
 });

@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { AgentProviderInfo, AssistantMessage, AssistantToolCall, ChatProvider } from './provider-chain.ts';
 import { AGENT_PROVIDER_NAMES, ProviderCapacityError, orderProviders } from './provider-chain.ts';
+import { StreamAccumulator, readSseEvents } from './stream-accumulator.ts';
 import { relaxSchema } from './tool-schema.ts';
 
 /**
@@ -35,8 +36,14 @@ interface CompletionChoice {
   message?: { role?: string; content?: string | null; tool_calls?: unknown };
 }
 
+/** A `choices[0]` from a streamed response — the delta shape, not the message shape. */
+interface StreamChoice {
+  delta?: { content?: unknown; tool_calls?: unknown } & JsonObject;
+  finish_reason?: string | null;
+}
+
 interface CompletionBody {
-  choices?: CompletionChoice[];
+  choices?: Array<CompletionChoice & StreamChoice>;
   // OpenRouter wraps the upstream provider's own message in `metadata.raw`;
   // that inner text is the one worth showing ("temporarily rate-limited
   // upstream") rather than its generic "Provider returned error".
@@ -84,6 +91,83 @@ function normaliseMessage(raw: CompletionChoice, index: number): AssistantMessag
   };
 }
 
+/**
+ * The same request as `post`, but reading the answer as it is written.
+ *
+ * Eight tool rounds can pass before the operator sees a word; without this the
+ * final answer then lands in one block after the longest silence of the turn.
+ * `onDelta` is called with each fragment of visible text — tool-call fragments
+ * are accumulated but not surfaced, because a half-built JSON argument is not
+ * something to show anybody.
+ *
+ * Failure handling matches `post` deliberately: a stream that dies mid-answer
+ * is a capacity problem like any other, and the chain should try the next
+ * provider rather than hand the operator half a sentence.
+ */
+async function postStream(
+  url: string,
+  headers: HeadersInit,
+  body: unknown,
+  providerId: string,
+  onDelta: (text: string) => void,
+): Promise<AssistantMessage> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', ...headers },
+      body: JSON.stringify({ ...(body as JsonObject), stream: true }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    throw new ProviderCapacityError(error instanceof Error ? error.message : `${providerId} could not be reached.`, providerId);
+  }
+
+  if (!response.ok || !response.body) {
+    // An error body is JSON even when we asked for a stream.
+    const result = (await response.json().catch(() => ({}))) as CompletionBody;
+    const message = errorMessage(result, response.status, providerId);
+    if (response.status === 429 || response.status >= 500 || !response.body) throw new ProviderCapacityError(message, providerId);
+    throw new Error(message);
+  }
+
+  const accumulator = new StreamAccumulator();
+  const decoder = new TextDecoder();
+  const reader = response.body.getReader();
+  let buffer = '';
+  let sawAnything = false;
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const { events, rest } = readSseEvents(buffer);
+      buffer = rest;
+      for (const event of events) {
+        let parsed: CompletionBody;
+        try {
+          parsed = JSON.parse(event) as CompletionBody;
+        } catch {
+          continue; // A malformed frame is not worth abandoning the answer for.
+        }
+        // A routed upstream failure arrives as an error frame mid-stream.
+        if (parsed.error) throw new ProviderCapacityError(errorMessage(parsed, response.status, providerId), providerId);
+        const choice = parsed.choices?.[0] as StreamChoice | undefined;
+        if (!choice) continue;
+        sawAnything = true;
+        const text = accumulator.push(choice);
+        if (text) onDelta(text);
+      }
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+
+  if (!sawAnything) throw new ProviderCapacityError(`${providerId} returned an empty stream.`, providerId);
+  return accumulator.message();
+}
+
 async function post(url: string, headers: HeadersInit, body: unknown, providerId: string, attempt = 0): Promise<AssistantMessage> {
   let response: Response;
   try {
@@ -125,23 +209,20 @@ function geminiProvider(apiKey: string): ChatProvider {
     id: 'gemini',
     model,
     label: model,
-    complete(messages, tools) {
-      return post(
-        GEMINI_URL,
-        { Authorization: `Bearer ${apiKey}` },
-        {
-          model,
-          messages,
-          tools: tools.map((tool) => ({
-            type: 'function',
-            function: { name: tool.name, description: tool.description, parameters: tool.parameters },
-          })),
-          tool_choice: 'auto',
-          temperature: 0.1,
-          max_tokens: 2_000,
-        },
-        'Gemini',
-      );
+    complete(messages, tools, onDelta) {
+      const request = {
+        model,
+        messages,
+        tools: tools.map((tool) => ({
+          type: 'function',
+          function: { name: tool.name, description: tool.description, parameters: tool.parameters },
+        })),
+        tool_choice: 'auto',
+        temperature: 0.1,
+        max_tokens: 2_000,
+      };
+      const auth = { Authorization: `Bearer ${apiKey}` };
+      return onDelta ? postStream(GEMINI_URL, auth, request, 'Gemini', onDelta) : post(GEMINI_URL, auth, request, 'Gemini');
     },
   };
 }
@@ -157,29 +238,28 @@ function openRouterProvider(apiKey: string): ChatProvider {
     id: 'openrouter',
     model,
     label: model.replace(/^google\//, '').replace(/:free$/, ''),
-    complete(messages, tools) {
-      return post(
-        OPENROUTER_URL,
-        {
-          Authorization: `Bearer ${apiKey}`,
-          // OpenRouter attributes free-tier traffic to the calling app.
-          'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://duma.app',
-          'X-Title': 'DUMA Agent',
-        },
-        {
-          model,
-          ...(models.length > 1 ? { models } : {}),
-          messages,
-          tools: tools.map((tool) => ({
-            type: 'function',
-            function: { name: tool.name, description: tool.description, parameters: relaxSchema(tool.parameters) },
-          })),
-          tool_choice: 'auto',
-          temperature: 0.1,
-          max_tokens: 2_000,
-        },
-        'OpenRouter',
-      );
+    complete(messages, tools, onDelta) {
+      const auth = {
+        Authorization: `Bearer ${apiKey}`,
+        // OpenRouter attributes free-tier traffic to the calling app.
+        'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://duma.app',
+        'X-Title': 'DUMA Agent',
+      };
+      const request = {
+        model,
+        ...(models.length > 1 ? { models } : {}),
+        messages,
+        tools: tools.map((tool) => ({
+          type: 'function',
+          function: { name: tool.name, description: tool.description, parameters: relaxSchema(tool.parameters) },
+        })),
+        tool_choice: 'auto',
+        temperature: 0.1,
+        max_tokens: 2_000,
+      };
+      return onDelta
+        ? postStream(OPENROUTER_URL, auth, request, 'OpenRouter', onDelta)
+        : post(OPENROUTER_URL, auth, request, 'OpenRouter');
     },
   };
 }
