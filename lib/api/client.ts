@@ -33,13 +33,34 @@ interface FetchOptions extends RequestInit {
   timeoutMs?: number;
 }
 
-/** Error thrown for non-2xx API responses — carries the HTTP status so callers can special-case 401/403/404. */
+/** One field-level complaint from the API's Zod validation. */
+export interface ApiFieldIssue {
+  field: string;
+  message: string;
+}
+
+/**
+ * Error thrown for non-2xx API responses — carries the HTTP status so callers
+ * can special-case 401/403/404.
+ *
+ * `issues` and `capability` used to be dropped on the floor. The API sends
+ * `{ error, code: 'validation_failed', issues: [{ field, message }] }` for a bad
+ * payload and `{ error, code: 'missing_capability', capability }` for a refusal
+ * (verified in duma-api `src/lib/errors.ts` and `src/middleware/require-capability.ts`),
+ * and both were flattened to one sentence. A form could not mark the offending
+ * field, and Ask DUMA had to guess which permission was missing from prose it
+ * was handed — so it apologised vaguely instead of naming the capability.
+ */
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
     public readonly code?: string,
     public readonly request?: string,
+    /** Field-level validation failures, in the API's own order. */
+    public readonly issues: ApiFieldIssue[] = [],
+    /** The capability the caller was missing, when the API named one. */
+    public readonly capability?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -58,23 +79,50 @@ function normaliseErrorMessage(value: unknown, fallback: string) {
 // Pull a human-readable message out of an error response body. The API sends
 // JSON ({ message } / { error }); anything else (HTML error pages, plain text)
 // falls back to the status text rather than dumping markup into toasts.
-async function extractErrorMessage(res: Response): Promise<{ message: string; code?: string }> {
+/** Field issues, clamped the same way messages are — this text reaches the DOM and a model. */
+function normaliseIssues(value: unknown): ApiFieldIssue[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(0, 50)
+    .map((entry) => {
+      const issue = entry as { field?: unknown; message?: unknown; path?: unknown };
+      const field = typeof issue.field === 'string' ? issue.field : Array.isArray(issue.path) ? String(issue.path[0] ?? '') : '';
+      const message = normaliseErrorMessage(issue.message, '');
+      return { field: field.slice(0, 100), message };
+    })
+    .filter((issue) => issue.field || issue.message);
+}
+
+async function extractErrorMessage(res: Response): Promise<{
+  message: string;
+  code?: string;
+  issues: ApiFieldIssue[];
+  capability?: string;
+}> {
   const fallback = `${res.status} ${res.statusText}`.trim();
   try {
     const text = await res.text();
-    if (!text) return { message: fallback };
+    if (!text) return { message: fallback, issues: [] };
     try {
-      const body = JSON.parse(text) as { message?: unknown; error?: unknown; code?: unknown };
+      const body = JSON.parse(text) as {
+        message?: unknown;
+        error?: unknown;
+        code?: unknown;
+        issues?: unknown;
+        capability?: unknown;
+      };
       return {
         message: normaliseErrorMessage(body.message ?? body.error, fallback),
         code: typeof body.code === 'string' ? body.code.slice(0, 100) : undefined,
+        issues: normaliseIssues(body.issues),
+        capability: typeof body.capability === 'string' ? body.capability.slice(0, 100) : undefined,
       };
     } catch {
       // Plain-text body: use it only if it doesn't look like an HTML page.
-      return { message: text.trimStart().startsWith('<') ? fallback : normaliseErrorMessage(text, fallback) };
+      return { message: text.trimStart().startsWith('<') ? fallback : normaliseErrorMessage(text, fallback), issues: [] };
     }
   } catch {
-    return { message: fallback };
+    return { message: fallback, issues: [] };
   }
 }
 
@@ -104,10 +152,10 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   });
 
   if (!res.ok) {
-    const { message, code } = await extractErrorMessage(res);
+    const { message, code, issues, capability } = await extractErrorMessage(res);
     // Keep request internals on the error for diagnostics without putting API
     // paths into every customer-facing toast and inline validation message.
-    throw new ApiError(res.status, message, code, `${method} ${path}`);
+    throw new ApiError(res.status, message, code, `${method} ${path}`, issues, capability);
   }
 
   // 204 No Content — return undefined cast as T

@@ -73,7 +73,15 @@ export interface ChatProvider {
   model: string;
   /** Shown to the operator when this provider answered instead of the primary. */
   label: string;
-  complete(messages: unknown[], tools: ProviderTool[]): Promise<AssistantMessage>;
+  /**
+   * Ask the model.
+   *
+   * Pass `onDelta` to stream: it receives each fragment of visible text as it
+   * is written. Omit it and the answer arrives whole. Tool-call fragments are
+   * never surfaced either way — half-built JSON arguments are not something to
+   * show anybody.
+   */
+  complete(messages: unknown[], tools: ProviderTool[], onDelta?: (text: string) => void): Promise<AssistantMessage>;
 }
 
 /**
@@ -113,11 +121,15 @@ export function providerChain(providers: ChatProvider[], tools: ProviderTool[]) 
     get fallback() {
       return switched;
     },
-    async complete(messages: unknown[], onSwitch: (next: ChatProvider, reason: string) => void): Promise<AssistantMessage> {
+    async complete(
+      messages: unknown[],
+      onSwitch: (next: ChatProvider, reason: string) => void,
+      onDelta?: (text: string) => void,
+    ): Promise<AssistantMessage> {
       let lastError: unknown = new Error('No AI provider is configured.');
       while (current < providers.length) {
         try {
-          return await providers[current].complete(messages, tools);
+          return await providers[current].complete(messages, tools, onDelta);
         } catch (error) {
           lastError = error;
           if (!(error instanceof ProviderCapacityError) || current === providers.length - 1) throw error;

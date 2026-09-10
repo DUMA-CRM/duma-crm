@@ -1,4 +1,5 @@
 import { ApprovalError } from '@/lib/ai/action-seal';
+import { consumeAgentBudget, recordAgentTurn } from '@/lib/api/agent-state.service';
 import type { AgentActionSubmission, AgentChatMessage, AgentStreamEvent } from '@/lib/ai/agent-types';
 import type { AgentContext } from '@/lib/ai/duma-agent.server';
 import { CapabilityError, executeConfirmedAction, runDumaAgent } from '@/lib/ai/duma-agent.server';
@@ -88,7 +89,20 @@ function streamTurn(messages: AgentChatMessage[], context: AgentContext, cookieH
       try {
         for await (const event of runDumaAgent(messages, context, cookieHeader, profile)) write(event);
       } catch (error) {
-        write({ type: 'error', message: error instanceof Error ? error.message : 'Ask DUMA could not complete that request.' });
+        const message = error instanceof Error ? error.message : 'Ask DUMA could not complete that request.';
+        write({ type: 'error', message });
+        // A turn that throws never reaches the agent's own recording, and a
+        // failure is precisely the turn worth having in the log.
+        void recordAgentTurn(
+          {
+            question: messages.at(-1)?.content ?? '',
+            tools: [],
+            outcome: 'failed',
+            errorMessage: message,
+            page: context.page,
+          },
+          cookieHeader,
+        );
       } finally {
         controller.close();
       }
@@ -142,6 +156,20 @@ export async function POST(request: Request) {
     // window and answer. The agent trims again to what the model reads.
     if (body.messages.length > MAX_HISTORY_PAYLOAD) {
       return errorResponse(new Error('That conversation is too large to send. Clear the chat and ask again.'), 413);
+    }
+
+    // Before a provider is paid: one question is up to eight model calls and
+    // dozens of API calls, and nothing else caps what one operator can spend.
+    // The check fails open — see `consumeAgentBudget`.
+    const budget = await consumeAgentBudget(cookieHeader);
+    if (!budget.allowed) {
+      const minutes = Math.max(1, Math.ceil((budget.resetAt * 1000 - Date.now()) / 60_000));
+      return Response.json(
+        {
+          message: `You have reached the Ask DUMA limit of ${budget.limit} questions an hour. It resets in about ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+        },
+        { status: 429, headers: { 'Retry-After': String(minutes * 60) } },
+      );
     }
 
     return streamTurn(body.messages.slice(-MAX_HISTORY), safeContext(body.context), cookieHeader, profile);

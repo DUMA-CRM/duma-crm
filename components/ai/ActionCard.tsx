@@ -113,13 +113,11 @@ function FieldControl({ field, value, onChange }: { field: AgentField; value: Fi
 
 export function ActionCard({
   action,
-  testMode,
   busy,
   onConfirm,
   onCancel,
 }: {
   action: AgentPendingAction;
-  testMode: boolean;
   busy: boolean;
   onConfirm: (submission: AgentActionSubmission) => void;
   onCancel: () => void;
@@ -311,7 +309,7 @@ export function ActionCard({
       <footer className="border-t border-divider px-3.5 py-3">
         <p className="flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
           {critical && <TriangleAlert size={13} className="mt-0.5 shrink-0 text-exception" aria-hidden="true" />}
-          <span>{testMode ? 'Test mode: confirming validates the action but changes no records.' : action.note}</span>
+          <span>{action.note}</span>
         </p>
         {blocked && (
           <p className="mt-2 text-xs text-exception" role="status">
@@ -333,7 +331,7 @@ export function ActionCard({
               }
             >
               {busy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
-              {testMode ? 'Run test' : action.confirmLabel}
+              {action.confirmLabel}
             </Button>
           </span>
         </div>

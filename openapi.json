@@ -288,6 +288,128 @@
         }
       }
     },
+    "/v1/agent/turns": {
+      "post": {
+        "operationId": "postV1AgentTurns",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Record one Ask DUMA turn",
+        "description": "Writes an audit row with resource_type `agent_turn`. Any signed-in operator may record their own turns; reading them back needs the audit:read capability.",
+        "responses": {
+          "201": {
+            "description": "Turn recorded"
+          },
+          "400": {
+            "description": "Validation failed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "No tenant assigned"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "get": {
+        "operationId": "getV1AgentTurns",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "List recorded Ask DUMA turns",
+        "description": "The agent’s own usage log, newest first, scoped to the caller’s tenant. This is what answers “what did people ask last week, and what did the agent do about it?”.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 100
+            }
+          },
+          {
+            "name": "sinceDays",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 7
+            }
+          },
+          {
+            "name": "outcome",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data, summary }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden — needs audit:read, or no tenant assigned"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/approvals/claim": {
+      "post": {
+        "operationId": "postV1AgentApprovalsClaim",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Claim an agent approval, once",
+        "description": "Marks one approval id as spent. The first call returns `{ claimed: true }`; every later call for the same id returns `{ claimed: false }` until the TTL lapses. The agent’s HMAC seal proves an approval was authorised and when it expires — it cannot prove it has not already been used.",
+        "responses": {
+          "200": {
+            "description": "{ claimed, degraded }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Already claimed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          },
+          "503": {
+            "description": "The claim store is unreachable, so uniqueness cannot be guaranteed"
+          }
+        }
+      }
+    },
+    "/v1/agent/budget/consume": {
+      "post": {
+        "operationId": "postV1AgentBudgetConsume",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Take one unit of the caller’s agent budget",
+        "description": "Called before a turn starts. Returns `{ allowed: false }` when the operator has spent their allowance for the window, so the UI can decline before paying a provider rather than after.",
+        "responses": {
+          "200": {
+            "description": "{ allowed, limit, remaining, resetAt, degraded }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/staff": {
       "post": {
         "operationId": "postV1Staff",

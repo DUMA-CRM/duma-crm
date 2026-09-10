@@ -849,12 +849,21 @@ export function DumaAgent() {
   const [refusal, setRefusal] = useState<AgentRefusal>();
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
+  /**
+   * The answer as it is being written, before the result frame lands.
+   *
+   * Held apart from `messages` so a stream that fails leaves no half-answer in
+   * the transcript, and so a `delta-reset` (preamble the model wrote before
+   * deciding to call a tool) can be taken back with one assignment.
+   */
+  const [streaming, setStreaming] = useState('');
   const [pendingAction, setPendingAction] = useState<AgentPendingAction>();
-  const [testMode, setTestMode] = useState(true);
   const [busy, setBusy] = useState(false);
   const [steps, setSteps] = useState<string[]>([]);
   /** Mirrors `steps` for the stream handler, which closes over stale state. */
   const takenRef = useRef<string[]>([]);
+  /** The streamed text, in a ref so the read loop never races a re-render. */
+  const streamedRef = useRef('');
   const [openingShortcut, setOpeningShortcut] = useState<string>();
   const [error, setError] = useState('');
   const [drawerRect, setDrawerRect] = useState<DOMRect>();
@@ -994,7 +1003,7 @@ export function DumaAgent() {
     setMinimized(false);
   };
 
-  const applyResponse = useCallback((result: AgentChatResponse, taken: string[] = []) => {
+  const applyResponse = useCallback((result: AgentChatResponse, taken: string[] = [], streamed = false) => {
     setMessages((current) => [
       ...current,
       {
@@ -1008,11 +1017,14 @@ export function DumaAgent() {
         cards: result.cards,
         followUps: result.followUps,
         fallbackModel: result.fallbackModel,
-        live: true,
+        // The reveal animation exists to make a message that arrived all at
+        // once feel written. A streamed one already was, so replaying it would
+        // show the same text twice at two different speeds.
+        live: !streamed,
       },
     ]);
+    setStreaming('');
     setPendingAction(result.pendingAction);
-    setTestMode(result.testMode);
     setOutcome('delivered');
   }, []);
 
@@ -1110,6 +1122,8 @@ export function DumaAgent() {
     setOutcome(undefined);
     setRefusal(undefined);
     takenRef.current = [];
+    streamedRef.current = '';
+    setStreaming('');
     setBusy(true);
     const startedAt = performance.now();
 
@@ -1157,10 +1171,18 @@ export function DumaAgent() {
               takenRef.current = next;
               return next;
             });
-          else if (event.type === 'error') throw new Error(event.message);
+          else if (event.type === 'delta') {
+            streamedRef.current += event.text;
+            setStreaming(streamedRef.current);
+          } else if (event.type === 'delta-reset') {
+            streamedRef.current = '';
+            setStreaming('');
+          } else if (event.type === 'error') throw new Error(event.message);
           else if (event.type === 'result') {
-            await waitForMinimum(startedAt);
-            applyResponse(event.response, takenRef.current);
+            // A streamed answer has already been on screen for a while, so it
+            // has served the minimum-wait's purpose without imposing it.
+            if (!streamedRef.current) await waitForMinimum(startedAt);
+            applyResponse(event.response, takenRef.current, Boolean(streamedRef.current));
             answered = true;
           }
         }
@@ -1168,6 +1190,8 @@ export function DumaAgent() {
 
       if (!answered) throw new Error('The answer stopped before it arrived. Try again.');
     } catch (caught) {
+      streamedRef.current = '';
+      setStreaming('');
       if (caught instanceof DOMException && caught.name === 'AbortError') {
         setOutcome('stopped');
         setMessages((current) => [...current, { role: 'assistant', content: 'Stopped. Ask again when you are ready.' }]);
@@ -1193,6 +1217,8 @@ export function DumaAgent() {
    */
   const startFresh = () => {
     setMessages([]);
+    streamedRef.current = '';
+    setStreaming('');
     setPendingAction(undefined);
     setError('');
     setOutcome(undefined);
@@ -1214,7 +1240,7 @@ export function DumaAgent() {
     if (busy) return;
     setBusy(true);
     setError('');
-    setSteps(['Checking your approval', 'Validating the details', testMode ? 'Running a safe test' : 'Writing to DUMA']);
+    setSteps(['Checking your approval', 'Validating the details', 'Writing to DUMA']);
     const startedAt = performance.now();
     /** Carried out of the try so the catch can tell a refusal from a failure. */
     let refused: AgentRefusal | undefined;
@@ -1232,10 +1258,7 @@ export function DumaAgent() {
       }
       setMessages((current) => [...current, { role: 'assistant', content: result.message, shortcuts: result.shortcuts, live: true }]);
       setPendingAction(undefined);
-      setTestMode(result.testMode);
-      // A rehearsal changed nothing, so it does not get the pose of a write that
-      // went through.
-      setOutcome(result.testMode ? 'delivered' : 'completed');
+      setOutcome('completed');
     } catch (caught) {
       await waitForMinimum(startedAt);
       setError(caught instanceof Error ? caught.message : 'The action could not be completed.');
@@ -1570,7 +1593,17 @@ export function DumaAgent() {
                                 here would be the same news told twice. What this
                                 row owes the reader is the words — which step, how
                                 long, what is already done. */}
-                            {busy && <ThinkingTrail steps={steps} caption={mood.caption} />}
+                            {/* Once words start arriving they are the status:
+                                the trail of steps has done its job and a
+                                spinner beside a sentence being written is
+                                noise. */}
+                            {streaming ? (
+                              <div className="text-sm leading-7 text-foreground">
+                                <LiveMarkdown content={streaming} />
+                              </div>
+                            ) : (
+                              busy && <ThinkingTrail steps={steps} caption={mood.caption} />
+                            )}
 
                             {error && (
                               <p className="rounded-sm border border-exception/50 bg-exception/5 p-3 text-sm text-exception" role="alert">
@@ -1581,7 +1614,6 @@ export function DumaAgent() {
                             {pendingAction && (
                               <ActionCard
                                 action={pendingAction}
-                                testMode={testMode}
                                 busy={busy}
                                 onConfirm={(submission) => void confirmAction(submission)}
                                 onCancel={() => setPendingAction(undefined)}
@@ -1662,9 +1694,7 @@ export function DumaAgent() {
                             <Sparkles size={11} className="shrink-0" aria-hidden="true" />
                             <span className="truncate">{modelLabel}</span>
                           </button>
-                          <span className="shrink-0 text-label text-muted-foreground">
-                            {testMode ? 'Test mode · writes are simulated' : 'Live mode · writes need approval'}
-                          </span>
+                          <span className="shrink-0 text-label text-muted-foreground">Writes need your approval</span>
                         </div>
                       </form>
                     </>

@@ -3,7 +3,7 @@ import 'server-only';
 import type { HrEmployee } from '@/lib/api/hr.service';
 import type { LocationStock } from '@/lib/api/inventory.service';
 import type { Order } from '@/lib/api/orders.service';
-import type { ExpenseClaim, LeaveEntitlement, LeaveRequest, LeaveType } from '@/lib/api/people-ops.service';
+import type { LeaveEntitlement, LeaveRequest, LeaveType } from '@/lib/api/people-ops.service';
 import type { PurchaseOrder } from '@/lib/api/purchasing.service';
 import type { QrOrderingConfig } from '@/lib/api/qr-ordering.service';
 import { encodeNotes } from '@/lib/api/restock.service';
@@ -84,8 +84,8 @@ export interface ActionDefinition {
   kind: string;
   /**
    * Capability required to offer this action. Omit for self-service writes an
-   * employee makes about their own record — booking their own leave, claiming
-   * their own expenses — which every signed-in operator may do. Same contract
+   * employee makes about their own record — booking their own leave, editing
+   * their own details — which every signed-in operator may do. Same contract
    * as `ToolDefinition.capability`; there is no capability standing for "is a
    * person", and inventing one the API does not grant would fail closed and
    * lock everybody out.
@@ -95,7 +95,6 @@ export interface ActionDefinition {
   tool: { name: string; description: string; parameters: JsonObject };
   draft(args: JsonObject, runtime: AgentRuntime): Promise<AgentPendingAction | { error: string }>;
   /** What confirming would do, described without performing it (test mode). */
-  rehearse(action: ResolvedAction, runtime: AgentRuntime): Promise<ActionResult>;
   execute(action: ResolvedAction, runtime: AgentRuntime): Promise<ActionResult>;
 }
 
@@ -221,14 +220,6 @@ const createPurchaseOrder: ActionDefinition = {
       lineGroup,
     };
   },
-  async rehearse(action, runtime) {
-    const supplier = await optionLabel(runtime.supplierOptions(), str(action.fields, 'supplierId'));
-    const total = action.lines.reduce((sum, line) => sum + num(line.values, 'quantityOrdered') * num(line.values, 'unitCost'), 0);
-    return {
-      message: `Test run complete — nothing was written. The order for ${supplier || 'the selected supplier'} passed validation with ${action.lines.length} line${action.lines.length === 1 ? '' : 's'} totalling ${gbp(total)}. Set AI_AGENT_TEST_MODE=false to send approved actions to the DUMA API.`,
-      shortcuts: [inventoryShortcut('orders', str(action.fields, 'locationId'))],
-    };
-  },
   async execute(action, runtime) {
     const locationId = str(action.fields, 'locationId');
     const expectedAt = str(action.fields, 'expectedAt');
@@ -295,12 +286,6 @@ const createRestockRequest: ActionDefinition = {
         }),
         field('notes', 'Notes', { type: 'textarea', value: optionalText(args.notes), optional: true, placeholder: 'Optional context' }),
       ],
-    };
-  },
-  async rehearse(action, runtime) {
-    const item = await optionLabel(runtime.stockItemOptions(), str(action.fields, 'stockItemId'));
-    return {
-      message: `Test run complete — nothing was written. The request for ${num(action.fields, 'requestedQty')} × ${item || 'the selected item'} passed validation.`,
     };
   },
   async execute(action, runtime) {
@@ -390,11 +375,6 @@ const createStockTransfer: ActionDefinition = {
       },
     };
   },
-  async rehearse(action) {
-    return {
-      message: `Test run complete — nothing was written. The transfer of ${action.lines.length} item${action.lines.length === 1 ? '' : 's'} passed validation.`,
-    };
-  },
   async execute(action, runtime) {
     const fromLocationId = str(action.fields, 'fromLocationId');
     const toLocationId = str(action.fields, 'toLocationId');
@@ -463,12 +443,6 @@ const recordStockLoss: ActionDefinition = {
         }),
         field('notes', 'Notes', { type: 'textarea', value: optionalText(args.notes), optional: true }),
       ],
-    };
-  },
-  async rehearse(action, runtime) {
-    const item = await optionLabel(runtime.stockItemOptions(), str(action.fields, 'stockItemId'));
-    return {
-      message: `Test run complete — nothing was written. Writing off ${num(action.fields, 'quantity')} × ${item} passed validation.`,
     };
   },
   async execute(action, runtime) {
@@ -558,11 +532,6 @@ const updateOrderStatus: ActionDefinition = {
       ],
     };
   },
-  async rehearse(action) {
-    return {
-      message: `Test run complete — nothing was written. Moving order #${str(action.fields, 'orderId').slice(0, 8)} to ${str(action.fields, 'status')} passed validation.`,
-    };
-  },
   async execute(action, runtime) {
     const orderId = str(action.fields, 'orderId');
     const status = str(action.fields, 'status');
@@ -632,10 +601,6 @@ const adjustCustomerPoints: ActionDefinition = {
       ],
     };
   },
-  async rehearse(action) {
-    const delta = num(action.fields, 'delta');
-    return { message: `Test run complete — nothing was written. A ${delta >= 0 ? '+' : ''}${delta} point adjustment passed validation.` };
-  },
   async execute(action, runtime) {
     const delta = Math.round(num(action.fields, 'delta'));
     if (delta === 0) throw new Error('A points adjustment of zero would change nothing. Set a value and confirm again.');
@@ -702,13 +667,6 @@ const updateMenuItem: ActionDefinition = {
       ],
     };
   },
-  async rehearse(action, runtime) {
-    const items = await runtime.menuItems();
-    const item = items.find((row) => row.id === str(action.fields, 'menuItemId'));
-    return {
-      message: `Test run complete — nothing was written. Setting ${item?.name ?? 'the item'} to ${gbp(num(action.fields, 'price'))} passed validation.`,
-    };
-  },
   async execute(action, runtime) {
     const menuItemId = str(action.fields, 'menuItemId');
     const updated = await runtime.send<MenuItem>(`/menu-items/${menuItemId}`, 'PATCH', {
@@ -770,11 +728,6 @@ const scheduleShift: ActionDefinition = {
         field('role', 'Role', { type: 'text', value: optionalText(args.role, 60), optional: true, placeholder: 'Barista, supervisor…' }),
         field('notes', 'Notes', { type: 'text', value: optionalText(args.notes, 200), optional: true }),
       ],
-    };
-  },
-  async rehearse(action) {
-    return {
-      message: `Test run complete — nothing was written. A shift on ${str(action.fields, 'date')} from ${str(action.fields, 'startTime')} to ${str(action.fields, 'endTime')} passed validation.`,
     };
   },
   async execute(action, runtime) {
@@ -849,9 +802,6 @@ const reviewLeaveRequest: ActionDefinition = {
       ],
     };
   },
-  async rehearse(action) {
-    return { message: `Test run complete — nothing was written. Recording “${str(action.fields, 'decision')}” passed validation.` };
-  },
   async execute(action, runtime) {
     const decision = str(action.fields, 'decision') === 'declined' ? 'declined' : 'approved';
     await runtime.send(`/hr/leave-requests/${str(action.fields, 'requestId')}/review`, 'PATCH', {
@@ -916,11 +866,6 @@ const updateStockThresholds: ActionDefinition = {
           optional: true,
         }),
       ],
-    };
-  },
-  async rehearse(action) {
-    return {
-      message: `Test run complete — nothing was written. A low-stock threshold of ${num(action.fields, 'lowThreshold')} passed validation.`,
     };
   },
   async execute(action, runtime) {
@@ -1000,11 +945,6 @@ const requestLeave: ActionDefinition = {
       ],
     };
   },
-  async rehearse(action) {
-    return {
-      message: `Test run complete — nothing was submitted. Time off from ${str(action.fields, 'startDate')} to ${str(action.fields, 'endDate')} passed validation.`,
-    };
-  },
   async execute(action, runtime) {
     const startDate = str(action.fields, 'startDate');
     const endDate = str(action.fields, 'endDate') || startDate;
@@ -1059,9 +999,6 @@ const cancelLeaveRequest: ActionDefinition = {
       ],
     };
   },
-  async rehearse() {
-    return { message: 'Test run complete — nothing was cancelled. The request is still pending.' };
-  },
   async execute(action, runtime) {
     await runtime.send(`/hr/leave-requests/${str(action.fields, 'requestId')}/cancel`, 'PATCH');
     return {
@@ -1071,111 +1008,8 @@ const cancelLeaveRequest: ActionDefinition = {
   },
 };
 
-const EXPENSE_CATEGORIES: Array<[string, string]> = [
-  ['travel', 'Travel'],
-  ['meals', 'Meals'],
-  ['equipment', 'Equipment'],
-  ['training', 'Training'],
-  ['uniform', 'Uniform'],
-  ['other', 'Other'],
-];
 
-const claimExpense: ActionDefinition = {
-  kind: 'claim_expense',
-  tool: {
-    name: 'draft_expense_claim',
-    description:
-      'Prepare an expense claim for the signed-in operator themselves — money they spent on work and want back. Use for "claim my train fare", "expense this", "I paid for X".',
-    parameters: schema({
-      description: nullableString('What the money was spent on.'),
-      amount: { type: ['number', 'null'], description: 'Amount in pounds.' },
-      category: { type: ['string', 'null'], enum: ['travel', 'meals', 'equipment', 'training', 'uniform', 'other', null] },
-    }),
-  },
-  async draft(args) {
-    return {
-      kind: 'claim_expense',
-      title: 'Expense claim',
-      summary: 'Claim back what you paid for out of your own pocket',
-      confirmLabel: 'Submit claim',
-      note: 'Your manager approves it, then payroll pays it back. Keep the receipt — they may ask for it.',
-      fields: [
-        field('description', 'What was it for', { type: 'text', value: optionalText(args.description, 1000) }),
-        field('amount', 'Amount', { type: 'money', min: 0, step: 0.01, value: toNumber(args.amount) || null }),
-        field('category', 'Category', {
-          type: 'select',
-          options: choice(EXPENSE_CATEGORIES),
-          value: EXPENSE_CATEGORIES.some(([value]) => value === args.category) ? String(args.category) : 'travel',
-        }),
-      ],
-    };
-  },
-  async rehearse(action) {
-    return {
-      message: `Test run complete — nothing was submitted. A claim for ${gbp(num(action.fields, 'amount'))} passed validation.`,
-    };
-  },
-  async execute(action, runtime) {
-    const amount = num(action.fields, 'amount');
-    const description = str(action.fields, 'description');
-    if (!description) return { message: 'The claim needs a description, so nothing was submitted.' };
-    if (amount <= 0) return { message: 'The claim needs an amount above zero, so nothing was submitted.' };
 
-    await runtime.send('/hr/expense-claims', 'POST', {
-      description,
-      amount: amount.toFixed(2),
-      currency: 'GBP',
-      category: str(action.fields, 'category') || 'other',
-    });
-    return {
-      message: `Claim for ${gbp(amount)} submitted. You can track it under Expenses.`,
-      shortcuts: [{ label: 'Open your expenses', href: '/my-hr?tab=expenses', description: 'My HR · Expenses', kind: 'page' }],
-    };
-  },
-};
-
-const withdrawExpenseClaim: ActionDefinition = {
-  kind: 'withdraw_expense_claim',
-  tool: {
-    name: 'draft_expense_withdrawal',
-    description: 'Prepare the withdrawal of one of the signed-in operator’s own pending expense claims. Use for "cancel my expense claim".',
-    parameters: schema({ claimId: nullableString('Id of the claim to withdraw, or null to choose from the pending list.') }),
-  },
-  async draft(args, runtime) {
-    const claims = await runtime.get<ExpenseClaim[]>('/hr/expense-claims/my');
-    const pending = claims.filter((claim) => claim.status === 'pending');
-    if (pending.length === 0) return { error: 'You have no pending expense claims to withdraw.' };
-
-    return {
-      kind: 'withdraw_expense_claim',
-      title: 'Withdraw expense claim',
-      summary: 'Take back a claim your manager has not reviewed yet',
-      confirmLabel: 'Withdraw claim',
-      fields: [
-        selectField(
-          'claimId',
-          'Claim',
-          pending.map((claim) => ({
-            value: claim.id,
-            label: claim.description,
-            hint: `${gbp(toNumber(claim.amount))}${claim.category ? ` · ${claim.category}` : ''}`,
-          })),
-          args.claimId,
-        ),
-      ],
-    };
-  },
-  async rehearse() {
-    return { message: 'Test run complete — nothing was withdrawn. The claim is still pending.' };
-  },
-  async execute(action, runtime) {
-    await runtime.send(`/hr/expense-claims/${str(action.fields, 'claimId')}/cancel`, 'PATCH');
-    return {
-      message: 'Expense claim withdrawn.',
-      shortcuts: [{ label: 'Open your expenses', href: '/my-hr?tab=expenses', description: 'My HR · Expenses', kind: 'page' }],
-    };
-  },
-};
 
 const raiseHrRequest: ActionDefinition = {
   kind: 'raise_hr_request',
@@ -1230,9 +1064,6 @@ const raiseHrRequest: ActionDefinition = {
         field('message', 'Details', { type: 'textarea', value: optionalText(args.message, 4000) }),
       ],
     };
-  },
-  async rehearse(action) {
-    return { message: `Test run complete — nothing was sent. “${str(action.fields, 'subject')}” passed validation.` };
   },
   async execute(action, runtime) {
     const subject = str(action.fields, 'subject');
@@ -1306,9 +1137,6 @@ const updateMyDetails: ActionDefinition = {
         }),
       ],
     };
-  },
-  async rehearse() {
-    return { message: 'Test run complete — nothing was saved. The details passed validation.' };
   },
   async execute(action, runtime) {
     const ni = normaliseNiNumber(str(action.fields, 'nationalInsuranceNumber'));
@@ -1477,14 +1305,6 @@ const updateQrOrderingSettings: ActionDefinition = {
       ],
     };
   },
-  async rehearse(action, runtime) {
-    return {
-      message: `Test run complete — nothing was changed. The QR settings for ${(await runtime.locationName(str(action.fields, 'locationId'))) || 'the selected location'} passed validation.`,
-      shortcuts: [
-        { label: 'Open QR ordering settings', href: '/settings/qr-ordering', description: 'Settings · QR ordering', kind: 'page' },
-      ],
-    };
-  },
   async execute(action, runtime) {
     const locationId = str(action.fields, 'locationId');
     const current = await runtime.get<QrOrderingConfig | null>(`/qr-ordering/locations/${locationId}`);
@@ -1546,11 +1366,6 @@ const publishQrOrdering: ActionDefinition = {
       confirmLabel: 'Publish QR menu',
       note: 'Customers will see the current draft content and item visibility immediately after publishing.',
       fields: [selectField('locationId', 'Location', await runtime.locationOptions(), locationId, { readOnly: true })],
-    };
-  },
-  async rehearse(action, runtime) {
-    return {
-      message: `Test run complete — nothing was published. The QR menu for ${await runtime.locationName(str(action.fields, 'locationId'))} is ready.`,
     };
   },
   async execute(action, runtime) {
@@ -1648,11 +1463,6 @@ const updateQrItemVisibility: ActionDefinition = {
       },
     };
   },
-  async rehearse(action) {
-    return {
-      message: `Test run complete — nothing was changed. ${action.lines.length} QR menu item change${action.lines.length === 1 ? '' : 's'} passed validation.`,
-    };
-  },
   async execute(action, runtime) {
     const locationId = str(action.fields, 'locationId');
     await runtime.send(`/qr-ordering/locations/${locationId}`, 'PUT', {
@@ -1670,8 +1480,6 @@ const updateQrItemVisibility: ActionDefinition = {
 export const ACTIONS: ActionDefinition[] = [
   requestLeave,
   cancelLeaveRequest,
-  claimExpense,
-  withdrawExpenseClaim,
   raiseHrRequest,
   updateMyDetails,
   createPurchaseOrder,
