@@ -8,17 +8,21 @@ import { getStaffMember } from '@/lib/api/staff.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { useAuthStore } from '@/stores/authStore';
 
+import { hasAnyCapability } from '@/lib/auth/capabilities';
+
 import { EmployeeRecordPage } from './EmployeeRecordPage';
-import { canManageTeam } from './shared';
 
 export function EmployeeRecordRoute() {
   const router = useRouter();
-  const role = useAuthStore((state) => state.role);
-  const canManage = canManageTeam(role);
+  // Same capabilities as the workspace and its route guard. The role list this
+  // replaced excluded `auditor`, who holds both and was bounced to the
+  // dashboard from a record they are meant to be able to read.
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const canManage = hasAnyCapability(capabilities, 'staff:read', 'hr.people:read');
   const userId = String(useParams<{ userId: string }>().userId);
   useEffect(() => {
-    if (role && !canManage) router.replace('/dashboard');
-  }, [canManage, role, router]);
+    if (capabilities.length > 0 && !canManage) router.replace('/dashboard');
+  }, [canManage, capabilities.length, router]);
   const { data: member } = useQuery({
     queryKey: ['staff-member', userId],
     queryFn: () => getStaffMember(userId),
@@ -30,5 +34,5 @@ export function EmployeeRecordRoute() {
     enabled: !!member?.tenantId,
   });
   if (!canManage) return null;
-  return <EmployeeRecordPage userId={userId} member={member ?? null} locations={locations} onClose={() => router.push('/staff')} />;
+  return <EmployeeRecordPage userId={userId} member={member ?? null} locations={locations} onClose={() => router.push('/staff/team')} />;
 }

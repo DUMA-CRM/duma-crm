@@ -29,7 +29,7 @@ const SECTION_ROUTES: Record<string, string> = {
   'location-stock': '/inventory',
   'hr/leave-requests': '/staff/requests',
   'hr/entitlements': '/staff/requests',
-  'hr/documents': '/staff',
+  'hr/documents': '/staff/team',
   'hr/attendance': '/staff/rota',
   'hr/absence-logs': '/staff/requests',
   helpdesk: '/staff/helpdesk',

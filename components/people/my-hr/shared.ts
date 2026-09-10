@@ -2,11 +2,14 @@ import { formatDate } from '@/lib/utils/date';
 
 /**
  * One tab per question the employee is actually asking. Payslips sit under
- * Documents rather than beside expenses: both are records HR issued about you
- * and look up rarely, where an expense claim is something you are doing now.
+ * Documents: both are records HR issued about you, looked up rarely.
+ *
+ * There were six tabs until 2026-09-10. **Expenses** was removed because it
+ * had no backing table — dropped in 2026-07 and never rebuilt — and rendered
+ * an empty claims list rather than saying so.
  */
-export type MyHrTab = 'overview' | 'time-off' | 'attendance' | 'documents' | 'expenses' | 'requests';
-export const MY_HR_TABS: MyHrTab[] = ['overview', 'time-off', 'attendance', 'documents', 'expenses', 'requests'];
+export type MyHrTab = 'overview' | 'time-off' | 'attendance' | 'documents' | 'requests';
+export const MY_HR_TABS: MyHrTab[] = ['overview', 'time-off', 'attendance', 'documents', 'requests'];
 
 export const fmt = (date: string) => formatDate(date);
 

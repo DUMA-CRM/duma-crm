@@ -30,7 +30,20 @@ export interface PayrollRunLine {
   paidHours: string;
   hourlyRate: string | null;
   grossPay: string;
+  // Entered by a human from whatever actually runs payroll — nothing here
+  // computes PAYE. `null` means "not entered yet"; `'0.00'` means "nothing
+  // deducted". Never conflate the two: a payslip must not assert zero tax
+  // because a field is blank. (UI-ADR-011)
+  taxDeducted: string | null;
+  nationalInsurance: string | null;
+  pensionContribution: string | null;
+  otherDeductions: string | null;
+  netPay: string | null;
 }
+
+/** What a line still needs before its run can be issued. */
+export const lineIsComplete = (line: PayrollRunLine): boolean =>
+  line.taxDeducted !== null && line.nationalInsurance !== null && line.netPay !== null;
 
 export interface PayrollRun {
   id: string;
@@ -38,10 +51,25 @@ export interface PayrollRun {
   period: PayrollPeriod;
   periodStart: string;
   periodEnd: string;
-  status: 'draft' | 'finalised';
+  // `finalised` freezes hours and gross so a later rota edit cannot rewrite
+  // history. `issued` is when employees can see their payslips, and is
+  // irreversible.
+  status: 'draft' | 'finalised' | 'issued';
   finalisedAt: string | null;
+  issuedAt: string | null;
+  issuedBy: string | null;
+  /** Where the deduction figures came from, e.g. "BrightPay, March 2026". */
+  deductionsSource: string | null;
   createdAt: string;
   lines: PayrollRunLine[];
+}
+
+export interface DeductionsPayload {
+  taxDeducted: string;
+  nationalInsurance: string;
+  pensionContribution?: string;
+  otherDeductions?: string;
+  netPay: string;
 }
 
 export const getPayrollPreview = (period: PayrollPeriod, from: string, to: string) =>
@@ -51,3 +79,10 @@ export const createPayrollRun = (data: { period: PayrollPeriod; periodStart: str
   apiFetch<PayrollRun>('/payroll/runs', { method: 'POST', body: JSON.stringify(data) });
 
 export const getPayrollRuns = () => apiFetch<PayrollRun[]>('/payroll/runs');
+
+export const setPayrollLineDeductions = (runId: string, lineId: string, data: DeductionsPayload) =>
+  apiFetch<PayrollRunLine>(`/payroll/runs/${runId}/lines/${lineId}`, { method: 'PATCH', body: JSON.stringify(data) });
+
+/** Publishes every line as a payslip. Refused while any line is incomplete. */
+export const issuePayrollRun = (runId: string, deductionsSource: string) =>
+  apiFetch<PayrollRun>(`/payroll/runs/${runId}/issue`, { method: 'POST', body: JSON.stringify({ deductionsSource }) });

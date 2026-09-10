@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Download, PlugZap, Users } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -95,7 +96,7 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
   const { from, to } = period === 'monthly' ? monthRange(month) : weekRange(weekStart);
   const validRange = Boolean(from && to);
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['payroll-preview', period, from, to],
     queryFn: () => getPayrollPreview(period, from, to),
     enabled: validRange,
@@ -184,7 +185,12 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
         isLoading={isLoading}
         isError={isError}
         errorState={
-          <EmptyState icon={Users} title="Couldn't load payroll" description={(error as Error)?.message || 'Try again shortly.'} />
+          <ErrorState
+            icon={Users}
+            title="The payroll preview couldn’t be loaded"
+            description={(error as Error)?.message || 'No hours have been read, so this is not a period with nobody in it.'}
+            onRetry={() => void refetch()}
+          />
         }
         emptyState={<EmptyState icon={Users} title="No employees" description="No hours in this period." />}
         minWidth={720}

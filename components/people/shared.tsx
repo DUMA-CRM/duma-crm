@@ -50,24 +50,15 @@ export const PAY_CONFIG: Record<PayType, { label: string; variant: 'primary' | '
 
 // ── UK allergen-free helpers ──────────────────────────────────────────────────
 
-// The "money" roles — the only ones allowed to see/edit pay, bank and statutory
-// data, and to onboard.
+// The last role allow-lists in the people components — `MONEY_ROLES`,
+// `canSeeMoney` and `canManageTeam` — were deleted on 2026-09-10 once every
+// caller read the capability list instead. They existed only because the old
+// rank table could not express "hr_manager but not store_manager", which is
+// the problem capabilities solve, and each one silently excluded `auditor`.
 //
-// These two predicates predate capabilities and are still expressed as role
-// allow-lists. They existed because the old rank table could not say
-// "hr_manager but not store_manager" — the very problem capabilities solve.
-// Their role sets are currently identical to the API grants they mirror:
-//
-//   canSeeMoney   ≡ hr.sensitive:read / hr.payroll:read  (super_admin, franchise_owner, hr_manager)
-//   canManageTeam ≡ hr.people:read                       (+ store_manager)
-//
-// so the UI and the API agree today. They should still move to
-// hasCapability() — see lib/auth/capabilities.ts — which means threading
-// capabilities through the people components instead of `role`.
-export const MONEY_ROLES: StaffRole[] = ['super_admin', 'franchise_owner', 'hr_manager'];
-export const canSeeMoney = (role: StaffRole | null | undefined): boolean => !!role && MONEY_ROLES.includes(role);
-export const canManageTeam = (role: StaffRole | null | undefined): boolean =>
-  !!role && ['super_admin', 'franchise_owner', 'store_manager', 'hr_manager'].includes(role);
+// The replacements: pay, bank and statutory data -> `hr.sensitive:read`;
+// onboarding -> `staff:onboard`; reaching a record -> `staff:read` /
+// `hr.people:read`. See lib/auth/capabilities.ts and UI-ADR-002.
 
 export const fmtMoney = (v: string | number | null | undefined): string => {
   const n = typeof v === 'string' ? Number(v) : (v ?? 0);

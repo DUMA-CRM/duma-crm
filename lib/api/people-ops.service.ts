@@ -152,26 +152,8 @@ export const deleteEmployeeAbsence = (id: string) => apiFetch<{ success: boolean
 export const getMyPayslips = () => apiFetch<Payslip[]>('/hr/payslips/my');
 export const getEmployeePayslips = (userId: string) => apiFetch<Payslip[]>(`/hr/payslips?userId=${encodeURIComponent(userId)}`);
 
-// ── Expense claims ────────────────────────────────────────────────────────────
-
-export type ExpenseClaimStatus = 'pending' | 'approved' | 'declined' | 'paid';
-export interface ExpenseClaim {
-  id: string;
-  userId: string;
-  description: string;
-  amount: string;
-  currency: string;
-  category?: string | null;
-  receiptUrl?: string | null;
-  status: ExpenseClaimStatus;
-  reviewNotes?: string | null;
-  reviewedAt?: string | null;
-  createdAt: string;
-  employee?: { id: string; name: string; email: string } | null;
-}
-
-export const getMyExpenseClaims = (status?: ExpenseClaimStatus) =>
-  apiFetch<ExpenseClaim[]>(`/hr/expense-claims/my${status ? `?status=${status}` : ''}`);
-export const createExpenseClaim = (data: { description: string; amount: string; currency?: string; category?: string }) =>
-  apiFetch<ExpenseClaim>('/hr/expense-claims', { method: 'POST', body: JSON.stringify(data) });
-export const cancelExpenseClaim = (id: string) => apiFetch<ExpenseClaim>(`/hr/expense-claims/${id}/cancel`, { method: 'PATCH' });
+// Expense claims were removed on 2026-09-10. The `hr_expense_claims` table was
+// dropped in duma-db migration 0017 (2026-07-01) and never rebuilt, so
+// `/hr/expense-claims/*` has not existed for two months. Because the queries
+// defaulted to `[]`, My HR showed an employee an empty claims list rather than
+// telling them the feature was gone. → D-03, [[UI API Discrepancies]]

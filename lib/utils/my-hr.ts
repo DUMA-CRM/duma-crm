@@ -1,5 +1,5 @@
 import type { HrEmployee } from '@/lib/api/hr.service';
-import type { AttendanceDay, EmployeeDocument, ExpenseClaim, HelpdeskTicket, LeaveEntitlement, Payslip } from '@/lib/api/people-ops.service';
+import type { AttendanceDay, EmployeeDocument, HelpdeskTicket, LeaveEntitlement, Payslip } from '@/lib/api/people-ops.service';
 // Relative, not aliased: `node --experimental-strip-types` erases type-only
 // imports but resolves value ones, and the test runner has no path mapping.
 import { formatDate } from './date.ts';
@@ -46,11 +46,10 @@ export function myHrActions(input: {
   hasBankDetails?: boolean;
   documents?: EmployeeDocument[];
   tickets?: HelpdeskTicket[];
-  expenses?: ExpenseClaim[];
   /** Injected so the rules are testable and stable across a render. */
   now?: Date;
 }): MyHrAction[] {
-  const { employee, hasBankDetails, documents = [], tickets = [], expenses = [], now = new Date() } = input;
+  const { employee, hasBankDetails, documents = [], tickets = [], now = new Date() } = input;
   const actions: MyHrAction[] = [];
 
   if (employee && hasBankDetails === false)
@@ -158,19 +157,6 @@ export function myHrActions(input: {
         detail: ticket.subject,
         actionLabel: 'Open request',
         target: 'requests',
-      }),
-    );
-
-  expenses
-    .filter((claim) => claim.status === 'declined')
-    .forEach((claim) =>
-      actions.push({
-        id: `expense-${claim.id}`,
-        severity: 'info',
-        title: 'An expense claim was declined',
-        detail: claim.reviewNotes ? `${claim.description} — ${claim.reviewNotes}` : claim.description,
-        actionLabel: 'View claims',
-        target: 'pay',
       }),
     );
 

@@ -2,7 +2,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { CalendarDays, FileText, HeartHandshake, Landmark, Loader2, MapPin, Receipt } from '@/components/icons';
+import { CalendarDays, FileText, HeartHandshake, Landmark, Loader2, MapPin } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { AddressFields } from '@/components/people/AddressFields';
 import { Drawer } from '@/components/shared/Drawer';
@@ -17,7 +17,6 @@ import { type HrEmployee, updateMyEmployee } from '@/lib/api/hr.service';
 import {
   type TicketCategory,
   type TicketPriority,
-  createExpenseClaim,
   createTicket,
   getLeaveTypes,
   submitLeaveRequest,
@@ -446,87 +445,6 @@ export function LeaveRequestDrawer({ onClose, onDone }: { onClose: () => void; o
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
         </section>
-      </form>
-    </Drawer>
-  );
-}
-
-// ── Expenses ──────────────────────────────────────────────────────────────────
-
-const EXPENSE_FORM_ID = 'my-hr-expense-form';
-const EXPENSE_CATEGORIES = ['travel', 'meals', 'equipment', 'training', 'uniform', 'other'];
-
-export function ExpenseClaimDrawer({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [form, setForm] = useState({ description: '', amount: '', category: 'travel' });
-  const mutation = useMutation({
-    mutationFn: () => createExpenseClaim({ description: form.description.trim(), amount: form.amount, category: form.category }),
-    onSuccess: () => {
-      toast('success', 'Expense claim submitted.');
-      onDone();
-    },
-    onError: (e) => toast('error', (e as Error).message),
-  });
-  const amount = Number(form.amount);
-  const amountValid = form.amount !== '' && Number.isFinite(amount) && amount > 0;
-
-  return (
-    <Drawer
-      title="Claim an expense"
-      description="Your manager approves it, then payroll pays it back."
-      onClose={onClose}
-      footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form={EXPENSE_FORM_ID} disabled={!form.description.trim() || !amountValid || mutation.isPending}>
-            {mutation.isPending && <Loader2 className="animate-spin" />}Submit claim
-          </Button>
-        </div>
-      }
-    >
-      <form
-        id={EXPENSE_FORM_ID}
-        className="space-y-5"
-        onSubmit={(e) => {
-          e.preventDefault();
-          mutation.mutate();
-        }}
-      >
-        <section className="space-y-3">
-          <FieldsetHeading icon={Receipt} title="What you paid for" />
-          <Labelled label="Description">
-            <Input
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="e.g. Train fare to the Camden site"
-              maxLength={1000}
-            />
-          </Labelled>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Labelled label="Amount (£)" error={form.amount !== '' && !amountValid ? 'Enter an amount above zero.' : ''}>
-              <Input
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value.replace(/[^\d.]/g, '') })}
-                placeholder="24.99"
-                inputMode="decimal"
-              />
-            </Labelled>
-            <Labelled label="Category">
-              <Select
-                value={form.category}
-                onValueChange={(v) => setForm({ ...form, category: v })}
-                options={EXPENSE_CATEGORIES.map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }))}
-                ariaLabel="Expense category"
-                className="w-full"
-              />
-            </Labelled>
-          </div>
-        </section>
-
-        <p className="border-t border-rule pt-5 text-xs text-muted-foreground">
-          Keep your receipt — your manager may ask to see it before approving.
-        </p>
       </form>
     </Drawer>
   );

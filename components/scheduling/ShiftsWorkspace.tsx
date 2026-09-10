@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
 import { BarChart3, CalendarClock, CalendarRange, ChevronLeft, ChevronRight, MapPin, Search, Send, X } from '@/components/icons';
-import { Avatar, canSeeMoney, fmtMoney } from '@/components/people/shared';
+import { Avatar, fmtMoney } from '@/components/people/shared';
 import { CoveragePanel } from '@/components/scheduling/CoveragePanel';
 import { type ShiftDrawerTarget, ShiftRecordDrawer, hourlyRateOf, unpaidBreakFor } from '@/components/scheduling/ShiftRecordDrawer';
 import {
@@ -24,6 +24,7 @@ import {
   workStateOf,
 } from '@/components/scheduling/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
@@ -117,9 +118,9 @@ export function ShiftsWorkspace({
 }) {
   const { tenantId, locationId } = useWorkspaceStore();
   const qc = useQueryClient();
-  const role = useAuthStore((s) => s.role);
   const capabilities = useAuthStore((s) => s.capabilities);
-  const money = canSeeMoney(role);
+  // Hourly rates and shift cost, not "is this a senior account".
+  const money = hasCapability(capabilities, 'hr.sensitive:read');
   // Running the clock for someone else is a write on another person's shift —
   // distinct from clocking yourself in, which needs no capability at all.
   const canClock = hasCapability(capabilities, 'shifts:write');
@@ -201,7 +202,12 @@ export function ShiftsWorkspace({
     queryFn: getEmployees,
     enabled: !!tenantId,
   });
-  const { data: shifts = [], isLoading } = useQuery({
+  const {
+    data: shifts = [],
+    isLoading,
+    isError: shiftsError,
+    refetch: refetchShifts,
+  } = useQuery({
     queryKey: ['scheduled-shifts', locationId, fromISO, toISO],
     queryFn: () => getScheduledShifts({ locationId: locationId!, from: fromISO, to: toISO }),
     enabled: !!locationId,
@@ -730,8 +736,20 @@ export function ShiftsWorkspace({
           columns={columns}
           getRowKey={(row) => row.id}
           isLoading={isLoading}
+          isError={shiftsError}
           minWidth={880}
           className="rounded-none border-0"
+          // Without this the rota reads "No shift records" when the read
+          // failed — an empty rota and an unreadable one look identical, and
+          // only one of them means nobody is working.
+          errorState={
+            <ErrorState
+              icon={CalendarClock}
+              title="The rota couldn’t be loaded"
+              description="No shift has been read, so this is not an empty rota."
+              onRetry={() => void refetchShifts()}
+            />
+          }
           emptyState={
             !locationId ? (
               <EmptyState icon={MapPin} title="Select a location" description="Choose a location to view its shift records." />

@@ -5,6 +5,7 @@ import { ArrowLeft, CircleHelp, Loader2, Lock, MessageSquarePlus, Search, X } fr
 import { useMemo, useState } from 'react';
 
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -59,6 +60,8 @@ export function HelpdeskBoard({
   mode,
   tickets,
   loading = false,
+  error = false,
+  onRetry,
   selectedId,
   onSelect,
   onNew,
@@ -72,6 +75,9 @@ export function HelpdeskBoard({
   mode: 'employee' | 'agent';
   tickets: HelpdeskTicket[];
   loading?: boolean;
+  /** The list read failed. Distinct from an empty queue — say so, don't imply it. */
+  error?: boolean;
+  onRetry?: () => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onNew?: () => void;
@@ -171,6 +177,15 @@ export function HelpdeskBoard({
           {loading ? (
             <div className="flex justify-center py-16">
               <Loader2 className="animate-spin text-muted-foreground" />
+            </div>
+          ) : error ? (
+            <div className="px-4 py-12">
+              <ErrorState
+                icon={CircleHelp}
+                title="Requests couldn’t be loaded"
+                description="Nothing was read, so this is not an empty queue."
+                onRetry={onRetry}
+              />
             </div>
           ) : visible.length === 0 ? (
             <div className="px-4 py-12">

@@ -439,7 +439,7 @@ const listStaff: ToolDefinition = {
           })),
         },
       ],
-      shortcuts: [page('Open team', '/staff', 'Team')],
+      shortcuts: [page('Open team', '/staff/team', 'Team')],
     };
   },
 };

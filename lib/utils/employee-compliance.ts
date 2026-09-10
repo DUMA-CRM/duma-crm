@@ -1,7 +1,9 @@
 import type { HrEmployee } from '@/lib/api/hr.service';
 import type { EmployeeDocument } from '@/lib/api/people-ops.service';
 import type { StaffProfile } from '@/lib/api/staff.service';
-import { formatDate } from '@/lib/utils/date';
+// Relative, not aliased: the test runner strips types but resolves value
+// imports, and it has no path mapping.
+import { formatDate } from './date.ts';
 
 export type ComplianceTone = 'success' | 'warning' | 'destructive' | 'muted';
 

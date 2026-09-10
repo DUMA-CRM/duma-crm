@@ -9677,6 +9677,152 @@
         }
       }
     },
+    "/v1/payroll/runs/{runId}/lines/{lineId}": {
+      "patch": {
+        "operationId": "patchV1PayrollRunsByRunIdLinesByLineId",
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "Record a line's deductions",
+        "description": "Sets the tax, National Insurance, pension and net pay for one employee on a finalised run, from figures produced elsewhere. Refused once the run is issued — an issued payslip is immutable.",
+        "responses": {
+          "200": {
+            "description": "Updated line"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Run or line not found"
+          },
+          "409": {
+            "description": "Run is already issued"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "runId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "lineId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/payroll/runs/{runId}/issue": {
+      "post": {
+        "operationId": "postV1PayrollRunsByRunIdIssue",
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "Issue a payroll run to employees",
+        "description": "Publishes every line as a payslip the employee can see. Refused unless each line carries tax, National Insurance and net pay — a statement with blank deductions is not an itemised pay statement under ERA s.8. Irreversible.",
+        "responses": {
+          "200": {
+            "description": "Issued run"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Run not found"
+          },
+          "409": {
+            "description": "Run is not finalised, is already issued, or has incomplete lines"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "runId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/hr/payslips/my": {
+      "get": {
+        "operationId": "getV1HrPayslipsMy",
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "My payslips",
+        "description": "The signed-in employee's own issued payslips, most recent first. Session-subject, so it carries no capability — an employee is always entitled to their own pay statements.",
+        "responses": {
+          "200": {
+            "description": "Payslip[]"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/hr/payslips": {
+      "get": {
+        "operationId": "getV1HrPayslips",
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "An employee's payslips",
+        "description": "Issued payslips for one employee. Requires hr.payroll:read, and the employee must be in the caller's tenant.",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payslip[]"
+          },
+          "400": {
+            "description": "userId required"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/email/connection": {
       "get": {
         "operationId": "getV1EmailConnection",

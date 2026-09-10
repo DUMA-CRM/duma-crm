@@ -13,7 +13,6 @@ import {
   MessageSquarePlus,
   Pencil,
   Plus,
-  Receipt,
 } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
@@ -24,7 +23,6 @@ import { getEmployeeBank, getMyEmployee } from '@/lib/api/hr.service';
 import {
   getMyDocuments,
   getMyEntitlements,
-  getMyExpenseClaims,
   getMyLeaveRequests,
   getMyPayslips,
   getMyTickets,
@@ -34,10 +32,9 @@ import { useAuthStore } from '@/stores/authStore';
 
 import { AttendancePanel } from './AttendancePanel';
 import { DocumentsPanel } from './DocumentsPanel';
-import { ExpensesPanel } from './ExpensesPanel';
 import { Overview } from './Overview';
 import { TimeOffPanel } from './TimeOffPanel';
-import { EditDetailsDrawer, ExpenseClaimDrawer, LeaveRequestDrawer, NewTicketDrawer, type TicketPreset } from './forms';
+import { EditDetailsDrawer, LeaveRequestDrawer, NewTicketDrawer, type TicketPreset } from './forms';
 import { type BankVisibility, MY_HR_TABS, type MyHrTab } from './shared';
 
 /**
@@ -58,7 +55,6 @@ export function MyHrWorkspace() {
   const [tab, setTab] = useState<MyHrTab>(MY_HR_TABS.includes(requested as MyHrTab) ? (requested as MyHrTab) : 'overview');
 
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const [expenseOpen, setExpenseOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [ticket, setTicket] = useState<TicketPreset | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
@@ -66,10 +62,12 @@ export function MyHrWorkspace() {
   const { data: employee, isLoading: employeeLoading } = useQuery({ queryKey: ['hr-employee-me'], queryFn: getMyEmployee, retry: false });
   const { data: entitlements = [] } = useQuery({ queryKey: ['leave-entitlements-me'], queryFn: () => getMyEntitlements() });
   const { data: requests = [] } = useQuery({ queryKey: ['leave-requests-me'], queryFn: getMyLeaveRequests });
-  const { data: tickets = [] } = useQuery({ queryKey: ['helpdesk-my'], queryFn: getMyTickets });
+  const ticketsQuery = useQuery({ queryKey: ['helpdesk-my'], queryFn: getMyTickets });
+  // Memoised because `?? []` hands back a fresh array every render, which
+  // would defeat the `actions` memo below.
+  const tickets = useMemo(() => ticketsQuery.data ?? [], [ticketsQuery.data]);
   const { data: documents = [] } = useQuery({ queryKey: ['documents-me'], queryFn: getMyDocuments });
   const { data: payslips = [] } = useQuery({ queryKey: ['payslips-me'], queryFn: getMyPayslips, retry: false });
-  const { data: expenses = [] } = useQuery({ queryKey: ['expense-claims-me'], queryFn: () => getMyExpenseClaims(), retry: false });
 
   // AI and notifications may deep-link to a specific self-service action. Once
   // the employee record has loaded, open the existing form and consume the
@@ -98,8 +96,8 @@ export function MyHrWorkspace() {
   const openTickets = tickets.filter((t) => !['resolved', 'closed'].includes(t.status)).length;
 
   const actions = useMemo(
-    () => myHrActions({ employee, hasBankDetails: bank.known ? bank.hasBankDetails : undefined, documents, tickets, expenses }),
-    [employee, bank.known, bank.hasBankDetails, documents, tickets, expenses],
+    () => myHrActions({ employee, hasBankDetails: bank.known ? bank.hasBankDetails : undefined, documents, tickets }),
+    [employee, bank.known, bank.hasBankDetails, documents, tickets],
   );
   const needsAttention = actions.filter((action) => action.severity !== 'info').length;
 
@@ -116,7 +114,6 @@ export function MyHrWorkspace() {
       { value: 'time-off', label: 'Time off', icon: CalendarDays },
       { value: 'attendance', label: 'Attendance', icon: CalendarCheck },
       { value: 'documents', label: 'Documents', icon: FileText },
-      { value: 'expenses', label: 'Expenses', icon: Receipt },
       { value: 'requests', label: 'Requests', icon: CircleHelp, count: openTickets, countLabel: `${openTickets} open requests` },
     ],
     [needsAttention, openTickets],
@@ -150,7 +147,6 @@ export function MyHrWorkspace() {
   const runAction = (action: MyHrAction) => {
     if (action.target === 'details' || action.target === 'bank') return setEditOpen(true);
     if (action.target === 'documents') return setTab('documents');
-    if (action.target === 'pay') return setTab('expenses');
     if (action.target === 'time') return setTab('time-off');
     if (action.id === 'written-particulars') return requestDocument();
     const waiting = tickets.find((t) => `ticket-${t.id}` === action.id);
@@ -180,7 +176,6 @@ export function MyHrWorkspace() {
         }),
     },
     documents: { label: 'Request a document', icon: Plus, onClick: requestDocument },
-    expenses: { label: 'Claim an expense', icon: Plus, onClick: () => setExpenseOpen(true) },
     requests: { label: 'Ask HR', icon: MessageSquarePlus, onClick: () => setTicket({}) },
   };
   const primary = primaryAction[tab];
@@ -229,11 +224,13 @@ export function MyHrWorkspace() {
       {tab === 'time-off' && <TimeOffPanel requests={requests} entitlements={entitlements} />}
       {tab === 'attendance' && <AttendancePanel onCorrection={requestCorrection} />}
       {tab === 'documents' && <DocumentsPanel employee={employee} documents={documents} onDataRequest={requestData} />}
-      {tab === 'expenses' && <ExpensesPanel />}
       {tab === 'requests' && (
         <HelpdeskBoard
           mode="employee"
           tickets={tickets}
+          loading={ticketsQuery.isPending}
+          error={ticketsQuery.isError}
+          onRetry={() => void ticketsQuery.refetch()}
           selectedId={selectedTicket}
           onSelect={setSelectedTicket}
           onNew={() => setTicket({})}
@@ -250,15 +247,6 @@ export function MyHrWorkspace() {
             setLeaveOpen(false);
             qc.invalidateQueries({ queryKey: ['leave-requests-me'] });
             qc.invalidateQueries({ queryKey: ['leave-entitlements-me'] });
-          }}
-        />
-      )}
-      {expenseOpen && (
-        <ExpenseClaimDrawer
-          onClose={() => setExpenseOpen(false)}
-          onDone={() => {
-            setExpenseOpen(false);
-            qc.invalidateQueries({ queryKey: ['expense-claims-me'] });
           }}
         />
       )}

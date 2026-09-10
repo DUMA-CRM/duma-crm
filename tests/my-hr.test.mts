@@ -132,28 +132,27 @@ test('an expiring certificate is raised once, and not double-counted as right to
   assert.equal(actions[0].severity, 'info');
 });
 
-test('a ticket waiting on the employee, and a declined expense, both surface', () => {
+test('a ticket waiting on the employee surfaces', () => {
+  // Expense claims used to contribute an `info` row here. The feature was
+  // removed on 2026-09-10 — its table was dropped in 2026-07 — so the ordering
+  // this asserted is now exercised by the document case above.
   const actions = myHrActions(
     settled({
       tickets: [{ id: 't9', subject: 'Proof of address', status: 'waiting_employee' }] as ActionsInput['tickets'],
-      expenses: [{ id: 'x1', description: 'Train fare', status: 'declined', reviewNotes: 'No receipt' }] as ActionsInput['expenses'],
     }),
   );
   assert.deepEqual(
     actions.map((action) => action.id),
-    ['ticket-t9', 'expense-x1'],
+    ['ticket-t9'],
   );
-  // Severity ordering puts the thing HR is blocked on first.
   assert.equal(actions[0].severity, 'attention');
-  assert.equal(actions[1].severity, 'info');
 });
 
-test('resolved tickets and approved expenses are silent', () => {
+test('resolved tickets are silent', () => {
   assert.deepEqual(
     ids(
       settled({
         tickets: [{ id: 't1', subject: 'Done', status: 'resolved' }] as ActionsInput['tickets'],
-        expenses: [{ id: 'x1', description: 'Taxi', status: 'approved' }] as ActionsInput['expenses'],
       }),
     ),
     [],

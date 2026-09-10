@@ -5,8 +5,9 @@ import { Search, Users, X } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { Avatar, EMPLOYMENT_CONFIG, ROLES, ROLE_CONFIG, canSeeMoney, fmtMoney } from '@/components/people/shared';
+import { Avatar, EMPLOYMENT_CONFIG, ROLES, ROLE_CONFIG, fmtMoney } from '@/components/people/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
@@ -15,8 +16,10 @@ import { Select } from '@/components/ui/select';
 
 import { type HrEmployee, getEmployees } from '@/lib/api/hr.service';
 import { type StaffProfile, type StaffRole, getStaff } from '@/lib/api/staff.service';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { cn } from '@/lib/utils/cn';
-import { employeeSetupChecks, setupProgress } from '@/lib/utils/employee-compliance';
+import { setupProgress } from '@/lib/utils/employee-compliance';
+import { coreSetupChecks } from '@/lib/utils/staff-overview';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -25,16 +28,17 @@ type RecordFilter = 'all' | 'ready' | 'action';
 
 /** Core setup progress for a member, ignoring the checks HR does later. */
 function coreProgress(member: StaffProfile, employee: HrEmployee | null, asOf: Date) {
-  return setupProgress(
-    employeeSetupChecks(member, employee, [], asOf).filter((check) => !['right-to-work', 'contract'].includes(check.id)),
-  );
+  return setupProgress(coreSetupChecks(member, employee, asOf));
 }
 
 /** The team directory: who exists, what state their record is in, and a way in. */
 export function StaffDirectory() {
   const router = useRouter();
-  const role = useAuthStore((s) => s.role);
-  const money = canSeeMoney(role);
+  // Pay and statutory identifiers, not "is this a senior account".
+  const money = hasCapability(
+    useAuthStore((s) => s.capabilities),
+    'hr.sensitive:read',
+  );
   const { tenantId } = useWorkspaceStore();
 
   const [search, setSearch] = useState('');
@@ -48,12 +52,13 @@ export function StaffDirectory() {
     data: staff = [],
     isLoading,
     isError: staffError,
+    refetch: refetchStaff,
   } = useQuery({
     queryKey: ['staff', tenantId],
     queryFn: () => getStaff(tenantId ?? undefined),
     enabled: !!tenantId,
   });
-  const { data: employees = [], isError: employeeError } = useQuery({
+  const { data: employees = [], isError: employeeError, refetch: refetchEmployees } = useQuery({
     queryKey: ['hr-employees', tenantId],
     queryFn: getEmployees,
     enabled: !!tenantId,
@@ -272,10 +277,15 @@ export function StaffDirectory() {
         stickyHeader
         minWidth={720}
         errorState={
-          <div className="py-16 text-center">
-            <p className="font-semibold text-destructive">Couldn’t load the staff directory</p>
-            <p className="mt-1 text-sm text-muted-foreground">Refresh the page or try again shortly.</p>
-          </div>
+          <ErrorState
+            icon={Users}
+            title="The staff directory couldn’t be loaded"
+            description="Nobody has been read, so this is not an empty team."
+            onRetry={() => {
+              void refetchStaff();
+              void refetchEmployees();
+            }}
+          />
         }
         emptyState={
           !tenantId ? (
@@ -313,14 +323,14 @@ function RecordReadinessBadge({
   money,
   asOf,
 }: {
-  member: Parameters<typeof employeeSetupChecks>[0];
+  member: Parameters<typeof coreSetupChecks>[0];
   emp?: HrEmployee;
   money: boolean;
   asOf: Date;
 }) {
   if (!emp) return <Badge variant="warning">Account only</Badge>;
   if (!money) return <Badge variant="success">Record linked</Badge>;
-  const checks = employeeSetupChecks(member, emp, [], asOf).filter((check) => !['right-to-work', 'contract'].includes(check.id));
+  const checks = coreSetupChecks(member, emp, asOf);
   const progress = setupProgress(checks);
   if (checks.some((check) => check.tone === 'destructive')) return <Badge variant="destructive">Pay risk</Badge>;
   if (progress === 100) return <Badge variant="success">Core ready</Badge>;

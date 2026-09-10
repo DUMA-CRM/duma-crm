@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Banknote, CalendarDays, CalendarRange, CircleHelp, Lock, Plus, UsersRound } from '@/components/icons';
+import { Banknote, CalendarDays, CalendarRange, CircleHelp, LayoutDashboard, Lock, Plus, UsersRound } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
@@ -11,7 +11,7 @@ import { RunPayrollPanel } from '@/components/payroll/RunPayrollPanel';
 import { LeaveInbox } from '@/components/people/HrInbox';
 import { OnboardingPage } from '@/components/people/OnboardingPage';
 import { StaffDirectory } from '@/components/people/StaffDirectory';
-import { canSeeMoney } from '@/components/people/shared';
+import { StaffOverview } from '@/components/people/StaffOverview';
 import { ShiftsWorkspace } from '@/components/scheduling/ShiftsWorkspace';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -20,52 +20,72 @@ import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
 
 import { getManagedLeaveRequests, getManagedTickets } from '@/lib/api/people-ops.service';
+import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-export type StaffTab = 'team' | 'rota' | 'leave' | 'helpdesk' | 'payroll';
+export type StaffTab = 'overview' | 'team' | 'rota' | 'leave' | 'helpdesk' | 'payroll';
 
 /**
  * Each tab is a route so links stay shareable, the browser back button steps
- * between tabs, and the server-side role gates in the route layouts still apply.
+ * between tabs, and the server-side capability guards in the route layouts
+ * still apply.
+ *
+ * `/staff` is the overview, not the directory: the workspace opens on what
+ * needs a manager, the same way `/dashboard` and `/my-hr` do. The directory
+ * moved to `/staff/team` when the overview took the root.
  */
 const TAB_PATH: Record<StaffTab, string> = {
-  team: '/staff',
+  overview: '/staff',
+  team: '/staff/team',
   rota: '/staff/rota',
   leave: '/staff/requests',
   helpdesk: '/staff/helpdesk',
   payroll: '/staff/payroll',
 };
 
-// Team management is store_manager and up; people-ops tabs are an explicit
-// allow-list because store_manager out-ranks hr_manager but must not see them.
-const TEAM_ROLES = ['super_admin', 'franchise_owner', 'store_manager', 'hr_manager'];
-const PEOPLE_OPS_ROLES = ['super_admin', 'franchise_owner', 'hr_manager'];
-
 export function StaffWorkspace({ tab }: { tab: StaffTab }) {
   const router = useRouter();
   const qc = useQueryClient();
-  const role = useAuthStore((s) => s.role);
+  const capabilities = useAuthStore((state) => state.capabilities);
   const { tenantId } = useWorkspaceStore();
 
-  const canManageTeam = TEAM_ROLES.includes(role ?? '');
-  const canPeopleOps = PEOPLE_OPS_ROLES.includes(role ?? '');
-  const canOnboard = canSeeMoney(role);
+  // One capability per tab, each the one the API already enforces on the data
+  // behind it. This replaced two hardcoded role arrays: they let `auditor`
+  // through the route guard and then showed them a locked door, and they hid
+  // leave review from `store_manager`, who holds `hr.leave:review`.
+  const canTeam = hasAnyCapability(capabilities, 'staff:read', 'hr.people:read');
+  const canRota = hasAnyCapability(capabilities, 'scheduling:read', 'shifts:read');
+  const canLeave = hasCapability(capabilities, 'hr.leave:review');
+  const canHelpdesk = hasCapability(capabilities, 'helpdesk:manage');
+  const canPayroll = hasCapability(capabilities, 'hr.payroll:read');
+
+  const canOnboard = hasCapability(capabilities, 'staff:onboard');
+  const canWriteRota = hasCapability(capabilities, 'scheduling:write');
+  // Read without write is the auditor's whole point: they see payroll history
+  // and never reach the panel that creates a run.
+  const canRunPayroll = hasCapability(capabilities, 'hr.payroll:write');
 
   const [onboarding, setOnboarding] = useState(false);
   const [newShift, setNewShift] = useState(false);
   const [leaveStatus, setLeaveStatus] = useState('pending');
-  const [payrollView, setPayrollView] = useState<'run' | 'history'>('run');
+  const [payrollView, setPayrollView] = useState<'run' | 'history'>(canRunPayroll ? 'run' : 'history');
   const [ticketFilters, setTicketFilters] = useState<HelpdeskFilters>({ search: '', status: 'open', category: '' });
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
 
-  // Counts for the tab badges. Cheap list reads, shared with the panels below.
-  const { data: pendingLeave = [] } = useQuery({
+  // Counts for the tab badges. Cheap list reads, shared by key with the panels
+  // below and with the overview.
+  const pendingLeaveQuery = useQuery({
     queryKey: ['leave-managed', 'pending'],
     queryFn: () => getManagedLeaveRequests('pending'),
-    enabled: canPeopleOps,
+    enabled: canLeave,
   });
-  const { data: tickets = [], isLoading: ticketsLoading } = useQuery({
+  const {
+    data: tickets = [],
+    isLoading: ticketsLoading,
+    isError: ticketsError,
+    refetch: refetchTickets,
+  } = useQuery({
     queryKey: ['helpdesk-managed', ticketFilters.status, ticketFilters.category, ticketFilters.search],
     queryFn: () =>
       getManagedTickets({
@@ -73,51 +93,61 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
         category: ticketFilters.category || undefined,
         search: ticketFilters.search || undefined,
       }),
-    enabled: canPeopleOps,
+    enabled: canHelpdesk,
   });
-  const { data: openTickets = [] } = useQuery({
+  const openTicketsQuery = useQuery({
     queryKey: ['helpdesk-managed', 'open', '', ''],
     queryFn: () => getManagedTickets({ status: 'open' }),
-    enabled: canPeopleOps,
+    enabled: canHelpdesk,
   });
 
   const tabs = useMemo<SectionTab<StaffTab>[]>(() => {
-    const list: SectionTab<StaffTab>[] = [
-      { value: 'team', label: 'Team', icon: UsersRound },
-      { value: 'rota', label: 'Rota & shifts', icon: CalendarRange },
-    ];
-    if (canPeopleOps) {
+    const list: SectionTab<StaffTab>[] = [{ value: 'overview', label: 'Overview', icon: LayoutDashboard }];
+    if (canTeam) list.push({ value: 'team', label: 'Team', icon: UsersRound });
+    if (canRota) list.push({ value: 'rota', label: 'Rota & shifts', icon: CalendarRange });
+    if (canLeave) {
+      // A failed read must not render as "0 awaiting a decision" — no badge is
+      // honest about not knowing; a zero is a claim the queue is clear.
+      const waiting = pendingLeaveQuery.isError
+        ? undefined
+        : (pendingLeaveQuery.data ?? []).filter((request) => request.status === 'pending').length;
       list.push({
         value: 'leave',
         label: 'Leave',
         icon: CalendarDays,
-        count: pendingLeave.filter((request) => request.status === 'pending').length,
+        count: waiting,
         countTone: 'danger',
-        countLabel: `${pendingLeave.length} awaiting a decision`,
+        countLabel: waiting ? `${waiting} awaiting a decision` : undefined,
       });
+    }
+    if (canHelpdesk) {
+      const open = openTicketsQuery.isError ? undefined : openTicketsQuery.data?.length;
       list.push({
         value: 'helpdesk',
         label: 'Helpdesk',
         icon: CircleHelp,
-        count: openTickets.length,
-        countLabel: `${openTickets.length} open requests`,
+        count: open,
+        countLabel: open ? `${open} open requests` : undefined,
       });
-      list.push({ value: 'payroll', label: 'Payroll', icon: Banknote });
     }
+    if (canPayroll) list.push({ value: 'payroll', label: 'Payroll', icon: Banknote });
     return list;
-  }, [canPeopleOps, pendingLeave, openTickets.length]);
+  }, [canTeam, canRota, canLeave, canHelpdesk, canPayroll, pendingLeaveQuery.data, pendingLeaveQuery.isError, openTicketsQuery.data, openTicketsQuery.isError]);
 
-  if (role && !canManageTeam) {
+  // Capabilities arrive with the session; an empty list means "not loaded yet",
+  // not "holds nothing", so the locked state waits for it.
+  if (capabilities.length > 0 && !canTeam && !canRota && !canLeave && !canHelpdesk && !canPayroll) {
     return (
       <EditorShell eyebrow="Management" title="Staff" icon={<UsersRound size={20} aria-hidden="true" />}>
-        <EmptyState icon={Lock} title="Not available" description="You don’t have access to the staff directory." />
+        <EmptyState icon={Lock} title="Not available" description="You don’t have access to the staff workspace." />
       </EditorShell>
     );
   }
 
-  // A people-ops tab reached without the role (stale link) falls back to the team.
-  const peopleOpsTab = tab === 'leave' || tab === 'helpdesk' || tab === 'payroll';
-  const active: StaffTab = peopleOpsTab && !canPeopleOps ? 'team' : tab;
+  // A tab reached without the capability (a stale link, a changed grant) falls
+  // back to the overview, which every holder of any staff capability can read.
+  const reachable = tabs.some((entry) => entry.value === tab);
+  const active: StaffTab = reachable ? tab : 'overview';
 
   return (
     <EditorShell
@@ -130,13 +160,13 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
             <Plus size={15} />
             <span className="hidden md:inline">Onboard</span>
           </Button>
-        ) : active === 'rota' ? (
+        ) : active === 'rota' && canWriteRota ? (
           <Button className="h-9 gap-1.5" onClick={() => setNewShift(true)}>
             <Plus size={15} />
-            <span className="hidden md:inline">Create a new record</span>
+            <span className="hidden md:inline">New shift</span>
             <span className="md:hidden">New</span>
           </Button>
-        ) : active === 'payroll' ? (
+        ) : active === 'payroll' && canRunPayroll ? (
           <SegmentedControl
             options={[
               { value: 'run', label: 'Run payroll' },
@@ -161,6 +191,10 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
       // The helpdesk queue/detail split scrolls its own panes.
       flush={active === 'helpdesk'}
     >
+      {active === 'overview' && (
+        <StaffOverview access={{ team: canTeam, rota: canRota, leave: canLeave, helpdesk: canHelpdesk }} />
+      )}
+
       {active === 'team' && <StaffDirectory />}
 
       {active === 'rota' && <ShiftsWorkspace creating={newShift} onCreatingChange={setNewShift} />}
@@ -172,6 +206,8 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
           mode="agent"
           tickets={tickets}
           loading={ticketsLoading}
+          error={ticketsError}
+          onRetry={() => void refetchTickets()}
           selectedId={selectedTicket}
           onSelect={setSelectedTicket}
           filters={ticketFilters}
@@ -183,7 +219,11 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
       )}
 
       {active === 'payroll' &&
-        (payrollView === 'run' ? <RunPayrollPanel onFinalised={() => setPayrollView('history')} /> : <PayrollHistoryPanel />)}
+        (payrollView === 'run' && canRunPayroll ? (
+          <RunPayrollPanel onFinalised={() => setPayrollView('history')} />
+        ) : (
+          <PayrollHistoryPanel />
+        ))}
 
       {/* Full-screen onboarding, then straight into the new record */}
       {onboarding && tenantId && (

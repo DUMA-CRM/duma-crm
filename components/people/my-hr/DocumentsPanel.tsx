@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { ChevronDown, FileText, Loader2, Wallet } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -55,7 +56,12 @@ export function DocumentsPanel({
 }
 
 function PayslipsSection({ employee }: { employee?: HrEmployee }) {
-  const { data: payslips = [], isLoading } = useQuery({ queryKey: ['payslips-me'], queryFn: getMyPayslips, retry: false });
+  const {
+    data: payslips = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({ queryKey: ['payslips-me'], queryFn: getMyPayslips, retry: false });
   const [openId, setOpenId] = useState<string | null>(null);
   const showHours = payVariesWithHours(employee);
 
@@ -77,6 +83,19 @@ function PayslipsSection({ employee }: { employee?: HrEmployee }) {
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="animate-spin text-muted-foreground" />
+        </div>
+      ) : isError ? (
+        // Until the rebuilt endpoint ships this read fails, and the empty
+        // state below would tell an employee they have no payslips — a claim
+        // about their pay that nothing has checked. Say what is true instead:
+        // nothing could be read.
+        <div className="rounded-md border border-rule bg-card shadow-sm">
+          <ErrorState
+            icon={Wallet}
+            title="Your payslips couldn’t be loaded"
+            description="This is not a statement that you have none. If you have been paid and nothing appears here, raise a payroll request."
+            onRetry={() => void refetch()}
+          />
         </div>
       ) : payslips.length === 0 ? (
         <div className="rounded-md border border-rule bg-card shadow-sm">
