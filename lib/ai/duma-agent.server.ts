@@ -19,6 +19,7 @@ import type {
   AgentStreamEvent,
 } from './agent-types';
 import type { ProviderTool } from './provider-chain.ts';
+import type { AgentProviderPreference } from './provider-chain.ts';
 import { providerChain } from './provider-chain.ts';
 import { selectRelevantShortcuts } from './shortcut-policy.ts';
 
@@ -33,6 +34,8 @@ export interface AgentContext {
   locationId?: string | null;
   tenantId?: string | null;
   page?: string;
+  /** Which configured model answers first. Per device — see `stores/agentSettingsStore.ts`. */
+  provider?: AgentProviderPreference;
 }
 
 export function isAgentTestMode() {
@@ -158,7 +161,7 @@ export async function* runDumaAgent(
     return;
   }
 
-  const providers = chatProviders();
+  const providers = chatProviders(context.provider);
   if (providers.length === 0) throw new Error(NO_PROVIDER);
 
   const runtime = new AgentRuntime(cookieHeader, profile, context.locationId ?? null, context.tenantId ?? profile.tenantId ?? null);
@@ -339,7 +342,7 @@ export async function executeConfirmedAction(
   profile: StaffProfile,
 ): Promise<AgentChatResponse> {
   // Confirming runs no model at all — it replays a signed spec against the API.
-  const model = chatProviders()[0]?.model ?? 'none';
+  const model = chatProviders(context.provider)[0]?.model ?? 'none';
   const testMode = isAgentTestMode();
   const { action, definition } = resolveSubmission(submission);
   if (definition.capability && !hasCapability(profile, definition.capability))

@@ -16,6 +16,7 @@ import { ActionCard } from '@/components/ai/ActionCard';
 import { AgentMetrics } from '@/components/ai/AgentMetrics';
 import { LiveMarkdown } from '@/components/ai/LiveMarkdown';
 import { Mascot } from '@/components/ai/Mascot';
+import { ModelChoiceList, useAgentProviders } from '@/components/ai/ModelChoice';
 import { type AgentMood, type AgentPhase, useAgentMood } from '@/components/ai/useAgentMood';
 import {
   ArrowUpRight,
@@ -42,12 +43,15 @@ import {
   Settings,
   ShieldCheck,
   ShoppingCart,
+  Sparkles,
   Users,
   X,
   Zap,
 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
+import type { ModelIntent } from '@/lib/ai/agent-model-intent';
+import { answerModelIntent, detectModelIntent, modelChipLabel } from '@/lib/ai/agent-model-intent';
 import type {
   AgentActionSubmission,
   AgentChatMessage,
@@ -60,6 +64,7 @@ import type { AgentRefusal } from '@/lib/ai/agent-types';
 import { type Capability, hasAllCapabilities } from '@/lib/auth/capabilities';
 import { STATE_BY_ID } from '@/lib/mascot/engine/states';
 import { cn } from '@/lib/utils/cn';
+import { useAgentSettingsStore } from '@/stores/agentSettingsStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -863,10 +868,18 @@ export function DumaAgent() {
   const navigationTimerRef = useRef<number | undefined>(undefined);
   const dragRef = useRef<DragState | null>(null);
   const wasOpenRef = useRef(false);
+  // Which model answers, chosen per device here or in Settings → General. The
+  // route allow-lists it again — this is a preference, not a trusted instruction.
+  const provider = useAgentSettingsStore((state) => state.provider);
+  const setProvider = useAgentSettingsStore((state) => state.setProvider);
   const locationId = useWorkspaceStore((state) => state.locationId);
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const setLocationId = useWorkspaceStore((state) => state.setLocationId);
   const capabilities = useAuthStore((state) => state.capabilities);
+  // Only while the panel is open: this component is mounted on every page, and
+  // the model list is worth nothing to a reader who has not asked for it.
+  const { data: availableModels } = useAgentProviders({ enabled: open });
+  const modelLabel = modelChipLabel(provider, availableModels);
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -1050,9 +1063,44 @@ export function DumaAgent() {
     );
   };
 
+  /**
+   * Answer a question about the model without asking a model.
+   *
+   * A capacity-exhausted provider cannot tell you it is exhausted, and the
+   * answer here is a change to this browser's own setting — neither is
+   * something a server-side turn could do. So this short-circuits ahead of the
+   * request entirely: nothing is sent, and the scope guard and the provider
+   * chain are never reached. `content` is omitted when the composer's own model
+   * chip opened the picker, because nobody typed anything.
+   */
+  const answerModelQuestion = (intent: ModelIntent, content?: string) => {
+    const reply = answerModelIntent(intent, availableModels, provider);
+    if (reply.apply) setProvider(reply.apply);
+    setMessages((current) => [
+      ...current,
+      ...(content ? ([{ role: 'user', content }] as AgentChatMessage[]) : []),
+      { role: 'assistant', content: reply.message, modelPicker: true, live: true },
+    ]);
+    setDraft('');
+    setError('');
+    setSteps([]);
+    setRefusal(undefined);
+    setPendingAction(undefined);
+    setOutcome('delivered');
+  };
+
   const send = async (prompt = draft) => {
     const content = prompt.trim();
     if (!content || busy) return;
+
+    // Before anything else: "which models can you use?" and "switch to
+    // OpenRouter" are settled here, deterministically.
+    const modelIntent = detectModelIntent(content);
+    if (modelIntent) {
+      answerModelQuestion(modelIntent, content);
+      return;
+    }
+
     const nextMessages: AgentChatMessage[] = [...messages, { role: 'user', content }];
     setMessages(nextMessages);
     setDraft('');
@@ -1077,7 +1125,7 @@ export function DumaAgent() {
         // spent — replaying them would only grow the request every turn.
         body: JSON.stringify({
           messages: nextMessages.slice(-HISTORY_SENT).map(({ role, content }) => ({ role, content })),
-          context: { locationId, tenantId, page: pageId(pathname) },
+          context: { locationId, tenantId, page: pageId(pathname), provider },
         }),
         signal: controller.signal,
       });
@@ -1174,7 +1222,7 @@ export function DumaAgent() {
       const response = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirmedAction: submission, context: { locationId, tenantId } }),
+        body: JSON.stringify({ confirmedAction: submission, context: { locationId, tenantId, provider } }),
       });
       const result = (await response.json()) as AgentChatResponse;
       await waitForMinimum(startedAt);
@@ -1492,6 +1540,14 @@ export function DumaAgent() {
                                   {message.cards?.map((card, cardIndex) => (
                                     <AgentMetrics key={cardIndex} card={card} />
                                   ))}
+                                  {/* Live, not a snapshot: a picker left further
+                                      up the transcript still shows — and sets —
+                                      the model in use. */}
+                                  {message.modelPicker ? (
+                                    <div className="mt-3">
+                                      <ModelChoiceList compact enabled={open} />
+                                    </div>
+                                  ) : null}
                                   {message.shortcuts?.length ? (
                                     <ShortcutList shortcuts={message.shortcuts} openingKey={openingShortcut} onOpen={openShortcut} />
                                   ) : null}
@@ -1591,9 +1647,25 @@ export function DumaAgent() {
                             </Button>
                           )}
                         </div>
-                        <p className="mt-1.5 px-1 text-label text-muted-foreground">
-                          {testMode ? 'Test mode · writes are simulated' : 'Live mode · writes need approval'}
-                        </p>
+                        {/* The composer's own status strip: which model will
+                            answer on the left, what an approval means on the
+                            right. The model belongs here rather than in the
+                            header — it is a property of the message about to be
+                            sent, and the header is already the mascot's. */}
+                        <div className="mt-1.5 flex items-center justify-between gap-2 px-1">
+                          <button
+                            type="button"
+                            onClick={() => answerModelQuestion({ kind: 'list' })}
+                            aria-label={`Answering with ${modelLabel}. Change the model.`}
+                            className="-mx-1 inline-flex min-w-0 items-center gap-1 rounded-sm px-1 py-0.5 text-label text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                          >
+                            <Sparkles size={11} className="shrink-0" aria-hidden="true" />
+                            <span className="truncate">{modelLabel}</span>
+                          </button>
+                          <span className="shrink-0 text-label text-muted-foreground">
+                            {testMode ? 'Test mode · writes are simulated' : 'Live mode · writes need approval'}
+                          </span>
+                        </div>
                       </form>
                     </>
                   )}

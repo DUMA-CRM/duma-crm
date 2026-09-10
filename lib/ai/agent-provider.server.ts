@@ -1,7 +1,7 @@
 import 'server-only';
 
-import type { AssistantMessage, AssistantToolCall, ChatProvider } from './provider-chain.ts';
-import { ProviderCapacityError } from './provider-chain.ts';
+import type { AgentProviderInfo, AssistantMessage, AssistantToolCall, ChatProvider } from './provider-chain.ts';
+import { AGENT_PROVIDER_NAMES, ProviderCapacityError, orderProviders } from './provider-chain.ts';
 import { relaxSchema } from './tool-schema.ts';
 
 /**
@@ -184,10 +184,25 @@ function openRouterProvider(apiKey: string): ChatProvider {
   };
 }
 
-/** Every configured provider, primary first. Empty when the agent has no key at all. */
-export function chatProviders(): ChatProvider[] {
+/**
+ * Every configured provider, primary first.
+ *
+ * `preference` promotes one of them to primary for this turn (Settings →
+ * General); the rest stay behind it as fallbacks. Empty when the agent has no
+ * key at all.
+ */
+export function chatProviders(preference?: string | null): ChatProvider[] {
   const providers: ChatProvider[] = [];
   if (process.env.GEMINI_API_KEY) providers.push(geminiProvider(process.env.GEMINI_API_KEY));
   if (process.env.OPENROUTER_API_KEY) providers.push(openRouterProvider(process.env.OPENROUTER_API_KEY));
-  return providers;
+  return orderProviders(providers, preference);
+}
+
+/**
+ * What the settings screen may know about the providers: their ids and the model
+ * each one would use. No key, and nothing derived from one — a model name is
+ * configuration, an API key is a secret.
+ */
+export function describeProviders(): AgentProviderInfo[] {
+  return chatProviders().map(({ id, model }) => ({ id, name: AGENT_PROVIDER_NAMES[id] ?? id, model }));
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ProviderCapacityError, providerChain } from '../lib/ai/provider-chain.ts';
+import { ProviderCapacityError, isAgentProviderPreference, orderProviders, providerChain } from '../lib/ai/provider-chain.ts';
 
 type Reply = { type: 'answer'; text: string } | { type: 'capacity' } | { type: 'refuse' };
 
@@ -85,4 +85,37 @@ test('a single configured provider still answers', async () => {
 
   assert.equal((await chain.complete([], () => {})).content, 'fine');
   assert.equal(chain.fallback, undefined);
+});
+
+test('a model preference promotes that provider and keeps the rest as fallbacks', () => {
+  const providers = [{ id: 'gemini' }, { id: 'openrouter' }];
+
+  assert.deepEqual(orderProviders(providers, 'openrouter'), [{ id: 'openrouter' }, { id: 'gemini' }]);
+  // Already primary, no preference, and a provider this deployment does not
+  // configure all leave the server's own order alone.
+  assert.deepEqual(orderProviders(providers, 'gemini'), providers);
+  assert.deepEqual(orderProviders(providers, 'auto'), providers);
+  assert.deepEqual(orderProviders(providers, undefined), providers);
+  assert.deepEqual(orderProviders(providers, 'anthropic'), providers);
+});
+
+test('a promoted provider still hands over when it runs out of capacity', async () => {
+  const chosen = stub('openrouter', [{ type: 'capacity' }]);
+  const other = stub('gemini', [{ type: 'answer', text: 'Four.' }]);
+  const chain = providerChain(orderProviders([other.provider, chosen.provider], 'openrouter'), TOOLS);
+
+  const message = await chain.complete([{ role: 'user', content: 'How many?' }], () => {});
+
+  // Choosing a model must not be a way to switch the agent off.
+  assert.equal(message.content, 'Four.');
+  assert.equal(chain.answering.id, 'gemini');
+});
+
+test('only a known preference survives the client boundary', () => {
+  assert.equal(isAgentProviderPreference('auto'), true);
+  assert.equal(isAgentProviderPreference('gemini'), true);
+  assert.equal(isAgentProviderPreference('openrouter'), true);
+  assert.equal(isAgentProviderPreference('../../etc/passwd'), false);
+  assert.equal(isAgentProviderPreference(undefined), false);
+  assert.equal(isAgentProviderPreference({ id: 'gemini' }), false);
 });

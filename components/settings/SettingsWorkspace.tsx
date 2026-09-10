@@ -29,6 +29,7 @@ import {
   Volume2,
   VolumeX,
 } from '@/components/icons';
+import { AgentModelSettings } from '@/components/settings/AgentModelSettings';
 import { SettingsSection as Section } from '@/components/settings/SettingsSection';
 import { QrOrderingSettings } from '@/components/settings/QrOrderingSettings';
 import { ConnectorsGrid } from '@/components/settings/connectors/ConnectorsGrid';
@@ -640,6 +641,8 @@ export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
                   onChange={setScannerMode}
                 />
               </Section>
+
+              <AgentModelSettings />
             </div>
 
             <div className="flex min-w-0 flex-col gap-4">

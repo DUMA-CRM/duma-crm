@@ -167,6 +167,14 @@ export interface AgentChatMessage {
   /** Reveal a newly-arrived assistant message progressively in the client. */
   live?: boolean;
   /**
+   * Render the model picker under this message.
+   *
+   * Client-side only, and set only by the deterministic model-intent rule in
+   * `lib/ai/agent-model-intent.ts` — no model ever asks for it. The picker reads
+   * live state, so one left in the transcript still shows the current model.
+   */
+  modelPicker?: boolean;
+  /**
    * The steps taken to reach this answer, kept with it once it arrives.
    *
    * Client-side only — the panel records what it saw stream past. A sweep that

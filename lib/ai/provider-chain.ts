@@ -18,6 +18,56 @@ export interface AssistantMessage extends JsonObject {
   tool_calls?: AssistantToolCall[];
 }
 
+/** Every provider the agent knows how to talk to, in default preference order. */
+export const AGENT_PROVIDER_IDS = ['gemini', 'openrouter'] as const;
+
+export type AgentProviderId = (typeof AGENT_PROVIDER_IDS)[number];
+
+/**
+ * Which model answers first: `auto` keeps the default order, an id promotes that
+ * provider. Chosen per device in Settings → General.
+ */
+export type AgentProviderPreference = 'auto' | AgentProviderId;
+
+/** The operator-facing name of each provider — the model id is too cryptic to choose by. */
+export const AGENT_PROVIDER_NAMES: Record<string, string> = {
+  gemini: 'Gemini',
+  openrouter: 'OpenRouter',
+};
+
+/** What the settings screen and the chat picker may know about a provider. Never a key. */
+export interface AgentProviderInfo {
+  id: string;
+  /** "Gemini", "OpenRouter" — what the setting is called. */
+  name: string;
+  /** The model that would actually answer, e.g. `gemini-3.5-flash-lite`. */
+  model: string;
+}
+
+/** A provider's name whether or not the server has told us about it yet. */
+export function providerName(id: string, providers?: AgentProviderInfo[]): string {
+  return providers?.find((provider) => provider.id === id)?.name ?? AGENT_PROVIDER_NAMES[id] ?? id;
+}
+
+export function isAgentProviderPreference(value: unknown): value is AgentProviderPreference {
+  return value === 'auto' || (typeof value === 'string' && (AGENT_PROVIDER_IDS as readonly string[]).includes(value));
+}
+
+/**
+ * Promote the operator's chosen provider to primary, keeping the rest behind it.
+ *
+ * A preference is a preference, not a restriction: the others stay in the chain
+ * as fallbacks, because an agent that stops answering when one free tier runs
+ * out is the failure mode `providerChain` exists to avoid. An unknown or
+ * unconfigured id changes nothing.
+ */
+export function orderProviders<T extends { id: string }>(providers: T[], preference?: string | null): T[] {
+  if (!preference || preference === 'auto') return providers;
+  const index = providers.findIndex((provider) => provider.id === preference);
+  if (index <= 0) return providers;
+  return [providers[index], ...providers.slice(0, index), ...providers.slice(index + 1)];
+}
+
 export interface ChatProvider {
   id: string;
   model: string;

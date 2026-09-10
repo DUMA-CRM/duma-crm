@@ -2,6 +2,7 @@ import { ApprovalError } from '@/lib/ai/action-seal';
 import type { AgentActionSubmission, AgentChatMessage, AgentStreamEvent } from '@/lib/ai/agent-types';
 import type { AgentContext } from '@/lib/ai/duma-agent.server';
 import { CapabilityError, executeConfirmedAction, runDumaAgent } from '@/lib/ai/duma-agent.server';
+import { isAgentProviderPreference } from '@/lib/ai/provider-chain';
 import type { StaffProfile } from '@/lib/api/staff.service';
 import { getMyStaffProfile } from '@/lib/api/staff.service';
 
@@ -43,6 +44,9 @@ function safeContext(context: AgentContext | undefined): AgentContext {
     locationId: typeof context.locationId === 'string' ? context.locationId.slice(0, 100) : null,
     tenantId: typeof context.tenantId === 'string' ? context.tenantId.slice(0, 100) : null,
     page: typeof context.page === 'string' && APP_PAGES.has(context.page) ? context.page : undefined,
+    // A model preference set on the client, so it is allow-listed like `page`:
+    // anything else falls back to the server's own order.
+    provider: isAgentProviderPreference(context.provider) ? context.provider : undefined,
   };
 }
 
