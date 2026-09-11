@@ -42,7 +42,16 @@ export const DEFAULT_VAT_CONTEXT: VatContext = {
 };
 
 /** Narrow the trading-settings payload to just the tax posture. */
-export function vatContextFrom(settings: TradingSettings | null | undefined): VatContext {
+/**
+ * Narrowed to the three fields it reads, not the whole settings record.
+ *
+ * VAT context has nothing to do with payroll schedules or receipt footers, and
+ * taking the full type meant every caller — tests included — had to construct
+ * fields this function never looks at.
+ */
+export function vatContextFrom(
+  settings: Pick<TradingSettings, 'pricesIncludeTax' | 'defaultVatRate' | 'vatRegistered'> | null | undefined,
+): VatContext {
   if (!settings) return DEFAULT_VAT_CONTEXT;
   return {
     // The API treats anything other than an explicit false as inclusive.

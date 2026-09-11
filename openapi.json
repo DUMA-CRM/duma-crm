@@ -9765,6 +9765,49 @@
         ]
       }
     },
+    "/v1/payroll/runs/{runId}/supersede": {
+      "post": {
+        "operationId": "postV1PayrollRunsByRunIdSupersede",
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "Set a duplicate run aside",
+        "description": "Marks one run superseded by another covering the same period. Figures are never merged — summing two snapshots of one period pays the same work twice — so one survives and the other is set aside, kept and readable. Refused if either run has been issued.",
+        "responses": {
+          "200": {
+            "description": "The superseded run"
+          },
+          "400": {
+            "description": "The two runs do not cover the same period"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Run not found"
+          },
+          "409": {
+            "description": "Either run is issued, or the run is already superseded"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "runId",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/hr/payslips/my": {
       "get": {
         "operationId": "getV1HrPayslipsMy",

@@ -13,6 +13,21 @@ export interface TradingSettings {
   tradingAddress?: string | null;
   receiptFooter?: string | null;
   customVatRates: Array<{ name: string; rate: number }>;
+
+  // ── Payroll schedule ──────────────────────────────────────────────────────
+  // Finalising only. Issuing stays manual whatever this says: nothing computes
+  // PAYE, so a person has to enter the real deductions first (UI-ADR-011).
+  payrollAutoFinalise: boolean;
+  payrollPeriod: 'weekly' | 'monthly';
+  /** Day of the month to run on, clamped to the last day of shorter months. */
+  payrollPayDayOfMonth: number;
+  /** ISO weekday to run on: 1 = Monday … 7 = Sunday. */
+  payrollPayWeekday: number;
+  /**
+   * The last period the job snapshotted. Read-only — the API refuses to set it,
+   * because a caller who could would be able to make the job re-run a period.
+   */
+  payrollLastAutoPeriodEnd?: string | null;
 }
 export const getTradingSettings = (tenantId: string) => apiFetch<TradingSettings>(`/trading-settings?tenantId=${tenantId}`);
 export const saveTradingSettings = (data: Omit<TradingSettings, 'defaultVatRate'> & { defaultVatRate: number }) =>

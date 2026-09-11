@@ -54,12 +54,15 @@ export interface PayrollRun {
   // `finalised` freezes hours and gross so a later rota edit cannot rewrite
   // history. `issued` is when employees can see their payslips, and is
   // irreversible.
-  status: 'draft' | 'finalised' | 'issued';
+  status: 'draft' | 'finalised' | 'issued' | 'superseded';
   finalisedAt: string | null;
   issuedAt: string | null;
   issuedBy: string | null;
   /** Where the deduction figures came from, e.g. "BrightPay, March 2026". */
   deductionsSource: string | null;
+  /** Set aside because another run covers the same period. Kept, never deleted. */
+  supersededAt: string | null;
+  supersededBy: string | null;
   createdAt: string;
   lines: PayrollRunLine[];
 }
@@ -82,6 +85,16 @@ export const getPayrollRuns = () => apiFetch<PayrollRun[]>('/payroll/runs');
 
 export const setPayrollLineDeductions = (runId: string, lineId: string, data: DeductionsPayload) =>
   apiFetch<PayrollRunLine>(`/payroll/runs/${runId}/lines/${lineId}`, { method: 'PATCH', body: JSON.stringify(data) });
+
+/**
+ * Set one duplicate aside in favour of another covering the same period.
+ *
+ * Figures are never merged — summing two snapshots of one period pays the same
+ * work twice — so `runId` is the one being set aside and `replacedBy` survives.
+ * Refused by the API if either has been issued.
+ */
+export const supersedePayrollRun = (runId: string, replacedBy: string) =>
+  apiFetch<PayrollRun>(`/payroll/runs/${runId}/supersede`, { method: 'POST', body: JSON.stringify({ replacedBy }) });
 
 /** Publishes every line as a payslip. Refused while any line is incomplete. */
 export const issuePayrollRun = (runId: string, deductionsSource: string) =>

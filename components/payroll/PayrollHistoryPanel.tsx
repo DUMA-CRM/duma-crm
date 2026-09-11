@@ -13,7 +13,22 @@ import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 
-import { type PayrollRun, type PayrollRunLine, getPayrollRuns, issuePayrollRun, lineIsComplete } from '@/lib/api/payroll.service';
+import {
+  type PayrollRun,
+  type PayrollRunLine,
+  getPayrollRuns,
+  issuePayrollRun,
+  lineIsComplete,
+  supersedePayrollRun,
+} from '@/lib/api/payroll.service';
+import {
+  type PeriodGroup,
+  combineBlockedReason,
+  groupByPeriod,
+  hasDuplicates,
+  isSuperseded,
+  suggestSurvivor,
+} from '@/lib/utils/payroll-duplicates';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
@@ -96,8 +111,10 @@ function RunCard({ run, canWrite }: { run: PayrollRun; canWrite: boolean }) {
   const gross = runGross(run);
 
   const issued = run.status === 'issued';
+  const setAside = isSuperseded(run);
   const incomplete = run.lines.filter((line) => !lineIsComplete(line));
-  const editable = canWrite && !issued;
+  // A run set aside is a record of what happened, not a thing to keep editing.
+  const editable = canWrite && !issued && !setAside;
   const readyToIssue = editable && run.lines.length > 0 && incomplete.length === 0;
 
   const issue = useMutation({
@@ -114,7 +131,7 @@ function RunCard({ run, canWrite }: { run: PayrollRun; canWrite: boolean }) {
   });
 
   return (
-    <div className="overflow-hidden rounded-sm border border-rule bg-card">
+    <div className={cn('overflow-hidden rounded-sm border border-rule bg-card', setAside && 'opacity-60')}>
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-band md:px-5"
@@ -123,8 +140,8 @@ function RunCard({ run, canWrite }: { run: PayrollRun; canWrite: boolean }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold text-foreground">{formatRange(run.periodStart, run.periodEnd)}</span>
-            <Badge variant={issued ? 'success' : run.status === 'finalised' ? 'warning' : 'muted'} className="capitalize">
-              {run.status}
+            <Badge variant={issued ? 'success' : setAside ? 'muted' : run.status === 'finalised' ? 'warning' : 'muted'} className="capitalize">
+              {setAside ? 'Set aside' : run.status}
             </Badge>
             {editable && incomplete.length > 0 && (
               <Badge variant="destructive">
@@ -136,6 +153,7 @@ function RunCard({ run, canWrite }: { run: PayrollRun; canWrite: boolean }) {
             <span className="capitalize">{run.period}</span> · finalised {formatDate(run.finalisedAt)}
             {issued && run.issuedAt ? ` · issued ${formatDate(run.issuedAt)}` : ''}
             {issued && run.deductionsSource ? ` · from ${run.deductionsSource}` : ''}
+            {setAside && run.supersededAt ? ` · set aside ${formatDate(run.supersededAt)}` : ''}
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -261,11 +279,121 @@ export function PayrollHistoryPanel() {
     );
   }
 
+  const groups = groupByPeriod(runs);
+
   return (
     <div className="space-y-3">
-      {runs.map((run) => (
-        <RunCard key={run.id} run={run} canWrite={canWrite} />
+      {groups.map((group) => (
+        <PeriodSection key={group.key} group={group} canWrite={canWrite} />
       ))}
     </div>
+  );
+}
+
+/**
+ * One period, and every run taken of it.
+ *
+ * Usually that is a single run and this is invisible. When it is more than
+ * one, the period is contested — two snapshots of the same work — and that is
+ * worth saying before either run is read.
+ */
+function PeriodSection({ group, canWrite }: { group: PeriodGroup; canWrite: boolean }) {
+  const [combining, setCombining] = useState(false);
+  const duplicated = hasDuplicates(group);
+  const blocked = combineBlockedReason(group);
+
+  return (
+    <section className={cn('space-y-2', duplicated && 'rounded-md border border-measured/40 bg-band/30 p-3')}>
+      {duplicated && (
+        <div className="flex flex-wrap items-center gap-3">
+          <AlertTriangle size={16} className="shrink-0 text-measured" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-sm text-foreground">
+            <span className="font-semibold">
+              {group.active.length} runs cover {formatRange(group.periodStart, group.periodEnd)}
+            </span>{' '}
+            — the same work is snapshotted twice. {blocked ?? 'Keep one and set the other aside.'}
+          </p>
+          {canWrite && !blocked && (
+            <Button size="sm" variant="outline" onClick={() => setCombining(true)}>
+              Combine
+            </Button>
+          )}
+        </div>
+      )}
+
+      {group.runs.map((run) => (
+        <RunCard key={run.id} run={run} canWrite={canWrite} />
+      ))}
+
+      {combining && <CombineDialog group={group} onClose={() => setCombining(false)} />}
+    </section>
+  );
+}
+
+/**
+ * Choose which run survives.
+ *
+ * Never a merge. Summing two runs for one period pays that work twice, so one
+ * is kept exactly as it is and the other is set aside — still readable, and
+ * pointing at its replacement.
+ */
+function CombineDialog({ group, onClose }: { group: PeriodGroup; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [survivorId, setSurvivorId] = useState(() => suggestSurvivor(group)?.id ?? group.active[0]?.id);
+
+  const combine = useMutation({
+    mutationFn: async () => {
+      const losers = group.active.filter((run) => run.id !== survivorId);
+      for (const loser of losers) await supersedePayrollRun(loser.id, survivorId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['payroll-runs'] });
+      onClose();
+      toast('success', 'The duplicate runs were set aside.');
+    },
+    onError: (error) => toast('error', (error as Error).message || 'The runs weren’t combined. Try again.'),
+  });
+
+  return (
+    <ConfirmModal
+      title="Keep one run for this period"
+      message={
+        <div className="space-y-3 text-left">
+          <p>
+            Nothing is merged and nothing is deleted. The run you keep stays exactly as it is; the others are set aside, still readable,
+            recording which run replaced them.
+          </p>
+          <ul className="space-y-2">
+            {group.active.map((run) => (
+              <li key={run.id}>
+                <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-rule p-3 hover:bg-band">
+                  <input
+                    type="radio"
+                    name="payroll-survivor"
+                    className="mt-1"
+                    checked={survivorId === run.id}
+                    onChange={() => setSurvivorId(run.id)}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-foreground">
+                      Finalised {formatDate(run.finalisedAt)} · {money(runGross(run))}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {run.lines.length} {run.lines.length === 1 ? 'employee' : 'employees'}
+                      {run.lines.some(lineIsComplete) ? ' · deductions entered' : ' · no deductions yet'}
+                    </span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+      }
+      confirmLabel="Keep this run"
+      pendingLabel="Setting aside…"
+      isPending={combine.isPending}
+      onConfirm={() => combine.mutate()}
+      onClose={onClose}
+    />
   );
 }

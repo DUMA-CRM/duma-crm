@@ -104,14 +104,9 @@ test('falls back safely when trading settings have not loaded', () => {
 });
 
 test('reads the tax posture out of a trading-settings payload', () => {
-  const ctx = vatContextFrom({
-    tenantId: 't',
-    currency: 'GBP',
-    locale: 'en-GB',
-    pricesIncludeTax: true,
-    vatRegistered: true,
-    defaultVatRate: '20',
-    customVatRates: [],
-  });
+  // Only the three fields the function reads — it no longer takes the whole
+  // settings record, so the fixture stopped needing currency, locale and the
+  // rest of a payload that has nothing to do with VAT.
+  const ctx = vatContextFrom({ pricesIncludeTax: true, vatRegistered: true, defaultVatRate: '20' });
   assert.deepEqual(ctx, { pricesIncludeTax: true, defaultVatRate: 20, vatRegistered: true });
 });
