@@ -3,17 +3,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Download, PlugZap, Users } from '@/components/icons';
+import { AlertTriangle, Banknote, CircleAlert, Clock, Download, PlugZap, Users } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Select } from '@/components/ui/select';
 
-import { type PayrollPeriod, type PayrollPreviewLine, createPayrollRun, getPayrollPreview } from '@/lib/api/payroll.service';
+import {
+  type PayrollPeriod,
+  type PayrollPreviewLine,
+  createPayrollRun,
+  getPayrollPreview,
+  getPayrollRuns,
+} from '@/lib/api/payroll.service';
 import { toast } from '@/stores/toastStore';
 
 import {
@@ -22,12 +30,31 @@ import {
   currentWeekStart,
   formatRange,
   hours,
-  inputClass,
   labelClass,
+  missingRate,
   money,
   monthRange,
+  recentMonths,
   weekRange,
 } from './shared';
+
+/** Computed once: the list does not change while the panel is open. */
+const MONTH_OPTIONS = recentMonths(12);
+
+/**
+ * A labelled control of a fixed height, so a row of them shares one baseline
+ * whatever each one contains — a segmented control, a select, or plain text.
+ */
+function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <label className={labelClass} htmlFor={htmlFor}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
 
 const PERIOD_OPTIONS = [
   { value: 'weekly' as const, label: 'Weekly' },
@@ -82,7 +109,17 @@ const payrollColumns: DataTableColumn<PayrollPreviewLine>[] = [
     align: 'right',
     width: 'fit',
     cellClassName: 'tabular-nums font-semibold',
-    cell: ({ row }) => money(row.grossPay),
+    // An hourly line with hours but no rate is not "£0.00 owed" — it is a
+    // record nobody can be paid from, and it must not read as a settled figure.
+    cell: ({ row }) =>
+      missingRate(row) ? (
+        <span className="inline-flex items-center gap-1.5 font-semibold text-exception">
+          <CircleAlert size={13} aria-hidden="true" />
+          No rate
+        </span>
+      ) : (
+        money(row.grossPay)
+      ),
   },
 ];
 
@@ -113,9 +150,22 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
     onError: (err) => toast('error', err.message || 'The payroll run wasn’t finalised. Review it and try again.'),
   });
 
+  // Nothing in the database stops the same period being finalised twice —
+  // there is no UNIQUE on (tenant, period_start, period_end, period), recorded
+  // as a double-payment risk in DB-TD-019. The UI is the only thing that can
+  // notice, so it looks.
+  const { data: runs = [] } = useQuery({ queryKey: ['payroll-runs'], queryFn: getPayrollRuns });
+  const existingRun = runs.find((run) => run.periodStart === from && run.periodEnd === to && run.period === period);
+
   const lines = data?.lines ?? [];
   const totals = data?.totals ?? { employees: 0, gross: 0 };
   const hasLines = lines.length > 0;
+
+  // Who is actually in this run, and who cannot be paid from it.
+  const worked = lines.filter((line) => line.rawHours > 0);
+  const unpayable = lines.filter(missingRate);
+  const paidHours = worked.reduce((sum, line) => sum + line.paidHours, 0);
+  const overtime = worked.reduce((sum, line) => sum + Math.max(0, line.rawHours - line.paidHours), 0);
 
   const exportCsv = () => {
     const header = ['Name', 'Job title', 'Pay type', 'Raw hours', 'Paid hours', 'Rate', 'Gross'];
@@ -142,25 +192,44 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
 
   return (
     <div className="flex flex-col gap-4 h-full min-h-0">
-      {/* Controls */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <label className={labelClass}>Period</label>
+      {/* Which period, then what to do with it.
+          Each control is a labelled field of the same height, so they sit on
+          one baseline without the per-child `pb-2.5` / `pb-px` nudges this row
+          used to need. The month was a raw `<input type="month">` — a native
+          widget that renders differently in every browser and matched nothing
+          else on the page. */}
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-4">
+        <Field label="Period">
           <SegmentedControl options={PERIOD_OPTIONS} value={period} onChange={setPeriod} />
-        </div>
-        {period === 'monthly' ? (
-          <div>
-            <label className={labelClass} htmlFor="payroll-month">
-              Month
-            </label>
-            <input id="payroll-month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} className={inputClass} />
-          </div>
-        ) : (
-          <DatePicker id="payroll-week" label="Week starting" value={weekStart} onValueChange={setWeekStart} />
-        )}
-        {validRange && <p className="text-xs text-muted-foreground pb-2.5">{formatRange(from, to)}</p>}
+        </Field>
 
-        <div className="flex items-center gap-2 ml-auto pb-px">
+        {period === 'monthly' ? (
+          <Field label="Month" htmlFor="payroll-month">
+            <Select
+              id="payroll-month"
+              value={month}
+              onValueChange={setMonth}
+              options={MONTH_OPTIONS}
+              ariaLabel="Payroll month"
+              className="w-48"
+            />
+          </Field>
+        ) : (
+          <Field label="Week starting" htmlFor="payroll-week">
+            {/* DatePicker's own root is `w-full`, so the width is set here. */}
+            <div className="w-44">
+              <DatePicker id="payroll-week" value={weekStart} onValueChange={setWeekStart} />
+            </div>
+          </Field>
+        )}
+
+        {validRange && (
+          <Field label="Covers">
+            <p className="flex h-9 items-center text-sm text-foreground tabular-nums">{formatRange(from, to)}</p>
+          </Field>
+        )}
+
+        <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={!hasLines} className="gap-1.5">
             <Download size={14} />
             Export CSV
@@ -174,6 +243,62 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
           </Button>
         </div>
       </div>
+
+      {/* Already finalised: the one thing a manager must not do twice. */}
+      {existingRun && (
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-measured/40 bg-card px-4 py-3" role="status">
+          <AlertTriangle size={16} className="shrink-0 text-measured" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-sm text-foreground">
+            <span className="font-semibold">This period has already been finalised</span>
+            {existingRun.status === 'issued' ? ' and issued to employees.' : '.'} Finalising again creates a second run for the same dates —
+            nothing in the database prevents it.
+          </p>
+        </div>
+      )}
+
+      {/* What the period actually contains, before reading a row of it. */}
+      <StatCardGrid columns="auto">
+        <StatCard
+          size="sm"
+          icon={Users}
+          accent="primary"
+          label="To be paid"
+          value={worked.length}
+          caption={lines.length > worked.length ? `${lines.length - worked.length} with no hours` : 'Everyone worked'}
+          loading={isLoading}
+          error={isError}
+        />
+        <StatCard
+          size="sm"
+          icon={Clock}
+          accent="info"
+          label="Paid hours"
+          value={hours(paidHours)}
+          caption={overtime > 0 ? `${hours(overtime)} clocked beyond the rota` : 'No time beyond the rota'}
+          loading={isLoading}
+          error={isError}
+        />
+        <StatCard
+          size="sm"
+          icon={Banknote}
+          accent="success"
+          label="Total gross"
+          value={money(totals.gross)}
+          caption="Before tax and National Insurance"
+          loading={isLoading}
+          error={isError}
+        />
+        <StatCard
+          size="sm"
+          icon={CircleAlert}
+          accent={unpayable.length > 0 ? 'danger' : 'neutral'}
+          label="Cannot be paid"
+          value={unpayable.length}
+          caption={unpayable.length > 0 ? 'Hourly, with hours but no rate' : 'Every worked line has a rate'}
+          loading={isLoading}
+          error={isError}
+        />
+      </StatCardGrid>
 
       <DataTable
         aria-label="Payroll preview"

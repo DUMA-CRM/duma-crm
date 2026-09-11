@@ -60,3 +60,18 @@ export const csvCell = (v: string | number) => {
   const s = String(v ?? '');
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
+
+/** The last `count` months, newest first, as `{ value: "YYYY-MM", label }`. */
+export function recentMonths(count = 12, from = new Date()) {
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(from.getFullYear(), from.getMonth() - i, 1);
+    return {
+      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+    };
+  });
+}
+
+/** A line nobody can be paid from: hourly, worked hours, but no rate recorded. */
+export const missingRate = (line: { payType: string; hourlyRate: number | null; rawHours: number }) =>
+  line.payType === 'hourly' && line.rawHours > 0 && (line.hourlyRate == null || line.hourlyRate <= 0);
