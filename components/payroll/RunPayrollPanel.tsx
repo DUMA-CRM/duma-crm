@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { AlertTriangle, Banknote, CircleAlert, Clock, Download, PlugZap, Users } from '@/components/icons';
+import { PayLineDrawer } from '@/components/payroll/PayLineDrawer';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -129,6 +130,7 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
   const [month, setMonth] = useState(currentMonth);
   const [weekStart, setWeekStart] = useState(currentWeekStart);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [openLine, setOpenLine] = useState<PayrollPreviewLine | null>(null);
 
   const { from, to } = period === 'monthly' ? monthRange(month) : weekRange(weekStart);
   const validRange = Boolean(from && to);
@@ -319,7 +321,9 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
         }
         emptyState={<EmptyState icon={Users} title="No employees" description="No hours in this period." />}
         minWidth={720}
-        rowClassName="hover:bg-band"
+        rowClassName="hover:bg-band cursor-pointer"
+        onRowClick={({ row }) => setOpenLine(row)}
+        rowAriaLabel={({ row }) => `How ${row.name}'s pay was calculated`}
         footer={
           hasLines ? (
             <div className="grid grid-cols-[1fr_auto_auto] items-center gap-6">
@@ -332,6 +336,8 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
           ) : null
         }
       />
+
+      {openLine && <PayLineDrawer line={openLine} period={period} from={from} to={to} onClose={() => setOpenLine(null)} />}
 
       {confirmOpen && (
         <ConfirmModal
