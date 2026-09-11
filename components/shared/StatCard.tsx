@@ -264,6 +264,15 @@ export interface StatCardProps {
   onSelect?: () => void;
   selected?: boolean;
   loading?: boolean;
+  /**
+   * The figure could not be read. Renders an em dash and says so, instead of
+   * whatever a `?? 0` fallback would have shown.
+   *
+   * This exists because the mistake keeps being made — including twice in the
+   * commit that added this prop. A tile reading "0" or "None set" is a claim,
+   * and a failed request has not earned one.
+   */
+  error?: boolean;
   /** `sm` is the compact tile used inside panels and detail pages. */
   size?: 'sm' | 'md';
   className?: string;
@@ -295,6 +304,7 @@ export function StatCard({
   onSelect,
   selected,
   loading,
+  error,
   size = 'md',
   className,
   valueClassName,
@@ -330,6 +340,11 @@ export function StatCard({
   }
 
   if (loading) return <StatCardSkeleton size={size} className={className} />;
+
+  /* ── Unreadable ── */
+  // Deliberately quiet: this is one tile failing, not the page. It states that
+  // it does not know, which is the one thing a `?? 0` cannot say.
+  const unreadable = error && !loading;
 
   /* ── Leading media ── */
   const leading =
@@ -506,19 +521,22 @@ export function StatCard({
           <div className={cn('flex flex-wrap items-baseline gap-x-2.5 gap-y-1', inlineDelta && 'items-center')}>
             <p
               className={cn(
-                'font-mono font-semibold tabular-nums tracking-figure text-foreground',
+                'font-mono font-semibold tabular-nums tracking-figure',
+                unreadable ? 'text-muted-foreground' : 'text-foreground',
                 sm ? 'text-2xl' : 'text-metric',
                 valueClassName,
               )}
             >
-              {displayValue}
-              {unit && <span className="ml-1 text-base font-semibold text-muted-foreground">{unit}</span>}
+              {unreadable ? '—' : displayValue}
+              {unit && !unreadable && <span className="ml-1 text-base font-semibold text-muted-foreground">{unit}</span>}
             </p>
             {delta && inlineDelta && <DeltaBadge delta={delta} size="sm" />}
           </div>
 
           {delta && !inlineDelta && <DeltaBadge delta={delta} size={sm ? 'sm' : 'md'} className="mt-2.5" />}
-          {caption && <p className="mt-1.5 truncate text-sm text-muted-foreground">{caption}</p>}
+          {(unreadable || caption) && (
+            <p className="mt-1.5 truncate text-sm text-muted-foreground">{unreadable ? 'Couldn’t be loaded' : caption}</p>
+          )}
           {hint && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{hint}</p>}
         </div>
 

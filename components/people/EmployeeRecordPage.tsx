@@ -140,10 +140,11 @@ export function EmployeeRecordPage({
   // keys here are hand-written literals, so a second spelling would be a second
   // network call that the allowance mutations then fail to invalidate.
   const entitlementYear = new Date().getFullYear();
-  const { data: entitlements = [] } = useQuery({
+  const entitlementsQuery = useQuery({
     queryKey: ['employee-entitlements', userId, entitlementYear],
     queryFn: () => getEmployeeEntitlements(userId, entitlementYear),
   });
+  const entitlements = entitlementsQuery.data ?? [];
   const leave = leaveBalance(entitlements);
 
   // Fixed once per mount: reading the clock during render is impure, and a
@@ -155,12 +156,12 @@ export function EmployeeRecordPage({
       horizon: new Date(now + 28 * 86_400_000).toISOString().slice(0, 10),
     };
   });
-  const { data: upcoming = [] } = useQuery({
+  const rotaQuery = useQuery({
     queryKey: ['scheduled-shifts', userId, today, horizon],
     queryFn: () => getScheduledShifts({ userId, from: today, to: horizon }),
     enabled: canReadRota,
   });
-  const nextShift = [...upcoming].sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
+  const nextShift = [...(rotaQuery.data ?? [])].sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
 
   // `/helpdesk/manage` has no userId filter — only status, category and a
   // search that also matches subject text — so the queue is narrowed here.
@@ -272,6 +273,8 @@ export function EmployeeRecordPage({
                       value={leave.hasEntitlement ? leave.remaining : '—'}
                       unit={leave.hasEntitlement ? 'days' : undefined}
                       caption={leave.hasEntitlement ? `${leave.used} of ${leave.total} used` : 'No allowance set'}
+                      loading={entitlementsQuery.isPending}
+                      error={entitlementsQuery.isError}
                       onSelect={() => setSection('time')}
                     />
                     {canReadRota && (
@@ -286,6 +289,8 @@ export function EmployeeRecordPage({
                             : '—'
                         }
                         caption={nextShift ? (nextShift.location?.name ?? 'Scheduled') : 'Nothing in the next four weeks'}
+                        loading={rotaQuery.isPending}
+                        error={rotaQuery.isError}
                         href="/staff/rota"
                       />
                     )}
@@ -305,6 +310,8 @@ export function EmployeeRecordPage({
                         label="Open requests"
                         value={openTickets}
                         caption={openTickets === 0 ? 'Nothing outstanding' : 'With HR now'}
+                        loading={ticketsQuery.isPending}
+                        error={ticketsQuery.isError}
                       />
                     )}
                     {money && (

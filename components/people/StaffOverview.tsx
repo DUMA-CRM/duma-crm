@@ -173,6 +173,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
             value={activeTeam}
             caption={staffQ.data ? `${staffQ.data.length} accounts in total` : undefined}
             loading={staffQ.isPending}
+            error={staffQ.isError}
             href="/staff/team"
           />
         )}
@@ -184,6 +185,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
             value={clockedIn}
             caption={`${rosteredToday} rostered today`}
             loading={rotaQ.isPending || activeQ.isPending}
+            error={rotaQ.isError || activeQ.isError}
             href="/staff/rota"
           />
         )}
@@ -195,6 +197,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
             value={waiting}
             caption="Leave requests"
             loading={leaveQ.isPending}
+            error={leaveQ.isError}
             href="/staff/requests"
           />
         )}
@@ -206,6 +209,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
             value={open}
             caption="Helpdesk"
             loading={ticketsQ.isPending}
+            error={ticketsQ.isError}
             href="/staff/helpdesk"
           />
         )}
@@ -217,6 +221,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
             value={pendingDeductions}
             caption={pendingDeductions > 0 ? 'Awaiting tax and NI figures' : 'Nothing waiting'}
             loading={payrollQ.isPending}
+            error={payrollQ.isError}
             href="/staff/payroll"
           />
         )}
@@ -232,6 +237,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
                 : 'Right to work and contracts are checked on each record'
             }
             loading={staffQ.isPending || employeesQ.isPending}
+            error={staffQ.isError || employeesQ.isError}
             visual={records ? { type: 'progress', pct: records.averageProgress } : undefined}
             href="/staff/team"
           />
