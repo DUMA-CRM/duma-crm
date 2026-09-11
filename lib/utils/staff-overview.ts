@@ -12,6 +12,7 @@
 // ---------------------------------------------------------------------------
 
 import type { HrEmployee } from '@/lib/api/hr.service';
+import type { PayrollRun } from '@/lib/api/payroll.service';
 import type { HelpdeskTicket, LeaveRequest } from '@/lib/api/people-ops.service';
 import type { ScheduledShift, VarianceRow } from '@/lib/api/scheduling.service';
 import type { StaffProfile } from '@/lib/api/staff.service';
@@ -131,6 +132,28 @@ export const unpublishedShifts = (rota: ScheduledShift[]) => rota.filter((shift)
 
 export const noShows = (variance: VarianceRow[]) => variance.filter((row) => row.status === 'no_show');
 
+// ── Payroll ──────────────────────────────────────────────────────────────────
+
+/**
+ * Runs that are frozen but not yet in employees' hands.
+ *
+ * This is the state the platform deliberately cannot leave on its own: gross
+ * pay is settled, and someone has to key in the tax and National Insurance
+ * from whatever actually runs payroll before anyone can see a payslip
+ * (UI-ADR-011). Left unattended it is invisible — the run looks done on the
+ * payroll tab, and the employee simply never receives anything.
+ */
+export const awaitingIssue = (runs: PayrollRun[]) => runs.filter((run) => run.status === 'finalised');
+
+/** Lines on those runs still missing tax, National Insurance or net pay. */
+export function linesAwaitingDeductions(runs: PayrollRun[]): number {
+  return awaitingIssue(runs).reduce(
+    (total, run) =>
+      total + run.lines.filter((line) => line.taxDeducted === null || line.nationalInsurance === null || line.netPay === null).length,
+    0,
+  );
+}
+
 // ── Assembly ─────────────────────────────────────────────────────────────────
 
 /**
@@ -149,6 +172,7 @@ export interface StaffAttentionInput {
   noShowCount?: number;
   leave?: LeaveRequest[];
   tickets?: HelpdeskTicket[];
+  payrollRuns?: PayrollRun[];
 }
 
 /**
@@ -160,7 +184,7 @@ export interface StaffAttentionInput {
  * therefore means "not asked", which is different from an empty array.
  */
 export function buildStaffAttention(input: StaffAttentionInput): StaffAttentionItem[] {
-  const { now, records, coverGapCount, unpublishedCount, noShowCount, leave, tickets } = input;
+  const { now, records, coverGapCount, unpublishedCount, noShowCount, leave, tickets, payrollRuns } = input;
   const items: StaffAttentionItem[] = [];
 
   if (coverGapCount) {
@@ -209,6 +233,30 @@ export function buildStaffAttention(input: StaffAttentionInput): StaffAttentionI
       actionLabel: 'Review leave',
       href: '/staff/requests',
     });
+  }
+
+  const unissued = payrollRuns ? awaitingIssue(payrollRuns) : [];
+  if (unissued.length) {
+    const pending = linesAwaitingDeductions(payrollRuns!);
+    items.push(
+      pending > 0
+        ? {
+            id: 'payroll-deductions',
+            severity: 'blocking',
+            title: `${plural(pending, 'payslip')} waiting on tax and NI figures`,
+            detail: 'A run is finalised but cannot be issued until the deductions are entered.',
+            actionLabel: 'Open payroll',
+            href: '/staff/payroll',
+          }
+        : {
+            id: 'payroll-unissued',
+            severity: 'attention',
+            title: `${plural(unissued.length, 'payroll run')} ready to issue`,
+            detail: 'Every line is complete. Issuing publishes the payslips to employees.',
+            actionLabel: 'Issue payslips',
+            href: '/staff/payroll',
+          },
+    );
   }
 
   if (unpublishedCount) {

@@ -192,7 +192,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
       flush={active === 'helpdesk'}
     >
       {active === 'overview' && (
-        <StaffOverview access={{ team: canTeam, rota: canRota, leave: canLeave, helpdesk: canHelpdesk }} />
+        <StaffOverview access={{ team: canTeam, rota: canRota, leave: canLeave, helpdesk: canHelpdesk, payroll: canPayroll }} />
       )}
 
       {active === 'team' && <StaffDirectory />}

@@ -3,6 +3,8 @@ import test from 'node:test';
 
 const {
   LEAVE_STALE_DAYS,
+  awaitingIssue,
+  linesAwaitingDeductions,
   TICKET_STALE_DAYS,
   buildStaffAttention,
   coreSetupChecks,
@@ -20,6 +22,8 @@ type Staff = Parameters<typeof teamRecordState>[0][number];
 type Employee = Parameters<typeof teamRecordState>[1][number];
 type Leave = NonNullable<Parameters<typeof buildStaffAttention>[0]['leave']>[number];
 type Ticket = NonNullable<Parameters<typeof buildStaffAttention>[0]['tickets']>[number];
+type Run = NonNullable<Parameters<typeof buildStaffAttention>[0]['payrollRuns']>[number];
+type RunLine = Run['lines'][number];
 
 const NOW = new Date('2026-09-10T12:00:00Z');
 
@@ -262,4 +266,88 @@ test('underpaid people outrank an unfinished record', () => {
   const items = buildStaffAttention({ now: NOW, records: state });
   assert.deepEqual(idsOf(items), ['below-minimum-wage', 'records-unpayable']);
   assert.ok(items.every((item) => item.severity === 'blocking'));
+});
+
+// ── Payroll ──────────────────────────────────────────────────────────────────
+
+const runLine = (over: Partial<RunLine> = {}): RunLine =>
+  ({
+    id: 'rl1',
+    runId: 'r1',
+    userId: 'u1',
+    employeeName: 'Alex Doe',
+    payType: 'hourly',
+    hoursWorked: '80.00',
+    paidHours: '78.00',
+    hourlyRate: '13.50',
+    grossPay: '1053.00',
+    taxDeducted: null,
+    nationalInsurance: null,
+    pensionContribution: null,
+    otherDeductions: null,
+    netPay: null,
+    ...over,
+  }) as RunLine;
+
+const complete = (over: Partial<RunLine> = {}) =>
+  runLine({ taxDeducted: '105.30', nationalInsurance: '62.10', netPay: '885.60', ...over });
+
+const run = (over: Partial<Run> = {}): Run =>
+  ({
+    id: 'r1',
+    tenantId: 't1',
+    period: 'monthly',
+    periodStart: '2026-08-01',
+    periodEnd: '2026-08-31',
+    status: 'finalised',
+    finalisedAt: '2026-09-01T09:00:00Z',
+    issuedAt: null,
+    issuedBy: null,
+    deductionsSource: null,
+    createdAt: '2026-09-01T09:00:00Z',
+    lines: [runLine()],
+    ...over,
+  }) as Run;
+
+test('only finalised runs are awaiting issue', () => {
+  const runs = [run(), run({ id: 'r2', status: 'issued' }), run({ id: 'r3', status: 'draft' })];
+  assert.deepEqual(awaitingIssue(runs).map((r) => r.id), ['r1']);
+});
+
+test('lines awaiting deductions counts only the incomplete, and only on unissued runs', () => {
+  const runs = [
+    run({ lines: [runLine(), complete({ id: 'rl2' })] }),
+    // An issued run is done, however its lines look.
+    run({ id: 'r2', status: 'issued', lines: [runLine({ id: 'rl3' })] }),
+  ];
+  assert.equal(linesAwaitingDeductions(runs), 1);
+});
+
+test('an explicit zero deduction is complete, not missing', () => {
+  // The distinction the schema is built on: 0.00 is a figure someone entered.
+  const runs = [run({ lines: [complete({ taxDeducted: '0.00', nationalInsurance: '0.00', netPay: '1053.00' })] })];
+  assert.equal(linesAwaitingDeductions(runs), 0);
+});
+
+test('a run missing deductions blocks, and outranks the rota', () => {
+  const items = buildStaffAttention({ now: NOW, payrollRuns: [run()], unpublishedCount: 3 });
+  assert.deepEqual(idsOf(items), ['payroll-deductions', 'rota-unpublished']);
+  assert.equal(items[0].severity, 'blocking');
+  assert.match(items[0].title, /1 payslip waiting on tax and NI/);
+});
+
+test('a complete run reports as ready to issue, not as blocked', () => {
+  const items = buildStaffAttention({ now: NOW, payrollRuns: [run({ lines: [complete()] })] });
+  assert.deepEqual(idsOf(items), ['payroll-unissued']);
+  assert.equal(items[0].severity, 'attention');
+  assert.match(items[0].title, /1 payroll run ready to issue/);
+});
+
+test('issued runs say nothing at all', () => {
+  const items = buildStaffAttention({ now: NOW, payrollRuns: [run({ status: 'issued', lines: [complete()] })] });
+  assert.deepEqual(items, []);
+});
+
+test('a manager without payroll access contributes no payroll row', () => {
+  assert.deepEqual(buildStaffAttention({ now: NOW }), []);
 });

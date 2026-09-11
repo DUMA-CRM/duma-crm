@@ -3,11 +3,12 @@
 import { useQueries } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
-import { AlertTriangle, CalendarRange, CircleHelp, Clock, Info, ShieldCheck, UsersRound } from '@/components/icons';
+import { AlertTriangle, Banknote, CalendarRange, CircleHelp, Clock, Info, ShieldCheck, UsersRound } from '@/components/icons';
 import { type AttentionTone, AttentionList } from '@/components/shared/AttentionList';
 import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 
 import { getEmployees } from '@/lib/api/hr.service';
+import { getPayrollRuns } from '@/lib/api/payroll.service';
 import { getManagedLeaveRequests, getManagedTickets } from '@/lib/api/people-ops.service';
 import { getScheduledShifts, getVariance } from '@/lib/api/scheduling.service';
 import { getActiveShifts } from '@/lib/api/shifts.service';
@@ -16,6 +17,7 @@ import { findCoverGaps } from '@/lib/utils/attendance';
 import {
   type StaffAttentionSeverity,
   buildStaffAttention,
+  linesAwaitingDeductions,
   noShows,
   openTickets,
   pendingLeave,
@@ -43,6 +45,7 @@ export interface StaffOverviewAccess {
   rota: boolean;
   leave: boolean;
   helpdesk: boolean;
+  payroll: boolean;
 }
 
 /**
@@ -94,10 +97,11 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
       },
       { queryKey: ['leave-managed', 'pending'], queryFn: () => getManagedLeaveRequests('pending'), enabled: access.leave },
       { queryKey: ['helpdesk-managed', 'open', '', ''], queryFn: () => getManagedTickets({ status: 'open' }), enabled: access.helpdesk },
+      { queryKey: ['payroll-runs'], queryFn: getPayrollRuns, enabled: access.payroll },
     ],
   });
 
-  const [staffQ, employeesQ, rotaQ, activeQ, draftsQ, varianceQ, leaveQ, ticketsQ] = results;
+  const [staffQ, employeesQ, rotaQ, activeQ, draftsQ, varianceQ, leaveQ, ticketsQ, payrollQ] = results;
   const asked = results.filter((result) => result.fetchStatus !== 'idle' || result.isFetched);
   const loading = !mounted || asked.some((result) => result.isPending);
   // One dead endpoint must not read as "nothing needs you". A query that
@@ -127,15 +131,17 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
             noShowCount: varianceQ.data ? noShows(varianceQ.data).length : undefined,
             leave: leaveQ.data,
             tickets: ticketsQ.data,
+            payrollRuns: payrollQ.data,
           })
         : [],
-    [mounted, now, records, coverGaps, draftsQ.data, varianceQ.data, leaveQ.data, ticketsQ.data],
+    [mounted, now, records, coverGaps, draftsQ.data, varianceQ.data, leaveQ.data, ticketsQ.data, payrollQ.data],
   );
 
   const activeTeam = staffQ.data?.filter((member) => member.isActive).length ?? 0;
   const rosteredToday = rotaQ.data?.length ?? 0;
   const clockedIn = activeQ.data?.length ?? 0;
   const waiting = leaveQ.data ? pendingLeave(leaveQ.data).length : 0;
+  const pendingDeductions = payrollQ.data ? linesAwaitingDeductions(payrollQ.data) : 0;
   const open = ticketsQ.data ? openTickets(ticketsQ.data).length : 0;
 
   return (
@@ -201,6 +207,17 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
             caption="Helpdesk"
             loading={ticketsQ.isPending}
             href="/staff/helpdesk"
+          />
+        )}
+        {access.payroll && (
+          <StatCard
+            label="Payslips to issue"
+            icon={Banknote}
+            accent={pendingDeductions > 0 ? 'warning' : 'neutral'}
+            value={pendingDeductions}
+            caption={pendingDeductions > 0 ? 'Awaiting tax and NI figures' : 'Nothing waiting'}
+            loading={payrollQ.isPending}
+            href="/staff/payroll"
           />
         )}
         {access.team && (
