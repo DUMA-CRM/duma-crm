@@ -65,6 +65,7 @@ export const FRONTEND_CAPABILITIES = [
   'hr.sensitive:write',
   'hr.leave:read',
   'hr.leave:review',
+  'hr.attendance:read',
   'hr.payroll:read',
   'hr.payroll:write',
   'hr.documents:read',

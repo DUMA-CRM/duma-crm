@@ -44,6 +44,7 @@ import { openTicketsFor, ticketsForEmployee } from '@/lib/utils/employee-record'
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
+import { EmployeeAttendanceCard } from './record/AttendanceCard';
 import { EditDetailsDrawer } from './record/EditDetailsDrawer';
 import { AccessCard, ComplianceSummaryCard, EmploymentTab, PersonalTab } from './record/OverviewSection';
 import { EmployeeRequestsCard } from './record/RequestsCard';
@@ -96,6 +97,7 @@ export function EmployeeRecordPage({
   // Granted to hr_manager on 2026-09-11 — before that, the role most likely to
   // be reading this page was the one that could not see the rota.
   const canReadRota = hasCapability(capabilities, 'scheduling:read');
+  const canReadAttendance = hasCapability(capabilities, 'hr.attendance:read');
   const [editing, setEditing] = useState(false);
   // Owned here (not the parent) so the confirm dialog sits with this record view.
   const [offboardOpen, setOffboardOpen] = useState(false);
@@ -354,6 +356,7 @@ export function EmployeeRecordPage({
                   <WorkPatternCard userId={userId} />
                   <LeaveAllowanceCard userId={userId} employmentType={emp.employmentType} />
                 </div>
+                {canReadAttendance && <EmployeeAttendanceCard userId={userId} canReadRota={canReadRota} />}
                 <AbsenceCard userId={userId} />
                 {canReadDocuments && <EmployeeDocumentsCard userId={userId} />}
                 <TimesheetCard hours={hours} monthOffset={monthOffset} onMonthChange={setMonthOffset} />
