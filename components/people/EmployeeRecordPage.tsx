@@ -2,23 +2,22 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import {
   AlertTriangle,
   Banknote,
+  CalendarClock,
   CalendarDays,
+  CircleHelp,
   Clock,
   LayoutDashboard,
   Loader2,
-  ShieldCheck,
+  Pencil,
   TrendingUp,
-  UserRound,
 } from '@/components/icons';
 import {
   Avatar,
-  EMPLOYMENT_CONFIG,
-  fmtDate,
   fmtHours,
   fmtMoney,
 } from '@/components/people/shared';
@@ -37,10 +36,17 @@ import {
 } from '@/lib/api/people-ops.service';
 import { type StaffProfile, updateStaff } from '@/lib/api/staff.service';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
+import { getManagedTickets } from '@/lib/api/people-ops.service';
+import { getEmployeeEntitlements } from '@/lib/api/people-ops.service';
+import { getScheduledShifts } from '@/lib/api/scheduling.service';
+import { leaveBalance } from '@/lib/utils/my-hr';
+import { openTicketsFor, ticketsForEmployee } from '@/lib/utils/employee-record';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
-import { ComplianceSummaryCard, AccessCard, EmploymentTab, PersonalTab } from './record/OverviewSection';
+import { EditDetailsDrawer } from './record/EditDetailsDrawer';
+import { AccessCard, ComplianceSummaryCard, EmploymentTab, PersonalTab } from './record/OverviewSection';
+import { EmployeeRequestsCard } from './record/RequestsCard';
 import { BankTab, PayslipsCard } from './record/PaySection';
 import { monthRange } from './record/shared';
 import { AbsenceCard, EmployeeDocumentsCard, LeaveAllowanceCard, TimesheetCard, WorkPatternCard } from './record/TimeSection';
@@ -85,6 +91,12 @@ export function EmployeeRecordPage({
   const capabilities = useAuthStore((s) => s.capabilities);
   const money = hasCapability(capabilities, 'hr.sensitive:read');
   const canReadDocuments = hasCapability(capabilities, 'hr.documents:read');
+  const canEditPay = hasCapability(capabilities, 'hr.sensitive:write');
+  const canReadHelpdesk = hasCapability(capabilities, 'helpdesk:manage');
+  // Granted to hr_manager on 2026-09-11 — before that, the role most likely to
+  // be reading this page was the one that could not see the rota.
+  const canReadRota = hasCapability(capabilities, 'scheduling:read');
+  const [editing, setEditing] = useState(false);
   // Owned here (not the parent) so the confirm dialog sits with this record view.
   const [offboardOpen, setOffboardOpen] = useState(false);
   const [section, setSection] = useState<RecordSection>('overview');
@@ -122,6 +134,45 @@ export function EmployeeRecordPage({
     queryFn: () => getEmployeeHours(userId, range.from, range.to),
   });
 
+  // Same key and year as `LeaveAllowanceCard` on the Time tab, deliberately:
+  // keys here are hand-written literals, so a second spelling would be a second
+  // network call that the allowance mutations then fail to invalidate.
+  const entitlementYear = new Date().getFullYear();
+  const { data: entitlements = [] } = useQuery({
+    queryKey: ['employee-entitlements', userId, entitlementYear],
+    queryFn: () => getEmployeeEntitlements(userId, entitlementYear),
+  });
+  const leave = leaveBalance(entitlements);
+
+  // Fixed once per mount: reading the clock during render is impure, and a
+  // date that moves every render would churn the query key with it.
+  const [{ today, horizon }] = useState(() => {
+    const now = Date.now();
+    return {
+      today: new Date(now).toISOString().slice(0, 10),
+      horizon: new Date(now + 28 * 86_400_000).toISOString().slice(0, 10),
+    };
+  });
+  const { data: upcoming = [] } = useQuery({
+    queryKey: ['scheduled-shifts', userId, today, horizon],
+    queryFn: () => getScheduledShifts({ userId, from: today, to: horizon }),
+    enabled: canReadRota,
+  });
+  const nextShift = [...upcoming].sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
+
+  // `/helpdesk/manage` has no userId filter — only status, category and a
+  // search that also matches subject text — so the queue is narrowed here.
+  const ticketsQuery = useQuery({
+    queryKey: ['helpdesk-managed', '', '', ''],
+    queryFn: () => getManagedTickets({}),
+    enabled: canReadHelpdesk,
+  });
+  const tickets = useMemo(
+    () => (ticketsQuery.data ? ticketsForEmployee(ticketsQuery.data, userId) : undefined),
+    [ticketsQuery.data, userId],
+  );
+  const openTickets = tickets ? openTicketsFor(tickets).length : 0;
+
   const name = member?.name ?? emp?.jobTitle ?? 'Employee';
   const estGross =
     emp?.payType === 'salaried' ? Number(emp.annualSalary ?? 0) / 12 : (hours?.totals.rawHours ?? 0) * Number(emp?.hourlyRate ?? 0);
@@ -134,6 +185,12 @@ export function EmployeeRecordPage({
       actions={
         member && (
           <>
+            {emp && money && (
+              <Button variant="outline" className="h-9 gap-1.5" onClick={() => setEditing(true)}>
+                <Pencil size={14} />
+                <span className="hidden md:inline">Edit details</span>
+              </Button>
+            )}
             {/* Performance moved to Reports; the record keeps the way to it. */}
             <Link
               href={`/reports/staff/${userId}`}
@@ -188,16 +245,66 @@ export function EmployeeRecordPage({
           <>
             {section === 'overview' && (
               <>
-                {member && <ComplianceSummaryCard member={member} employee={emp ?? null} />}
+                {member && (
+                  <ComplianceSummaryCard
+                    member={member}
+                    employee={emp ?? null}
+                    tickets={tickets}
+                    canReadDocuments={canReadDocuments}
+                    onAction={(target) => {
+                      if (target === 'edit') return setEditing(true);
+                      if (target === 'documents') return setSection('time');
+                      if (target === 'pay') return setSection('pay');
+                      // Access and requests both live on this tab already.
+                    }}
+                  />
+                )}
+
                 {emp && (
                   <StatCardGrid>
+                    <StatCard
+                      size="sm"
+                      icon={CalendarDays}
+                      accent="primary"
+                      label="Holiday left"
+                      value={leave.hasEntitlement ? leave.remaining : '—'}
+                      unit={leave.hasEntitlement ? 'days' : undefined}
+                      caption={leave.hasEntitlement ? `${leave.used} of ${leave.total} used` : 'No allowance set'}
+                      onSelect={() => setSection('time')}
+                    />
+                    {canReadRota && (
+                      <StatCard
+                        size="sm"
+                        icon={CalendarClock}
+                        accent="neutral"
+                        label="Next shift"
+                        value={
+                          nextShift
+                            ? new Date(nextShift.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+                            : '—'
+                        }
+                        caption={nextShift ? (nextShift.location?.name ?? 'Scheduled') : 'Nothing in the next four weeks'}
+                        href="/staff/rota"
+                      />
+                    )}
                     <StatCard
                       size="sm"
                       icon={Clock}
                       accent="info"
                       label={`Clocked · ${range.label}`}
                       value={fmtHours(hours?.totals.rawHours ?? 0)}
+                      onSelect={() => setSection('time')}
                     />
+                    {canReadHelpdesk && (
+                      <StatCard
+                        size="sm"
+                        icon={CircleHelp}
+                        accent={openTickets > 0 ? 'warning' : 'neutral'}
+                        label="Open requests"
+                        value={openTickets}
+                        caption={openTickets === 0 ? 'Nothing outstanding' : 'With HR now'}
+                      />
+                    )}
                     {money && (
                       <StatCard
                         size="sm"
@@ -205,32 +312,37 @@ export function EmployeeRecordPage({
                         accent="success"
                         label={emp.payType === 'hourly' ? 'Clocked value' : 'Monthly salary'}
                         value={fmtMoney(estGross)}
+                        onSelect={() => setSection('pay')}
                       />
                     )}
-                    <StatCard
-                      size="sm"
-                      icon={UserRound}
-                      accent="primary"
-                      label="Employment"
-                      value={EMPLOYMENT_CONFIG[emp.employmentType].label}
-                    />
-                    <StatCard size="sm" icon={ShieldCheck} accent="neutral" label="Started" value={fmtDate(emp.startDate)} />
                   </StatCardGrid>
                 )}
-                <div className="grid lg:grid-cols-2 gap-4 items-start">
-                  {member && <AccessCard member={member} locations={locations} canEdit={money} />}
+
+                {/* Columns, not a grid: these cards hold different numbers of
+                    rows, and a grid reserves the height of its tallest.
+                    `-mb-4` cancels the last card's trailing margin. */}
+                <div className="columns-1 gap-4 lg:columns-2 -mb-4">
                   {emp ? (
                     <>
-                      <PersonalTab userId={userId} emp={emp} canEdit={money} email={member?.email} />
-                      <EmploymentTab userId={userId} emp={emp} canEditPay={money} />
+                      <PersonalTab emp={emp} email={member?.email} />
+                      <EmploymentTab emp={emp} canSeePay={money} />
                     </>
                   ) : (
-                    <div className="bg-card border border-dashed border-rule rounded-sm p-6">
+                    <div className="mb-4 break-inside-avoid rounded-md border border-dashed border-rule bg-card p-5">
                       <p className="font-medium">Account only</p>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         This login has no linked employment record. Do not schedule or pay this person until onboarding is completed.
                       </p>
                     </div>
+                  )}
+                  {member && <AccessCard member={member} locations={locations} canEdit={money} />}
+                  {canReadHelpdesk && (
+                    <EmployeeRequestsCard
+                      tickets={tickets}
+                      loading={ticketsQuery.isPending}
+                      error={ticketsQuery.isError}
+                      onRetry={() => void ticketsQuery.refetch()}
+                    />
                   )}
                 </div>
               </>
@@ -250,7 +362,7 @@ export function EmployeeRecordPage({
 
             {section === 'pay' && emp && money && (
               <div className="grid lg:grid-cols-2 gap-4 items-start">
-                <BankTab userId={userId} emp={emp} />
+                <BankTab userId={userId} emp={emp} onEdit={canEditPay ? () => setEditing(true) : undefined} />
                 <PayslipsCard userId={userId} />
               </div>
             )}
@@ -259,6 +371,10 @@ export function EmployeeRecordPage({
           </>
         )}
       </div>
+
+      {editing && emp && (
+        <EditDetailsDrawer userId={userId} employee={emp} canEditPay={canEditPay} onClose={() => setEditing(false)} />
+      )}
 
       {/* Portaled modal — centers on the viewport above the record view. */}
       {member && offboardOpen && (

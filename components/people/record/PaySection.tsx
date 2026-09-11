@@ -1,33 +1,30 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Banknote, Eye, EyeOff, Loader2, ShieldCheck } from '@/components/icons';
+import { Banknote, Eye, EyeOff, Landmark, Loader2, Receipt, Shield, UserRound } from '@/components/icons';
 import {
   fmtDate,
   fmtMoney,
-  inp,
-  lbl,
 } from '@/components/people/shared';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { InfoRow } from '@/components/shared/InfoRow';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import {
-  type BankDetailsPayload,
   getEmployee,
   getEmployeeBank,
-  setEmployeeBank,
-  updateEmployee,
 } from '@/lib/api/hr.service';
 import {
   getEmployeePayslips,
 } from '@/lib/api/people-ops.service';
-import { toast } from '@/stores/toastStore';
+
+import { DetailCard } from './OverviewSection';
 
 
-import { type Employee, Info } from './shared';
+import { type Employee } from './shared';
 
 export function PayslipsCard({ userId }: { userId: string }) {
   const {
@@ -97,141 +94,72 @@ export function PayslipsCard({ userId }: { userId: string }) {
 
 // ── Bank & Statutory (money roles only) ───────────────────────────────────────
 
-export function BankTab({ userId, emp }: { userId: string; emp: Employee }) {
-  const qc = useQueryClient();
+export function BankTab({ userId, emp, onEdit }: { userId: string; emp: Employee; onEdit?: () => void }) {
   const [reveal, setReveal] = useState(false);
-  const { data: bank } = useQuery({ queryKey: ['employee-bank', userId, reveal], queryFn: () => getEmployeeBank(userId, reveal) });
+  const {
+    data: bank,
+    isPending,
+    isError,
+    refetch,
+  } = useQuery({ queryKey: ['employee-bank', userId, reveal], queryFn: () => getEmployeeBank(userId, reveal) });
   const { data: revealedEmp } = useQuery({
     queryKey: ['hr-employee', userId, 'reveal'],
     queryFn: () => getEmployee(userId, true),
     enabled: reveal,
   });
-  const [edit, setEdit] = useState(false);
-  const [f, setF] = useState<BankDetailsPayload & { niNumber: string; taxCode: string }>({
-    accountHolder: '',
-    bankName: '',
-    sortCode: '',
-    accountNumber: '',
-    niNumber: '',
-    taxCode: emp.taxCode ?? '',
-  });
-
-  const save = useMutation({
-    mutationFn: async () => {
-      await setEmployeeBank(userId, {
-        accountHolder: f.accountHolder || null,
-        bankName: f.bankName || null,
-        ...(f.sortCode ? { sortCode: f.sortCode } : {}),
-        ...(f.accountNumber ? { accountNumber: f.accountNumber } : {}),
-      });
-      if (f.niNumber || f.taxCode) await updateEmployee(userId, { niNumber: f.niNumber || undefined, taxCode: f.taxCode || null });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['employee-bank', userId] });
-      qc.invalidateQueries({ queryKey: ['hr-employee', userId] });
-      setEdit(false);
-      toast('success', 'Bank & statutory details saved.');
-    },
-    onError: (err) => toast('error', (err as Error).message || 'Bank and statutory details weren’t saved. Review the fields and try again.'),
-  });
 
   const niDisplay = reveal ? revealedEmp?.niNumber : emp.niNumber;
 
-  if (edit) {
-    return (
-      <div className="bg-card border border-rule rounded-sm p-5 space-y-4">
-        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Bank & statutory</p>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className={lbl}>Account holder</label>
-            <input className={inp} value={f.accountHolder ?? ''} onChange={(e) => setF({ ...f, accountHolder: e.target.value })} />
-          </div>
-          <div>
-            <label className={lbl}>Bank name</label>
-            <input className={inp} value={f.bankName ?? ''} onChange={(e) => setF({ ...f, bankName: e.target.value })} />
-          </div>
-          <div>
-            <label className={lbl}>Sort code</label>
-            <input
-              className={inp}
-              value={f.sortCode ?? ''}
-              onChange={(e) => setF({ ...f, sortCode: e.target.value })}
-              placeholder="Leave blank to keep"
-            />
-          </div>
-          <div>
-            <label className={lbl}>Account number</label>
-            <input
-              className={inp}
-              value={f.accountNumber ?? ''}
-              onChange={(e) => setF({ ...f, accountNumber: e.target.value })}
-              placeholder="Leave blank to keep"
-            />
-          </div>
-          <div>
-            <label className={lbl}>National Insurance no.</label>
-            <input
-              className={inp}
-              value={f.niNumber}
-              onChange={(e) => setF({ ...f, niNumber: e.target.value.toUpperCase() })}
-              placeholder="Leave blank to keep"
-            />
-          </div>
-          <div>
-            <label className={lbl}>Tax code</label>
-            <input className={inp} value={f.taxCode} onChange={(e) => setF({ ...f, taxCode: e.target.value.toUpperCase() })} />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">
-            Cancel
-          </Button>
-          <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">
-            {save.isPending ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-card border border-rule rounded-sm p-5">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Bank & statutory</p>
+    <DetailCard
+      title="Bank & statutory"
+      description="Stored encrypted. Revealing is a separate, audited request."
+      action={
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setReveal((v) => !v)} className="gap-1.5">
-            {reveal ? <EyeOff size={14} /> : <Eye size={14} />}
+          <Button variant="ghost" size="sm" onClick={() => setReveal((current) => !current)} className="gap-1.5">
+            {reveal ? <EyeOff size={13} /> : <Eye size={13} />}
             {reveal ? 'Hide' : 'Reveal'}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setF((current) => ({
-                ...current,
-                accountHolder: bank?.accountHolder ?? '',
-                bankName: bank?.bankName ?? '',
-                taxCode: emp.taxCode ?? '',
-              }));
-              setEdit(true);
-            }}
-          >
-            Edit
-          </Button>
+          {onEdit && (
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              Edit
+            </Button>
+          )}
         </div>
-      </div>
-      <dl className="grid sm:grid-cols-2 gap-4 text-sm">
-        <Info label="Account holder" value={bank?.accountHolder} />
-        <Info label="Bank" value={bank?.bankName} />
-        <Info label="Sort code" value={bank?.sortCode} />
-        <Info label="Account number" value={bank?.accountNumber} />
-        <Info label="National Insurance" value={niDisplay} />
-        <Info label="Tax code" value={emp.taxCode} />
-      </dl>
-      <p className="text-label text-muted-foreground mt-4 flex items-center gap-1.5">
-        <ShieldCheck size={13} /> Sort code, account number and NI number are encrypted at rest and visible to HR/owners only.
-      </p>
-    </div>
+      }
+    >
+      {isError ? (
+        <ErrorState
+          icon={Landmark}
+          title="Bank details couldn’t be loaded"
+          description="Nothing was read, so this is not a statement that none are held."
+          onRetry={() => void refetch()}
+          className="py-6"
+        />
+      ) : isPending ? (
+        <div className="h-16 animate-pulse rounded-sm bg-band" aria-hidden="true" />
+      ) : (
+        <>
+          <InfoRow icon={UserRound} label="Account holder" value={bank?.accountHolder} missingLabel="None on file" />
+          <InfoRow icon={Landmark} label="Bank" value={bank?.bankName} missingLabel="Not recorded" />
+          <InfoRow
+            icon={Landmark}
+            label="Sort code"
+            value={bank?.sortCode ?? undefined}
+            missingLabel={bank?.hasBankDetails ? 'Hidden' : 'None on file'}
+            copyable={reveal}
+          />
+          <InfoRow
+            icon={Landmark}
+            label="Account number"
+            value={bank?.accountNumber ?? undefined}
+            missingLabel={bank?.hasBankDetails ? 'Hidden' : 'None on file'}
+            copyable={reveal}
+          />
+          <InfoRow icon={Shield} label="National Insurance" value={niDisplay ?? undefined} missingLabel="Missing" copyable={reveal} />
+          <InfoRow icon={Receipt} label="Tax code" value={emp.taxCode ?? undefined} missingLabel="Set by payroll" />
+        </>
+      )}
+    </DetailCard>
   );
 }
-

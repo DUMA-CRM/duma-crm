@@ -62,6 +62,7 @@ export const FRONTEND_CAPABILITIES = [
   'staff:onboard',
   'hr.people:read',
   'hr.sensitive:read',
+  'hr.sensitive:write',
   'hr.leave:read',
   'hr.leave:review',
   'hr.payroll:read',

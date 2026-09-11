@@ -4,281 +4,178 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import {
-  ClipboardCheck,
+  AlertTriangle,
+  Banknote,
+  Building2,
+  CalendarCheck,
+  Clock,
+  HeartHandshake,
+  Info as InfoIcon,
+  Mail,
+  MapPin,
+  Phone,
+  Receipt,
+  Shield,
+  Users,
 } from '@/components/icons';
-import { AddressFields } from '@/components/people/AddressFields';
+import { type AttentionTone, AttentionList } from '@/components/shared/AttentionList';
+import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
+
+import type { HelpdeskTicket } from '@/lib/api/people-ops.service';
+import { type RecordAttentionItem, type RecordAttentionSeverity, buildRecordAttention } from '@/lib/utils/employee-record';
+
+/** The checks that need the document list, and so need `hr.documents:read`. */
+const DOCUMENT_DERIVED = ['right-to-work', 'contract'];
+
+/** Consequence maps onto the shared panel's tones, as it does on My HR. */
+const SEVERITY_TONE: Record<RecordAttentionSeverity, AttentionTone> = {
+  blocking: 'exception',
+  attention: 'measured',
+  info: 'reference',
+};
+const SEVERITY_ICON: Record<RecordAttentionSeverity, typeof AlertTriangle> = {
+  blocking: AlertTriangle,
+  attention: Clock,
+  info: InfoIcon,
+};
 import {
   EMPLOYMENT_CONFIG,
-  EMPLOYMENT_TYPES,
-  PAY_CONFIG,
-  PAY_TYPES,
   ROLES,
   ROLE_CONFIG,
   SCOPES,
   fmtDate,
   fmtMoney,
-  inp,
   lbl,
   sel,
-  toDateInput,
 } from '@/components/people/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
 import {
-  updateEmployee,
 } from '@/lib/api/hr.service';
 import {
   getEmployeeDocuments,
 } from '@/lib/api/people-ops.service';
 import { type StaffProfile, type StaffRole, type StaffScope, type UpdateStaffPayload, updateStaff } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
-import { employeeSetupChecks, setupProgress } from '@/lib/utils/employee-compliance';
+import { employeeSetupChecks } from '@/lib/utils/employee-compliance';
 import { toast } from '@/stores/toastStore';
 
 
 import { type Employee, Info } from './shared';
 
-export function ComplianceSummaryCard({ member, employee }: { member: StaffProfile; employee: Employee | null }) {
+export function ComplianceSummaryCard({
+  member,
+  employee,
+  tickets,
+  canReadDocuments,
+  onAction,
+}: {
+  member: StaffProfile;
+  employee: Employee | null;
+  /** Already narrowed to this employee; `undefined` when not fetched. */
+  tickets?: HelpdeskTicket[];
+  canReadDocuments: boolean;
+  onAction: (target: RecordAttentionItem['target']) => void;
+}) {
   const [asOf] = useState(() => new Date());
-  const { data: documents = [], isLoading } = useQuery({
+  const [showAll, setShowAll] = useState(false);
+
+  // Right-to-work and contract are derived from documents, so without the
+  // capability those two would report "missing" when the truth is that they
+  // were never read.
+  const documentsQuery = useQuery({
     queryKey: ['employee-documents', member.userId],
     queryFn: () => getEmployeeDocuments(member.userId),
+    enabled: canReadDocuments,
   });
-  const checks = employeeSetupChecks(member, employee, documents, asOf);
-  const progress = setupProgress(checks);
-  const urgent = checks.filter((check) => check.tone === 'destructive').length;
-  const outstanding = checks.filter((check) => !check.complete).length;
 
-  return (
-    <section className="rounded-sm border border-rule bg-card shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-rule flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <ClipboardCheck size={17} className="text-primary" aria-hidden="true" />
-            <h2 className="font-semibold">Employment readiness</h2>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Operational checks only — pension assessment and HMRC starter declarations still need completing in payroll.
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold tabular-nums">{isLoading ? '—' : `${progress}%`}</p>
-          <p className="text-micro uppercase tracking-micro text-muted-foreground">
-            {urgent ? `${urgent} urgent` : outstanding ? `${outstanding} outstanding` : 'Core checks ready'}
-          </p>
-        </div>
-      </div>
-      <div className="grid md:grid-cols-2 xl:grid-cols-3">
-        {checks.map((check) => (
-          <div key={check.id} className="p-4 border-b border-rule md:border-r last:border-r-0">
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-sm font-semibold">{check.label}</p>
-              <Badge variant={check.tone}>{check.complete ? 'Ready' : check.tone === 'destructive' ? 'Urgent' : 'Action'}</Badge>
-            </div>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{check.detail}</p>
-          </div>
-        ))}
-      </div>
-    </section>
+  const checks = employeeSetupChecks(member, employee, documentsQuery.data ?? [], asOf).filter(
+    (check) => canReadDocuments || !DOCUMENT_DERIVED.includes(check.id),
   );
-}
-
-
-// ── Employment & Pay (inline edit) ────────────────────────────────────────────
-
-export function EmploymentTab({ userId, emp, canEditPay }: { userId: string; emp: Employee; canEditPay: boolean }) {
-  const qc = useQueryClient();
-  const [edit, setEdit] = useState(false);
-  const [f, setF] = useState({
-    jobTitle: emp.jobTitle,
-    department: emp.department ?? '',
-    employmentType: emp.employmentType,
-    startDate: toDateInput(emp.startDate),
-    payType: emp.payType ?? 'hourly',
-    hourlyRate: emp.hourlyRate ?? '',
-    annualSalary: emp.annualSalary ?? '',
-    unpaidBreakMins: emp.unpaidBreakMins ?? 0,
-    breakThresholdMins: emp.breakThresholdMins ?? 360,
-    taxCode: emp.taxCode ?? '',
-  });
-
-  const save = useMutation({
-    mutationFn: () =>
-      updateEmployee(userId, {
-        jobTitle: f.jobTitle,
-        department: f.department || undefined,
-        employmentType: f.employmentType,
-        startDate: f.startDate,
-        ...(canEditPay
-          ? {
-              payType: f.payType,
-              hourlyRate: f.payType === 'hourly' ? Number(f.hourlyRate) || 0 : null,
-              annualSalary: f.payType === 'salaried' ? Number(f.annualSalary) || 0 : null,
-              unpaidBreakMins: Number(f.unpaidBreakMins),
-              breakThresholdMins: Number(f.breakThresholdMins),
-              taxCode: f.taxCode || null,
-            }
-          : {}),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['hr-employee', userId] });
-      qc.invalidateQueries({ queryKey: ['hr-employees'] });
-      setEdit(false);
-      toast('success', 'Employment details updated.');
-    },
-    onError: (err) => toast('error', (err as Error).message || 'Employment details weren’t updated. Review the fields and try again.'),
-  });
-
-  if (!edit) {
-    return (
-      <div className="bg-card border border-rule rounded-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Employment & Pay</p>
-          <Button variant="outline" size="sm" onClick={() => setEdit(true)}>
-            Edit
-          </Button>
-        </div>
-        <dl className="grid sm:grid-cols-2 gap-4 text-sm">
-          <Info label="Job title" value={emp.jobTitle} />
-          <Info label="Department" value={emp.department} />
-          <div>
-            <dt className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Employment type</dt>
-            <dd className="mt-1">
-              <Badge variant={EMPLOYMENT_CONFIG[emp.employmentType].variant}>{EMPLOYMENT_CONFIG[emp.employmentType].label}</Badge>
-            </dd>
-          </div>
-          <Info label="Start date" value={fmtDate(emp.startDate)} />
-          {canEditPay && emp.payType && (
-            <>
-              <div>
-                <dt className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Pay</dt>
-                <dd className="mt-1 flex items-center gap-2">
-                  <Badge variant={PAY_CONFIG[emp.payType].variant}>{PAY_CONFIG[emp.payType].label}</Badge>
-                  <span className="text-foreground">
-                    {emp.payType === 'hourly' ? `${fmtMoney(emp.hourlyRate)}/hr` : `${fmtMoney(emp.annualSalary)}/yr`}
-                  </span>
-                </dd>
-              </div>
-              <Info label="Tax code" value={emp.taxCode} />
-              <Info label="Contract break rule" value={`${emp.unpaidBreakMins ?? 0} min after ${emp.breakThresholdMins ?? 0} min`} />
-            </>
-          )}
-        </dl>
-      </div>
-    );
-  }
+  const items = buildRecordAttention({ now: asOf, checks, tickets });
 
   return (
-    <div className="bg-card border border-rule rounded-sm p-5 space-y-4">
-      <div className="grid sm:grid-cols-2 gap-4">
-        <div>
-          <label className={lbl}>Job title</label>
-          <input className={inp} value={f.jobTitle} onChange={(e) => setF({ ...f, jobTitle: e.target.value })} />
-        </div>
-        <div>
-          <label className={lbl}>Department</label>
-          <input className={inp} value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })} />
-        </div>
-        <div>
-          <label className={lbl}>Employment type</label>
-          <Select
-            className={sel}
-            value={f.employmentType}
-            onValueChange={(value) => setF({ ...f, employmentType: value as typeof f.employmentType })}
-            options={EMPLOYMENT_TYPES.map((type) => ({ value: type, label: EMPLOYMENT_CONFIG[type].label }))}
-            ariaLabel="Employment type"
-          />
-        </div>
-        <DatePicker label="Start date" value={f.startDate} onValueChange={(startDate) => setF({ ...f, startDate })} />
-      </div>
-      {canEditPay && (
-        <>
-          <div className="flex gap-1.5">
-            {PAY_TYPES.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setF({ ...f, payType: p })}
-                className={cn(
-                  'flex-1 h-10 rounded-sm border text-sm font-medium transition-colors',
-                  f.payType === p
-                    ? 'border-primary bg-band text-primary'
-                    : 'border-rule text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {PAY_CONFIG[p].label}
-              </button>
-            ))}
-          </div>
-          <div className="grid sm:grid-cols-3 gap-4">
-            {f.payType === 'hourly' ? (
-              <div>
-                <label className={lbl}>Hourly rate (£)</label>
-                <input
-                  className={inp}
-                  inputMode="decimal"
-                  value={f.hourlyRate}
-                  onChange={(e) => setF({ ...f, hourlyRate: e.target.value })}
-                />
+    <div className="space-y-3">
+      <AttentionList
+        items={items.map((item) => ({
+          key: item.id,
+          tone: SEVERITY_TONE[item.severity],
+          icon: SEVERITY_ICON[item.severity],
+          label: item.title,
+          detail: item.detail,
+          actionLabel: item.actionLabel,
+          onSelect: () => onAction(item.target),
+        }))}
+        loading={canReadDocuments && documentsQuery.isPending}
+        error={canReadDocuments && documentsQuery.isError}
+        onRetry={() => void documentsQuery.refetch()}
+        clearTitle="This record is complete"
+        clearDescription="Every check is done and nothing is waiting on a reply."
+        errorTitle="The record checks could not be run"
+        errorDescription="Documents did not load, so right-to-work and contract status are unknown."
+      />
+
+      {/* The full checklist stays reachable — during onboarding it is a form
+          being completed, not only an exception feed — but it no longer spends
+          the top of the page on six green badges. */}
+      <details open={showAll} onToggle={(event) => setShowAll((event.currentTarget as HTMLDetailsElement).open)}>
+        <summary className="cursor-pointer list-none text-xs font-semibold text-muted-foreground hover:text-foreground">
+          {showAll ? 'Hide' : 'Show'} all {checks.length} employment checks
+        </summary>
+        <div className="mt-2 grid gap-px overflow-hidden rounded-sm border border-rule bg-rule md:grid-cols-2 xl:grid-cols-3">
+          {checks.map((check) => (
+            <div key={check.id} className="bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-semibold">{check.label}</p>
+                <Badge variant={check.tone}>{check.complete ? 'Ready' : check.tone === 'destructive' ? 'Urgent' : 'Action'}</Badge>
               </div>
-            ) : (
-              <div>
-                <label className={lbl}>Annual salary (£)</label>
-                <input
-                  className={inp}
-                  inputMode="decimal"
-                  value={f.annualSalary}
-                  onChange={(e) => setF({ ...f, annualSalary: e.target.value })}
-                />
-              </div>
-            )}
-            <div>
-              <label className={lbl}>Contract break (mins)</label>
-              <input
-                className={inp}
-                inputMode="numeric"
-                value={f.unpaidBreakMins}
-                onChange={(e) => setF({ ...f, unpaidBreakMins: Number(e.target.value) })}
-              />
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{check.detail}</p>
             </div>
-            <div>
-              <label className={lbl}>Break after (mins)</label>
-              <input
-                className={inp}
-                inputMode="numeric"
-                value={f.breakThresholdMins}
-                onChange={(e) => setF({ ...f, breakThresholdMins: Number(e.target.value) })}
-              />
-            </div>
-          </div>
-          <div className="sm:w-1/3">
-            <label className={lbl}>Tax code</label>
-            <input className={inp} value={f.taxCode} onChange={(e) => setF({ ...f, taxCode: e.target.value.toUpperCase() })} />
-          </div>
-          <p className="rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
-            This is the contractual break rule, not proof a break was taken. Payroll must not deduct a break that the worker did not
-            actually receive.
-          </p>
-        </>
-      )}
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">
-          Cancel
-        </Button>
-        <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">
-          {save.isPending ? 'Saving…' : 'Save'}
-        </Button>
-      </div>
+          ))}
+        </div>
+        <p className="mt-2 text-label text-muted-foreground">
+          Operational checks only — pension assessment and HMRC starter declarations still need completing in payroll.
+        </p>
+      </details>
     </div>
   );
 }
 
-// Employee shape returned by getEmployee — used by tab component props.
+export function EmploymentTab({ emp, canSeePay }: { emp: Employee; canSeePay: boolean }) {
+  const pay =
+    emp.payType === 'hourly'
+      ? emp.hourlyRate
+        ? `${fmtMoney(emp.hourlyRate)} / hour`
+        : undefined
+      : emp.annualSalary
+        ? `${fmtMoney(emp.annualSalary)} / year`
+        : undefined;
 
-// ── Access & Role (staff profile: role, scope, locations, status) ─────────────
+  return (
+    <DetailCard title="Employment">
+      <InfoRow icon={Building2} label="Job title" value={emp.jobTitle} />
+      <InfoRow icon={Users} label="Department" value={emp.department} missingLabel="Not assigned" />
+      <InfoRow icon={Clock} label="Employment type" value={EMPLOYMENT_CONFIG[emp.employmentType]?.label} />
+      <InfoRow icon={CalendarCheck} label="Started" value={emp.startDate ? fmtDate(emp.startDate) : undefined} />
+      {canSeePay && (
+        <>
+          <InfoRow icon={Banknote} label="Pay" value={pay} missingLabel="No rate set" />
+          <InfoRow icon={Receipt} label="Tax code" value={emp.taxCode ?? undefined} missingLabel="Set by payroll" />
+          <InfoRow
+            icon={Shield}
+            label="National Insurance"
+            // Only whether one is held. Revealing the number is a separate,
+            // audited request.
+            value={emp.hasNiNumber ? 'Held' : undefined}
+            missingLabel="Missing"
+          />
+        </>
+      )}
+    </DetailCard>
+  );
+}
 
 export function AccessCard({ member, locations, canEdit }: { member: StaffProfile; locations: { id: string; name: string }[]; canEdit: boolean }) {
   const qc = useQueryClient();
@@ -417,104 +314,46 @@ export function AccessCard({ member, locations, canEdit }: { member: StaffProfil
 
 // ── Personal (view + inline edit for HR/owner) ────────────────────────────────
 
-export function PersonalTab({ userId, emp, canEdit, email }: { userId: string; emp: Employee; canEdit: boolean; email?: string }) {
-  const qc = useQueryClient();
-  const [edit, setEdit] = useState(false);
-  const [f, setF] = useState({
-    dateOfBirth: toDateInput(emp.dateOfBirth),
-    address: emp.address ?? '',
-    emergencyContactName: emp.emergencyContactName ?? '',
-    emergencyContactPhone: emp.emergencyContactPhone ?? '',
-    emergencyContactRelation: emp.emergencyContactRelation ?? '',
-  });
-
-  const save = useMutation({
-    mutationFn: () =>
-      updateEmployee(userId, {
-        dateOfBirth: f.dateOfBirth || null,
-        address: f.address || null,
-        emergencyContactName: f.emergencyContactName || null,
-        emergencyContactPhone: f.emergencyContactPhone || null,
-        emergencyContactRelation: f.emergencyContactRelation || null,
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['hr-employee', userId] });
-      setEdit(false);
-      toast('success', 'Personal details updated.');
-    },
-    onError: (err) => toast('error', (err as Error).message || 'Personal details weren’t updated. Review the fields and try again.'),
-  });
-
-  if (edit) {
-    return (
-      <div className="bg-card border border-rule rounded-sm p-5 space-y-4">
-        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Personal details</p>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <DatePicker
-            label="Date of birth"
-            value={f.dateOfBirth}
-            onValueChange={(dateOfBirth) => setF({ ...f, dateOfBirth })}
-            max={new Date().toISOString().slice(0, 10)}
-          />
-        </div>
-        <div>
-          <label className={lbl}>Home address</label>
-          <AddressFields value={f.address} onChange={(v) => setF({ ...f, address: v })} />
-        </div>
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div>
-            <label className={lbl}>Emergency name</label>
-            <input className={inp} value={f.emergencyContactName} onChange={(e) => setF({ ...f, emergencyContactName: e.target.value })} />
-          </div>
-          <div>
-            <label className={lbl}>Emergency phone</label>
-            <input
-              className={inp}
-              value={f.emergencyContactPhone}
-              onChange={(e) => setF({ ...f, emergencyContactPhone: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className={lbl}>Relationship</label>
-            <input
-              className={inp}
-              value={f.emergencyContactRelation}
-              onChange={(e) => setF({ ...f, emergencyContactRelation: e.target.value })}
-            />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">
-            Cancel
-          </Button>
-          <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">
-            {save.isPending ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
+export function PersonalTab({ emp, email }: { emp: Employee; email?: string }) {
   return (
-    <div className="bg-card border border-rule rounded-sm p-5">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Personal details</p>
-        {canEdit && (
-          <Button variant="outline" size="sm" onClick={() => setEdit(true)}>
-            Edit
-          </Button>
-        )}
-      </div>
-      <dl className="grid sm:grid-cols-2 gap-4 text-sm">
-        <Info label="Email" value={email} />
-        <Info label="Date of birth" value={emp.dateOfBirth ? fmtDate(emp.dateOfBirth) : undefined} />
-        <Info label="Address" value={emp.address} />
-        <Info label="Emergency contact" value={emp.emergencyContactName} />
-        <Info label="Emergency phone" value={emp.emergencyContactPhone} />
-        <Info label="Relationship" value={emp.emergencyContactRelation} />
-      </dl>
-      {!canEdit && <p className="text-label text-muted-foreground mt-4">Employees can also edit these from their own profile.</p>}
-    </div>
+    <DetailCard title="Personal details">
+      <InfoRow icon={Mail} label="Email" value={email} copyable missingLabel="No account email" />
+      <InfoRow icon={CalendarCheck} label="Date of birth" value={emp.dateOfBirth ? fmtDate(emp.dateOfBirth) : undefined} />
+      <InfoRow icon={MapPin} label="Home address" value={emp.address} />
+      <InfoRow
+        icon={HeartHandshake}
+        label="Emergency contact"
+        value={emp.emergencyContactName}
+        hint={emp.emergencyContactRelation ?? undefined}
+        missingLabel="None recorded"
+      />
+      <InfoRow icon={Phone} label="Emergency phone" value={emp.emergencyContactPhone} copyable missingLabel="None recorded" />
+    </DetailCard>
   );
 }
 
+/** The record's card shell — the same shape My HR's Overview uses. */
+export function DetailCard({
+  title,
+  description,
+  action,
+  children,
+}: {
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mb-4 break-inside-avoid rounded-md border border-rule bg-card p-4 shadow-sm md:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
+        </div>
+        {action}
+      </div>
+      <InfoGroup className="mt-3 border-0 bg-transparent px-0 py-0">{children}</InfoGroup>
+    </section>
+  );
+}
