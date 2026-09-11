@@ -204,7 +204,7 @@ export function AccessCard({ member, locations, canEdit }: { member: StaffProfil
 
   if (edit) {
     return (
-      <div className="bg-card border border-rule rounded-sm p-5 space-y-4">
+      <div className="mb-4 break-inside-avoid rounded-md border border-rule bg-card p-4 shadow-sm md:p-5 space-y-4">
         <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Access & Role</p>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
@@ -272,7 +272,7 @@ export function AccessCard({ member, locations, canEdit }: { member: StaffProfil
   }
 
   return (
-    <div className="bg-card border border-rule rounded-sm p-5">
+    <div className="mb-4 break-inside-avoid rounded-md border border-rule bg-card p-4 shadow-sm md:p-5">
       <div className="flex items-center justify-between mb-4">
         <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Access & Role</p>
         {canEdit && (
@@ -337,15 +337,20 @@ export function DetailCard({
   title,
   description,
   action,
+  className,
   children,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  /** `mb-4` and `break-inside-avoid` serve the `columns-*` flow on Overview. A
+   *  caller laying these out in a `gap-*` grid should pass `mb-0`, or the gap
+   *  and the margin stack. */
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-4 break-inside-avoid rounded-md border border-rule bg-card p-4 shadow-sm md:p-5">
+    <section className={cn('mb-4 break-inside-avoid rounded-md border border-rule bg-card p-4 shadow-sm md:p-5', className)}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">{title}</h3>

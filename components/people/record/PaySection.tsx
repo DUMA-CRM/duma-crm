@@ -94,7 +94,7 @@ export function PayslipsCard({ userId }: { userId: string }) {
 
 // ── Bank & Statutory (money roles only) ───────────────────────────────────────
 
-export function BankTab({ userId, emp, onEdit }: { userId: string; emp: Employee; onEdit?: () => void }) {
+export function BankTab({ userId, emp, onEdit, className }: { userId: string; emp: Employee; onEdit?: () => void; className?: string }) {
   const [reveal, setReveal] = useState(false);
   const {
     data: bank,
@@ -112,6 +112,7 @@ export function BankTab({ userId, emp, onEdit }: { userId: string; emp: Employee
 
   return (
     <DetailCard
+      className={className}
       title="Bank & statutory"
       description="Stored encrypted. Revealing is a separate, audited request."
       action={

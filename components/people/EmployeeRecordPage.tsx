@@ -372,7 +372,7 @@ export function EmployeeRecordPage({
 
             {section === 'pay' && emp && money && (
               <div className="grid lg:grid-cols-2 gap-4 items-start">
-                <BankTab userId={userId} emp={emp} onEdit={canEditPay ? () => setEditing(true) : undefined} />
+                <BankTab userId={userId} emp={emp} onEdit={canEditPay ? () => setEditing(true) : undefined} className="mb-0" />
                 <PayslipsCard userId={userId} />
               </div>
             )}
