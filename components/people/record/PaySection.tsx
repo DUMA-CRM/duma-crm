@@ -24,7 +24,7 @@ import {
 import { DetailCard } from './OverviewSection';
 
 
-import { type Employee } from './shared';
+import { type Employee, CARD } from './shared';
 
 export function PayslipsCard({ userId }: { userId: string }) {
   const {
@@ -37,7 +37,7 @@ export function PayslipsCard({ userId }: { userId: string }) {
     queryFn: () => getEmployeePayslips(userId),
   });
   return (
-    <section className="rounded-sm border border-rule bg-card shadow-sm overflow-hidden">
+    <section className={`${CARD} overflow-hidden`}>
       <div className="px-5 py-4 border-b border-rule">
         <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Payslips</p>
         <p className="text-xs text-muted-foreground mt-1">Draft and finalised payroll documents for this employee.</p>

@@ -39,3 +39,22 @@ export function Info({ label, value }: { label: string; value?: string | null })
   );
 }
 
+
+// ── The card shell ───────────────────────────────────────────────────────────
+//
+// One definition, because the record had four: `rounded-sm border p-5`,
+// `rounded-sm border shadow-sm overflow-hidden`, `rounded-sm border
+// overflow-hidden`, and `DetailCard`'s `rounded-md p-4 shadow-sm md:p-5`. Four
+// shells on one page is visible as slightly different corners and shadows from
+// card to card.
+//
+// `mb-4 break-inside-avoid` is the load-bearing part. These cards hold wildly
+// different numbers of rows, and a `grid` reserves the height of its tallest —
+// leaving a hole under every short one. Flowing them in `columns-*` packs them
+// instead, but only if each card declares that it must not be split.
+
+/** Edge-to-edge content: tables, divided lists, anything with its own padding. */
+export const CARD = 'mb-4 break-inside-avoid rounded-md border border-rule bg-card shadow-sm';
+
+/** The usual case: a card that pads its own content. */
+export const CARD_PADDED = `${CARD} p-4 md:p-5`;

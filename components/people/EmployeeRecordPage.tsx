@@ -264,7 +264,7 @@ export function EmployeeRecordPage({
                 )}
 
                 {emp && (
-                  <StatCardGrid>
+                  <StatCardGrid columns="auto">
                     <StatCard
                       size="sm"
                       icon={CalendarDays}
@@ -359,20 +359,30 @@ export function EmployeeRecordPage({
 
             {section === 'time' && emp && (
               <>
-                <div className="grid lg:grid-cols-2 gap-4 items-start">
+                {/* The calendar earns the full width — a month does not
+                    reflow into a column. Everything after it is a card of
+                    unpredictable height, so they flow rather than sit in a
+                    grid that reserves the tallest one's space. */}
+                {canReadAttendance && <EmployeeAttendanceCard userId={userId} canReadRota={canReadRota} />}
+
+                <div className="columns-1 gap-4 lg:columns-2 -mb-4">
                   <WorkPatternCard userId={userId} />
                   <LeaveAllowanceCard userId={userId} employmentType={emp.employmentType} />
+                  <AbsenceCard userId={userId} />
+                  {canReadDocuments && <EmployeeDocumentsCard userId={userId} />}
+                  {/* The timesheet flows with the rest rather than spanning the
+                      page. Its six columns are narrow and it already scrolls
+                      horizontally, so half the width costs little — and a card
+                      that spanned the full width left the column above it
+                      ending in dead space. */}
+                  <TimesheetCard hours={hours} monthOffset={monthOffset} onMonthChange={setMonthOffset} />
                 </div>
-                {canReadAttendance && <EmployeeAttendanceCard userId={userId} canReadRota={canReadRota} />}
-                <AbsenceCard userId={userId} />
-                {canReadDocuments && <EmployeeDocumentsCard userId={userId} />}
-                <TimesheetCard hours={hours} monthOffset={monthOffset} onMonthChange={setMonthOffset} />
               </>
             )}
 
             {section === 'pay' && emp && money && (
-              <div className="grid lg:grid-cols-2 gap-4 items-start">
-                <BankTab userId={userId} emp={emp} onEdit={canEditPay ? () => setEditing(true) : undefined} className="mb-0" />
+              <div className="columns-1 gap-4 lg:columns-2 -mb-4">
+                <BankTab userId={userId} emp={emp} onEdit={canEditPay ? () => setEditing(true) : undefined} />
                 <PayslipsCard userId={userId} />
               </div>
             )}

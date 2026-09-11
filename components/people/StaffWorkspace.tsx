@@ -69,7 +69,12 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
   const [onboarding, setOnboarding] = useState(false);
   const [newShift, setNewShift] = useState(false);
   const [leaveStatus, setLeaveStatus] = useState('pending');
-  const [payrollView, setPayrollView] = useState<'run' | 'history'>(canRunPayroll ? 'run' : 'history');
+  // Not `useState(canRunPayroll ? 'run' : 'history')`: `capabilities` arrives
+  // with the session, so on the first render it is empty, the initialiser —
+  // which runs exactly once — locks this to 'history', and the tab then opens
+  // on History for someone who can run payroll. Default to 'run' and clamp at
+  // render instead, so a read-only holder still cannot reach the panel.
+  const [payrollView, setPayrollView] = useState<'run' | 'history'>('run');
   const [ticketFilters, setTicketFilters] = useState<HelpdeskFilters>({ search: '', status: 'open', category: '' });
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
 
@@ -172,7 +177,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
               { value: 'run', label: 'Run payroll' },
               { value: 'history', label: 'History' },
             ]}
-            value={payrollView}
+            value={canRunPayroll ? payrollView : 'history'}
             onChange={setPayrollView}
           />
         ) : undefined
@@ -219,7 +224,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
       )}
 
       {active === 'payroll' &&
-        (payrollView === 'run' && canRunPayroll ? (
+        (canRunPayroll && payrollView === 'run' ? (
           <RunPayrollPanel onFinalised={() => setPayrollView('history')} />
         ) : (
           <PayrollHistoryPanel />

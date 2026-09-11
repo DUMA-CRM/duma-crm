@@ -47,7 +47,7 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 
-import { type Employee, monthRange } from './shared';
+import { type Employee, monthRange, CARD, CARD_PADDED } from './shared';
 
 
 export function AbsenceCard({ userId }: { userId: string }) {
@@ -95,7 +95,7 @@ export function AbsenceCard({ userId }: { userId: string }) {
   });
 
   return (
-    <section className="rounded-sm border border-rule bg-card shadow-sm overflow-hidden">
+    <section className={`${CARD} overflow-hidden`}>
       <div className="px-5 py-4 border-b border-rule flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -223,7 +223,7 @@ export function WorkPatternCard({ userId }: { userId: string }) {
   });
   const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   return (
-    <div className="bg-card border border-rule rounded-sm p-5">
+    <div className={CARD_PADDED}>
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Contracted pattern</p>
@@ -307,7 +307,7 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
     !!annualEntitlement &&
     Number(annualEntitlement.totalDays) < regularHoursBaseline;
   return (
-    <div className="bg-card border border-rule rounded-sm p-5">
+    <div className={CARD_PADDED}>
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
           <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Annual leave allowance</p>
@@ -542,7 +542,7 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['employee-documents', userId] }),
   });
   return (
-    <div className="bg-card border border-rule rounded-sm p-5">
+    <div className={CARD_PADDED}>
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Documents & certificates</p>
@@ -719,7 +719,7 @@ export function TimesheetCard({
   const t = hours?.totals;
 
   return (
-    <div className="bg-card border border-rule rounded-sm overflow-hidden">
+    <div className={`${CARD} overflow-hidden`}>
       <div className="flex items-center justify-between gap-3 px-4 md:px-5 py-3 border-b border-rule flex-wrap">
         <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Hours &amp; Timesheet</p>
         <div className="flex items-center gap-3 flex-wrap">

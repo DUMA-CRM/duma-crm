@@ -602,15 +602,23 @@ export function StatCardSkeleton({ size = 'md', className }: { size?: 'sm' | 'md
 }
 
 // ── Grid ──────────────────────────────────────────────────────────
-const GRID_COLS: Record<number, string> = {
+const GRID_COLS: Record<string, string> = {
   2: 'grid-cols-1 sm:grid-cols-2',
   3: 'grid-cols-2 lg:grid-cols-3',
   4: 'grid-cols-2 lg:grid-cols-4',
   6: 'grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6',
+  /**
+   * Tiles stretch to fill the row, however many there are.
+   *
+   * For a row whose length depends on what the reader can see: five tiles in a
+   * four-column grid leaves three empty cells, and the count here varies with
+   * capabilities, so no fixed number is right for everyone.
+   */
+  auto: 'grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]',
 };
 
 /** Standard responsive row for a set of StatCards. */
-export function StatCardGrid({ columns = 4, className, children, ...rest }: { columns?: 2 | 3 | 4 | 6 } & ComponentProps<'section'>) {
+export function StatCardGrid({ columns = 4, className, children, ...rest }: { columns?: 2 | 3 | 4 | 6 | 'auto' } & ComponentProps<'section'>) {
   return (
     <section className={cn('grid gap-3', GRID_COLS[columns], className)} {...rest}>
       {children}

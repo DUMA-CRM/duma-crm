@@ -24,6 +24,8 @@ import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import type { HelpdeskTicket } from '@/lib/api/people-ops.service';
 import { type RecordAttentionItem, type RecordAttentionSeverity, buildRecordAttention } from '@/lib/utils/employee-record';
 
+import { CARD_PADDED } from './shared';
+
 /** The checks that need the document list, and so need `hr.documents:read`. */
 const DOCUMENT_DERIVED = ['right-to-work', 'contract'];
 
@@ -204,7 +206,7 @@ export function AccessCard({ member, locations, canEdit }: { member: StaffProfil
 
   if (edit) {
     return (
-      <div className="mb-4 break-inside-avoid rounded-md border border-rule bg-card p-4 shadow-sm md:p-5 space-y-4">
+      <div className={`${CARD_PADDED} space-y-4`}>
         <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Access & Role</p>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
@@ -272,7 +274,7 @@ export function AccessCard({ member, locations, canEdit }: { member: StaffProfil
   }
 
   return (
-    <div className="mb-4 break-inside-avoid rounded-md border border-rule bg-card p-4 shadow-sm md:p-5">
+    <div className={CARD_PADDED}>
       <div className="flex items-center justify-between mb-4">
         <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Access & Role</p>
         {canEdit && (
@@ -350,7 +352,7 @@ export function DetailCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className={cn('mb-4 break-inside-avoid rounded-md border border-rule bg-card p-4 shadow-sm md:p-5', className)}>
+    <section className={cn(CARD_PADDED, className)}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">{title}</h3>
