@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, ChevronRight, History, Send } from '@/comp
 import { useState } from 'react';
 
 import { DeductionsDrawer } from '@/components/payroll/DeductionsDrawer';
+import { PayrollScheduleCard } from '@/components/payroll/PayrollScheduleCard';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -273,8 +274,12 @@ export function PayrollHistoryPanel() {
 
   if (runs.length === 0) {
     return (
-      <div className="py-24">
-        <EmptyState icon={History} title="No payroll runs yet" description="Finalise a run to keep an immutable record here." />
+      <div className="space-y-4">
+        <div className="py-16">
+          <EmptyState icon={History} title="No payroll runs yet" description="Finalise a run to keep an immutable record here." />
+        </div>
+        {/* Shown here too: no runs yet is precisely when a schedule gets set up. */}
+        {canWrite && <PayrollScheduleCard />}
       </div>
     );
   }
@@ -282,10 +287,15 @@ export function PayrollHistoryPanel() {
   const groups = groupByPeriod(runs);
 
   return (
-    <div className="space-y-3">
-      {groups.map((group) => (
-        <PeriodSection key={group.key} group={group} canWrite={canWrite} />
-      ))}
+    <div className="space-y-4">
+      <div className="space-y-3">
+        {groups.map((group) => (
+          <PeriodSection key={group.key} group={group} canWrite={canWrite} />
+        ))}
+      </div>
+      {/* The schedule belongs with the runs it produces, not on the Trading &
+          payments page next to currency and VAT. */}
+      {canWrite && <PayrollScheduleCard />}
     </div>
   );
 }

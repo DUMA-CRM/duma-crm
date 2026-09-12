@@ -99,3 +99,27 @@ export const supersedePayrollRun = (runId: string, replacedBy: string) =>
 /** Publishes every line as a payslip. Refused while any line is incomplete. */
 export const issuePayrollRun = (runId: string, deductionsSource: string) =>
   apiFetch<PayrollRun>(`/payroll/runs/${runId}/issue`, { method: 'POST', body: JSON.stringify({ deductionsSource }) });
+
+
+/**
+ * The payroll schedule.
+ *
+ * Read and written through `/payroll/*` rather than `/trading-settings`, which
+ * is gated on `settings:write` — authority over currency, VAT and the legal
+ * name that the person running payroll has no reason to hold.
+ */
+export interface PayrollSchedule {
+  payrollAutoFinalise: boolean;
+  payrollPeriod: PayrollPeriod;
+  /** Day of the month, clamped to the last day of shorter months. */
+  payrollPayDayOfMonth: number;
+  /** ISO weekday: 1 = Monday … 7 = Sunday. */
+  payrollPayWeekday: number;
+  /** Read-only: the job's idempotency key, which the API refuses to accept. */
+  payrollLastAutoPeriodEnd: string | null;
+}
+
+export const getPayrollSchedule = () => apiFetch<PayrollSchedule>('/payroll/settings');
+
+export const savePayrollSchedule = (data: Omit<PayrollSchedule, 'payrollLastAutoPeriodEnd'>) =>
+  apiFetch<PayrollSchedule>('/payroll/settings', { method: 'PUT', body: JSON.stringify(data) });

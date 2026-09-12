@@ -10,12 +10,8 @@ import { Select } from '@/components/ui/select';
 
 import { addPaymentConnection, getTradingSettings, saveTradingSettings } from '@/lib/api/operations.service';
 import { type PaymentProvider, getPaymentMethods } from '@/lib/api/payments.service';
-import { formatDate } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-
-/** ISO weekday order: 1 = Monday, matching the API and the rota. */
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export function TradingAndPaymentsSettings() {
   const router = useRouter(),
@@ -38,10 +34,6 @@ export function TradingAndPaymentsSettings() {
   const [tradingAddress, setTradingAddress] = useState('');
   const [receiptFooter, setReceiptFooter] = useState('');
   const [vatRegistered, setVatRegistered] = useState<boolean>();
-  const [autoFinalise, setAutoFinalise] = useState<boolean>();
-  const [payrollPeriod, setPayrollPeriod] = useState<'weekly' | 'monthly'>();
-  const [payDay, setPayDay] = useState<string>();
-  const [payWeekday, setPayWeekday] = useState<string>();
   const [pricesIncludeTax, setPricesIncludeTax] = useState<boolean>();
   const [provider, setProvider] = useState<Exclude<PaymentProvider, 'cash'>>('manual_terminal');
   const [name, setName] = useState('');
@@ -67,10 +59,6 @@ export function TradingAndPaymentsSettings() {
         receiptFooter: receiptFooter || settings!.receiptFooter,
         vatRegistered: vatRegistered ?? settings!.vatRegistered,
         pricesIncludeTax: pricesIncludeTax ?? settings!.pricesIncludeTax,
-        payrollAutoFinalise: autoFinalise ?? settings!.payrollAutoFinalise,
-        payrollPeriod: payrollPeriod ?? settings!.payrollPeriod,
-        payrollPayDayOfMonth: Number(payDay ?? settings!.payrollPayDayOfMonth),
-        payrollPayWeekday: Number(payWeekday ?? settings!.payrollPayWeekday),
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['trading'] });
@@ -210,68 +198,6 @@ export function TradingAndPaymentsSettings() {
           </div>
         </section>
 
-        {/* ── Payroll schedule ───────────────────────────────────────────── */}
-        <section className="rounded-sm border border-rule bg-card p-5 shadow-sm">
-          <h2 className="font-semibold">Payroll schedule</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Snapshot the period that has just ended, without anyone pressing anything.
-          </p>
-
-          <label className="mt-4 flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={autoFinalise ?? settings?.payrollAutoFinalise ?? false}
-              onChange={(event) => setAutoFinalise(event.target.checked)}
-            />
-            <span>
-              <span className="font-medium text-foreground">Finalise automatically on pay day</span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">
-                Off by default. A run is still only <strong>finalised</strong> — nobody sees a payslip until someone enters the tax and
-                National Insurance and issues it, because DUMA does not calculate them.
-              </span>
-            </span>
-          </label>
-
-          <div className="mt-4 space-y-3">
-            <Select
-              value={payrollPeriod ?? settings?.payrollPeriod ?? 'monthly'}
-              onValueChange={(value) => setPayrollPeriod(value as 'weekly' | 'monthly')}
-              options={[
-                { value: 'monthly', label: 'Monthly' },
-                { value: 'weekly', label: 'Weekly' },
-              ]}
-              ariaLabel="Payroll cadence"
-            />
-
-            {(payrollPeriod ?? settings?.payrollPeriod ?? 'monthly') === 'monthly' ? (
-              <Select
-                value={String(payDay ?? settings?.payrollPayDayOfMonth ?? 1)}
-                onValueChange={setPayDay}
-                options={Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: `Day ${i + 1} of the month` }))}
-                ariaLabel="Pay day of the month"
-              />
-            ) : (
-              <Select
-                value={String(payWeekday ?? settings?.payrollPayWeekday ?? 1)}
-                onValueChange={setPayWeekday}
-                options={WEEKDAYS.map((label, index) => ({ value: String(index + 1), label }))}
-                ariaLabel="Pay weekday"
-              />
-            )}
-
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Pay day comes <strong>after</strong> the period closes, so every hour in the run has been worked: on day 20 monthly, the run
-              covers the whole of the previous month. A day past the end of a short month runs on its last day instead of being skipped.
-            </p>
-
-            {settings?.payrollLastAutoPeriodEnd && (
-              <p className="text-xs text-muted-foreground">
-                Last automatic run covered the period ending {formatDate(settings.payrollLastAutoPeriodEnd)}.
-              </p>
-            )}
-          </div>
-        </section>
       </div>
     </EditorShell>
   );

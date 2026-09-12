@@ -9808,6 +9808,52 @@
         ]
       }
     },
+    "/v1/payroll/settings": {
+      "get": {
+        "operationId": "getV1PayrollSettings",
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "Payroll schedule",
+        "description": "When payroll finalises itself, if it does. Only the payroll fields of the tenant record.",
+        "responses": {
+          "200": {
+            "description": "The schedule"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1PayrollSettings",
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "Set the payroll schedule",
+        "description": "Writes only the payroll columns, so nothing else on the tenant record can be changed through here. Enabling this schedules a finalise, never an issue — deductions still have to be entered by a person.",
+        "responses": {
+          "200": {
+            "description": "The saved schedule"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/hr/payslips/my": {
       "get": {
         "operationId": "getV1HrPayslipsMy",
