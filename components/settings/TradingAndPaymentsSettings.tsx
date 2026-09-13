@@ -8,8 +8,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { addPaymentConnection, getTradingSettings, saveTradingSettings } from '@/lib/api/operations.service';
-import { type PaymentProvider, getPaymentMethods } from '@/lib/api/payments.service';
+import {
+  addPaymentConnection,
+  deletePaymentConnection,
+  getPaymentConnections,
+  getTradingSettings,
+  setPaymentConnectionActive,
+  saveTradingSettings,
+} from '@/lib/api/operations.service';
+import { Badge } from '@/components/ui/badge';
+
+import { cn } from '@/lib/utils/cn';
+import type { PaymentProvider } from '@/lib/api/payments.service';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -22,10 +32,35 @@ export function TradingAndPaymentsSettings() {
     queryFn: () => getTradingSettings(tenantId!),
     enabled: !!tenantId,
   });
+  // Management view: disabled readers included, or one could never be turned
+  // back on. The till uses `getPaymentMethods`, which stays filtered to active.
   const { data: methods = [] } = useQuery({
-    queryKey: ['payment-methods', locationId],
-    queryFn: () => getPaymentMethods(locationId!),
+    queryKey: ['payment-connections', locationId],
+    queryFn: () => getPaymentConnections(locationId!),
     enabled: !!locationId,
+  });
+
+  const toggle = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => setPaymentConnectionActive(id, isActive),
+    onSuccess: (_, { isActive }) => {
+      void qc.invalidateQueries({ queryKey: ['payment-connections'] });
+      void qc.invalidateQueries({ queryKey: ['payment-methods'] });
+      toast('success', isActive ? 'Reader enabled.' : 'Reader disabled — it will no longer be offered at the till.');
+    },
+    onError: (error) => toast('error', error instanceof Error ? error.message : 'The reader wasn’t updated. Try again.'),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => deletePaymentConnection(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['payment-connections'] });
+      void qc.invalidateQueries({ queryKey: ['payment-methods'] });
+      toast('success', 'Reader deleted.');
+    },
+    // The API refuses once a reader has taken payments, and says to disable it
+    // instead. Its wording is the useful one, so it is shown rather than a
+    // generic failure.
+    onError: (error) => toast('error', error instanceof Error ? error.message : 'The reader wasn’t deleted.'),
   });
   const [currency, setCurrency] = useState('');
   const [vat, setVat] = useState('');
@@ -161,14 +196,51 @@ export function TradingAndPaymentsSettings() {
           </div>
         </section>
         <section className="rounded-sm border border-rule bg-card shadow-sm p-5">
-          <h2 className="mb-4 font-semibold">Payment methods</h2>
-          <div className="mb-4 space-y-1 text-sm">
-            {methods.map((m) => (
-              <p key={m.id}>
-                {m.displayName} · {m.provider.replaceAll('_', ' ')}
-              </p>
-            ))}
-          </div>
+          <h2 className="font-semibold">Card readers</h2>
+          <p className="mt-1 mb-4 text-sm text-muted-foreground">
+            A location can have several. Disabling one stops it being offered at the till and keeps its payment history.
+          </p>
+
+          {methods.length === 0 ? (
+            <p className="mb-4 rounded-sm border border-dashed border-rule p-4 text-sm text-muted-foreground">
+              No readers at this location yet.
+            </p>
+          ) : (
+            <ul className="mb-4 divide-y divide-rule overflow-hidden rounded-sm border border-rule">
+              {methods.map((method) => {
+                const active = method.isActive !== false;
+                const busy = toggle.isPending || remove.isPending;
+                return (
+                  <li key={method.id} className={cn('flex flex-wrap items-center gap-3 px-3 py-2.5', !active && 'bg-band/40')}>
+                    <span className="min-w-0 flex-1">
+                      <span className={cn('block truncate text-sm font-medium', active ? 'text-foreground' : 'text-muted-foreground')}>
+                        {method.displayName}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">{method.provider.replaceAll('_', ' ')}</span>
+                    </span>
+                    {!active && <Badge variant="muted">Disabled</Badge>}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => toggle.mutate({ id: method.id, isActive: !active })}
+                    >
+                      {active ? 'Disable' : 'Enable'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => remove.mutate(method.id)}
+                    >
+                      Delete
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           <div className="space-y-3">
             <Select
               value={provider}

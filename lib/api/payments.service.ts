@@ -5,6 +5,9 @@ export interface PaymentMethod {
   id: string;
   provider: PaymentProvider;
   displayName: string;
+  /** Disabled readers are still listed for management, never offered at the till. */
+  isActive?: boolean;
+  locationId?: string | null;
 }
 export interface PaymentAttempt {
   id: string;

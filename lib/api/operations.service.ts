@@ -58,3 +58,21 @@ export const openCashUp = (data: { locationId: string; tradingDate: string; open
   apiFetch<CashUp>('/cash-ups/open', { method: 'POST', body: JSON.stringify(data) });
 export const closeCashUp = (id: string, data: { countedCash: number; terminalCardTotal: number; notes?: string }) =>
   apiFetch<CashUp>(`/cash-ups/${id}/close`, { method: 'POST', body: JSON.stringify(data) });
+
+
+/**
+ * Every reader at a location, disabled ones included.
+ *
+ * The till's `getPaymentMethods` filters to active, which is right for taking
+ * money and wrong for managing devices: a disabled reader has to stay visible
+ * or there is no way to turn it back on.
+ */
+export const getPaymentConnections = (locationId: string) =>
+  apiFetch<PaymentMethod[]>(`/payment-connections?locationId=${locationId}&includeInactive=true`);
+
+export const setPaymentConnectionActive = (id: string, isActive: boolean) =>
+  apiFetch<PaymentMethod>(`/payment-connections/${id}`, { method: 'PATCH', body: JSON.stringify({ isActive }) });
+
+/** Only succeeds for a reader that has never taken a payment; the API explains why not. */
+export const deletePaymentConnection = (id: string) =>
+  apiFetch<{ success: boolean; id: string }>(`/payment-connections/${id}`, { method: 'DELETE' });

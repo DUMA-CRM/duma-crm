@@ -9990,6 +9990,81 @@
         }
       }
     },
+    "/v1/payment-connections/{id}": {
+      "patch": {
+        "operationId": "patchV1PaymentConnectionsById",
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Enable, disable or rename a card reader",
+        "description": "Disabling stops a reader being offered at the till and keeps its payment history attributable to it. A location may have several readers.",
+        "responses": {
+          "200": {
+            "description": "The updated reader"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1PaymentConnectionsById",
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Delete a card reader",
+        "description": "Only a reader that has never taken a payment can be deleted. One that has is refused with a 409 pointing at disabling instead — payments reference the reader, and a payment that has forgotten which device took it cannot be reconciled.",
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "The reader has taken payments"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/qr-ordering/public/{token}": {
       "get": {
         "operationId": "getV1QrOrderingPublicByToken",
