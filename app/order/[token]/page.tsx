@@ -13,8 +13,8 @@ export default async function PublicOrderPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ order?: string }>;
+  searchParams: Promise<{ order?: string; payment?: string }>;
 }) {
   const [{ token }, query] = await Promise.all([params, searchParams]);
-  return <QrOrderExperience token={token} initialTrackingToken={query.order ?? null} />;
+  return <QrOrderExperience token={token} initialTrackingToken={query.order ?? null} paymentCancelled={query.payment === 'cancelled'} />;
 }

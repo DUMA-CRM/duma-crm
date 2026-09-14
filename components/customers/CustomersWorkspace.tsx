@@ -43,10 +43,11 @@ const fmtDate = (iso?: string) => formatDate(iso);
 /**
  * The customers list.
  *
- * Built for a manager at a desk: the table is the default view because it is the
- * dense one, columns sort, and the filters that matter — who has lapsed, whose
- * birthday it is, who can be emailed — are one click rather than buried. Filter
- * state lives in the URL so a view can be shared or saved as a segment.
+ * Built for a manager at a desk: it opens on the tile grid, the table is one
+ * click away and stays chosen once picked, columns sort, and the filters that
+ * matter — who has lapsed, whose birthday it is, who can be emailed — are one
+ * click rather than buried. Filter state lives in the URL so a view can be
+ * shared or saved as a segment.
  *
  * Everything above the first row is one toolbar. It used to be three stacked
  * regions — a segment row, a four-tier filter card and a summary line — which
@@ -66,9 +67,9 @@ export function CustomersWorkspace() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [mergePair, setMergePair] = useState<{ a: Customer; b: Customer } | null>(null);
 
-  // Table is the default here, unlike elsewhere in the app: this page is read by
-  // someone comparing rows, and cards trade density for warmth they don't need.
-  const view = useUiSettingsStore((state) => state.listViews.customers ?? 'table');
+  // Cards are the default: the page opens on the tile grid, and a device that
+  // has chosen the table keeps it (the stored preference wins over this).
+  const view = useUiSettingsStore((state) => state.listViews.customers ?? 'cards');
   const setListView = useUiSettingsStore((state) => state.setListView);
 
   const canWriteSegments = hasCapability(capabilities, 'segments:write');

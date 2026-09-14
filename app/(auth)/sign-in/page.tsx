@@ -75,6 +75,11 @@ function SignInForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+        <div className="flex justify-end">
+          <Link href="/forgot-password" className="text-sm font-semibold text-primary transition-colors hover:text-primary/80">
+            Forgot password?
+          </Link>
+        </div>
 
         <button
           type="submit"
@@ -86,10 +91,7 @@ function SignInForm() {
       </form>
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        No account?{' '}
-        <Link href="/sign-up" className="text-primary hover:text-primary/80 font-semibold transition-colors">
-          Create one
-        </Link>
+        New team member? Your manager can invite you from the Staff workspace.
       </p>
     </>
   );

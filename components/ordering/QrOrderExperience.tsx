@@ -205,7 +205,7 @@ function ItemCustomiser({ item, onClose, onAdd }: { item: PublicMenuItem; onClos
   );
 }
 
-export function QrOrderExperience({ token, initialTrackingToken }: { token: string; initialTrackingToken: string | null }) {
+export function QrOrderExperience({ token, initialTrackingToken, paymentCancelled = false }: { token: string; initialTrackingToken: string | null; paymentCancelled?: boolean }) {
   const menu = useQuery({ queryKey: ['public-qr-menu', token], queryFn: () => getPublicQrMenu(token), retry: false });
   const [cart, setCart] = useState<CartLine[]>([]);
   const [selectedItem, setSelectedItem] = useState<PublicMenuItem | null>(null);
@@ -336,6 +336,7 @@ export function QrOrderExperience({ token, initialTrackingToken }: { token: stri
               {(waitingForCash || waitingForPayment) && <div className="mt-5 flex items-center justify-between border-t border-current/15 pt-4"><span className="text-sm font-semibold">Time remaining</span><span className="font-mono text-xl font-semibold" aria-live="polite">{Math.floor(secondsRemaining / 60)}:{String(secondsRemaining % 60).padStart(2, '0')}</span></div>}
             </div>
             <div className="p-6 sm:p-8">
+              {paymentCancelled && waitingForPayment && <p role="status" className="mb-4 rounded-md border border-warning/35 bg-warning/6 p-3 text-sm text-foreground">Card payment was cancelled. Your order is still reserved, so you can reopen checkout before the timer ends.</p>}
               {waitingForCash && <p className="text-sm leading-relaxed text-muted-foreground">Show this screen at the counter and pay in cash. A staff member must approve it before it enters the kitchen queue.</p>}
               {waitingForPayment && <div><p className="text-sm leading-relaxed text-muted-foreground">Your order is reserved for ten minutes and enters the kitchen only after Stripe confirms payment.</p>{order.checkoutUrl && <Button size="touch" className="mt-4 w-full sm:w-auto" onClick={() => window.location.assign(order.checkoutUrl!)}><CreditCard />Open secure Stripe checkout</Button>}</div>}
               {accepted && <p className="text-sm leading-relaxed text-muted-foreground">{awaitingKitchenRelease ? `Payment is confirmed. The order will join the kitchen queue at ${new Intl.DateTimeFormat('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: data.location.timeZone }).format(new Date(order.kitchenReleaseAt!))}.` : order.status === 'ready' ? `Collect from ${data.location.name}. Give the team the name ${order.customerName}.` : order.status === 'done' ? 'The collection has been completed.' : 'This page updates automatically as your order moves through the kitchen.'}</p>}

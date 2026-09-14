@@ -455,12 +455,17 @@ export default function POSPage() {
 
   // Offline awareness: banner while disconnected, queued-order count until synced.
   const offlineQueue = useOfflineOrdersStore((state) => state.queue);
+  const offlineHistory = useOfflineOrdersStore((state) => state.history);
   const queuedOrders = useMemo(
     () => offlineQueue.filter((order) => order.ownerUserId === userId && order.tenantId === tenantId),
     [offlineQueue, tenantId, userId],
   );
   const queuedCount = queuedOrders.length;
   const needsAttentionCount = queuedOrders.filter((order) => order.status === 'needs-attention').length;
+  const recentSyncs = useMemo(
+    () => offlineHistory.filter((record) => record.ownerUserId === userId && record.tenantId === tenantId).slice(0, 5),
+    [offlineHistory, tenantId, userId],
+  );
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
   useEffect(() => {
     const up = () => setOnline(true);
@@ -533,6 +538,19 @@ export default function POSPage() {
                     </div>
                   )}
                 </div>
+              )}
+
+              {recentSyncs.length > 0 && (
+                <details className="mb-4 rounded-sm border border-rule/60 bg-card px-3.5 py-2.5 text-xs text-muted-foreground">
+                  <summary className="cursor-pointer font-semibold text-foreground">Recent offline syncs · {recentSyncs.length}</summary>
+                  <div className="mt-2 space-y-1 border-t border-rule/50 pt-2">
+                    {recentSyncs.map((record) => (
+                      <p key={record.queueId}>
+                        Order {record.orderId.slice(0, 8)} · queued {formatDateTime(record.queuedAt)} · synced {formatDateTime(record.syncedAt)}
+                      </p>
+                    ))}
+                  </div>
+                </details>
               )}
 
               {tenantId && locationId && onShift && (

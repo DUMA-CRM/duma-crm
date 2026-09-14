@@ -37,6 +37,13 @@ colors:
   green-dark: '#75c7a2'
   saffron-dark: '#e8bd67'
   exception-dark: '#ff9298'
+  primary-foreground: '#fffaf4'
+  primary-foreground-dark: '#1a1611'
+  mascot-ink: '#1f6146'
+  mascot-ink-dark: '#4fb187'
+  mascot-eye: '#fffcf7'
+  mascot-eye-dark: '#1c1b18'
+  mascot-accent: '#505fb8'
 typography:
   micro:
     fontFamily: 'Archivo, ui-sans-serif, system-ui, sans-serif'
@@ -175,6 +182,8 @@ The system feels calm but never passive. Brand green is the action colour, drawn
 
 The first viewport establishes the grammar: forest sidebar, warm header, “Today at [location]”, a compact exception strip, the day curve on its real trading-hours axis, a stable context workbench of live counts, and the day’s figures beneath. Specialist pages inherit the materials, typography, controls, and domain colours; they do not inherit the dashboard timeline when a form, table, till, or kitchen queue better fits the job. Confirmed anti-references are the graphite monitoring instrument, the floating KPI dashboard, glassmorphism, candy-tile POS UI, and coffee-shop nostalgia.
 
+Ask DUMA adds one friendly character without changing the application into a mascot-led product. Its flat green body, field-coloured eye wells, and periwinkle notification accent are intentionally legible at the 44px launcher size. The silhouette may morph and look, but material stays flat: the character is an operational companion, not an illustration layer.
+
 **Key Characteristics:**
 
 - Role-shaped workspaces organised around the next useful action
@@ -185,6 +194,7 @@ The first viewport establishes the grammar: forest sidebar, warm header, “Toda
 - A time-based day curve as the dashboard signature, not a universal page template
 - Marks placed only where real data puts them; missing history is stated, never drawn
 - Stable right context workbench and activity ledger for operational continuity
+- One flat, instantly legible mascot that follows the same semantic palette
 
 ## Colors
 
@@ -215,6 +225,12 @@ A warm, food-adjacent neutral field lets operational colour carry meaning withou
 - **Sage Ink:** supporting copy and secondary metadata; there is no paler text tier for important information.
 - **Soft Rule:** the shared one-pixel boundary for panels and controls. Use fractional opacity where hierarchy needs a quieter edge, not a second border colour.
 
+### Mascot
+
+- **DUMA Green Body:** the mascot has its own semantic token even though its day and night values match the corresponding action green. This prevents a future button recolour from silently changing the character.
+- **Opaque Eye Wells:** the eyes use the current field material rather than cutting through to whatever surface happens to sit behind the mascot. They therefore invert naturally with the theme and remain consistent on unusual plates.
+- **Reference Accent:** notification pastilles use the established periwinkle information colour. No additional character palette exists.
+
 ### Named Rules
 
 **The Domain Ownership Rule.** Brand green belongs to action and focus, apricot to orders and the measured trace, periwinkle to kitchen/reference and info, saffron to stock and every warning, team green to staffing/success, and red to exceptions. Do not shuffle these roles between screens, and never give a role a raw Tailwind colour — every hue in the product comes from the token layer.
@@ -224,6 +240,8 @@ A warm, food-adjacent neutral field lets operational colour carry meaning withou
 **The Two-Channel Rule.** Colour may accelerate recognition, but every state also needs text, position, an icon, shape, or bar length. No meaning is communicated by hue alone.
 
 **The Lights-Off Rule.** Night mode is the same room after close, not an inverted page and not a green one. The material ladder keeps its three steps and its warmth in the ink, but the hue leaves the surfaces: ground, field and band become a warm near-black charcoal (`#121110` → `#1c1b18` → `#272521`) so the domain roles have something neutral to sit against. The navigation shell keeps its forest — that is the place-memory — dropped to the deepest tier (`#0e241b`, roughly four times darker than the daytime column) with the active step at `#204734`. Green anywhere else at night means team, success or a healthy state; no work surface is green.
+
+**The Three-Colour Character Rule.** The mascot is one flat body, one opaque eye material, and one notification accent. Do not add gradients, highlights, rim light, texture, or an independent character palette at its working size.
 
 ## Typography
 
@@ -312,11 +330,19 @@ Common panels use a porcelain field, 7–8px corners, a soft one-pixel rule, and
 
 ### Fields
 
-Inputs are 36px tall with a porcelain fill, soft rule, 7px corner, and low shadow — the same height as a button, a select, the date picker and a segmented control, so any of them can stand in a filter toolbar row without a step in the baseline. Touch-first surfaces reach for the named 44px touch sizes rather than lifting this default. Small-screen text stays at 16px to prevent iOS zoom; desktop returns to the compact body size. Focus uses a hard brand-green border/outline; error switches both edge and message to exception red and connects the message through `aria-describedby`.
+Inputs are 36px tall with a porcelain fill, soft rule, 7px corner, and low shadow — the same height as a button, a select, the date picker and a segmented control, so any of them can stand in a filter toolbar row without a step in the baseline. Touch-first surfaces reach for the named 44px touch sizes rather than lifting this default. Small-screen text stays at 16px to prevent iOS zoom; desktop returns to the compact body size. Text fields use a hard measured-apricot focus marker while the global keyboard-focus default remains brand green; error switches both edge and message to exception red and connects the message through `aria-describedby`.
+
+### Status Annotations
+
+Badges are compact 20px magnetic labels with 5px corners. Neutral counts may use a solid key; operational states use a semantic hairline, a 6% wash, and matching text so they remain readable in both themes. The `reference` variant is periwinkle for scheduled or informational states. Every status still carries words or an icon rather than relying on colour.
 
 ### Navigation
 
-The sidebar is a deep forest column with warm-white text. Default items are softened; hover and active states step into Forest 2. The active item adds a narrow warm-white bar on its inner edge, and count markers use warm white with dark forest text — position is achromatic, so the shell carries no data hue. Collapsed items become 36px magnetic squares with tooltips; the mobile version is an off-canvas drawer over a translucent ink backdrop.
+The sidebar is a deep forest column with warm-white text. Default items are softened; hover and active states step into Forest 2. The active item adds a narrow warm-white bar on its inner edge, and count markers use warm white with dark forest text — position is achromatic, so the shell carries no data hue. Collapsed items become 36px magnetic squares with tooltips; the mobile version is an off-canvas drawer over a translucent ink backdrop. Destinations are capability-shaped: each role sees a deliberately smaller workspace rather than disabled links from an all-purpose admin menu.
+
+### Ask DUMA Mascot
+
+The mascot is a true circular body at rest, rendered as a flat morphing SVG with two opaque eyes. Its practical working size is the 44px header launcher; the body occupies roughly 63% of the outer box because orbit states need room. At rest it breathes, glances and blinks gently, respects reduced motion, and may track the pointer without turning into a decorative loading animation. Use it for the assistant’s identity and rare continuity moments, not as generic empty-state decoration.
 
 ### The Day Curve — signature component
 
@@ -329,6 +355,8 @@ The curve always leads to the owning specialist workspace, and every trace state
 ### Stat Tiles
 
 One tile type carries every figure in the product: a porcelain field with a soft rule and 5px corners, a label row with an outlined accent chip, the value in the mono figure face at metric size, and an optional delta pill — a small trend glyph, the change, and the comparison it was measured against. Team green reads positive, exception red negative, and a neutral outline means there was nothing to compare. A tile may carry one quiet visual (sparkline, bar row, ring, meter) drawn in a chart ink, never a second colour system.
+
+Loading tiles use stable skeleton geometry, failures remain visible in place, and an unknown value is rendered as an honest dash or “No data” state rather than zero. A figure that can load must also have a defined error state.
 
 **The Named Comparison Rule.** A figure ships with the thing it is measured against, in words — "vs typical Thursday", "on a typical day by now". A bare delta with no stated basis is a number pretending to be a judgement.
 
@@ -355,6 +383,8 @@ Lists of records — activity, attendance, requests, exception items — are rul
 - **Do** state a missing comparison plainly ("not enough history yet") instead of drawing a faint or placeholder one.
 - **Do** provide a textual or structural channel in addition to colour for every state.
 - **Do** retain explicit loading, empty, error, offline, and healthy states in the same practical voice.
+- **Do** keep Ask DUMA flat and readable at its real 44px launcher size.
+- **Do** let capabilities shape navigation and page access rather than showing unavailable work.
 
 ### Don't:
 
@@ -367,3 +397,4 @@ Lists of records — activity, attendance, requests, exception items — are rul
 - **Don't** invent a new domain colour, border family, icon system, or figure font.
 - **Don't** communicate urgency by colour alone or allow exception red to become decorative.
 - **Don't** add tokens to a Tailwind JavaScript config; `@theme` in `app/globals.css` is the wired styling layer.
+- **Don't** shade, texture, or decorate the mascot with effects that compete with its silhouette and eyes.

@@ -32,6 +32,7 @@ export const FRONTEND_CAPABILITIES = [
   'segments:read',
   'segments:write',
   'segments:send',
+  'orders:create',
   'orders:read',
   'orders:status',
   'orders:refund',

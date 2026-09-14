@@ -66,11 +66,8 @@ export default function HomePage() {
           </Link>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <Button asChild variant="ghost" className="hidden sm:inline-flex">
-              <Link href="/sign-in">Sign in</Link>
-            </Button>
             <Button asChild size="touch" className="px-3 text-sm sm:px-4">
-              <Link href="/sign-up">Join pre-launch</Link>
+              <Link href="/sign-in">Open workspace</Link>
             </Button>
           </div>
         </header>
@@ -90,8 +87,8 @@ export default function HomePage() {
             <div className="mt-8">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button asChild size="touch">
-                  <Link href="/sign-up">
-                    Join pre-launch
+                  <Link href="/sign-in">
+                    Open DUMA
                     <ArrowRight data-icon="inline-end" aria-hidden="true" />
                   </Link>
                 </Button>
@@ -99,7 +96,7 @@ export default function HomePage() {
                   <Link href="#shift-trace">See the system work</Link>
                 </Button>
               </div>
-              <p className="mt-4 text-xs text-muted-foreground">Pre-launch workspace · Create an account to explore DUMA</p>
+              <p className="mt-4 text-xs text-muted-foreground">Pre-launch workspace · Access is currently by invitation</p>
             </div>
           </div>
 
@@ -242,7 +239,7 @@ export default function HomePage() {
               See the whole business without leaving the shift.
             </h2>
             <p className="mt-4 max-w-[62ch] text-base leading-7 text-background/75">
-              DUMA is in pre-launch. Create an account to explore the workspace and the role built for your team.
+              DUMA is in pre-launch. Workspace access is currently set up directly with each team.
             </p>
           </div>
           <div className="border-t border-background/30 p-5 sm:p-8 lg:border-t-0 lg:border-l lg:p-10">
@@ -252,8 +249,8 @@ export default function HomePage() {
               size="touch"
               className="w-full border-background bg-background text-foreground hover:bg-band lg:w-auto"
             >
-              <Link href="/sign-up">
-                Create an account
+              <Link href="/sign-in">
+                Open DUMA
                 <ArrowRight data-icon="inline-end" aria-hidden="true" />
               </Link>
             </Button>

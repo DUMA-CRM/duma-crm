@@ -52,6 +52,7 @@ import {
   revokeSession,
 } from '@/lib/api/auth.service';
 import { hasCapability } from '@/lib/auth/capabilities';
+import { MIN_PASSWORD_LENGTH, passwordLengthHint } from '@/lib/auth/password-policy';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { useTenants } from '@/lib/hooks/useTenants';
 import { chime } from '@/lib/utils/chime';
@@ -437,7 +438,8 @@ function PasswordSection() {
             autoComplete="new-password"
             value={next}
             onChange={(e) => setNext(e.target.value)}
-            hint={next && next.length < 12 ? `${12 - next.length} more characters needed` : undefined}
+            minLength={MIN_PASSWORD_LENGTH}
+            hint={passwordLengthHint(next)}
           />
           <Input
             label="Confirm password"
@@ -449,7 +451,7 @@ function PasswordSection() {
             hint={confirm && next !== confirm ? 'Passwords do not match yet.' : undefined}
           />
         </div>
-        <Button type="submit" disabled={!current || next.length < 12 || next !== confirm || mutation.isPending}>
+        <Button type="submit" disabled={!current || next.length < MIN_PASSWORD_LENGTH || next !== confirm || mutation.isPending}>
           {mutation.isPending ? 'Changing password…' : 'Change password'}
         </Button>
       </form>

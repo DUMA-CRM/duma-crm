@@ -51,7 +51,7 @@ export function OfflineOrderSync() {
               idempotencyKey: `pay-${queued.idempotencyKey}`,
             });
             await confirmPayment(payment.id, 'succeeded');
-            store().remove(queued.id);
+            store().markSynced(queued.id, order.id);
             synced++;
           } catch (err) {
             const action = classifyOfflineOrderFailure(err);

@@ -45,8 +45,8 @@ export const mainNavItems: NavItem[] = [
   // threshold hid it from the role whose job it is.
   { label: 'Customers', href: '/customers', icon: Users, capabilities: ['customers:read'] },
   { label: 'Communications', href: '/communications', icon: Mail, capabilities: ['email:read'] },
-  { label: 'POS Terminal', href: '/pos', icon: Monitor },
-  { label: 'KDS Terminal', href: '/kds', icon: ChefHat },
+  { label: 'POS Terminal', href: '/pos', icon: Monitor, capabilities: ['orders:create'] },
+  { label: 'KDS Terminal', href: '/kds', icon: ChefHat, capabilities: ['orders:status'] },
   { label: 'Menu', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'] },
   // One entry: stock, restock demand, purchase orders, suppliers and stocktakes
   // are tabs of /inventory.

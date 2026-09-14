@@ -157,45 +157,11 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Sign up with email & password",
-        "description": "Creates a new user account. Returns the user object and a bearer token in the `set-auth-token` response header. Store that token and send it as `Authorization: Bearer <token>` on subsequent requests.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "email",
-                  "password",
-                  "name"
-                ],
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "format": "email",
-                    "example": "jane@example.com"
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 8,
-                    "example": "secret123"
-                  },
-                  "name": {
-                    "type": "string",
-                    "example": "Jane Smith"
-                  }
-                }
-              }
-            }
-          }
-        },
+        "summary": "Public sign-up is unavailable",
+        "description": "Workspace access is invite-only. Staff accounts are created through the authenticated onboarding flow so every login has a tenant and role.",
         "responses": {
-          "200": {
-            "description": "User created and session cookie set"
-          },
-          "422": {
-            "description": "Email already in use or validation error"
+          "403": {
+            "description": "Workspace access is invite-only"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -3600,6 +3566,18 @@
         ],
         "summary": "Create order",
         "description": "Creates a new order and snapshots its recipe usage. Item names and prices are computed server-side; physical stock units are consumed automatically when the order reaches done.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Stable request key. Retrying it returns the original order instead of creating another sale."
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -3691,6 +3669,9 @@
           }
         },
         "responses": {
+          "200": {
+            "description": "Original order returned for a replayed Idempotency-Key"
+          },
           "201": {
             "description": "Order created with recipe usage snapshot"
           },
@@ -3702,6 +3683,9 @@
           },
           "403": {
             "description": "Forbidden — wrong location or no tenant"
+          },
+          "409": {
+            "description": "Idempotency-Key was already used for a different order"
           },
           "429": {
             "description": "Too many requests — rate limited"

@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { API_PREFIX, apiFetch } from './client';
 
 export type PrivacyRequestType = 'access' | 'erasure' | 'rectification' | 'restriction' | 'portability' | 'objection';
 export type PrivacyRequestStatus = 'received' | 'in_progress' | 'awaiting_identity' | 'completed' | 'declined';
@@ -39,4 +39,4 @@ export const updatePrivacyRequest = (id: string, data: { status?: Exclude<Privac
   apiFetch<PrivacyRequest>(`/privacy-requests/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const completePrivacyRequest = (id: string, resolutionNotes: string) =>
   apiFetch<PrivacyRequest>(`/privacy-requests/${id}/complete`, { method: 'POST', body: JSON.stringify({ resolutionNotes }) });
-export const privacyExportUrl = (id: string) => `/be/v1/privacy-requests/${id}/export`;
+export const privacyExportUrl = (id: string) => `${API_PREFIX}/v1/privacy-requests/${id}/export`;

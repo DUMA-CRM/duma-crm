@@ -8,7 +8,6 @@ import {
   Bell,
   CheckCircle2,
   ChefHat,
-  Clock3,
   CloudOff,
   Coffee,
   Flame,
@@ -556,11 +555,6 @@ export default function KdsPage() {
                   </section>
                 );
               })}
-            </div>
-
-            <div className="pointer-events-none fixed bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-sm border border-rule bg-card px-3 py-1.5 text-micro font-semibold uppercase tracking-micro text-muted-foreground lg:hidden">
-              <Clock3 size={12} aria-hidden="true" />
-              Swipe between lanes
             </div>
           </div>
         )}

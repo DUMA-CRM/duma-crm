@@ -19,13 +19,25 @@ export interface QueuedOrder {
   status: 'pending' | 'needs-attention';
 }
 
+export interface OfflineOrderSyncRecord {
+  queueId: string;
+  orderId: string;
+  ownerUserId: string;
+  tenantId: string;
+  queuedAt: string;
+  syncedAt: string;
+  attempts: number;
+}
+
 interface OfflineOrdersStore {
   queue: QueuedOrder[];
+  history: OfflineOrderSyncRecord[];
   enqueue: (
     payload: CreateOrderPayload,
     context: { idempotencyKey: string; ownerUserId: string; tenantId: string; paymentProvider: QueuedOrder['paymentProvider'] },
   ) => void;
   remove: (id: string) => void;
+  markSynced: (id: string, orderId: string) => void;
   markAttempt: (id: string, error?: string, status?: QueuedOrder['status']) => void;
   retry: (id: string) => void;
   claimUnscoped: (ownerUserId: string, tenantId: string) => void;
@@ -35,6 +47,7 @@ export const useOfflineOrdersStore = create<OfflineOrdersStore>()(
   persist(
     (set) => ({
       queue: [],
+      history: [],
       enqueue: (payload, context) =>
         set((s) => ({
           queue: [
@@ -50,6 +63,26 @@ export const useOfflineOrdersStore = create<OfflineOrdersStore>()(
           ],
         })),
       remove: (id) => set((s) => ({ queue: s.queue.filter((q) => q.id !== id) })),
+      markSynced: (id, orderId) =>
+        set((s) => {
+          const order = s.queue.find((queued) => queued.id === id);
+          if (!order) return s;
+          return {
+            queue: s.queue.filter((queued) => queued.id !== id),
+            history: [
+              {
+                queueId: order.id,
+                orderId,
+                ownerUserId: order.ownerUserId,
+                tenantId: order.tenantId,
+                queuedAt: order.queuedAt,
+                syncedAt: new Date().toISOString(),
+                attempts: order.attempts,
+              },
+              ...s.history,
+            ].slice(0, 25),
+          };
+        }),
       markAttempt: (id, error, status = 'pending') =>
         set((s) => ({
           queue: s.queue.map((q) => (q.id === id ? { ...q, attempts: q.attempts + 1, lastError: error, status } : q)),
@@ -75,14 +108,18 @@ export const useOfflineOrdersStore = create<OfflineOrdersStore>()(
     }),
     {
       name: 'pos-offline-orders',
-      version: 3,
+      version: 4,
       // Version 1 did not record the owning account, tenant, or idempotency key.
       // Preserve those sales but never auto-replay them. WorkspaceInitializer
       // assigns them to the first signed-in profile and requires an explicit
       // manager retry from the POS warning.
       migrate: (persistedState) => {
-        const legacy = persistedState as { queue?: Array<Partial<QueuedOrder> & Pick<QueuedOrder, 'id' | 'payload' | 'queuedAt'>> };
+        const legacy = persistedState as {
+          queue?: Array<Partial<QueuedOrder> & Pick<QueuedOrder, 'id' | 'payload' | 'queuedAt'>>;
+          history?: OfflineOrderSyncRecord[];
+        };
         return {
+          history: Array.isArray(legacy.history) ? legacy.history : [],
           queue: (legacy.queue ?? []).map((order) => ({
             ...order,
             idempotencyKey: order.idempotencyKey ?? order.id,

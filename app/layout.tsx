@@ -92,7 +92,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* Chrome fires beforeinstallprompt as soon as install criteria are met —
             on repeat visits that's BEFORE React hydrates, so a listener attached
             in an effect misses it. Capture it pre-hydration on window instead. */}
-        <Script id="pwa-prompt-capture" strategy="beforeInteractive">
+        <Script id="pwa-prompt-capture" strategy="beforeInteractive" nonce={nonce}>
           {`window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaPrompt=e;window.dispatchEvent(new Event('pwa:prompt-captured'))});window.addEventListener('appinstalled',function(){window.__pwaPrompt=null;window.__pwaInstalled=true;window.dispatchEvent(new Event('pwa:installed'))});`}
         </Script>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem nonce={nonce}>

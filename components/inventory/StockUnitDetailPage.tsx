@@ -28,8 +28,6 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
   const { data: unit, isLoading } = useQuery({ queryKey: ['stock-unit', stockUnitId], queryFn: () => getStockUnit(stockUnitId) });
   const { data: ledger = [] } = useQuery({ queryKey: ['stock-unit-ledger', stockUnitId], queryFn: () => getStockUnitLedger(stockUnitId) });
 
-  const active = unit?.status === 'AVAILABLE' || unit?.status === 'IN_USE';
-
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['stock-unit', stockUnitId] });
     void queryClient.invalidateQueries({ queryKey: ['stock-unit-ledger', stockUnitId] });

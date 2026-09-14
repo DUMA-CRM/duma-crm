@@ -37,7 +37,6 @@ import { EditStockItemDrawer, EditThresholdDrawer, LogLossDrawer, RestockDrawer 
 import {
   REASON_LABELS,
   STATUS_LABEL,
-  STATUS_VARIANT,
   daysColor,
   fmtQty,
   formatDate,
@@ -60,6 +59,7 @@ import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 
+import { serverCache } from '@/lib/api/cache-policy';
 import {
   type InventoryForecast,
   type InventoryOverviewRow,
@@ -80,7 +80,6 @@ import {
   splitStockUnit,
   updateLocationStock,
 } from '@/lib/api/inventory.service';
-import { serverCache } from '@/lib/api/cache-policy';
 import { type LossRecord, getLossLog } from '@/lib/api/loss.service';
 import { cn } from '@/lib/utils/cn';
 import { formatDate as formatAppDate, formatDateTime } from '@/lib/utils/date';
