@@ -28,6 +28,10 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Install browser for authenticated smoke test
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Authenticated browser smoke test
+        run: pnpm test:e2e
       - run: pnpm build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:7777

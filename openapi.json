@@ -204,7 +204,98 @@
         },
         "responses": {
           "200": {
-            "description": "Session created and cookie set"
+            "description": "Session created and cookie set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "user",
+                    "session"
+                  ],
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "name",
+                        "email",
+                        "emailVerified",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "emailVerified": {
+                          "type": "boolean"
+                        },
+                        "image": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    },
+                    "session": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "userId",
+                        "token",
+                        "expiresAt"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "userId": {
+                          "type": "string"
+                        },
+                        "token": {
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "ipAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "userAgent": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Validation failed — invalid request body"
@@ -502,7 +593,119 @@
         "description": "Returns the staff profile for the authenticated user including role, scope, assigned locations, and the full list of capabilities the role holds. Clients should show and hide features from `capabilities` rather than re-deriving permissions from `role` — the server authorises on exactly this list, so anything else will eventually disagree with it.",
         "responses": {
           "200": {
-            "description": "Staff profile object, plus `capabilities: string[]`"
+            "description": "Staff profile object, plus `capabilities: string[]`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "userId",
+                    "tenantId",
+                    "role",
+                    "scope",
+                    "isActive",
+                    "createdAt",
+                    "updatedAt",
+                    "capabilities"
+                  ],
+                  "properties": {
+                    "userId": {
+                      "type": "string"
+                    },
+                    "tenantId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "super_admin",
+                        "franchise_owner",
+                        "store_manager",
+                        "barista",
+                        "hr_manager",
+                        "marketing_manager",
+                        "auditor"
+                      ]
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "global",
+                        "franchise",
+                        "location"
+                      ]
+                    },
+                    "locationIds": {
+                      "type": "array",
+                      "nullable": true,
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "activationPending": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "capabilities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "user": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "name",
+                        "email",
+                        "emailVerified",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "emailVerified": {
+                          "type": "boolean"
+                        },
+                        "image": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -2009,7 +2212,69 @@
         "description": "Super admin sees all locations. Franchise-scoped staff see their tenant's locations. Location-scoped staff see only their assigned locations.",
         "responses": {
           "200": {
-            "description": "Array of locations"
+            "description": "Array of locations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "tenantId",
+                      "name",
+                      "address",
+                      "timezone",
+                      "isActive",
+                      "createdAt",
+                      "updatedAt"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "tenantId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "address": {
+                        "type": "string"
+                      },
+                      "timezone": {
+                        "type": "string"
+                      },
+                      "phone": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "openingHours": {
+                        "type": "object",
+                        "nullable": true
+                      },
+                      "dailyRevenueTarget": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "isActive": {
+                        "type": "boolean"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
