@@ -174,7 +174,9 @@ export function StockOverview({
 
   const outCount = enriched.filter((s) => s.status === 'out').length;
   const attentionCount = enriched.filter((s) => s.status === 'low' || s.status === 'critical' || s.status === 'out').length;
-  const soonCount = enriched.filter((s) => s.forecast && s.forecast.daysOfStockRemaining <= 7).length;
+  const soonCount = enriched.filter(
+    (s) => s.forecast?.daysOfStockRemaining != null && s.forecast.daysOfStockRemaining <= 7,
+  ).length;
   const expiringCount = enriched.filter((s) => s.earliestExpiryDate && new Date(s.earliestExpiryDate).getTime() <= expiryCutoff).length;
 
   const hasFilters = !!search;
@@ -307,7 +309,7 @@ export function StockOverview({
 
                     {/* Days left */}
                     <div className="flex items-center">
-                      {days === undefined ? (
+                      {days == null ? (
                         <span className="text-xs text-muted-foreground/40">—</span>
                       ) : (
                         <span className={cn('text-sm font-medium tabular-nums', daysColor(days))}>{Math.round(days)}d</span>

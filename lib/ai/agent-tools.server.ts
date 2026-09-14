@@ -816,7 +816,7 @@ const getInventoryStatus: ToolDefinition = {
           unit: row.unit,
           quantity: toNumber(row.currentQuantity),
           avgDailyUse: round(row.avgDailyConsumption, 2),
-          daysOfCover: round(row.daysOfStockRemaining, 1),
+          daysOfCover: row.daysOfStockRemaining == null ? null : round(row.daysOfStockRemaining, 1),
           predictedStockoutDate: row.predictedStockoutDate,
           recommendedReorderQuantity: round(row.recommendedReorderQuantity, 2),
           isCritical: row.isCritical,
@@ -837,7 +837,10 @@ const getInventoryStatus: ToolDefinition = {
                         {
                           label: 'Runs out first',
                           value: critical[0].stockItemName,
-                          hint: `${round(critical[0].daysOfStockRemaining, 1)} days`,
+                          hint:
+                            critical[0].daysOfStockRemaining == null
+                              ? 'Consumption history is not available'
+                              : `${round(critical[0].daysOfStockRemaining, 1)} days`,
                         },
                       ]
                     : []),

@@ -196,7 +196,7 @@ export interface InventoryForecast {
   unit: string;
   currentQuantity: string;
   avgDailyConsumption: number;
-  daysOfStockRemaining: number;
+  daysOfStockRemaining: number | null;
   predictedStockoutDate: string | null;
   recommendedReorderQuantity: number;
   isLow: boolean;

@@ -306,8 +306,8 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
                 <StatCard
                   size="sm"
                   label="Days left"
-                  value={forecast ? `${Math.round(forecast.daysOfStockRemaining)}d` : 'N/A'}
-                  valueClassName={forecast ? daysColor(forecast.daysOfStockRemaining) : undefined}
+                  value={forecast?.daysOfStockRemaining != null ? `${Math.round(forecast.daysOfStockRemaining)}d` : '—'}
+                  valueClassName={forecast?.daysOfStockRemaining != null ? daysColor(forecast.daysOfStockRemaining) : undefined}
                   icon={Gauge}
                 />
               </div>
@@ -354,8 +354,8 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
                         size="sm"
                         label="Days left"
                         icon={Gauge}
-                        value={`${Math.round(forecast.daysOfStockRemaining)}d`}
-                        valueClassName={daysColor(forecast.daysOfStockRemaining)}
+                        value={forecast.daysOfStockRemaining != null ? `${Math.round(forecast.daysOfStockRemaining)}d` : '—'}
+                        valueClassName={forecast.daysOfStockRemaining != null ? daysColor(forecast.daysOfStockRemaining) : undefined}
                       />
                       <StatCard
                         size="sm"

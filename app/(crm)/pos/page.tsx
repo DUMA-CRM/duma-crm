@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { Building2, Clock, CloudUpload, LogIn, MapPin, Monitor, WifiOff } from '@/components/icons';
 import { PageSidebar } from '@/components/layout/PageSidebar';
@@ -40,6 +40,8 @@ function pence(decimal: string): number {
   return Math.round(Number.parseFloat(decimal) * 100);
 }
 
+const subscribeToClientReady = () => () => undefined;
+
 function toPosItem(api: ApiMenuItem, modifiers: AttachedModifier[], modifiersLoaded: boolean): MenuItem {
   return {
     id: api.id,
@@ -67,6 +69,15 @@ function toPosItem(api: ApiMenuItem, modifiers: AttachedModifier[], modifiersLoa
 
 export default function POSPage() {
   const qc = useQueryClient();
+  // Workspace and offline-order preferences are persisted in localStorage.
+  // Hold the till behind one neutral frame until React has attached so a hard
+  // refresh cannot compare the server defaults with already-restored browser
+  // state and discard the server-rendered POS tree during hydration.
+  const clientReady = useSyncExternalStore(
+    subscribeToClientReady,
+    () => true,
+    () => false,
+  );
   const { tenantId, locationId } = useWorkspaceStore();
   const userId = useAuthStore((state) => state.user?.id);
   const [activeCategory, setActiveCategory] = useState<Category>('all');
@@ -477,6 +488,16 @@ export default function POSPage() {
       window.removeEventListener('offline', down);
     };
   }, []);
+
+  if (!clientReady) {
+    return (
+      <EditorShell eyebrow="Service Mode" title="Roastery Menu" icon={<Monitor size={20} aria-hidden="true" />} flush>
+        <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-16" aria-live="polite">
+          <p className="text-sm font-medium text-muted-foreground">Preparing the till…</p>
+        </div>
+      </EditorShell>
+    );
+  }
 
   return (
     <>
