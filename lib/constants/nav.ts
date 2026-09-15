@@ -53,10 +53,7 @@ export const mainNavItems: NavItem[] = [
   // `stock:read` rather than `inventory:read` — till staff hold the latter so
   // they can record waste, and gating on it would put Inventory in the POS nav.
   { label: 'Inventory', href: '/inventory', icon: Package, capabilities: ['stock:read'] },
-  // The orders workspace is a management surface (refunds, bulk status, export),
-  // so it keys off `orders:bulk`. Every till user holds `orders:read` for their
-  // own order flow, which is not a reason to show them this page.
-  { label: 'Orders', href: '/orders', icon: ShoppingBag, capabilities: ['orders:bulk'] },
+  { label: 'Orders', href: '/orders', icon: ShoppingBag, capabilities: ['orders:read'] },
   // One entry: team, rota, shifts, leave, helpdesk and payroll are tabs of the
   // staff workspace, each on its own route.
   { label: 'Staff', href: '/staff', icon: UsersRound, capabilities: ['staff:read', 'hr.people:read'] },

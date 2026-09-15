@@ -5271,6 +5271,30 @@
         ]
       }
     },
+    "/v1/menu-item-recipes/gaps": {
+      "get": {
+        "operationId": "getV1MenuItemRecipesGaps",
+        "tags": [
+          "Menu Item Recipes"
+        ],
+        "summary": "List available menu items with no recipe",
+        "description": "Returns tenant-scoped menu items whose missing recipe makes stock consumption and allergen coverage incomplete.",
+        "responses": {
+          "200": {
+            "description": "Available menu items with no recipe lines"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden or no tenant assigned"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/menu-item-recipes/menu-item/{menuItemId}": {
       "get": {
         "operationId": "getV1MenuItemRecipesMenuItemByMenuItemId",

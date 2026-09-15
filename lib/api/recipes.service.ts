@@ -37,9 +37,19 @@ export interface RecipeLineInput {
   quantity: number;
 }
 
+export interface RecipeGap {
+  id: string;
+  tenantId: string;
+  name: string;
+  category: string;
+}
+
 // ── Menu item (base) recipes ──────────────────────────────────────────────────
 
 export const getMenuItemRecipe = (menuItemId: string) => apiFetch<RecipeLine[]>(`/menu-item-recipes/menu-item/${menuItemId}`);
+
+export const getRecipeGaps = (tenantId: string) =>
+  apiFetch<RecipeGap[]>(`/menu-item-recipes/gaps?tenantId=${encodeURIComponent(tenantId)}`);
 
 export const setMenuItemRecipe = (menuItemId: string, lines: RecipeLineInput[]) =>
   apiFetch<RecipeLine[]>(`/menu-item-recipes/menu-item/${menuItemId}`, { method: 'PUT', body: JSON.stringify({ lines }) });

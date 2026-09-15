@@ -149,6 +149,12 @@ function OrderDetailBody({ orderId }: { orderId: string }) {
                   {item.allergens!.join(', ')}
                 </p>
               )}
+              {item.allergenCoverage === 'missing_recipe' && (
+                <p className="mt-1 flex items-start gap-1.5 text-xs font-semibold text-warning" role="alert">
+                  <AlertTriangle size={12} className="mt-px shrink-0" aria-hidden="true" />
+                  Allergen check incomplete — no recipe was recorded for this sold item.
+                </p>
+              )}
               {item.refundStatus && item.refundStatus !== 'none' && (
                 <p className="mt-1 text-xs text-exception">
                   {item.refundStatus === 'refunded' ? 'Refunded' : 'Partly refunded'}

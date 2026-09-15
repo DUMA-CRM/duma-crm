@@ -62,9 +62,11 @@ import {
   updateOrderStatus,
 } from '@/lib/api/orders.service';
 import { getStaff } from '@/lib/api/staff.service';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { cn } from '@/lib/utils/cn';
 import { formatDate, formatDateTime } from '@/lib/utils/date';
 import { timeAgo } from '@/lib/utils/format';
+import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -648,6 +650,7 @@ function ReceiptModal({ orderId, apiBase, onClose }: { orderId: string; apiBase:
 // ── Order detail panel ────────────────────────────────────────────────────────
 
 function OrderDetailPanel({ orderId }: { orderId: string }) {
+  const canRefund = hasCapability(useAuthStore((state) => state.capabilities), 'orders:refund');
   const [showReceipt, setShowReceipt] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
@@ -852,7 +855,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
             <Eye />
             View / Download Receipt
           </Button>
-          {data.status === 'done' && refundableAmount > 0 && (
+          {canRefund && data.status === 'done' && refundableAmount > 0 && (
             <Button variant="outline" size="sm" onClick={() => setShowRefund(true)} className="text-destructive">
               <Banknote />
               Refund
@@ -862,7 +865,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
       </div>
 
       {showReceipt && <ReceiptModal orderId={data.id} apiBase={API_PREFIX} onClose={() => setShowReceipt(false)} />}
-      {showRefund && <RefundModal order={data} refundable={refundableAmount} onClose={() => setShowRefund(false)} />}
+      {canRefund && showRefund && <RefundModal order={data} refundable={refundableAmount} onClose={() => setShowRefund(false)} />}
       {showEmail && data.customerId && (
         <SendEmailModal
           customerId={data.customerId}

@@ -216,6 +216,15 @@ function KdsCard({
                   Recipe allergens: {item.allergens.map((allergen) => allergen.replaceAll('_', ' ')).join(', ')}
                 </div>
               )}
+              {item.allergenCoverage === 'missing_recipe' && (
+                <div
+                  role="alert"
+                  className="mt-1.5 ml-6 flex items-start gap-1.5 rounded-sm border border-warning/60 bg-warning/6 px-2 py-1.5 text-xs font-semibold text-warning"
+                >
+                  <AlertTriangle size={13} className="mt-px shrink-0" aria-hidden="true" />
+                  Allergen check incomplete — this item had no recipe when it was sold.
+                </div>
+              )}
               {item.modifiers && item.modifiers.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1.5 pl-6">
                   {item.modifiers.map((modifier, index) => {

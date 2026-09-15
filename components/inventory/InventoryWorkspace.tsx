@@ -4,7 +4,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { Boxes, Building2, ClipboardCheck, ClipboardList, MapPin, Package, Plus, Truck, Users } from '@/components/icons';
+import { Boxes, Building2, ChefHat, ClipboardCheck, ClipboardList, MapPin, Package, Plus, Truck, Users } from '@/components/icons';
 import { RestockApprovals } from '@/components/inventory/RestockApprovals';
 import { RestockRequestForm } from '@/components/inventory/RestockRequestForm';
 import { StockOverview } from '@/components/inventory/StockOverview';
@@ -13,11 +13,13 @@ import { SuppliersPanel } from '@/components/purchasing/SuppliersPanel';
 import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { AttentionList } from '@/components/shared/AttentionList';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { StartStocktakeButton, StocktakePanel } from '@/components/stocktakes/StocktakePanel';
 import { Button } from '@/components/ui/button';
 
 import { type PurchaseOrderStatus, getPurchaseOrders, getSuppliers } from '@/lib/api/purchasing.service';
+import { getRecipeGaps } from '@/lib/api/recipes.service';
 import { type RestockRequest, type RestockStatus, getRestockRequests } from '@/lib/api/restock.service';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -57,6 +59,12 @@ export function InventoryWorkspace() {
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers'],
     queryFn: () => getSuppliers(true),
+    enabled: !!tenantId,
+  });
+
+  const recipeGaps = useQuery({
+    queryKey: ['menu-item-recipe-gaps', tenantId],
+    queryFn: () => getRecipeGaps(tenantId!),
     enabled: !!tenantId,
   });
 
@@ -196,6 +204,26 @@ export function InventoryWorkspace() {
         <EmptyState icon={Building2} title="No workspace selected" description="Select a workspace to manage inventory." />
       ) : (
         <div className="space-y-5">
+          {tab === 'stock' && (
+            <AttentionList
+              loading={recipeGaps.isPending}
+              error={recipeGaps.isError}
+              onRetry={() => void recipeGaps.refetch()}
+              clearTitle="Every available item has a recipe"
+              clearDescription="Stock use and allergen coverage can be calculated for every sale."
+              errorTitle="Recipe coverage could not be checked"
+              errorDescription="Stock remains usable, but missing recipes may be hidden until this check succeeds."
+              items={(recipeGaps.data ?? []).map((item) => ({
+                key: item.id,
+                icon: ChefHat,
+                label: `${item.name} has no recipe`,
+                detail: 'Its sales cannot deduct stock or produce a complete allergen result.',
+                tone: 'stock',
+                href: `/menu/items/${item.id}`,
+                actionLabel: 'Add recipe',
+              }))}
+            />
+          )}
           {tab === 'stock' ? (
             !locationId ? (
               <EmptyState

@@ -23,6 +23,7 @@ export interface OrderItem {
   notes?: string;
   refundStatus?: RefundStatus;
   allergens?: string[];
+  allergenCoverage?: 'complete' | 'missing_recipe';
   modifiers?: OrderItemModifier[];
 }
 
