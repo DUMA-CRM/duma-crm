@@ -16,6 +16,12 @@ test('a manager can open unplanned work from all locations and correct its date 
   await expect(page.getByRole('dialog', { name: 'Worked without a rota shift' })).toBeVisible();
   await expect(page.getByLabel('Date worked')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save correction' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Remove worked-time record' }).click();
+  const confirmation = page.getByRole('dialog', { name: 'Remove this worked-time record?' });
+  await expect(confirmation).toContainText('Any planned rota shift stays in place');
+  await expect(confirmation.getByRole('button', { name: 'Remove worked time' })).toBeVisible();
+  await confirmation.getByRole('button', { name: 'Cancel' }).click();
+  await expect(confirmation).not.toBeVisible();
 });
 
 test('record hours is a distinct flow and explains that it does not create rota work', async ({ page }) => {

@@ -46,7 +46,7 @@ import { Select } from '@/components/ui/select';
 
 import type { HrEmployee } from '@/lib/api/hr.service';
 import { type ScheduledShiftStatus, createScheduledShift, deleteScheduledShift, updateScheduledShift } from '@/lib/api/scheduling.service';
-import { type Shift, adjustShift, createManualShift } from '@/lib/api/shifts.service';
+import { type Shift, adjustShift, createManualShift, deleteShift } from '@/lib/api/shifts.service';
 import type { StaffProfile } from '@/lib/api/staff.service';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
@@ -113,11 +113,22 @@ type ClockResponse = Shift & { durationMinutes: number | null };
  * edited as a time of day and anchored to the day the entry started on, so an
  * end before the start rolls into the next morning.
  */
-function ClockEntryRow({ entry, canEdit, onSaved }: { entry: Shift; canEdit: boolean; onSaved: (shift: ClockResponse) => void }) {
+function ClockEntryRow({
+  entry,
+  canEdit,
+  onSaved,
+  onDeleted,
+}: {
+  entry: Shift;
+  canEdit: boolean;
+  onSaved: (shift: ClockResponse) => void;
+  onDeleted: (id: string) => void;
+}) {
   const originalDay = toDateInput(new Date(entry.clockedIn));
   const [day, setDay] = useState(originalDay);
   const [inTime, setInTime] = useState(toTimeInput(new Date(entry.clockedIn)));
   const [outTime, setOutTime] = useState(entry.clockedOut ? toTimeInput(new Date(entry.clockedOut)) : '');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const original = {
     in: toTimeInput(new Date(entry.clockedIn)),
@@ -138,6 +149,15 @@ function ClockEntryRow({ entry, canEdit, onSaved }: { entry: Shift; canEdit: boo
     onSuccess: (updated) => {
       toast('success', 'Clocked time updated.');
       onSaved(updated);
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: () => deleteShift(entry.id),
+    onSuccess: () => {
+      setConfirmDelete(false);
+      onDeleted(entry.id);
+      toast('success', 'Worked-time record removed.');
     },
   });
 
@@ -174,9 +194,20 @@ function ClockEntryRow({ entry, canEdit, onSaved }: { entry: Shift; canEdit: boo
           <span>Finished</span>
           <input type="time" value={outTime} onChange={(e) => setOutTime(e.target.value)} aria-label="Clocked out" className={inp} />
         </label>
-        <Button size="sm" onClick={() => adjust.mutate()} disabled={!dirty || adjust.isPending || missingFinish}>
-          {adjust.isPending ? 'Saving…' : 'Save correction'}
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button size="sm" onClick={() => adjust.mutate()} disabled={!dirty || adjust.isPending || missingFinish}>
+            {adjust.isPending ? 'Saving…' : 'Save correction'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setConfirmDelete(true)}
+            aria-label="Remove worked-time record"
+            disabled={remove.isPending}
+          >
+            <Trash2 size={15} className="text-destructive" />
+          </Button>
+        </div>
       </div>
       <div className="mt-2 flex items-center justify-between gap-3 text-xs">
         {minutes != null ? (
@@ -191,6 +222,30 @@ function ClockEntryRow({ entry, canEdit, onSaved }: { entry: Shift; canEdit: boo
         <p role="alert" className="mt-1.5 text-xs text-destructive">
           {(adjust.error as Error).message}
         </p>
+      )}
+      {confirmDelete && (
+        <ConfirmModal
+          title="Remove this worked-time record?"
+          message={
+            <>
+              <span className="block">
+                This removes the clock-in and clock-out from attendance and payroll calculations. Any planned rota shift stays in place.
+              </span>
+              {remove.error && (
+                <span role="alert" className="mt-2 block font-medium text-destructive">
+                  {(remove.error as Error).message}
+                </span>
+              )}
+            </>
+          }
+          confirmLabel="Remove worked time"
+          pendingLabel="Removing…"
+          isPending={remove.isPending}
+          onConfirm={() => remove.mutate()}
+          onClose={() => {
+            if (!remove.isPending) setConfirmDelete(false);
+          }}
+        />
       )}
     </div>
   );
@@ -318,6 +373,13 @@ function WorkedRecordDrawer({ record, canClock, onClose }: ShiftRecordDrawerProp
     qc.invalidateQueries({ queryKey: ['shifts-active'] });
     qc.invalidateQueries({ queryKey: ['variance'] });
   };
+  const applyClockDeletion = (id: string) => {
+    qc.setQueriesData<Shift[]>({ queryKey: ['shifts'] }, (list) => list?.filter((item) => item.id !== id));
+    qc.setQueriesData<Shift[]>({ queryKey: ['shifts-active'] }, (list) => list?.filter((item) => item.id !== id));
+    qc.invalidateQueries({ queryKey: ['shifts'] });
+    qc.invalidateQueries({ queryKey: ['shifts-active'] });
+    qc.invalidateQueries({ queryKey: ['variance'] });
+  };
 
   return (
     <Drawer title="Worked without a rota shift" description={`${record.staffName} · ${formatDate(record.at)}`} onClose={onClose}>
@@ -353,6 +415,7 @@ function WorkedRecordDrawer({ record, canClock, onClose }: ShiftRecordDrawerProp
                 entry={entry}
                 canEdit={canClock}
                 onSaved={applyClock}
+                onDeleted={applyClockDeletion}
               />
             ))}
           </div>
@@ -628,6 +691,13 @@ function PlannedShiftDrawer({
     qc.invalidateQueries({ queryKey: ['shifts-active'] });
     qc.invalidateQueries({ queryKey: ['variance'] });
   };
+  const applyClockDeletion = (id: string) => {
+    qc.setQueriesData<Shift[]>({ queryKey: ['shifts'] }, (list) => list?.filter((item) => item.id !== id));
+    qc.setQueriesData<Shift[]>({ queryKey: ['shifts-active'] }, (list) => list?.filter((item) => item.id !== id));
+    qc.invalidateQueries({ queryKey: ['shifts'] });
+    qc.invalidateQueries({ queryKey: ['shifts-active'] });
+    qc.invalidateQueries({ queryKey: ['variance'] });
+  };
 
   const startClock = useMutation({
     mutationFn: () =>
@@ -855,6 +925,7 @@ function PlannedShiftDrawer({
                         entry={entry}
                         canEdit={canClock}
                         onSaved={applyClock}
+                        onDeleted={applyClockDeletion}
                       />
                     ))}
                     <Hint tone={editing.startDeltaMinutes && editing.startDeltaMinutes > 5 ? 'warning' : 'success'}>

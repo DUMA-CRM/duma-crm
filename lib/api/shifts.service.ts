@@ -66,6 +66,8 @@ export const createManualShift = (data: ManualShiftPayload) =>
 export const adjustShift = (id: string, data: AdjustShiftPayload) =>
   apiFetch<Shift & { durationMinutes: number | null }>(`/shifts/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 
+export const deleteShift = (id: string) => apiFetch<{ success: true; id: string }>(`/shifts/${id}`, { method: 'DELETE' });
+
 export const getActiveShifts = () => apiFetch<Shift[]>('/shifts/active');
 
 export const getMyShifts = () => apiFetch<Shift[]>('/shifts/my');

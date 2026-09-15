@@ -6952,6 +6952,44 @@
             "required": true
           }
         ]
+      },
+      "delete": {
+        "operationId": "deleteV1ShiftsById",
+        "tags": [
+          "Shifts"
+        ],
+        "summary": "Remove a recorded shift",
+        "description": "Removes an accidental clock or manually recorded work period. Any linked rota shift remains in place. Refused once the employee has a finalised or issued payroll run covering the worked date. store_manager+ only.",
+        "responses": {
+          "200": {
+            "description": "Recorded shift removed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden — not your location"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "The worked date is locked by finalised or issued payroll"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
       }
     },
     "/v1/shifts/active": {
