@@ -10,12 +10,57 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('a manager can open unplanned work from all locations and correct its date or time', async ({ page }) => {
+  let createdPayload: Record<string, unknown> | undefined;
+  let linkedPayload: Record<string, unknown> | undefined;
+  await page.route('**/v1/scheduled-shifts', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    createdPayload = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: '44444444-4444-4444-8444-444444444444',
+        ...createdPayload,
+        createdAt: '2026-09-15T12:00:00.000Z',
+      }),
+    });
+  });
+  await page.route('**/v1/shifts/33333333-3333-4333-8333-333333333333', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    linkedPayload = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: '33333333-3333-4333-8333-333333333333',
+        userId: 'smoke-user',
+        locationId: '22222222-2222-4222-8222-222222222222',
+        clockedIn: '2026-09-14T08:02:00.000Z',
+        clockedOut: '2026-09-14T13:44:00.000Z',
+        scheduledShiftId: '44444444-4444-4444-8444-444444444444',
+        durationMinutes: 342,
+      }),
+    });
+  });
+
   await expect(page.getByRole('button', { name: 'Record hours' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Plan shift' })).toBeVisible();
   await page.getByRole('button', { name: /Open Sam Barista's shift/ }).click();
   await expect(page.getByRole('dialog', { name: 'Worked without a rota shift' })).toBeVisible();
   await expect(page.getByLabel('Date worked')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save correction' })).toBeDisabled();
+  const createMatching = page.getByRole('button', { name: 'Create matching rota shift' });
+  await expect(createMatching).toBeEnabled();
+  await createMatching.click();
+  await expect(page.getByText('Matching rota shift created and linked.')).toBeVisible();
+  expect(createdPayload).toMatchObject({
+    userId: 'smoke-user',
+    locationId: '22222222-2222-4222-8222-222222222222',
+    startsAt: '2026-09-14T08:02:00.000Z',
+    endsAt: '2026-09-14T13:44:00.000Z',
+    status: 'published',
+  });
+  expect(linkedPayload).toEqual({ scheduledShiftId: '44444444-4444-4444-8444-444444444444' });
   const removeButton = page.getByRole('button', { name: 'Remove worked-time record' });
   const entryCard = removeButton.locator('..').locator('..').locator('..');
   const [cardBox, removeBox] = await Promise.all([entryCard.boundingBox(), removeButton.boundingBox()]);

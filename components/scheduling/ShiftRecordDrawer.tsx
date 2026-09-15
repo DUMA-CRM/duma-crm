@@ -357,8 +357,11 @@ export function ShiftRecordDrawer(props: ShiftRecordDrawerProps) {
   return <PlannedShiftDrawer {...props} />;
 }
 
-function WorkedRecordDrawer({ record, canClock, onClose }: ShiftRecordDrawerProps & { record: ShiftRecord }) {
+function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftRecordDrawerProps & { record: ShiftRecord }) {
   const qc = useQueryClient();
+  const completedEntries = record.clocked.filter((entry) => entry.clockedOut);
+  const canCreateMatchingShift =
+    canClock && canPlan && Boolean(record.userId) && completedEntries.length > 0 && completedEntries.length === record.clocked.length;
   const applyClock = (next: ClockResponse) => {
     const row: Shift = { ...next, durationMinutes: next.durationMinutes ?? undefined };
     const upsert = (list: Shift[] | undefined) =>
@@ -383,14 +386,65 @@ function WorkedRecordDrawer({ record, canClock, onClose }: ShiftRecordDrawerProp
     qc.invalidateQueries({ queryKey: ['variance'] });
   };
 
+  const createMatchingShift = useMutation({
+    mutationFn: async () => {
+      const startsAt = record.clocked.reduce(
+        (earliest, entry) => (entry.clockedIn < earliest ? entry.clockedIn : earliest),
+        record.clocked[0]!.clockedIn,
+      );
+      const endsAt = completedEntries.reduce(
+        (latest, entry) => (entry.clockedOut! > latest ? entry.clockedOut! : latest),
+        completedEntries[0]!.clockedOut!,
+      );
+      const created = await createScheduledShift({
+        locationId: record.locationId,
+        userId: record.userId!,
+        startsAt,
+        endsAt,
+        role: record.role || undefined,
+        status: 'published',
+        notes: 'Created from recorded worked time.',
+      });
+
+      try {
+        await Promise.all(record.clocked.map((entry) => adjustShift(entry.id, { scheduledShiftId: created.id })));
+      } catch (error) {
+        // Avoid leaving a duplicate rota entry if linking the attendance fails.
+        await deleteScheduledShift(created.id).catch(() => undefined);
+        throw error;
+      }
+      return created;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['scheduled-shifts'] });
+      qc.invalidateQueries({ queryKey: ['shifts'] });
+      qc.invalidateQueries({ queryKey: ['variance'] });
+      toast('success', 'Matching rota shift created and linked.');
+    },
+  });
+
   return (
     <Drawer title="Worked without a rota shift" description={`${record.staffName} · ${formatDate(record.at)}`} onClose={onClose}>
       <div className="space-y-5">
-        <div className="rounded-sm border border-warning/30 bg-warning/6 px-4 py-3">
-          <p className="text-sm font-semibold text-foreground">Attendance recorded, no shift was planned</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Correct the worked date or times below. This does not create or change the rota.
-          </p>
+        <div className="flex flex-col gap-3 rounded-sm border border-warning/30 bg-warning/6 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">Attendance recorded, no shift was planned</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Correct the worked time below or create a published rota shift that matches it.
+            </p>
+          </div>
+          {canClock && canPlan && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1.5 self-start sm:self-auto"
+              onClick={() => createMatchingShift.mutate()}
+              disabled={!canCreateMatchingShift || createMatchingShift.isPending}
+            >
+              <CalendarDays size={14} aria-hidden="true" />
+              {createMatchingShift.isPending ? 'Creating…' : 'Create matching rota shift'}
+            </Button>
+          )}
         </div>
         <dl className="grid grid-cols-1 gap-3 rounded-sm border border-rule bg-band p-4 text-sm sm:grid-cols-2">
           <div>
@@ -422,6 +476,14 @@ function WorkedRecordDrawer({ record, canClock, onClose }: ShiftRecordDrawerProp
             ))}
           </div>
         </section>
+        {canClock && canPlan && !canCreateMatchingShift && record.clocked.some((entry) => !entry.clockedOut) && (
+          <Hint tone="muted">Clock out first, then you can create a rota shift matching the completed worked time.</Hint>
+        )}
+        {createMatchingShift.error && (
+          <p role="alert" className="text-sm text-destructive">
+            {(createMatchingShift.error as Error).message}
+          </p>
+        )}
         {!canClock && <Hint tone="muted">You can review this record, but your access does not allow attendance corrections.</Hint>}
       </div>
     </Drawer>
