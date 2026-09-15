@@ -4279,6 +4279,15 @@
                     "maxLength": 255,
                     "example": "Oat Milk"
                   },
+                  "barcode": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255,
+                    "example": "5012345678900",
+                    "description": "Product barcode, unique within the tenant"
+                  },
                   "unit": {
                     "type": "string",
                     "maxLength": 20,
@@ -4436,6 +4445,13 @@
                 "properties": {
                   "name": {
                     "type": "string",
+                    "maxLength": 255
+                  },
+                  "barcode": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
                     "maxLength": 255
                   },
                   "unit": {
@@ -8865,6 +8881,46 @@
           },
           "403": {
             "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/hr/employees/{userId}/anonymise": {
+      "post": {
+        "operationId": "postV1HrEmployeesByUserIdAnonymise",
+        "tags": [
+          "HR - Employees"
+        ],
+        "summary": "Anonymise a retained former employee",
+        "description": "Irreversibly removes direct identifiers after the recorded retention review date. It is refused while the employee is active or the review is not due.",
+        "responses": {
+          "200": {
+            "description": "Former employee anonymised, or already anonymised"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Employee is active or retention review is not due"
           },
           "429": {
             "description": "Too many requests — rate limited"
