@@ -181,6 +181,7 @@ export function AddItemDrawer({
   const qc = useQueryClient();
   const [stockItemId, setStockItemId] = useState('');
   const [newName, setNewName] = useState('');
+  const [newBarcode, setNewBarcode] = useState('');
   const [newUnit, setNewUnit] = useState('');
   const [newCategory, setNewCategory] = useState<StockItem['category']>('SUPPLY');
   const [newPerishable, setNewPerishable] = useState(false);
@@ -203,6 +204,7 @@ export function AddItemDrawer({
         const created = await createStockItem({
           tenantId: tenantId!,
           name: newName.trim(),
+          barcode: newBarcode.trim() || null,
           unit: newUnit.trim(),
           category: newCategory,
           isPerishable: newPerishable,
@@ -285,8 +287,8 @@ export function AddItemDrawer({
         </div>
 
         {creatingNew && (
-          <div className="flex gap-3">
-            <div className="flex-1">
+          <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3">
+            <div className="min-w-0">
               <Input
                 label="NAME"
                 value={newName}
@@ -309,6 +311,18 @@ export function AddItemDrawer({
                 }}
                 placeholder="litre"
                 error={errors.unit}
+              />
+            </div>
+            <div className="col-span-2">
+              <Input
+                label="BARCODE"
+                value={newBarcode}
+                onChange={(e) => setNewBarcode(e.target.value)}
+                placeholder="Scan or enter a product barcode"
+                maxLength={255}
+                inputMode="numeric"
+                autoComplete="off"
+                hint="Optional. Must be unique in this workspace."
               />
             </div>
           </div>
@@ -766,6 +780,7 @@ export function EditStockItemDrawer({
     StockItem,
     | 'id'
     | 'name'
+    | 'barcode'
     | 'unit'
     | 'category'
     | 'isPerishable'
@@ -781,6 +796,7 @@ export function EditStockItemDrawer({
   onSuccess: () => void;
 }) {
   const [name, setName] = useState(item.name);
+  const [barcode, setBarcode] = useState(item.barcode ?? '');
   const [unit, setUnit] = useState(item.unit);
   const [category, setCategory] = useState(item.category);
   const [isPerishable, setIsPerishable] = useState(item.isPerishable);
@@ -795,6 +811,7 @@ export function EditStockItemDrawer({
     mutationFn: () =>
       updateStockItem(item.id, {
         name: name.trim(),
+        barcode: barcode.trim() || null,
         unit: unit.trim(),
         category,
         isPerishable,
@@ -836,6 +853,16 @@ export function EditStockItemDrawer({
         className="space-y-4"
       >
         <Input label="NAME" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+        <Input
+          label="BARCODE"
+          value={barcode}
+          onChange={(e) => setBarcode(e.target.value)}
+          placeholder="Scan or enter a product barcode"
+          maxLength={255}
+          inputMode="numeric"
+          autoComplete="off"
+          hint="Optional. Must be unique in this workspace."
+        />
         <Input
           label="UNIT"
           value={unit}

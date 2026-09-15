@@ -52,6 +52,7 @@ export interface StockItem {
   id: string;
   tenantId: string;
   name: string;
+  barcode?: string | null;
   unit: string;
   category: InventoryCategory;
   isPerishable: boolean;
@@ -74,6 +75,7 @@ export interface StockItem {
 export interface StockItemPayload {
   tenantId: string;
   name: string;
+  barcode?: string | null;
   unit: string;
   category?: InventoryCategory;
   isPerishable?: boolean;
