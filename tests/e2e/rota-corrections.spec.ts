@@ -16,7 +16,14 @@ test('a manager can open unplanned work from all locations and correct its date 
   await expect(page.getByRole('dialog', { name: 'Worked without a rota shift' })).toBeVisible();
   await expect(page.getByLabel('Date worked')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save correction' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Remove worked-time record' }).click();
+  const removeButton = page.getByRole('button', { name: 'Remove worked-time record' });
+  const entryCard = removeButton.locator('..').locator('..').locator('..');
+  const [cardBox, removeBox] = await Promise.all([entryCard.boundingBox(), removeButton.boundingBox()]);
+  expect(cardBox).not.toBeNull();
+  expect(removeBox).not.toBeNull();
+  expect(cardBox!.x + cardBox!.width - (removeBox!.x + removeBox!.width)).toBeGreaterThanOrEqual(8);
+
+  await removeButton.click();
   const confirmation = page.getByRole('dialog', { name: 'Remove this worked-time record?' });
   await expect(confirmation).toContainText('Any planned rota shift stays in place');
   await expect(confirmation.getByRole('button', { name: 'Remove worked time' })).toBeVisible();

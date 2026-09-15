@@ -181,7 +181,7 @@ function ClockEntryRow({
 
   return (
     <div className="rounded-sm border border-rule bg-card p-3">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(8.5rem,1fr)_6.75rem_6.75rem_auto] sm:items-end">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(10rem,1fr)_7rem_7rem] sm:items-end">
         <div className="space-y-1 text-xs font-medium text-muted-foreground">
           <span>Date</span>
           <DatePicker value={day} onValueChange={setDay} aria-label="Date worked" />
@@ -194,7 +194,17 @@ function ClockEntryRow({
           <span>Finished</span>
           <input type="time" value={outTime} onChange={(e) => setOutTime(e.target.value)} aria-label="Clocked out" className={inp} />
         </label>
-        <div className="flex items-center gap-1.5">
+      </div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          {minutes != null ? (
+            <span className="tabular-nums text-muted-foreground">{fmtDuration(minutes)} worked</span>
+          ) : (
+            <Badge variant="primary">Running</Badge>
+          )}
+          {dirty && !missingFinish && <span className="text-primary">Unsaved correction</span>}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
           <Button size="sm" onClick={() => adjust.mutate()} disabled={!dirty || adjust.isPending || missingFinish}>
             {adjust.isPending ? 'Saving…' : 'Save correction'}
           </Button>
@@ -208,14 +218,6 @@ function ClockEntryRow({
             <Trash2 size={15} className="text-destructive" />
           </Button>
         </div>
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-3 text-xs">
-        {minutes != null ? (
-          <span className="tabular-nums text-muted-foreground">{fmtDuration(minutes)} worked</span>
-        ) : (
-          <Badge variant="primary">Running</Badge>
-        )}
-        {dirty && !missingFinish && <span className="text-primary">Unsaved correction</span>}
       </div>
       {missingFinish && <p className="mt-1.5 text-xs text-destructive">A completed work period needs a finish time.</p>}
       {adjust.error && (
