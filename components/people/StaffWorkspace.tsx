@@ -1,11 +1,11 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Banknote, CalendarDays, CalendarRange, CircleHelp, LayoutDashboard, Lock, Plus, UsersRound } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { HelpdeskBoard, type HelpdeskFilters } from '@/components/helpdesk/HelpdeskBoard';
+import { Banknote, CalendarDays, CalendarRange, CircleHelp, Clock, LayoutDashboard, Lock, Plus, UsersRound } from '@/components/icons';
 import { PayrollHistoryPanel } from '@/components/payroll/PayrollHistoryPanel';
 import { RunPayrollPanel } from '@/components/payroll/RunPayrollPanel';
 import { LeaveInbox } from '@/components/people/HrInbox';
@@ -15,7 +15,7 @@ import { StaffOverview } from '@/components/people/StaffOverview';
 import { ShiftsWorkspace } from '@/components/scheduling/ShiftsWorkspace';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { SectionTabs, type SectionTab } from '@/components/shared/SectionTabs';
+import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
 
@@ -62,12 +62,13 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
 
   const canOnboard = hasCapability(capabilities, 'staff:onboard');
   const canWriteRota = hasCapability(capabilities, 'scheduling:write');
+  const canCorrectHours = hasCapability(capabilities, 'shifts:write');
   // Read without write is the auditor's whole point: they see payroll history
   // and never reach the panel that creates a run.
   const canRunPayroll = hasCapability(capabilities, 'hr.payroll:write');
 
   const [onboarding, setOnboarding] = useState(false);
-  const [newShift, setNewShift] = useState(false);
+  const [newShift, setNewShift] = useState<'planned' | 'worked' | null>(null);
   const [leaveStatus, setLeaveStatus] = useState('pending');
   // Not `useState(canRunPayroll ? 'run' : 'history')`: `capabilities` arrives
   // with the session, so on the first render it is empty, the initialiser —
@@ -137,7 +138,17 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
     }
     if (canPayroll) list.push({ value: 'payroll', label: 'Payroll', icon: Banknote });
     return list;
-  }, [canTeam, canRota, canLeave, canHelpdesk, canPayroll, pendingLeaveQuery.data, pendingLeaveQuery.isError, openTicketsQuery.data, openTicketsQuery.isError]);
+  }, [
+    canTeam,
+    canRota,
+    canLeave,
+    canHelpdesk,
+    canPayroll,
+    pendingLeaveQuery.data,
+    pendingLeaveQuery.isError,
+    openTicketsQuery.data,
+    openTicketsQuery.isError,
+  ]);
 
   // Capabilities arrive with the session; an empty list means "not loaded yet",
   // not "holds nothing", so the locked state waits for it.
@@ -165,12 +176,23 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
             <Plus size={15} />
             <span className="hidden md:inline">Onboard</span>
           </Button>
-        ) : active === 'rota' && canWriteRota ? (
-          <Button className="h-9 gap-1.5" onClick={() => setNewShift(true)}>
-            <Plus size={15} />
-            <span className="hidden md:inline">New shift</span>
-            <span className="md:hidden">New</span>
-          </Button>
+        ) : active === 'rota' && (canWriteRota || canCorrectHours) ? (
+          <div className="flex items-center gap-2">
+            {canCorrectHours && (
+              <Button variant="outline" className="h-9 gap-1.5" onClick={() => setNewShift('worked')}>
+                <Clock size={15} />
+                <span className="hidden md:inline">Record hours</span>
+                <span className="md:hidden">Hours</span>
+              </Button>
+            )}
+            {canWriteRota && (
+              <Button className="h-9 gap-1.5" onClick={() => setNewShift('planned')}>
+                <Plus size={15} />
+                <span className="hidden md:inline">Plan shift</span>
+                <span className="md:hidden">Shift</span>
+              </Button>
+            )}
+          </div>
         ) : active === 'payroll' && canRunPayroll ? (
           <SegmentedControl
             options={[

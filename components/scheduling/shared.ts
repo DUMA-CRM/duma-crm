@@ -182,13 +182,13 @@ export const dayKey = (iso: string) => toDateInput(new Date(iso));
 export function workStateOf(shift: ScheduledShift | null, variance: VarianceRow | undefined, clocked: Shift[], now: number): WorkState {
   if (shift?.status === 'cancelled') return 'cancelled';
   if (clocked.some((c) => !c.clockedOut)) return 'running';
+  if (clocked.length > 0) return 'completed';
   if (variance) {
     if (variance.status === 'worked') return 'completed';
     if (variance.status === 'in_progress') return 'running';
     // The API only calls a no-show once the window has closed.
     return 'no_show';
   }
-  if (clocked.length > 0) return 'completed';
   if (shift && new Date(shift.endsAt).getTime() < now) return 'no_show';
   return 'scheduled';
 }

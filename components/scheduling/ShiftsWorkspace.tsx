@@ -37,10 +37,11 @@ import { getPayrollRuns } from '@/lib/api/payroll.service';
 import { getScheduledShifts, getVariance, publishScheduledShifts } from '@/lib/api/scheduling.service';
 import { type Shift, getActiveShifts, getShifts } from '@/lib/api/shifts.service';
 import { getStaff } from '@/lib/api/staff.service';
-import { hasCapability } from '@/lib/auth/capabilities';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
+import { reconcileClockEntries } from '@/lib/utils/shift-reconciliation';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -110,17 +111,18 @@ const STATE_FILTERS: { value: 'all' | WorkState; label: string }[] = [
  * row opens the record drawer, which is also where new records are created.
  */
 export function ShiftsWorkspace({
-  creating = false,
+  creating = null,
   onCreatingChange,
 }: {
-  creating?: boolean;
-  onCreatingChange?: (open: boolean) => void;
+  creating?: 'planned' | 'worked' | null;
+  onCreatingChange?: (open: 'planned' | 'worked' | null) => void;
 }) {
   const { tenantId, locationId } = useWorkspaceStore();
   const qc = useQueryClient();
   const capabilities = useAuthStore((s) => s.capabilities);
   // Hourly rates and shift cost, not "is this a senior account".
   const money = hasCapability(capabilities, 'hr.sensitive:read');
+  const canPlan = hasCapability(capabilities, 'scheduling:write');
   // Running the clock for someone else is a write on another person's shift —
   // distinct from clocking yourself in, which needs no capability at all.
   const canClock = hasCapability(capabilities, 'shifts:write');
@@ -137,7 +139,7 @@ export function ShiftsWorkspace({
 
   function closeDrawer() {
     setOpenRow(null);
-    onCreatingChange?.(false);
+    onCreatingChange?.(null);
   }
 
   // Ticks so a running shift's elapsed time stays honest.
@@ -209,14 +211,14 @@ export function ShiftsWorkspace({
     refetch: refetchShifts,
   } = useQuery({
     queryKey: ['scheduled-shifts', locationId, fromISO, toISO],
-    queryFn: () => getScheduledShifts({ locationId: locationId!, from: fromISO, to: toISO }),
-    enabled: !!locationId,
+    queryFn: () => getScheduledShifts({ locationId: locationId ?? undefined, from: fromISO, to: toISO }),
+    enabled: !!tenantId,
   });
   // Planned-vs-actual, joined into each row by scheduledShiftId.
   const { data: variance = [] } = useQuery({
     queryKey: ['variance', locationId, fromISO, toISO],
     queryFn: () => getVariance({ locationId: locationId ?? undefined, from: fromISO, to: toISO }),
-    enabled: !!locationId,
+    enabled: !!tenantId,
   });
   const { data: active = [] } = useQuery({ queryKey: ['shifts-active'], queryFn: getActiveShifts, refetchInterval: 60_000 });
   // Exact clock in/out times. store_manager+ on the API — a 403 (hr_manager)
@@ -251,6 +253,8 @@ export function ShiftsWorkspace({
     return [...byId.values()].sort((a, b) => a.clockedIn.localeCompare(b.clockedIn));
   }, [clockRecords, active, fromISO, toISO, locationId]);
 
+  const reconciledClock = useMemo(() => reconcileClockEntries(shifts, clockedInRange), [shifts, clockedInRange]);
+
   const paidDays = useMemo(() => {
     const set = new Set<string>();
     for (const run of payrollRuns) {
@@ -273,7 +277,6 @@ export function ShiftsWorkspace({
   // ── Rows ────────────────────────────────────────────────────────────────────
 
   const records = useMemo<ShiftRecord[]>(() => {
-    const used = new Set<string>();
     const rows: ShiftRecord[] = [];
 
     const build = (base: Omit<ShiftRecord, 'paidMinutes' | 'estimatedCost' | 'billState' | 'hourlyRate' | 'unpaidBreakMinutes'>) => {
@@ -296,11 +299,7 @@ export function ShiftsWorkspace({
 
     for (const shift of shifts) {
       const day = dayKey(shift.startsAt);
-      const clocked = clockedInRange.filter(
-        (entry) =>
-          entry.scheduledShiftId === shift.id || (!!shift.userId && entry.userId === shift.userId && dayKey(entry.clockedIn) === day),
-      );
-      for (const entry of clocked) used.add(entry.id);
+      const clocked = reconciledClock.byShiftId.get(shift.id) ?? [];
       const v = varianceMap.get(shift.id);
       const clockedMinutes = clocked.reduce(
         (sum, entry) =>
@@ -326,16 +325,17 @@ export function ShiftsWorkspace({
         shift,
         clocked,
         plannedMinutes: shiftMinutes(shift),
-        workedMinutes: v?.workedMinutes ?? clockedMinutes,
-        startDeltaMinutes: v?.startDeltaMinutes ?? null,
+        workedMinutes: clocked.length > 0 ? clockedMinutes : (v?.workedMinutes ?? 0),
+        startDeltaMinutes:
+          v?.startDeltaMinutes ??
+          (clocked[0] ? Math.round((new Date(clocked[0].clockedIn).getTime() - new Date(shift.startsAt).getTime()) / 60_000) : null),
         state: workStateOf(shift, v, clocked, now),
       });
     }
 
     // Attendance with no rota entry — grouped one row per person per day.
     const unplanned = new Map<string, Shift[]>();
-    for (const entry of clockedInRange) {
-      if (used.has(entry.id)) continue;
+    for (const entry of reconciledClock.unplanned) {
       const key = `${entry.userId}|${dayKey(entry.clockedIn)}`;
       unplanned.set(key, [...(unplanned.get(key) ?? []), entry]);
     }
@@ -370,7 +370,7 @@ export function ShiftsWorkspace({
     }
 
     return rows;
-  }, [shifts, clockedInRange, varianceMap, staffById, employeesByUser, locationById, isPaid, now]);
+  }, [shifts, reconciledClock, varianceMap, staffById, employeesByUser, locationById, isPaid, now]);
 
   // "Create a new record" lives in the page header, so creating is a controlled
   // prop — an open row wins over it. Re-reading the row from `records` on every
@@ -382,7 +382,7 @@ export function ShiftsWorkspace({
       if (!record && openRow.mode === 'edit') return null;
       return { mode: openRow.mode, record, date: openRow.date };
     }
-    return creating ? { mode: 'create' } : null;
+    return creating ? { mode: 'create', createKind: creating } : null;
   }, [openRow, records, creating]);
 
   const filtered = useMemo(() => {
@@ -499,8 +499,8 @@ export function ShiftsWorkspace({
     },
     {
       id: 'clocked',
-      header: 'Clocked',
-      visibility: 'lg',
+      header: 'Worked',
+      visibility: 'md',
       wrap: 'nowrap',
       cell: ({ row }) => {
         if (row.clocked.length === 0) return <span className="text-xs text-muted-foreground/60">—</span>;
@@ -516,7 +516,7 @@ export function ShiftsWorkspace({
     },
     {
       id: 'hours',
-      header: 'Total hour(s)',
+      header: 'Worked total',
       width: 'fit',
       wrap: 'nowrap',
       cell: ({ row }) =>
@@ -535,7 +535,7 @@ export function ShiftsWorkspace({
     },
     {
       id: 'state',
-      header: 'Task status',
+      header: 'Attendance',
       width: 'fit',
       cell: ({ row }) => (
         <span className="flex items-center gap-1.5">
@@ -765,7 +765,7 @@ export function ShiftsWorkspace({
               />
             )
           }
-          onRowClick={({ row }) => setOpenRow({ mode: row.shift ? 'edit' : 'create', id: row.id, date: row.dateKey })}
+          onRowClick={({ row }) => setOpenRow({ mode: 'edit', id: row.id, date: row.dateKey })}
           rowAriaLabel={({ row }) => `Open ${row.staffName}'s shift on ${row.dateKey}`}
         />
 
@@ -794,9 +794,7 @@ export function ShiftsWorkspace({
                     aria-current={n === currentPage ? 'page' : undefined}
                     className={cn(
                       'size-8 rounded-sm text-sm font-medium tabular-nums transition-colors',
-                      n === currentPage
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:bg-band hover:text-foreground',
+                      n === currentPage ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-band hover:text-foreground',
                     )}
                   >
                     {n}
@@ -817,18 +815,19 @@ export function ShiftsWorkspace({
         </div>
       </div>
 
-      {drawer && locationId && (
+      {drawer && (
         // Keyed by the row so switching records re-seeds the form, while a
         // refetch of the same record only updates it.
         <ShiftRecordDrawer
           key={openRow?.id ?? 'new-record'}
           target={drawer}
-          defaultLocationId={locationId}
+          defaultLocationId={drawer.record?.locationId ?? locationId ?? ''}
           locations={locations}
           staff={staff}
           employeesByUser={employeesByUser}
           money={money}
           canClock={canClock}
+          canPlan={canPlan}
           onClose={closeDrawer}
         />
       )}
