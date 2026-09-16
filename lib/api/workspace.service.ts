@@ -28,6 +28,7 @@ export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 // `null` for a day = closed. Times are local "HH:MM" (24h).
 export type DayHours = { open: string; close: string } | null;
 export type OpeningHours = Record<Weekday, DayHours>;
+export type OrderFulfilmentMode = 'kitchen' | 'counter';
 
 export const WEEKDAYS: { key: Weekday; label: string }[] = [
   { key: 'mon', label: 'Monday' },
@@ -47,6 +48,7 @@ export interface Location {
   timezone: string;
   phone?: string;
   openingHours?: OpeningHours | null;
+  orderFulfilmentMode: OrderFulfilmentMode;
   /** Net revenue this site aims to take in a trading day. Serialised as a numeric string. */
   dailyRevenueTarget?: string | null;
   isActive: boolean;
@@ -60,6 +62,7 @@ export interface LocationPayload {
   timezone: string;
   phone?: string;
   openingHours?: OpeningHours | null;
+  orderFulfilmentMode?: OrderFulfilmentMode;
   dailyRevenueTarget?: number | null;
   isActive?: boolean;
 }

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import {
   type Location,
   type LocationPayload,
+  type OrderFulfilmentMode,
   type OpeningHours,
   WEEKDAYS,
   createLocation,
@@ -66,6 +67,7 @@ function LocationForm({
   const [timezone, setTimezone] = useState(initial?.timezone ?? 'Europe/London');
   const [phone, setPhone] = useState(initial?.phone ?? '');
   const [hours, setHours] = useState<OpeningHours>(normaliseHours(initial?.openingHours));
+  const [orderFulfilmentMode, setOrderFulfilmentMode] = useState<OrderFulfilmentMode>(initial?.orderFulfilmentMode ?? 'kitchen');
   const [dailyTarget, setDailyTarget] = useState(initial?.dailyRevenueTarget != null ? String(Number(initial.dailyRevenueTarget)) : '');
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
 
@@ -96,6 +98,7 @@ function LocationForm({
           timezone,
           phone: phone || undefined,
           openingHours: hours,
+          orderFulfilmentMode,
           // Empty clears the target rather than storing a zero, which the
           // dashboard would otherwise read as "aiming for nothing".
           dailyRevenueTarget: dailyTarget.trim() === '' ? null : Number(dailyTarget),
@@ -111,6 +114,25 @@ function LocationForm({
         <TimezoneSelect value={timezone} onChange={setTimezone} required inputClassName={inputClass} placeholder="Search timezone…" />
       </div>
       <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+44 20 1234 5678" maxLength={30} />
+
+      <div>
+        <label className="mb-1.5 block text-label uppercase text-muted-foreground" htmlFor="order-fulfilment-mode">
+          Order workflow
+        </label>
+        <select
+          id="order-fulfilment-mode"
+          value={orderFulfilmentMode}
+          onChange={(e) => setOrderFulfilmentMode(e.target.value as OrderFulfilmentMode)}
+          className={inputClass}
+        >
+          <option value="kitchen">Kitchen workflow</option>
+          <option value="counter">No kitchen / counter service</option>
+        </select>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          Counter service completes a staff POS sale when payment succeeds, deducting stock and awarding loyalty immediately. Kitchen
+          workflow keeps the paid ticket open for KDS.
+        </p>
+      </div>
 
       {/* Working hours */}
       <div>
@@ -365,6 +387,9 @@ export function LocationList() {
                     </div>
                     <p className="truncate text-xs text-muted-foreground">{loc.address}</p>
                     {loc.phone && <p className="truncate text-xs text-muted-foreground">{loc.phone}</p>}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {loc.orderFulfilmentMode === 'counter' ? 'Counter service · completes when paid' : 'Kitchen workflow'}
+                    </p>
                   </div>
                   {/* Actions — always visible on touch, hover-revealed on desktop */}
                   <div className="flex shrink-0 gap-1 transition-opacity lg:opacity-0 lg:group-focus-within:opacity-100 lg:group-hover:opacity-100">
