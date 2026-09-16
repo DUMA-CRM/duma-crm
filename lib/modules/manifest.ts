@@ -93,12 +93,12 @@ const pages: Record<ModuleId, readonly string[]> = {
 
 const dependencies: Record<ModuleId, readonly ModuleId[]> = {
   core: [],
-  identity: ['core'],
-  organization: ['identity'],
+  identity: ['organization'],
+  organization: ['core'],
   customers: ['organization'],
   catalog: ['organization'],
-  ordering: ['catalog', 'customers'],
-  payments: ['ordering'],
+  ordering: ['catalog', 'customers', 'inventory', 'organization'],
+  payments: ['identity', 'ordering'],
   inventory: ['catalog', 'organization'],
   purchasing: ['inventory'],
   workforce: ['identity', 'organization'],
@@ -107,7 +107,7 @@ const dependencies: Record<ModuleId, readonly ModuleId[]> = {
   compliance: ['customers', 'identity'],
   analytics: ['ordering'],
   agent: ['core'],
-  support: ['identity'],
+  support: ['identity', 'organization'],
 };
 
 const navigation: Record<ModuleId, readonly string[]> = {
