@@ -37,6 +37,7 @@ import type { Location } from '@/lib/api/workspace.service';
 import { auditChangeSet, auditSubject } from '@/lib/audit/change';
 import { auditActor, auditPhrase, auditRole, auditSeverity, resourceLabel, severityLabel } from '@/lib/audit/narrative';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
+import { isModuleSurfaceEnabled, MODULE_IDS, type ModuleId } from '@/lib/modules/manifest';
 import {
   attendanceTotals,
   groupAttendanceByWeek,
@@ -76,16 +77,19 @@ export interface ToolResult {
   cards?: AgentCard[];
 }
 
-export interface ToolDefinition {
+interface ToolDefinitionBase {
   name: string;
   description: string;
-  /** Capability required to offer this tool. Omit when every signed-in user may use it. */
-  capability?: Capability;
   parameters: JsonObject;
   /** Short present-tense line shown while the tool runs. */
   step: string;
   run(args: JsonObject, runtime: AgentRuntime): Promise<ToolResult>;
 }
+
+export type ToolDefinition = ToolDefinitionBase & (
+  | { capability: Capability; module?: never }
+  | { capability?: never; module: ModuleId }
+);
 
 function schema(properties: JsonObject): JsonObject {
   return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
@@ -127,6 +131,7 @@ function trendOf(change: number | null) {
 // ── Product documentation ────────────────────────────────────────────────────
 
 const searchSupport: ToolDefinition = {
+  module: 'support',
   name: 'search_support',
   description:
     'Search DUMA product documentation. Use for questions about how the app works, workflows, setup, or why a screen behaves a certain way.',
@@ -189,6 +194,7 @@ function tradingHours(location: Location) {
 }
 
 const listLocations: ToolDefinition = {
+  module: 'organization',
   name: 'list_locations',
   description:
     'List the locations the operator can access, with their address, phone, timezone and trading hours — today’s opening and closing time, whether the site is open right now, and the full weekly pattern. Use this for any question about when a site opens or closes.',
@@ -329,6 +335,7 @@ const listSuppliers: ToolDefinition = {
 };
 
 const listStockItems: ToolDefinition = {
+  module: 'inventory',
   name: 'list_stock_items',
   description: 'Find active stock items with their units, last known costs and default reorder quantities.',
   // No capability — GET /stock-items is authenticated but ungated on the API.
@@ -371,6 +378,7 @@ const listStockItems: ToolDefinition = {
 };
 
 const listMenuItems: ToolDefinition = {
+  module: 'catalog',
   name: 'list_menu_items',
   description: 'List menu items with their brand-wide price, category and availability.',
   // No capability — the menu is readable by every signed-in user.
@@ -1634,6 +1642,7 @@ const getPayrollOverview: ToolDefinition = {
 };
 
 const getMyWorkspace: ToolDefinition = {
+  module: 'people',
   name: 'get_my_workspace',
   description:
     'Read the signed-in operator’s own Dashboard and My HR summary: current and upcoming shifts, leave balance, HR warnings, documents and support requests. Use for broad questions about my workday, my leave, my rota, or what needs my attention. For a simple name, address, emergency-contact or personal-details question, use get_my_profile instead. DUMA does not hold payslips or expense claims — say so rather than guessing.',
@@ -1771,6 +1780,7 @@ const getMyWorkspace: ToolDefinition = {
 };
 
 const getMyProfile: ToolDefinition = {
+  module: 'people',
   name: 'get_my_profile',
   description:
     'Read only the signed-in operator’s basic employment and editable personal-detail status. Always use this for questions about my name, my address, my emergency contact, my National Insurance number, or where to edit my personal details. This intentionally excludes documents and private HR requests.',
@@ -1802,6 +1812,7 @@ const getMyProfile: ToolDefinition = {
 // ── My HR: attendance and pay ────────────────────────────────────────────────
 
 const getMyAttendance: ToolDefinition = {
+  module: 'people',
   name: 'get_my_attendance',
   description:
     'Read the signed-in operator’s own attendance for a period: hours worked against hours rostered, the shortfall or overtime, each working day, and any absence logged against them. Use for "how many hours did I work", "was I short last month", "when did I clock in", "what absence is on my record". Defaults to the current calendar month.',
@@ -1895,11 +1906,17 @@ export const TOOLS: ToolDefinition[] = [
 
 const TOOL_BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
 
-export function toolsForCapabilities(capabilities: readonly string[]) {
+export function toolsForCapabilities(
+  capabilities: readonly string[],
+  enabledModuleIds: readonly ModuleId[] = MODULE_IDS,
+) {
   // A tool with no capability is open to everyone; otherwise the caller must
   // hold it. The API re-checks on every call the tool makes — this only decides
   // which tools the model is even offered, so it cannot be the security boundary.
-  return TOOLS.filter((tool) => !tool.capability || hasCapability(capabilities, tool.capability));
+  return TOOLS.filter((tool) => {
+    if (tool.capability && !hasCapability(capabilities, tool.capability)) return false;
+    return isModuleSurfaceEnabled(tool, enabledModuleIds);
+  });
 }
 
 export function toolByName(name: string) {

@@ -1,11 +1,61 @@
-import { FRONTEND_CAPABILITIES, type Capability } from '../auth/capabilities.ts';
-
 export const MODULE_IDS = [
   'core', 'identity', 'organization', 'customers', 'catalog', 'ordering', 'payments', 'inventory',
   'purchasing', 'workforce', 'people', 'communications', 'compliance', 'analytics', 'agent', 'support',
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];
+
+/** CRM surfaces and Ask DUMA derive their vocabulary from module contributions. */
+export const CRM_MODULE_CAPABILITIES = {
+  core: [],
+  identity: ['staff:read', 'staff:access', 'staff:onboard'],
+  organization: ['locations:write', 'locations:targets', 'tenants:read', 'settings:write'],
+  customers: [
+    'customers:read', 'customers:write', 'customers:points', 'customers:merge', 'customers:erase',
+    'customers.consent:read', 'customers.consent:write', 'segments:read', 'segments:write', 'segments:send',
+  ],
+  catalog: ['menu:write', 'recipes:write'],
+  ordering: ['orders:create', 'orders:read', 'orders:status', 'orders:refund', 'orders:bulk', 'qr-ordering:read', 'qr-ordering:write'],
+  payments: ['payments.connections:write', 'cashups:read'],
+  inventory: [
+    'stock:read', 'stock.transfers:write', 'stock.locations:write', 'inventory:read',
+    'stocktakes:read', 'loss:read', 'loss:write', 'restock:read', 'restock:write',
+    'restock:delete', 'forecast:read',
+  ],
+  purchasing: ['suppliers:read', 'purchasing:read', 'purchasing:write'],
+  workforce: ['scheduling:read', 'scheduling:write', 'shifts:read', 'shifts:write'],
+  people: [
+    'hr.people:read', 'hr.sensitive:read', 'hr.sensitive:write', 'hr.leave:read',
+    'hr.leave:review', 'hr.attendance:read', 'hr.payroll:read', 'hr.payroll:write',
+    'hr.documents:read',
+  ],
+  communications: ['email:read', 'email:send', 'email.connections:write'],
+  compliance: ['privacy:read', 'audit:read'],
+  analytics: ['analytics:read'],
+  agent: [],
+  support: ['helpdesk:manage'],
+} as const satisfies Record<ModuleId, readonly string[]>;
+
+type CrmCapabilityRegistry = typeof CRM_MODULE_CAPABILITIES;
+export type Capability = CrmCapabilityRegistry[keyof CrmCapabilityRegistry][number];
+export const FRONTEND_CAPABILITIES: readonly Capability[] = Object.values(CRM_MODULE_CAPABILITIES).flat();
+
+export function moduleForCapability(capability: Capability): ModuleId {
+  const owner = MODULE_IDS.find((moduleId) =>
+    (CRM_MODULE_CAPABILITIES[moduleId] as readonly string[]).includes(capability),
+  );
+  if (!owner) throw new Error(`Capability has no CRM module owner: ${capability}`);
+  return owner;
+}
+
+export function isModuleSurfaceEnabled(
+  access: { capability?: Capability; module?: ModuleId },
+  enabledModuleIds: readonly ModuleId[] = MODULE_IDS,
+): boolean {
+  const moduleId = access.capability ? moduleForCapability(access.capability) : access.module;
+  if (!moduleId) throw new Error('A module surface must declare a capability or module');
+  return enabledModuleIds.includes(moduleId);
+}
 
 export interface ModuleManifest {
   readonly id: ModuleId;
@@ -60,25 +110,6 @@ const dependencies: Record<ModuleId, readonly ModuleId[]> = {
   support: ['identity'],
 };
 
-const capabilityOwners: Record<ModuleId, readonly RegExp[]> = {
-  core: [],
-  identity: [/^staff:/],
-  organization: [/^(?:locations|tenants|settings):/],
-  customers: [/^customers(?::|\.)/, /^segments:/],
-  catalog: [/^(?:menu|recipes):/],
-  ordering: [/^orders:/, /^qr-ordering:/],
-  payments: [/^payments(?::|\.)/, /^cashups:/],
-  inventory: [/^stock(?::|\.)/, /^inventory:/, /^stocktakes:/, /^loss:/, /^restock:/, /^forecast:/],
-  purchasing: [/^suppliers:/, /^purchasing:/],
-  workforce: [/^shifts:/, /^scheduling:/],
-  people: [/^hr\./],
-  communications: [/^email(?::|\.)/],
-  compliance: [/^privacy:/, /^audit:/],
-  analytics: [/^analytics:/],
-  agent: [],
-  support: [/^helpdesk:/],
-};
-
 const navigation: Record<ModuleId, readonly string[]> = {
   core: [], identity: [], organization: ['/settings'], customers: ['/customers'], catalog: ['/menu'],
   ordering: ['/pos', '/kds', '/orders'], payments: [], inventory: ['/inventory'], purchasing: [],
@@ -86,15 +117,11 @@ const navigation: Record<ModuleId, readonly string[]> = {
   compliance: ['/compliance', '/audit-log'], analytics: ['/dashboard', '/reports'], agent: [], support: ['/support'],
 };
 
-const capabilitiesFor = (id: ModuleId): Capability[] => FRONTEND_CAPABILITIES.filter((entry) =>
-  capabilityOwners[id].some((pattern) => pattern.test(entry)),
-);
-
 export const CRM_MODULE_MANIFESTS: readonly ModuleManifest[] = MODULE_IDS.map((id) => ({
   id,
   version: 1,
   dependencies: dependencies[id],
-  capabilities: capabilitiesFor(id),
+  capabilities: CRM_MODULE_CAPABILITIES[id],
   navigation: navigation[id],
   routes: pages[id],
   widgets: [],

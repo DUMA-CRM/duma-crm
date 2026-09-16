@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 import test from 'node:test';
 
 import { FRONTEND_CAPABILITIES } from '../lib/auth/capabilities.ts';
-import { CRM_MODULE_MANIFESTS, MODULE_IDS, moduleForPage } from '../lib/modules/manifest.ts';
+import { CRM_MODULE_MANIFESTS, MODULE_IDS, isModuleSurfaceEnabled, moduleForPage } from '../lib/modules/manifest.ts';
 
 function pageFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -55,4 +55,9 @@ test('every CRM page, frontend capability and navigation item has exactly one mo
     visited.add(id);
   };
   for (const id of MODULE_IDS) visit(id);
+
+  const withoutInventory = MODULE_IDS.filter((id) => id !== 'inventory');
+  assert.equal(isModuleSurfaceEnabled({ capability: 'stock:read' }, withoutInventory), false);
+  assert.equal(isModuleSurfaceEnabled({ capability: 'orders:read' }, withoutInventory), true);
+  assert.equal(isModuleSurfaceEnabled({ module: 'inventory' }, withoutInventory), false);
 });
