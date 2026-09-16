@@ -1,6 +1,7 @@
 import { ApiError, apiFetch } from './client';
 
-export type StaffRole = 'super_admin' | 'franchise_owner' | 'store_manager' | 'barista' | 'hr_manager' | 'marketing_manager' | 'auditor';
+/** Stable role key. Built-in and tenant-created roles share this contract. */
+export type StaffRole = string;
 export type StaffScope = 'global' | 'franchise' | 'location';
 
 // There is deliberately no ROLE_RANK / roleAtLeast here any more. Authority is

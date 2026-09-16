@@ -42,13 +42,12 @@ const SEVERITY_ICON: Record<RecordAttentionSeverity, typeof AlertTriangle> = {
 };
 import {
   EMPLOYMENT_CONFIG,
-  ROLES,
-  ROLE_CONFIG,
   SCOPES,
   fmtDate,
   fmtMoney,
   lbl,
   sel,
+  roleConfig,
 } from '@/components/people/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -60,6 +59,7 @@ import {
   getEmployeeDocuments,
 } from '@/lib/api/people-ops.service';
 import { type StaffProfile, type StaffRole, type StaffScope, type UpdateStaffPayload, updateStaff } from '@/lib/api/staff.service';
+import { getRoles } from '@/lib/api/roles.service';
 import { cn } from '@/lib/utils/cn';
 import { employeeSetupChecks } from '@/lib/utils/employee-compliance';
 import { toast } from '@/stores/toastStore';
@@ -181,6 +181,10 @@ export function EmploymentTab({ emp, canSeePay }: { emp: Employee; canSeePay: bo
 
 export function AccessCard({ member, locations, canEdit }: { member: StaffProfile; locations: { id: string; name: string }[]; canEdit: boolean }) {
   const qc = useQueryClient();
+  const { data: roleCatalog } = useQuery({
+    queryKey: ['roles', member.tenantId],
+    queryFn: () => getRoles(member.tenantId),
+  });
   const [edit, setEdit] = useState(false);
   const [role, setRole] = useState<StaffRole>(member.role);
   const [scope, setScope] = useState<StaffScope>(member.scope);
@@ -203,6 +207,7 @@ export function AccessCard({ member, locations, canEdit }: { member: StaffProfil
   });
 
   const locNames = (member.locationIds ?? []).map((id) => locations.find((l) => l.id === id)?.name ?? id);
+  const appearance = roleConfig(member.role, roleCatalog?.roles.find((entry) => entry.key === member.role)?.name);
 
   if (edit) {
     return (
@@ -215,7 +220,7 @@ export function AccessCard({ member, locations, canEdit }: { member: StaffProfil
               className={sel}
               value={role}
               onValueChange={(value) => setRole(value as StaffRole)}
-              options={ROLES.map((nextRole) => ({ value: nextRole, label: ROLE_CONFIG[nextRole].label }))}
+              options={(roleCatalog?.roles ?? []).map((nextRole) => ({ value: nextRole.key, label: nextRole.name }))}
               ariaLabel="Role"
             />
           </div>
@@ -290,11 +295,11 @@ export function AccessCard({ member, locations, canEdit }: { member: StaffProfil
             <span
               className={cn(
                 'inline-flex items-center px-2 py-0.5 rounded text-micro font-semibold uppercase tracking-micro',
-                ROLE_CONFIG[member.role].bg,
-                ROLE_CONFIG[member.role].text,
+                appearance.bg,
+                appearance.text,
               )}
             >
-              {ROLE_CONFIG[member.role].label}
+              {appearance.label}
             </span>
           </dd>
         </div>

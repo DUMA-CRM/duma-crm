@@ -6,7 +6,9 @@ import { formatDate } from '@/lib/utils/date';
 
 // ── Role / scope config ───────────────────────────────────────────────────────
 
-export const ROLE_CONFIG: Record<StaffRole, { label: string; bg: string; text: string; border: string }> = {
+type RoleAppearance = { label: string; bg: string; text: string; border: string };
+
+export const ROLE_CONFIG: Record<string, RoleAppearance> = {
   super_admin: { label: 'Super Admin', bg: 'bg-destructive/6', text: 'text-destructive', border: 'border-destructive/30' },
   franchise_owner: { label: 'Franchise Owner', bg: 'bg-warning/6', text: 'text-warning', border: 'border-warning/30' },
   store_manager: { label: 'Store Manager', bg: 'bg-band', text: 'text-primary', border: 'border-primary/30' },
@@ -27,6 +29,14 @@ export const ROLES: StaffRole[] = [
   'marketing_manager',
   'auditor',
 ];
+export function roleConfig(role: StaffRole, label?: string): RoleAppearance {
+  return ROLE_CONFIG[role] ?? {
+    label: label ?? role.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
+    bg: 'bg-muted',
+    text: 'text-foreground',
+    border: 'border-rule',
+  };
+}
 export const SCOPES: StaffScope[] = ['global', 'franchise', 'location'];
 
 // ── Employment type config ────────────────────────────────────────────────────

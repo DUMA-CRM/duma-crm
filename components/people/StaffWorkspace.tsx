@@ -12,6 +12,7 @@ import { LeaveInbox } from '@/components/people/HrInbox';
 import { OnboardingPage } from '@/components/people/OnboardingPage';
 import { StaffDirectory } from '@/components/people/StaffDirectory';
 import { StaffOverview } from '@/components/people/StaffOverview';
+import { RoleManager } from '@/components/people/RoleManager';
 import { ShiftsWorkspace } from '@/components/scheduling/ShiftsWorkspace';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -61,6 +62,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
   const canPayroll = hasCapability(capabilities, 'hr.payroll:read');
 
   const canOnboard = hasCapability(capabilities, 'staff:onboard');
+  const canManageRoles = hasCapability(capabilities, 'staff:access');
   const canWriteRota = hasCapability(capabilities, 'scheduling:write');
   const canCorrectHours = hasCapability(capabilities, 'shifts:write');
   // Read without write is the auditor's whole point: they see payroll history
@@ -222,7 +224,12 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
         <StaffOverview access={{ team: canTeam, rota: canRota, leave: canLeave, helpdesk: canHelpdesk, payroll: canPayroll }} />
       )}
 
-      {active === 'team' && <StaffDirectory />}
+      {active === 'team' && (
+        <div className="space-y-4">
+          {canManageRoles && <RoleManager />}
+          <StaffDirectory />
+        </div>
+      )}
 
       {active === 'rota' && <ShiftsWorkspace creating={newShift} onCreatingChange={setNewShift} />}
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { UserMinus } from '@/components/icons';
@@ -24,13 +24,18 @@ import {
   createStaff,
   updateStaff,
 } from '@/lib/api/staff.service';
+import { getRoles } from '@/lib/api/roles.service';
+import { useAuthStore } from '@/stores/authStore';
 
-import { Avatar, EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, ROLES, ROLE_CONFIG, SCOPES, inp, lbl, sel, toDateInput } from './shared';
+import { Avatar, EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, SCOPES, inp, lbl, sel, toDateInput } from './shared';
 
 // ── Create staff ──────────────────────────────────────────────────────────────
 
 export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onClose: () => void }) {
   const qc = useQueryClient();
+  const actorRole = useAuthStore((state) => state.role);
+  const { data: roleCatalog } = useQuery({ queryKey: ['roles', tenantId], queryFn: () => getRoles(tenantId) });
+  const roles = (roleCatalog?.roles ?? []).filter((entry) => actorRole === 'super_admin' || entry.key !== 'super_admin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<StaffRole>('barista');
@@ -84,7 +89,7 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
           <Select
             value={role}
             onValueChange={(value) => setRole(value as StaffRole)}
-            options={ROLES.map((nextRole) => ({ value: nextRole, label: ROLE_CONFIG[nextRole].label }))}
+            options={roles.map((nextRole) => ({ value: nextRole.key, label: nextRole.name }))}
             ariaLabel="Role"
             className={sel}
           />
@@ -135,6 +140,9 @@ export function EditStaffModal({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const actorRole = useAuthStore((state) => state.role);
+  const { data: roleCatalog } = useQuery({ queryKey: ['roles', member.tenantId], queryFn: () => getRoles(member.tenantId) });
+  const roles = (roleCatalog?.roles ?? []).filter((entry) => actorRole === 'super_admin' || entry.key !== 'super_admin');
   const [role, setRole] = useState<StaffRole>(member.role);
   const [scope, setScope] = useState<StaffScope>(member.scope);
   const [isActive, setIsActive] = useState(member.isActive);
@@ -176,7 +184,7 @@ export function EditStaffModal({
           <Select
             value={role}
             onValueChange={(value) => setRole(value as StaffRole)}
-            options={ROLES.map((nextRole) => ({ value: nextRole, label: ROLE_CONFIG[nextRole].label }))}
+            options={roles.map((nextRole) => ({ value: nextRole.key, label: nextRole.name }))}
             ariaLabel="Role"
             className={sel}
           />

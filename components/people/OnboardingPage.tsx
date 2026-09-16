@@ -5,13 +5,14 @@ import { useState } from 'react';
 
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Loader2, ShieldCheck } from '@/components/icons';
 import { AddressFields } from '@/components/people/AddressFields';
-import { EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, PAY_CONFIG, PAY_TYPES, ROLE_CONFIG, SCOPES, inp, lbl, sel } from '@/components/people/shared';
+import { EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, PAY_CONFIG, PAY_TYPES, SCOPES, inp, lbl, sel } from '@/components/people/shared';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
 import { type OnboardPayload, onboardEmployee } from '@/lib/api/onboarding.service';
 import type { StaffRole } from '@/lib/api/staff.service';
+import { getRoles } from '@/lib/api/roles.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { cn } from '@/lib/utils/cn';
 import { ageBasedMinimumWage } from '@/lib/utils/employee-compliance';
@@ -19,22 +20,12 @@ import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-// Roles selectable when onboarding (super_admin is never assigned this way).
-const ONBOARD_ROLES: Exclude<StaffRole, 'super_admin'>[] = [
-  'franchise_owner',
-  'store_manager',
-  'barista',
-  'hr_manager',
-  'marketing_manager',
-  'auditor',
-];
-
 const STEPS = ['Account & role', 'Personal', 'Employment & pay', 'Bank & statutory'] as const;
 
 type Form = Partial<OnboardPayload> & {
   email: string;
   name: string;
-  role: Exclude<StaffRole, 'super_admin'>;
+  role: StaffRole;
   scope: OnboardPayload['scope'];
   locationIds: string[];
   jobTitle: string;
@@ -48,8 +39,15 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; onCreated: (userId: string) => void }) {
   const qc = useQueryClient();
   const actorRole = useAuthStore((state) => state.role);
-  const availableRoles = actorRole === 'hr_manager' ? ONBOARD_ROLES.filter((role) => role !== 'franchise_owner') : ONBOARD_ROLES;
   const { tenantId } = useWorkspaceStore();
+  const { data: roleCatalog } = useQuery({
+    queryKey: ['roles', tenantId],
+    queryFn: () => getRoles(tenantId ?? undefined),
+    enabled: !!tenantId,
+  });
+  const availableRoles = (roleCatalog?.roles ?? []).filter((role) =>
+    role.key !== 'super_admin' && (actorRole !== 'hr_manager' || role.key !== 'franchise_owner'),
+  );
   const { data: locations = [] } = useQuery({
     queryKey: ['locations', tenantId],
     queryFn: () => getLocationsByTenant(tenantId!),
@@ -173,7 +171,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                     className={sel}
                     value={f.role}
                     onValueChange={(value) => set({ role: value as Form['role'] })}
-                    options={availableRoles.map((role) => ({ value: role, label: ROLE_CONFIG[role].label }))}
+                    options={availableRoles.map((role) => ({ value: role.key, label: role.name }))}
                     ariaLabel="Role"
                   />
                 </Field>

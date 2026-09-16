@@ -168,8 +168,8 @@ export default function HomePage() {
             </div>
             <div className="border-t border-rule p-5 sm:p-8 lg:border-t-0 lg:p-10">
               <p className="max-w-[58ch] text-base leading-7 text-muted-foreground">
-                Seven roles are enforced by the server and shaped around different jobs. A barista on a shared tablet does not inherit an
-                owner’s back office with half the controls removed.
+                Roles are assembled from explicit capabilities and can match the jobs in each business. A team member on a shared tablet
+                does not inherit an owner’s back office with half the controls removed.
               </p>
             </div>
           </div>

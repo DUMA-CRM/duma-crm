@@ -503,15 +503,7 @@
                   },
                   "role": {
                     "type": "string",
-                    "enum": [
-                      "super_admin",
-                      "franchise_owner",
-                      "store_manager",
-                      "barista",
-                      "hr_manager",
-                      "marketing_manager",
-                      "auditor"
-                    ]
+                    "pattern": "^[a-z][a-z0-9_]{1,63}$"
                   },
                   "scope": {
                     "type": "string",
@@ -618,15 +610,7 @@
                     },
                     "role": {
                       "type": "string",
-                      "enum": [
-                        "super_admin",
-                        "franchise_owner",
-                        "store_manager",
-                        "barista",
-                        "hr_manager",
-                        "marketing_manager",
-                        "auditor"
-                      ]
+                      "maxLength": 64
                     },
                     "scope": {
                       "type": "string",
@@ -771,15 +755,7 @@
                 "properties": {
                   "role": {
                     "type": "string",
-                    "enum": [
-                      "super_admin",
-                      "franchise_owner",
-                      "store_manager",
-                      "barista",
-                      "hr_manager",
-                      "marketing_manager",
-                      "auditor"
-                    ]
+                    "pattern": "^[a-z][a-z0-9_]{1,63}$"
                   },
                   "scope": {
                     "type": "string",
@@ -865,6 +841,117 @@
             },
             "in": "path",
             "name": "userId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/roles": {
+      "get": {
+        "operationId": "getV1Roles",
+        "tags": [
+          "Roles"
+        ],
+        "summary": "List tenant roles",
+        "description": "Returns tenant role definitions and the module-contributed capabilities the caller may grant.",
+        "responses": {
+          "200": {
+            "description": "Role catalog"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1Roles",
+        "tags": [
+          "Roles"
+        ],
+        "summary": "Create tenant role",
+        "description": "Creates a tenant-defined role from capabilities the caller already holds.",
+        "responses": {
+          "201": {
+            "description": "Role created"
+          },
+          "400": {
+            "description": "Invalid capability set"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Role key already exists"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/roles/{id}": {
+      "patch": {
+        "operationId": "patchV1RolesById",
+        "tags": [
+          "Roles"
+        ],
+        "summary": "Update tenant role",
+        "description": "Updates a custom role. Built-in platform bundles cannot be edited.",
+        "responses": {
+          "200": {
+            "description": "Role updated; assigned sessions revoked"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Custom role not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1RolesById",
+        "tags": [
+          "Roles"
+        ],
+        "summary": "Delete unused tenant role",
+        "responses": {
+          "204": {
+            "description": "Role deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Role is assigned to staff"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
             "required": true
           }
         ]
@@ -1251,7 +1338,7 @@
           "Customers"
         ],
         "summary": "Self-register or link customer profile",
-        "description": "Creates a new customer profile or links the authenticated user to an existing POS customer matched by phone number.",
+        "description": "Creates or links a customer inside the workspace proven by a live public QR ordering context. A caller-supplied tenant ID never selects the workspace.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1262,7 +1349,7 @@
                   "firstName",
                   "lastName",
                   "phone",
-                  "tenantId"
+                  "contextToken"
                 ],
                 "properties": {
                   "firstName": {
@@ -1277,9 +1364,15 @@
                     "type": "string",
                     "example": "+447911123456"
                   },
+                  "contextToken": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Public token from the QR ordering URL"
+                  },
                   "tenantId": {
                     "type": "string",
-                    "format": "uuid"
+                    "format": "uuid",
+                    "description": "Deprecated assertion only; a mismatch returns 404"
                   },
                   "email": {
                     "type": "string",
@@ -1302,6 +1395,9 @@
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "QR ordering context not found"
           },
           "409": {
             "description": "Profile already exists or phone linked to another account"
@@ -2174,6 +2270,15 @@
                       "sat": null
                     }
                   },
+                  "orderFulfilmentMode": {
+                    "type": "string",
+                    "enum": [
+                      "kitchen",
+                      "counter"
+                    ],
+                    "default": "kitchen",
+                    "description": "Kitchen keeps paid POS orders in KDS; counter completes them as soon as payment succeeds."
+                  },
                   "dailyRevenueTarget": {
                     "type": "number",
                     "description": "Net revenue this location aims to take in one trading day. Send null for no target.",
@@ -2225,6 +2330,7 @@
                       "name",
                       "address",
                       "timezone",
+                      "orderFulfilmentMode",
                       "isActive",
                       "createdAt",
                       "updatedAt"
@@ -2254,6 +2360,13 @@
                       "openingHours": {
                         "type": "object",
                         "nullable": true
+                      },
+                      "orderFulfilmentMode": {
+                        "type": "string",
+                        "enum": [
+                          "kitchen",
+                          "counter"
+                        ]
                       },
                       "dailyRevenueTarget": {
                         "type": "string",
@@ -2389,6 +2502,14 @@
                   "openingHours": {
                     "type": "object",
                     "description": "Per-day working hours. Each key mon–sun is { open: \"HH:MM\", close: \"HH:MM\" } or null (closed)."
+                  },
+                  "orderFulfilmentMode": {
+                    "type": "string",
+                    "enum": [
+                      "kitchen",
+                      "counter"
+                    ],
+                    "description": "Kitchen workflow or immediate completion after a successful staff POS payment."
                   },
                   "dailyRevenueTarget": {
                     "type": "number",

@@ -5,7 +5,7 @@ import { Search, Users, X } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { Avatar, EMPLOYMENT_CONFIG, ROLES, ROLE_CONFIG, fmtMoney } from '@/components/people/shared';
+import { Avatar, EMPLOYMENT_CONFIG, fmtMoney, roleConfig } from '@/components/people/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ import { Select } from '@/components/ui/select';
 
 import { type HrEmployee, getEmployees } from '@/lib/api/hr.service';
 import { type StaffProfile, type StaffRole, getStaff } from '@/lib/api/staff.service';
+import { getRoles } from '@/lib/api/roles.service';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { cn } from '@/lib/utils/cn';
 import { setupProgress } from '@/lib/utils/employee-compliance';
@@ -63,6 +64,12 @@ export function StaffDirectory() {
     queryFn: getEmployees,
     enabled: !!tenantId,
   });
+  const { data: roleCatalog } = useQuery({
+    queryKey: ['roles', tenantId],
+    queryFn: () => getRoles(tenantId ?? undefined),
+    enabled: !!tenantId,
+  });
+  const roleNames = useMemo(() => new Map((roleCatalog?.roles ?? []).map((role) => [role.key, role.name])), [roleCatalog]);
 
   const empByUser = useMemo(() => new Map(employees.map((e) => [e.userId, e])), [employees]);
   const departments = useMemo(
@@ -123,7 +130,7 @@ export function StaffDirectory() {
       header: 'Role',
       width: 'fit',
       cell: ({ row: member }) => {
-        const rc = ROLE_CONFIG[member.role];
+        const rc = roleConfig(member.role, roleNames.get(member.role));
         return (
           <span
             className={cn(
@@ -225,7 +232,10 @@ export function StaffDirectory() {
         <Select
           value={roleFilter}
           onValueChange={(value) => setRoleFilter(value as 'all' | StaffRole)}
-          options={[{ value: 'all', label: 'All roles' }, ...ROLES.map((r) => ({ value: r, label: ROLE_CONFIG[r].label }))]}
+          options={[
+            { value: 'all', label: 'All roles' },
+            ...(roleCatalog?.roles ?? []).map((role) => ({ value: role.key, label: role.name })),
+          ]}
           ariaLabel="Filter by role"
           className="w-40"
         />
