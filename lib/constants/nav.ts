@@ -19,8 +19,10 @@ import {
 } from '@/components/icons';
 
 import { type Capability, hasAnyCapability } from '@/lib/auth/capabilities';
+import type { ModuleId } from '@/lib/modules/manifest';
 
 export interface NavItem {
+  module: ModuleId;
   label: string;
   href: string;
   icon: IconComponent;
@@ -37,45 +39,45 @@ export interface NavItem {
 }
 
 export const mainNavItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'My HR', href: '/my-hr', icon: HeartHandshake },
+  { module: 'analytics', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { module: 'people', label: 'My HR', href: '/my-hr', icon: HeartHandshake },
   // Everyone's own rota. The team rota and shift cover live in the staff workspace.
-  { label: 'My Rota', href: '/scheduling', icon: CalendarDays },
+  { module: 'workforce', label: 'My Rota', href: '/scheduling', icon: CalendarDays },
   // `marketing_manager` reaches this for the first time here — the old rank
   // threshold hid it from the role whose job it is.
-  { label: 'Customers', href: '/customers', icon: Users, capabilities: ['customers:read'] },
-  { label: 'Communications', href: '/communications', icon: Mail, capabilities: ['email:read'] },
-  { label: 'POS Terminal', href: '/pos', icon: Monitor, capabilities: ['orders:create'] },
-  { label: 'KDS Terminal', href: '/kds', icon: ChefHat, capabilities: ['orders:status'] },
-  { label: 'Menu', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'] },
+  { module: 'customers', label: 'Customers', href: '/customers', icon: Users, capabilities: ['customers:read'] },
+  { module: 'communications', label: 'Communications', href: '/communications', icon: Mail, capabilities: ['email:read'] },
+  { module: 'ordering', label: 'POS Terminal', href: '/pos', icon: Monitor, capabilities: ['orders:create'] },
+  { module: 'ordering', label: 'KDS Terminal', href: '/kds', icon: ChefHat, capabilities: ['orders:status'] },
+  { module: 'catalog', label: 'Menu', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'] },
   // One entry: stock, restock demand, purchase orders, suppliers and stocktakes
   // are tabs of /inventory.
   // `stock:read` rather than `inventory:read` — till staff hold the latter so
   // they can record waste, and gating on it would put Inventory in the POS nav.
-  { label: 'Inventory', href: '/inventory', icon: Package, capabilities: ['stock:read'] },
-  { label: 'Orders', href: '/orders', icon: ShoppingBag, capabilities: ['orders:read'] },
+  { module: 'inventory', label: 'Inventory', href: '/inventory', icon: Package, capabilities: ['stock:read'] },
+  { module: 'ordering', label: 'Orders', href: '/orders', icon: ShoppingBag, capabilities: ['orders:read'] },
   // One entry: team, rota, shifts, leave, helpdesk and payroll are tabs of the
   // staff workspace, each on its own route.
-  { label: 'Staff', href: '/staff', icon: UsersRound, capabilities: ['staff:read', 'hr.people:read'] },
+  { module: 'people', label: 'Staff', href: '/staff', icon: UsersRound, capabilities: ['staff:read', 'hr.people:read'] },
   // Workspaces and locations are a tab of Settings — organisation structure is
   // set up once, so it belongs with the other administration, not in the
   // day-to-day nav.
 ];
 
 export const analyticsNavItems: NavItem[] = [
-  { label: 'Reports', href: '/reports', icon: BarChart3, capabilities: ['analytics:read'] },
+  { module: 'analytics', label: 'Reports', href: '/reports', icon: BarChart3, capabilities: ['analytics:read'] },
   // Subject access and erasure requests, moved out of the Customers page: a
   // workload with statutory deadlines is not a way of browsing customers, and
   // burying it behind a list made it easy to forget a clock was running.
-  { label: 'Compliance', href: '/compliance', icon: ShieldCheck, capabilities: ['privacy:read'] },
+  { module: 'compliance', label: 'Compliance', href: '/compliance', icon: ShieldCheck, capabilities: ['privacy:read'] },
   // `auditor` reaches this for the first time — the role existed to read the
   // audit log and the old franchise_owner rank threshold shut it out.
-  { label: 'Audit Log', href: '/audit-log', icon: History, capabilities: ['audit:read'] },
+  { module: 'compliance', label: 'Audit Log', href: '/audit-log', icon: History, capabilities: ['audit:read'] },
 ];
 
 export const footerNavItems: NavItem[] = [
-  { label: 'Settings', href: '/settings', icon: Settings },
-  { label: 'Support', href: '/support', icon: HelpCircle },
+  { module: 'organization', label: 'Settings', href: '/settings', icon: Settings },
+  { module: 'support', label: 'Support', href: '/support', icon: HelpCircle },
 ];
 
 // Filter a nav list down to what the signed-in user can reach. A parent with
