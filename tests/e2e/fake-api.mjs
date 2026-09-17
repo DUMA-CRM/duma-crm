@@ -16,6 +16,10 @@ const session = {
 };
 const tenantId = '11111111-1111-4111-8111-111111111111';
 const locationId = '22222222-2222-4222-8222-222222222222';
+const moduleIds = [
+  'core', 'identity', 'organization', 'customers', 'catalog', 'ordering', 'payments', 'inventory',
+  'purchasing', 'workforce', 'people', 'communications', 'compliance', 'analytics', 'agent', 'support',
+];
 const capabilities = ['staff:read', 'scheduling:read', 'scheduling:write', 'shifts:read', 'shifts:write', 'hr.sensitive:read'];
 const staffProfile = {
   id: 'staff-profile-1',
@@ -79,6 +83,16 @@ createServer((request, response) => {
   if (url.pathname === '/v1/auth/get-session') return json(response, 200, { user, session });
   if (url.pathname === '/v1/staff/me') {
     return json(response, 200, staffProfile);
+  }
+  if (url.pathname === '/v1/modules/current') {
+    return json(response, 200, {
+      modules: moduleIds.map((moduleId) => ({
+        moduleId,
+        status: 'enabled',
+        configurationVersion: 1,
+        configuration: {},
+      })),
+    });
   }
   if (url.pathname === '/v1/staff') return json(response, 200, [staffProfile]);
   if (url.pathname === `/v1/locations/tenant/${tenantId}` || url.pathname === '/v1/locations') return json(response, 200, [location]);
