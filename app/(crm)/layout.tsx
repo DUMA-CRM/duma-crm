@@ -8,6 +8,7 @@ import { AuthInitializer } from '@/components/providers/AuthInitializer';
 import { WorkspaceInitializer } from '@/components/providers/WorkspaceInitializer';
 
 import { getSession } from '@/lib/api/auth.service';
+import { getCurrentTenantModules } from '@/lib/api/modules.service';
 import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
 
 // Server Component — runs on every navigation to a CRM page.
@@ -29,6 +30,7 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
   // deletes the stale cookie before sending the browser to sign-in.
   // (Cookies can't be deleted directly in a Server Component.)
   if (!session) redirect('/api/auth/clear-session');
+  const moduleState = profile ? (await getCurrentTenantModules(undefined, cookieHeader)).modules : [];
 
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
@@ -47,7 +49,7 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
       {/* Plays only when a sign-in armed it; renders nothing otherwise. */}
       <LoginIntro />
 
-      <Sidebar capabilities={profile?.capabilities ?? []} />
+      <Sidebar capabilities={profile?.capabilities ?? []} moduleState={moduleState} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header />
         <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-4 outline-none md:p-8">

@@ -19,7 +19,8 @@ import {
 } from '@/components/icons';
 
 import { type Capability, hasAnyCapability } from '@/lib/auth/capabilities';
-import type { ModuleId } from '@/lib/modules/manifest';
+import { MODULE_IDS, type ModuleId } from '@/lib/modules/manifest';
+import type { TenantModuleState } from '@/lib/api/modules.service';
 
 export interface NavItem {
   module: ModuleId;
@@ -35,6 +36,8 @@ export interface NavItem {
   // states the requirement directly, and matches what the API enforces on the
   // page's own data, so the nav can no longer disagree with the API.
   capabilities?: Capability[];
+  /** Optional surface switch inside a module's `configuration.surfaces`. */
+  surface?: string;
   children?: Omit<NavItem, 'children'>[];
 }
 
@@ -47,9 +50,9 @@ export const mainNavItems: NavItem[] = [
   // threshold hid it from the role whose job it is.
   { module: 'customers', label: 'Customers', href: '/customers', icon: Users, capabilities: ['customers:read'] },
   { module: 'communications', label: 'Communications', href: '/communications', icon: Mail, capabilities: ['email:read'] },
-  { module: 'ordering', label: 'POS Terminal', href: '/pos', icon: Monitor, capabilities: ['orders:create'] },
-  { module: 'ordering', label: 'KDS Terminal', href: '/kds', icon: ChefHat, capabilities: ['orders:status'] },
-  { module: 'catalog', label: 'Menu', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'] },
+  { module: 'ordering', label: 'POS Terminal', href: '/pos', icon: Monitor, capabilities: ['orders:create'], surface: 'pos' },
+  { module: 'ordering', label: 'Fulfilment', href: '/kds', icon: ChefHat, capabilities: ['orders:status'], surface: 'fulfilment' },
+  { module: 'catalog', label: 'Products', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'] },
   // One entry: stock, restock demand, purchase orders, suppliers and stocktakes
   // are tabs of /inventory.
   // `stock:read` rather than `inventory:read` — till staff hold the latter so
@@ -83,12 +86,32 @@ export const footerNavItems: NavItem[] = [
 // Filter a nav list down to what the signed-in user can reach. A parent with
 // children stays visible if it (or any child) is accessible; if the parent's own
 // page isn't accessible its link is repointed to the first accessible child.
-export function filterNavByCapability(items: NavItem[], capabilities: readonly string[]): NavItem[] {
+const DEFAULT_MODULE_STATE: TenantModuleState[] = MODULE_IDS.map((moduleId) => ({
+  moduleId,
+  status: 'enabled',
+  configurationVersion: 1,
+  configuration: {},
+}));
+
+export function filterNavByCapability(
+  items: NavItem[],
+  capabilities: readonly string[],
+  moduleState: readonly TenantModuleState[] = DEFAULT_MODULE_STATE,
+): NavItem[] {
   // No declared capabilities means the item is for everyone. Otherwise holding
   // any one of them is enough. super_admin needs no special case — it holds
   // every capability, so it passes every check naturally.
-  const canSee = (item: Pick<NavItem, 'capabilities'>) =>
-    !item.capabilities || item.capabilities.length === 0 || hasAnyCapability(capabilities, ...item.capabilities);
+  const canSee = (item: Pick<NavItem, 'module' | 'capabilities' | 'surface'>) => {
+    const state = moduleState.find((candidate) => candidate.moduleId === item.module);
+    if (!state || state.status !== 'enabled') return false;
+    if (item.surface) {
+      const surfaces = state.configuration.surfaces;
+      if (surfaces && typeof surfaces === 'object' && !Array.isArray(surfaces)) {
+        if ((surfaces as Record<string, unknown>)[item.surface] === false) return false;
+      }
+    }
+    return !item.capabilities || item.capabilities.length === 0 || hasAnyCapability(capabilities, ...item.capabilities);
+  };
 
   return items.flatMap((item) => {
     if (item.children) {

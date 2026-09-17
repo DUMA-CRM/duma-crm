@@ -36,6 +36,7 @@
       "name": "Organization",
       "tags": [
         "Tenants",
+        "Modules",
         "Staff",
         "Customers",
         "Customer Segments",
@@ -2216,6 +2217,125 @@
         ]
       }
     },
+    "/v1/modules/current": {
+      "get": {
+        "operationId": "getV1ModulesCurrent",
+        "tags": [
+          "Modules"
+        ],
+        "summary": "Get the signed-in workspace module state",
+        "description": "Returns non-secret lifecycle and UI configuration for the caller's workspace so product surfaces can follow live module state.",
+        "responses": {
+          "200": {
+            "description": "Current workspace module state"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "No staff workspace assigned"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/modules/catalog": {
+      "get": {
+        "operationId": "getV1ModulesCatalog",
+        "tags": [
+          "Modules"
+        ],
+        "summary": "List deployed product modules",
+        "responses": {
+          "200": {
+            "description": "Code-derived deployed module catalog"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/modules/tenants/{tenantId}": {
+      "get": {
+        "operationId": "getV1ModulesTenantsByTenantId",
+        "tags": [
+          "Modules"
+        ],
+        "summary": "List module state for one tenant",
+        "responses": {
+          "200": {
+            "description": "Tenant module lifecycle state"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/modules/tenants/{tenantId}/{moduleId}": {
+      "patch": {
+        "operationId": "patchV1ModulesTenantsByTenantIdByModuleId",
+        "tags": [
+          "Modules"
+        ],
+        "summary": "Enable or disable a tenant module",
+        "description": "Records the desired lifecycle state, configuration revision, actor and timestamp. Enabling also applies the required dependency closure atomically and explains required and recommended additions.",
+        "responses": {
+          "200": {
+            "description": "Updated tenant module state"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Tenant module row not found"
+          },
+          "409": {
+            "description": "Foundation module cannot be disabled"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "moduleId",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/locations": {
       "post": {
         "operationId": "postV1Locations",
@@ -2720,6 +2840,7 @@
                 "required": [
                   "tenantId",
                   "name",
+                  "categoryId",
                   "price"
                 ],
                 "properties": {
@@ -2739,13 +2860,7 @@
                   "categoryId": {
                     "type": "string",
                     "format": "uuid",
-                    "description": "Menu category row. Preferred; wins over `category`."
-                  },
-                  "category": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "example": "coffee",
-                    "description": "Deprecated — category slug, resolved to a categoryId."
+                    "description": "Required tenant-defined menu category."
                   },
                   "price": {
                     "type": "string",
@@ -2872,11 +2987,6 @@
                   "categoryId": {
                     "type": "string",
                     "format": "uuid"
-                  },
-                  "category": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "description": "Deprecated — category slug."
                   },
                   "price": {
                     "type": "string",
@@ -3129,7 +3239,7 @@
           "Menu Categories"
         ],
         "summary": "Update menu category",
-        "description": "Renames or restyles a category. The slug is immutable — it is the stable key legacy readers still resolve against.",
+        "description": "Renames or restyles a category. The slug remains the stable machine key.",
         "requestBody": {
           "required": true,
           "content": {
@@ -3257,7 +3367,8 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "tenantId"
+                  "tenantId",
+                  "label"
                 ],
                 "properties": {
                   "tenantId": {
@@ -3279,12 +3390,6 @@
                   "isSize": {
                     "type": "boolean",
                     "description": "Size variant — becomes a per-size column in the recipe editors. Defaults to category === \"size\"."
-                  },
-                  "name": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "example": "Milk: Oat Milk",
-                    "description": "Deprecated. Legacy \"<Category>: <Label>\" form, parsed when label is absent."
                   },
                   "priceAdjust": {
                     "type": "string",
@@ -3401,11 +3506,6 @@
                   },
                   "isSize": {
                     "type": "boolean"
-                  },
-                  "name": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "description": "Deprecated — send label/category instead."
                   },
                   "priceAdjust": {
                     "type": "string"

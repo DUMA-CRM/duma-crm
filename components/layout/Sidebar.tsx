@@ -1,6 +1,6 @@
 'use client';
 
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { LogOut } from '@/components/icons';
@@ -8,6 +8,7 @@ import { Logo } from '@/components/shared/Logo';
 import { Tooltip } from '@/components/shared/Tooltip';
 
 import { getOrders } from '@/lib/api/orders.service';
+import { getCurrentTenantModules, type TenantModuleState } from '@/lib/api/modules.service';
 import { analyticsNavItems, filterNavByCapability, footerNavItems, mainNavItems } from '@/lib/constants/nav';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils/cn';
@@ -19,12 +20,12 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { LocationPicker } from './LocationPicker';
 import { SidebarNavItem } from './SidebarNavItem';
 
-export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
+export function Sidebar({ capabilities, moduleState }: { capabilities: readonly string[]; moduleState: readonly TenantModuleState[] }) {
   const { collapsed, mobileOpen, closeMobile } = useSidebarStore();
   // True until the sign-in intro's mark has finished flying into the brand slot.
   const introPending = useLoginIntroStore((s) => s.pending);
   const { logout } = useAuth();
-  const { locationId } = useWorkspaceStore();
+  const { locationId, tenantId } = useWorkspaceStore();
 
   // Prefer the store once AuthInitializer has hydrated it, so a role change
   // reflected by a refetch updates the nav without a full reload. The prop is
@@ -33,8 +34,18 @@ export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
   const storeCapabilities = useAuthStore((state) => state.capabilities);
   const effective = hydrated ? storeCapabilities : capabilities;
 
-  const mainItems = filterNavByCapability(mainNavItems, effective);
-  const analyticsItems = filterNavByCapability(analyticsNavItems, effective);
+  const modulesQuery = useQuery({
+    queryKey: ['current-tenant-modules', tenantId],
+    queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
+    enabled: Boolean(tenantId),
+    initialData: { modules: [...moduleState] },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const effectiveModuleState = modulesQuery.data.modules;
+  const mainItems = filterNavByCapability(mainNavItems, effective, effectiveModuleState);
+  const analyticsItems = filterNavByCapability(analyticsNavItems, effective, effectiveModuleState);
+  const footerItems = filterNavByCapability(footerNavItems, effective, effectiveModuleState);
 
   // Badge the Orders nav item with the exact active count. Three count-only
   // responses are much smaller than downloading 200 complete orders globally
@@ -129,7 +140,7 @@ export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
             <LocationPicker />
           </div>
 
-          {footerNavItems.map((item) => (
+          {footerItems.map((item) => (
             <SidebarNavItem key={item.href} {...item} />
           ))}
 
