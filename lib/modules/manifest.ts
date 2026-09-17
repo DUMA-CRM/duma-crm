@@ -14,10 +14,11 @@ export const CRM_MODULE_CAPABILITIES = {
     'customers:read', 'customers:write', 'customers:points', 'customers:merge', 'customers:erase',
     'customers.consent:read', 'customers.consent:write', 'segments:read', 'segments:write', 'segments:send',
   ],
-  catalog: ['menu:write', 'recipes:write'],
+  catalog: ['menu:write'],
   ordering: ['orders:create', 'orders:read', 'orders:status', 'orders:refund', 'orders:bulk', 'qr-ordering:read', 'qr-ordering:write'],
   payments: ['payments.connections:write', 'cashups:read'],
   inventory: [
+    'recipes:write',
     'stock:read', 'stock.transfers:write', 'stock.locations:write', 'inventory:read',
     'stocktakes:read', 'loss:read', 'loss:write', 'restock:read', 'restock:write',
     'restock:delete', 'forecast:read',
