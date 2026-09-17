@@ -10,7 +10,7 @@ import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { DeltaText, StatCard, StatCardGrid, changeDelta } from '@/components/shared/StatCard';
 
 import { type TopItemAnalytics, getTopItems } from '@/lib/api/analytics.service';
-import { getMenuItems } from '@/lib/api/menu.service';
+import { getMenuCategories, getMenuItems } from '@/lib/api/menu.service';
 import { getMenuItemRecipe } from '@/lib/api/recipes.service';
 import { getLocations } from '@/lib/api/workspace.service';
 import { useVatContext } from '@/lib/hooks/useVatContext';
@@ -19,7 +19,6 @@ import { cn } from '@/lib/utils/cn';
 import { type DashboardRange, formatCompact, formatMoney, getDateWindow, percentageChange } from '@/lib/utils/dashboard';
 import { serverCache } from '@/lib/api/cache-policy';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-import type { MenuCategory } from '@/types/menu';
 
 const RANGE_OPTIONS: Array<{ value: DashboardRange; label: string }> = [
   { value: 'today', label: 'Today' },
@@ -35,7 +34,7 @@ interface AggregatedItem extends TopItemAnalytics {
 }
 
 interface MenuPerformanceRow extends AggregatedItem {
-  category: MenuCategory | 'uncategorised';
+  category: string;
   unitCost: number | null;
   /** Recorded revenue with VAT removed — the part the business actually keeps. */
   netRevenue: number;
@@ -49,15 +48,6 @@ const panel = 'rounded-sm border border-rule bg-card shadow-sm';
 
 const qtyOf = (row: TopItemAnalytics) => Number(row.totalQuantity ?? 0);
 const revOf = (row: TopItemAnalytics) => Number(row.totalRevenue ?? 0);
-
-const CATEGORY_LABEL: Record<MenuCategory | 'uncategorised', string> = {
-  coffee: 'Coffee',
-  'other-hot-drinks': 'Other hot drinks',
-  'coffee-over-ice': 'Coffee over ice',
-  tea: 'Tea',
-  snacks: 'Snacks',
-  uncategorised: 'Uncategorised',
-};
 
 function aggregateItems(rows: TopItemAnalytics[]): AggregatedItem[] {
   const grouped = new Map<string, AggregatedItem>();
@@ -110,6 +100,11 @@ export function TopItemsReportPage() {
     queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: !!tenantId,
   });
+  const categoriesQuery = useQuery({
+    queryKey: ['menu-categories', tenantId, 'report-performance'],
+    queryFn: () => getMenuCategories(tenantId ?? undefined),
+    enabled: !!tenantId,
+  });
   const locations = locationsQuery.data ?? [];
   const selectedLocation = locations.find((location) => location.id === locationId);
   const activeLocationId = selectedLocation?.id ?? null;
@@ -141,6 +136,7 @@ export function TopItemsReportPage() {
   const previous = useMemo(() => aggregateItems(previousQuery.data ?? []), [previousQuery.data]);
   const previousById = new Map(previous.map((row) => [row.menuItemId, row]));
   const menuById = new Map((menuQuery.data ?? []).map((item) => [item.id, item]));
+  const categoryById = new Map((categoriesQuery.data ?? []).map((category) => [category.id, category.name]));
   const recipeQueries = useQueries({
     queries: aggregated.map((item) => ({
       queryKey: ['menu-item-recipe', item.menuItemId, 'menu-performance'],
@@ -166,7 +162,7 @@ export function TopItemsReportPage() {
     const costing = computeCosting({ price: revenue, cogs: estimatedCost ?? 0, itemVatRate: menuItem?.vatRate, ctx: vat });
     return {
       ...item,
-      category: menuItem?.category ?? 'uncategorised',
+      category: menuItem ? (categoryById.get(menuItem.categoryId) ?? 'Unknown category') : 'Uncategorised',
       unitCost,
       netRevenue: costing.netRevenue,
       estimatedCost,
@@ -371,7 +367,7 @@ export function TopItemsReportPage() {
                           <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${share}%` }} />
                         </div>
                         <span className="shrink-0 text-label text-muted-foreground">
-                          {CATEGORY_LABEL[row.category]} · {row.orderCount} orders
+                          {row.category} · {row.orderCount} orders
                         </span>
                       </div>
                     </div>
@@ -394,7 +390,7 @@ export function TopItemsReportPage() {
                 <div key={category.category} className="rounded-sm bg-muted/40 px-3 py-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-semibold text-foreground">{CATEGORY_LABEL[category.category]}</p>
+                      <p className="text-xs font-semibold text-foreground">{category.category}</p>
                       <p className="text-micro text-muted-foreground">
                         {formatCompact(category.units)} units ·{' '}
                         {totalRevenue ? ((category.revenue / totalRevenue) * 100).toFixed(1) : '0.0'}% revenue
@@ -492,7 +488,7 @@ export function TopItemsReportPage() {
                   .map((row) => (
                     <tr key={row.menuItemId} className="border-b border-rule last:border-0">
                       <td className="px-4 py-3 font-medium text-foreground">{row.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{CATEGORY_LABEL[row.category]}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.category}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{qtyOf(row).toLocaleString()}</td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-foreground">{formatMoney(revOf(row))}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">

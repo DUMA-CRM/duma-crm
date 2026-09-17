@@ -20,8 +20,7 @@ export interface MenuItem {
   tenantId: string;
   name: string;
   description?: string;
-  category: MenuCategory;
-  categoryId?: string | null;
+  categoryId: string;
   // Brand-wide price (decimal string, e.g. "3.20"). There is no per-location pricing.
   price: string;
   // Per-item VAT rate as a percentage string ("20", "0"). Absent = use the
@@ -36,8 +35,7 @@ export interface MenuItem {
 export interface MenuItemPayload {
   tenantId: string;
   name: string;
-  category?: MenuCategory;
-  categoryId?: string;
+  categoryId: string;
   price: string;
   /** Percentage string, or null to clear the override and use the tenant default. */
   vatRate?: string | null;
@@ -51,15 +49,12 @@ export interface MenuItemPayload {
 export interface Modifier {
   id: string;
   tenantId: string;
-  /** Still carries the legacy "<Category>: <Label>" prefix. Prefer `label`. */
+  /** Plain display name; identical to `label`. */
   name: string;
-  // Real columns as of migration 0046. Optional because the API only started
-  // returning them in 1.22 — read them through the helpers in
-  // lib/utils/modifiers.ts, which fall back to parsing `name`.
-  label?: string | null;
-  category?: string | null;
+  label: string;
+  category: string | null;
   groupId?: string | null;
-  isSize?: boolean;
+  isSize: boolean;
   sortOrder?: number;
   priceAdjust?: string;
   isAvailable: boolean;
@@ -68,10 +63,7 @@ export interface Modifier {
 
 export interface ModifierPayload {
   tenantId: string;
-  /** Encoded "<Category>: <Label>" — still required by the pre-1.22 API. */
-  name: string;
-  /** Sent alongside `name`; older API versions ignore these. */
-  label?: string;
+  label: string;
   category?: string | null;
   groupId?: string | null;
   isSize?: boolean;
@@ -102,7 +94,7 @@ export interface MenuItemModifierGroup extends ModifierGroup {
   modifiers: Array<{
     modifierId: string;
     groupId: string | null;
-    label?: string | null;
+    label: string;
     name: string;
     priceAdjust: string;
     isAvailable: boolean;

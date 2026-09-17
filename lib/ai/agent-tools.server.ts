@@ -391,7 +391,7 @@ const listMenuItems: ToolDefinition = {
       .slice(0, 120);
     const unavailable = items.filter((item) => !item.isAvailable).length;
     return {
-      output: items.map(({ id, name, category, price, isAvailable }) => ({ id, name, category, priceGbp: toNumber(price), isAvailable })),
+      output: items.map(({ id, name, categoryId, price, isAvailable }) => ({ id, name, categoryId, priceGbp: toNumber(price), isAvailable })),
       evidence: `${items.length} menu item${items.length === 1 ? '' : 's'}${unavailable ? `, ${unavailable} hidden` : ''}`,
       cards: query
         ? [
@@ -404,7 +404,7 @@ const listMenuItems: ToolDefinition = {
               rows: items.slice(0, 6).map((item) => ({
                 label: item.name,
                 value: gbp(item.price),
-                meta: `${item.category} · ${item.isAvailable ? 'Available' : 'Hidden'}`,
+                meta: `${item.categoryId} · ${item.isAvailable ? 'Available' : 'Hidden'}`,
                 tone: item.isAvailable ? ('default' as const) : ('warning' as const),
               })),
             },

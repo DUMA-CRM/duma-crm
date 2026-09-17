@@ -30,7 +30,6 @@ import {
 import { chime } from '@/lib/utils/chime';
 import { CRASH_MINS, ageState, stageSince, type AgeState } from '@/lib/utils/kitchen-age';
 import { cn } from '@/lib/utils/cn';
-import { parseModifierName } from '@/lib/utils/modifiers';
 import { useKdsStore } from '@/stores/kdsStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -228,14 +227,12 @@ function KdsCard({
               {item.modifiers && item.modifiers.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1.5 pl-6">
                   {item.modifiers.map((modifier, index) => {
-                    const { category, label } = parseModifierName(modifier.name);
                     return (
                       <span
                         key={`${modifier.modifierId}-${index}`}
                         className="inline-flex overflow-hidden rounded-sm border border-rule text-xs font-semibold leading-tight"
                       >
-                        {category && <span className="bg-band px-2 py-1 text-primary">{category}</span>}
-                        <span className="bg-band px-2 py-1 text-primary">{label}</span>
+                        <span className="bg-band px-2 py-1 text-primary">{modifier.name}</span>
                       </span>
                     );
                   })}

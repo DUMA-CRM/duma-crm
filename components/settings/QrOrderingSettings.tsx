@@ -240,7 +240,7 @@ export function QrOrderingSettings() {
                 {draft.content.collectionInstructions && <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{draft.content.collectionInstructions}</p>}
                 <div className="mt-5 space-y-4">
                   {(categories.data ?? []).filter((category) => category.isActive).slice(0, 3).map((category) => {
-                    const categoryItems = visibleItems.filter((item) => item.categoryId === category.id || item.category === category.slug).slice(0, 2);
+                    const categoryItems = visibleItems.filter((item) => item.categoryId === category.id).slice(0, 2);
                     if (!categoryItems.length) return null;
                     return <section key={category.id}><h4 className="text-label font-semibold uppercase text-muted-foreground">{category.name}</h4><div className="mt-2 divide-y divide-rule/45 border-y border-rule/45">{categoryItems.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 py-3"><div><p className="text-sm font-medium">{item.name}</p><p className="line-clamp-1 text-xs text-muted-foreground">{item.description || 'Customise and add to basket'}</p></div><span className="shrink-0 text-sm font-semibold">{formatMoney(Number(item.price), 2)}</span></div>)}</div></section>;
                   })}

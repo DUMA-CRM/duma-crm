@@ -18,7 +18,7 @@ import { Select } from '@/components/ui/select';
 import { createModifier, deleteModifier, getModifierGroups, getModifiers, updateModifier } from '@/lib/api/menu.service';
 import { getModifierRecipe, setModifierRecipe } from '@/lib/api/recipes.service';
 import { cn } from '@/lib/utils/cn';
-import { encodeModifierName, isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
+import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -92,10 +92,6 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
     mutationFn: async () => {
       if (fieldsDirty || !modifier) {
         const payload = {
-          // `name` stays the encoded legacy form: the POS and KDS still read it,
-          // and API versions before 1.22 require it. The explicit fields beside
-          // it are ignored by those versions and authoritative in newer ones.
-          name: encodeModifierName(category, label),
           label: label.trim(),
           category: category.trim() || null,
           groupId: groupId || null,

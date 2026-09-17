@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react';
 import { ChefHat, CircleDollarSign, Plus, Search, SlidersHorizontal, UtensilsCrossed } from '@/components/icons';
 import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
 import { MenuSetupChecklist } from '@/components/menu/MenuSetupChecklist';
-import { AvailabilityToggle, categoryLabel, categoryTone, selectClass } from '@/components/menu/shared';
+import { AvailabilityToggle, categoryTone, selectClass } from '@/components/menu/shared';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
@@ -102,7 +102,7 @@ export function MenuItemsWorkspace() {
     const q = search.trim().toLowerCase();
     return items.filter(
       (i) =>
-        (categoryFilter === 'all' || i.categoryId === categoryFilter || i.category === categoryFilter) &&
+        (categoryFilter === 'all' || i.categoryId === categoryFilter) &&
         (!q || i.name.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q)),
     );
   }, [items, search, categoryFilter]);
@@ -146,10 +146,10 @@ export function MenuItemsWorkspace() {
         <span
           className={cn(
             'inline-flex items-center rounded-sm px-2.5 py-1 text-label font-semibold uppercase tracking-label',
-            categoryTone(row.category, row.categoryId ? categoryById.get(row.categoryId) : undefined),
+            categoryTone(categoryById.get(row.categoryId)?.slug ?? '', categoryById.get(row.categoryId)),
           )}
         >
-          {categoryLabel(row.category, row.categoryId ? categoryById.get(row.categoryId) : undefined)}
+          {categoryById.get(row.categoryId)?.name ?? 'Unknown category'}
         </span>
       ),
     },

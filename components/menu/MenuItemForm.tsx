@@ -5,7 +5,7 @@ import { ChefHat, UtensilsCrossed } from '@/components/icons';
 import { useEffect, useState } from 'react';
 
 import { RecipeSummaryChips } from '@/components/menu/RecipeEditorPage';
-import { AvailabilityToggle, categoryLabel, categoryTone, inputClass, labelClass, selectClass } from '@/components/menu/shared';
+import { AvailabilityToggle, categoryTone, inputClass, labelClass, selectClass } from '@/components/menu/shared';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
@@ -25,7 +25,7 @@ import { useVatContext } from '@/lib/hooks/useVatContext';
 import { cn } from '@/lib/utils/cn';
 import { groupByCategory, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import { toast } from '@/stores/toastStore';
-import type { MenuCategory, MenuItem } from '@/types/menu';
+import type { MenuItem } from '@/types/menu';
 
 const adjust = (raw?: string) => {
   const n = Number.parseFloat(raw ?? '0');
@@ -187,7 +187,6 @@ export function MenuItemForm({
   const qc = useQueryClient();
   const { ctx: vat } = useVatContext();
   const [name, setName] = useState(item?.name ?? '');
-  const [category, setCategory] = useState<MenuCategory>(item?.category ?? 'coffee');
   const [categoryId, setCategoryId] = useState(item?.categoryId ?? '');
   const [price, setPrice] = useState(item?.price ?? '');
   // '' means "use the tenant default"; '0' is a real, different answer (zero-rated).
@@ -201,14 +200,13 @@ export function MenuItemForm({
     queryFn: () => getMenuCategories(tenantId),
     enabled: Boolean(tenantId),
   });
-  const currentCategory = categories.find((entry) => entry.id === categoryId || (!categoryId && entry.slug === category));
+  const currentCategory = categories.find((entry) => entry.id === categoryId);
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: () => {
       const payload = {
         name,
-        category,
-        categoryId: categoryId || currentCategory?.id,
+        categoryId,
         price,
         // null clears the override on the server; undefined would leave it be.
         vatRate: vatRate.trim() === '' ? null : vatRate.trim(),
@@ -234,7 +232,6 @@ export function MenuItemForm({
 
   const dirty =
     name !== (item?.name ?? '') ||
-    category !== (item?.category ?? 'coffee') ||
     categoryId !== (item?.categoryId ?? '') ||
     price !== (item?.price ?? '') ||
     vatRate !== (item?.vatRate ?? '') ||
@@ -270,10 +267,10 @@ export function MenuItemForm({
             <span
               className={cn(
                 'absolute top-3 left-3 px-2.5 py-1 rounded-sm text-micro font-semibold uppercase tracking-micro backdrop-blur-sm',
-                categoryTone(category, currentCategory),
+                categoryTone(currentCategory?.slug ?? '', currentCategory),
               )}
             >
-              {categoryLabel(category, currentCategory)}
+              {currentCategory?.name ?? 'Choose category'}
             </span>
             <div className="absolute top-3 right-3">
               <AvailabilityToggle on={isAvailable} onToggle={() => setIsAvailable((v) => !v)} />
@@ -302,17 +299,9 @@ export function MenuItemForm({
               <div>
                 <label className={labelClass}>Category</label>
                 <Select
-                  value={categoryId || currentCategory?.id || category}
-                  onValueChange={(value) => {
-                    const selected = categories.find((entry) => entry.id === value);
-                    setCategoryId(selected?.id ?? '');
-                    setCategory(selected?.slug ?? value);
-                  }}
-                  options={
-                    categories.length
-                      ? categories.filter((entry) => entry.isActive || entry.id === item?.categoryId).map((entry) => ({ value: entry.id, label: entry.name }))
-                      : [{ value: category, label: categoryLabel(category) }]
-                  }
+                  value={categoryId}
+                  onValueChange={setCategoryId}
+                  options={categories.filter((entry) => entry.isActive || entry.id === item?.categoryId).map((entry) => ({ value: entry.id, label: entry.name }))}
                   ariaLabel="Menu item category"
                   className={selectClass}
                 />

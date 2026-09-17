@@ -24,7 +24,6 @@ import { type PaymentAttempt, type PaymentMethod, confirmPayment, getPaymentMeth
 import { clockIn, getMyShifts } from '@/lib/api/shifts.service';
 import { cn } from '@/lib/utils/cn';
 import { formatDateTime } from '@/lib/utils/date';
-import { parseModifierName } from '@/lib/utils/modifiers';
 import { cartItemTotal, selectionKey } from '@/lib/utils/pos';
 import { useAuthStore } from '@/stores/authStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
@@ -46,19 +45,18 @@ function toPosItem(api: ApiMenuItem, modifiers: AttachedModifier[], modifiersLoa
   return {
     id: api.id,
     name: api.name,
-    category: api.categoryId ?? api.category,
+    category: api.categoryId,
     price: pence(api.price),
     image: api.imageUrl ?? '',
     modifiersLoaded,
     modifiers: modifiers
       .filter((m) => m.isAvailable)
       .map((m): MenuOption => {
-        const { category, label } = parseModifierName(m.name);
         return {
           id: m.id,
-          label,
+          label: m.label,
           price: m.priceAdjust ? pence(m.priceAdjust) : 0,
-          category: category ?? undefined,
+          category: m.category ?? undefined,
           isDefault: m.isDefault,
         };
       }),
