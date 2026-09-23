@@ -2180,17 +2180,51 @@
             "required": true
           }
         ]
-      },
-      "delete": {
-        "operationId": "deleteV1TenantsById",
+      }
+    },
+    "/v1/tenants/{id}/status": {
+      "patch": {
+        "operationId": "patchV1TenantsByIdStatus",
         "tags": [
           "Tenants"
         ],
-        "summary": "Delete tenant",
-        "description": "Hard deletes a tenant. **Does not cascade** — foreign keys are ON DELETE NO ACTION, so a tenant with any locations (or other referencing records) is refused with 409. Super admin only. Writes an audit log.",
+        "summary": "Change tenant lifecycle status",
+        "description": "Moves a tenant through active, winding-down and inactive states without deleting business data. All locations must be inactive before the tenant can become inactive.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "reason"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "winding_down",
+                      "inactive"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Deleted successfully"
+            "description": "Updated tenant lifecycle state"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -2199,7 +2233,7 @@
             "description": "Not found"
           },
           "409": {
-            "description": "Still referenced — delete its locations and other records first"
+            "description": "Invalid transition or active locations remain"
           },
           "429": {
             "description": "Too many requests — rate limited"

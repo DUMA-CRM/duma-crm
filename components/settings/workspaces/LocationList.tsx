@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
-import { Building2, MapPin, Pencil, Plus, Trash2 } from '@/components/icons';
+import { Building2, Loader2, MapPin, Pencil, Plus, RefreshCw, Trash2 } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
@@ -15,14 +15,16 @@ import { Input } from '@/components/ui/input';
 import {
   type Location,
   type LocationPayload,
-  type OrderFulfilmentMode,
   type OpeningHours,
+  type OrderFulfilmentMode,
   WEEKDAYS,
   createLocation,
   deleteLocation,
   getLocationsByTenant,
+  setLocationActive,
   updateLocation,
 } from '@/lib/api/workspace.service';
+import { useTenants } from '@/lib/hooks/useTenants';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -266,8 +268,11 @@ type ModalState = { mode: 'create' } | { mode: 'edit'; location: Location } | { 
 /** Step 2 of the workspace settings: the sites inside the selected workspace. */
 export function LocationList() {
   const qc = useQueryClient();
+  const { tenants } = useTenants();
   const { tenantId, locationId, setLocationId } = useWorkspaceStore();
   const [modal, setModal] = useState<ModalState | null>(null);
+  const currentTenant = tenants.find((tenant) => tenant.id === tenantId);
+  const workspaceIsActive = currentTenant?.status === 'active';
 
   const {
     data: locations = [],
@@ -280,11 +285,11 @@ export function LocationList() {
   });
 
   // Reconcile stale persisted selection: if the active location no longer
-  // exists under this workspace (deleted, or left over from a previous
-  // session), clear it so POS/orders/inventory don't send an invalid id.
+  // exists under this workspace or has been deactivated, clear it so
+  // POS/orders/inventory don't send an unusable id.
   // Guarded on isSuccess so we never clear during the loading/empty flash.
   useEffect(() => {
-    if (isSuccess && locationId && !locations.some((l) => l.id === locationId)) {
+    if (isSuccess && locationId && !locations.some((l) => l.id === locationId && l.isActive)) {
       setLocationId(null);
     }
   }, [isSuccess, locations, locationId, setLocationId]);
@@ -314,6 +319,14 @@ export function LocationList() {
     },
   });
 
+  const activeMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => setLocationActive(id, isActive),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['locations', tenantId] });
+      if (!variables.isActive && locationId === variables.id) setLocationId(null);
+    },
+  });
+
   const isPending = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   return (
@@ -321,12 +334,14 @@ export function LocationList() {
       title="Locations"
       description={
         tenantId
-          ? 'Pick a location to make it active — it drives POS, orders and inventory. Click it again to clear.'
+          ? workspaceIsActive
+            ? 'Pick a location to make it active — it drives POS, orders and inventory. Click it again to clear.'
+            : 'This workspace is winding down or inactive. Locations can be deactivated, but not created or reactivated.'
           : 'Select a workspace first to see its locations.'
       }
       actions={
         tenantId ? (
-          <Button size="sm" onClick={() => setModal({ mode: 'create' })}>
+          <Button size="sm" disabled={!workspaceIsActive} onClick={() => setModal({ mode: 'create' })}>
             <Plus size={14} aria-hidden="true" />
             New
           </Button>
@@ -347,18 +362,22 @@ export function LocationList() {
               <div
                 key={loc.id}
                 role="button"
-                tabIndex={0}
+                tabIndex={loc.isActive ? 0 : -1}
                 aria-pressed={isSelected}
-                onClick={() => setLocationId(isSelected ? null : loc.id)}
+                aria-disabled={!loc.isActive}
+                onClick={() => {
+                  if (loc.isActive) setLocationId(isSelected ? null : loc.id);
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
+                  if (loc.isActive && (e.key === 'Enter' || e.key === ' ')) {
                     e.preventDefault();
                     setLocationId(isSelected ? null : loc.id);
                   }
                 }}
                 className={cn(
-                  'group cursor-pointer rounded-md border px-4 py-3 transition-colors duration-150',
+                  'group rounded-md border px-4 py-3 transition-colors duration-150',
                   'outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                  loc.isActive ? 'cursor-pointer' : 'cursor-default opacity-70',
                   isSelected ? 'border-primary bg-band' : 'border-rule bg-card hover:border-primary/30 hover:bg-band',
                 )}
               >
@@ -393,6 +412,22 @@ export function LocationList() {
                   </div>
                   {/* Actions — always visible on touch, hover-revealed on desktop */}
                   <div className="flex shrink-0 gap-1 transition-opacity lg:opacity-0 lg:group-focus-within:opacity-100 lg:group-hover:opacity-100">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={activeMutation.isPending || (!loc.isActive && !workspaceIsActive)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        activeMutation.mutate({ id: loc.id, isActive: !loc.isActive });
+                      }}
+                      aria-label={`${loc.isActive ? 'Deactivate' : 'Reactivate'} ${loc.name}`}
+                    >
+                      {activeMutation.isPending && activeMutation.variables?.id === loc.id ? (
+                        <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                      ) : (
+                        <RefreshCw size={14} aria-hidden="true" />
+                      )}
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon-sm"

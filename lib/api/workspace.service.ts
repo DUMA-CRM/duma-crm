@@ -6,6 +6,9 @@ export interface Tenant {
   id: string;
   name: string;
   slug: string;
+  status: 'active' | 'winding_down' | 'inactive';
+  statusReason?: string | null;
+  statusChangedAt: string;
   locationCount?: number;
   createdAt: string;
 }
@@ -21,6 +24,9 @@ export const createTenant = (data: TenantPayload) => apiFetch<Tenant>('/tenants'
 
 export const updateTenant = (id: string, data: Partial<TenantPayload>) =>
   apiFetch<Tenant>(`/tenants/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+
+export const changeTenantStatus = (id: string, status: Tenant['status'], reason: string) =>
+  apiFetch<Tenant>(`/tenants/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, reason }) });
 
 // ── Locations ─────────────────────────────────────────────────────────────────
 
@@ -76,6 +82,9 @@ export const createLocation = (data: LocationPayload) => apiFetch<Location>('/lo
 
 export const updateLocation = (id: string, data: Partial<Omit<LocationPayload, 'tenantId'>>) =>
   apiFetch<Location>(`/locations/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+
+export const setLocationActive = (id: string, isActive: boolean) =>
+  apiFetch<Location>(`/locations/${id}/active`, { method: 'PATCH', body: JSON.stringify({ isActive }) });
 
 /**
  * Set (or clear, with null) a location's daily revenue target. Separate from the

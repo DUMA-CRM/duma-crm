@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Building2, Pencil, Plus, Search } from '@/components/icons';
+import { Building2, Loader2, MoreHorizontal, Pencil, Plus, Search } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
@@ -11,9 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { type Tenant, type TenantPayload, createTenant, updateTenant } from '@/lib/api/workspace.service';
+import { type Tenant, type TenantPayload, changeTenantStatus, createTenant, updateTenant } from '@/lib/api/workspace.service';
 import { useTenants } from '@/lib/hooks/useTenants';
 import { cn } from '@/lib/utils/cn';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Form ─────────────────────────────────────────────────────────────────────
@@ -63,11 +64,109 @@ function TenantForm({
 
 // ── List ─────────────────────────────────────────────────────────────────────
 
-type ModalState = { mode: 'create' } | { mode: 'edit'; tenant: Tenant };
+type ModalState = { mode: 'create' } | { mode: 'edit'; tenant: Tenant } | { mode: 'lifecycle'; tenant: Tenant };
+
+const TENANT_STATUS_COPY: Record<Tenant['status'], { label: string; description: string }> = {
+  active: { label: 'Active', description: 'The workspace and its locations can operate normally.' },
+  winding_down: { label: 'Winding down', description: 'Keep records available while locations are closed and final work is completed.' },
+  inactive: { label: 'Inactive', description: 'Retain the workspace and its history without running day-to-day operations.' },
+};
+
+const TENANT_STATUS_TRANSITIONS: Record<Tenant['status'], readonly Tenant['status'][]> = {
+  active: ['winding_down'],
+  winding_down: ['active', 'inactive'],
+  inactive: ['active'],
+};
+
+function WorkspaceLifecycleForm({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [status, setStatus] = useState<Tenant['status']>(tenant.status);
+  const [reason, setReason] = useState('');
+  const mutation = useMutation({
+    mutationFn: () => changeTenantStatus(tenant.id, status, reason.trim()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenants'] });
+      qc.invalidateQueries({ queryKey: ['locations', tenant.id] });
+      onClose();
+    },
+  });
+
+  return (
+    <form
+      className="space-y-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        mutation.mutate();
+      }}
+    >
+      <div className="space-y-2" role="radiogroup" aria-label="Workspace lifecycle">
+        {(Object.keys(TENANT_STATUS_COPY) as Tenant['status'][]).map((value) => {
+          const copy = TENANT_STATUS_COPY[value];
+          const canSelect = value === tenant.status || TENANT_STATUS_TRANSITIONS[tenant.status].includes(value);
+          return (
+            <label
+              key={value}
+              className={cn(
+                'flex gap-3 rounded-md border px-3 py-3',
+                canSelect ? 'cursor-pointer' : 'cursor-not-allowed opacity-50',
+                status === value ? 'border-primary bg-band' : 'border-rule/65 bg-card hover:bg-band/45',
+              )}
+            >
+              <input
+                type="radio"
+                name="workspace-status"
+                value={value}
+                checked={status === value}
+                disabled={!canSelect}
+                onChange={() => setStatus(value)}
+                className="mt-0.5 size-4 accent-primary"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-foreground">{copy.label}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{copy.description}</span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+
+      <label className="block">
+        <span className="text-sm font-semibold text-foreground">Reason for the change</span>
+        <textarea
+          rows={3}
+          maxLength={500}
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          className="mt-2 w-full resize-y rounded-md border border-input bg-field px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:outline-2 focus:outline-primary/25"
+          placeholder="For example: final trading day completed"
+        />
+        <span className="mt-1 block text-xs text-muted-foreground">The reason and actor are recorded in the audit history.</span>
+      </label>
+
+      {status !== 'active' && (
+        <p className="rounded-md bg-band/65 px-3 py-2.5 text-sm text-muted-foreground">
+          No workspace data is deleted. Deactivate each location when it stops trading; historical records remain available.
+        </p>
+      )}
+
+      {mutation.error && <p className="text-sm text-exception">{mutation.error.message}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={status === tenant.status || reason.trim().length < 3 || mutation.isPending}>
+          {mutation.isPending && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+          {mutation.isPending ? 'Saving…' : 'Change status'}
+        </Button>
+      </div>
+    </form>
+  );
+}
 
 /** Step 1 of the workspace settings: which business the app is working in. */
 export function WorkspaceList() {
   const qc = useQueryClient();
+  const role = useAuthStore((state) => state.role);
   const { tenantId, setTenantId } = useWorkspaceStore();
   const [query, setQuery] = useState('');
   const [modal, setModal] = useState<ModalState | null>(null);
@@ -173,6 +272,11 @@ export function WorkspaceList() {
                         Current
                       </Badge>
                     )}
+                    {tenant.status !== 'active' && (
+                      <Badge variant={tenant.status === 'winding_down' ? 'warning' : 'muted'} className="shrink-0">
+                        {TENANT_STATUS_COPY[tenant.status].label}
+                      </Badge>
+                    )}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {tenant.slug}
@@ -180,17 +284,32 @@ export function WorkspaceList() {
                       ` · ${tenant.locationCount} ${tenant.locationCount === 1 ? 'location' : 'locations'}`}
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setModal({ mode: 'edit', tenant });
-                  }}
-                  aria-label={`Edit ${tenant.name}`}
-                >
-                  <Pencil size={14} aria-hidden="true" />
-                </Button>
+                <div className="flex shrink-0 gap-1">
+                  {role === 'super_admin' && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setModal({ mode: 'lifecycle', tenant });
+                      }}
+                      aria-label={`Manage ${tenant.name} lifecycle`}
+                    >
+                      <MoreHorizontal size={14} aria-hidden="true" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModal({ mode: 'edit', tenant });
+                    }}
+                    aria-label={`Edit ${tenant.name}`}
+                  >
+                    <Pencil size={14} aria-hidden="true" />
+                  </Button>
+                </div>
               </div>
             );
           })
@@ -199,19 +318,27 @@ export function WorkspaceList() {
 
       {/* Create / Edit modal */}
       {modal && (
-        <Modal title={modal.mode === 'create' ? 'New workspace' : 'Edit workspace'} onClose={() => setModal(null)}>
-          <TenantForm
-            initial={modal.mode === 'edit' ? modal.tenant : undefined}
-            onClose={() => setModal(null)}
-            isPending={isPending}
-            onSubmit={(data) => {
-              if (modal.mode === 'edit') {
-                updateMutation.mutate({ id: modal.tenant.id, data });
-              } else {
-                createMutation.mutate(data);
-              }
-            }}
-          />
+        <Modal
+          title={modal.mode === 'create' ? 'New workspace' : modal.mode === 'edit' ? 'Edit workspace' : `Lifecycle · ${modal.tenant.name}`}
+          description={modal.mode === 'lifecycle' ? 'Wind down a workspace without deleting its records.' : undefined}
+          onClose={() => setModal(null)}
+        >
+          {modal.mode === 'lifecycle' ? (
+            <WorkspaceLifecycleForm tenant={modal.tenant} onClose={() => setModal(null)} />
+          ) : (
+            <TenantForm
+              initial={modal.mode === 'edit' ? modal.tenant : undefined}
+              onClose={() => setModal(null)}
+              isPending={isPending}
+              onSubmit={(data) => {
+                if (modal.mode === 'edit') {
+                  updateMutation.mutate({ id: modal.tenant.id, data });
+                } else {
+                  createMutation.mutate(data);
+                }
+              }}
+            />
+          )}
         </Modal>
       )}
     </SettingsSection>
