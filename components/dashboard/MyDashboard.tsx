@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { type ReactNode, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { CalendarClock, ChevronDown, Clock, LogIn, LogOut, MapPin, Send } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -51,7 +51,7 @@ const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-wi
 
 // ── Component ───────────────────────────────────────────────────────────────────
 
-export function MyDashboard() {
+export function MyDashboard({ supplemental }: { supplemental?: ReactNode } = {}) {
   const user = useAuthStore((s) => s.user);
   const { locationId } = useWorkspaceStore();
   const qc = useQueryClient();
@@ -220,6 +220,7 @@ export function MyDashboard() {
           {/* Suggest a shift */}
           <SuggestShiftCard locationId={locationId} onDone={(msg) => addToast('success', msg)} onError={(msg) => addToast('error', msg)} />
         </div>
+        {supplemental}
       </div>
       {clockOutOpen && locationId && (
         <ClockOutDialog

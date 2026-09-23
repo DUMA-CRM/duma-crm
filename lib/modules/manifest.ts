@@ -1,6 +1,22 @@
+import { widgetsForModule } from '@/lib/dashboard/widget-registry';
+
 export const MODULE_IDS = [
-  'core', 'identity', 'organization', 'customers', 'catalog', 'ordering', 'payments', 'inventory',
-  'purchasing', 'workforce', 'people', 'communications', 'compliance', 'analytics', 'agent', 'support',
+  'core',
+  'identity',
+  'organization',
+  'customers',
+  'catalog',
+  'ordering',
+  'payments',
+  'inventory',
+  'purchasing',
+  'workforce',
+  'people',
+  'communications',
+  'compliance',
+  'analytics',
+  'agent',
+  'support',
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];
@@ -9,25 +25,47 @@ export type ModuleId = (typeof MODULE_IDS)[number];
 export const CRM_MODULE_CAPABILITIES = {
   core: [],
   identity: ['staff:read', 'staff:access', 'staff:onboard'],
-  organization: ['locations:write', 'locations:targets', 'tenants:read', 'settings:write'],
+  organization: ['locations:write', 'locations:targets', 'tenants:read', 'settings:read', 'settings:write'],
   customers: [
-    'customers:read', 'customers:write', 'customers:points', 'customers:merge', 'customers:erase',
-    'customers.consent:read', 'customers.consent:write', 'segments:read', 'segments:write', 'segments:send',
+    'customers:read',
+    'customers:write',
+    'customers:points',
+    'customers:merge',
+    'customers:erase',
+    'customers.consent:read',
+    'customers.consent:write',
+    'segments:read',
+    'segments:write',
+    'segments:send',
   ],
   catalog: ['menu:write'],
   ordering: ['orders:create', 'orders:read', 'orders:status', 'orders:refund', 'orders:bulk', 'qr-ordering:read', 'qr-ordering:write'],
   payments: ['payments.connections:write', 'cashups:read'],
   inventory: [
     'recipes:write',
-    'stock:read', 'stock.transfers:write', 'stock.locations:write', 'inventory:read',
-    'stocktakes:read', 'loss:read', 'loss:write', 'restock:read', 'restock:write',
-    'restock:delete', 'forecast:read',
+    'stock:read',
+    'stock.transfers:write',
+    'stock.locations:write',
+    'inventory:read',
+    'stocktakes:read',
+    'loss:read',
+    'loss:write',
+    'restock:read',
+    'restock:write',
+    'restock:delete',
+    'forecast:read',
   ],
   purchasing: ['suppliers:read', 'purchasing:read', 'purchasing:write'],
   workforce: ['scheduling:read', 'scheduling:write', 'shifts:read', 'shifts:write'],
   people: [
-    'hr.people:read', 'hr.sensitive:read', 'hr.sensitive:write', 'hr.leave:read',
-    'hr.leave:review', 'hr.attendance:read', 'hr.payroll:read', 'hr.payroll:write',
+    'hr.people:read',
+    'hr.sensitive:read',
+    'hr.sensitive:write',
+    'hr.leave:read',
+    'hr.leave:review',
+    'hr.attendance:read',
+    'hr.payroll:read',
+    'hr.payroll:write',
     'hr.documents:read',
   ],
   communications: ['email:read', 'email:send', 'email.connections:write'],
@@ -42,9 +80,7 @@ export type Capability = CrmCapabilityRegistry[keyof CrmCapabilityRegistry][numb
 export const FRONTEND_CAPABILITIES: readonly Capability[] = Object.values(CRM_MODULE_CAPABILITIES).flat();
 
 export function moduleForCapability(capability: Capability): ModuleId {
-  const owner = MODULE_IDS.find((moduleId) =>
-    (CRM_MODULE_CAPABILITIES[moduleId] as readonly string[]).includes(capability),
-  );
+  const owner = MODULE_IDS.find((moduleId) => (CRM_MODULE_CAPABILITIES[moduleId] as readonly string[]).includes(capability));
   if (!owner) throw new Error(`Capability has no CRM module owner: ${capability}`);
   return owner;
 }
@@ -78,7 +114,16 @@ const pages: Record<ModuleId, readonly string[]> = {
   identity: ['/forgot-password', '/reset-password', '/sign-in', '/sign-up', '/settings/security'],
   organization: ['/settings', '/settings/trading', '/settings/workspaces'],
   customers: ['/customers', '/customers/[id]', '/customers/duplicates'],
-  catalog: ['/menu', '/menu/categories', '/menu/items', '/menu/items/[id]', '/menu/items/new', '/menu/modifiers', '/menu/modifiers/[id]', '/menu/modifiers/new'],
+  catalog: [
+    '/menu',
+    '/menu/categories',
+    '/menu/items',
+    '/menu/items/[id]',
+    '/menu/items/new',
+    '/menu/modifiers',
+    '/menu/modifiers/[id]',
+    '/menu/modifiers/new',
+  ],
   ordering: ['/kds', '/orders', '/pos', '/order/[token]', '/settings/qr-ordering'],
   payments: ['/cash-up'],
   inventory: ['/inventory', '/inventory/items/[id]', '/inventory/restock-requests', '/inventory/stocktakes', '/inventory/units/[id]'],
@@ -87,7 +132,16 @@ const pages: Record<ModuleId, readonly string[]> = {
   people: ['/my-hr', '/staff', '/staff/[userId]', '/staff/payroll', '/staff/requests', '/staff/team'],
   communications: ['/communications', '/settings/connectors'],
   compliance: ['/audit-log', '/compliance'],
-  analytics: ['/dashboard', '/reports', '/reports/[metric]', '/reports/compare', '/reports/library', '/reports/refunds', '/reports/staff/[userId]', '/reports/top-items'],
+  analytics: [
+    '/dashboard',
+    '/reports',
+    '/reports/[metric]',
+    '/reports/compare',
+    '/reports/library',
+    '/reports/refunds',
+    '/reports/staff/[userId]',
+    '/reports/top-items',
+  ],
   agent: [],
   support: ['/staff/helpdesk', '/support', '/support/[slug]'],
 };
@@ -112,10 +166,22 @@ const dependencies: Record<ModuleId, readonly ModuleId[]> = {
 };
 
 const navigation: Record<ModuleId, readonly string[]> = {
-  core: [], identity: [], organization: ['/settings'], customers: ['/customers'], catalog: ['/menu'],
-  ordering: ['/pos', '/kds', '/orders'], payments: [], inventory: ['/inventory'], purchasing: [],
-  workforce: ['/scheduling'], people: ['/my-hr', '/staff'], communications: ['/communications'],
-  compliance: ['/compliance', '/audit-log'], analytics: ['/dashboard', '/reports'], agent: [], support: ['/support'],
+  core: [],
+  identity: [],
+  organization: ['/settings'],
+  customers: ['/customers'],
+  catalog: ['/menu'],
+  ordering: ['/pos', '/kds', '/orders'],
+  payments: [],
+  inventory: ['/inventory'],
+  purchasing: [],
+  workforce: ['/scheduling'],
+  people: ['/my-hr', '/staff'],
+  communications: ['/communications'],
+  compliance: ['/compliance', '/audit-log'],
+  analytics: ['/dashboard', '/reports'],
+  agent: [],
+  support: ['/support'],
 };
 
 export const CRM_MODULE_MANIFESTS: readonly ModuleManifest[] = MODULE_IDS.map((id) => ({
@@ -125,7 +191,7 @@ export const CRM_MODULE_MANIFESTS: readonly ModuleManifest[] = MODULE_IDS.map((i
   capabilities: CRM_MODULE_CAPABILITIES[id],
   navigation: navigation[id],
   routes: pages[id],
-  widgets: [],
+  widgets: widgetsForModule(id),
   setupChecks: [],
   publishedEvents: [],
   consumedEvents: [],

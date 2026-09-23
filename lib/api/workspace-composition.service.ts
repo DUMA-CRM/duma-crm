@@ -10,6 +10,27 @@ export interface DashboardWidgetPlacement {
   width: number;
   height: number;
   configuration: Record<string, unknown>;
+  definition?: {
+    key: string;
+    moduleId: string;
+    label: string;
+    requiredCapabilities: string[];
+    sensitive: 'none' | 'financial' | 'customer' | 'people';
+    audiences: Array<'owner' | 'location_manager' | 'frontline_pos' | 'kitchen' | 'hr_manager' | 'marketing_manager'>;
+    freshness: 'live' | 'minute' | 'on_navigation';
+    emptyState: string;
+    errorState: string;
+    deepLink: string;
+  };
+}
+
+export interface ResolvedDashboardLayout {
+  tenantId: string;
+  audienceKey: 'owner' | 'location_manager' | 'frontline_pos' | 'kitchen' | 'hr_manager' | 'marketing_manager';
+  source: 'published' | 'default';
+  layoutId: string | null;
+  version: number;
+  widgets: DashboardWidgetPlacement[];
 }
 
 export interface DashboardLayoutRevision {
@@ -50,6 +71,9 @@ export interface WorkspaceSetupSession {
 }
 
 export const getDashboardLayouts = (tenantId: string) => apiFetch<DashboardLayoutRevision[]>(`/dashboard-layouts/${tenantId}`);
+
+export const getResolvedDashboardLayout = (tenantId?: string | null) =>
+  apiFetch<ResolvedDashboardLayout>(`/dashboard-layouts/resolved${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`);
 
 export const publishDashboardLayout = (tenantId: string, audienceKey: string, name: string) =>
   apiFetch<DashboardLayoutRevision>(`/dashboard-layouts/${tenantId}/publish`, {

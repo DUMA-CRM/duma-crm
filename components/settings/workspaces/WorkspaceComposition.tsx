@@ -58,7 +58,7 @@ export function WorkspaceComposition() {
   return (
     <SettingsSection
       title="Workspace readiness"
-      description="Prepare a workspace for real operations, then publish the dashboard foundation each role will inherit. Progress is retained across sessions."
+      description="Prepare a workspace for real operations, then publish the owner dashboard composition. Progress is retained across sessions."
       footnote="Publishing creates a new revision. Earlier dashboard versions remain available for audit and rollback; connector secrets are never stored in a layout."
       className="xl:col-span-2"
     >
@@ -153,17 +153,17 @@ export function WorkspaceComposition() {
                   <span className="font-mono text-xs tabular-nums text-muted-foreground">Version {publishedLayout.version}</span>
                 </div>
                 <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                  This revision is the stable composition target. Registered widgets will be placed here in the next roadmap step.
+                  This revision controls the registered panels shown to owners. Panels from disabled modules are removed automatically.
                 </p>
               </div>
             ) : (
               <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                Publish the empty foundation now. Widget registration can evolve without overwriting this revision.
+                Publish the recommended owner template. It will include only panels supported by this workspace.
               </p>
             )}
             <Button size="sm" variant="outline" className="mt-4" onClick={() => publish.mutate()} disabled={publish.isPending}>
               {publish.isPending && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
-              {publishedLayout ? 'Publish new revision' : 'Publish foundation'}
+              {publishedLayout ? 'Publish new revision' : 'Publish owner template'}
             </Button>
             {ownerLayouts.length > 1 && (
               <p className="mt-2 text-xs text-muted-foreground">

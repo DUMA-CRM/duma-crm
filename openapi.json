@@ -2411,6 +2411,26 @@
         ]
       }
     },
+    "/v1/dashboard-layouts/resolved": {
+      "get": {
+        "operationId": "getV1DashboardLayoutsResolved",
+        "tags": [
+          "Dashboard Layouts"
+        ],
+        "summary": "Resolve the signed-in role dashboard",
+        "responses": {
+          "200": {
+            "description": "Published or default role layout, filtered by live modules and capabilities"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/dashboard-layouts/{tenantId}": {
       "get": {
         "operationId": "getV1DashboardLayoutsByTenantId",
