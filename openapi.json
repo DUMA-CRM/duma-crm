@@ -2411,6 +2411,247 @@
         ]
       }
     },
+    "/v1/dashboard-layouts/{tenantId}": {
+      "get": {
+        "operationId": "getV1DashboardLayoutsByTenantId",
+        "tags": [
+          "Dashboard Layouts"
+        ],
+        "summary": "List versioned dashboard layouts",
+        "responses": {
+          "200": {
+            "description": "Layout revisions with widget placement"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/dashboard-layouts/{tenantId}/publish": {
+      "post": {
+        "operationId": "postV1DashboardLayoutsByTenantIdPublish",
+        "tags": [
+          "Dashboard Layouts"
+        ],
+        "summary": "Publish a new immutable dashboard layout revision",
+        "responses": {
+          "201": {
+            "description": "Published layout revision"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "A widget belongs to a disabled or unknown module"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspace-setup/{tenantId}": {
+      "get": {
+        "operationId": "getV1WorkspaceSetupByTenantId",
+        "tags": [
+          "Workspace Setup"
+        ],
+        "summary": "Get the latest workspace setup session",
+        "responses": {
+          "200": {
+            "description": "Latest setup session or null"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspace-setup/{tenantId}/start": {
+      "post": {
+        "operationId": "postV1WorkspaceSetupByTenantIdStart",
+        "tags": [
+          "Workspace Setup"
+        ],
+        "summary": "Start or resume workspace setup",
+        "responses": {
+          "200": {
+            "description": "Existing active session"
+          },
+          "201": {
+            "description": "New setup session"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspace-setup/{tenantId}/requirements/{requirementId}": {
+      "patch": {
+        "operationId": "patchV1WorkspaceSetupByTenantIdRequirementsByRequirementId",
+        "tags": [
+          "Workspace Setup"
+        ],
+        "summary": "Update a setup requirement",
+        "responses": {
+          "200": {
+            "description": "Updated requirement"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "requirementId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspace-setup/{tenantId}/tasks/{taskId}": {
+      "patch": {
+        "operationId": "patchV1WorkspaceSetupByTenantIdTasksByTaskId",
+        "tags": [
+          "Workspace Setup"
+        ],
+        "summary": "Update a setup task",
+        "responses": {
+          "200": {
+            "description": "Updated task"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "taskId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspace-setup/{tenantId}/complete": {
+      "post": {
+        "operationId": "postV1WorkspaceSetupByTenantIdComplete",
+        "tags": [
+          "Workspace Setup"
+        ],
+        "summary": "Complete workspace setup when no blockers remain",
+        "responses": {
+          "200": {
+            "description": "Completed session"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Required setup remains"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/locations": {
       "post": {
         "operationId": "postV1Locations",

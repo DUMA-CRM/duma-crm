@@ -36,6 +36,7 @@ import { ConnectorsGrid } from '@/components/settings/connectors/ConnectorsGrid'
 import { relativeTime } from '@/components/settings/connectors/shared';
 import { LocationList } from '@/components/settings/workspaces/LocationList';
 import { ModuleManagement } from '@/components/settings/workspaces/ModuleManagement';
+import { WorkspaceComposition } from '@/components/settings/workspaces/WorkspaceComposition';
 import { WorkspaceList } from '@/components/settings/workspaces/WorkspaceList';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
@@ -718,9 +719,12 @@ export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
             <WorkspaceList />
             <LocationList />
             {role === 'super_admin' && (
-              <div className="xl:col-span-2">
-                <ModuleManagement />
-              </div>
+              <>
+                <WorkspaceComposition />
+                <div className="xl:col-span-2">
+                  <ModuleManagement />
+                </div>
+              </>
             )}
           </div>
         )}
