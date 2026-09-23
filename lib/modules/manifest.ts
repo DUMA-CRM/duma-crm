@@ -1,4 +1,4 @@
-import { widgetsForModule } from '@/lib/dashboard/widget-registry';
+import { widgetsForModule } from '../dashboard/widget-registry.ts';
 
 export const MODULE_IDS = [
   'core',
