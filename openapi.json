@@ -2291,6 +2291,47 @@
         ]
       }
     },
+    "/v1/modules/tenants/{tenantId}/{moduleId}/preview": {
+      "post": {
+        "operationId": "postV1ModulesTenantsByTenantIdByModuleIdPreview",
+        "tags": [
+          "Modules"
+        ],
+        "summary": "Preview a tenant module lifecycle change",
+        "responses": {
+          "200": {
+            "description": "Proposed diff, dependency effects and operational blast radius"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Tenant module row not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "moduleId",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/modules/tenants/{tenantId}/{moduleId}": {
       "patch": {
         "operationId": "patchV1ModulesTenantsByTenantIdByModuleId",
