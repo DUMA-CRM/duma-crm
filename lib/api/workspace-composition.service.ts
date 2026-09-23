@@ -63,7 +63,11 @@ export interface SetupTask {
   taskKey: string;
   title: string;
   status: 'pending' | 'in_progress' | 'blocked' | 'completed' | 'skipped';
-  isBlocking: boolean;
+  moduleId: string;
+  description?: string | null;
+  blockerReason?: string | null;
+  deepLink: string;
+  requiredBeforeGoLive: boolean;
 }
 
 export interface WorkspaceSetupSession {
@@ -74,6 +78,13 @@ export interface WorkspaceSetupSession {
   completedAt?: string | null;
   requirements: SetupRequirement[];
   tasks: SetupTask[];
+  readiness: {
+    ready: boolean;
+    blockingCount: number;
+    completedCount: number;
+    totalCount: number;
+    computedAt: string;
+  };
 }
 
 export const getDashboardLayouts = (tenantId: string) => apiFetch<DashboardLayoutRevision[]>(`/dashboard-layouts/${tenantId}`);
@@ -103,18 +114,6 @@ export const getWorkspaceSetup = (tenantId: string) => apiFetch<WorkspaceSetupSe
 
 export const startWorkspaceSetup = (tenantId: string) =>
   apiFetch<WorkspaceSetupSession>(`/workspace-setup/${tenantId}/start`, { method: 'POST' });
-
-export const updateSetupRequirement = (tenantId: string, requirementId: string, isSatisfied: boolean) =>
-  apiFetch<SetupRequirement>(`/workspace-setup/${tenantId}/requirements/${requirementId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ isSatisfied, evidence: {} }),
-  });
-
-export const updateSetupTask = (tenantId: string, taskId: string, status: SetupTask['status']) =>
-  apiFetch<SetupTask>(`/workspace-setup/${tenantId}/tasks/${taskId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  });
 
 export const completeWorkspaceSetup = (tenantId: string) =>
   apiFetch<WorkspaceSetupSession>(`/workspace-setup/${tenantId}/complete`, { method: 'POST' });

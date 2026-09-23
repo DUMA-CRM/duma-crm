@@ -2299,10 +2299,10 @@
       "get": {
         "operationId": "getV1WorkspaceSetupByTenantId",
         "tags": ["Workspace Setup"],
-        "summary": "Get the latest workspace setup session",
+        "summary": "Compute the latest module-owned workspace readiness",
         "responses": {
           "200": {
-            "description": "Latest setup session or null"
+            "description": "Latest setup session with live module-owned checks, or null"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -2327,7 +2327,7 @@
       "post": {
         "operationId": "postV1WorkspaceSetupByTenantIdStart",
         "tags": ["Workspace Setup"],
-        "summary": "Start or resume workspace setup",
+        "summary": "Start or resume a computed workspace readiness run",
         "responses": {
           "200": {
             "description": "Existing active session"
@@ -2354,89 +2354,11 @@
         ]
       }
     },
-    "/v1/workspace-setup/{tenantId}/requirements/{requirementId}": {
-      "patch": {
-        "operationId": "patchV1WorkspaceSetupByTenantIdRequirementsByRequirementId",
-        "tags": ["Workspace Setup"],
-        "summary": "Update a setup requirement",
-        "responses": {
-          "200": {
-            "description": "Updated requirement"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "404": {
-            "description": "Not found"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "tenantId",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "requirementId",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/workspace-setup/{tenantId}/tasks/{taskId}": {
-      "patch": {
-        "operationId": "patchV1WorkspaceSetupByTenantIdTasksByTaskId",
-        "tags": ["Workspace Setup"],
-        "summary": "Update a setup task",
-        "responses": {
-          "200": {
-            "description": "Updated task"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "404": {
-            "description": "Not found"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "tenantId",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "taskId",
-            "required": true
-          }
-        ]
-      }
-    },
     "/v1/workspace-setup/{tenantId}/complete": {
       "post": {
         "operationId": "postV1WorkspaceSetupByTenantIdComplete",
         "tags": ["Workspace Setup"],
-        "summary": "Complete workspace setup when no blockers remain",
+        "summary": "Confirm workspace readiness when no required blockers remain",
         "responses": {
           "200": {
             "description": "Completed session"

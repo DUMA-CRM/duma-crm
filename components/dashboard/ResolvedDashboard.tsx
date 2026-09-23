@@ -7,6 +7,7 @@ import { MyDashboard } from '@/components/dashboard/MyDashboard';
 import { PersonalDashboardControls } from '@/components/dashboard/PersonalDashboardControls';
 import { TodayDashboard } from '@/components/dashboard/TodayDashboard';
 import { AlertTriangle, LayoutDashboard, Loader2 } from '@/components/icons';
+import { WorkspaceReadinessChecklist } from '@/components/settings/workspaces/WorkspaceReadinessChecklist';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Button } from '@/components/ui/button';
 
@@ -60,8 +61,15 @@ export function ResolvedDashboard({ role }: { role: StaffRole }) {
 
   const widgetKeys = layout.data?.widgets.map((widget) => widget.widgetKey) ?? [];
   const analyticsKeys = widgetKeys.filter((key) => ANALYTICS_WIDGET_KEYS.has(key));
-  const launchKeys = widgetKeys.filter((key) => LAUNCH_WIDGET_KEYS.has(key));
+  const showsReadiness = widgetKeys.includes('organization.readiness');
+  const launchKeys = widgetKeys.filter((key) => LAUNCH_WIDGET_KEYS.has(key) && key !== 'organization.readiness');
   const launchBoard = <DashboardLaunchBoard widgetKeys={launchKeys} />;
+  const supplemental = (
+    <>
+      {showsReadiness && <WorkspaceReadinessChecklist compact />}
+      {launchBoard}
+    </>
+  );
   const personalisation = (
     <PersonalDashboardControls
       key={`${layout.data!.source}:${layout.data!.layoutId ?? 'system'}:${layout.data!.version}`}
@@ -70,21 +78,24 @@ export function ResolvedDashboard({ role }: { role: StaffRole }) {
   );
 
   if (analyticsKeys.length > 0) {
-    return <TodayDashboard role={role} widgetKeys={analyticsKeys} toolbar={personalisation} supplemental={launchBoard} />;
+    return <TodayDashboard role={role} widgetKeys={analyticsKeys} toolbar={personalisation} supplemental={supplemental} />;
   }
-  if (widgetKeys.includes('workforce.my-day')) return <MyDashboard toolbar={personalisation} supplemental={launchBoard} />;
+  if (widgetKeys.includes('workforce.my-day')) return <MyDashboard toolbar={personalisation} supplemental={supplemental} />;
 
   return (
     <EditorShell title="Dashboard" icon={<LayoutDashboard size={20} aria-hidden="true" />}>
-      {personalisation}
-      {launchKeys.length > 0 ? (
-        <DashboardLaunchBoard widgetKeys={launchKeys} />
-      ) : (
-        <div className="py-16 text-center">
-          <p className="text-sm font-semibold text-foreground">There are no workspace panels available yet.</p>
-          <p className="mt-1 text-xs text-muted-foreground">As modules and access are enabled, the relevant tools will appear here.</p>
-        </div>
-      )}
+      <div className="space-y-5">
+        {personalisation}
+        {showsReadiness && <WorkspaceReadinessChecklist compact />}
+        {launchKeys.length > 0 ? (
+          <DashboardLaunchBoard widgetKeys={launchKeys} />
+        ) : (
+          <div className="py-16 text-center">
+            <p className="text-sm font-semibold text-foreground">There are no workspace panels available yet.</p>
+            <p className="mt-1 text-xs text-muted-foreground">As modules and access are enabled, the relevant tools will appear here.</p>
+          </div>
+        )}
+      </div>
     </EditorShell>
   );
 }
