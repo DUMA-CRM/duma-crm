@@ -30,11 +30,12 @@ import {
   VolumeX,
 } from '@/components/icons';
 import { AgentModelSettings } from '@/components/settings/AgentModelSettings';
-import { SettingsSection as Section } from '@/components/settings/SettingsSection';
 import { QrOrderingSettings } from '@/components/settings/QrOrderingSettings';
+import { SettingsSection as Section } from '@/components/settings/SettingsSection';
 import { ConnectorsGrid } from '@/components/settings/connectors/ConnectorsGrid';
 import { relativeTime } from '@/components/settings/connectors/shared';
 import { LocationList } from '@/components/settings/workspaces/LocationList';
+import { ModuleManagement } from '@/components/settings/workspaces/ModuleManagement';
 import { WorkspaceList } from '@/components/settings/workspaces/WorkspaceList';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
@@ -51,9 +52,9 @@ import {
   revokeOtherSessions,
   revokeSession,
 } from '@/lib/api/auth.service';
+import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { MIN_PASSWORD_LENGTH, passwordLengthHint } from '@/lib/auth/password-policy';
-import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { useTenants } from '@/lib/hooks/useTenants';
 import { chime } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
@@ -566,6 +567,7 @@ function ChoiceGroup<T extends string>({
 export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const role = useAuthStore((s) => s.role);
   const capabilities = useAuthStore((s) => s.capabilities);
   const { tenantId, locationId } = useWorkspaceStore();
   const { theme, setTheme } = useTheme();
@@ -715,6 +717,11 @@ export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
           <div className="grid items-start gap-4 xl:grid-cols-2">
             <WorkspaceList />
             <LocationList />
+            {role === 'super_admin' && (
+              <div className="xl:col-span-2">
+                <ModuleManagement />
+              </div>
+            )}
           </div>
         )}
 
