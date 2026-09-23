@@ -27,9 +27,15 @@ export interface DashboardWidgetPlacement {
 export interface ResolvedDashboardLayout {
   tenantId: string;
   audienceKey: 'owner' | 'location_manager' | 'frontline_pos' | 'kitchen' | 'hr_manager' | 'marketing_manager';
-  source: 'published' | 'default';
+  source: 'system' | 'workspace' | 'personal';
   layoutId: string | null;
   version: number;
+  layers: {
+    system: { version: number; widgetCount: number };
+    workspace: { layoutId: string; version: number; widgetCount: number; applied: boolean } | null;
+    personal: { layoutId: string; version: number; widgetCount: number } | null;
+  };
+  availableWidgets: DashboardWidgetPlacement[];
   widgets: DashboardWidgetPlacement[];
 }
 
@@ -74,6 +80,18 @@ export const getDashboardLayouts = (tenantId: string) => apiFetch<DashboardLayou
 
 export const getResolvedDashboardLayout = (tenantId?: string | null) =>
   apiFetch<ResolvedDashboardLayout>(`/dashboard-layouts/resolved${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`);
+
+export const publishPersonalDashboardLayout = (
+  tenantId: string,
+  widgets: Array<Pick<DashboardWidgetPlacement, 'widgetKey' | 'gridColumn' | 'gridRow' | 'width' | 'height'>>,
+) =>
+  apiFetch(`/dashboard-layouts/personal`, {
+    method: 'POST',
+    body: JSON.stringify({ tenantId, widgets }),
+  });
+
+export const resetPersonalDashboardLayout = (tenantId: string) =>
+  apiFetch<void>(`/dashboard-layouts/personal?tenantId=${encodeURIComponent(tenantId)}`, { method: 'DELETE' });
 
 export const publishDashboardLayout = (tenantId: string, audienceKey: string, name: string) =>
   apiFetch<DashboardLayoutRevision>(`/dashboard-layouts/${tenantId}/publish`, {

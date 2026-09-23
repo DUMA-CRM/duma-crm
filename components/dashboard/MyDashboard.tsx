@@ -51,7 +51,7 @@ const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-wi
 
 // ── Component ───────────────────────────────────────────────────────────────────
 
-export function MyDashboard({ supplemental }: { supplemental?: ReactNode } = {}) {
+export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; supplemental?: ReactNode } = {}) {
   const user = useAuthStore((s) => s.user);
   const { locationId } = useWorkspaceStore();
   const qc = useQueryClient();
@@ -103,6 +103,7 @@ export function MyDashboard({ supplemental }: { supplemental?: ReactNode } = {})
   return (
     <>
       <div className="space-y-5 pb-8">
+        {toolbar}
         {/* Greeting + live clock */}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

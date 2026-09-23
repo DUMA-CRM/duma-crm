@@ -28,10 +28,12 @@ import { tradingDayLabel } from '@/lib/utils/trading-day';
 export function TodayDashboard({
   role,
   widgetKeys,
+  toolbar,
   supplemental,
 }: {
   role: StaffRole;
   widgetKeys?: readonly string[];
+  toolbar?: ReactNode;
   supplemental?: ReactNode;
 }) {
   const dashboard = useTodayDashboard();
@@ -101,6 +103,7 @@ export function TodayDashboard({
       }
     >
       <div className="space-y-4">
+        {toolbar}
         {!selectedLocation && (
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-rule/65 bg-card px-4 py-3">
             <p className="text-sm text-foreground">

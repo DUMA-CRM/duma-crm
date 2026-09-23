@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { DashboardLaunchBoard } from '@/components/dashboard/DashboardLaunchBoard';
 import { MyDashboard } from '@/components/dashboard/MyDashboard';
+import { PersonalDashboardControls } from '@/components/dashboard/PersonalDashboardControls';
 import { TodayDashboard } from '@/components/dashboard/TodayDashboard';
 import { AlertTriangle, LayoutDashboard, Loader2 } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
@@ -61,12 +62,21 @@ export function ResolvedDashboard({ role }: { role: StaffRole }) {
   const analyticsKeys = widgetKeys.filter((key) => ANALYTICS_WIDGET_KEYS.has(key));
   const launchKeys = widgetKeys.filter((key) => LAUNCH_WIDGET_KEYS.has(key));
   const launchBoard = <DashboardLaunchBoard widgetKeys={launchKeys} />;
+  const personalisation = (
+    <PersonalDashboardControls
+      key={`${layout.data!.source}:${layout.data!.layoutId ?? 'system'}:${layout.data!.version}`}
+      layout={layout.data!}
+    />
+  );
 
-  if (analyticsKeys.length > 0) return <TodayDashboard role={role} widgetKeys={analyticsKeys} supplemental={launchBoard} />;
-  if (widgetKeys.includes('workforce.my-day')) return <MyDashboard supplemental={launchBoard} />;
+  if (analyticsKeys.length > 0) {
+    return <TodayDashboard role={role} widgetKeys={analyticsKeys} toolbar={personalisation} supplemental={launchBoard} />;
+  }
+  if (widgetKeys.includes('workforce.my-day')) return <MyDashboard toolbar={personalisation} supplemental={launchBoard} />;
 
   return (
     <EditorShell title="Dashboard" icon={<LayoutDashboard size={20} aria-hidden="true" />}>
+      {personalisation}
       {launchKeys.length > 0 ? (
         <DashboardLaunchBoard widgetKeys={launchKeys} />
       ) : (
