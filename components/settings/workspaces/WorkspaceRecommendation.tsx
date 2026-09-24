@@ -160,6 +160,11 @@ export function WorkspaceRecommendation() {
   };
 
   if (showForm) {
+    const hasDirectNeed = answers.salesChannels.length > 0
+      || answers.paymentMethods.length > 0
+      || answers.fulfilment.length > 0
+      || answers.stockTracking !== 'none'
+      || WORKFLOW_CHOICES.some((choice) => Boolean(answers[choice.key]));
     return (
       <div className="border-y border-rule/55 py-5">
         <div className="flex items-start gap-3">
@@ -234,7 +239,7 @@ export function WorkspaceRecommendation() {
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           {recommendation && <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Keep current proposal</Button>}
-          <Button size="sm" disabled={!answers.businessType || generate.isPending} onClick={() => generate.mutate()}>
+          <Button size="sm" disabled={(!answers.businessType && !hasDirectNeed) || generate.isPending} onClick={() => generate.mutate()}>
             {generate.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
             {recommendation ? 'Generate new proposal' : 'Build module proposal'}
           </Button>
