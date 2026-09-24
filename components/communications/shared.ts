@@ -20,6 +20,9 @@ export const TRIGGER_LABELS: Record<Trigger, string> = {
   customer_birthday: 'Customer birthday',
   customer_inactive: 'Customer inactive',
   segment_entered: 'Enters a segment',
+  staff_onboarded: 'Employee onboarded',
+  staff_leave_approved: 'Employee leave approved',
+  staff_document_expiring: 'Employee document expiring',
 };
 
 /** Sentence used in the trigger dropdown — reads as "send when…". */
@@ -32,6 +35,9 @@ export const TRIGGER_OPTIONS: { value: Trigger; label: string }[] = [
   { value: 'customer_birthday', label: "It is a customer's birthday" },
   { value: 'customer_inactive', label: 'A customer has not visited for a while' },
   { value: 'segment_entered', label: 'A customer enters a segment' },
+  { value: 'staff_onboarded', label: 'An employee is onboarded' },
+  { value: 'staff_leave_approved', label: 'An employee’s leave is approved' },
+  { value: 'staff_document_expiring', label: 'An employee document is nearing expiry' },
 ];
 
 /** Plain-language explanation shown under the trigger dropdown. */
@@ -45,10 +51,15 @@ export const TRIGGER_HELP: Record<Trigger, string> = {
   customer_inactive: 'Sent once per inactive spell to opted-in customers. A new visit resets the clock.',
   segment_entered:
     'Checked hourly. Only customers who start matching after you publish are sent to — everybody already in the segment is left alone.',
+  staff_onboarded: 'Sent once when an employee completes onboarding.',
+  staff_leave_approved: 'Sent once when an employee’s leave request is approved.',
+  staff_document_expiring: 'Checked hourly and sent once when an employee document enters its expiry reminder window.',
 };
 
 /** Which triggers need customers to have opted in to marketing email. */
 export const OPT_IN_TRIGGERS: Trigger[] = ['customer_birthday', 'customer_inactive'];
+
+export const isStaffTrigger = (trigger: Trigger) => trigger.startsWith('staff_');
 
 export const deliveryBadge: Record<EmailDelivery['status'], 'muted' | 'primary' | 'success' | 'destructive' | 'warning'> = {
   queued: 'muted',
@@ -65,6 +76,7 @@ export function describeTiming(trigger: Trigger, offsetDays: number): string {
     return days === 0 ? 'on the day' : `${days} ${days === 1 ? 'day' : 'days'} before`;
   }
   if (trigger === 'customer_inactive') return `after ${Math.max(1, offsetDays)} days without a visit`;
+  if (trigger === 'staff_document_expiring') return 'when the document enters its reminder window';
   return 'immediately';
 }
 
@@ -89,6 +101,10 @@ export function describeAutomation({
   }
   if (trigger === 'customer_inactive') {
     return `Emails ${template} to an opted-in customer once they have not visited for ${Math.max(1, offsetDays)} days.`;
+  }
+  if (isStaffTrigger(trigger)) {
+    const event = TRIGGER_OPTIONS.find((option) => option.value === trigger)?.label.toLowerCase() ?? 'the staff event happens';
+    return `Emails ${template} to the employee as soon as ${event}.`;
   }
   const event = TRIGGER_OPTIONS.find((option) => option.value === trigger)?.label.toLowerCase() ?? 'the event happens';
   return `Emails ${template} to the customer as soon as ${event} ${where}.`;

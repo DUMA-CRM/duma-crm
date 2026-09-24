@@ -7,6 +7,8 @@ export interface PrivacyRequest {
   id: string;
   tenantId: string;
   customerId?: string | null;
+  subjectType: 'customer' | 'employee';
+  employeeUserId?: string | null;
   type: PrivacyRequestType;
   status: PrivacyRequestStatus;
   requestChannel: string;
@@ -17,6 +19,7 @@ export interface PrivacyRequest {
   assignedTo?: string | null;
   completedAt?: string | null;
   customerSnapshot?: { name: string; email?: string | null; phone?: string | null } | null;
+  employeeSnapshot?: { name: string; email?: string | null } | null;
   customer?: { id: string; firstName: string; lastName: string; email?: string | null; phone: string } | null;
 }
 
@@ -26,15 +29,18 @@ const query = (params: Record<string, string | undefined>) => {
   return qs.toString();
 };
 
-export const getPrivacyRequests = (params: { tenantId?: string; customerId?: string; status?: string } = {}) =>
+export const getPrivacyRequests = (params: { tenantId?: string; customerId?: string; employeeUserId?: string; status?: string } = {}) =>
   apiFetch<PrivacyRequest[]>(`/privacy-requests?${query(params)}`);
-export const createPrivacyRequest = (data: {
-  tenantId?: string;
-  customerId: string;
-  type: PrivacyRequestType;
-  requestChannel: string;
-  details?: string;
-}) => apiFetch<PrivacyRequest>('/privacy-requests', { method: 'POST', body: JSON.stringify(data) });
+type CustomerPrivacySubject = { subjectType: 'customer'; customerId: string; employeeUserId?: never };
+type EmployeePrivacySubject = { subjectType: 'employee'; employeeUserId: string; customerId?: never };
+export const createPrivacyRequest = (
+  data: (CustomerPrivacySubject | EmployeePrivacySubject) & {
+    tenantId?: string;
+    type: PrivacyRequestType;
+    requestChannel: string;
+    details?: string;
+  },
+) => apiFetch<PrivacyRequest>('/privacy-requests', { method: 'POST', body: JSON.stringify(data) });
 export const updatePrivacyRequest = (id: string, data: { status?: Exclude<PrivacyRequestStatus, 'completed'>; resolutionNotes?: string }) =>
   apiFetch<PrivacyRequest>(`/privacy-requests/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const completePrivacyRequest = (id: string, resolutionNotes: string) =>

@@ -75,7 +75,15 @@ const TEXTAREA =
 
 const CREATE_FORM_ID = 'privacy-request-form';
 
-export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: string; tenantId?: string }) {
+export function PrivacyRequestsPanel({
+  customerId,
+  employeeUserId,
+  tenantId,
+}: {
+  customerId?: string;
+  employeeUserId?: string;
+  tenantId?: string;
+}) {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [completing, setCompleting] = useState<PrivacyRequest | null>(null);
@@ -90,8 +98,11 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
   // Completing an erasure destroys data, so the API requires customers:erase on
   // top of privacy:write. Checked here too, so the button explains itself rather
   // than failing with a 403 after the notes have been written.
-  const canErase = hasCapability(capabilities, 'customers:erase');
+  const canEraseCustomer = hasCapability(capabilities, 'customers:erase');
+  const canEraseEmployee = hasCapability(capabilities, 'hr.people:delete');
   const isErasure = completing?.type === 'erasure';
+  const isEmployeeRequest = completing?.subjectType === 'employee';
+  const canErase = isEmployeeRequest ? canEraseEmployee : canEraseCustomer;
 
   const {
     data = [],
@@ -99,16 +110,20 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
     isError,
     refetch,
   } = useQuery({
-    queryKey: moduleQueryKeys.compliance.key('privacy-requests', tenantId, customerId),
-    queryFn: () => getPrivacyRequests({ tenantId, customerId }),
-    enabled: Boolean(tenantId || customerId),
+    queryKey: moduleQueryKeys.compliance.key('privacy-requests', tenantId, customerId, employeeUserId),
+    queryFn: () => getPrivacyRequests({ tenantId, customerId, employeeUserId }),
+    enabled: Boolean(tenantId || customerId || employeeUserId),
   });
 
   const refresh = () => qc.invalidateQueries({ queryKey: moduleQueryKeys.compliance.key('privacy-requests') });
 
   const create = useMutation({
-    mutationFn: () =>
-      createPrivacyRequest({ tenantId, customerId: customerId!, type, requestChannel: channel, details: details.trim() || undefined }),
+    mutationFn: () => {
+      const common = { tenantId, type, requestChannel: channel, details: details.trim() || undefined };
+      return employeeUserId
+        ? createPrivacyRequest({ ...common, subjectType: 'employee', employeeUserId })
+        : createPrivacyRequest({ ...common, subjectType: 'customer', customerId: customerId! });
+    },
     onSuccess: () => {
       void refresh();
       if (customerId) void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-timeline', customerId) });
@@ -136,7 +151,10 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
       setCompleting(null);
       setResolution('');
       setConfirmPhrase('');
-      toast('success', isErasure ? 'Customer data erased and request completed.' : 'Privacy request completed.');
+      toast(
+        'success',
+        isErasure ? `${isEmployeeRequest ? 'Employee' : 'Customer'} data erased and request completed.` : 'Privacy request completed.',
+      );
     },
     onError: (error) => toast('error', error.message || 'The privacy request wasn’t completed. Review it and try again.'),
   });
@@ -144,16 +162,16 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
   const visibleRequests = useMemo(
     () =>
       [...data]
-        .filter((request) => customerId || !isClosed(request))
+        .filter((request) => customerId || employeeUserId || !isClosed(request))
         .sort((a, b) => {
           if (isClosed(a) !== isClosed(b)) return isClosed(a) ? 1 : -1;
           return Date.parse(a.dueAt) - Date.parse(b.dueAt);
         }),
-    [customerId, data],
+    [customerId, employeeUserId, data],
   );
 
   const openCount = data.filter((request) => !isClosed(request)).length;
-  const scoped = Boolean(customerId);
+  const scoped = Boolean(customerId || employeeUserId);
 
   return (
     <section className={cn(scoped && 'rounded-sm border border-rule bg-card')} aria-label="Privacy requests">
@@ -211,7 +229,7 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
               <RequestRow
                 key={request.id}
                 request={request}
-                customerScoped={scoped}
+                subjectScoped={scoped}
                 now={now}
                 progressPending={progress.isPending}
                 onStart={() => progress.mutate(request)}
@@ -227,7 +245,7 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
       </div>
 
       {/* ── Recording a new one ────────────────────────────────────────── */}
-      {creating && customerId && (
+      {creating && (customerId || employeeUserId) && (
         <Drawer
           title="Record a privacy request"
           description="Capture the original channel and wording while it is fresh."
@@ -281,14 +299,14 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
 
             <div className="space-y-1.5">
               <label htmlFor="privacy-request-details" className="block text-label uppercase text-muted-foreground">
-                Customer’s wording (optional)
+                {employeeUserId ? 'Employee’s' : 'Customer’s'} wording (optional)
               </label>
               <textarea
                 id="privacy-request-details"
                 value={details}
                 onChange={(event) => setDetails(event.target.value)}
                 maxLength={2000}
-                placeholder="Record what the customer asked for, in their words where you can"
+                placeholder={`Record what the ${employeeUserId ? 'employee' : 'customer'} asked for, in their words where you can`}
                 className={cn(TEXTAREA, 'min-h-28')}
               />
             </div>
@@ -328,25 +346,37 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
             {isErasure && (
               <>
                 <div className="rounded-sm border border-destructive/30 bg-destructive/6 p-3 text-sm text-destructive">
-                  <p className="font-semibold">This permanently destroys personal data. It cannot be undone.</p>
-                  <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs">
-                    <li>Name, phone, email and date of birth are overwritten</li>
-                    <li>Allergies, dietary needs, seating preference and alerts are cleared</li>
-                    <li>Internal notes are deleted and the points balance is zeroed</li>
-                    <li>Sent emails are redacted; anything unsent is cancelled</li>
-                    <li>The email address is suppressed so it cannot be re-enrolled</li>
-                  </ul>
-                  <p className="mt-2 text-xs">
-                    Orders and payments stay linked to the anonymised record — there is a separate legal basis for keeping financial
-                    history, and what is removed is the ability to tie it to a person.
-                  </p>
+                  <p className="font-semibold">This permanently removes direct personal data. It cannot be undone.</p>
+                  {isEmployeeRequest ? (
+                    <>
+                      <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs">
+                        <li>The employee must be inactive and their retention review date must have passed</li>
+                        <li>Identity, bank, statutory, leave, absence and communication details are redacted</li>
+                        <li>Uploaded employee documents are permanently deleted</li>
+                      </ul>
+                      <p className="mt-2 text-xs">
+                        Anonymised employment and payroll evidence is retained where DUMA still has a legal obligation to keep it.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs">
+                        <li>Name, phone, email and date of birth are overwritten</li>
+                        <li>Preferences, alerts and internal notes are cleared</li>
+                        <li>Sent emails are redacted and unsent messages are cancelled</li>
+                      </ul>
+                      <p className="mt-2 text-xs">
+                        Orders and payments stay linked to an anonymised record where there is a separate legal basis for retaining them.
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {!canErase && (
                   <p className="rounded-sm border border-warning/25 bg-warning/6 p-3 text-sm text-warning" role="alert">
-                    You can work this request but not complete it: erasing customer data requires the{' '}
-                    <code className="font-mono text-xs">customers:erase</code> capability, which only an owner holds. Ask an owner to
-                    complete it.
+                    You can work this request but not complete it: erasing {isEmployeeRequest ? 'employee' : 'customer'} data requires the{' '}
+                    <code className="font-mono text-xs">{isEmployeeRequest ? 'hr.people:delete' : 'customers:erase'}</code> capability. Ask
+                    an authorised owner or HR manager to complete it.
                   </p>
                 )}
               </>
@@ -419,20 +449,22 @@ function QueueMessage({
 
 function RequestRow({
   request,
-  customerScoped,
+  subjectScoped,
   now,
   progressPending,
   onStart,
   onComplete,
 }: {
   request: PrivacyRequest;
-  customerScoped: boolean;
+  subjectScoped: boolean;
   now: number;
   progressPending: boolean;
   onStart: () => void;
   onComplete: () => void;
 }) {
-  const name = request.customer ? `${request.customer.firstName} ${request.customer.lastName}` : request.customerSnapshot?.name;
+  const name = request.customer
+    ? `${request.customer.firstName} ${request.customer.lastName}`
+    : (request.customerSnapshot?.name ?? request.employeeSnapshot?.name);
   const closed = isClosed(request);
   const overdue = !closed && Date.parse(request.dueAt) < now;
   const typeLabel = TYPE_OPTIONS.find((option) => option.value === request.type)?.label ?? request.type;
@@ -463,10 +495,11 @@ function RequestRow({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold text-foreground">{typeLabel}</h3>
-            {!customerScoped && name && (
+            {!subjectScoped && name && (
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                 <UserCircle2 size={13} aria-hidden="true" />
                 {name}
+                {request.subjectType === 'employee' && <Badge variant="muted">Employee</Badge>}
               </span>
             )}
           </div>

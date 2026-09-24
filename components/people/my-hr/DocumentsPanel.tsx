@@ -2,14 +2,20 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { ChevronDown, FileText, Loader2, Wallet } from '@/components/icons';
+import { ChevronDown, Download, FileText, Loader2, Wallet } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import type { HrEmployee } from '@/lib/modules/people/client';
-import { type EmployeeDocument, type Payslip, getMyAttendance, getMyPayslips } from '@/lib/modules/people/client';
+import {
+  type EmployeeDocument,
+  type Payslip,
+  employeeDocumentDownloadUrl,
+  getMyAttendance,
+  getMyPayslips,
+} from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { payVariesWithHours } from '@/lib/utils/my-hr';
 
@@ -41,10 +47,8 @@ export function DocumentsPanel({
         <DocumentsSection documents={documents} />
       </div>
 
-      {/* The UK GDPR access right, exercised where the record lives. There is
-          no staff privacy-request endpoint — `/privacy-requests` requires a
-          `customerId` — so it raises a tagged helpdesk ticket, which gives HR
-          an auditable trail and the employee a thread to follow. */}
+      {/* Employees raise this through the existing HR thread; HR can now turn
+          that into a first-class employee privacy request from their record. */}
       <p className="border-t border-rule pt-5 text-sm text-muted-foreground">
         Your employer also holds pay, attendance and leave records about you.{' '}
         <button type="button" onClick={onDataRequest} className="font-medium text-primary underline-offset-2 hover:underline">
@@ -189,9 +193,23 @@ function DocumentsSection({ documents }: { documents: EmployeeDocument[] }) {
                     {document.reference ? ` · ${document.reference}` : ''}
                   </p>
                 </div>
-                <p className="shrink-0 text-sm text-muted-foreground">
-                  {document.expiresAt ? `Expires ${fmt(document.expiresAt)}` : document.issuedAt ? `Issued ${fmt(document.issuedAt)}` : ''}
-                </p>
+                <div className="flex shrink-0 items-center gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    {document.expiresAt
+                      ? `Expires ${fmt(document.expiresAt)}`
+                      : document.issuedAt
+                        ? `Issued ${fmt(document.issuedAt)}`
+                        : ''}
+                  </p>
+                  {document.hasFile && (
+                    <Button asChild variant="ghost" size="sm">
+                      <a href={employeeDocumentDownloadUrl(document.id)} download>
+                        <Download data-icon="inline-start" />
+                        Download
+                      </a>
+                    </Button>
+                  )}
+                </div>
               </li>
             );
           })}

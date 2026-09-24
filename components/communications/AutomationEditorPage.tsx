@@ -54,6 +54,11 @@ const CONDITION_FIELDS = [
   { value: 'order.totalAmount', label: 'Order · total amount' },
   { value: 'order.paymentMethod', label: 'Order · payment method' },
 ];
+const STAFF_CONDITION_FIELDS = [
+  { value: 'staff.employmentType', label: 'Employee · employment type' },
+  { value: 'staff.locationId', label: 'Employee · location' },
+  { value: 'staff.role', label: 'Employee · access role' },
+];
 const CONDITION_OPERATORS = [
   { value: 'equals', label: 'Equals' },
   { value: 'not_equals', label: 'Does not equal' },
@@ -128,10 +133,17 @@ export function AutomationEditorPage({
   const summary = workflowSummary(definition, (id) => templates.find((template) => template.id === id)?.name ?? 'an email');
   const dirty = snapshot !== initialSnapshot;
   const emailReady = connection?.isEnabled && connection.lastTestSucceeded;
+  const triggerNode = definition.nodes.find((node) => node.type === 'trigger');
+  const staffAudience = triggerNode?.type === 'trigger' && triggerNode.config.event.startsWith('staff_');
 
   const persist = async (publish: boolean) => {
     if (errors.length) throw new Error(errors[0]);
-    const common = { tenantId: tenantId ?? undefined, name: name.trim(), definition };
+    const common = {
+      tenantId: tenantId ?? undefined,
+      name: name.trim(),
+      definition,
+      audience: staffAudience ? ('staff' as const) : ('customer' as const),
+    };
     const saved = savedId ? await updateEmailAutomation(savedId, common) : await createEmailAutomation({ ...common, isEnabled: false });
     setSavedId(saved.id);
     const result = publish ? await publishEmailAutomation(saved.id, tenantId ?? undefined) : saved;
@@ -146,7 +158,23 @@ export function AutomationEditorPage({
     onError: (error) => toast('error', error.message),
   });
 
-  const updateNode = (node: EmailWorkflowNode) => setDefinition((current) => updateWorkflowNode(current, node));
+  const updateNode = (node: EmailWorkflowNode) =>
+    setDefinition((current) => {
+      const updated = updateWorkflowNode(current, node);
+      if (node.type !== 'trigger') return updated;
+      const staff = node.config.event.startsWith('staff_');
+      return {
+        ...updated,
+        nodes: updated.nodes.map((candidate) =>
+          candidate.type === 'condition' && candidate.config.field.startsWith(staff ? 'customer.' : 'staff.')
+            ? {
+                ...candidate,
+                config: { ...candidate.config, field: staff ? 'staff.employmentType' : 'customer.marketingOptIn' },
+              }
+            : candidate,
+        ),
+      };
+    });
 
   /** Insert on the connection leaving `afterNodeId` down `branch`. */
   const addNode = (afterNodeId: string, branch: string, type: InsertType) => {
@@ -266,6 +294,7 @@ export function AutomationEditorPage({
                 templates={usableTemplates}
                 locations={locations}
                 segments={segments}
+                staffAudience={staffAudience}
                 onChange={updateNode}
                 onPreview={() => setPreviewing(true)}
                 onRemove={() => removeNode(selected.id)}
@@ -364,6 +393,7 @@ function NodeSettings({
   templates,
   locations,
   segments,
+  staffAudience,
   onChange,
   onPreview,
   onRemove,
@@ -372,6 +402,7 @@ function NodeSettings({
   templates: Array<{ id: string; name: string; subject: string }>;
   locations: Array<{ id: string; name: string }>;
   segments: Array<{ id: string; name: string }>;
+  staffAudience: boolean;
   onChange: (node: EmailWorkflowNode) => void;
   onPreview: () => void;
   onRemove: () => void;
@@ -524,7 +555,7 @@ function NodeSettings({
             <Select
               value={node.config.field}
               onValueChange={(field) => onChange({ ...node, config: { ...node.config, field: field as typeof node.config.field } })}
-              options={CONDITION_FIELDS}
+              options={staffAudience ? STAFF_CONDITION_FIELDS : CONDITION_FIELDS}
               ariaLabel="Condition field"
               className="mt-1.5 w-full"
             />

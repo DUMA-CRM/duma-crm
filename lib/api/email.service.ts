@@ -10,12 +10,18 @@ export type EmailTrigger =
   | 'customer_created'
   | 'customer_birthday'
   | 'customer_inactive'
-  | 'segment_entered';
+  | 'segment_entered'
+  | 'staff_onboarded'
+  | 'staff_leave_approved'
+  | 'staff_document_expiring';
 export type EmailDeliveryStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'cancelled';
 export type EmailWorkflowConditionField =
   | 'customer.marketingOptIn'
   | 'customer.tier'
   | 'customer.pointsBalance'
+  | 'staff.employmentType'
+  | 'staff.locationId'
+  | 'staff.role'
   | 'order.status'
   | 'order.totalAmount'
   | 'order.paymentMethod';
@@ -111,6 +117,7 @@ export interface EmailAutomation {
   locationId?: string | null;
   name: string;
   trigger: Exclude<EmailTrigger, 'manual'>;
+  audience: 'customer' | 'staff';
   offsetDays: number;
   timezone: string;
   isEnabled: boolean;
@@ -129,6 +136,7 @@ export interface EmailAutomation {
 export type EmailAutomationPayload = {
   name: string;
   definition: EmailWorkflowDefinition;
+  audience: 'customer' | 'staff';
   isEnabled: boolean;
   tenantId?: string;
 };
@@ -139,6 +147,8 @@ export interface EmailAutomationRun {
   version: number;
   eventKey: string;
   customerId?: string | null;
+  staffUserId?: string | null;
+  audience: 'customer' | 'staff';
   orderId?: string | null;
   status: 'running' | 'completed' | 'failed';
   stepCount: number;
@@ -171,6 +181,8 @@ export interface EmailDelivery {
   templateId?: string | null;
   automationId?: string | null;
   customerId?: string | null;
+  staffUserId?: string | null;
+  audience: 'customer' | 'staff';
   orderId?: string | null;
   trigger: EmailTrigger;
   status: EmailDeliveryStatus;
@@ -232,8 +244,7 @@ export const updateEmailTemplate = (id: string, data: Partial<EmailTemplatePaylo
  * delivery history and published workflow runs keep working. Nothing calls the
  * destructive DELETE endpoint, so a template can always be recovered in the API.
  */
-export const archiveEmailTemplate = (id: string, tenantId?: string) =>
-  updateEmailTemplate(id, { isActive: false, tenantId });
+export const archiveEmailTemplate = (id: string, tenantId?: string) => updateEmailTemplate(id, { isActive: false, tenantId });
 
 export const getEmailAutomations = (tenantId?: string) => apiFetch<EmailAutomation[]>(`/email/automations${tenantQuery(tenantId)}`);
 export const createEmailAutomation = (data: EmailAutomationPayload) =>

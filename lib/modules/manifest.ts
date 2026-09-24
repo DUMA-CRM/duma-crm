@@ -59,6 +59,7 @@ export const CRM_MODULE_CAPABILITIES = {
   workforce: ['scheduling:read', 'scheduling:write', 'shifts:read', 'shifts:write'],
   people: [
     'hr.people:read',
+    'hr.people:delete',
     'hr.sensitive:read',
     'hr.sensitive:write',
     'hr.leave:read',

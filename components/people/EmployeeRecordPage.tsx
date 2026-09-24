@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
+import { PrivacyRequestsPanel } from '@/components/customers/PrivacyRequestsPanel';
 import {
   AlertTriangle,
   Banknote,
@@ -90,6 +91,7 @@ export function EmployeeRecordPage({
   // be reading this page was the one that could not see the rota.
   const canReadRota = hasCapability(capabilities, 'scheduling:read');
   const canReadAttendance = hasCapability(capabilities, 'hr.attendance:read');
+  const canReadPrivacy = hasCapability(capabilities, 'privacy:read');
   const [editing, setEditing] = useState(false);
   // Owned here (not the parent) so the confirm dialog sits with this record view.
   const [offboardOpen, setOffboardOpen] = useState(false);
@@ -350,6 +352,7 @@ export function EmployeeRecordPage({
                     />
                   )}
                 </div>
+                {emp && canReadPrivacy && <PrivacyRequestsPanel employeeUserId={userId} tenantId={emp.tenantId} />}
               </>
             )}
 

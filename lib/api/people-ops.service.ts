@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { API_PREFIX, apiFetch } from './client';
 
 export interface LeaveType {
   id: string;
@@ -60,6 +60,24 @@ export interface EmployeeDocument {
   issuedAt?: string | null;
   expiresAt?: string | null;
   notes?: string | null;
+  originalFileName?: string | null;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  uploadedAt?: string | null;
+  hasFile: boolean;
+  downloadUrl?: string | null;
+}
+export interface PeopleSummary {
+  activeHeadcount: number;
+  startersLast30Days: number;
+  leaversLast30Days: number;
+  contractedWeeklyHours: number;
+  pendingLeaveRequests: number;
+  absenceDaysLast30Days: number;
+  expiredDocuments: number;
+  documentsExpiringIn60Days: number;
+  documentsWithoutFiles: number;
+  departments: { department: string; headcount: number }[];
 }
 export interface AbsenceLog {
   id: string;
@@ -133,14 +151,24 @@ export const getMyDocuments = () => apiFetch<EmployeeDocument[]>('/hr/documents/
 export const getEmployeeDocuments = (userId: string) => apiFetch<EmployeeDocument[]>(`/hr/documents/user/${userId}`);
 export const addEmployeeDocument = (data: {
   userId: string;
+  file: File;
   title: string;
   documentType: string;
   reference?: string;
   issuedAt?: string;
   expiresAt?: string;
   notes?: string;
-}) => apiFetch<EmployeeDocument>('/hr/documents', { method: 'POST', body: JSON.stringify(data) });
+}) => {
+  const body = new FormData();
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') body.append(key, value);
+  });
+  return apiFetch<EmployeeDocument>('/hr/documents', { method: 'POST', body });
+};
 export const deleteEmployeeDocument = (id: string) => apiFetch<{ success: boolean }>(`/hr/documents/${id}`, { method: 'DELETE' });
+export const employeeDocumentDownloadUrl = (id: string) => `${API_PREFIX}/v1/hr/documents/${id}/file`;
+export const getPeopleSummary = (tenantId?: string) =>
+  apiFetch<PeopleSummary>(`/hr/analytics/summary${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`);
 
 export const getMyAbsences = () => apiFetch<AbsenceLog[]>('/hr/absence-logs/my');
 export const getEmployeeAbsences = (userId: string) => apiFetch<AbsenceLog[]>(`/hr/absence-logs?userId=${encodeURIComponent(userId)}`);

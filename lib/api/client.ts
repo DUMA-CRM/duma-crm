@@ -136,13 +136,16 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   const method = (rest.method ?? 'GET').toUpperCase();
   const needsBody = method !== 'GET' && method !== 'HEAD';
   const body = rest.body ?? (needsBody ? '{}' : undefined);
+  const isMultipart = typeof FormData !== 'undefined' && body instanceof FormData;
 
   const res = await fetch(`${API_BASE}${path}`, {
     // Include credentials so the browser sends the session cookie on client-side calls.
     credentials: 'include',
     ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
     headers: {
-      'Content-Type': 'application/json',
+      // Let fetch add the multipart boundary for FormData. Supplying our usual
+      // JSON header here makes otherwise-valid file uploads unreadable.
+      ...(!isMultipart ? { 'Content-Type': 'application/json' } : {}),
       // Server-side: forward the full cookie header from the incoming Next.js request.
       ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       ...headers,

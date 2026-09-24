@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { AlertTriangle, CheckCircle2, HeartPulse, Loader2 } from '@/components/icons';
+import { AlertTriangle, CheckCircle2, Download, HeartPulse, Loader2 } from '@/components/icons';
 import { fmtDate, fmtHours, inp, lbl } from '@/components/people/shared';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
@@ -22,6 +22,7 @@ import {
   createLeaveType,
   deleteEmployeeAbsence,
   deleteEmployeeDocument,
+  employeeDocumentDownloadUrl,
   getEmployeeAbsences,
   getEmployeeDocuments,
   getEmployeeEntitlements,
@@ -501,6 +502,7 @@ function LeaveAllowanceModal({
 export function EmployeeDocumentsCard({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const [adding, setAdding] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
   const [asOf] = useState(() => new Date());
   const [form, setForm] = useState({
     title: '',
@@ -515,12 +517,13 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
     queryFn: () => getEmployeeDocuments(userId),
   });
   const add = useMutation({
-    mutationFn: () => addEmployeeDocument({ userId, ...form }),
+    mutationFn: () => addEmployeeDocument({ userId, file: file!, ...form }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('employee-documents', userId) });
       setAdding(false);
+      setFile(null);
       setForm({ title: '', documentType: 'Right to work', reference: '', issuedAt: '', expiresAt: '', notes: '' });
-      toast('success', 'Document record added.');
+      toast('success', 'Document securely uploaded.');
     },
     onError: (error) => toast('error', (error as Error).message),
   });
@@ -560,11 +563,27 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
                     {document.issuedAt ? ` · checked ${fmtDate(document.issuedAt)}` : ''}
                     {document.expiresAt ? ` · expires ${fmtDate(document.expiresAt)}` : ''}
                   </p>
+                  {document.originalFileName && (
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {document.originalFileName}
+                      {document.sizeBytes ? ` · ${Math.ceil(document.sizeBytes / 1024)} KB` : ''}
+                    </p>
+                  )}
                   {document.reference && <p className="text-xs text-muted-foreground mt-0.5 truncate">{document.reference}</p>}
                 </div>
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => remove.mutate(document.id)}>
-                  Remove
-                </Button>
+                <div className="flex shrink-0 items-center gap-1">
+                  {document.hasFile && (
+                    <Button asChild variant="ghost" size="sm">
+                      <a href={employeeDocumentDownloadUrl(document.id)} download>
+                        <Download data-icon="inline-start" />
+                        Download
+                      </a>
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => remove.mutate(document.id)}>
+                    Remove
+                  </Button>
+                </div>
               </div>
             );
           })}
@@ -579,6 +598,23 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
               add.mutate();
             }}
           >
+            <div>
+              <label htmlFor="employee-document-file" className={lbl}>
+                File
+              </label>
+              <input
+                id="employee-document-file"
+                type="file"
+                required
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                className={cn(
+                  inp,
+                  'h-auto py-2 file:mr-3 file:rounded-sm file:border-0 file:bg-band file:px-3 file:py-1.5 file:text-sm file:font-medium',
+                )}
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">PDF, JPEG, PNG or WebP, up to 10 MB.</p>
+            </div>
             <div>
               <label className={lbl}>Title</label>
               <input
@@ -639,8 +675,12 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
                 and complete follow-up checks where permission is time-limited.
               </p>
             )}
-            <Button type="submit" className="w-full" disabled={form.title.length < 2 || add.isPending}>
-              {add.isPending ? 'Adding…' : 'Add record'}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={!file || file.size > 10 * 1024 * 1024 || form.title.length < 2 || add.isPending}
+            >
+              {add.isPending ? 'Uploading…' : 'Upload document'}
             </Button>
           </form>
         </Modal>

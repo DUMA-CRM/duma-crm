@@ -28,15 +28,27 @@
   "x-tagGroups": [
     {
       "name": "Authentication",
-      "tags": ["Auth"]
+      "tags": [
+        "Auth"
+      ]
     },
     {
       "name": "Organization",
-      "tags": ["Tenants", "Modules", "Staff", "Customers", "Customer Segments", "Privacy"]
+      "tags": [
+        "Tenants",
+        "Modules",
+        "Staff",
+        "Customers",
+        "Customer Segments",
+        "Privacy"
+      ]
     },
     {
       "name": "Locations",
-      "tags": ["Locations", "QR Ordering"]
+      "tags": [
+        "Locations",
+        "QR Ordering"
+      ]
     },
     {
       "name": "Catalog",
@@ -52,7 +64,11 @@
     },
     {
       "name": "Orders",
-      "tags": ["Orders", "Payments", "Refunds"]
+      "tags": [
+        "Orders",
+        "Payments",
+        "Refunds"
+      ]
     },
     {
       "name": "Inventory & Stock",
@@ -69,38 +85,61 @@
     },
     {
       "name": "Purchasing",
-      "tags": ["Suppliers", "Purchase Orders"]
+      "tags": [
+        "Suppliers",
+        "Purchase Orders"
+      ]
     },
     {
       "name": "HR",
-      "tags": ["HR - Employees", "HR - Leave", "Onboarding", "Payroll"]
+      "tags": [
+        "HR - Employees",
+        "HR - Leave",
+        "Onboarding",
+        "Payroll"
+      ]
     },
     {
       "name": "Workforce",
-      "tags": ["Shifts", "Scheduling"]
+      "tags": [
+        "Shifts",
+        "Scheduling"
+      ]
     },
     {
       "name": "Insights",
-      "tags": ["Analytics", "Audit", "Email"]
+      "tags": [
+        "Analytics",
+        "Audit",
+        "Email"
+      ]
     },
     {
       "name": "Support",
-      "tags": ["Helpdesk"]
+      "tags": [
+        "Helpdesk"
+      ]
     },
     {
       "name": "Settings",
-      "tags": ["Trading Settings"]
+      "tags": [
+        "Trading Settings"
+      ]
     },
     {
       "name": "System",
-      "tags": ["System"]
+      "tags": [
+        "System"
+      ]
     }
   ],
   "paths": {
     "/health": {
       "get": {
         "operationId": "getHealth",
-        "tags": ["System"],
+        "tags": [
+          "System"
+        ],
         "summary": "Health check",
         "description": "Liveness probe: DB ping, uptime, version, environment, the state of the background workers, and the cache. Returns 503 when the database is unreachable or a worker has stalled — never for the cache, which is reported as degraded instead. No auth required.",
         "responses": {
@@ -116,7 +155,9 @@
     "/v1/auth/sign-up/email": {
       "post": {
         "operationId": "postV1AuthSignUpEmail",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Public sign-up is unavailable",
         "description": "Workspace access is invite-only. Staff accounts are created through the authenticated onboarding flow so every login has a tenant and role.",
         "responses": {
@@ -132,7 +173,9 @@
     "/v1/auth/sign-in/email": {
       "post": {
         "operationId": "postV1AuthSignInEmail",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Sign in with email & password",
         "description": "Authenticates an existing user. Returns the session object and a bearer token in the `set-auth-token` response header. Store that token and send it as `Authorization: Bearer <token>` on subsequent requests.",
         "requestBody": {
@@ -141,7 +184,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email", "password"],
+                "required": [
+                  "email",
+                  "password"
+                ],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -164,11 +210,21 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["user", "session"],
+                  "required": [
+                    "user",
+                    "session"
+                  ],
                   "properties": {
                     "user": {
                       "type": "object",
-                      "required": ["id", "name", "email", "emailVerified", "createdAt", "updatedAt"],
+                      "required": [
+                        "id",
+                        "name",
+                        "email",
+                        "emailVerified",
+                        "createdAt",
+                        "updatedAt"
+                      ],
                       "properties": {
                         "id": {
                           "type": "string"
@@ -199,7 +255,12 @@
                     },
                     "session": {
                       "type": "object",
-                      "required": ["id", "userId", "token", "expiresAt"],
+                      "required": [
+                        "id",
+                        "userId",
+                        "token",
+                        "expiresAt"
+                      ],
                       "properties": {
                         "id": {
                           "type": "string"
@@ -252,7 +313,9 @@
     "/v1/auth/get-session": {
       "get": {
         "operationId": "getV1AuthGetSession",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Get current session",
         "description": "Returns the authenticated user and session details from the session cookie. Returns `null` if not signed in.",
         "responses": {
@@ -268,7 +331,9 @@
     "/v1/auth/sign-out": {
       "post": {
         "operationId": "postV1AuthSignOut",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "summary": "Sign out",
         "description": "Invalidates the current session and clears the session cookie.",
         "responses": {
@@ -284,7 +349,9 @@
     "/v1/agent/turns": {
       "post": {
         "operationId": "postV1AgentTurns",
-        "tags": ["Agent"],
+        "tags": [
+          "Agent"
+        ],
         "summary": "Record one Ask DUMA turn",
         "description": "Writes an audit row with resource_type `agent_turn`. Any signed-in operator may record their own turns; reading them back needs the audit:read capability.",
         "responses": {
@@ -307,7 +374,9 @@
       },
       "get": {
         "operationId": "getV1AgentTurns",
-        "tags": ["Agent"],
+        "tags": [
+          "Agent"
+        ],
         "summary": "List recorded Ask DUMA turns",
         "description": "The agent’s own usage log, newest first, scoped to the caller’s tenant. This is what answers “what did people ask last week, and what did the agent do about it?”.",
         "parameters": [
@@ -354,7 +423,9 @@
     "/v1/agent/approvals/claim": {
       "post": {
         "operationId": "postV1AgentApprovalsClaim",
-        "tags": ["Agent"],
+        "tags": [
+          "Agent"
+        ],
         "summary": "Claim an agent approval, once",
         "description": "Marks one approval id as spent. The first call returns `{ claimed: true }`; every later call for the same id returns `{ claimed: false }` until the TTL lapses. The agent’s HMAC seal proves an approval was authorised and when it expires — it cannot prove it has not already been used.",
         "responses": {
@@ -379,7 +450,9 @@
     "/v1/agent/budget/consume": {
       "post": {
         "operationId": "postV1AgentBudgetConsume",
-        "tags": ["Agent"],
+        "tags": [
+          "Agent"
+        ],
         "summary": "Take one unit of the caller’s agent budget",
         "description": "Called before a turn starts. Returns `{ allowed: false }` when the operator has spent their allowance for the window, so the UI can decline before paying a provider rather than after.",
         "responses": {
@@ -398,7 +471,9 @@
     "/v1/staff": {
       "post": {
         "operationId": "postV1Staff",
-        "tags": ["Staff"],
+        "tags": [
+          "Staff"
+        ],
         "summary": "Create staff member",
         "description": "Creates a Better Auth user and attaches a staff profile with role, scope, and optional location assignments. Writes an audit log.",
         "requestBody": {
@@ -407,7 +482,13 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email", "name", "tenantId", "role", "scope"],
+                "required": [
+                  "email",
+                  "name",
+                  "tenantId",
+                  "role",
+                  "scope"
+                ],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -427,7 +508,11 @@
                   },
                   "scope": {
                     "type": "string",
-                    "enum": ["global", "franchise", "location"]
+                    "enum": [
+                      "global",
+                      "franchise",
+                      "location"
+                    ]
                   },
                   "locationIds": {
                     "type": "array",
@@ -458,7 +543,9 @@
       },
       "get": {
         "operationId": "getV1Staff",
-        "tags": ["Staff"],
+        "tags": [
+          "Staff"
+        ],
         "summary": "List staff",
         "description": "Returns all staff profiles for the tenant. super_admin sees all tenants. store_manager+ only.",
         "parameters": [
@@ -492,7 +579,9 @@
     "/v1/staff/me": {
       "get": {
         "operationId": "getV1StaffMe",
-        "tags": ["Staff"],
+        "tags": [
+          "Staff"
+        ],
         "summary": "Get my staff profile",
         "description": "Returns the staff profile for the authenticated user including role, scope, assigned locations, and the full list of capabilities the role holds. Clients should show and hide features from `capabilities` rather than re-deriving permissions from `role` — the server authorises on exactly this list, so anything else will eventually disagree with it.",
         "responses": {
@@ -502,7 +591,16 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["userId", "tenantId", "role", "scope", "isActive", "createdAt", "updatedAt", "capabilities"],
+                  "required": [
+                    "userId",
+                    "tenantId",
+                    "role",
+                    "scope",
+                    "isActive",
+                    "createdAt",
+                    "updatedAt",
+                    "capabilities"
+                  ],
                   "properties": {
                     "userId": {
                       "type": "string"
@@ -517,7 +615,11 @@
                     },
                     "scope": {
                       "type": "string",
-                      "enum": ["global", "franchise", "location"]
+                      "enum": [
+                        "global",
+                        "franchise",
+                        "location"
+                      ]
                     },
                     "locationIds": {
                       "type": "array",
@@ -549,7 +651,14 @@
                     },
                     "user": {
                       "type": "object",
-                      "required": ["id", "name", "email", "emailVerified", "createdAt", "updatedAt"],
+                      "required": [
+                        "id",
+                        "name",
+                        "email",
+                        "emailVerified",
+                        "createdAt",
+                        "updatedAt"
+                      ],
                       "properties": {
                         "id": {
                           "type": "string"
@@ -598,7 +707,9 @@
     "/v1/staff/{userId}": {
       "get": {
         "operationId": "getV1StaffByUserId",
-        "tags": ["Staff"],
+        "tags": [
+          "Staff"
+        ],
         "summary": "Get staff profile by user ID",
         "description": "Returns a staff profile by user ID. store_manager+ only.",
         "responses": {
@@ -631,7 +742,9 @@
       },
       "patch": {
         "operationId": "patchV1StaffByUserId",
-        "tags": ["Staff"],
+        "tags": [
+          "Staff"
+        ],
         "summary": "Update staff profile",
         "description": "Updates role, scope, location assignments, or active status. Owners and HR are tenant-scoped and cannot assign protected roles. Deactivating, or changing role or scope, revokes the user's sessions so they must sign in again and pick up the new capability list. Writes an audit log.",
         "requestBody": {
@@ -647,7 +760,11 @@
                   },
                   "scope": {
                     "type": "string",
-                    "enum": ["global", "franchise", "location"]
+                    "enum": [
+                      "global",
+                      "franchise",
+                      "location"
+                    ]
                   },
                   "locationIds": {
                     "type": "array",
@@ -696,7 +813,9 @@
     "/v1/staff/{userId}/performance": {
       "get": {
         "operationId": "getV1StaffByUserIdPerformance",
-        "tags": ["Staff"],
+        "tags": [
+          "Staff"
+        ],
         "summary": "Staff performance stats",
         "description": "Sales and throughput metrics for one staff member (matched by orders.createdBy), across three time windows: all-time, last 30 days, and last 7 days. Includes total orders, revenue, average order value, orders-per-day, source (pos / mobile / qrCode) and status breakdown, and pending→ready fulfilment time (avg / median / min / max) from order status history. Revenue and average-order-value exclude cancelled orders. store_manager+ only; non-super_admin callers are scoped to their own tenant and locations.",
         "responses": {
@@ -731,7 +850,9 @@
     "/v1/roles": {
       "get": {
         "operationId": "getV1Roles",
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "List tenant roles",
         "description": "Returns tenant role definitions and the module-contributed capabilities the caller may grant.",
         "responses": {
@@ -748,7 +869,9 @@
       },
       "post": {
         "operationId": "postV1Roles",
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Create tenant role",
         "description": "Creates a tenant-defined role from capabilities the caller already holds.",
         "responses": {
@@ -773,7 +896,9 @@
     "/v1/roles/{id}": {
       "patch": {
         "operationId": "patchV1RolesById",
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Update tenant role",
         "description": "Updates a custom role. Built-in platform bundles cannot be edited.",
         "responses": {
@@ -803,7 +928,9 @@
       },
       "delete": {
         "operationId": "deleteV1RolesById",
-        "tags": ["Roles"],
+        "tags": [
+          "Roles"
+        ],
         "summary": "Delete unused tenant role",
         "responses": {
           "204": {
@@ -834,7 +961,9 @@
     "/v1/customers": {
       "post": {
         "operationId": "postV1Customers",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Create customer",
         "description": "Creates a new customer record for a tenant. Staff use only.",
         "requestBody": {
@@ -843,7 +972,12 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["tenantId", "phone", "firstName", "lastName"],
+                "required": [
+                  "tenantId",
+                  "phone",
+                  "firstName",
+                  "lastName"
+                ],
                 "properties": {
                   "tenantId": {
                     "type": "string",
@@ -907,7 +1041,9 @@
       },
       "get": {
         "operationId": "getV1Customers",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "List customers",
         "description": "Paginated customer list. Super admin sees all tenants; others see their own tenant only. Records that have been merged away or erased are excluded unless `includeMerged` is set. Filters accept the same shape a saved segment stores, so previewing a segment and listing with its filters run the same query.",
         "parameters": [
@@ -955,7 +1091,12 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["bronze", "silver", "gold", "vip"]
+              "enum": [
+                "bronze",
+                "silver",
+                "gold",
+                "vip"
+              ]
             },
             "description": "Filter by loyalty tier"
           },
@@ -975,7 +1116,14 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["recent", "name", "spend", "visits", "last_visit", "points"]
+              "enum": [
+                "recent",
+                "name",
+                "spend",
+                "visits",
+                "last_visit",
+                "points"
+              ]
             },
             "description": "Sort key. Requires customers:read."
           },
@@ -985,7 +1133,10 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["asc", "desc"]
+              "enum": [
+                "asc",
+                "desc"
+              ]
             },
             "description": "Sort direction"
           },
@@ -1033,7 +1184,10 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["opted_in", "opted_out"]
+              "enum": [
+                "opted_in",
+                "opted_out"
+              ]
             },
             "description": "Consent state. opted_in also requires no unsubscribe stamp."
           },
@@ -1123,7 +1277,9 @@
     "/v1/customers/duplicates": {
       "get": {
         "operationId": "getV1CustomersDuplicates",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "List likely duplicate customer pairs",
         "description": "Conservative duplicate detection within the tenant: pairs sharing an exact email, or the same first and last name. Proposals only — merging is a separate, explicit call. Ordered strongest-signal first, then by how much spend is at stake.",
         "parameters": [
@@ -1157,7 +1313,9 @@
     "/v1/customers/me": {
       "get": {
         "operationId": "getV1CustomersMe",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Get my customer profile",
         "description": "Returns the customer profile linked to the authenticated user.",
         "responses": {
@@ -1177,7 +1335,9 @@
       },
       "post": {
         "operationId": "postV1CustomersMe",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Self-register or link customer profile",
         "description": "Creates or links a customer inside the workspace proven by a live public QR ordering context. A caller-supplied tenant ID never selects the workspace.",
         "requestBody": {
@@ -1186,7 +1346,12 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["firstName", "lastName", "phone", "contextToken"],
+                "required": [
+                  "firstName",
+                  "lastName",
+                  "phone",
+                  "contextToken"
+                ],
                 "properties": {
                   "firstName": {
                     "type": "string",
@@ -1247,7 +1412,9 @@
     "/v1/customers/{id}/points": {
       "patch": {
         "operationId": "patchV1CustomersByIdPoints",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Adjust loyalty points",
         "description": "Manually add or remove loyalty points. Positive delta adds, negative removes. Floors at 0. store_manager+ only.",
         "requestBody": {
@@ -1256,7 +1423,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["delta"],
+                "required": [
+                  "delta"
+                ],
                 "properties": {
                   "delta": {
                     "type": "number",
@@ -1307,7 +1476,9 @@
     "/v1/customers/{id}/ledger": {
       "get": {
         "operationId": "getV1CustomersByIdLedger",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Get loyalty points history",
         "description": "Append-only history of every movement in this customer's points balance, newest first. `balanceAfter` is the projected balance immediately after each entry. Where `appliedDelta` differs from what was requested the difference was truncated by the zero floor.",
         "parameters": [
@@ -1349,7 +1520,9 @@
     "/v1/customers/{id}": {
       "get": {
         "operationId": "getV1CustomersById",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Get customer by ID",
         "responses": {
           "200": {
@@ -1378,7 +1551,9 @@
       },
       "patch": {
         "operationId": "patchV1CustomersById",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Update customer",
         "requestBody": {
           "required": true,
@@ -1444,7 +1619,9 @@
       },
       "delete": {
         "operationId": "deleteV1CustomersById",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Erase a customer (anonymise in place)",
         "description": "Fulfils a GDPR erasure request. The row is kept but every piece of personal data on it is overwritten — name, phone, email, date of birth, notes, allergies, dietary needs and alerts — and `anonymisedAt` is stamped. The row survives so that order and payment history stays intact for financial reporting, which there is a separate legal basis to retain; what is removed is the ability to tie it to a person. Marketing suppression is kept, hashed, so the address cannot be re-enrolled. This cannot be undone.",
         "responses": {
@@ -1479,7 +1656,9 @@
     "/v1/customers/{id}/timeline": {
       "get": {
         "operationId": "getV1CustomersByIdTimeline",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Get a unified customer timeline",
         "description": "One chronological feed of everything that happened with this guest — orders, points movements, emails sent, consent changes and privacy requests — newest first. Covers the merged group, so a record merged into this one contributes its history too. Use `kinds` to narrow.",
         "parameters": [
@@ -1530,7 +1709,9 @@
     "/v1/customers/merge": {
       "post": {
         "operationId": "postV1CustomersMerge",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Merge one customer record into another",
         "description": "Soft merge. The losing record is kept and pointed at the survivor, never deleted, so the merge can be undone with POST /customers/:id/unmerge. History is not moved: reads resolve the survivor plus everything merged into it. Allergies, dietary needs and alerts are unioned; contact gaps on the survivor are filled from the loser but existing values are never overwritten. Points move across as explained ledger entries.",
         "requestBody": {
@@ -1539,7 +1720,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["survivorId", "loserId"],
+                "required": [
+                  "survivorId",
+                  "loserId"
+                ],
                 "properties": {
                   "survivorId": {
                     "type": "string",
@@ -1581,7 +1765,9 @@
     "/v1/customers/{id}/unmerge": {
       "post": {
         "operationId": "postV1CustomersByIdUnmerge",
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Undo a merge",
         "description": "Separates a merged record from its survivor. `:id` is the record that was merged away. Points that the merge moved are handed back as reversal entries, and both records' totals are recomputed.",
         "responses": {
@@ -1616,7 +1802,9 @@
     "/v1/customer-segments/preview": {
       "post": {
         "operationId": "postV1CustomerSegmentsPreview",
-        "tags": ["Customer Segments"],
+        "tags": [
+          "Customer Segments"
+        ],
         "summary": "Preview a segment without saving it",
         "description": "Counts and samples the customers a filter selects. `emailReachable` is the subset holding marketing consent and an email address — always lower than `total`, and the number that matters before sending.",
         "responses": {
@@ -1638,7 +1826,9 @@
     "/v1/customer-segments": {
       "get": {
         "operationId": "getV1CustomerSegments",
-        "tags": ["Customer Segments"],
+        "tags": [
+          "Customer Segments"
+        ],
         "summary": "List saved segments",
         "description": "Named, reusable customer filters for this tenant. Counts are not included — use the preview or detail route, which evaluate live.",
         "responses": {
@@ -1658,7 +1848,9 @@
       },
       "post": {
         "operationId": "postV1CustomerSegments",
-        "tags": ["Customer Segments"],
+        "tags": [
+          "Customer Segments"
+        ],
         "summary": "Save a segment",
         "responses": {
           "201": {
@@ -1682,7 +1874,9 @@
     "/v1/customer-segments/{id}": {
       "get": {
         "operationId": "getV1CustomerSegmentsById",
-        "tags": ["Customer Segments"],
+        "tags": [
+          "Customer Segments"
+        ],
         "summary": "Get a segment, evaluated now",
         "description": "Returns the saved definition together with a live count and sample. A segment is a query, so its membership changes as the base does.",
         "responses": {
@@ -1712,7 +1906,9 @@
       },
       "patch": {
         "operationId": "patchV1CustomerSegmentsById",
-        "tags": ["Customer Segments"],
+        "tags": [
+          "Customer Segments"
+        ],
         "summary": "Update a segment",
         "responses": {
           "200": {
@@ -1744,7 +1940,9 @@
       },
       "delete": {
         "operationId": "deleteV1CustomerSegmentsById",
-        "tags": ["Customer Segments"],
+        "tags": [
+          "Customer Segments"
+        ],
         "summary": "Delete a segment",
         "description": "Removes the saved filter. Customers are untouched — a segment is only a query over them.",
         "responses": {
@@ -1776,7 +1974,9 @@
     "/v1/customer-segments/{id}/recipients": {
       "get": {
         "operationId": "getV1CustomerSegmentsByIdRecipients",
-        "tags": ["Customer Segments"],
+        "tags": [
+          "Customer Segments"
+        ],
         "summary": "Resolve a segment to email recipients",
         "description": "The bridge to the communications module: returns the customers in this segment who hold marketing consent AND have an email address. Consent is applied here, in the resolver, rather than left to each caller to remember — a sender that forgets is how a suppressed address gets emailed.",
         "parameters": [
@@ -1818,7 +2018,9 @@
     "/v1/tenants": {
       "post": {
         "operationId": "postV1Tenants",
-        "tags": ["Tenants"],
+        "tags": [
+          "Tenants"
+        ],
         "summary": "Create tenant",
         "description": "Creates a new tenant (franchise brand). Super admin only.",
         "requestBody": {
@@ -1827,7 +2029,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["name", "slug"],
+                "required": [
+                  "name",
+                  "slug"
+                ],
                 "properties": {
                   "name": {
                     "type": "string",
@@ -1867,7 +2072,9 @@
       },
       "get": {
         "operationId": "getV1Tenants",
-        "tags": ["Tenants"],
+        "tags": [
+          "Tenants"
+        ],
         "summary": "List tenants",
         "description": "Returns all tenants ordered by name. Super admin only.",
         "responses": {
@@ -1886,7 +2093,9 @@
     "/v1/tenants/{id}": {
       "get": {
         "operationId": "getV1TenantsById",
-        "tags": ["Tenants"],
+        "tags": [
+          "Tenants"
+        ],
         "summary": "Get tenant by ID",
         "responses": {
           "200": {
@@ -1915,7 +2124,9 @@
       },
       "patch": {
         "operationId": "patchV1TenantsById",
-        "tags": ["Tenants"],
+        "tags": [
+          "Tenants"
+        ],
         "summary": "Update tenant",
         "requestBody": {
           "required": true,
@@ -1974,7 +2185,9 @@
     "/v1/tenants/{id}/status": {
       "patch": {
         "operationId": "patchV1TenantsByIdStatus",
-        "tags": ["Tenants"],
+        "tags": [
+          "Tenants"
+        ],
         "summary": "Change tenant lifecycle status",
         "description": "Moves a tenant through active, winding-down and inactive states without deleting business data. All locations must be inactive before the tenant can become inactive.",
         "requestBody": {
@@ -1983,11 +2196,18 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["status", "reason"],
+                "required": [
+                  "status",
+                  "reason"
+                ],
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": ["active", "winding_down", "inactive"]
+                    "enum": [
+                      "active",
+                      "winding_down",
+                      "inactive"
+                    ]
                   },
                   "reason": {
                     "type": "string",
@@ -2034,7 +2254,9 @@
     "/v1/modules/current": {
       "get": {
         "operationId": "getV1ModulesCurrent",
-        "tags": ["Modules"],
+        "tags": [
+          "Modules"
+        ],
         "summary": "Get the signed-in workspace module state",
         "description": "Returns non-secret lifecycle and UI configuration for the caller's workspace so product surfaces can follow live module state.",
         "responses": {
@@ -2056,7 +2278,9 @@
     "/v1/modules/catalog": {
       "get": {
         "operationId": "getV1ModulesCatalog",
-        "tags": ["Modules"],
+        "tags": [
+          "Modules"
+        ],
         "summary": "List deployed product modules",
         "responses": {
           "200": {
@@ -2074,7 +2298,9 @@
     "/v1/modules/tenants/{tenantId}": {
       "get": {
         "operationId": "getV1ModulesTenantsByTenantId",
-        "tags": ["Modules"],
+        "tags": [
+          "Modules"
+        ],
         "summary": "List module state for one tenant",
         "responses": {
           "200": {
@@ -2102,7 +2328,9 @@
     "/v1/modules/tenants/{tenantId}/{moduleId}/preview": {
       "post": {
         "operationId": "postV1ModulesTenantsByTenantIdByModuleIdPreview",
-        "tags": ["Modules"],
+        "tags": [
+          "Modules"
+        ],
         "summary": "Preview a tenant module lifecycle change",
         "responses": {
           "200": {
@@ -2141,7 +2369,9 @@
     "/v1/modules/tenants/{tenantId}/{moduleId}": {
       "patch": {
         "operationId": "patchV1ModulesTenantsByTenantIdByModuleId",
-        "tags": ["Modules"],
+        "tags": [
+          "Modules"
+        ],
         "summary": "Enable or disable a tenant module",
         "description": "Records the desired lifecycle state, configuration revision, actor and timestamp. Enabling also applies the required dependency closure atomically and explains required and recommended additions.",
         "responses": {
@@ -2184,7 +2414,9 @@
     "/v1/dashboard-layouts/resolved": {
       "get": {
         "operationId": "getV1DashboardLayoutsResolved",
-        "tags": ["Dashboard Layouts"],
+        "tags": [
+          "Dashboard Layouts"
+        ],
         "summary": "Resolve system, workspace and personal dashboard layers for the signed-in user",
         "responses": {
           "200": {
@@ -2202,7 +2434,9 @@
     "/v1/dashboard-layouts/personal": {
       "post": {
         "operationId": "postV1DashboardLayoutsPersonal",
-        "tags": ["Dashboard Layouts"],
+        "tags": [
+          "Dashboard Layouts"
+        ],
         "summary": "Publish a personal hide-and-arrange overlay",
         "responses": {
           "201": {
@@ -2221,7 +2455,9 @@
       },
       "delete": {
         "operationId": "deleteV1DashboardLayoutsPersonal",
-        "tags": ["Dashboard Layouts"],
+        "tags": [
+          "Dashboard Layouts"
+        ],
         "summary": "Reset the signed-in user to the workspace dashboard",
         "responses": {
           "204": {
@@ -2239,7 +2475,9 @@
     "/v1/dashboard-layouts/{tenantId}": {
       "get": {
         "operationId": "getV1DashboardLayoutsByTenantId",
-        "tags": ["Dashboard Layouts"],
+        "tags": [
+          "Dashboard Layouts"
+        ],
         "summary": "List versioned workspace dashboard layouts",
         "responses": {
           "200": {
@@ -2267,7 +2505,9 @@
     "/v1/dashboard-layouts/{tenantId}/publish": {
       "post": {
         "operationId": "postV1DashboardLayoutsByTenantIdPublish",
-        "tags": ["Dashboard Layouts"],
+        "tags": [
+          "Dashboard Layouts"
+        ],
         "summary": "Publish a new immutable workspace dashboard revision",
         "responses": {
           "201": {
@@ -2298,7 +2538,9 @@
     "/v1/workspace-setup/{tenantId}": {
       "get": {
         "operationId": "getV1WorkspaceSetupByTenantId",
-        "tags": ["Workspace Setup"],
+        "tags": [
+          "Workspace Setup"
+        ],
         "summary": "Compute the latest module-owned workspace readiness",
         "responses": {
           "200": {
@@ -2326,7 +2568,9 @@
     "/v1/workspace-setup/{tenantId}/start": {
       "post": {
         "operationId": "postV1WorkspaceSetupByTenantIdStart",
-        "tags": ["Workspace Setup"],
+        "tags": [
+          "Workspace Setup"
+        ],
         "summary": "Start or resume a computed workspace readiness run",
         "responses": {
           "200": {
@@ -2357,7 +2601,9 @@
     "/v1/workspace-setup/{tenantId}/complete": {
       "post": {
         "operationId": "postV1WorkspaceSetupByTenantIdComplete",
-        "tags": ["Workspace Setup"],
+        "tags": [
+          "Workspace Setup"
+        ],
         "summary": "Confirm workspace readiness when no required blockers remain",
         "responses": {
           "200": {
@@ -2388,7 +2634,9 @@
     "/v1/locations": {
       "post": {
         "operationId": "postV1Locations",
-        "tags": ["Locations"],
+        "tags": [
+          "Locations"
+        ],
         "summary": "Create location",
         "description": "Creates a new physical location for a tenant. Super admin only.",
         "requestBody": {
@@ -2397,7 +2645,12 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["tenantId", "name", "address", "timezone"],
+                "required": [
+                  "tenantId",
+                  "name",
+                  "address",
+                  "timezone"
+                ],
                 "properties": {
                   "tenantId": {
                     "type": "string",
@@ -2434,7 +2687,10 @@
                   },
                   "orderFulfilmentMode": {
                     "type": "string",
-                    "enum": ["kitchen", "counter"],
+                    "enum": [
+                      "kitchen",
+                      "counter"
+                    ],
                     "default": "kitchen",
                     "description": "Kitchen keeps paid POS orders in KDS; counter completes them as soon as payment succeeds."
                   },
@@ -2469,7 +2725,9 @@
       },
       "get": {
         "operationId": "getV1Locations",
-        "tags": ["Locations"],
+        "tags": [
+          "Locations"
+        ],
         "summary": "List locations",
         "description": "Super admin sees all locations. Franchise-scoped staff see their tenant's locations. Location-scoped staff see only their assigned locations.",
         "responses": {
@@ -2520,7 +2778,10 @@
                       },
                       "orderFulfilmentMode": {
                         "type": "string",
-                        "enum": ["kitchen", "counter"]
+                        "enum": [
+                          "kitchen",
+                          "counter"
+                        ]
                       },
                       "dailyRevenueTarget": {
                         "type": "string",
@@ -2558,7 +2819,9 @@
     "/v1/locations/tenant/{tenantId}": {
       "get": {
         "operationId": "getV1LocationsTenantByTenantId",
-        "tags": ["Locations"],
+        "tags": [
+          "Locations"
+        ],
         "summary": "List locations by tenant",
         "description": "Returns all locations for a given tenant. Non-super_admin staff can only query their own tenant.",
         "responses": {
@@ -2590,7 +2853,9 @@
     "/v1/locations/{id}": {
       "get": {
         "operationId": "getV1LocationsById",
-        "tags": ["Locations"],
+        "tags": [
+          "Locations"
+        ],
         "summary": "Get location by ID",
         "responses": {
           "200": {
@@ -2622,7 +2887,9 @@
       },
       "patch": {
         "operationId": "patchV1LocationsById",
-        "tags": ["Locations"],
+        "tags": [
+          "Locations"
+        ],
         "summary": "Update location",
         "description": "Super admin only.",
         "requestBody": {
@@ -2653,7 +2920,10 @@
                   },
                   "orderFulfilmentMode": {
                     "type": "string",
-                    "enum": ["kitchen", "counter"],
+                    "enum": [
+                      "kitchen",
+                      "counter"
+                    ],
                     "description": "Kitchen workflow or immediate completion after a successful staff POS payment."
                   },
                   "dailyRevenueTarget": {
@@ -2698,7 +2968,9 @@
       },
       "delete": {
         "operationId": "deleteV1LocationsById",
-        "tags": ["Locations"],
+        "tags": [
+          "Locations"
+        ],
         "summary": "Delete location",
         "description": "Super admin only. Writes an audit log.",
         "responses": {
@@ -2730,7 +3002,9 @@
     "/v1/locations/{id}/active": {
       "patch": {
         "operationId": "patchV1LocationsByIdActive",
-        "tags": ["Locations"],
+        "tags": [
+          "Locations"
+        ],
         "summary": "Toggle location active status",
         "description": "Activates or deactivates a location. store_manager+ only (less restrictive than full PATCH which is super_admin only).",
         "requestBody": {
@@ -2739,7 +3013,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["isActive"],
+                "required": [
+                  "isActive"
+                ],
                 "properties": {
                   "isActive": {
                     "type": "boolean"
@@ -2784,7 +3060,9 @@
     "/v1/locations/{id}/target": {
       "patch": {
         "operationId": "patchV1LocationsByIdTarget",
-        "tags": ["Locations"],
+        "tags": [
+          "Locations"
+        ],
         "summary": "Set daily revenue target",
         "description": "Sets the net revenue this location aims to take in one trading day, used by the dashboard to judge pace. Send null to clear the target. store_manager+ only, and only for locations the caller can access.",
         "requestBody": {
@@ -2793,7 +3071,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["dailyRevenueTarget"],
+                "required": [
+                  "dailyRevenueTarget"
+                ],
                 "properties": {
                   "dailyRevenueTarget": {
                     "type": "number",
@@ -2841,7 +3121,9 @@
     "/v1/menu-items": {
       "post": {
         "operationId": "postV1MenuItems",
-        "tags": ["Menu Items"],
+        "tags": [
+          "Menu Items"
+        ],
         "summary": "Create menu item",
         "description": "Creates a new menu item for a tenant. Super admin only.",
         "requestBody": {
@@ -2850,7 +3132,12 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["tenantId", "name", "categoryId", "price"],
+                "required": [
+                  "tenantId",
+                  "name",
+                  "categoryId",
+                  "price"
+                ],
                 "properties": {
                   "tenantId": {
                     "type": "string",
@@ -2914,7 +3201,9 @@
       },
       "get": {
         "operationId": "getV1MenuItems",
-        "tags": ["Menu Items"],
+        "tags": [
+          "Menu Items"
+        ],
         "summary": "List menu items",
         "description": "Super admin sees all. Others see only their tenant's menu items.",
         "responses": {
@@ -2936,7 +3225,9 @@
     "/v1/menu-items/{id}": {
       "get": {
         "operationId": "getV1MenuItemsById",
-        "tags": ["Menu Items"],
+        "tags": [
+          "Menu Items"
+        ],
         "summary": "Get menu item by ID",
         "responses": {
           "200": {
@@ -2968,7 +3259,9 @@
       },
       "patch": {
         "operationId": "patchV1MenuItemsById",
-        "tags": ["Menu Items"],
+        "tags": [
+          "Menu Items"
+        ],
         "summary": "Update menu item",
         "description": "Super admin only.",
         "requestBody": {
@@ -3044,7 +3337,9 @@
       },
       "delete": {
         "operationId": "deleteV1MenuItemsById",
-        "tags": ["Menu Items"],
+        "tags": [
+          "Menu Items"
+        ],
         "summary": "Delete menu item",
         "description": "Removes the menu item and detaches its modifiers. Super admin only.",
         "responses": {
@@ -3076,7 +3371,9 @@
     "/v1/menu-categories": {
       "get": {
         "operationId": "getV1MenuCategories",
-        "tags": ["Menu Categories"],
+        "tags": [
+          "Menu Categories"
+        ],
         "summary": "List menu categories",
         "description": "Tenant-defined menu sections in display order. Super admin may pass ?tenantId to scope to one tenant, and sees every tenant's categories otherwise.",
         "responses": {
@@ -3096,7 +3393,9 @@
       },
       "post": {
         "operationId": "postV1MenuCategories",
-        "tags": ["Menu Categories"],
+        "tags": [
+          "Menu Categories"
+        ],
         "summary": "Create menu category",
         "description": "Creates a tenant-defined menu section. The slug is derived from the name when not supplied, and de-duplicated within the tenant.",
         "requestBody": {
@@ -3105,7 +3404,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["name"],
+                "required": [
+                  "name"
+                ],
                 "properties": {
                   "tenantId": {
                     "type": "string",
@@ -3133,7 +3434,14 @@
                   },
                   "colour": {
                     "type": "string",
-                    "enum": ["warning", "info", "primary", "success", "muted", "destructive"]
+                    "enum": [
+                      "warning",
+                      "info",
+                      "primary",
+                      "success",
+                      "muted",
+                      "destructive"
+                    ]
                   },
                   "isActive": {
                     "type": "boolean",
@@ -3173,7 +3481,9 @@
     "/v1/menu-categories/reorder": {
       "patch": {
         "operationId": "patchV1MenuCategoriesReorder",
-        "tags": ["Menu Categories"],
+        "tags": [
+          "Menu Categories"
+        ],
         "summary": "Reorder menu categories",
         "description": "Takes the full ordered list of category ids; each id's position becomes its sortOrder. Ids outside the caller's tenant are rejected.",
         "requestBody": {
@@ -3182,7 +3492,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["ids"],
+                "required": [
+                  "ids"
+                ],
                 "properties": {
                   "ids": {
                     "type": "array",
@@ -3218,7 +3530,9 @@
     "/v1/menu-categories/{id}": {
       "patch": {
         "operationId": "patchV1MenuCategoriesById",
-        "tags": ["Menu Categories"],
+        "tags": [
+          "Menu Categories"
+        ],
         "summary": "Update menu category",
         "description": "Renames or restyles a category. The slug remains the stable machine key.",
         "requestBody": {
@@ -3245,7 +3559,14 @@
                   },
                   "colour": {
                     "type": "string",
-                    "enum": ["warning", "info", "primary", "success", "muted", "destructive"]
+                    "enum": [
+                      "warning",
+                      "info",
+                      "primary",
+                      "success",
+                      "muted",
+                      "destructive"
+                    ]
                   },
                   "isActive": {
                     "type": "boolean"
@@ -3292,7 +3613,9 @@
       },
       "delete": {
         "operationId": "deleteV1MenuCategoriesById",
-        "tags": ["Menu Categories"],
+        "tags": [
+          "Menu Categories"
+        ],
         "summary": "Delete menu category",
         "description": "Refuses with 409 while any menu item still uses the category, reporting how many. Pass ?reassignTo=<categoryId> to move those items first.",
         "responses": {
@@ -3327,7 +3650,9 @@
     "/v1/modifiers": {
       "post": {
         "operationId": "postV1Modifiers",
-        "tags": ["Modifiers"],
+        "tags": [
+          "Modifiers"
+        ],
         "summary": "Create modifier",
         "description": "Creates a reusable modifier (e.g. \"Oat Milk\" +0.50, \"Large\" +0.60). Attach it to menu items via /menu-item-modifiers. Super admin only.",
         "requestBody": {
@@ -3336,7 +3661,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["tenantId", "label"],
+                "required": [
+                  "tenantId",
+                  "label"
+                ],
                 "properties": {
                   "tenantId": {
                     "type": "string",
@@ -3393,7 +3721,9 @@
       },
       "get": {
         "operationId": "getV1Modifiers",
-        "tags": ["Modifiers"],
+        "tags": [
+          "Modifiers"
+        ],
         "summary": "List modifiers",
         "description": "Super admin sees all. Others see only their tenant's modifiers, ordered by name.",
         "responses": {
@@ -3415,7 +3745,9 @@
     "/v1/modifiers/{id}": {
       "get": {
         "operationId": "getV1ModifiersById",
-        "tags": ["Modifiers"],
+        "tags": [
+          "Modifiers"
+        ],
         "summary": "Get modifier by ID",
         "responses": {
           "200": {
@@ -3447,7 +3779,9 @@
       },
       "patch": {
         "operationId": "patchV1ModifiersById",
-        "tags": ["Modifiers"],
+        "tags": [
+          "Modifiers"
+        ],
         "summary": "Update modifier",
         "description": "Super admin only.",
         "requestBody": {
@@ -3513,7 +3847,9 @@
       },
       "delete": {
         "operationId": "deleteV1ModifiersById",
-        "tags": ["Modifiers"],
+        "tags": [
+          "Modifiers"
+        ],
         "summary": "Delete modifier",
         "description": "Removes the modifier and detaches it from any menu items. Super admin only.",
         "responses": {
@@ -3545,7 +3881,9 @@
     "/v1/modifier-groups": {
       "get": {
         "operationId": "getV1ModifierGroups",
-        "tags": ["Modifier Groups"],
+        "tags": [
+          "Modifier Groups"
+        ],
         "summary": "List reusable modifier groups",
         "responses": {
           "200": {
@@ -3561,7 +3899,9 @@
       },
       "post": {
         "operationId": "postV1ModifierGroups",
-        "tags": ["Modifier Groups"],
+        "tags": [
+          "Modifier Groups"
+        ],
         "summary": "Create modifier group",
         "responses": {
           "201": {
@@ -3579,7 +3919,9 @@
     "/v1/menu-item-modifiers": {
       "post": {
         "operationId": "postV1MenuItemModifiers",
-        "tags": ["Menu Item Modifiers"],
+        "tags": [
+          "Menu Item Modifiers"
+        ],
         "summary": "Attach modifier to menu item",
         "description": "Links a reusable modifier to a menu item so it can be chosen when ordering that item. Super admin only.",
         "requestBody": {
@@ -3588,7 +3930,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["menuItemId", "modifierId"],
+                "required": [
+                  "menuItemId",
+                  "modifierId"
+                ],
                 "properties": {
                   "menuItemId": {
                     "type": "string",
@@ -3627,7 +3972,9 @@
       },
       "patch": {
         "operationId": "patchV1MenuItemModifiers",
-        "tags": ["Menu Item Modifiers"],
+        "tags": [
+          "Menu Item Modifiers"
+        ],
         "summary": "Set default variant flag",
         "description": "Marks (or unmarks) an attached modifier as the pre-selected default variant for a menu item. Super admin only.",
         "requestBody": {
@@ -3636,7 +3983,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["menuItemId", "modifierId", "isDefault"],
+                "required": [
+                  "menuItemId",
+                  "modifierId",
+                  "isDefault"
+                ],
                 "properties": {
                   "menuItemId": {
                     "type": "string",
@@ -3674,7 +4025,9 @@
       },
       "delete": {
         "operationId": "deleteV1MenuItemModifiers",
-        "tags": ["Menu Item Modifiers"],
+        "tags": [
+          "Menu Item Modifiers"
+        ],
         "summary": "Detach modifier from menu item",
         "description": "Removes the link between a menu item and a modifier. Super admin only.",
         "requestBody": {
@@ -3683,7 +4036,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["menuItemId", "modifierId"],
+                "required": [
+                  "menuItemId",
+                  "modifierId"
+                ],
                 "properties": {
                   "menuItemId": {
                     "type": "string",
@@ -3720,7 +4076,9 @@
     "/v1/menu-item-modifiers/menu-item/{menuItemId}": {
       "get": {
         "operationId": "getV1MenuItemModifiersMenuItemByMenuItemId",
-        "tags": ["Menu Item Modifiers"],
+        "tags": [
+          "Menu Item Modifiers"
+        ],
         "summary": "List modifiers for a menu item",
         "description": "Returns the full modifier records attached to a menu item.",
         "responses": {
@@ -3755,7 +4113,9 @@
     "/v1/orders/bulk-status": {
       "patch": {
         "operationId": "patchV1OrdersBulkStatus",
-        "tags": ["Orders"],
+        "tags": [
+          "Orders"
+        ],
         "summary": "Bulk update order status",
         "description": "Update the status of up to 100 orders at once. store_manager+ only.",
         "requestBody": {
@@ -3764,7 +4124,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["ids", "status"],
+                "required": [
+                  "ids",
+                  "status"
+                ],
                 "properties": {
                   "ids": {
                     "type": "array",
@@ -3777,11 +4140,24 @@
                   },
                   "status": {
                     "type": "string",
-                    "enum": ["pending", "preparing", "ready", "done", "cancelled"]
+                    "enum": [
+                      "pending",
+                      "preparing",
+                      "ready",
+                      "done",
+                      "cancelled"
+                    ]
                   },
                   "voidReason": {
                     "type": "string",
-                    "enum": ["customer_request", "duplicate", "payment_failed", "item_unavailable", "staff_error", "other"]
+                    "enum": [
+                      "customer_request",
+                      "duplicate",
+                      "payment_failed",
+                      "item_unavailable",
+                      "staff_error",
+                      "other"
+                    ]
                   },
                   "voidNotes": {
                     "type": "string",
@@ -3817,7 +4193,9 @@
     "/v1/orders/{id}": {
       "delete": {
         "operationId": "deleteV1OrdersById",
-        "tags": ["Orders"],
+        "tags": [
+          "Orders"
+        ],
         "summary": "Soft delete order",
         "description": "Sets deletedAt — record retained for audit. store_manager+ only.",
         "responses": {
@@ -3850,7 +4228,9 @@
       },
       "get": {
         "operationId": "getV1OrdersById",
-        "tags": ["Orders"],
+        "tags": [
+          "Orders"
+        ],
         "summary": "Get order by ID",
         "description": "Returns a full order with items and modifiers.",
         "responses": {
@@ -3885,7 +4265,9 @@
     "/v1/orders/export": {
       "get": {
         "operationId": "getV1OrdersExport",
-        "tags": ["Orders"],
+        "tags": [
+          "Orders"
+        ],
         "summary": "Export orders as CSV or JSON",
         "description": "Returns a downloadable file. Supports ?from, ?to, ?status, ?locationId, ?format=(csv|json). store_manager+ only.",
         "parameters": [
@@ -3918,7 +4300,14 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["pending", "preparing", "ready", "done", "cancelled", "expired"]
+              "enum": [
+                "pending",
+                "preparing",
+                "ready",
+                "done",
+                "cancelled",
+                "expired"
+              ]
             }
           },
           {
@@ -3926,7 +4315,10 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["csv", "json"],
+              "enum": [
+                "csv",
+                "json"
+              ],
               "default": "csv"
             }
           }
@@ -3950,7 +4342,9 @@
     "/v1/orders": {
       "post": {
         "operationId": "postV1Orders",
-        "tags": ["Orders"],
+        "tags": [
+          "Orders"
+        ],
         "summary": "Create order",
         "description": "Creates a new order and snapshots its recipe usage. Item names and prices are computed server-side; physical stock units are consumed automatically when the order reaches done.",
         "parameters": [
@@ -3971,7 +4365,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["locationId", "source", "items"],
+                "required": [
+                  "locationId",
+                  "source",
+                  "items"
+                ],
                 "properties": {
                   "locationId": {
                     "type": "string",
@@ -3983,14 +4381,26 @@
                   },
                   "source": {
                     "type": "string",
-                    "enum": ["pos", "mobile"]
+                    "enum": [
+                      "pos",
+                      "mobile"
+                    ]
                   },
                   "notes": {
                     "type": "string"
                   },
                   "paymentMethod": {
                     "type": "string",
-                    "enum": ["cash", "card", "stripe_online", "stripe_terminal", "sumup", "square", "manual_terminal", "custom"],
+                    "enum": [
+                      "cash",
+                      "card",
+                      "stripe_online",
+                      "stripe_terminal",
+                      "sumup",
+                      "square",
+                      "manual_terminal",
+                      "custom"
+                    ],
                     "example": "card"
                   },
                   "items": {
@@ -4000,7 +4410,10 @@
                     "description": "Line items. Names and prices are resolved server-side from the menu — do not send them.",
                     "items": {
                       "type": "object",
-                      "required": ["menuItemId", "quantity"],
+                      "required": [
+                        "menuItemId",
+                        "quantity"
+                      ],
                       "properties": {
                         "menuItemId": {
                           "type": "string",
@@ -4017,7 +4430,9 @@
                           "type": "array",
                           "items": {
                             "type": "object",
-                            "required": ["modifierId"],
+                            "required": [
+                              "modifierId"
+                            ],
                             "properties": {
                               "modifierId": {
                                 "type": "string",
@@ -4060,7 +4475,9 @@
       },
       "get": {
         "operationId": "getV1Orders",
-        "tags": ["Orders"],
+        "tags": [
+          "Orders"
+        ],
         "summary": "List orders",
         "description": "Returns paginated orders scoped to the caller's role. Super admin sees all; franchise/location staff see their own locations.",
         "parameters": [
@@ -4109,7 +4526,14 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["pending", "preparing", "ready", "done", "cancelled", "expired"]
+              "enum": [
+                "pending",
+                "preparing",
+                "ready",
+                "done",
+                "cancelled",
+                "expired"
+              ]
             },
             "description": "Filter by order status"
           },
@@ -4129,7 +4553,11 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["pos", "mobile", "qr_code"]
+              "enum": [
+                "pos",
+                "mobile",
+                "qr_code"
+              ]
             },
             "description": "Filter by order source"
           },
@@ -4192,7 +4620,9 @@
     "/v1/orders/my": {
       "get": {
         "operationId": "getV1OrdersMy",
-        "tags": ["Orders"],
+        "tags": [
+          "Orders"
+        ],
         "summary": "Get my orders",
         "description": "Paginated orders for the authenticated customer, newest first, with items, modifiers and status history. Previously returned every order ever placed as a bare array; it is now an envelope.",
         "parameters": [
@@ -4234,7 +4664,9 @@
     "/v1/orders/{id}/refunds": {
       "post": {
         "operationId": "postV1OrdersByIdRefunds",
-        "tags": ["Orders"],
+        "tags": [
+          "Orders"
+        ],
         "summary": "Record a full or partial refund",
         "description": "Creates a Stripe refund to the original card or records a staff-confirmed cash return. The total of all refunds cannot exceed the order total.",
         "responses": {
@@ -4272,7 +4704,9 @@
     "/v1/orders/{id}/status": {
       "patch": {
         "operationId": "patchV1OrdersByIdStatus",
-        "tags": ["Orders"],
+        "tags": [
+          "Orders"
+        ],
         "summary": "Update order status",
         "description": "Transitions an order to a new status. Cancelling reverses the order's stock deductions; completing awards loyalty points. Writes an audit log.",
         "requestBody": {
@@ -4281,11 +4715,19 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["status"],
+                "required": [
+                  "status"
+                ],
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": ["pending", "preparing", "ready", "done", "cancelled"]
+                    "enum": [
+                      "pending",
+                      "preparing",
+                      "ready",
+                      "done",
+                      "cancelled"
+                    ]
                   }
                 }
               }
@@ -4327,7 +4769,9 @@
     "/v1/stock-items": {
       "post": {
         "operationId": "postV1StockItems",
-        "tags": ["Stock Items"],
+        "tags": [
+          "Stock Items"
+        ],
         "summary": "Create stock item",
         "description": "Creates a new trackable stock item (e.g. \"Oat Milk\", \"Espresso Shots\"). Super admin only.",
         "requestBody": {
@@ -4336,7 +4780,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["tenantId", "name", "unit"],
+                "required": [
+                  "tenantId",
+                  "name",
+                  "unit"
+                ],
                 "properties": {
                   "tenantId": {
                     "type": "string",
@@ -4348,7 +4796,10 @@
                     "example": "Oat Milk"
                   },
                   "barcode": {
-                    "type": ["string", "null"],
+                    "type": [
+                      "string",
+                      "null"
+                    ],
                     "maxLength": 255,
                     "example": "5012345678900",
                     "description": "Product barcode, unique within the tenant"
@@ -4381,7 +4832,9 @@
       },
       "get": {
         "operationId": "getV1StockItems",
-        "tags": ["Stock Items"],
+        "tags": [
+          "Stock Items"
+        ],
         "summary": "List stock items",
         "description": "Super admin sees all. Others see only their tenant's stock items, ordered by name.",
         "responses": {
@@ -4403,7 +4856,9 @@
     "/v1/stock-items/{id}/movements": {
       "get": {
         "operationId": "getV1StockItemsByIdMovements",
-        "tags": ["Stock Items"],
+        "tags": [
+          "Stock Items"
+        ],
         "summary": "Stock movement history",
         "description": "Paginated audit trail of all stock movements for a specific stock item. store_manager+ only.",
         "parameters": [
@@ -4458,7 +4913,9 @@
     "/v1/stock-items/{id}": {
       "get": {
         "operationId": "getV1StockItemsById",
-        "tags": ["Stock Items"],
+        "tags": [
+          "Stock Items"
+        ],
         "summary": "Get stock item by ID",
         "responses": {
           "200": {
@@ -4490,7 +4947,9 @@
       },
       "patch": {
         "operationId": "patchV1StockItemsById",
-        "tags": ["Stock Items"],
+        "tags": [
+          "Stock Items"
+        ],
         "summary": "Update stock item",
         "description": "Super admin only.",
         "requestBody": {
@@ -4505,7 +4964,10 @@
                     "maxLength": 255
                   },
                   "barcode": {
-                    "type": ["string", "null"],
+                    "type": [
+                      "string",
+                      "null"
+                    ],
                     "maxLength": 255
                   },
                   "unit": {
@@ -4547,7 +5009,9 @@
       },
       "delete": {
         "operationId": "deleteV1StockItemsById",
-        "tags": ["Stock Items"],
+        "tags": [
+          "Stock Items"
+        ],
         "summary": "Delete stock item",
         "description": "Retires the stock item while preserving units, recipes and ledger history. Super admin only.",
         "responses": {
@@ -4579,7 +5043,9 @@
     "/v1/location-stock": {
       "post": {
         "operationId": "postV1LocationStock",
-        "tags": ["Location Stock"],
+        "tags": [
+          "Location Stock"
+        ],
         "summary": "Add stock item to location",
         "description": "Starts tracking a stock item at a specific location. Super admin only.",
         "requestBody": {
@@ -4588,7 +5054,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["locationId", "stockItemId", "lowThreshold"],
+                "required": [
+                  "locationId",
+                  "stockItemId",
+                  "lowThreshold"
+                ],
                 "properties": {
                   "locationId": {
                     "type": "string",
@@ -4635,7 +5105,9 @@
     "/v1/location-stock/alerts": {
       "get": {
         "operationId": "getV1LocationStockAlerts",
-        "tags": ["Location Stock"],
+        "tags": [
+          "Location Stock"
+        ],
         "summary": "Low stock alerts",
         "description": "Returns all location stock rows where quantity ≤ lowThreshold. Scoped by role: location staff see their assigned locations only, others see their tenant. store_manager+ only.",
         "parameters": [
@@ -4669,7 +5141,9 @@
     "/v1/location-stock/location/{locationId}": {
       "get": {
         "operationId": "getV1LocationStockLocationByLocationId",
-        "tags": ["Location Stock"],
+        "tags": [
+          "Location Stock"
+        ],
         "summary": "List stock for a location",
         "description": "Returns all stock items at a location with their quantities. Location-scoped staff can only query their assigned locations.",
         "responses": {
@@ -4704,7 +5178,9 @@
     "/v1/location-stock/{id}": {
       "get": {
         "operationId": "getV1LocationStockById",
-        "tags": ["Location Stock"],
+        "tags": [
+          "Location Stock"
+        ],
         "summary": "Get location stock row by ID",
         "responses": {
           "200": {
@@ -4736,7 +5212,9 @@
       },
       "patch": {
         "operationId": "patchV1LocationStockById",
-        "tags": ["Location Stock"],
+        "tags": [
+          "Location Stock"
+        ],
         "summary": "Update location stock",
         "description": "Updates reorder settings or availability. Quantity is derived exclusively from physical stock units.",
         "requestBody": {
@@ -4788,7 +5266,9 @@
       },
       "delete": {
         "operationId": "deleteV1LocationStockById",
-        "tags": ["Location Stock"],
+        "tags": [
+          "Location Stock"
+        ],
         "summary": "Remove stock item from location tracking",
         "description": "Super admin only.",
         "responses": {
@@ -4820,7 +5300,9 @@
     "/v1/loss-log": {
       "get": {
         "operationId": "getV1LossLog",
-        "tags": ["Loss Log"],
+        "tags": [
+          "Loss Log"
+        ],
         "summary": "List waste/loss movements",
         "description": "Paginated list of stock movements where type = \"waste\". Scoped to tenant; location staff see their assigned locations only. store_manager+ only.",
         "parameters": [
@@ -4898,7 +5380,9 @@
       },
       "post": {
         "operationId": "postV1LossLog",
-        "tags": ["Loss Log"],
+        "tags": [
+          "Loss Log"
+        ],
         "summary": "Record a stock loss",
         "description": "Deducts stock from a location and records a waste movement. store_manager+ only.",
         "requestBody": {
@@ -4907,7 +5391,12 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["stockItemId", "locationId", "quantity", "reason"],
+                "required": [
+                  "stockItemId",
+                  "locationId",
+                  "quantity",
+                  "reason"
+                ],
                 "properties": {
                   "stockItemId": {
                     "type": "string",
@@ -4923,7 +5412,12 @@
                   },
                   "reason": {
                     "type": "string",
-                    "enum": ["expiry", "damage", "theft", "other"]
+                    "enum": [
+                      "expiry",
+                      "damage",
+                      "theft",
+                      "other"
+                    ]
                   },
                   "notes": {
                     "type": "string",
@@ -4956,7 +5450,9 @@
     "/v1/demand-forecast": {
       "get": {
         "operationId": "getV1DemandForecast",
-        "tags": ["Demand Forecast"],
+        "tags": [
+          "Demand Forecast"
+        ],
         "summary": "Demand forecast per stock item / location",
         "description": "Analyses historical deduction movements over the lookback window and projects average daily usage forward.\nReturns one row per (stockItem, location) pair with:\n- `avgDailyUsage` — average units consumed per day\n- `projectedUsage` — avgDailyUsage × forecastDays\n- `currentQuantity` — current stock level at the location\n- `daysUntilStockout` — estimated days before stock hits 0 (null if no usage)\nstore_manager+ only.",
         "parameters": [
@@ -5022,7 +5518,9 @@
     "/v1/restock-requests": {
       "post": {
         "operationId": "postV1RestockRequests",
-        "tags": ["Restock Requests"],
+        "tags": [
+          "Restock Requests"
+        ],
         "summary": "Create restock request",
         "description": "Raises a request to restock a stock item at a location. store_manager+ only.",
         "requestBody": {
@@ -5031,7 +5529,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["stockItemId", "locationId", "requestedQty"],
+                "required": [
+                  "stockItemId",
+                  "locationId",
+                  "requestedQty"
+                ],
                 "properties": {
                   "stockItemId": {
                     "type": "string",
@@ -5074,7 +5576,9 @@
       },
       "get": {
         "operationId": "getV1RestockRequests",
-        "tags": ["Restock Requests"],
+        "tags": [
+          "Restock Requests"
+        ],
         "summary": "List restock requests",
         "description": "Paginated list. Scoped to location access. store_manager+ only.",
         "parameters": [
@@ -5102,7 +5606,12 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["pending", "approved", "fulfilled", "rejected"]
+              "enum": [
+                "pending",
+                "approved",
+                "fulfilled",
+                "rejected"
+              ]
             }
           },
           {
@@ -5143,7 +5652,9 @@
     "/v1/restock-requests/{id}": {
       "get": {
         "operationId": "getV1RestockRequestsById",
-        "tags": ["Restock Requests"],
+        "tags": [
+          "Restock Requests"
+        ],
         "summary": "Get restock request by ID",
         "responses": {
           "200": {
@@ -5175,7 +5686,9 @@
       },
       "patch": {
         "operationId": "patchV1RestockRequestsById",
-        "tags": ["Restock Requests"],
+        "tags": [
+          "Restock Requests"
+        ],
         "summary": "Update restock request",
         "description": "Update status, quantity, or notes. store_manager+ only.",
         "requestBody": {
@@ -5187,7 +5700,12 @@
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": ["pending", "approved", "fulfilled", "rejected"]
+                    "enum": [
+                      "pending",
+                      "approved",
+                      "fulfilled",
+                      "rejected"
+                    ]
                   },
                   "requestedQty": {
                     "type": "integer",
@@ -5235,7 +5753,9 @@
       },
       "delete": {
         "operationId": "deleteV1RestockRequestsById",
-        "tags": ["Restock Requests"],
+        "tags": [
+          "Restock Requests"
+        ],
         "summary": "Delete restock request",
         "description": "franchise_owner+ only.",
         "responses": {
@@ -5270,7 +5790,9 @@
     "/v1/menu-item-recipes/gaps": {
       "get": {
         "operationId": "getV1MenuItemRecipesGaps",
-        "tags": ["Menu Item Recipes"],
+        "tags": [
+          "Menu Item Recipes"
+        ],
         "summary": "List available menu items with no recipe",
         "description": "Returns tenant-scoped menu items whose missing recipe makes stock consumption and allergen coverage incomplete.",
         "responses": {
@@ -5292,7 +5814,9 @@
     "/v1/menu-item-recipes/menu-item/{menuItemId}": {
       "get": {
         "operationId": "getV1MenuItemRecipesMenuItemByMenuItemId",
-        "tags": ["Menu Item Recipes"],
+        "tags": [
+          "Menu Item Recipes"
+        ],
         "summary": "Get a menu item recipe",
         "description": "Returns the recipe lines for a menu item, with stock item name, unit and last unit cost (for COGS).",
         "responses": {
@@ -5325,7 +5849,9 @@
       },
       "put": {
         "operationId": "putV1MenuItemRecipesMenuItemByMenuItemId",
-        "tags": ["Menu Item Recipes"],
+        "tags": [
+          "Menu Item Recipes"
+        ],
         "summary": "Replace a menu item recipe",
         "description": "Replaces the full set of recipe lines for a menu item. Quantities are per ONE unit of the item, in the stock item's unit. store_manager+ only.",
         "requestBody": {
@@ -5334,13 +5860,18 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["lines"],
+                "required": [
+                  "lines"
+                ],
                 "properties": {
                   "lines": {
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": ["stockItemId", "quantity"],
+                      "required": [
+                        "stockItemId",
+                        "quantity"
+                      ],
                       "properties": {
                         "stockItemId": {
                           "type": "string",
@@ -5393,7 +5924,9 @@
     "/v1/modifier-recipes/modifier/{modifierId}": {
       "get": {
         "operationId": "getV1ModifierRecipesModifierByModifierId",
-        "tags": ["Menu Item Recipes"],
+        "tags": [
+          "Menu Item Recipes"
+        ],
         "summary": "Get a modifier recipe",
         "description": "Ingredient lines a modifier adds when selected, with per-size overrides and nutrition data.",
         "responses": {
@@ -5426,7 +5959,9 @@
       },
       "put": {
         "operationId": "putV1ModifierRecipesModifierByModifierId",
-        "tags": ["Menu Item Recipes"],
+        "tags": [
+          "Menu Item Recipes"
+        ],
         "summary": "Replace a modifier recipe",
         "description": "Replaces the full set of ingredient lines this modifier adds. Lines with sizeModifierId override the default line for that stock item when that size is selected. store_manager+ only.",
         "responses": {
@@ -5464,7 +5999,9 @@
     "/v1/suppliers": {
       "get": {
         "operationId": "getV1Suppliers",
-        "tags": ["Suppliers"],
+        "tags": [
+          "Suppliers"
+        ],
         "summary": "List suppliers",
         "description": "All suppliers for the caller's tenant. store_manager+ only.",
         "parameters": [
@@ -5495,7 +6032,9 @@
       },
       "post": {
         "operationId": "postV1Suppliers",
-        "tags": ["Suppliers"],
+        "tags": [
+          "Suppliers"
+        ],
         "summary": "Create supplier",
         "description": "store_manager+ only.",
         "requestBody": {
@@ -5504,7 +6043,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["name"],
+                "required": [
+                  "name"
+                ],
                 "properties": {
                   "name": {
                     "type": "string",
@@ -5560,7 +6101,9 @@
     "/v1/suppliers/{id}": {
       "patch": {
         "operationId": "patchV1SuppliersById",
-        "tags": ["Suppliers"],
+        "tags": [
+          "Suppliers"
+        ],
         "summary": "Update supplier",
         "description": "store_manager+ only.",
         "responses": {
@@ -5593,7 +6136,9 @@
       },
       "delete": {
         "operationId": "deleteV1SuppliersById",
-        "tags": ["Suppliers"],
+        "tags": [
+          "Suppliers"
+        ],
         "summary": "Deactivate supplier",
         "description": "Soft-deactivates the supplier (POs may reference it). franchise_owner+ only.",
         "responses": {
@@ -5628,7 +6173,9 @@
     "/v1/purchase-orders": {
       "post": {
         "operationId": "postV1PurchaseOrders",
-        "tags": ["Purchase Orders"],
+        "tags": [
+          "Purchase Orders"
+        ],
         "summary": "Create purchase order",
         "description": "Creates a draft PO with costed lines. Unit costs are per stock item unit (ml/g/pc). store_manager+ only.",
         "responses": {
@@ -5651,7 +6198,9 @@
       },
       "get": {
         "operationId": "getV1PurchaseOrders",
-        "tags": ["Purchase Orders"],
+        "tags": [
+          "Purchase Orders"
+        ],
         "summary": "List purchase orders",
         "description": "Paginated, scoped to location access. store_manager+ only.",
         "parameters": [
@@ -5679,7 +6228,13 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["draft", "submitted", "partially_received", "received", "cancelled"]
+              "enum": [
+                "draft",
+                "submitted",
+                "partially_received",
+                "received",
+                "cancelled"
+              ]
             }
           },
           {
@@ -5720,7 +6275,9 @@
     "/v1/purchase-orders/{id}": {
       "get": {
         "operationId": "getV1PurchaseOrdersById",
-        "tags": ["Purchase Orders"],
+        "tags": [
+          "Purchase Orders"
+        ],
         "summary": "Get purchase order",
         "description": "PO with lines and goods receipts. store_manager+ only.",
         "responses": {
@@ -5753,7 +6310,9 @@
       },
       "patch": {
         "operationId": "patchV1PurchaseOrdersById",
-        "tags": ["Purchase Orders"],
+        "tags": [
+          "Purchase Orders"
+        ],
         "summary": "Update purchase order",
         "description": "Submit or cancel the PO, update notes/expected date, and record invoice details (number, amount, matched). store_manager+ only.",
         "responses": {
@@ -5791,7 +6350,9 @@
     "/v1/purchase-orders/{id}/receive": {
       "post": {
         "operationId": "postV1PurchaseOrdersByIdReceive",
-        "tags": ["Purchase Orders"],
+        "tags": [
+          "Purchase Orders"
+        ],
         "summary": "Receive goods against a PO",
         "description": "Records a goods-received note. Received quantities add to on-hand stock (movements type restock), update each line's running received total, refresh the stock item's last unit cost, and roll the PO status to partially_received/received. store_manager+ only.",
         "responses": {
@@ -5829,7 +6390,9 @@
     "/v1/stocktakes": {
       "post": {
         "operationId": "postV1Stocktakes",
-        "tags": ["Stocktakes"],
+        "tags": [
+          "Stocktakes"
+        ],
         "summary": "Start a stocktake",
         "description": "Creates an in-progress stocktake for a location, snapshotting the expected quantity of every stocked item. Only one stocktake can be in progress per location. store_manager+ only.",
         "requestBody": {
@@ -5838,7 +6401,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["locationId"],
+                "required": [
+                  "locationId"
+                ],
                 "properties": {
                   "locationId": {
                     "type": "string",
@@ -5873,7 +6438,9 @@
       },
       "get": {
         "operationId": "getV1Stocktakes",
-        "tags": ["Stocktakes"],
+        "tags": [
+          "Stocktakes"
+        ],
         "summary": "List stocktakes",
         "description": "Paginated, scoped to location access. store_manager+ only.",
         "parameters": [
@@ -5892,7 +6459,11 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["in_progress", "completed", "cancelled"]
+              "enum": [
+                "in_progress",
+                "completed",
+                "cancelled"
+              ]
             }
           },
           {
@@ -5933,7 +6504,9 @@
     "/v1/stocktakes/{id}": {
       "get": {
         "operationId": "getV1StocktakesById",
-        "tags": ["Stocktakes"],
+        "tags": [
+          "Stocktakes"
+        ],
         "summary": "Get stocktake",
         "description": "Stocktake with lines (expected vs counted). store_manager+ only.",
         "responses": {
@@ -5968,7 +6541,9 @@
     "/v1/stocktakes/{id}/lines": {
       "patch": {
         "operationId": "patchV1StocktakesByIdLines",
-        "tags": ["Stocktakes"],
+        "tags": [
+          "Stocktakes"
+        ],
         "summary": "Record counted quantities",
         "description": "Saves physical counts for one or more lines of an in-progress stocktake. store_manager+ only.",
         "responses": {
@@ -6006,7 +6581,9 @@
     "/v1/stocktakes/{id}/complete": {
       "post": {
         "operationId": "postV1StocktakesByIdComplete",
-        "tags": ["Stocktakes"],
+        "tags": [
+          "Stocktakes"
+        ],
         "summary": "Complete a stocktake",
         "description": "Applies every counted line: on-hand quantity is set to the counted value and the variance is written to the movements ledger as an adjustment. Uncounted lines are left untouched. store_manager+ only.",
         "responses": {
@@ -6044,7 +6621,9 @@
     "/v1/stocktakes/{id}/cancel": {
       "post": {
         "operationId": "postV1StocktakesByIdCancel",
-        "tags": ["Stocktakes"],
+        "tags": [
+          "Stocktakes"
+        ],
         "summary": "Cancel a stocktake",
         "description": "Abandons an in-progress stocktake without applying anything. store_manager+ only.",
         "responses": {
@@ -6082,7 +6661,9 @@
     "/v1/stock-transfers": {
       "post": {
         "operationId": "postV1StockTransfers",
-        "tags": ["Stock Transfers"],
+        "tags": [
+          "Stock Transfers"
+        ],
         "summary": "Create stock transfer",
         "description": "Creates a pending transfer between two locations of the same tenant. Sending stock must cover every line. Stock only moves on completion. store_manager+ only.",
         "responses": {
@@ -6105,7 +6686,9 @@
       },
       "get": {
         "operationId": "getV1StockTransfers",
-        "tags": ["Stock Transfers"],
+        "tags": [
+          "Stock Transfers"
+        ],
         "summary": "List stock transfers",
         "description": "Paginated transfers where either side is a location the caller can access. store_manager+ only.",
         "parameters": [
@@ -6124,7 +6707,11 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["pending", "completed", "cancelled"]
+              "enum": [
+                "pending",
+                "completed",
+                "cancelled"
+              ]
             }
           },
           {
@@ -6165,7 +6752,9 @@
     "/v1/stock-transfers/{id}": {
       "get": {
         "operationId": "getV1StockTransfersById",
-        "tags": ["Stock Transfers"],
+        "tags": [
+          "Stock Transfers"
+        ],
         "summary": "Get stock transfer",
         "responses": {
           "200": {
@@ -6199,7 +6788,9 @@
     "/v1/stock-transfers/{id}/complete": {
       "post": {
         "operationId": "postV1StockTransfersByIdComplete",
-        "tags": ["Stock Transfers"],
+        "tags": [
+          "Stock Transfers"
+        ],
         "summary": "Complete a transfer",
         "description": "Moves the stock: each line is deducted from the sender and added to the receiver (creating the receiving stock row if needed), with paired transfer movements on both sides. store_manager+ only.",
         "responses": {
@@ -6237,7 +6828,9 @@
     "/v1/stock-transfers/{id}/cancel": {
       "post": {
         "operationId": "postV1StockTransfersByIdCancel",
-        "tags": ["Stock Transfers"],
+        "tags": [
+          "Stock Transfers"
+        ],
         "summary": "Cancel a transfer",
         "description": "Cancels a pending transfer — no stock has moved yet. store_manager+ only.",
         "responses": {
@@ -6275,7 +6868,9 @@
     "/v1/inventory/overview": {
       "get": {
         "operationId": "getV1InventoryOverview",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Inventory overview derived from physical stock units",
         "responses": {
           "200": {
@@ -6296,7 +6891,9 @@
     "/v1/inventory/ledger": {
       "get": {
         "operationId": "getV1InventoryLedger",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Search the canonical inventory ledger",
         "responses": {
           "200": {
@@ -6317,7 +6914,9 @@
     "/v1/inventory/reorder-suggestions": {
       "get": {
         "operationId": "getV1InventoryReorderSuggestions",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "List SKU reorder suggestions",
         "responses": {
           "200": {
@@ -6335,7 +6934,9 @@
     "/v1/inventory": {
       "get": {
         "operationId": "getV1Inventory",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "List physical stock units",
         "responses": {
           "200": {
@@ -6354,7 +6955,9 @@
       },
       "post": {
         "operationId": "postV1Inventory",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Manually receive physical stock units",
         "responses": {
           "201": {
@@ -6378,7 +6981,9 @@
     "/v1/inventory/expire": {
       "post": {
         "operationId": "postV1InventoryExpire",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Expire due stock units",
         "responses": {
           "200": {
@@ -6396,7 +7001,9 @@
     "/v1/inventory/reconcile": {
       "post": {
         "operationId": "postV1InventoryReconcile",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Rebuild a location aggregate from stock units",
         "responses": {
           "200": {
@@ -6417,7 +7024,9 @@
     "/v1/inventory/combine": {
       "post": {
         "operationId": "postV1InventoryCombine",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Combine physical stock units",
         "description": "Repackages two or more active containers for the same item and location into one container without changing on-hand stock.",
         "responses": {
@@ -6442,7 +7051,9 @@
     "/v1/inventory/{id}": {
       "get": {
         "operationId": "getV1InventoryById",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Get one physical stock unit",
         "responses": {
           "200": {
@@ -6476,7 +7087,9 @@
     "/v1/inventory/{id}/ledger": {
       "get": {
         "operationId": "getV1InventoryByIdLedger",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Get a stock unit ledger",
         "responses": {
           "200": {
@@ -6510,7 +7123,9 @@
     "/v1/inventory/{id}/split": {
       "post": {
         "operationId": "postV1InventoryByIdSplit",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Split a physical stock unit",
         "description": "Repackages an active container into two or more child containers without changing on-hand stock.",
         "responses": {
@@ -6548,7 +7163,9 @@
     "/v1/inventory/{id}/adjust": {
       "post": {
         "operationId": "postV1InventoryByIdAdjust",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Set a stock unit remaining quantity",
         "responses": {
           "200": {
@@ -6582,7 +7199,9 @@
     "/v1/inventory/{id}/waste": {
       "post": {
         "operationId": "postV1InventoryByIdWaste",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Waste part of a stock unit",
         "responses": {
           "200": {
@@ -6613,7 +7232,9 @@
     "/v1/inventory/{id}/discard": {
       "post": {
         "operationId": "postV1InventoryByIdDiscard",
-        "tags": ["Stock Units"],
+        "tags": [
+          "Stock Units"
+        ],
         "summary": "Discard all remaining stock in a unit",
         "responses": {
           "200": {
@@ -6641,7 +7262,9 @@
     "/v1/shifts/clock-in": {
       "post": {
         "operationId": "postV1ShiftsClockIn",
-        "tags": ["Shifts"],
+        "tags": [
+          "Shifts"
+        ],
         "summary": "Clock in",
         "description": "Starts a shift for the authenticated user at the given location. Links to a planned rota slot — pass scheduledShiftId, or one is auto-matched (your published shift for this location running now / starting within the hour). Returns 409 if already clocked in.",
         "requestBody": {
@@ -6650,7 +7273,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["locationId"],
+                "required": [
+                  "locationId"
+                ],
                 "properties": {
                   "locationId": {
                     "type": "string",
@@ -6691,7 +7316,9 @@
     "/v1/shifts/clock-out": {
       "post": {
         "operationId": "postV1ShiftsClockOut",
-        "tags": ["Shifts"],
+        "tags": [
+          "Shifts"
+        ],
         "summary": "Clock out",
         "description": "Ends the active shift for the authenticated user at the given location. Returns the shift with durationMinutes.",
         "requestBody": {
@@ -6700,7 +7327,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["locationId"],
+                "required": [
+                  "locationId"
+                ],
                 "properties": {
                   "locationId": {
                     "type": "string",
@@ -6733,7 +7362,9 @@
     "/v1/shifts/manual": {
       "post": {
         "operationId": "postV1ShiftsManual",
-        "tags": ["Shifts"],
+        "tags": [
+          "Shifts"
+        ],
         "summary": "Manually record a shift for a staff member",
         "description": "Starts (or back-fills) a shift on behalf of another staff member — for someone who forgot to clock in, or who is working off a shared till. Omit clockedOut to leave the shift running; the same manager can end it with PATCH /shifts/:id. store_manager+ only.",
         "requestBody": {
@@ -6742,7 +7373,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["userId", "locationId"],
+                "required": [
+                  "userId",
+                  "locationId"
+                ],
                 "properties": {
                   "userId": {
                     "type": "string",
@@ -6797,7 +7431,9 @@
     "/v1/shifts/{id}": {
       "patch": {
         "operationId": "patchV1ShiftsById",
-        "tags": ["Shifts"],
+        "tags": [
+          "Shifts"
+        ],
         "summary": "Adjust or end a recorded shift",
         "description": "Ends a running shift (send clockedOut) or corrects the times of any shift. Send clockedOut: null to reopen one that was ended by mistake. store_manager+ only.",
         "requestBody": {
@@ -6859,7 +7495,9 @@
       },
       "delete": {
         "operationId": "deleteV1ShiftsById",
-        "tags": ["Shifts"],
+        "tags": [
+          "Shifts"
+        ],
         "summary": "Remove a recorded shift",
         "description": "Removes an accidental clock or manually recorded work period. Any linked rota shift remains in place. Refused once the employee has a finalised or issued payroll run covering the worked date. store_manager+ only.",
         "responses": {
@@ -6897,7 +7535,9 @@
     "/v1/shifts/active": {
       "get": {
         "operationId": "getV1ShiftsActive",
-        "tags": ["Shifts"],
+        "tags": [
+          "Shifts"
+        ],
         "summary": "List active shifts",
         "description": "Returns currently clocked-in shifts across the locations the caller can access (all their assigned locations).",
         "responses": {
@@ -6916,7 +7556,9 @@
     "/v1/shifts/my": {
       "get": {
         "operationId": "getV1ShiftsMy",
-        "tags": ["Shifts"],
+        "tags": [
+          "Shifts"
+        ],
         "summary": "Get my shift history",
         "description": "Returns all shifts for the authenticated user, ordered by most recent first.",
         "responses": {
@@ -6935,7 +7577,9 @@
     "/v1/shifts": {
       "get": {
         "operationId": "getV1Shifts",
-        "tags": ["Shifts"],
+        "tags": [
+          "Shifts"
+        ],
         "summary": "List all shifts",
         "description": "Returns all shifts ordered by most recent first, optionally filtered by location. store_manager+ only.",
         "parameters": [
@@ -6969,7 +7613,9 @@
     "/v1/scheduled-shifts": {
       "post": {
         "operationId": "postV1ScheduledShifts",
-        "tags": ["Scheduling"],
+        "tags": [
+          "Scheduling"
+        ],
         "summary": "Create scheduled shift",
         "description": "Adds a slot to the rota. store_manager+ can assign anyone and set status. Other staff may only *suggest* their own shift: userId is forced to themselves and status to draft (a manager then publishes to approve).",
         "requestBody": {
@@ -6978,7 +7624,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["locationId", "startsAt", "endsAt"],
+                "required": [
+                  "locationId",
+                  "startsAt",
+                  "endsAt"
+                ],
                 "properties": {
                   "locationId": {
                     "type": "string",
@@ -7003,7 +7653,11 @@
                   },
                   "status": {
                     "type": "string",
-                    "enum": ["draft", "published", "cancelled"],
+                    "enum": [
+                      "draft",
+                      "published",
+                      "cancelled"
+                    ],
                     "default": "draft"
                   },
                   "notes": {
@@ -7035,7 +7689,9 @@
       },
       "get": {
         "operationId": "getV1ScheduledShifts",
-        "tags": ["Scheduling"],
+        "tags": [
+          "Scheduling"
+        ],
         "summary": "List rota",
         "description": "Scheduled shifts for a date range, scoped to the caller's locations. Filter by locationId, userId, status, and from/to (on startsAt). store_manager+ only.",
         "parameters": [
@@ -7062,7 +7718,11 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["draft", "published", "cancelled"]
+              "enum": [
+                "draft",
+                "published",
+                "cancelled"
+              ]
             }
           },
           {
@@ -7103,7 +7763,9 @@
     "/v1/scheduled-shifts/my": {
       "get": {
         "operationId": "getV1ScheduledShiftsMy",
-        "tags": ["Scheduling"],
+        "tags": [
+          "Scheduling"
+        ],
         "summary": "My rota",
         "description": "Published shifts assigned to the authenticated staff member. Optional from/to on startsAt.",
         "responses": {
@@ -7122,7 +7784,9 @@
     "/v1/scheduled-shifts/suggestions": {
       "get": {
         "operationId": "getV1ScheduledShiftsSuggestions",
-        "tags": ["Scheduling"],
+        "tags": [
+          "Scheduling"
+        ],
         "summary": "Suggest staff for a slot",
         "description": "Ranks staff who can work a given slot: eligible for the location, not on approved leave, not already scheduled for an overlapping shift — ordered by fewest scheduled hours that week (fairness). store_manager+ only.",
         "parameters": [
@@ -7176,7 +7840,9 @@
     "/v1/scheduled-shifts/coverage": {
       "get": {
         "operationId": "getV1ScheduledShiftsCoverage",
-        "tags": ["Scheduling"],
+        "tags": [
+          "Scheduling"
+        ],
         "summary": "Suggested staffing by hour (from demand)",
         "description": "Recommends headcount per hour for a location from historical order volume: recommendedStaff = ceil(avg orders in that hour / ordersPerStaff), floored at minStaff when there is any demand. Add byWeekday=true for a per-weekday breakdown. store_manager+ only.",
         "parameters": [
@@ -7249,7 +7915,9 @@
     "/v1/scheduled-shifts/variance": {
       "get": {
         "operationId": "getV1ScheduledShiftsVariance",
-        "tags": ["Scheduling"],
+        "tags": [
+          "Scheduling"
+        ],
         "summary": "Planned vs actual",
         "description": "Compares published scheduled shifts in a date range with the clock-in/out actuals linked to them (via shifts.scheduledShiftId). store_manager+ only.",
         "parameters": [
@@ -7303,7 +7971,9 @@
     "/v1/scheduled-shifts/publish": {
       "post": {
         "operationId": "postV1ScheduledShiftsPublish",
-        "tags": ["Scheduling"],
+        "tags": [
+          "Scheduling"
+        ],
         "summary": "Publish draft shifts",
         "description": "Marks draft shifts as published so staff can see them. Scope by locationId and from/to (on startsAt). store_manager+ only.",
         "requestBody": {
@@ -7312,7 +7982,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["locationId"],
+                "required": [
+                  "locationId"
+                ],
                 "properties": {
                   "locationId": {
                     "type": "string",
@@ -7353,7 +8025,9 @@
     "/v1/scheduled-shifts/{id}": {
       "get": {
         "operationId": "getV1ScheduledShiftsById",
-        "tags": ["Scheduling"],
+        "tags": [
+          "Scheduling"
+        ],
         "summary": "Get scheduled shift by ID",
         "responses": {
           "200": {
@@ -7385,7 +8059,9 @@
       },
       "patch": {
         "operationId": "patchV1ScheduledShiftsById",
-        "tags": ["Scheduling"],
+        "tags": [
+          "Scheduling"
+        ],
         "summary": "Update scheduled shift",
         "description": "Edit time, (re)assign staff (userId=null to open the slot), change role/status/notes. store_manager+ only.",
         "requestBody": {
@@ -7413,7 +8089,11 @@
                   },
                   "status": {
                     "type": "string",
-                    "enum": ["draft", "published", "cancelled"]
+                    "enum": [
+                      "draft",
+                      "published",
+                      "cancelled"
+                    ]
                   },
                   "notes": {
                     "type": "string",
@@ -7457,7 +8137,9 @@
       },
       "delete": {
         "operationId": "deleteV1ScheduledShiftsById",
-        "tags": ["Scheduling"],
+        "tags": [
+          "Scheduling"
+        ],
         "summary": "Delete scheduled shift",
         "description": "store_manager+ only.",
         "responses": {
@@ -7492,7 +8174,9 @@
     "/v1/analytics/orders": {
       "get": {
         "operationId": "getV1AnalyticsOrders",
-        "tags": ["Analytics"],
+        "tags": [
+          "Analytics"
+        ],
         "summary": "Order analytics",
         "description": "Revenue, order count, avg order value, breakdown by status and source, plus daily revenue.",
         "parameters": [
@@ -7546,7 +8230,9 @@
     "/v1/analytics/top-items": {
       "get": {
         "operationId": "getV1AnalyticsTopItems",
-        "tags": ["Analytics"],
+        "tags": [
+          "Analytics"
+        ],
         "summary": "Top selling menu items",
         "description": "Best selling non-cancelled menu items by quantity and revenue within the date range.",
         "parameters": [
@@ -7610,7 +8296,9 @@
     "/v1/analytics/stock/movements": {
       "get": {
         "operationId": "getV1AnalyticsStockMovements",
-        "tags": ["Analytics"],
+        "tags": [
+          "Analytics"
+        ],
         "summary": "Stock movement audit trail",
         "description": "Canonical physical-unit ledger with staff, location, source and order context.",
         "parameters": [
@@ -7660,7 +8348,13 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["receive", "consume", "waste", "adjust", "transfer"]
+              "enum": [
+                "receive",
+                "consume",
+                "waste",
+                "adjust",
+                "transfer"
+              ]
             },
             "description": "Filter by movement type."
           },
@@ -7694,7 +8388,9 @@
     "/v1/analytics/stock/summary": {
       "get": {
         "operationId": "getV1AnalyticsStockSummary",
-        "tags": ["Analytics"],
+        "tags": [
+          "Analytics"
+        ],
         "summary": "Stock movement summary",
         "description": "Total movement quantity per stock item in the date range, grouped by canonical movement type.",
         "parameters": [
@@ -7748,7 +8444,9 @@
     "/v1/analytics/inventory-forecast": {
       "get": {
         "operationId": "getV1AnalyticsInventoryForecast",
-        "tags": ["Analytics"],
+        "tags": [
+          "Analytics"
+        ],
         "summary": "Inventory forecast",
         "description": "Predicts stock needs per location from canonical CONSUME ledger entries. Returns average daily consumption, days of stock remaining, predicted stockout date, and recommended reorder quantity.",
         "parameters": [
@@ -7806,7 +8504,9 @@
     "/v1/analytics/revenue-by-location": {
       "get": {
         "operationId": "getV1AnalyticsRevenueByLocation",
-        "tags": ["Analytics"],
+        "tags": [
+          "Analytics"
+        ],
         "summary": "Revenue per location",
         "description": "Total revenue and order count grouped by location for the given date range. store_manager+ only.",
         "parameters": [
@@ -7860,7 +8560,9 @@
     "/v1/analytics/hourly-volume": {
       "get": {
         "operationId": "getV1AnalyticsHourlyVolume",
-        "tags": ["Analytics"],
+        "tags": [
+          "Analytics"
+        ],
         "summary": "Hourly order volume",
         "description": "Order count and revenue grouped by hour of the local trading day (0–23) for the given date range. Hours are bucketed in the location's own timezone, so a 13:00 peak is 13:00 on the shop floor. store_manager+ only.",
         "parameters": [
@@ -7924,7 +8626,9 @@
     "/v1/analytics/staff-hours": {
       "get": {
         "operationId": "getV1AnalyticsStaffHours",
-        "tags": ["Analytics"],
+        "tags": [
+          "Analytics"
+        ],
         "summary": "Staff hours worked",
         "description": "Total hours worked per staff member within the date range, derived from completed shifts. store_manager+ only.",
         "parameters": [
@@ -7978,7 +8682,9 @@
     "/v1/analytics/customer-retention": {
       "get": {
         "operationId": "getV1AnalyticsCustomerRetention",
-        "tags": ["Analytics"],
+        "tags": [
+          "Analytics"
+        ],
         "summary": "Customer retention",
         "description": "New vs returning customers within the date range. A customer is \"new\" if their first-ever order falls within the window. store_manager+ only.",
         "parameters": [
@@ -8032,7 +8738,9 @@
     "/v1/analytics/baseline": {
       "get": {
         "operationId": "getV1AnalyticsBaseline",
-        "tags": ["Analytics"],
+        "tags": [
+          "Analytics"
+        ],
         "summary": "Typical trading day baseline",
         "description": "The cumulative revenue and order curve of a typical same-weekday trading day, for judging whether today is ahead or behind. Takes the median across the last N occurrences of that weekday, measured in the location's local time. Days with no trade (closures, holidays) never enter the sample, and `sampleCount` is returned so callers can refuse to draw a pace line off too little history. store_manager+ only.",
         "parameters": [
@@ -8042,7 +8750,15 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+              "enum": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat",
+                "sun"
+              ]
             },
             "description": "Weekday to baseline. Defaults to today in the resolved timezone."
           },
@@ -8101,7 +8817,9 @@
     "/v1/analytics/labour": {
       "get": {
         "operationId": "getV1AnalyticsLabour",
-        "tags": ["Analytics"],
+        "tags": [
+          "Analytics"
+        ],
         "summary": "Labour hours and cost",
         "description": "Aggregate labour for the window: hours on the floor and what they cost, including shifts still running. Salaried staff are costed at their contracted effective hourly rate so they are not treated as free. Deliberately aggregate-only — no per-person figures — so a manager can see labour without seeing anyone's pay. store_manager+ only.",
         "parameters": [
@@ -8155,7 +8873,9 @@
     "/v1/audit-logs": {
       "get": {
         "operationId": "getV1AuditLogs",
-        "tags": ["Audit"],
+        "tags": [
+          "Audit"
+        ],
         "summary": "List audit logs",
         "description": "Paginated audit log, scoped to the caller's tenant. super_admin sees every tenant and may filter with `tenantId`. Requires the audit:read capability.",
         "parameters": [
@@ -8251,7 +8971,9 @@
     "/v1/receipts/{id}/receipt": {
       "get": {
         "operationId": "getV1ReceiptsByIdReceipt",
-        "tags": ["Orders"],
+        "tags": [
+          "Orders"
+        ],
         "summary": "Generate or retrieve a PDF receipt for an order",
         "description": "Returns a PDF receipt. Generates and caches on first call. ?type=invoice for invoice format. ?download=false for JSON.",
         "parameters": [
@@ -8270,7 +8992,10 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["receipt", "invoice"],
+              "enum": [
+                "receipt",
+                "invoice"
+              ],
               "default": "receipt"
             }
           },
@@ -8280,7 +9005,10 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["true", "false"],
+              "enum": [
+                "true",
+                "false"
+              ],
               "default": "true"
             }
           }
@@ -8307,7 +9035,9 @@
     "/v1/hr/employees/me": {
       "get": {
         "operationId": "getV1HrEmployeesMe",
-        "tags": ["HR - Employees"],
+        "tags": [
+          "HR - Employees"
+        ],
         "summary": "Get my employee profile",
         "description": "Returns the authenticated user's HR record including personal info, emergency contacts, and employment details.",
         "responses": {
@@ -8327,7 +9057,9 @@
       },
       "patch": {
         "operationId": "patchV1HrEmployeesMe",
-        "tags": ["HR - Employees"],
+        "tags": [
+          "HR - Employees"
+        ],
         "summary": "Update my employee profile",
         "description": "Employees can update their own address, emergency contacts, and bank/NI details.",
         "requestBody": {
@@ -8380,7 +9112,9 @@
     "/v1/hr/employees": {
       "post": {
         "operationId": "postV1HrEmployees",
-        "tags": ["HR - Employees"],
+        "tags": [
+          "HR - Employees"
+        ],
         "summary": "Create employee profile",
         "description": "Creates an HR profile for a staff member in the manager's tenant. store_manager+ only.",
         "requestBody": {
@@ -8389,7 +9123,12 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["userId", "jobTitle", "employmentType", "startDate"],
+                "required": [
+                  "userId",
+                  "jobTitle",
+                  "employmentType",
+                  "startDate"
+                ],
                 "properties": {
                   "userId": {
                     "type": "string"
@@ -8404,7 +9143,12 @@
                   },
                   "employmentType": {
                     "type": "string",
-                    "enum": ["full_time", "part_time", "contractor", "zero_hours"]
+                    "enum": [
+                      "full_time",
+                      "part_time",
+                      "contractor",
+                      "zero_hours"
+                    ]
                   },
                   "startDate": {
                     "type": "string",
@@ -8443,7 +9187,9 @@
       },
       "get": {
         "operationId": "getV1HrEmployees",
-        "tags": ["HR - Employees"],
+        "tags": [
+          "HR - Employees"
+        ],
         "summary": "List employees",
         "description": "Returns all HR employee profiles for the tenant. store_manager+ only.",
         "responses": {
@@ -8465,7 +9211,9 @@
     "/v1/hr/employees/{userId}": {
       "get": {
         "operationId": "getV1HrEmployeesByUserId",
-        "tags": ["HR - Employees"],
+        "tags": [
+          "HR - Employees"
+        ],
         "summary": "Get employee by user ID",
         "description": "Returns HR details for a specific staff member. store_manager+ only.",
         "responses": {
@@ -8498,7 +9246,9 @@
       },
       "patch": {
         "operationId": "patchV1HrEmployeesByUserId",
-        "tags": ["HR - Employees"],
+        "tags": [
+          "HR - Employees"
+        ],
         "summary": "Update employee HR details",
         "description": "Updates job-related fields (title, department, employment type, dates). store_manager+ only.",
         "requestBody": {
@@ -8518,7 +9268,12 @@
                   },
                   "employmentType": {
                     "type": "string",
-                    "enum": ["full_time", "part_time", "contractor", "zero_hours"]
+                    "enum": [
+                      "full_time",
+                      "part_time",
+                      "contractor",
+                      "zero_hours"
+                    ]
                   },
                   "startDate": {
                     "type": "string",
@@ -8566,7 +9321,9 @@
       },
       "delete": {
         "operationId": "deleteV1HrEmployeesByUserId",
-        "tags": ["HR - Employees"],
+        "tags": [
+          "HR - Employees"
+        ],
         "summary": "Offboard employee",
         "description": "Soft-deletes the HR profile (sets isActive=false) so leave/absence history is retained. store_manager+ only.",
         "responses": {
@@ -8601,7 +9358,9 @@
     "/v1/hr/employees/{userId}/hours": {
       "get": {
         "operationId": "getV1HrEmployeesByUserIdHours",
-        "tags": ["HR - Employees"],
+        "tags": [
+          "HR - Employees"
+        ],
         "summary": "Employee timesheet",
         "description": "Clocked shifts within [from,to] with raw & paid hours (break deduction applied) and averages. store_manager+ only.",
         "parameters": [
@@ -8654,7 +9413,9 @@
     "/v1/hr/employees/{userId}/bank": {
       "get": {
         "operationId": "getV1HrEmployeesByUserIdBank",
-        "tags": ["HR - Employees"],
+        "tags": [
+          "HR - Employees"
+        ],
         "summary": "Get employee bank details",
         "description": "Returns masked UK bank details (sort code / account number). Add ?reveal=true for full values. franchise_owner / hr_manager only.",
         "responses": {
@@ -8684,7 +9445,9 @@
       },
       "put": {
         "operationId": "putV1HrEmployeesByUserIdBank",
-        "tags": ["HR - Employees"],
+        "tags": [
+          "HR - Employees"
+        ],
         "summary": "Set employee bank details",
         "description": "Upserts UK bank details; sort code and account number are encrypted at rest. franchise_owner / hr_manager only.",
         "responses": {
@@ -8716,7 +9479,9 @@
     "/v1/hr/employees/{userId}/anonymise": {
       "post": {
         "operationId": "postV1HrEmployeesByUserIdAnonymise",
-        "tags": ["HR - Employees"],
+        "tags": [
+          "HR - Employees"
+        ],
         "summary": "Anonymise a retained former employee",
         "description": "Irreversibly removes direct identifiers after the recorded retention review date. It is refused while the employee is active or the review is not due.",
         "responses": {
@@ -8754,7 +9519,9 @@
     "/v1/hr/leave-types": {
       "get": {
         "operationId": "getV1HrLeaveTypes",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "List leave types",
         "description": "Returns all leave types configured for the tenant. Visible to all authenticated staff.",
         "responses": {
@@ -8774,7 +9541,9 @@
       },
       "post": {
         "operationId": "postV1HrLeaveTypes",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Create leave type",
         "description": "Creates a new leave category for the tenant. store_manager+ only.",
         "requestBody": {
@@ -8783,7 +9552,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["name"],
+                "required": [
+                  "name"
+                ],
                 "properties": {
                   "name": {
                     "type": "string",
@@ -8830,7 +9601,9 @@
     "/v1/hr/leave-types/{id}": {
       "patch": {
         "operationId": "patchV1HrLeaveTypesById",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Update leave type",
         "description": "Updates a leave type configuration. store_manager+ only.",
         "requestBody": {
@@ -8891,7 +9664,9 @@
       },
       "delete": {
         "operationId": "deleteV1HrLeaveTypesById",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Delete leave type",
         "description": "Removes a leave type. store_manager+ only.",
         "responses": {
@@ -8926,7 +9701,9 @@
     "/v1/hr/entitlements/me": {
       "get": {
         "operationId": "getV1HrEntitlementsMe",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Get my leave entitlements",
         "description": "Returns all leave entitlements for the authenticated user. Optionally filter by year.",
         "parameters": [
@@ -8956,7 +9733,9 @@
     "/v1/hr/entitlements": {
       "get": {
         "operationId": "getV1HrEntitlements",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "List all entitlements",
         "description": "Returns leave entitlements for all staff in the tenant. store_manager+ only.",
         "parameters": [
@@ -8996,7 +9775,9 @@
       },
       "post": {
         "operationId": "postV1HrEntitlements",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Create leave entitlement",
         "description": "Assigns a leave allowance to an employee for a specific year and leave type. store_manager+ only.",
         "requestBody": {
@@ -9005,7 +9786,12 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["userId", "leaveTypeId", "year", "totalDays"],
+                "required": [
+                  "userId",
+                  "leaveTypeId",
+                  "year",
+                  "totalDays"
+                ],
                 "properties": {
                   "userId": {
                     "type": "string"
@@ -9052,7 +9838,9 @@
     "/v1/hr/entitlements/{id}": {
       "patch": {
         "operationId": "patchV1HrEntitlementsById",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Update leave entitlement",
         "description": "Adjusts totalDays or usedDays for an entitlement. store_manager+ only.",
         "requestBody": {
@@ -9110,7 +9898,9 @@
     "/v1/hr/leave-requests/my": {
       "get": {
         "operationId": "getV1HrLeaveRequestsMy",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Get my leave requests",
         "description": "Returns all leave requests submitted by the authenticated user, most recent first.",
         "parameters": [
@@ -9120,7 +9910,12 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["pending", "approved", "declined", "cancelled"]
+              "enum": [
+                "pending",
+                "approved",
+                "declined",
+                "cancelled"
+              ]
             },
             "description": "Filter by status."
           }
@@ -9141,7 +9936,9 @@
     "/v1/hr/leave-requests": {
       "post": {
         "operationId": "postV1HrLeaveRequests",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Submit leave request",
         "description": "Submits a leave request. Auto-approved if the leave type has requiresApproval = false. Returns 422 if the employee has insufficient entitlement.",
         "requestBody": {
@@ -9150,7 +9947,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["leaveTypeId", "startDate", "endDate"],
+                "required": [
+                  "leaveTypeId",
+                  "startDate",
+                  "endDate"
+                ],
                 "properties": {
                   "leaveTypeId": {
                     "type": "string",
@@ -9168,7 +9969,11 @@
                   },
                   "partialDay": {
                     "type": "string",
-                    "enum": ["none", "start", "end"]
+                    "enum": [
+                      "none",
+                      "start",
+                      "end"
+                    ]
                   },
                   "notes": {
                     "type": "string",
@@ -9205,7 +10010,9 @@
       },
       "get": {
         "operationId": "getV1HrLeaveRequests",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "List leave requests",
         "description": "Returns all leave requests for the tenant. store_manager+ only.",
         "parameters": [
@@ -9215,7 +10022,12 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["pending", "approved", "declined", "cancelled"]
+              "enum": [
+                "pending",
+                "approved",
+                "declined",
+                "cancelled"
+              ]
             },
             "description": "Filter by status. Defaults to pending."
           },
@@ -9248,7 +10060,9 @@
     "/v1/hr/leave-requests/{id}/review": {
       "patch": {
         "operationId": "patchV1HrLeaveRequestsByIdReview",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Approve or decline a leave request",
         "description": "Managers approve or decline a pending leave request. On approval, the entitlement usedDays is incremented. store_manager+ only.",
         "requestBody": {
@@ -9257,11 +10071,16 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["status"],
+                "required": [
+                  "status"
+                ],
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": ["approved", "declined"]
+                    "enum": [
+                      "approved",
+                      "declined"
+                    ]
                   },
                   "reviewNotes": {
                     "type": "string",
@@ -9310,7 +10129,9 @@
     "/v1/hr/leave-requests/{id}": {
       "get": {
         "operationId": "getV1HrLeaveRequestsById",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Get leave request by ID",
         "description": "Returns a single leave request. Employees can only view their own.",
         "responses": {
@@ -9343,7 +10164,9 @@
       },
       "patch": {
         "operationId": "patchV1HrLeaveRequestsById",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Edit pending leave request",
         "description": "Employees can update dates and notes on their own pending requests.",
         "requestBody": {
@@ -9363,7 +10186,11 @@
                   },
                   "partialDay": {
                     "type": "string",
-                    "enum": ["none", "start", "end"]
+                    "enum": [
+                      "none",
+                      "start",
+                      "end"
+                    ]
                   },
                   "notes": {
                     "type": "string",
@@ -9409,7 +10236,9 @@
     "/v1/hr/leave-requests/{id}/cancel": {
       "patch": {
         "operationId": "patchV1HrLeaveRequestsByIdCancel",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Cancel leave request",
         "description": "Employees can cancel their own pending leave requests.",
         "responses": {
@@ -9447,7 +10276,9 @@
     "/v1/hr/absence-logs/my": {
       "get": {
         "operationId": "getV1HrAbsenceLogsMy",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Get my absence history",
         "description": "Returns all absence log entries for the authenticated user.",
         "responses": {
@@ -9466,7 +10297,9 @@
     "/v1/hr/absence-logs": {
       "get": {
         "operationId": "getV1HrAbsenceLogs",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "List absence logs",
         "description": "Returns all absence records for the tenant. store_manager+ only.",
         "parameters": [
@@ -9497,7 +10330,9 @@
       },
       "post": {
         "operationId": "postV1HrAbsenceLogs",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Log an absence",
         "description": "Managers log an unplanned absence retroactively for an employee. store_manager+ only.",
         "requestBody": {
@@ -9506,7 +10341,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["userId", "date"],
+                "required": [
+                  "userId",
+                  "date"
+                ],
                 "properties": {
                   "userId": {
                     "type": "string"
@@ -9556,7 +10394,9 @@
     "/v1/hr/absence-logs/{id}": {
       "delete": {
         "operationId": "deleteV1HrAbsenceLogsById",
-        "tags": ["HR - Leave"],
+        "tags": [
+          "HR - Leave"
+        ],
         "summary": "Delete absence log",
         "description": "Removes an absence record. store_manager+ only.",
         "responses": {
@@ -9591,7 +10431,9 @@
     "/v1/onboarding": {
       "post": {
         "operationId": "postV1Onboarding",
-        "tags": ["Onboarding"],
+        "tags": [
+          "Onboarding"
+        ],
         "summary": "Onboard an employee",
         "description": "Creates the account, staff profile, HR employee record and optional bank details in one step. Sort code / account number / NI number are encrypted at rest. franchise_owner, hr_manager (and super_admin) only.",
         "responses": {
@@ -9619,7 +10461,9 @@
     "/v1/payroll/preview": {
       "get": {
         "operationId": "getV1PayrollPreview",
-        "tags": ["Payroll"],
+        "tags": [
+          "Payroll"
+        ],
         "summary": "Preview a payroll run",
         "description": "Computes hours and gross pay for every active employee over the period, without saving. Money roles only.",
         "parameters": [
@@ -9629,7 +10473,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "enum": ["weekly", "monthly"]
+              "enum": [
+                "weekly",
+                "monthly"
+              ]
             }
           },
           {
@@ -9670,7 +10517,9 @@
     "/v1/payroll/runs": {
       "post": {
         "operationId": "postV1PayrollRuns",
-        "tags": ["Payroll"],
+        "tags": [
+          "Payroll"
+        ],
         "summary": "Finalise a payroll run",
         "description": "Snapshots each employee's hours and gross pay into an immutable run. Money roles only.",
         "responses": {
@@ -9690,7 +10539,9 @@
       },
       "get": {
         "operationId": "getV1PayrollRuns",
-        "tags": ["Payroll"],
+        "tags": [
+          "Payroll"
+        ],
         "summary": "List payroll runs",
         "description": "Finalised runs for the tenant with their snapshot lines. Money roles only.",
         "responses": {
@@ -9712,7 +10563,9 @@
     "/v1/payroll/runs/{runId}/lines/{lineId}": {
       "patch": {
         "operationId": "patchV1PayrollRunsByRunIdLinesByLineId",
-        "tags": ["Payroll"],
+        "tags": [
+          "Payroll"
+        ],
         "summary": "Record a line's deductions",
         "description": "Sets the tax, National Insurance, pension and net pay for one employee on a finalised run, from figures produced elsewhere. Refused once the run is issued — an issued payslip is immutable.",
         "responses": {
@@ -9758,7 +10611,9 @@
     "/v1/payroll/runs/{runId}/issue": {
       "post": {
         "operationId": "postV1PayrollRunsByRunIdIssue",
-        "tags": ["Payroll"],
+        "tags": [
+          "Payroll"
+        ],
         "summary": "Issue a payroll run to employees",
         "description": "Publishes every line as a payslip the employee can see. Refused unless each line carries tax, National Insurance and net pay — a statement with blank deductions is not an itemised pay statement under ERA s.8. Irreversible.",
         "responses": {
@@ -9796,7 +10651,9 @@
     "/v1/payroll/runs/{runId}/supersede": {
       "post": {
         "operationId": "postV1PayrollRunsByRunIdSupersede",
-        "tags": ["Payroll"],
+        "tags": [
+          "Payroll"
+        ],
         "summary": "Set a duplicate run aside",
         "description": "Marks one run superseded by another covering the same period. Figures are never merged — summing two snapshots of one period pays the same work twice — so one survives and the other is set aside, kept and readable. Refused if either run has been issued.",
         "responses": {
@@ -9837,7 +10694,9 @@
     "/v1/payroll/settings": {
       "get": {
         "operationId": "getV1PayrollSettings",
-        "tags": ["Payroll"],
+        "tags": [
+          "Payroll"
+        ],
         "summary": "Payroll schedule",
         "description": "When payroll finalises itself, if it does. Only the payroll fields of the tenant record.",
         "responses": {
@@ -9857,7 +10716,9 @@
       },
       "put": {
         "operationId": "putV1PayrollSettings",
-        "tags": ["Payroll"],
+        "tags": [
+          "Payroll"
+        ],
         "summary": "Set the payroll schedule",
         "description": "Writes only the payroll columns, so nothing else on the tenant record can be changed through here. Enabling this schedules a finalise, never an issue — deductions still have to be entered by a person.",
         "responses": {
@@ -9879,7 +10740,9 @@
     "/v1/hr/payslips/my": {
       "get": {
         "operationId": "getV1HrPayslipsMy",
-        "tags": ["Payroll"],
+        "tags": [
+          "Payroll"
+        ],
         "summary": "My payslips",
         "description": "The signed-in employee's own issued payslips, most recent first. Session-subject, so it carries no capability — an employee is always entitled to their own pay statements.",
         "responses": {
@@ -9898,7 +10761,9 @@
     "/v1/hr/payslips": {
       "get": {
         "operationId": "getV1HrPayslips",
-        "tags": ["Payroll"],
+        "tags": [
+          "Payroll"
+        ],
         "summary": "An employee's payslips",
         "description": "Issued payslips for one employee. Requires hr.payroll:read, and the employee must be in the caller's tenant.",
         "parameters": [
@@ -9933,7 +10798,9 @@
     "/v1/email/connection": {
       "get": {
         "operationId": "getV1EmailConnection",
-        "tags": ["Email"],
+        "tags": [
+          "Email"
+        ],
         "summary": "Get tenant SMTP connection",
         "responses": {
           "200": {
@@ -9949,7 +10816,9 @@
       },
       "put": {
         "operationId": "putV1EmailConnection",
-        "tags": ["Email"],
+        "tags": [
+          "Email"
+        ],
         "summary": "Create or update tenant SMTP connection",
         "responses": {
           "200": {
@@ -9967,7 +10836,9 @@
     "/v1/email/connection/test": {
       "post": {
         "operationId": "postV1EmailConnectionTest",
-        "tags": ["Email"],
+        "tags": [
+          "Email"
+        ],
         "summary": "Verify SMTP and optionally send a test email",
         "responses": {
           "200": {
@@ -9985,8 +10856,10 @@
     "/v1/privacy-requests": {
       "post": {
         "operationId": "postV1PrivacyRequests",
-        "tags": ["Privacy"],
-        "summary": "Record a customer privacy request",
+        "tags": [
+          "Privacy"
+        ],
+        "summary": "Record a customer or employee privacy request",
         "responses": {
           "201": {
             "description": "Request recorded"
@@ -10000,10 +10873,32 @@
         }
       }
     },
+    "/v1/hr/analytics/summary": {
+      "get": {
+        "operationId": "getV1HrAnalyticsSummary",
+        "tags": [
+          "People"
+        ],
+        "summary": "Get the tenant People operations summary",
+        "responses": {
+          "200": {
+            "description": "Headcount, hours, leave, absence, document and department measures"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/payment-connections/{id}": {
       "patch": {
         "operationId": "patchV1PaymentConnectionsById",
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Enable, disable or rename a card reader",
         "description": "Disabling stops a reader being offered at the till and keeps its payment history attributable to it. A location may have several readers.",
         "responses": {
@@ -10036,7 +10931,9 @@
       },
       "delete": {
         "operationId": "deleteV1PaymentConnectionsById",
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Delete a card reader",
         "description": "Only a reader that has never taken a payment can be deleted. One that has is refused with a 409 pointing at disabling instead — payments reference the reader, and a payment that has forgotten which device took it cannot be reconciled.",
         "responses": {
@@ -10074,7 +10971,9 @@
     "/v1/qr-ordering/public/{token}": {
       "get": {
         "operationId": "getV1QrOrderingPublicByToken",
-        "tags": ["QR Ordering"],
+        "tags": [
+          "QR Ordering"
+        ],
         "summary": "Get a published customer QR menu",
         "description": "Public, token-addressed menu. Returns published content only and remains browsable while ordering is paused or closed.",
         "security": [],
@@ -10104,7 +11003,9 @@
     "/v1/qr-ordering/public/{token}/orders/{trackingToken}": {
       "get": {
         "operationId": "getV1QrOrderingPublicByTokenOrdersByTrackingToken",
-        "tags": ["QR Ordering"],
+        "tags": [
+          "QR Ordering"
+        ],
         "summary": "Track a public QR order",
         "security": [],
         "responses": {
@@ -10141,7 +11042,9 @@
     "/v1/qr-ordering/public/{token}/orders": {
       "post": {
         "operationId": "postV1QrOrderingPublicByTokenOrders",
-        "tags": ["QR Ordering"],
+        "tags": [
+          "QR Ordering"
+        ],
         "summary": "Create a public collection order",
         "description": "Creates a server-priced order. Card orders return a Stripe-hosted checkout; cash orders wait for staff approval at the counter.",
         "security": [],
@@ -10174,7 +11077,9 @@
     "/v1/qr-ordering/stripe/webhook": {
       "post": {
         "operationId": "postV1QrOrderingStripeWebhook",
-        "tags": ["QR Ordering"],
+        "tags": [
+          "QR Ordering"
+        ],
         "summary": "Receive Stripe online-payment events",
         "description": "Signature-verified. Handles payment success, checkout expiry, payment failure, and refund/dispute reversals. Unknown event types are acknowledged so Stripe stops retrying.",
         "security": [],
@@ -10194,7 +11099,9 @@
     "/v1/qr-ordering/public/{token}/customer-code": {
       "post": {
         "operationId": "postV1QrOrderingPublicByTokenCustomerCode",
-        "tags": ["QR Ordering"],
+        "tags": [
+          "QR Ordering"
+        ],
         "summary": "Send a customer-linking email code",
         "description": "Sends a short-lived code without revealing whether the address belongs to an existing loyalty profile.",
         "security": [],
@@ -10227,7 +11134,9 @@
     "/v1/qr-ordering/public/{token}/customer-code/verify": {
       "post": {
         "operationId": "postV1QrOrderingPublicByTokenCustomerCodeVerify",
-        "tags": ["QR Ordering"],
+        "tags": [
+          "QR Ordering"
+        ],
         "summary": "Verify a customer-linking email code",
         "security": [],
         "responses": {
@@ -10256,7 +11165,9 @@
     "/v1/qr-ordering/locations/{locationId}": {
       "get": {
         "operationId": "getV1QrOrderingLocationsByLocationId",
-        "tags": ["QR Ordering"],
+        "tags": [
+          "QR Ordering"
+        ],
         "summary": "Get location QR ordering configuration",
         "responses": {
           "200": {
@@ -10282,7 +11193,9 @@
       },
       "put": {
         "operationId": "putV1QrOrderingLocationsByLocationId",
-        "tags": ["QR Ordering"],
+        "tags": [
+          "QR Ordering"
+        ],
         "summary": "Save draft and operational QR settings",
         "responses": {
           "200": {
@@ -10310,7 +11223,9 @@
     "/v1/system/queues": {
       "get": {
         "operationId": "getV1SystemQueues",
-        "tags": ["System"],
+        "tags": [
+          "System"
+        ],
         "summary": "Background queue depths and stuck work",
         "description": "Counts of work that has given up or stalled: exhausted email deliveries, permanently failed workflow steps, completed orders whose stock was never consumed (last 7 days, and all-time), recipe shortfalls, and QR orders past their expiry. `needsAttention` covers only the actionable signals — alert on that. super_admin only.",
         "responses": {

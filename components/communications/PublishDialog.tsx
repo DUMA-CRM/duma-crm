@@ -11,7 +11,7 @@ import { getSegment } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 
-import { TRIGGER_HELP, TRIGGER_LABELS } from './shared';
+import { TRIGGER_HELP, TRIGGER_LABELS, isStaffTrigger } from './shared';
 import { orderedWorkflowNodes } from './workflowModel';
 
 /**
@@ -61,6 +61,7 @@ export function PublishDialog({
   const emails = orderedWorkflowNodes(definition).filter((node) => node.type === 'send_email');
   const waits = definition.nodes.filter((node) => node.type === 'delay');
   const event = trigger?.type === 'trigger' ? trigger.config.event : undefined;
+  const staffAudience = event ? isStaffTrigger(event) : false;
 
   return (
     <Modal
@@ -114,7 +115,9 @@ export function PublishDialog({
         ) : (
           <Row icon={Tags} label="Audience">
             <p className="text-sm text-foreground">
-              Whoever the event happens to, provided they hold marketing consent and have an email address.
+              {staffAudience
+                ? 'The employee the event belongs to, provided their staff account has an email address.'
+                : 'The customer the event belongs to, provided they hold any required marketing consent and have an email address.'}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Volume depends on trading, so there is no honest number to show before it runs. The first sends will appear in this

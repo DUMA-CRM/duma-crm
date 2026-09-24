@@ -3,14 +3,25 @@
 import { useQueries } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
-import { AlertTriangle, Banknote, CalendarRange, CircleHelp, Clock, Info, ShieldCheck, UsersRound } from '@/components/icons';
+import {
+  Activity,
+  AlertTriangle,
+  Banknote,
+  Building2,
+  CalendarRange,
+  CircleHelp,
+  Clock,
+  Info,
+  ShieldCheck,
+  UsersRound,
+} from '@/components/icons';
 import { AttentionList, type AttentionTone } from '@/components/shared/AttentionList';
 import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 
 import { getStaff } from '@/lib/modules/identity/client';
 import { getEmployees } from '@/lib/modules/people/client';
 import { getPayrollRuns } from '@/lib/modules/people/client';
-import { getManagedLeaveRequests, getManagedTickets } from '@/lib/modules/people/client';
+import { getManagedLeaveRequests, getManagedTickets, getPeopleSummary } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { getScheduledShifts, getVariance } from '@/lib/modules/workforce/client';
 import { getActiveShifts } from '@/lib/modules/workforce/client';
@@ -111,10 +122,15 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
         enabled: access.helpdesk,
       },
       { queryKey: moduleQueryKeys.people.key('payroll-runs'), queryFn: getPayrollRuns, enabled: access.payroll },
+      {
+        queryKey: moduleQueryKeys.people.key('analytics-summary', tenantId),
+        queryFn: () => getPeopleSummary(tenantId ?? undefined),
+        enabled: access.team && !!tenantId,
+      },
     ],
   });
 
-  const [staffQ, employeesQ, rotaQ, activeQ, draftsQ, varianceQ, leaveQ, ticketsQ, payrollQ] = results;
+  const [staffQ, employeesQ, rotaQ, activeQ, draftsQ, varianceQ, leaveQ, ticketsQ, payrollQ, summaryQ] = results;
   const asked = results.filter((result) => result.fetchStatus !== 'idle' || result.isFetched);
   const loading = !mounted || asked.some((result) => result.isPending);
   // One dead endpoint must not read as "nothing needs you". A query that
@@ -150,7 +166,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
     [mounted, now, records, coverGaps, draftsQ.data, varianceQ.data, leaveQ.data, ticketsQ.data, payrollQ.data],
   );
 
-  const activeTeam = staffQ.data?.filter((member) => member.isActive).length ?? 0;
+  const activeTeam = summaryQ.data?.activeHeadcount ?? staffQ.data?.filter((member) => member.isActive).length ?? 0;
   const rosteredToday = rotaQ.data?.length ?? 0;
   const clockedIn = activeQ.data?.length ?? 0;
   const waiting = leaveQ.data ? pendingLeave(leaveQ.data).length : 0;
@@ -184,9 +200,11 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
             label="Active team"
             icon={UsersRound}
             value={activeTeam}
-            caption={staffQ.data ? `${staffQ.data.length} accounts in total` : undefined}
-            loading={staffQ.isPending}
-            error={staffQ.isError}
+            caption={
+              summaryQ.data ? `${summaryQ.data.startersLast30Days} joined · ${summaryQ.data.leaversLast30Days} left in 30 days` : undefined
+            }
+            loading={summaryQ.isPending}
+            error={summaryQ.isError}
             href="/staff/team"
           />
         )}
@@ -252,6 +270,70 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
             loading={staffQ.isPending || employeesQ.isPending}
             error={staffQ.isError || employeesQ.isError}
             visual={records ? { type: 'progress', pct: records.averageProgress } : undefined}
+            href="/staff/team"
+          />
+        )}
+        {access.team && (
+          <StatCard
+            label="Contracted each week"
+            icon={Clock}
+            value={summaryQ.data ? `${summaryQ.data.contractedWeeklyHours}h` : '—'}
+            caption={summaryQ.data ? `${summaryQ.data.absenceDaysLast30Days} absence days in 30 days` : undefined}
+            loading={summaryQ.isPending}
+            error={summaryQ.isError}
+            href="/staff/team"
+          />
+        )}
+        {access.team && (
+          <StatCard
+            label="Documents to review"
+            icon={ShieldCheck}
+            accent={
+              (summaryQ.data?.expiredDocuments ?? 0) > 0
+                ? 'danger'
+                : (summaryQ.data?.documentsExpiringIn60Days ?? 0) > 0
+                  ? 'warning'
+                  : 'success'
+            }
+            value={
+              summaryQ.data
+                ? summaryQ.data.expiredDocuments + summaryQ.data.documentsExpiringIn60Days + summaryQ.data.documentsWithoutFiles
+                : '—'
+            }
+            caption={
+              summaryQ.data
+                ? `${summaryQ.data.expiredDocuments} expired · ${summaryQ.data.documentsExpiringIn60Days} due soon · ${summaryQ.data.documentsWithoutFiles} missing files`
+                : undefined
+            }
+            loading={summaryQ.isPending}
+            error={summaryQ.isError}
+            href="/staff/team"
+          />
+        )}
+        {access.team && (
+          <StatCard
+            label="Departments"
+            icon={Building2}
+            accent="info"
+            value={summaryQ.data?.departments.length ?? '—'}
+            caption={summaryQ.data?.departments
+              .slice(0, 3)
+              .map((item) => `${item.department} ${item.headcount}`)
+              .join(' · ')}
+            loading={summaryQ.isPending}
+            error={summaryQ.isError}
+            href="/staff/team"
+          />
+        )}
+        {access.team && (
+          <StatCard
+            label="Absence days"
+            icon={Activity}
+            accent={(summaryQ.data?.absenceDaysLast30Days ?? 0) > 0 ? 'warning' : 'neutral'}
+            value={summaryQ.data?.absenceDaysLast30Days ?? '—'}
+            caption="Last 30 days"
+            loading={summaryQ.isPending}
+            error={summaryQ.isError}
             href="/staff/team"
           />
         )}
