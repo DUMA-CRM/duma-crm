@@ -38,7 +38,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <p className="mt-0.5 text-xs text-muted-foreground">Coffee operations, connected</p>
           </div>
         </div>
-        <main className="w-full max-w-md rounded-lg border border-rule/65 bg-card p-6 shadow-md md:p-8">{children}</main>
+        <main className="w-full max-w-xl rounded-lg border border-rule/65 bg-card p-6 shadow-md md:p-8">{children}</main>
       </div>
     </div>
   );

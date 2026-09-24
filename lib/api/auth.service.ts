@@ -49,6 +49,40 @@ export async function signIn(email: string, password: string): Promise<AuthSessi
   });
 }
 
+export interface WorkspaceSignupInput {
+  businessName: string;
+  workspaceSlug: string;
+  locationName: string;
+  locationAddress: string;
+  timezone: string;
+  ownerName: string;
+  email: string;
+  password: string;
+}
+
+export interface WorkspaceSignupResult {
+  user: User;
+  token: string;
+  workspace: {
+    tenantId: string;
+    locationId: string;
+    administratorUserId: string;
+  };
+  replayed: boolean;
+}
+
+export async function createWorkspace(
+  input: WorkspaceSignupInput,
+  idempotencyKey: string,
+): Promise<WorkspaceSignupResult> {
+  return apiFetch<WorkspaceSignupResult>('/auth/workspace-sign-up', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(input),
+    timeoutMs: 45_000,
+  });
+}
+
 // Sign out — the server clears the session cookie.
 export async function signOut(): Promise<void> {
   return apiFetch<void>('/auth/sign-out', { method: 'POST' });

@@ -40,7 +40,7 @@ function SignInForm() {
   }
 
   return (
-    <>
+    <div className="mx-auto max-w-md">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-headline text-foreground">Welcome back</h1>
         <p className="mt-2 text-sm text-muted-foreground">Sign in to pick up where your team left off.</p>
@@ -93,7 +93,7 @@ function SignInForm() {
       <p className="mt-6 text-center text-xs text-muted-foreground">
         New team member? Your manager can invite you from the Staff workspace.
       </p>
-    </>
+    </div>
   );
 }
 
