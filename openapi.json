@@ -2565,6 +2565,80 @@
         ]
       }
     },
+    "/v1/workspace-setup/{tenantId}/recommendation": {
+      "post": {
+        "operationId": "postV1WorkspaceSetupByTenantIdRecommendation",
+        "tags": [
+          "Workspace Setup"
+        ],
+        "summary": "Save normalized onboarding answers and generate an explainable module proposal",
+        "description": "Creates a preview only. It never activates modules. Each proposal is revisioned and records its rules, reasons, assumptions, conflicts and module-state snapshot.",
+        "responses": {
+          "200": {
+            "description": "Saved recommendation preview"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No active setup session"
+          },
+          "409": {
+            "description": "Recommendation was changed by another request"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspace-setup/{tenantId}/apply": {
+      "post": {
+        "operationId": "postV1WorkspaceSetupByTenantIdApply",
+        "tags": [
+          "Workspace Setup"
+        ],
+        "summary": "Review and atomically activate an onboarding module proposal",
+        "description": "Accepts an editable selection, restores every hard dependency, rejects unresolved safety issues and applies the complete set in one optimistic transaction.",
+        "responses": {
+          "200": {
+            "description": "Reviewed proposal and activated module changes"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No active recommendation"
+          },
+          "409": {
+            "description": "Unresolved conflicts, missing requirements or stale state"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/workspace-setup/{tenantId}/start": {
       "post": {
         "operationId": "postV1WorkspaceSetupByTenantIdStart",
