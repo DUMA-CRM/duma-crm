@@ -90,9 +90,15 @@ function SignInForm() {
         </button>
       </form>
 
-      <p className="mt-6 text-center text-xs text-muted-foreground">
-        New team member? Your manager can invite you from the Staff workspace.
-      </p>
+      <div className="mt-6 space-y-2 text-center text-xs text-muted-foreground">
+        <p>New team member? Your manager can invite you from the Staff workspace.</p>
+        <p>
+          Setting up DUMA for your business?{' '}
+          <Link href="/sign-up" className="font-semibold text-primary transition-colors hover:text-primary-hover">
+            Create a workspace
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
