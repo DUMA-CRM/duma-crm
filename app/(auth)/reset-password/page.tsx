@@ -5,8 +5,8 @@ import { Suspense, useState } from 'react';
 
 import { Input } from '@/components/ui/input';
 
-import { resetPassword } from '@/lib/api/auth.service';
 import { MIN_PASSWORD_LENGTH, passwordLengthHint } from '@/lib/auth/password-policy';
+import { resetPassword } from '@/lib/modules/identity/client';
 
 function Form() {
   const searchParams = useSearchParams();
@@ -57,9 +57,35 @@ function Form() {
         {isActivation ? 'Create the password you’ll use to sign in.' : 'Replace your old password with a new one.'} Use at least{' '}
         {MIN_PASSWORD_LENGTH} characters.
       </p>
-      {error && <p id="reset-password-error" role="alert" className="text-sm text-destructive">{error}</p>}
-      <Input label="New password" type="password" autoComplete="new-password" value={p} onChange={(e) => setP(e.target.value)} required minLength={MIN_PASSWORD_LENGTH} aria-invalid={Boolean(error)} aria-describedby={error ? 'reset-password-error' : undefined} hint={passwordLengthHint(p)} />
-      <Input label="Confirm new password" type="password" autoComplete="new-password" value={c} onChange={(e) => setC(e.target.value)} required minLength={MIN_PASSWORD_LENGTH} aria-invalid={Boolean(c && p !== c)} aria-describedby={error ? 'reset-password-error' : undefined} hint={c && p !== c ? 'Passwords do not match yet.' : undefined} />
+      {error && (
+        <p id="reset-password-error" role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <Input
+        label="New password"
+        type="password"
+        autoComplete="new-password"
+        value={p}
+        onChange={(e) => setP(e.target.value)}
+        required
+        minLength={MIN_PASSWORD_LENGTH}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? 'reset-password-error' : undefined}
+        hint={passwordLengthHint(p)}
+      />
+      <Input
+        label="Confirm new password"
+        type="password"
+        autoComplete="new-password"
+        value={c}
+        onChange={(e) => setC(e.target.value)}
+        required
+        minLength={MIN_PASSWORD_LENGTH}
+        aria-invalid={Boolean(c && p !== c)}
+        aria-describedby={error ? 'reset-password-error' : undefined}
+        hint={c && p !== c ? 'Passwords do not match yet.' : undefined}
+      />
       <button disabled={loading} className="h-10 w-full rounded-sm bg-primary text-sm font-semibold text-white disabled:opacity-60">
         {loading ? (isActivation ? 'Activating account…' : 'Updating password…') : isActivation ? 'Activate account' : 'Update password'}
       </button>

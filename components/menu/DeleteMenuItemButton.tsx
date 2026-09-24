@@ -7,7 +7,8 @@ import { Trash2 } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Button } from '@/components/ui/button';
 
-import { deleteMenuItem } from '@/lib/api/menu.service';
+import { deleteMenuItem } from '@/lib/modules/catalog/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/stores/toastStore';
 import type { MenuItem } from '@/types/menu';
 
@@ -18,7 +19,7 @@ export function DeleteMenuItemButton({ item, onDeleted }: { item: MenuItem; onDe
   const remove = useMutation({
     mutationFn: () => deleteMenuItem(item.id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['menu-items'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-items') });
       setConfirming(false);
       toast('success', 'Menu item deleted.');
       onDeleted();

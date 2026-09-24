@@ -1,6 +1,6 @@
-import type { ScheduledShift, ScheduledShiftStatus, VarianceRow } from '@/lib/api/scheduling.service';
-import type { Shift } from '@/lib/api/shifts.service';
-import type { StaffProfile } from '@/lib/api/staff.service';
+import type { StaffProfile } from '@/lib/modules/identity/client';
+import type { ScheduledShift, ScheduledShiftStatus, VarianceRow } from '@/lib/modules/workforce/client';
+import type { Shift } from '@/lib/modules/workforce/client';
 import { formatDate } from '@/lib/utils/date';
 
 // ── Form styles ───────────────────────────────────────────────────────────────

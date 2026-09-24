@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed, ClipboardList, Loader2, RefreshCw } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
-import { completeWorkspaceSetup, getWorkspaceSetup, startWorkspaceSetup } from '@/lib/api/workspace-composition.service';
+import { completeWorkspaceSetup, getWorkspaceSetup, startWorkspaceSetup } from '@/lib/modules/organization/client';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 

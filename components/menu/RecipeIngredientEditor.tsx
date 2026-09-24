@@ -1,13 +1,12 @@
 'use client';
 
 import { Plus, Trash2 } from '@/components/icons';
-
 import { IngredientCombobox } from '@/components/menu/IngredientCombobox';
 import { inputClass } from '@/components/menu/shared';
 import { DEFAULT_COL, type RecipeRow, type SizeColumn } from '@/components/menu/useRecipeDraft';
 import { Button } from '@/components/ui/button';
 
-import type { StockItem } from '@/lib/api/inventory.service';
+import type { StockItem } from '@/lib/modules/inventory/client';
 import { cn } from '@/lib/utils/cn';
 import { formatMoney } from '@/lib/utils/dashboard';
 
@@ -110,7 +109,11 @@ export function RecipeIngredientEditor({
               {/* Per-line cost sits with the line it belongs to, so a wrong
                   quantity is caught here rather than in a distant total. */}
               <p className="ml-auto self-end text-right text-sm font-semibold tabular-nums text-foreground">
-                {lineCost == null ? <span className="text-label font-medium text-warning">No cost recorded</span> : formatMoney(lineCost, 2)}
+                {lineCost == null ? (
+                  <span className="text-label font-medium text-warning">No cost recorded</span>
+                ) : (
+                  formatMoney(lineCost, 2)
+                )}
               </p>
             </div>
           </div>

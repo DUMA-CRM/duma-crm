@@ -15,8 +15,9 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
-import { createModifier, deleteModifier, getModifierGroups, getModifiers, updateModifier } from '@/lib/api/menu.service';
-import { getModifierRecipe, setModifierRecipe } from '@/lib/api/recipes.service';
+import { createModifier, deleteModifier, getModifierGroups, getModifiers, updateModifier } from '@/lib/modules/catalog/client';
+import { getModifierRecipe, setModifierRecipe } from '@/lib/modules/inventory/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import { toast } from '@/stores/toastStore';
@@ -44,12 +45,12 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const { data: modifiers = [], isLoading } = useQuery({
-    queryKey: ['modifiers', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('modifiers', tenantId),
     queryFn: () => getModifiers(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: groups = [] } = useQuery({
-    queryKey: ['modifier-groups', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('modifier-groups', tenantId),
     queryFn: () => getModifierGroups(tenantId ?? undefined),
     enabled: Boolean(tenantId),
   });
@@ -79,7 +80,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
   const patch = (changes: Partial<typeof server>) => setDraft({ ...form, ...changes });
 
   const recipe = useRecipeDraft({
-    queryKey: ['modifier-recipe', modifierId],
+    queryKey: moduleQueryKeys.inventory.key('modifier-recipe', modifierId),
     fetchLines: () => (modifierId ? getModifierRecipe(modifierId) : Promise.resolve([])),
     saveLines: (lines) => (modifierId ? setModifierRecipe(modifierId, lines) : Promise.resolve()),
     sizes,
@@ -107,7 +108,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
       return modifier;
     },
     onSuccess: (saved) => {
-      qc.invalidateQueries({ queryKey: ['modifiers'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('modifiers') });
       setDraft(null);
       toast('success', modifier ? 'Modifier saved.' : 'Modifier created.');
       if (!modifier && saved) router.replace(`/menu/modifiers/${saved.id}`);
@@ -118,7 +119,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
   const remove = useMutation({
     mutationFn: () => deleteModifier(modifier!.id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['modifiers'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('modifiers') });
       setConfirmingDelete(false);
       toast('success', 'Modifier deleted.');
       router.push('/menu/modifiers');

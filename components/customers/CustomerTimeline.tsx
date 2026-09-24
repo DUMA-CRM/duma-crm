@@ -10,10 +10,11 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { getCustomerTimeline } from '@/lib/api/customers.service';
-import { retryEmailDelivery } from '@/lib/api/email.service';
-import { formatDateTime } from '@/lib/utils/date';
+import { retryEmailDelivery } from '@/lib/modules/communications/client';
+import { getCustomerTimeline } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { formatDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { TimelineEntry, TimelineKind } from '@/types/customers';
@@ -69,7 +70,7 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
   const [openEntry, setOpenEntry] = useState<TimelineEntry | null>(null);
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ['customer-timeline', customerId, kinds],
+    queryKey: moduleQueryKeys.customers.key('customer-timeline', customerId, kinds),
     queryFn: () => getCustomerTimeline(customerId, { limit: 100, kinds }),
     // Changing a filter makes a new query key, which would otherwise blank the
     // feed to skeletons on every toggle. Holding the previous rows keeps the
@@ -82,7 +83,7 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
   const retry = useMutation({
     mutationFn: (deliveryId: string) => retryEmailDelivery(deliveryId, tenantId ?? undefined),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['customer-timeline', customerId] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-timeline', customerId) });
       toast('success', 'Queued for another attempt.');
     },
     onError: (error) => toast('error', error.message || 'Could not retry that email.'),
@@ -196,11 +197,7 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
                               Failed
                             </span>
                           )}
-                          <time
-                            className="text-xs tabular-nums text-muted-foreground"
-                            dateTime={entry.at}
-                            title={formatDateTime(entry.at)}
-                          >
+                          <time className="text-xs tabular-nums text-muted-foreground" dateTime={entry.at} title={formatDateTime(entry.at)}>
                             {time(entry.at)}
                           </time>
                           <ChevronRight size={14} className="text-muted-foreground" aria-hidden="true" />

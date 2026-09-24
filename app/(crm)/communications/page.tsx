@@ -18,15 +18,15 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 
-import { cn } from '@/lib/utils/cn';
-
 import {
   type EmailDelivery,
   getEmailAutomations,
   getEmailConnection,
   getEmailDeliveries,
   getEmailTemplates,
-} from '@/lib/api/email.service';
+} from '@/lib/modules/communications/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -94,23 +94,23 @@ function CommunicationsView() {
   const closeEditors = () => navigate({ template: null, automation: null, preview: null, preset: null });
 
   const { data: templates = [], isFetched: templatesFetched } = useQuery({
-    queryKey: ['email-templates', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-templates', tenantId),
     queryFn: () => getEmailTemplates(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: automations = [], isFetched: automationsFetched } = useQuery({
-    queryKey: ['email-automations', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-automations', tenantId),
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: connection } = useQuery({
-    queryKey: ['email-connection', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
     enabled: !!tenantId,
     retry: false,
   });
   const { data: deliveries } = useQuery({
-    queryKey: ['email-deliveries', tenantId, 1],
+    queryKey: moduleQueryKeys.communications.key('email-deliveries', tenantId, 1),
     queryFn: () => getEmailDeliveries(tenantId ?? undefined, 1),
     enabled: !!tenantId,
     // Keeps the failure count on the History tab current while you work elsewhere.
@@ -234,12 +234,7 @@ function CommunicationsView() {
       }
       actions={
         action && ActionIcon ? (
-          <Button
-            className="h-9 gap-1.5"
-            disabled={action.disabled}
-            title={action.title}
-            onClick={action.onClick}
-          >
+          <Button className="h-9 gap-1.5" disabled={action.disabled} title={action.title} onClick={action.onClick}>
             <ActionIcon size={15} aria-hidden="true" />
             <span className="hidden md:inline">{action.label}</span>
           </Button>
@@ -312,15 +307,7 @@ function CommunicationsView() {
  * you happen to have open, and a full-width banner repeating it on every tab was
  * the loudest thing on a page whose job is the work underneath.
  */
-function ConnectionStatus({
-  ready,
-  configured,
-  onOpenConnection,
-}: {
-  ready: boolean;
-  configured: boolean;
-  onOpenConnection?: () => void;
-}) {
+function ConnectionStatus({ ready, configured, onOpenConnection }: { ready: boolean; configured: boolean; onOpenConnection?: () => void }) {
   const Icon = ready ? CheckCircle2 : TriangleAlert;
   const label = ready ? 'Email connected' : configured ? 'Email not verified' : 'Email not set up';
   const className = cn(

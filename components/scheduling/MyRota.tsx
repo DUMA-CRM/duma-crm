@@ -23,11 +23,12 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
 import { Button } from '@/components/ui/button';
 
-import { type HrEmployee, getMyEmployee } from '@/lib/api/hr.service';
-import { type ScheduledShift, getMyScheduledShifts } from '@/lib/api/scheduling.service';
-import { type Shift, clockIn, getActiveShifts, getMyShifts } from '@/lib/api/shifts.service';
-import { type OpeningHours, type Weekday, getLocations } from '@/lib/api/workspace.service';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { type OpeningHours, type Weekday, getLocations } from '@/lib/modules/organization/client';
+import { type HrEmployee, getMyEmployee } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { type ScheduledShift, getMyScheduledShifts } from '@/lib/modules/workforce/client';
+import { type Shift, clockIn, getActiveShifts, getMyShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -256,11 +257,11 @@ export function MyRota() {
     error: rotaErrorDetail,
     refetch: refetchRota,
   } = useQuery({
-    queryKey: ['my-rota', weekStart.toISOString()],
+    queryKey: moduleQueryKeys.workforce.key('my-rota', weekStart.toISOString()),
     queryFn: () => getMyScheduledShifts({ from: weekStart.toISOString(), to: weekEndExclusive.toISOString() }),
   });
 
-  const { data: locations = [] } = useQuery({ queryKey: ['locations-all'], queryFn: getLocations });
+  const { data: locations = [] } = useQuery({ queryKey: moduleQueryKeys.organization.key('locations-all'), queryFn: getLocations });
   const hoursByLocation = useMemo(() => {
     const m = new Map<string, OpeningHours | null | undefined>();
     for (const l of locations) m.set(l.id, l.openingHours);
@@ -272,7 +273,7 @@ export function MyRota() {
     data: active = [],
     isError: activeShiftError,
     refetch: refetchActiveShift,
-  } = useQuery({ queryKey: ['shifts-active'], queryFn: getActiveShifts });
+  } = useQuery({ queryKey: moduleQueryKeys.workforce.key('shifts-active'), queryFn: getActiveShifts });
   const myActive = user ? active.find((s) => s.userId === user.id) : undefined;
   const clockLocationId = myActive?.locationId ?? locationId;
   const activeDayRange = useMemo(() => {
@@ -285,7 +286,7 @@ export function MyRota() {
   // Shares a key shape with today's query below, so a shift started today costs
   // one request rather than two.
   const { data: activeDayShifts = [] } = useQuery({
-    queryKey: ['my-rota-day', activeDayRange?.from],
+    queryKey: moduleQueryKeys.workforce.key('my-rota-day', activeDayRange?.from),
     queryFn: () => getMyScheduledShifts(activeDayRange!),
     enabled: !!activeDayRange,
   });
@@ -298,7 +299,7 @@ export function MyRota() {
     return { from: from.toISOString(), to: addDays(from, 1).toISOString() };
   }, [today]);
   const { data: todayShifts = [] } = useQuery({
-    queryKey: ['my-rota-day', todayRange.from],
+    queryKey: moduleQueryKeys.workforce.key('my-rota-day', todayRange.from),
     queryFn: () => getMyScheduledShifts(todayRange),
   });
   const currentScheduledToday =
@@ -320,7 +321,7 @@ export function MyRota() {
     !myActive && currentScheduledToday ? Math.floor((now - new Date(currentScheduledToday.startsAt).getTime()) / 60000) : 0;
 
   // ── Worked time, to read the rota against ───────────────────────────────────
-  const { data: myWorkedShifts = [] } = useQuery({ queryKey: ['shifts-my'], queryFn: getMyShifts });
+  const { data: myWorkedShifts = [] } = useQuery({ queryKey: moduleQueryKeys.workforce.key('shifts-my'), queryFn: getMyShifts });
   const workedThisWeek = useMemo(() => {
     const from = weekStart.getTime();
     const to = weekEndExclusive.getTime();
@@ -351,7 +352,7 @@ export function MyRota() {
   // Always on: the contract break rule places a break inside every long shift on
   // the timeline, not only the one being worked right now.
   const { data: employee } = useQuery({
-    queryKey: ['hr-employee-me'],
+    queryKey: moduleQueryKeys.people.key('hr-employee-me'),
     queryFn: getMyEmployee,
     retry: false,
     meta: { silentError: true },
@@ -376,9 +377,9 @@ export function MyRota() {
     ? durationMin(new Date(activeScheduledShift.startsAt), new Date(activeScheduledShift.endsAt))
     : 0;
   const invalidateClock = () => {
-    void qc.invalidateQueries({ queryKey: ['shifts-active'] });
-    void qc.invalidateQueries({ queryKey: ['shifts'] });
-    void qc.invalidateQueries({ queryKey: ['shifts-my'] });
+    void qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts-active') });
+    void qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts') });
+    void qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts-my') });
   };
   // The API can link the timesheet to the rota itself, but only if we tell it
   // which shift this is — otherwise planned-vs-worked has to guess.

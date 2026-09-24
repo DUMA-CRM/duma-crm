@@ -1,6 +1,6 @@
 import type { StatAccent, StatDelta } from '@/components/shared/StatCard';
 
-import type { CustomerRetention, DailyOrderAnalytics, OrderAnalytics } from '@/lib/api/analytics.service';
+import type { CustomerRetention, DailyOrderAnalytics, OrderAnalytics } from '@/lib/modules/analytics/client';
 
 import { formatCompact, formatMoney, orderMetrics, percentageChange } from './dashboard';
 import { formatDate } from './date';

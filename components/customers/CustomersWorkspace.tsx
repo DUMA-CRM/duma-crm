@@ -20,12 +20,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 
-import { getCustomers } from '@/lib/api/customers.service';
-import { getSegment, getSegments } from '@/lib/api/segments.service';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { TIER_CONFIG } from '@/lib/constants/customers';
-import { formatDate } from '@/lib/utils/date';
+import { getCustomers } from '@/lib/modules/customers/client';
+import { getSegment, getSegments } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { formatDate } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
 import { type ListView as ListViewMode, useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -77,18 +78,22 @@ export function CustomersWorkspace() {
   const canCreate = hasCapability(capabilities, 'customers:write');
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ['customers', tenantId, page, filters],
+    queryKey: moduleQueryKeys.customers.key('customers', tenantId, page, filters),
     queryFn: () => getCustomers({ ...filters, page, limit: PAGE_SIZE, tenantId: tenantId ?? undefined }),
     enabled: !!tenantId,
   });
 
-  const { data: segmentsData } = useQuery({ queryKey: ['customer-segments'], queryFn: getSegments, enabled: !!tenantId });
+  const { data: segmentsData } = useQuery({
+    queryKey: moduleQueryKeys.customers.key('customer-segments'),
+    queryFn: getSegments,
+    enabled: !!tenantId,
+  });
   const segments = useMemo(() => segmentsData?.data ?? [], [segmentsData]);
 
   // Only fetched when a segment is applied — this is what turns a headline count
   // into "and this many can actually be emailed".
   const { data: appliedSegment } = useQuery({
-    queryKey: ['customer-segment', appliedSegmentId],
+    queryKey: moduleQueryKeys.customers.key('customer-segment', appliedSegmentId),
     queryFn: () => getSegment(appliedSegmentId!),
     enabled: !!appliedSegmentId,
   });
@@ -123,11 +128,11 @@ export function CustomersWorkspace() {
 
   const merge = useMutation({
     mutationFn: async ({ survivorId, loserId }: { survivorId: string; loserId: string }) => {
-      const { mergeCustomers } = await import('@/lib/api/customers.service');
+      const { mergeCustomers } = await import('@/lib/modules/customers/client');
       return mergeCustomers(survivorId, loserId);
     },
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['customers'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customers') });
       setMergePair(null);
       setSelectedIds(new Set());
     },
@@ -179,12 +184,7 @@ export function CustomersWorkspace() {
       onSort: () => toggleSort('name'),
       cell: ({ row: customer }) => (
         <div className="flex items-center gap-2.5">
-          <InitialsAvatar
-            firstName={customer.firstName}
-            lastName={customer.lastName}
-            email={customer.email}
-            className="size-8 text-xs"
-          />
+          <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} email={customer.email} className="size-8 text-xs" />
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-foreground">
               {customer.firstName} {customer.lastName}
@@ -194,11 +194,7 @@ export function CustomersWorkspace() {
                 <ShieldAlert size={13} className="shrink-0 text-exception" aria-label="Has a critical alert" />
               )}
               {(customer.allergies?.length ?? 0) > 0 && (
-                <AlertTriangle
-                  size={13}
-                  className="shrink-0 text-warning"
-                  aria-label={`Allergies: ${customer.allergies!.join(', ')}`}
-                />
+                <AlertTriangle size={13} className="shrink-0 text-warning" aria-label={`Allergies: ${customer.allergies!.join(', ')}`} />
               )}
             </p>
             <p className="truncate text-xs text-muted-foreground">{customer.email ?? customer.phone}</p>
@@ -257,9 +253,7 @@ export function CustomersWorkspace() {
     },
   ];
 
-  const emptyState = (
-    <EmptyState icon={Users} title="No customers found" description="Try adjusting your search or filters." />
-  );
+  const emptyState = <EmptyState icon={Users} title="No customers found" description="Try adjusting your search or filters." />;
 
   // Paging only. The toolbar owns the total, so the two can never disagree.
   const footer =

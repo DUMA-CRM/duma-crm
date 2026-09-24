@@ -3,12 +3,13 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 
+import { ArrowRight, TrendingUp } from '@/components/icons';
 import { Avatar } from '@/components/people/shared';
 import { StaffPerformancePanel } from '@/components/reports/StaffPerformancePanel';
-import { ArrowRight, TrendingUp } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 
-import { getStaffMember } from '@/lib/api/staff.service';
+import { getStaffMember } from '@/lib/modules/identity/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 
 /**
  * The page around the panel: who this is about, and the way back to their
@@ -16,7 +17,10 @@ import { getStaffMember } from '@/lib/api/staff.service';
  * link out matters as much as the figures.
  */
 export function StaffPerformanceReport({ userId }: { userId: string }) {
-  const { data: member } = useQuery({ queryKey: ['staff-member', userId], queryFn: () => getStaffMember(userId) });
+  const { data: member } = useQuery({
+    queryKey: moduleQueryKeys.identity.key('staff-member', userId),
+    queryFn: () => getStaffMember(userId),
+  });
   const name = member?.name ?? member?.email ?? 'Staff member';
 
   return (

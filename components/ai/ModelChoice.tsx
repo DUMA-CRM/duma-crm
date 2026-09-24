@@ -4,7 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 
 import { CheckCircle2, type IconComponent, Loader2, Route, Sparkles, Zap } from '@/components/icons';
 import { Button } from '@/components/ui/button';
+
 import type { AgentProviderInfo, AgentProviderPreference } from '@/lib/ai/provider-chain';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useAgentSettingsStore } from '@/stores/agentSettingsStore';
 
@@ -34,7 +36,7 @@ async function fetchProviders(): Promise<AgentProviderInfo[]> {
  */
 export function useAgentProviders({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
-    queryKey: ['agent', 'providers'],
+    queryKey: moduleQueryKeys.agent.key('agent', 'providers'),
     queryFn: fetchProviders,
     staleTime: 5 * 60_000,
     enabled,

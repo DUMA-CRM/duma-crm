@@ -1,4 +1,4 @@
-import type { CustomerRetention, DailyOrderAnalytics, OrderAnalytics } from '@/lib/api/analytics.service';
+import type { CustomerRetention, DailyOrderAnalytics, OrderAnalytics } from '@/lib/modules/analytics/client';
 
 import { type TrustedOrderMetrics, formatCompact, formatMoney, percentageChange } from './dashboard';
 import { formatDate } from './date';

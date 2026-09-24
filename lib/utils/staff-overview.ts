@@ -10,13 +10,13 @@
 // Everything here is pure so it can be tested without a query client. The
 // components fetch; this module decides what is worth saying.
 // ---------------------------------------------------------------------------
-
-import type { HrEmployee } from '@/lib/api/hr.service';
-import type { PayrollRun } from '@/lib/api/payroll.service';
-import type { HelpdeskTicket, LeaveRequest } from '@/lib/api/people-ops.service';
-import type { ScheduledShift, VarianceRow } from '@/lib/api/scheduling.service';
-import type { StaffProfile } from '@/lib/api/staff.service';
+import type { StaffProfile } from '@/lib/modules/identity/client';
+import type { HrEmployee } from '@/lib/modules/people/client';
+import type { PayrollRun } from '@/lib/modules/people/client';
+import type { HelpdeskTicket, LeaveRequest } from '@/lib/modules/people/client';
+import type { ScheduledShift, VarianceRow } from '@/lib/modules/workforce/client';
 import type { ComplianceCheck } from '@/lib/utils/employee-compliance';
+
 // Relative, not aliased: see the note in `employee-compliance.ts`.
 import { ageBasedMinimumWage, employeeSetupChecks } from './employee-compliance.ts';
 
@@ -35,8 +35,7 @@ export interface StaffAttentionItem {
 const DAY_MS = 86_400_000;
 
 /** Whole days between two instants, floored — "2 days" means at least 48 hours. */
-export const daysBetween = (from: string | Date, to: Date): number =>
-  Math.floor((to.getTime() - new Date(from).getTime()) / DAY_MS);
+export const daysBetween = (from: string | Date, to: Date): number => Math.floor((to.getTime() - new Date(from).getTime()) / DAY_MS);
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 

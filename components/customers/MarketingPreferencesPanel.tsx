@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { type MarketingPreferenceStatus, getMarketingPreferences, updateMarketingPreferences } from '@/lib/api/customers.service';
-import { liftMarketingSuppression } from '@/lib/api/email.service';
-import { formatDate } from '@/lib/utils/date';
+import { liftMarketingSuppression } from '@/lib/modules/communications/client';
+import { type MarketingPreferenceStatus, getMarketingPreferences, updateMarketingPreferences } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { formatDate } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -83,14 +84,14 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
   const [liftOpen, setLiftOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['marketing-preferences', customerId],
+    queryKey: moduleQueryKeys.customers.key('marketing-preferences', customerId),
     queryFn: () => getMarketingPreferences(customerId),
   });
 
   const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: ['marketing-preferences', customerId] });
-    void qc.invalidateQueries({ queryKey: ['customer', customerId] });
-    void qc.invalidateQueries({ queryKey: ['customer-timeline', customerId] });
+    void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('marketing-preferences', customerId) });
+    void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer', customerId) });
+    void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-timeline', customerId) });
   };
 
   const save = useMutation({
@@ -280,8 +281,8 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
         >
           <div className="space-y-3 text-sm text-muted-foreground">
             <p>
-              The address was blocked because: <strong className="font-semibold text-foreground">{suppression.reason}</strong>. Lifting
-              it means email can reach this address again.
+              The address was blocked because: <strong className="font-semibold text-foreground">{suppression.reason}</strong>. Lifting it
+              means email can reach this address again.
             </p>
             <p>
               It does <strong className="font-semibold text-foreground">not</strong> opt them back into marketing — their preference stays
@@ -354,10 +355,7 @@ function RecordForm({
         event.preventDefault();
         onSubmit();
       }}
-      className={cn(
-        'rounded-sm border p-3',
-        status === 'suppressed' ? 'border-exception/30 bg-exception/5' : 'border-rule bg-band/40',
-      )}
+      className={cn('rounded-sm border p-3', status === 'suppressed' ? 'border-exception/30 bg-exception/5' : 'border-rule bg-band/40')}
     >
       <p className={cn('text-sm font-semibold', status === 'suppressed' ? 'text-exception' : 'text-foreground')}>{copy.title}</p>
       <p className="mt-1 text-xs text-muted-foreground">{copy.hint}</p>

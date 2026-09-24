@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { addMarketingSuppression, getMarketingSuppressions, liftMarketingSuppression } from '@/lib/api/email.service';
+import { addMarketingSuppression, getMarketingSuppressions, liftMarketingSuppression } from '@/lib/modules/communications/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { formatDate } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -38,11 +39,11 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
   const [search, setSearch] = useState('');
 
   const { data = [], isLoading } = useQuery({
-    queryKey: ['marketing-suppressions', tenantId],
+    queryKey: moduleQueryKeys.communications.key('marketing-suppressions', tenantId),
     queryFn: () => getMarketingSuppressions(tenantId ?? undefined),
     enabled: Boolean(tenantId),
   });
-  const refresh = () => qc.invalidateQueries({ queryKey: ['marketing-suppressions'] });
+  const refresh = () => qc.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('marketing-suppressions') });
   const add = useMutation({
     mutationFn: () => addMarketingSuppression({ tenantId: tenantId ?? undefined, email, reason, source: 'staff' }),
     onSuccess: () => {

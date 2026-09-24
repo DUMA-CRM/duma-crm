@@ -6,7 +6,8 @@ import { CheckCircle2, Clock, Loader2, TriangleAlert } from '@/components/icons'
 import { Drawer } from '@/components/shared/Drawer';
 import { Badge } from '@/components/ui/badge';
 
-import { getEmailAutomationRun } from '@/lib/api/email.service';
+import { getEmailAutomationRun } from '@/lib/modules/communications/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleString('en-GB') : '—');
@@ -18,7 +19,7 @@ export function WorkflowRunDrawer({ runId, onClose }: { runId: string; onClose: 
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['email-automation-run', runId, tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-automation-run', runId, tenantId),
     queryFn: () => getEmailAutomationRun(runId, tenantId ?? undefined),
     enabled: !!tenantId,
     refetchInterval: (query) => (query.state.data?.status === 'running' ? 5_000 : false),
@@ -72,11 +73,7 @@ export function WorkflowRunDrawer({ runId, onClose }: { runId: string; onClose: 
                   <div key={step.id} className="relative flex gap-3 rounded-sm border border-rule p-4">
                     <span
                       className={`flex size-8 shrink-0 items-center justify-center rounded-full ${
-                        failed
-                          ? 'bg-destructive/6 text-destructive'
-                          : pending
-                            ? 'bg-band text-primary'
-                            : 'bg-success/6 text-success'
+                        failed ? 'bg-destructive/6 text-destructive' : pending ? 'bg-band text-primary' : 'bg-success/6 text-success'
                       }`}
                     >
                       <Icon size={15} className={step.status === 'running' ? 'animate-pulse' : undefined} />

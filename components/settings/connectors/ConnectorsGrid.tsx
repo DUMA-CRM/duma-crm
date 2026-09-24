@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Plug, PlugZap, Settings, Zap } from '@/components/icons';
 import { Badge } from '@/components/ui/badge';
 
-import { getEmailConnection } from '@/lib/api/email.service';
-import { getPaymentMethods } from '@/lib/api/payments.service';
+import { getEmailConnection } from '@/lib/modules/communications/client';
+import { getPaymentMethods } from '@/lib/modules/payments/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { type ConnectorAccount, type ConnectorAction, ConnectorCard } from './ConnectorCard';
@@ -27,13 +28,13 @@ export function ConnectorsGrid() {
   const { tenantId, locationId } = useWorkspaceStore();
 
   const { data: emailConnection } = useQuery({
-    queryKey: ['email-connection', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
     enabled: !!tenantId,
     retry: false,
   });
   const { data: paymentMethods } = useQuery({
-    queryKey: ['payment-methods', locationId],
+    queryKey: moduleQueryKeys.payments.key('payment-methods', locationId),
     queryFn: () => getPaymentMethods(locationId!),
     enabled: !!locationId,
   });

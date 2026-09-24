@@ -24,10 +24,11 @@ import {
   getStockItems,
   updateLocationStock,
   updateStockItem,
-} from '@/lib/api/inventory.service';
-import { type CreateLossPayload, type LossCreateReason, createLossEntry } from '@/lib/api/loss.service';
-import { type CreateRestockRequestPayload, createRestockRequest } from '@/lib/api/restock.service';
-import { getLocationsByTenant } from '@/lib/api/workspace.service';
+} from '@/lib/modules/inventory/client';
+import { type CreateLossPayload, type LossCreateReason, createLossEntry } from '@/lib/modules/inventory/client';
+import { type CreateRestockRequestPayload, createRestockRequest } from '@/lib/modules/inventory/client';
+import { getLocationsByTenant } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -103,9 +104,7 @@ function NutritionFields({
               aria-pressed={draft.basis === b.value}
               className={cn(
                 'flex-1 h-9 rounded-sm border text-xs font-medium transition-colors',
-                draft.basis === b.value
-                  ? 'border-primary bg-band text-primary'
-                  : 'border-rule text-muted-foreground hover:text-foreground',
+                draft.basis === b.value ? 'border-primary bg-band text-primary' : 'border-rule text-muted-foreground hover:text-foreground',
               )}
             >
               {b.label}
@@ -193,7 +192,7 @@ export function AddItemDrawer({
   const [reorderQuantity, setReorderQuantity] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { data: allItems = [] } = useQuery({ queryKey: ['stock-items'], queryFn: getStockItems });
+  const { data: allItems = [] } = useQuery({ queryKey: moduleQueryKeys.inventory.key('stock-items'), queryFn: getStockItems });
   const available = allItems.filter((i) => !existingIds.has(i.id));
   const creatingNew = stockItemId === NEW_ITEM;
 
@@ -227,7 +226,7 @@ export function AddItemDrawer({
       return addLocationStock(payload);
     },
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['stock-items'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-items') });
       onSuccess();
       onClose();
     },
@@ -600,13 +599,13 @@ export function LogLossDrawer({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations', tenantId],
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });
 
   const { data: locationStock = [], isLoading: loadingStock } = useQuery({
-    queryKey: ['location-stock', locationId],
+    queryKey: moduleQueryKeys.inventory.key('location-stock', locationId),
     queryFn: () => getLocationStock(locationId),
     enabled: !!locationId,
   });

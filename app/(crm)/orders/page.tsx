@@ -46,7 +46,9 @@ import { DataTable } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select, type SelectOption } from '@/components/ui/select';
 
-import { API_PREFIX } from '@/lib/api/client';
+import { hasCapability } from '@/lib/auth/capabilities';
+import { API_PREFIX } from '@/lib/modules/core/client';
+import { getStaff } from '@/lib/modules/identity/client';
 import {
   type Order,
   type OrderDetail as OrderDetailType,
@@ -54,15 +56,14 @@ import {
   type OrderStatus,
   type RefundReason,
   type VoidReason,
-  createRefund,
   approveCashOrder,
+  createRefund,
   getOrder,
   getOrders,
   getRefundOptions,
   updateOrderStatus,
-} from '@/lib/api/orders.service';
-import { getStaff } from '@/lib/api/staff.service';
-import { hasCapability } from '@/lib/auth/capabilities';
+} from '@/lib/modules/ordering/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatDate, formatDateTime } from '@/lib/utils/date';
 import { timeAgo } from '@/lib/utils/format';
@@ -205,17 +206,22 @@ function StatusBadge({ order, stopProp = false }: { order: Order; stopProp?: boo
   const [voidReason, setVoidReason] = useState<VoidReason>('customer_request');
   const [voidNotes, setVoidNotes] = useState('');
   const s = STATUS_CONFIG[order.status];
-  const nexts = order.status === 'expired' ? [] : order.paymentStatus && order.paymentStatus !== 'paid' ? (['cancelled'] as OrderStatus[]) : NEXT_STATUSES[order.status];
+  const nexts =
+    order.status === 'expired'
+      ? []
+      : order.paymentStatus && order.paymentStatus !== 'paid'
+        ? (['cancelled'] as OrderStatus[])
+        : NEXT_STATUSES[order.status];
 
   const { mutate, isPending } = useMutation({
     mutationFn: ({ status, details }: { status: OrderStatus; details?: { voidReason: VoidReason; voidNotes?: string } }) =>
       updateOrderStatus(order.id, status, details),
     onSuccess: (updated) => {
-      qc.invalidateQueries({ queryKey: ['orders'] });
-      qc.invalidateQueries({ queryKey: ['orders-all'] });
-      qc.invalidateQueries({ queryKey: ['order', order.id] });
-      qc.invalidateQueries({ queryKey: ['inventory-overview'] });
-      qc.invalidateQueries({ queryKey: ['location-stock'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders-all') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('order', order.id) });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('inventory-overview') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('location-stock') });
       if (updated.inventoryWarnings?.length) {
         toast(
           'error',
@@ -417,7 +423,10 @@ function formatDuration(ms: number) {
 
 function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; refundable: number; onClose: () => void }) {
   const qc = useQueryClient();
-  const { data: options, isLoading } = useQuery({ queryKey: ['refund-options', order.id], queryFn: () => getRefundOptions(order.id) });
+  const { data: options, isLoading } = useQuery({
+    queryKey: moduleQueryKeys.payments.key('refund-options', order.id),
+    queryFn: () => getRefundOptions(order.id),
+  });
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [reason, setReason] = useState<RefundReason>('customer_request');
   const [notes, setNotes] = useState('');
@@ -452,9 +461,9 @@ function RefundModal({ order, refundable, onClose }: { order: OrderDetailType; r
   const refund = useMutation({
     mutationFn: () => createRefund(order.id, { lines, reason, notes: notes.trim() || undefined }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['order', order.id] });
-      void qc.invalidateQueries({ queryKey: ['orders'] });
-      void qc.invalidateQueries({ queryKey: ['customer-visits'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('order', order.id) });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-visits') });
       toast('success', `${Math.abs(amountNumber - refundable) < 0.001 ? 'Full' : 'Partial'} refund recorded.`);
       onClose();
     },
@@ -650,13 +659,16 @@ function ReceiptModal({ orderId, apiBase, onClose }: { orderId: string; apiBase:
 // ── Order detail panel ────────────────────────────────────────────────────────
 
 function OrderDetailPanel({ orderId }: { orderId: string }) {
-  const canRefund = hasCapability(useAuthStore((state) => state.capabilities), 'orders:refund');
+  const canRefund = hasCapability(
+    useAuthStore((state) => state.capabilities),
+    'orders:refund',
+  );
   const [showReceipt, setShowReceipt] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
 
   const { data, isLoading } = useQuery<OrderDetailType>({
-    queryKey: ['order', orderId],
+    queryKey: moduleQueryKeys.ordering.key('order', orderId),
     queryFn: () => getOrder(orderId),
   });
 
@@ -803,11 +815,7 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                 label="Payment"
                 value={`${data.paymentMethod === 'cash' ? 'Cash' : 'Card'}${data.paymentStatus ? ` · ${data.paymentStatus.replaceAll('_', ' ')}` : ''}`}
               />
-              <InfoRow
-                icon={sourceConfig.icon}
-                label="Source"
-                value={sourceConfig.label}
-              />
+              <InfoRow icon={sourceConfig.icon} label="Source" value={sourceConfig.label} />
               <InfoRow icon={CalendarDays} label="Created" value={formatDateTime(data.createdAt)} />
               {data.customerName && <InfoRow icon={User} label="Collection name" value={data.customerName} />}
               {data.collectionTime && <InfoRow icon={Clock} label="Collection time" value={formatDateTime(data.collectionTime)} />}
@@ -828,7 +836,12 @@ function OrderDetailPanel({ orderId }: { orderId: string }) {
                   <div>
                     <p className="font-semibold text-foreground">{optionLabel(REFUND_REASON_OPTIONS, refund.reason)}</p>
                     <p className="text-muted-foreground">
-                      {formatDateTime(refund.createdAt)} · {refund.kind} · {refund.processingMode === 'stripe' ? 'Stripe refund' : refund.processingMode === 'cash_manual' ? 'cash returned' : 'internal ledger'}
+                      {formatDateTime(refund.createdAt)} · {refund.kind} ·{' '}
+                      {refund.processingMode === 'stripe'
+                        ? 'Stripe refund'
+                        : refund.processingMode === 'cash_manual'
+                          ? 'cash returned'
+                          : 'internal ledger'}
                     </p>
                     {refund.lines?.map((line) => (
                       <p key={line.id} className="mt-0.5 text-muted-foreground">
@@ -1012,7 +1025,7 @@ function OrdersPageContent() {
   const advancedFilterCount = Number(createdBy !== 'all') + Number(datePreset === 'custom' && (!!from || !!to));
 
   const { data: staff = [] } = useQuery({
-    queryKey: ['staff', tenantId],
+    queryKey: moduleQueryKeys.identity.key('staff', tenantId),
     queryFn: () => getStaff(tenantId ?? undefined),
     enabled: !!tenantId,
   });
@@ -1029,22 +1042,23 @@ function OrdersPageContent() {
 
   // Broad query for stats + live tickets
   const { data: allData } = useQuery({
-    queryKey: ['orders-all', locationId],
+    queryKey: moduleQueryKeys.ordering.key('orders-all', locationId),
     queryFn: () => getOrders({ limit: 200, locationId: locationId ?? undefined }),
     refetchInterval: 30_000,
   });
 
   const allOrders = useMemo(() => allData?.data ?? [], [allData?.data]);
   const cashApprovals = useMemo(
-    () => allOrders.filter((order) => order.paymentStatus === 'awaiting_cash_approval').sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    () =>
+      allOrders.filter((order) => order.paymentStatus === 'awaiting_cash_approval').sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     [allOrders],
   );
   const approveCash = useMutation({
     mutationFn: (orderId: string) => approveCashOrder(orderId),
     onSuccess: (order) => {
-      void qc.invalidateQueries({ queryKey: ['orders'] });
-      void qc.invalidateQueries({ queryKey: ['orders-all'] });
-      void qc.invalidateQueries({ queryKey: ['kds-orders'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders-all') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('kds-orders') });
       toast('success', `Cash received. Order #${order.id.slice(0, 8).toUpperCase()} is now in the kitchen queue.`);
     },
     onError: (error) => toast('error', error instanceof Error ? error.message : 'The cash order could not be approved.'),
@@ -1076,13 +1090,27 @@ function OrdersPageContent() {
   }, [allOrders]);
 
   const liveTickets = useMemo(
-    () => allOrders.filter((o) => LIVE_STATUSES.includes(o.status) && o.paymentStatus === 'paid').sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    () =>
+      allOrders
+        .filter((o) => LIVE_STATUSES.includes(o.status) && o.paymentStatus === 'paid')
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     [allOrders],
   );
 
   // Paginated query for table
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ['orders', page, statusFilter, sourceFilter, paymentFilter, createdBy, debouncedCustomerSearch, from, to, locationId],
+    queryKey: moduleQueryKeys.ordering.key(
+      'orders',
+      page,
+      statusFilter,
+      sourceFilter,
+      paymentFilter,
+      createdBy,
+      debouncedCustomerSearch,
+      from,
+      to,
+      locationId,
+    ),
     queryFn: () =>
       getOrders({
         page,
@@ -1446,13 +1474,46 @@ function OrdersPageContent() {
         {cashApprovals.length > 0 && (
           <section className="overflow-hidden rounded-lg bg-card shadow-md" aria-labelledby="cash-approval-title">
             <div className="flex items-center justify-between border-b border-rule/55 bg-warning/6 px-4 py-3 sm:px-5">
-              <div><h2 id="cash-approval-title" className="font-semibold">Cash orders waiting at the counter</h2><p className="mt-0.5 text-xs text-muted-foreground">Approve only after the customer has paid. Until then, these orders stay out of KDS.</p></div>
-              <span className="flex size-7 items-center justify-center rounded-full bg-warning text-xs font-semibold text-warning-foreground">{cashApprovals.length}</span>
+              <div>
+                <h2 id="cash-approval-title" className="font-semibold">
+                  Cash orders waiting at the counter
+                </h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Approve only after the customer has paid. Until then, these orders stay out of KDS.
+                </p>
+              </div>
+              <span className="flex size-7 items-center justify-center rounded-full bg-warning text-xs font-semibold text-warning-foreground">
+                {cashApprovals.length}
+              </span>
             </div>
-            <div className="divide-y divide-rule/45">{cashApprovals.map((order) => {
-              const expiresIn = order.expiresAt ? Math.max(0, Math.ceil((new Date(order.expiresAt).getTime() - queueNow) / 60_000)) : 0;
-              return <div key={order.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-x-3 gap-y-1"><p className="font-semibold">{order.customerName || `Order #${order.id.slice(0, 8).toUpperCase()}`}</p><span className="font-mono text-sm font-semibold">£{Number(order.totalAmount).toFixed(2)}</span></div><p className="mt-1 flex items-center gap-1.5 text-xs text-warning"><Clock size={13} aria-hidden="true" />Expires in about {expiresIn} minute{expiresIn === 1 ? '' : 's'} · #{order.id.slice(0, 8).toUpperCase()}</p></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => handleTicketClick(order.id)}>Review</Button><Button size="sm" disabled={approveCash.isPending} onClick={() => approveCash.mutate(order.id)}><Banknote />Cash received — approve</Button></div></div>;
-            })}</div>
+            <div className="divide-y divide-rule/45">
+              {cashApprovals.map((order) => {
+                const expiresIn = order.expiresAt ? Math.max(0, Math.ceil((new Date(order.expiresAt).getTime() - queueNow) / 60_000)) : 0;
+                return (
+                  <div key={order.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <p className="font-semibold">{order.customerName || `Order #${order.id.slice(0, 8).toUpperCase()}`}</p>
+                        <span className="font-mono text-sm font-semibold">£{Number(order.totalAmount).toFixed(2)}</span>
+                      </div>
+                      <p className="mt-1 flex items-center gap-1.5 text-xs text-warning">
+                        <Clock size={13} aria-hidden="true" />
+                        Expires in about {expiresIn} minute{expiresIn === 1 ? '' : 's'} · #{order.id.slice(0, 8).toUpperCase()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleTicketClick(order.id)}>
+                        Review
+                      </Button>
+                      <Button size="sm" disabled={approveCash.isPending} onClick={() => approveCash.mutate(order.id)}>
+                        <Banknote />
+                        Cash received — approve
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </section>
         )}
 

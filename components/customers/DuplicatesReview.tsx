@@ -11,7 +11,8 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { getDuplicateCandidates, mergeCustomers } from '@/lib/api/customers.service';
+import { getDuplicateCandidates, mergeCustomers } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { formatDate } from '@/lib/utils/date';
 import type { Customer, DuplicatePair } from '@/types/customers';
 
@@ -60,15 +61,15 @@ export function DuplicatesReview() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['customer-duplicates'],
+    queryKey: moduleQueryKeys.customers.key('customer-duplicates'),
     queryFn: () => getDuplicateCandidates(50),
   });
 
   const merge = useMutation({
     mutationFn: ({ survivorId, loserId }: { survivorId: string; loserId: string }) => mergeCustomers(survivorId, loserId),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['customer-duplicates'] });
-      void qc.invalidateQueries({ queryKey: ['customers'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-duplicates') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customers') });
       setPair(null);
     },
   });
@@ -76,11 +77,7 @@ export function DuplicatesReview() {
   const pairs = (data?.data ?? []).filter((row) => !dismissed.has(`${row.aId}|${row.bId}`));
 
   return (
-    <EditorShell
-      title="Duplicate customers"
-      icon={<Combine size={20} aria-hidden="true" />}
-      onClose={() => router.push('/customers')}
-    >
+    <EditorShell title="Duplicate customers" icon={<Combine size={20} aria-hidden="true" />} onClose={() => router.push('/customers')}>
       <div className="space-y-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
           Records that look like the same guest twice, strongest signal first. Merging keeps both records — the duplicate is hidden and
@@ -124,8 +121,8 @@ export function DuplicatesReview() {
                       {row.signal === 'email' ? 'Same email' : 'Same name'}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      Combined {money(String(Number(row.aTotalSpent) + Number(row.bTotalSpent)))} over{' '}
-                      {row.aTotalVisits + row.bTotalVisits} visits
+                      Combined {money(String(Number(row.aTotalSpent) + Number(row.bTotalSpent)))} over {row.aTotalVisits + row.bTotalVisits}{' '}
+                      visits
                     </span>
                   </div>
 

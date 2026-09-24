@@ -1,8 +1,8 @@
 'use client';
 
-import type { DailyOrderAnalytics } from '@/lib/api/analytics.service';
-import { formatCompact } from '@/lib/utils/dashboard';
+import type { DailyOrderAnalytics } from '@/lib/modules/analytics/client';
 import { cn } from '@/lib/utils/cn';
+import { formatCompact } from '@/lib/utils/dashboard';
 import { REPORT_METRIC_MAP, type ReportMetricKey, dailyMetricValues, formatReportMetric, shortDateLabel } from '@/lib/utils/reporting';
 
 import { ReportTrendChart } from './ReportChart';

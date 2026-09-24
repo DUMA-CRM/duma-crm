@@ -10,8 +10,9 @@ import { Toast, type ToastMessage } from '@/components/shared/Toast';
 import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
 import { DatePicker } from '@/components/ui/date-picker';
 
-import { createScheduledShift, getMyScheduledShifts } from '@/lib/api/scheduling.service';
-import { clockIn, getMyShifts } from '@/lib/api/shifts.service';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { createScheduledShift, getMyScheduledShifts } from '@/lib/modules/workforce/client';
+import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
 import { formatDate } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -73,13 +74,13 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
   const dismissToast = (id: number) => setToasts((p) => p.filter((t) => t.id !== id));
 
   // My shifts → the active one (not clocked out).
-  const { data: myShifts = [] } = useQuery({ queryKey: ['shifts-my'], queryFn: getMyShifts });
+  const { data: myShifts = [] } = useQuery({ queryKey: moduleQueryKeys.workforce.key('shifts-my'), queryFn: getMyShifts });
   const active = myShifts.find((s) => !s.clockedOut);
 
   // This week's published rota.
   const week = useMemo(() => startOfWeek(), []);
   const { data: rota = [] } = useQuery({
-    queryKey: ['my-rota-dash', week.toISOString()],
+    queryKey: moduleQueryKeys.workforce.key('my-rota-dash', week.toISOString()),
     queryFn: () => {
       const end = new Date(week);
       end.setDate(end.getDate() + 7);
@@ -90,7 +91,7 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
     .filter((shift) => new Date(shift.endsAt).getTime() >= now.getTime())
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 
-  const invalidateShifts = () => qc.invalidateQueries({ queryKey: ['shifts-my'] });
+  const invalidateShifts = () => qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts-my') });
   const clockInM = useMutation({
     mutationFn: () => clockIn({ locationId: locationId! }),
     onSuccess: invalidateShifts,

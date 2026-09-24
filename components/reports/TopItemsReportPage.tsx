@@ -1,23 +1,24 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, CircleDollarSign, Grid2X2, Trophy } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
+import { AlertTriangle, CircleDollarSign, Grid2X2, Trophy } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { DeltaText, StatCard, StatCardGrid, changeDelta } from '@/components/shared/StatCard';
 
-import { type TopItemAnalytics, getTopItems } from '@/lib/api/analytics.service';
-import { getMenuCategories, getMenuItems } from '@/lib/api/menu.service';
-import { getMenuItemRecipe } from '@/lib/api/recipes.service';
-import { getLocations } from '@/lib/api/workspace.service';
+import { serverCache } from '@/lib/api/cache-policy';
 import { useVatContext } from '@/lib/hooks/useVatContext';
 import { computeCosting } from '@/lib/menu/costing';
+import { type TopItemAnalytics, getTopItems } from '@/lib/modules/analytics/client';
+import { getMenuCategories, getMenuItems } from '@/lib/modules/catalog/client';
+import { getMenuItemRecipe } from '@/lib/modules/inventory/client';
+import { getLocations } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { type DashboardRange, formatCompact, formatMoney, getDateWindow, percentageChange } from '@/lib/utils/dashboard';
-import { serverCache } from '@/lib/api/cache-policy';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const RANGE_OPTIONS: Array<{ value: DashboardRange; label: string }> = [
@@ -94,14 +95,14 @@ export function TopItemsReportPage() {
   const [range, setRange] = useState<DashboardRange>('30d');
   const [sortBy, setSortBy] = useState<SortBy>('quantity');
 
-  const locationsQuery = useQuery({ queryKey: ['locations-accessible'], queryFn: getLocations });
+  const locationsQuery = useQuery({ queryKey: moduleQueryKeys.organization.key('locations-accessible'), queryFn: getLocations });
   const menuQuery = useQuery({
-    queryKey: ['menu-items', tenantId, 'report-performance'],
+    queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId, 'report-performance'),
     queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const categoriesQuery = useQuery({
-    queryKey: ['menu-categories', tenantId, 'report-performance'],
+    queryKey: moduleQueryKeys.catalog.key('menu-categories', tenantId, 'report-performance'),
     queryFn: () => getMenuCategories(tenantId ?? undefined),
     enabled: !!tenantId,
   });
@@ -120,13 +121,13 @@ export function TopItemsReportPage() {
   const ready = locationsQuery.isSuccess;
 
   const currentQuery = useQuery({
-    queryKey: ['analytics-top-items', range, scopeKey, timeZone, 'report'],
+    queryKey: moduleQueryKeys.analytics.key('analytics-top-items', range, scopeKey, timeZone, 'report'),
     queryFn: () => getTopItems(currentParams(), 100),
     ...serverCache('topItems'),
     enabled: ready,
   });
   const previousQuery = useQuery({
-    queryKey: ['analytics-top-items-previous', range, scopeKey, timeZone, 'report'],
+    queryKey: moduleQueryKeys.analytics.key('analytics-top-items-previous', range, scopeKey, timeZone, 'report'),
     queryFn: () => getTopItems(previousParams(), 100),
     ...serverCache('topItems'),
     enabled: ready,
@@ -139,7 +140,7 @@ export function TopItemsReportPage() {
   const categoryById = new Map((categoriesQuery.data ?? []).map((category) => [category.id, category.name]));
   const recipeQueries = useQueries({
     queries: aggregated.map((item) => ({
-      queryKey: ['menu-item-recipe', item.menuItemId, 'menu-performance'],
+      queryKey: moduleQueryKeys.inventory.key('menu-item-recipe', item.menuItemId, 'menu-performance'),
       queryFn: () => getMenuItemRecipe(item.menuItemId),
       enabled: currentQuery.isSuccess,
     })),
@@ -271,7 +272,13 @@ export function TopItemsReportPage() {
             loading={loading}
           />
           <StatCard size="sm" label="Units sold" value={formatCompact(totalUnits)} hint="Across returned menu items" loading={loading} />
-          <StatCard size="sm" label="Recorded revenue" value={formatMoney(totalRevenue)} hint="Non-cancelled item revenue" loading={loading} />
+          <StatCard
+            size="sm"
+            label="Recorded revenue"
+            value={formatMoney(totalRevenue)}
+            hint="Non-cancelled item revenue"
+            loading={loading}
+          />
           <StatCard
             size="sm"
             label="Cost coverage"

@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
-import { adjustStockUnit, getStockUnit, getStockUnitLedger, wasteStockUnit } from '@/lib/api/inventory.service';
+import { adjustStockUnit, getStockUnit, getStockUnitLedger, wasteStockUnit } from '@/lib/modules/inventory/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatDate, formatDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
@@ -25,15 +26,21 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
   const [quantity, setQuantity] = useState<string | null>(null);
   const [wasteQuantity, setWasteQuantity] = useState('');
   const [wasteReason, setWasteReason] = useState<'SPILL' | 'DAMAGED' | 'QUALITY' | 'EXPIRED' | 'OTHER'>('SPILL');
-  const { data: unit, isLoading } = useQuery({ queryKey: ['stock-unit', stockUnitId], queryFn: () => getStockUnit(stockUnitId) });
-  const { data: ledger = [] } = useQuery({ queryKey: ['stock-unit-ledger', stockUnitId], queryFn: () => getStockUnitLedger(stockUnitId) });
+  const { data: unit, isLoading } = useQuery({
+    queryKey: moduleQueryKeys.inventory.key('stock-unit', stockUnitId),
+    queryFn: () => getStockUnit(stockUnitId),
+  });
+  const { data: ledger = [] } = useQuery({
+    queryKey: moduleQueryKeys.inventory.key('stock-unit-ledger', stockUnitId),
+    queryFn: () => getStockUnitLedger(stockUnitId),
+  });
 
   const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ['stock-unit', stockUnitId] });
-    void queryClient.invalidateQueries({ queryKey: ['stock-unit-ledger', stockUnitId] });
-    void queryClient.invalidateQueries({ queryKey: ['stock-units'] });
-    void queryClient.invalidateQueries({ queryKey: ['inventory-overview'] });
-    void queryClient.invalidateQueries({ queryKey: ['location-stock'] });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-unit', stockUnitId) });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-unit-ledger', stockUnitId) });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-units') });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('inventory-overview') });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('location-stock') });
   };
   const adjust = useMutation({
     mutationFn: () =>

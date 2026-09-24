@@ -18,13 +18,26 @@ import {
   Shield,
   Users,
 } from '@/components/icons';
-import { type AttentionTone, AttentionList } from '@/components/shared/AttentionList';
+import { EMPLOYMENT_CONFIG, SCOPES, fmtDate, fmtMoney, lbl, roleConfig, sel } from '@/components/people/shared';
+import { AttentionList, type AttentionTone } from '@/components/shared/AttentionList';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 
-import type { HelpdeskTicket } from '@/lib/api/people-ops.service';
+import { type StaffProfile, type StaffRole, type StaffScope, type UpdateStaffPayload, updateStaff } from '@/lib/modules/identity/client';
+import { getRoles } from '@/lib/modules/identity/client';
+import type { HelpdeskTicket } from '@/lib/modules/people/client';
+import '@/lib/modules/people/client';
+import { getEmployeeDocuments } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { cn } from '@/lib/utils/cn';
+import { employeeSetupChecks } from '@/lib/utils/employee-compliance';
 import { type RecordAttentionItem, type RecordAttentionSeverity, buildRecordAttention } from '@/lib/utils/employee-record';
+import { toast } from '@/stores/toastStore';
 
 import { CARD_PADDED } from './shared';
+import { type Employee, Info } from './shared';
 
 /** The checks that need the document list, and so need `hr.documents:read`. */
 const DOCUMENT_DERIVED = ['right-to-work', 'contract'];
@@ -40,32 +53,6 @@ const SEVERITY_ICON: Record<RecordAttentionSeverity, typeof AlertTriangle> = {
   attention: Clock,
   info: InfoIcon,
 };
-import {
-  EMPLOYMENT_CONFIG,
-  SCOPES,
-  fmtDate,
-  fmtMoney,
-  lbl,
-  sel,
-  roleConfig,
-} from '@/components/people/shared';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
-
-import {
-} from '@/lib/api/hr.service';
-import {
-  getEmployeeDocuments,
-} from '@/lib/api/people-ops.service';
-import { type StaffProfile, type StaffRole, type StaffScope, type UpdateStaffPayload, updateStaff } from '@/lib/api/staff.service';
-import { getRoles } from '@/lib/api/roles.service';
-import { cn } from '@/lib/utils/cn';
-import { employeeSetupChecks } from '@/lib/utils/employee-compliance';
-import { toast } from '@/stores/toastStore';
-
-
-import { type Employee, Info } from './shared';
 
 export function ComplianceSummaryCard({
   member,
@@ -88,7 +75,7 @@ export function ComplianceSummaryCard({
   // capability those two would report "missing" when the truth is that they
   // were never read.
   const documentsQuery = useQuery({
-    queryKey: ['employee-documents', member.userId],
+    queryKey: moduleQueryKeys.people.key('employee-documents', member.userId),
     queryFn: () => getEmployeeDocuments(member.userId),
     enabled: canReadDocuments,
   });
@@ -179,10 +166,18 @@ export function EmploymentTab({ emp, canSeePay }: { emp: Employee; canSeePay: bo
   );
 }
 
-export function AccessCard({ member, locations, canEdit }: { member: StaffProfile; locations: { id: string; name: string }[]; canEdit: boolean }) {
+export function AccessCard({
+  member,
+  locations,
+  canEdit,
+}: {
+  member: StaffProfile;
+  locations: { id: string; name: string }[];
+  canEdit: boolean;
+}) {
   const qc = useQueryClient();
   const { data: roleCatalog } = useQuery({
-    queryKey: ['roles', member.tenantId],
+    queryKey: moduleQueryKeys.identity.key('roles', member.tenantId),
     queryFn: () => getRoles(member.tenantId),
   });
   const [edit, setEdit] = useState(false);
@@ -199,7 +194,7 @@ export function AccessCard({ member, locations, canEdit }: { member: StaffProfil
       return updateStaff(member.userId, payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['staff'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('staff') });
       setEdit(false);
       toast('success', 'Access updated.');
     },
@@ -246,9 +241,7 @@ export function AccessCard({ member, locations, canEdit }: { member: StaffProfil
                   onClick={() => toggleLoc(l.id)}
                   className={cn(
                     'px-3 h-9 rounded-sm border text-xs font-medium transition-colors',
-                    locs.includes(l.id)
-                      ? 'border-primary bg-band text-primary'
-                      : 'border-rule text-muted-foreground hover:text-foreground',
+                    locs.includes(l.id) ? 'border-primary bg-band text-primary' : 'border-rule text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {l.name}

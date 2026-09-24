@@ -10,9 +10,9 @@ import { PayrollHistoryPanel } from '@/components/payroll/PayrollHistoryPanel';
 import { RunPayrollPanel } from '@/components/payroll/RunPayrollPanel';
 import { LeaveInbox } from '@/components/people/HrInbox';
 import { OnboardingPage } from '@/components/people/OnboardingPage';
+import { RoleManager } from '@/components/people/RoleManager';
 import { StaffDirectory } from '@/components/people/StaffDirectory';
 import { StaffOverview } from '@/components/people/StaffOverview';
-import { RoleManager } from '@/components/people/RoleManager';
 import { ShiftsWorkspace } from '@/components/scheduling/ShiftsWorkspace';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -20,8 +20,9 @@ import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
 
-import { getManagedLeaveRequests, getManagedTickets } from '@/lib/api/people-ops.service';
 import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
+import { getManagedLeaveRequests, getManagedTickets } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -84,7 +85,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
   // Counts for the tab badges. Cheap list reads, shared by key with the panels
   // below and with the overview.
   const pendingLeaveQuery = useQuery({
-    queryKey: ['leave-managed', 'pending'],
+    queryKey: moduleQueryKeys.people.key('leave-managed', 'pending'),
     queryFn: () => getManagedLeaveRequests('pending'),
     enabled: canLeave,
   });
@@ -94,7 +95,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
     isError: ticketsError,
     refetch: refetchTickets,
   } = useQuery({
-    queryKey: ['helpdesk-managed', ticketFilters.status, ticketFilters.category, ticketFilters.search],
+    queryKey: moduleQueryKeys.support.key('helpdesk-managed', ticketFilters.status, ticketFilters.category, ticketFilters.search),
     queryFn: () =>
       getManagedTickets({
         status: ticketFilters.status || undefined,
@@ -104,7 +105,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
     enabled: canHelpdesk,
   });
   const openTicketsQuery = useQuery({
-    queryKey: ['helpdesk-managed', 'open', '', ''],
+    queryKey: moduleQueryKeys.support.key('helpdesk-managed', 'open', '', ''),
     queryFn: () => getManagedTickets({ status: 'open' }),
     enabled: canHelpdesk,
   });
@@ -246,7 +247,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
           onSelect={setSelectedTicket}
           filters={ticketFilters}
           onFiltersChange={setTicketFilters}
-          onChanged={() => qc.invalidateQueries({ queryKey: ['helpdesk-managed'] })}
+          onChanged={() => qc.invalidateQueries({ queryKey: moduleQueryKeys.support.key('helpdesk-managed') })}
           emptyTitle="Queue clear"
           emptyDescription="No requests match this view."
         />

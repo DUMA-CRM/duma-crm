@@ -19,8 +19,8 @@ import {
   Users,
 } from '@/components/icons';
 
-import type { AuditLog } from '@/lib/api/audit.service';
 import type { AuditSeverity } from '@/lib/audit/narrative';
+import type { AuditLog } from '@/lib/modules/compliance/client';
 import { cn } from '@/lib/utils/cn';
 
 /**

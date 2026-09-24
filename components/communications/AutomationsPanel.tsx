@@ -17,9 +17,10 @@ import {
   getEmailTemplates,
   publishEmailAutomation,
   updateEmailAutomation,
-} from '@/lib/api/email.service';
-import { formatDateTime } from '@/lib/utils/date';
+} from '@/lib/modules/communications/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { formatDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -39,12 +40,12 @@ export function AutomationsPanel({
   const [deleteTarget, setDeleteTarget] = useState<EmailAutomation | null>(null);
 
   const { data: automations = [], isLoading } = useQuery({
-    queryKey: ['email-automations', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-automations', tenantId),
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: templates = [] } = useQuery({
-    queryKey: ['email-templates', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-templates', tenantId),
     queryFn: () => getEmailTemplates(tenantId ?? undefined),
     enabled: !!tenantId,
   });
@@ -58,7 +59,7 @@ export function AutomationsPanel({
         ? publishEmailAutomation(automation.id, tenantId ?? undefined)
         : updateEmailAutomation(automation.id, { isEnabled }),
     onSuccess: (saved) => {
-      queryClient.invalidateQueries({ queryKey: ['email-automations'] });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-automations') });
       toast('success', saved.isEnabled ? `“${saved.name}” is now sending.` : `“${saved.name}” is paused.`);
     },
     onError: (error) => toast('error', error.message),
@@ -66,7 +67,7 @@ export function AutomationsPanel({
   const remove = useMutation({
     mutationFn: (id: string) => deleteEmailAutomation(id, tenantId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email-automations'] });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-automations') });
       setDeleteTarget(null);
       toast('success', 'Automation deleted.');
     },
@@ -236,9 +237,7 @@ function AutomationCard({
             // a different control family. The Magnetic Label Rule.
             className={cn(
               'inline-flex h-9 items-center gap-2 rounded-md border py-1 pl-1 pr-3 transition-colors disabled:opacity-60',
-              automation.isEnabled
-                ? 'border-success/30 bg-success/6 hover:bg-band'
-                : 'border-rule bg-muted hover:bg-secondary',
+              automation.isEnabled ? 'border-success/30 bg-success/6 hover:bg-band' : 'border-rule bg-muted hover:bg-secondary',
             )}
           >
             <span
@@ -308,8 +307,8 @@ function AutomationCard({
         <p className="mt-3 flex items-start gap-2 rounded-sm border border-destructive/30 bg-destructive/5 p-2.5 text-xs text-destructive">
           <TriangleAlert size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>
-            {missingTemplates.length === 1 ? 'One email template has' : `${missingTemplates.length} email templates have`} been deleted,
-            so affected steps will not send.
+            {missingTemplates.length === 1 ? 'One email template has' : `${missingTemplates.length} email templates have`} been deleted, so
+            affected steps will not send.
           </span>
         </p>
       )}

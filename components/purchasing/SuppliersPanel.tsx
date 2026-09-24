@@ -10,7 +10,8 @@ import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
 
-import { type Supplier, type SupplierPayload, createSupplier, deactivateSupplier, updateSupplier } from '@/lib/api/purchasing.service';
+import { type Supplier, type SupplierPayload, createSupplier, deactivateSupplier, updateSupplier } from '@/lib/modules/purchasing/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/stores/toastStore';
 
 /** The form's id, so the drawer's pinned footer can submit it from outside. */
@@ -53,7 +54,7 @@ function SupplierDrawer({
       return supplier ? updateSupplier(supplier.id, payload) : createSupplier(payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['suppliers'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.purchasing.key('suppliers') });
       toast('success', supplier ? 'Supplier updated.' : 'Supplier created.');
       onClose();
     },
@@ -156,7 +157,7 @@ export function SuppliersPanel({
   const deactivate = useMutation({
     mutationFn: (id: string) => deactivateSupplier(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['suppliers'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.purchasing.key('suppliers') });
       setDeactivateTarget(null);
       toast('success', 'Supplier deactivated.');
     },

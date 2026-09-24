@@ -8,8 +8,9 @@ import { ErrorState } from '@/components/shared/ErrorState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import type { HrEmployee } from '@/lib/api/hr.service';
-import { type EmployeeDocument, type Payslip, getMyAttendance, getMyPayslips } from '@/lib/api/people-ops.service';
+import type { HrEmployee } from '@/lib/modules/people/client';
+import { type EmployeeDocument, type Payslip, getMyAttendance, getMyPayslips } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { payVariesWithHours } from '@/lib/utils/my-hr';
 
 import { PanelHeading } from './PanelHeading';
@@ -61,7 +62,7 @@ function PayslipsSection({ employee }: { employee?: HrEmployee }) {
     isLoading,
     isError,
     refetch,
-  } = useQuery({ queryKey: ['payslips-me'], queryFn: getMyPayslips, retry: false });
+  } = useQuery({ queryKey: moduleQueryKeys.people.key('payslips-me'), queryFn: getMyPayslips, retry: false });
   const [openId, setOpenId] = useState<string | null>(null);
   const showHours = payVariesWithHours(employee);
 
@@ -70,16 +71,14 @@ function PayslipsSection({ employee }: { employee?: HrEmployee }) {
   // actually cover.
   const span = payslipSpan(payslips);
   const { data: attendance = [] } = useQuery({
-    queryKey: ['attendance-me', span?.from, span?.to],
+    queryKey: moduleQueryKeys.people.key('attendance-me', span?.from, span?.to),
     queryFn: () => getMyAttendance(span!.from, span!.to),
     enabled: showHours && !!span,
   });
 
   return (
     <section className="space-y-4">
-      <PanelHeading
-        title="Payslips"
-      />
+      <PanelHeading title="Payslips" />
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="animate-spin text-muted-foreground" />

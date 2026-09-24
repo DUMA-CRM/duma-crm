@@ -1,5 +1,8 @@
 import 'server-only';
 
+import { auditChangeSet, auditSubject } from '@/lib/audit/change';
+import { auditActor, auditPhrase, auditRole, auditSeverity, resourceLabel, severityLabel } from '@/lib/audit/narrative';
+import { type Capability, hasCapability } from '@/lib/auth/capabilities';
 import type {
   CustomerRetention,
   HourlyVolume,
@@ -7,15 +10,23 @@ import type {
   RevenueByLocation,
   StaffHoursAnalytics,
   TopItemAnalytics,
-} from '@/lib/api/analytics.service';
-import type { AuditLogsResponse } from '@/lib/api/audit.service';
-import type { EmailAutomation, EmailConnection, EmailDeliveriesResponse, EmailTemplate } from '@/lib/api/email.service';
-import type { HrEmployee } from '@/lib/api/hr.service';
-import type { InventoryForecast, LowStockAlert } from '@/lib/api/inventory.service';
-import type { LossLogResponse } from '@/lib/api/loss.service';
-import type { CashUp } from '@/lib/api/operations.service';
-import type { Order, OrderDetail } from '@/lib/api/orders.service';
-import type { PayrollPreview, PayrollRun } from '@/lib/api/payroll.service';
+} from '@/lib/modules/analytics/client';
+import type { EmailAutomation, EmailConnection, EmailDeliveriesResponse, EmailTemplate } from '@/lib/modules/communications/client';
+import type { AuditLogsResponse } from '@/lib/modules/compliance/client';
+import type { PrivacyRequest } from '@/lib/modules/compliance/client';
+import type { InventoryForecast, LowStockAlert } from '@/lib/modules/inventory/client';
+import type { LossLogResponse } from '@/lib/modules/inventory/client';
+import type { RestockRequestsResponse } from '@/lib/modules/inventory/client';
+import { decodeNotes } from '@/lib/modules/inventory/client';
+import type { StocktakesResponse } from '@/lib/modules/inventory/client';
+import type { StockTransfersResponse } from '@/lib/modules/inventory/client';
+import { MODULE_IDS, type ModuleId, isModuleSurfaceEnabled } from '@/lib/modules/manifest';
+import type { Order, OrderDetail } from '@/lib/modules/ordering/client';
+import type { QrOrderingConfig } from '@/lib/modules/ordering/client';
+import type { Location } from '@/lib/modules/organization/client';
+import type { CashUp } from '@/lib/modules/payments/client';
+import type { HrEmployee } from '@/lib/modules/people/client';
+import type { PayrollPreview, PayrollRun } from '@/lib/modules/people/client';
 import type {
   AbsenceLog,
   AttendanceDay,
@@ -23,28 +34,11 @@ import type {
   HelpdeskTicket,
   LeaveEntitlement,
   LeaveRequest,
-} from '@/lib/api/people-ops.service';
-import type { PrivacyRequest } from '@/lib/api/privacy.service';
-import type { PurchaseOrdersResponse } from '@/lib/api/purchasing.service';
-import type { QrOrderingConfig } from '@/lib/api/qr-ordering.service';
-import type { RestockRequestsResponse } from '@/lib/api/restock.service';
-import { decodeNotes } from '@/lib/api/restock.service';
-import type { ScheduledShift } from '@/lib/api/scheduling.service';
-import type { Shift } from '@/lib/api/shifts.service';
-import type { StocktakesResponse } from '@/lib/api/stocktakes.service';
-import type { StockTransfersResponse } from '@/lib/api/transfers.service';
-import type { Location } from '@/lib/api/workspace.service';
-import { auditChangeSet, auditSubject } from '@/lib/audit/change';
-import { auditActor, auditPhrase, auditRole, auditSeverity, resourceLabel, severityLabel } from '@/lib/audit/narrative';
-import { type Capability, hasCapability } from '@/lib/auth/capabilities';
-import { isModuleSurfaceEnabled, MODULE_IDS, type ModuleId } from '@/lib/modules/manifest';
-import {
-  attendanceTotals,
-  groupAttendanceByWeek,
-  leaveBalance,
-  mergeAbsenceDays,
-  myHrActions,
-} from '@/lib/utils/my-hr';
+} from '@/lib/modules/people/client';
+import type { PurchaseOrdersResponse } from '@/lib/modules/purchasing/client';
+import type { ScheduledShift } from '@/lib/modules/workforce/client';
+import type { Shift } from '@/lib/modules/workforce/client';
+import { attendanceTotals, groupAttendanceByWeek, leaveBalance, mergeAbsenceDays, myHrActions } from '@/lib/utils/my-hr';
 import type { CustomerSegment, CustomersResponse } from '@/types/customers';
 
 import {
@@ -86,10 +80,7 @@ interface ToolDefinitionBase {
   run(args: JsonObject, runtime: AgentRuntime): Promise<ToolResult>;
 }
 
-export type ToolDefinition = ToolDefinitionBase & (
-  | { capability: Capability; module?: never }
-  | { capability?: never; module: ModuleId }
-);
+export type ToolDefinition = ToolDefinitionBase & ({ capability: Capability; module?: never } | { capability?: never; module: ModuleId });
 
 function schema(properties: JsonObject): JsonObject {
   return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
@@ -391,7 +382,13 @@ const listMenuItems: ToolDefinition = {
       .slice(0, 120);
     const unavailable = items.filter((item) => !item.isAvailable).length;
     return {
-      output: items.map(({ id, name, categoryId, price, isAvailable }) => ({ id, name, categoryId, priceGbp: toNumber(price), isAvailable })),
+      output: items.map(({ id, name, categoryId, price, isAvailable }) => ({
+        id,
+        name,
+        categoryId,
+        priceGbp: toNumber(price),
+        isAvailable,
+      })),
       evidence: `${items.length} menu item${items.length === 1 ? '' : 's'}${unavailable ? `, ${unavailable} hidden` : ''}`,
       cards: query
         ? [
@@ -1871,7 +1868,6 @@ const getMyAttendance: ToolDefinition = {
   },
 };
 
-
 export const TOOLS: ToolDefinition[] = [
   searchSupport,
   listLocations,
@@ -1906,10 +1902,7 @@ export const TOOLS: ToolDefinition[] = [
 
 const TOOL_BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
 
-export function toolsForCapabilities(
-  capabilities: readonly string[],
-  enabledModuleIds: readonly ModuleId[] = MODULE_IDS,
-) {
+export function toolsForCapabilities(capabilities: readonly string[], enabledModuleIds: readonly ModuleId[] = MODULE_IDS) {
   // A tool with no capability is open to everyone; otherwise the caller must
   // hold it. The API re-checks on every call the tool makes — this only decides
   // which tools the model is even offered, so it cannot be the security boundary.

@@ -4,11 +4,11 @@ import { Boxes, Clock3, PackagePlus, Users } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { AttentionList } from '@/components/shared/AttentionList';
 
-import type { InventoryForecast } from '@/lib/api/inventory.service';
-import type { Order } from '@/lib/api/orders.service';
-import type { RestockRequest } from '@/lib/api/restock.service';
-import { CRASH_MINS, ageState } from '@/lib/utils/kitchen-age';
+import type { InventoryForecast } from '@/lib/modules/inventory/client';
+import type { RestockRequest } from '@/lib/modules/inventory/client';
+import type { Order } from '@/lib/modules/ordering/client';
 import type { AttendanceIssue, CoverGap } from '@/lib/utils/attendance';
+import { CRASH_MINS, ageState } from '@/lib/utils/kitchen-age';
 
 /* The one live signal on a page that is otherwise a performance snapshot.
 
@@ -69,10 +69,7 @@ export function buildExceptions({
     ...attendanceIssues.map((issue) => ({
       key: `attendance-${issue.shift.id}`,
       icon: issue.reason === 'after-close' ? Clock3 : Users,
-      label:
-        issue.reason === 'after-close'
-          ? `${issue.name} is still clocked in after close`
-          : `${issue.name} is clocked in off-rota`,
+      label: issue.reason === 'after-close' ? `${issue.name} is still clocked in after close` : `${issue.name} is clocked in off-rota`,
       detail:
         issue.reason === 'after-close'
           ? `${formatHours(issue.minutes)} on the clock — check they meant to clock out`
@@ -83,10 +80,7 @@ export function buildExceptions({
     ...coverGaps.map((gap) => ({
       key: `cover-${gap.slot.id}`,
       icon: Users,
-      label:
-        gap.reason === 'unassigned'
-          ? 'Shift running with nobody assigned'
-          : `${gap.name} has not clocked in`,
+      label: gap.reason === 'unassigned' ? 'Shift running with nobody assigned' : `${gap.name} has not clocked in`,
       detail: `${slotWindow(gap.slot)}${gap.slot.role ? ` · ${gap.slot.role}` : ''} · ${formatHours(gap.minutesLate)} into the shift`,
       href: '/staff/rota',
       tone: 'exception' as const,

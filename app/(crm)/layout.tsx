@@ -7,9 +7,9 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { AuthInitializer } from '@/components/providers/AuthInitializer';
 import { WorkspaceInitializer } from '@/components/providers/WorkspaceInitializer';
 
-import { getSession } from '@/lib/api/auth.service';
-import { getCurrentTenantModules } from '@/lib/api/modules.service';
 import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
+import { getSession } from '@/lib/modules/identity/client';
+import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 
 // Server Component — runs on every navigation to a CRM page.
 // Validates the session with the API (not just a cookie existence check).

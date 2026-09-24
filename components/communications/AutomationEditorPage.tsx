@@ -21,16 +21,17 @@ import {
   getEmailTemplates,
   publishEmailAutomation,
   updateEmailAutomation,
-} from '@/lib/api/email.service';
-import { getSegments } from '@/lib/api/segments.service';
-import { getLocationsByTenant } from '@/lib/api/workspace.service';
+} from '@/lib/modules/communications/client';
+import { getSegments } from '@/lib/modules/customers/client';
+import { getLocationsByTenant } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { EmailPreviewDrawer } from './EmailPreviewDrawer';
 import { PublishDialog } from './PublishDialog';
-import { type InsertType, WorkflowTree } from './WorkflowTree';
 import { WorkflowRunDrawer } from './WorkflowRunDrawer';
+import { type InsertType, WorkflowTree } from './WorkflowTree';
 import { TRIGGER_HELP, TRIGGER_OPTIONS } from './shared';
 import {
   defaultWorkflow,
@@ -91,25 +92,29 @@ export function AutomationEditorPage({
   const [initialSnapshot, setInitialSnapshot] = useState(snapshot);
 
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
-    queryKey: ['email-templates', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-templates', tenantId),
     queryFn: () => getEmailTemplates(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations', tenantId],
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
     queryFn: () => getLocationsByTenant(tenantId ?? ''),
     enabled: !!tenantId,
   });
-  const { data: segmentsData } = useQuery({ queryKey: ['customer-segments'], queryFn: getSegments, enabled: !!tenantId });
+  const { data: segmentsData } = useQuery({
+    queryKey: moduleQueryKeys.customers.key('customer-segments'),
+    queryFn: getSegments,
+    enabled: !!tenantId,
+  });
   const segments = segmentsData?.data ?? [];
   const { data: connection } = useQuery({
-    queryKey: ['email-connection', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
     enabled: !!tenantId,
     retry: false,
   });
   const { data: runs = [] } = useQuery({
-    queryKey: ['email-automation-runs', savedId, tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-automation-runs', savedId, tenantId),
     queryFn: () => getEmailAutomationRuns(savedId ?? '', tenantId ?? undefined),
     enabled: !!savedId && !!tenantId,
     refetchInterval: 30_000,
@@ -131,7 +136,7 @@ export function AutomationEditorPage({
     setSavedId(saved.id);
     const result = publish ? await publishEmailAutomation(saved.id, tenantId ?? undefined) : saved;
     setInitialSnapshot(snapshot);
-    await queryClient.invalidateQueries({ queryKey: ['email-automations'] });
+    await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-automations') });
     onSaved?.(result);
     return result;
   };

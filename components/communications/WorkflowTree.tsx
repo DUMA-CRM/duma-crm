@@ -5,11 +5,11 @@ import { useState } from 'react';
 import { Copy, Menu, Plus, Trash2 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
-import type { EmailWorkflowDefinition, EmailWorkflowNode } from '@/lib/api/email.service';
+import type { EmailWorkflowDefinition, EmailWorkflowNode } from '@/lib/modules/communications/client';
 import { cn } from '@/lib/utils/cn';
 
-import { NODE_META, nodeDetail } from './workflowNodes';
 import { isMovableNode } from './workflowModel';
+import { NODE_META, nodeDetail } from './workflowNodes';
 
 /**
  * The workflow, drawn as the tree it actually is.
@@ -51,16 +51,7 @@ interface Props {
 /** The two branch columns under a condition; BranchConnector mirrors this gap. */
 const BRANCH_GRID = 'grid w-full grid-cols-2 gap-8';
 
-export function WorkflowTree({
-  definition,
-  selectedId,
-  onSelect,
-  onInsert,
-  onMove,
-  onDuplicate,
-  onRemove,
-  templateName,
-}: Props) {
+export function WorkflowTree({ definition, selectedId, onSelect, onInsert, onMove, onDuplicate, onRemove, templateName }: Props) {
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<DropTarget | null>(null);
 
@@ -134,7 +125,10 @@ export function WorkflowTree({
             </div>
           </>
         ) : edges[0] ? (
-          connector(edges[0].branch ?? 'next', definition.nodes.find((candidate) => candidate.id === edges[0]!.target))
+          connector(
+            edges[0].branch ?? 'next',
+            definition.nodes.find((candidate) => candidate.id === edges[0]!.target),
+          )
         ) : null}
       </div>
     );

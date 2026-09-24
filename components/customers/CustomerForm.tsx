@@ -10,11 +10,12 @@ import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Select } from '@/components/ui/select';
 
-import { createCustomer, updateCustomer } from '@/lib/api/customers.service';
+import { createCustomer, updateCustomer } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import { DIETARY_PREFERENCES, FSA_ALLERGENS } from '@/types/customers';
-import type { Allergen, AlertSeverity, Customer, CustomerAlert, DietaryPreference } from '@/types/customers';
+import type { AlertSeverity, Allergen, Customer, CustomerAlert, DietaryPreference } from '@/types/customers';
 
 /**
  * One form for creating and editing a customer.
@@ -116,8 +117,8 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
       });
     },
     onSuccess: (saved) => {
-      void qc.invalidateQueries({ queryKey: ['customers'] });
-      if (isEdit) void qc.invalidateQueries({ queryKey: ['customer', customer!.id] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customers') });
+      if (isEdit) void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer', customer!.id) });
       onSaved?.(saved);
       toast('success', isEdit ? 'Customer updated.' : 'Customer created.');
       onClose();
@@ -208,9 +209,7 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
 
         {isEdit ? (
           <>
-            <Section
-              title="Before you serve"
-            >
+            <Section title="Before you serve">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Allergies">
                   <MultiSelect
@@ -238,8 +237,8 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
                 <p className="mt-3 flex items-start gap-2 rounded-sm border border-exception/30 bg-exception/8 px-3 py-2 text-xs text-exception">
                   <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
                   <span>
-                    <strong className="font-semibold uppercase">{allergies.map(labelFor).join(' · ')}</strong> will show at the top of
-                    this record and beside the guest’s name in every list.
+                    <strong className="font-semibold uppercase">{allergies.map(labelFor).join(' · ')}</strong> will show at the top of this
+                    record and beside the guest’s name in every list.
                   </span>
                 </p>
               )}

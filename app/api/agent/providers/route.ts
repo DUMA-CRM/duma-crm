@@ -1,5 +1,5 @@
 import { describeProviders } from '@/lib/ai/agent-provider.server';
-import { getMyStaffProfile } from '@/lib/api/staff.service';
+import { getMyStaffProfile } from '@/lib/modules/identity/client';
 
 export const runtime = 'nodejs';
 

@@ -20,7 +20,7 @@ import {
 
 import { type Capability, hasAnyCapability } from '@/lib/auth/capabilities';
 import { MODULE_IDS, type ModuleId } from '@/lib/modules/manifest';
-import type { TenantModuleState } from '@/lib/api/modules.service';
+import type { TenantModuleState } from '@/lib/modules/organization/client';
 
 export interface NavItem {
   module: ModuleId;

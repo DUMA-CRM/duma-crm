@@ -1,14 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
-import { Check, Loader2, UserPlus } from '@/components/icons';
 import { useRef, useState } from 'react';
 
+import { Check, Loader2, UserPlus } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { getCustomers } from '@/lib/api/customers.service';
+import { getCustomers } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { Customer } from '@/types/customers';
 
-export function PhoneSearch({ onSelect, onCreate, onClose }: { onSelect: (c: Customer) => void; onCreate: (phone: string) => void; onClose: () => void }) {
+export function PhoneSearch({
+  onSelect,
+  onCreate,
+  onClose,
+}: {
+  onSelect: (c: Customer) => void;
+  onCreate: (phone: string) => void;
+  onClose: () => void;
+}) {
   const [phone, setPhone] = useState('+');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -18,7 +27,7 @@ export function PhoneSearch({ onSelect, onCreate, onClose }: { onSelect: (c: Cus
   const canCreate = digits.length >= 7; // enough to be a real number
 
   const { data, isFetching, isError } = useQuery({
-    queryKey: ['customer-phone-search', trimmed],
+    queryKey: moduleQueryKeys.customers.key('customer-phone-search', trimmed),
     queryFn: () => getCustomers({ search: trimmed, limit: 6 }),
     enabled: canSearch,
     staleTime: 10_000,

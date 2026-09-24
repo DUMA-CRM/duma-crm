@@ -19,7 +19,8 @@ import {
   getStocktakes,
   saveStocktakeCounts,
   startStocktake,
-} from '@/lib/api/stocktakes.service';
+} from '@/lib/modules/inventory/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatDateTime as formatAppDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
@@ -52,8 +53,8 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
   const countedTotal = lines.filter((l) => valueFor(l.stockItemId, l.countedQty) !== '').length;
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['stocktakes'] });
-    qc.invalidateQueries({ queryKey: ['location-stock'] });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stocktakes') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('location-stock') });
   };
 
   const save = useMutation({
@@ -66,7 +67,7 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
         }),
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['stocktakes'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stocktakes') });
       setCounts({});
       toast('success', 'Counts saved.');
     },
@@ -125,7 +126,9 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
         <DataTable className="w-full text-sm border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-rule bg-muted">
-              <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">Item</th>
+              <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
+                Item
+              </th>
               <th className="px-3 md:px-5 py-3.5 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                 Expected
               </th>
@@ -220,7 +223,7 @@ function ActiveCount({ stocktake }: { stocktake: Stocktake }) {
 /** The location's stocktakes, plus the id of the one being counted right now. */
 function useStocktakes(locationId: string) {
   const { data, isLoading } = useQuery({
-    queryKey: ['stocktakes', locationId],
+    queryKey: moduleQueryKeys.inventory.key('stocktakes', locationId),
     queryFn: () => getStocktakes({ locationId, limit: 30 }),
   });
   const stocktakes = data?.data ?? [];
@@ -239,7 +242,7 @@ export function StartStocktakeButton({ locationId }: { locationId: string }) {
   const start = useMutation({
     mutationFn: () => startStocktake({ locationId }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['stocktakes'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stocktakes') });
       toast('success', 'Stocktake started — count each item and enter the physical quantity.');
     },
     onError: (err) => toast('error', err.message || 'The stocktake didn’t start. Try again.'),
@@ -261,9 +264,9 @@ export function StocktakePanel({ locationId }: { locationId: string }) {
 
   // The list endpoint doesn't include lines — fetch the active one's detail.
   const { data: active } = useQuery({
-    queryKey: ['stocktake', activeId],
+    queryKey: moduleQueryKeys.inventory.key('stocktake', activeId),
     queryFn: async () => {
-      const { getStocktake } = await import('@/lib/api/stocktakes.service');
+      const { getStocktake } = await import('@/lib/modules/inventory/client');
       return getStocktake(activeId!);
     },
     enabled: !!activeId,
@@ -327,9 +330,9 @@ export function StocktakePanel({ locationId }: { locationId: string }) {
 
 function StocktakeDetailDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const { data } = useQuery({
-    queryKey: ['stocktake', id],
+    queryKey: moduleQueryKeys.inventory.key('stocktake', id),
     queryFn: async () => {
-      const { getStocktake } = await import('@/lib/api/stocktakes.service');
+      const { getStocktake } = await import('@/lib/modules/inventory/client');
       return getStocktake(id);
     },
   });

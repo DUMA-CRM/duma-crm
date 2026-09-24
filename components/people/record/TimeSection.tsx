@@ -3,18 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import {
-  AlertTriangle,
-  CheckCircle2,
-  HeartPulse,
-  Loader2,
-} from '@/components/icons';
-import {
-  fmtDate,
-  fmtHours,
-  inp,
-  lbl,
-} from '@/components/people/shared';
+import { AlertTriangle, CheckCircle2, HeartPulse, Loader2 } from '@/components/icons';
+import { fmtDate, fmtHours, inp, lbl } from '@/components/people/shared';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { StatCard } from '@/components/shared/StatCard';
@@ -24,12 +14,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
-import {
-  type EmployeeHours,
-  type TimesheetShift,
-  getWorkPattern,
-  updateWorkPattern,
-} from '@/lib/api/hr.service';
+import { type EmployeeHours, type TimesheetShift, getWorkPattern, updateWorkPattern } from '@/lib/modules/people/client';
 import {
   type LeaveEntitlement,
   addEmployeeDocument,
@@ -43,12 +28,12 @@ import {
   getLeaveTypes,
   logEmployeeAbsence,
   updateEntitlement,
-} from '@/lib/api/people-ops.service';
+} from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 
-import { type Employee, monthRange, CARD, CARD_PADDED } from './shared';
-
+import { CARD, CARD_PADDED, type Employee, monthRange } from './shared';
 
 export function AbsenceCard({ userId }: { userId: string }) {
   const qc = useQueryClient();
@@ -60,11 +45,11 @@ export function AbsenceCard({ userId }: { userId: string }) {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['employee-absences', userId],
+    queryKey: moduleQueryKeys.people.key('employee-absences', userId),
     queryFn: () => getEmployeeAbsences(userId),
   });
   const { data: leaveTypes = [] } = useQuery({
-    queryKey: ['leave-types'],
+    queryKey: moduleQueryKeys.people.key('leave-types'),
     queryFn: getLeaveTypes,
     enabled: adding,
   });
@@ -78,7 +63,7 @@ export function AbsenceCard({ userId }: { userId: string }) {
         reason: form.reason.trim() || undefined,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['employee-absences', userId] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('employee-absences', userId) });
       setAdding(false);
       setForm({ date: initialDate, leaveTypeId: '', isHalfDay: false, reason: '' });
       toast('success', 'Absence recorded.');
@@ -88,7 +73,7 @@ export function AbsenceCard({ userId }: { userId: string }) {
   const remove = useMutation({
     mutationFn: deleteEmployeeAbsence,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['employee-absences', userId] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('employee-absences', userId) });
       toast('success', 'Absence record removed.');
     },
     onError: (error) => toast('error', (error as Error).message),
@@ -201,12 +186,11 @@ export function AbsenceCard({ userId }: { userId: string }) {
   );
 }
 
-
 // ── Contracted work pattern ───────────────────────────────────────────────────
 
 export function WorkPatternCard({ userId }: { userId: string }) {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ['work-pattern', userId], queryFn: () => getWorkPattern(userId) });
+  const { data } = useQuery({ queryKey: moduleQueryKeys.workforce.key('work-pattern', userId), queryFn: () => getWorkPattern(userId) });
   const [edit, setEdit] = useState(false);
   const [days, setDays] = useState<number[] | null>(null);
   const [hours, setHours] = useState<number | null>(null);
@@ -215,7 +199,7 @@ export function WorkPatternCard({ userId }: { userId: string }) {
   const save = useMutation({
     mutationFn: () => updateWorkPattern(userId, { workingDays: selectedDays, contractedWeeklyHours: weeklyHours }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['work-pattern', userId] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('work-pattern', userId) });
       setEdit(false);
       toast('success', 'Work pattern updated.');
     },
@@ -292,11 +276,11 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
   const [year, setYear] = useState(currentYear);
   const [editing, setEditing] = useState<LeaveEntitlement | 'new' | null>(null);
   const { data: workPattern } = useQuery({
-    queryKey: ['work-pattern', userId],
+    queryKey: moduleQueryKeys.workforce.key('work-pattern', userId),
     queryFn: () => getWorkPattern(userId),
   });
   const { data: entitlements = [], isLoading } = useQuery({
-    queryKey: ['employee-entitlements', userId, year],
+    queryKey: moduleQueryKeys.people.key('employee-entitlements', userId, year),
     queryFn: () => getEmployeeEntitlements(userId, year),
   });
   const regularHoursBaseline = Math.min(28, Math.round((workPattern?.workingDays.length ?? 5) * 5.6 * 10) / 10);
@@ -390,7 +374,7 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
           onClose={() => setEditing(null)}
           onDone={() => {
             setEditing(null);
-            qc.invalidateQueries({ queryKey: ['employee-entitlements', userId] });
+            qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('employee-entitlements', userId) });
           }}
         />
       )}
@@ -417,7 +401,7 @@ function LeaveAllowanceModal({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const { data: leaveTypes = [] } = useQuery({ queryKey: ['leave-types'], queryFn: getLeaveTypes });
+  const { data: leaveTypes = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('leave-types'), queryFn: getLeaveTypes });
   const annualType = leaveTypes.find((type) => type.name.toLowerCase().includes('annual'));
   const [leaveTypeId, setLeaveTypeId] = useState(entitlement?.leaveType.id ?? annualType?.id ?? 'annual-default');
   const [totalDays, setTotalDays] = useState(entitlement?.totalDays ?? annualType?.defaultAllowanceDays ?? '28');
@@ -526,11 +510,14 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
     expiresAt: '',
     notes: '',
   });
-  const { data: documents = [] } = useQuery({ queryKey: ['employee-documents', userId], queryFn: () => getEmployeeDocuments(userId) });
+  const { data: documents = [] } = useQuery({
+    queryKey: moduleQueryKeys.people.key('employee-documents', userId),
+    queryFn: () => getEmployeeDocuments(userId),
+  });
   const add = useMutation({
     mutationFn: () => addEmployeeDocument({ userId, ...form }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['employee-documents', userId] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('employee-documents', userId) });
       setAdding(false);
       setForm({ title: '', documentType: 'Right to work', reference: '', issuedAt: '', expiresAt: '', notes: '' });
       toast('success', 'Document record added.');
@@ -539,7 +526,7 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
   });
   const remove = useMutation({
     mutationFn: deleteEmployeeDocument,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['employee-documents', userId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('employee-documents', userId) }),
   });
   return (
     <div className={CARD_PADDED}>
@@ -661,7 +648,6 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
     </div>
   );
 }
-
 
 // ── Hours & Timesheet (one row per day, detail modal per day) ─────────────────
 
@@ -846,4 +832,3 @@ export function TimesheetCard({
     </div>
   );
 }
-

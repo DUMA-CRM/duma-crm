@@ -6,7 +6,8 @@ import { useState } from 'react';
 import { Check, FileText, Loader2 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
-import { updateCustomer } from '@/lib/api/customers.service';
+import { updateCustomer } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import type { Customer } from '@/types/customers';
@@ -47,7 +48,7 @@ export function CustomerNotesPanel({ customer, canEdit }: { customer: Customer; 
     mutationFn: (notes: string) => updateCustomer(customer.id, { notes: notes || undefined }),
     onSuccess: (_updated, notes) => {
       setSaved(notes);
-      void qc.invalidateQueries({ queryKey: ['customer', customer.id] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer', customer.id) });
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 2500);
     },

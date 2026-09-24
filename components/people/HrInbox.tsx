@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
-import { type LeaveRequest, getManagedLeaveRequests, reviewLeaveRequest } from '@/lib/api/people-ops.service';
+import { type LeaveRequest, getManagedLeaveRequests, reviewLeaveRequest } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { formatDate } from '@/lib/utils/date';
 import { daysBetween } from '@/lib/utils/staff-overview';
 import { toast } from '@/stores/toastStore';
@@ -32,7 +33,7 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
     isError,
     refetch,
   } = useQuery({
-    queryKey: ['leave-managed', status],
+    queryKey: moduleQueryKeys.people.key('leave-managed', status),
     queryFn: () => getManagedLeaveRequests(status),
   });
 
@@ -42,7 +43,7 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
     onSuccess: () => {
       // Both the inbox and the tab badge read these keys; the overview shares
       // the pending one. No optimistic update — this spends an entitlement.
-      qc.invalidateQueries({ queryKey: ['leave-managed'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('leave-managed') });
       toast('success', 'Leave request updated.');
     },
     onError: (e) => toast('error', (e as Error).message),
@@ -101,11 +102,7 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
                 </div>
                 {r.status === 'pending' && (
                   <div className="flex shrink-0 gap-2">
-                    <Button
-                      variant="destructive"
-                      disabled={!!deciding}
-                      onClick={() => review.mutate({ id: r.id, next: 'declined' })}
-                    >
+                    <Button variant="destructive" disabled={!!deciding} onClick={() => review.mutate({ id: r.id, next: 'declined' })}>
                       {deciding === r.id ? <Loader2 className="animate-spin" /> : <X />}
                       Decline
                     </Button>

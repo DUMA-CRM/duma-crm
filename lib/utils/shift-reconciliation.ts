@@ -1,5 +1,5 @@
-import type { ScheduledShift } from '@/lib/api/scheduling.service';
-import type { Shift } from '@/lib/api/shifts.service';
+import type { ScheduledShift } from '@/lib/modules/workforce/client';
+import type { Shift } from '@/lib/modules/workforce/client';
 
 const localDay = (iso: string) => {
   const date = new Date(iso);

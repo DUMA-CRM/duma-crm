@@ -3,6 +3,7 @@
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
+import { serverCache } from '@/lib/api/cache-policy';
 import {
   getCustomerRetention,
   getDayBaseline,
@@ -10,19 +11,19 @@ import {
   getLabourAnalytics,
   getOrderAnalytics,
   getTopItems,
-} from '@/lib/api/analytics.service';
-import { getInventoryForecast } from '@/lib/api/inventory.service';
-import { getOrders } from '@/lib/api/orders.service';
-import { decodeNotes, getRestockRequests } from '@/lib/api/restock.service';
-import { getScheduledShifts } from '@/lib/api/scheduling.service';
-import { getActiveShifts } from '@/lib/api/shifts.service';
-import { getLocations } from '@/lib/api/workspace.service';
+} from '@/lib/modules/analytics/client';
+import { getInventoryForecast } from '@/lib/modules/inventory/client';
+import { decodeNotes, getRestockRequests } from '@/lib/modules/inventory/client';
+import { getOrders } from '@/lib/modules/ordering/client';
+import { getLocations } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getScheduledShifts } from '@/lib/modules/workforce/client';
+import { getActiveShifts } from '@/lib/modules/workforce/client';
 import { findAttendanceIssues, findCoverGaps } from '@/lib/utils/attendance';
 import { getDateWindow, orderMetrics } from '@/lib/utils/dashboard';
 import { isLate, stageSince } from '@/lib/utils/kitchen-age';
 import { computePace, computeTargetProgress } from '@/lib/utils/pace';
 import { resolveTradingDay } from '@/lib/utils/trading-day';
-import { serverCache } from '@/lib/api/cache-policy';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // Lateness is not defined here. It comes from lib/utils/kitchen-age, the same
@@ -56,7 +57,7 @@ export function useTodayDashboard() {
     return () => clearInterval(id);
   }, []);
 
-  const locationsQuery = useQuery({ queryKey: ['locations-accessible'], queryFn: getLocations });
+  const locationsQuery = useQuery({ queryKey: moduleQueryKeys.organization.key('locations-accessible'), queryFn: getLocations });
   const locations = locationsQuery.data ?? [];
   const selectedLocation = locations.find((location) => location.id === locationId) ?? null;
   const activeLocationId = selectedLocation?.id ?? null;
@@ -90,7 +91,7 @@ export function useTodayDashboard() {
   const ready = locationsQuery.isSuccess;
 
   const orders = useQuery({
-    queryKey: ['today-orders', dateKey, scopeKey, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('today-orders', dateKey, scopeKey, timeZone),
     queryFn: () => getOrderAnalytics(currentParams()),
     ...serverCache('orders'),
     enabled: ready,
@@ -98,8 +99,9 @@ export function useTodayDashboard() {
   });
 
   const baseline = useQuery({
-    queryKey: ['today-baseline', tradingDay.weekday, scopeKey, timeZone],
-    queryFn: () => getDayBaseline({ weekday: tradingDay.weekday, timezone: timeZone, ...(activeLocationId ? { locationId: activeLocationId } : {}) }),
+    queryKey: moduleQueryKeys.analytics.key('today-baseline', tradingDay.weekday, scopeKey, timeZone),
+    queryFn: () =>
+      getDayBaseline({ weekday: tradingDay.weekday, timezone: timeZone, ...(activeLocationId ? { locationId: activeLocationId } : {}) }),
     // Eight weeks of history doesn't move during a shift, and the API says the
     // same thing: cacheControl(1800, 300). The 30-minute staleTime that used to
     // be hard-coded here is now that number, from one place.
@@ -108,7 +110,7 @@ export function useTodayDashboard() {
   });
 
   const labour = useQuery({
-    queryKey: ['today-labour', dateKey, scopeKey, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('today-labour', dateKey, scopeKey, timeZone),
     queryFn: () => getLabourAnalytics(currentParams()),
     ...serverCache('labour'),
     enabled: ready,
@@ -116,7 +118,7 @@ export function useTodayDashboard() {
   });
 
   const hourly = useQuery({
-    queryKey: ['today-hourly', dateKey, scopeKey, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('today-hourly', dateKey, scopeKey, timeZone),
     queryFn: () => getHourlyVolume({ ...currentParams(), timezone: timeZone }),
     ...serverCache('hourlyVolume'),
     enabled: ready,
@@ -124,14 +126,14 @@ export function useTodayDashboard() {
   });
 
   const topItems = useQuery({
-    queryKey: ['today-top-items', dateKey, scopeKey, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('today-top-items', dateKey, scopeKey, timeZone),
     queryFn: () => getTopItems(currentParams(), 5),
     ...serverCache('topItems'),
     enabled: ready && secondaryEnabled,
   });
 
   const retention = useQuery({
-    queryKey: ['today-retention', dateKey, scopeKey, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('today-retention', dateKey, scopeKey, timeZone),
     queryFn: () => getCustomerRetention(currentParams()),
     ...serverCache('customerRetention'),
     enabled: ready && secondaryEnabled,
@@ -139,7 +141,7 @@ export function useTodayDashboard() {
 
   // Only fetched on a day the site is shut, where today's own figures say nothing.
   const yesterday = useQuery({
-    queryKey: ['today-yesterday', dateKey, scopeKey, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('today-yesterday', dateKey, scopeKey, timeZone),
     queryFn: () => {
       const window = getDateWindow('today', timeZone);
       return getOrderAnalytics({
@@ -152,24 +154,28 @@ export function useTodayDashboard() {
   });
 
   const forecast = useQuery({
-    queryKey: ['today-forecast', scopeKey],
+    queryKey: moduleQueryKeys.analytics.key('today-forecast', scopeKey),
     queryFn: () => getInventoryForecast(activeLocationId ?? undefined),
     ...serverCache('inventoryForecast'),
     enabled: ready,
   });
 
   const restocks = useQuery({
-    queryKey: ['restock-requests', 'pending', scopeKey, 'today-dashboard'],
+    queryKey: moduleQueryKeys.inventory.key('restock-requests', 'pending', scopeKey, 'today-dashboard'),
     queryFn: () => getRestockRequests({ status: 'pending', ...(activeLocationId ? { locationId: activeLocationId } : {}), limit: 6 }),
     enabled: ready,
   });
 
-  const activeShifts = useQuery({ queryKey: ['shifts-active'], queryFn: getActiveShifts, refetchInterval: 60_000 });
+  const activeShifts = useQuery({
+    queryKey: moduleQueryKeys.workforce.key('shifts-active'),
+    queryFn: getActiveShifts,
+    refetchInterval: 60_000,
+  });
 
   // Rostered shifts for the rest of today, so a gap in cover is visible before
   // it becomes a problem on the floor.
   const rota = useQuery({
-    queryKey: ['today-rota', dateKey, scopeKey],
+    queryKey: moduleQueryKeys.workforce.key('today-rota', dateKey, scopeKey),
     queryFn: () => {
       const window = getDateWindow('today', timeZone);
       const end = new Date(new Date(window.from).getTime() + 24 * 60 * 60 * 1000);
@@ -184,7 +190,7 @@ export function useTodayDashboard() {
 
   const liveOrderQueries = useQueries({
     queries: (['pending', 'preparing', 'ready'] as const).map((status) => ({
-      queryKey: ['today-live-orders', status, scopeKey],
+      queryKey: moduleQueryKeys.analytics.key('today-live-orders', status, scopeKey),
       // The list comes back newest-first, so a small page drops the OLDEST
       // tickets — precisely the ones that are late. 100 covers any real lane;
       // the headline counts come from `total` regardless of the page size.
@@ -242,7 +248,12 @@ export function useTodayDashboard() {
     });
 
   const isRefreshing =
-    orders.isFetching || labour.isFetching || forecast.isFetching || restocks.isFetching || activeShifts.isFetching || liveOrderQueries.some((query) => query.isFetching);
+    orders.isFetching ||
+    labour.isFetching ||
+    forecast.isFetching ||
+    restocks.isFetching ||
+    activeShifts.isFetching ||
+    liveOrderQueries.some((query) => query.isFetching);
 
   return {
     mounted,

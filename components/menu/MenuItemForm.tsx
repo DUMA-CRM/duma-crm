@@ -1,14 +1,15 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChefHat, UtensilsCrossed } from '@/components/icons';
 import { useEffect, useState } from 'react';
 
+import { ChefHat, UtensilsCrossed } from '@/components/icons';
 import { RecipeSummaryChips } from '@/components/menu/RecipeEditorPage';
 import { AvailabilityToggle, categoryTone, inputClass, labelClass, selectClass } from '@/components/menu/shared';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
+import { useVatContext } from '@/lib/hooks/useVatContext';
 import {
   attachModifier,
   createMenuItem,
@@ -20,8 +21,8 @@ import {
   setMenuItemModifierGroupRule,
   setModifierDefault,
   updateMenuItem,
-} from '@/lib/api/menu.service';
-import { useVatContext } from '@/lib/hooks/useVatContext';
+} from '@/lib/modules/catalog/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { groupByCategory, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import { toast } from '@/stores/toastStore';
@@ -37,15 +38,15 @@ const adjust = (raw?: string) => {
 function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; tenantId: string }) {
   const qc = useQueryClient();
   const { data: attached = [] } = useQuery({
-    queryKey: ['menu-item-modifiers', menuItemId],
+    queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', menuItemId),
     queryFn: () => getMenuItemModifiers(menuItemId),
   });
   const { data: all = [] } = useQuery({
-    queryKey: ['modifiers', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('modifiers', tenantId),
     queryFn: () => getModifiers(tenantId),
   });
   const { data: rules = [] } = useQuery({
-    queryKey: ['menu-item-modifier-groups', menuItemId],
+    queryKey: moduleQueryKeys.catalog.key('menu-item-modifier-groups', menuItemId),
     queryFn: () => getMenuItemModifierGroups(menuItemId),
   });
 
@@ -59,8 +60,8 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
     },
     onSuccess: async () => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ['menu-item-modifiers', menuItemId] }),
-        qc.invalidateQueries({ queryKey: ['menu-item-modifier-groups', menuItemId] }),
+        qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', menuItemId) }),
+        qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-item-modifier-groups', menuItemId) }),
       ]);
     },
   });
@@ -68,7 +69,7 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
   const toggleDefault = useMutation({
     mutationFn: ({ modifierId, isDefault }: { modifierId: string; isDefault: boolean }) =>
       setModifierDefault(menuItemId, modifierId, isDefault),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['menu-item-modifiers', menuItemId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', menuItemId) }),
   });
 
   const updateRule = useMutation({
@@ -79,7 +80,7 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
         maxSelections: maximum === 'many' ? null : Number(maximum),
       });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['menu-item-modifier-groups', menuItemId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-item-modifier-groups', menuItemId) }),
     onError: (err) => toast('error', err.message || 'The selection rule was not updated.'),
   });
 
@@ -196,7 +197,7 @@ export function MenuItemForm({
   const [isAvailable, setIsAvailable] = useState(item?.isAvailable ?? true);
   const [imageBroken, setImageBroken] = useState(false);
   const { data: categories = [] } = useQuery({
-    queryKey: ['menu-categories', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('menu-categories', tenantId),
     queryFn: () => getMenuCategories(tenantId),
     enabled: Boolean(tenantId),
   });
@@ -217,7 +218,7 @@ export function MenuItemForm({
       return item ? updateMenuItem(item.id, payload) : createMenuItem({ tenantId, ...payload });
     },
     onSuccess: (saved) => {
-      qc.invalidateQueries({ queryKey: ['menu-items'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-items') });
       if (!item && onCreated) {
         toast('success', 'Item created — you can attach modifiers now.');
         onCreated(saved);
@@ -301,7 +302,9 @@ export function MenuItemForm({
                 <Select
                   value={categoryId}
                   onValueChange={setCategoryId}
-                  options={categories.filter((entry) => entry.isActive || entry.id === item?.categoryId).map((entry) => ({ value: entry.id, label: entry.name }))}
+                  options={categories
+                    .filter((entry) => entry.isActive || entry.id === item?.categoryId)
+                    .map((entry) => ({ value: entry.id, label: entry.name }))}
                   ariaLabel="Menu item category"
                   className={selectClass}
                 />
@@ -387,12 +390,7 @@ export function MenuItemForm({
         <section className="bg-band border border-rule rounded-sm p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
             <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Recipe &amp; Cost</p>
-            <Button
-              type="button"
-              size="sm"
-              onClick={onOpenRecipe}
-              className="gap-1.5"
-            >
+            <Button type="button" size="sm" onClick={onOpenRecipe} className="gap-1.5">
               <ChefHat size={14} />
               Edit Recipe
             </Button>

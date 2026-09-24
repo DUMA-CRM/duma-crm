@@ -10,17 +10,18 @@ import { RestockRequestForm } from '@/components/inventory/RestockRequestForm';
 import { StockOverview } from '@/components/inventory/StockOverview';
 import { type PurchaseOrderDraft, PurchaseOrdersPanel } from '@/components/purchasing/PurchaseOrdersPanel';
 import { SuppliersPanel } from '@/components/purchasing/SuppliersPanel';
+import { AttentionList } from '@/components/shared/AttentionList';
 import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { AttentionList } from '@/components/shared/AttentionList';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { StartStocktakeButton, StocktakePanel } from '@/components/stocktakes/StocktakePanel';
 import { Button } from '@/components/ui/button';
 
-import { type PurchaseOrderStatus, getPurchaseOrders, getSuppliers } from '@/lib/api/purchasing.service';
-import { getRecipeGaps } from '@/lib/api/recipes.service';
-import { type RestockRequest, type RestockStatus, getRestockRequests } from '@/lib/api/restock.service';
+import { getRecipeGaps } from '@/lib/modules/inventory/client';
+import { type RestockRequest, type RestockStatus, getRestockRequests } from '@/lib/modules/inventory/client';
+import { type PurchaseOrderStatus, getPurchaseOrders, getSuppliers } from '@/lib/modules/purchasing/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /** Everything inventory: what's on the shelf, what's on order, and counting it. */
@@ -57,13 +58,13 @@ export function InventoryWorkspace() {
   const [poDraft, setPoDraft] = useState<PurchaseOrderDraft | null>(null);
 
   const { data: suppliers = [] } = useQuery({
-    queryKey: ['suppliers'],
+    queryKey: moduleQueryKeys.purchasing.key('suppliers'),
     queryFn: () => getSuppliers(true),
     enabled: !!tenantId,
   });
 
   const recipeGaps = useQuery({
-    queryKey: ['menu-item-recipe-gaps', tenantId],
+    queryKey: moduleQueryKeys.inventory.key('menu-item-recipe-gaps', tenantId),
     queryFn: () => getRecipeGaps(tenantId!),
     enabled: !!tenantId,
   });
@@ -72,17 +73,17 @@ export function InventoryWorkspace() {
   const summaryQueries = useQueries({
     queries: [
       {
-        queryKey: ['restock-requests', 'workspace-summary', 'pending'],
+        queryKey: moduleQueryKeys.inventory.key('restock-requests', 'workspace-summary', 'pending'),
         queryFn: () => getRestockRequests({ status: 'pending', limit: 1 }),
         enabled: !!tenantId,
       },
       {
-        queryKey: ['purchase-orders', 'workspace-summary', locationId, 'submitted'],
+        queryKey: moduleQueryKeys.purchasing.key('purchase-orders', 'workspace-summary', locationId, 'submitted'),
         queryFn: () => getPurchaseOrders({ locationId: locationId!, status: 'submitted', limit: 1 }),
         enabled: !!locationId,
       },
       {
-        queryKey: ['purchase-orders', 'workspace-summary', locationId, 'partially_received'],
+        queryKey: moduleQueryKeys.purchasing.key('purchase-orders', 'workspace-summary', locationId, 'partially_received'),
         queryFn: () => getPurchaseOrders({ locationId: locationId!, status: 'partially_received', limit: 1 }),
         enabled: !!locationId,
       },

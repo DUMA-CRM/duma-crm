@@ -11,8 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { addPaymentConnection } from '@/lib/api/operations.service';
-import { type PaymentMethod, type PaymentProvider, getPaymentMethods } from '@/lib/api/payments.service';
+import { addPaymentConnection } from '@/lib/modules/payments/client';
+import { type PaymentMethod, type PaymentProvider, getPaymentMethods } from '@/lib/modules/payments/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -108,7 +109,7 @@ function useAddPaymentConnection() {
     (provider === 'stripe_online'
       ? Boolean(secret.trim() && webhookSecret.trim())
       : Boolean(secret.trim() && device.trim()) &&
-      (provider !== 'sumup' || Boolean(merchant.trim() && affiliateAppId.trim() && affiliateKey.trim())));
+        (provider !== 'sumup' || Boolean(merchant.trim() && affiliateAppId.trim() && affiliateKey.trim())));
 
   const add = useMutation({
     mutationFn: () =>
@@ -122,15 +123,15 @@ function useAddPaymentConnection() {
           provider === 'stripe_online'
             ? { webhookSecret }
             : provider === 'stripe_terminal'
-            ? { readerId: device }
-            : provider === 'sumup'
-              ? { readerId: device, merchantCode: merchant, affiliateAppId, affiliateKey }
-              : provider === 'square'
-                ? { deviceId: device }
-                : {},
+              ? { readerId: device }
+              : provider === 'sumup'
+                ? { readerId: device, merchantCode: merchant, affiliateAppId, affiliateKey }
+                : provider === 'square'
+                  ? { deviceId: device }
+                  : {},
       }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['payment-methods'] });
+      void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-methods') });
       setAdded(true);
       toast('success', `${displayName.trim()} is ready to take payments.`);
     },
@@ -229,17 +230,37 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
               <Input label="Affiliate key" type="password" value={affiliateKey} onChange={(event) => setAffiliateKey(event.target.value)} />
             </>
           )}
-          {provider !== 'stripe_online' && <Input
-            label="Reader / device ID"
-            value={device}
-            onChange={(event) => setDevice(event.target.value)}
-            hint="Shown next to the reader in your provider’s dashboard."
-          />}
-          <Input label={provider === 'stripe_online' ? 'Stripe secret key' : 'API credential'} type="password" value={secret} onChange={(event) => setSecret(event.target.value)} />
-          {provider === 'stripe_online' && <>
-            <Input label="Webhook signing secret" type="password" value={webhookSecret} onChange={(event) => setWebhookSecret(event.target.value)} hint="Create a Stripe webhook for /v1/qr-ordering/stripe/webhook and paste its whsec_ secret here." />
-            <div className={panelClass}><p className="text-xs text-muted-foreground">Listen for checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.expired, payment_intent.succeeded and payment_intent.payment_failed.</p></div>
-          </>}
+          {provider !== 'stripe_online' && (
+            <Input
+              label="Reader / device ID"
+              value={device}
+              onChange={(event) => setDevice(event.target.value)}
+              hint="Shown next to the reader in your provider’s dashboard."
+            />
+          )}
+          <Input
+            label={provider === 'stripe_online' ? 'Stripe secret key' : 'API credential'}
+            type="password"
+            value={secret}
+            onChange={(event) => setSecret(event.target.value)}
+          />
+          {provider === 'stripe_online' && (
+            <>
+              <Input
+                label="Webhook signing secret"
+                type="password"
+                value={webhookSecret}
+                onChange={(event) => setWebhookSecret(event.target.value)}
+                hint="Create a Stripe webhook for /v1/qr-ordering/stripe/webhook and paste its whsec_ secret here."
+              />
+              <div className={panelClass}>
+                <p className="text-xs text-muted-foreground">
+                  Listen for checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.expired,
+                  payment_intent.succeeded and payment_intent.payment_failed.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className={panelClass}>
@@ -278,7 +299,9 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
             )}
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Location</dt>
-              <dd className="font-medium text-foreground">{provider === 'stripe_online' ? 'Whole workspace' : locationId ? 'This location' : 'All locations'}</dd>
+              <dd className="font-medium text-foreground">
+                {provider === 'stripe_online' ? 'Whole workspace' : locationId ? 'This location' : 'All locations'}
+              </dd>
             </div>
           </dl>
         </div>
@@ -334,7 +357,7 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
 export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void; onAdd: () => void }) {
   const locationId = useWorkspaceStore((state) => state.locationId);
   const { data: methods = [], isLoading } = useQuery({
-    queryKey: ['payment-methods', locationId],
+    queryKey: moduleQueryKeys.payments.key('payment-methods', locationId),
     queryFn: () => getPaymentMethods(locationId!),
     enabled: !!locationId,
   });

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Search } from '@/components/icons';
 import { inputClass } from '@/components/menu/shared';
 
-import type { StockItem } from '@/lib/api/inventory.service';
+import type { StockItem } from '@/lib/modules/inventory/client';
 import { cn } from '@/lib/utils/cn';
 
 /**

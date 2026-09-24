@@ -26,7 +26,6 @@ import {
 } from '@/components/icons';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 
-import { type AuditLog, parseAuditMeta } from '@/lib/api/audit.service';
 import { auditChangeSet, shortId } from '@/lib/audit/change';
 import {
   type AuditStatus,
@@ -41,7 +40,11 @@ import {
   resourceLabel,
   severityClass,
 } from '@/lib/audit/narrative';
+import { type AuditLog, parseAuditMeta } from '@/lib/modules/compliance/client';
 import { cn } from '@/lib/utils/cn';
+
+import { AuditGlyph, auditIcon } from './AuditGlyph';
+import { auditRecordLink } from './auditLinks';
 
 /** Same boxed-annotation construction as the table's status cell. */
 const INSPECTOR_TONE: Record<AuditStatus['tone'], string> = {
@@ -49,9 +52,6 @@ const INSPECTOR_TONE: Record<AuditStatus['tone'], string> = {
   warning: 'border-measured/40 bg-measured/8 text-measured',
   exception: 'border-exception/30 bg-exception/8 text-exception',
 };
-
-import { AuditGlyph, auditIcon } from './AuditGlyph';
-import { auditRecordLink } from './auditLinks';
 
 /**
  * The workbench beside the ledger, ordered by what an auditor asks:

@@ -8,7 +8,8 @@ import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { adjustPoints } from '@/lib/api/customers.service';
+import { adjustPoints } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import type { Customer } from '@/types/customers';
@@ -58,8 +59,8 @@ export function PointsForm({
     mutationFn: () => adjustPoints(customer.id, deltaNum, reason || undefined),
     onSuccess: (updated) => {
       // The timeline shows this adjustment, so it has to be refetched too.
-      void qc.invalidateQueries({ queryKey: ['customer-timeline', customer.id] });
-      void qc.invalidateQueries({ queryKey: ['customer-ledger', customer.id] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-timeline', customer.id) });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-ledger', customer.id) });
       onSaved(updated);
       onClose();
       toast('success', `Points ${deltaNum > 0 ? 'added' : 'removed'} — balance is now ${preview.toLocaleString()}.`);

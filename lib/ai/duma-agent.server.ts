@@ -1,9 +1,9 @@
 import 'server-only';
 
-import { claimAgentApproval, recordAgentTurn } from '@/lib/api/agent-state.service';
-import { ApiError } from '@/lib/api/client';
-import type { StaffProfile } from '@/lib/api/staff.service';
 import { hasCapability } from '@/lib/auth/capabilities';
+import { claimAgentApproval, recordAgentTurn } from '@/lib/modules/agent/client';
+import { ApiError } from '@/lib/modules/core/client';
+import type { StaffProfile } from '@/lib/modules/identity/client';
 
 import { ACTIONS, actionForTool, actionsForCapabilities, resolveSubmission, sealAction } from './agent-actions.server';
 import { asOperatorRequest, calendarAnchors } from './agent-format.ts';

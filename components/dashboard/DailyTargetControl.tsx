@@ -5,7 +5,8 @@ import { useState } from 'react';
 
 import { Target } from '@/components/icons';
 
-import { setLocationDailyTarget } from '@/lib/api/workspace.service';
+import { setLocationDailyTarget } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { formatMoney } from '@/lib/utils/dashboard';
 
 /* Setting today's target from the page that judges you against it.
@@ -23,7 +24,7 @@ export function DailyTargetControl({ locationId, target }: { locationId: string;
     onSuccess: () => {
       setEditing(false);
       setError(null);
-      void queryClient.invalidateQueries({ queryKey: ['locations-accessible'] });
+      void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('locations-accessible') });
     },
     onError: (mutationError) => setError((mutationError as Error).message || 'The target was not saved. Try again.'),
   });

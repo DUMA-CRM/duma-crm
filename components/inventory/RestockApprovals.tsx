@@ -1,6 +1,8 @@
 'use client';
 
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+
 import {
   AlertCircle,
   AlertTriangle,
@@ -14,8 +16,6 @@ import {
   Trash2,
   XCircle,
 } from '@/components/icons';
-import { useState } from 'react';
-
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
-import { getStockItems } from '@/lib/api/inventory.service';
+import { hasCapability } from '@/lib/auth/capabilities';
+import { getStockItems } from '@/lib/modules/inventory/client';
 import {
   type RestockPriority,
   type RestockRequest,
@@ -33,9 +34,9 @@ import {
   encodeNotes,
   getRestockRequests,
   updateRestockRequest,
-} from '@/lib/api/restock.service';
-import { hasCapability } from '@/lib/auth/capabilities';
-import { getLocationsByTenant } from '@/lib/api/workspace.service';
+} from '@/lib/modules/inventory/client';
+import { getLocationsByTenant } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { timeAgo } from '@/lib/utils/format';
 import { useAuthStore } from '@/stores/authStore';
@@ -123,10 +124,7 @@ function RequestRow({
 
   return (
     <div
-      className={cn(
-        'px-4 py-4 border-b border-rule last:border-0 transition-opacity',
-        statusPending && 'opacity-50 pointer-events-none',
-      )}
+      className={cn('px-4 py-4 border-b border-rule last:border-0 transition-opacity', statusPending && 'opacity-50 pointer-events-none')}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
         {/* Icon */}
@@ -293,7 +291,7 @@ export function RestockApprovals({
   const canDelete = hasCapability(capabilities, 'restock:delete');
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ['restock-requests', 'list', activeTab, itemFilter, page],
+    queryKey: moduleQueryKeys.inventory.key('restock-requests', 'list', activeTab, itemFilter, page),
     queryFn: () =>
       getRestockRequests({
         status: activeTab,
@@ -305,18 +303,18 @@ export function RestockApprovals({
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations', tenantId],
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });
   const { data: stockItems = [] } = useQuery({
-    queryKey: ['stock-items'],
+    queryKey: moduleQueryKeys.inventory.key('stock-items'),
     queryFn: getStockItems,
   });
 
   const countQueries = useQueries({
     queries: STATUS_ORDER.map((countStatus) => ({
-      queryKey: ['restock-requests', 'count', countStatus, itemFilter],
+      queryKey: moduleQueryKeys.inventory.key('restock-requests', 'count', countStatus, itemFilter),
       queryFn: () =>
         getRestockRequests({
           status: countStatus,
@@ -333,7 +331,7 @@ export function RestockApprovals({
   >;
 
   const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['restock-requests'] });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('restock-requests') });
   };
 
   const {

@@ -7,10 +7,11 @@ import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import type { AttendanceDay } from '@/lib/api/people-ops.service';
-import { getMyLeaveRequests } from '@/lib/api/people-ops.service';
-import { getMyScheduledShifts } from '@/lib/api/scheduling.service';
-import { getMyShifts } from '@/lib/api/shifts.service';
+import type { AttendanceDay } from '@/lib/modules/people/client';
+import { getMyLeaveRequests } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getMyScheduledShifts } from '@/lib/modules/workforce/client';
+import { getMyShifts } from '@/lib/modules/workforce/client';
 
 import { fmt } from './shared';
 
@@ -48,14 +49,14 @@ export function DayDetailDrawer({ day, onClose, onQuery }: { day: AttendanceDay;
   const comparable = day.status === 'full' || day.status === 'partial' || day.status === 'missed';
 
   const { data: rostered = [] } = useQuery({
-    queryKey: ['my-scheduled-shifts', day.date, day.date],
+    queryKey: moduleQueryKeys.workforce.key('my-scheduled-shifts', day.date, day.date),
     queryFn: () => getMyScheduledShifts({ from: day.date, to: day.date }),
     retry: false,
   });
   // Shared with the rota page's cache; the endpoint returns the whole history,
   // so the day is picked out here rather than round-tripping per date.
-  const { data: allShifts = [] } = useQuery({ queryKey: ['shifts-my'], queryFn: getMyShifts, retry: false });
-  const { data: leaveRequests = [] } = useQuery({ queryKey: ['leave-requests-me'], queryFn: getMyLeaveRequests });
+  const { data: allShifts = [] } = useQuery({ queryKey: moduleQueryKeys.workforce.key('shifts-my'), queryFn: getMyShifts, retry: false });
+  const { data: leaveRequests = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('leave-requests-me'), queryFn: getMyLeaveRequests });
 
   const clocked = allShifts.filter((shift) => localDate(shift.clockedIn) === day.date);
   const leave = leaveRequests.find(
@@ -177,7 +178,11 @@ export function DayDetailDrawer({ day, onClose, onQuery }: { day: AttendanceDay;
  * out, back in, out — with the gaps between them visible, which is usually the
  * thing being queried.
  */
-function ClockTimeline({ shifts }: { shifts: { id: string; clockedIn: string; clockedOut?: string | null; location?: { name: string } | null }[] }) {
+function ClockTimeline({
+  shifts,
+}: {
+  shifts: { id: string; clockedIn: string; clockedOut?: string | null; location?: { name: string } | null }[];
+}) {
   const ordered = [...shifts].sort((a, b) => a.clockedIn.localeCompare(b.clockedIn));
   const totalMinutes = ordered.reduce(
     (sum, shift) => sum + (shift.clockedOut ? (new Date(shift.clockedOut).getTime() - new Date(shift.clockedIn).getTime()) / 60000 : 0),

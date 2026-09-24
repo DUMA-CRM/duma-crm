@@ -15,13 +15,14 @@ import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
 import { Button } from '@/components/ui/button';
 
-import { API_PREFIX, ApiError } from '@/lib/api/client';
-import { getCustomer } from '@/lib/api/customers.service';
-import { getMenuCategories, getMenuItemModifiers, getMenuItems } from '@/lib/api/menu.service';
-import { getTradingSettings } from '@/lib/api/operations.service';
-import { type CreateOrderPayload, createOrder } from '@/lib/api/orders.service';
-import { type PaymentAttempt, type PaymentMethod, confirmPayment, getPaymentMethods, startPayment } from '@/lib/api/payments.service';
-import { clockIn, getMyShifts } from '@/lib/api/shifts.service';
+import { getMenuCategories, getMenuItemModifiers, getMenuItems } from '@/lib/modules/catalog/client';
+import { API_PREFIX, ApiError } from '@/lib/modules/core/client';
+import { getCustomer } from '@/lib/modules/customers/client';
+import { type CreateOrderPayload, createOrder } from '@/lib/modules/ordering/client';
+import { getTradingSettings } from '@/lib/modules/organization/client';
+import { type PaymentAttempt, type PaymentMethod, confirmPayment, getPaymentMethods, startPayment } from '@/lib/modules/payments/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
 import { formatDateTime } from '@/lib/utils/date';
 import { cartItemTotal, selectionKey } from '@/lib/utils/pos';
@@ -119,7 +120,7 @@ export default function POSPage() {
 
   // The POS is locked until the signed-in staff member is clocked in.
   const { data: myShifts = [], isLoading: shiftsLoading } = useQuery({
-    queryKey: ['shifts-my'],
+    queryKey: moduleQueryKeys.workforce.key('shifts-my'),
     queryFn: getMyShifts,
     enabled: !!tenantId && !!locationId,
   });
@@ -128,7 +129,7 @@ export default function POSPage() {
   const { mutate: doClockIn, isPending: clockingIn } = useMutation({
     mutationFn: () => clockIn({ locationId: locationId! }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['shifts-my'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts-my') });
       addToast('success', 'Clocked in — the POS is unlocked.');
     },
     onError: (err) => addToast('error', (err as Error).message || 'You weren’t clocked in. Try again before taking orders.'),
@@ -137,13 +138,13 @@ export default function POSPage() {
   // The menu changes rarely — keep it fresh for 5 minutes to avoid refetch storms.
   const MENU_STALE_MS = 5 * 60_000;
   const { data: apiItems = [], isLoading: itemsLoading } = useQuery({
-    queryKey: ['menu-items', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId),
     queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: !!tenantId,
     staleTime: MENU_STALE_MS,
   });
   const { data: menuCategories = [] } = useQuery({
-    queryKey: ['menu-categories', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('menu-categories', tenantId),
     queryFn: () => getMenuCategories(tenantId ?? undefined),
     enabled: Boolean(tenantId),
     staleTime: MENU_STALE_MS,
@@ -157,7 +158,7 @@ export default function POSPage() {
   // at POS startup. Results remain cached, so repeat taps are immediate.
   const modifierQueries = useQueries({
     queries: apiItems.map((item) => ({
-      queryKey: ['menu-item-modifiers', item.id],
+      queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', item.id),
       queryFn: () => getMenuItemModifiers(item.id),
       enabled: selectedItem?.id === item.id,
       staleTime: MENU_STALE_MS,
@@ -233,7 +234,7 @@ export default function POSPage() {
 
     try {
       const modifiers = await qc.fetchQuery({
-        queryKey: ['menu-item-modifiers', item.id],
+        queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', item.id),
         queryFn: () => getMenuItemModifiers(item.id),
         staleTime: MENU_STALE_MS,
       });
@@ -313,12 +314,12 @@ export default function POSPage() {
   }
 
   const { data: configuredPaymentMethods = [] } = useQuery({
-    queryKey: ['payment-methods', locationId],
+    queryKey: moduleQueryKeys.payments.key('payment-methods', locationId),
     queryFn: () => getPaymentMethods(locationId!),
     enabled: !!locationId,
   });
   const { data: tradingSettings } = useQuery({
-    queryKey: ['trading', tenantId],
+    queryKey: moduleQueryKeys.organization.key('trading', tenantId),
     queryFn: () => getTradingSettings(tenantId!),
     enabled: !!tenantId,
   });
@@ -364,10 +365,18 @@ export default function POSPage() {
       setCheckout('verify');
       // Refresh exactly what an order touches — invalidating the whole cache
       // refetched every list in the app after every sale.
-      for (const key of ['orders', 'orders-all', 'location-stock', 'inventory-forecast', 'low-stock-alerts', 'customers']) {
-        void qc.invalidateQueries({ queryKey: [key] });
+      const affectedQueries = [
+        moduleQueryKeys.ordering.key('orders'),
+        moduleQueryKeys.ordering.key('orders-all'),
+        moduleQueryKeys.inventory.key('location-stock'),
+        moduleQueryKeys.inventory.key('inventory-forecast'),
+        moduleQueryKeys.inventory.key('low-stock-alerts'),
+        moduleQueryKeys.customers.key('customers'),
+      ];
+      for (const queryKey of affectedQueries) {
+        void qc.invalidateQueries({ queryKey });
       }
-      if (selectedCustomer) void qc.invalidateQueries({ queryKey: ['customer-visits', selectedCustomer.id] });
+      if (selectedCustomer) void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-visits', selectedCustomer.id) });
     },
     onError: (err, { method, idempotencyKey }) => {
       // Queue when the API never really answered: fetch/abort failures, and
@@ -565,7 +574,8 @@ export default function POSPage() {
                   <div className="mt-2 space-y-1 border-t border-rule/50 pt-2">
                     {recentSyncs.map((record) => (
                       <p key={record.queueId}>
-                        Order {record.orderId.slice(0, 8)} · queued {formatDateTime(record.queuedAt)} · synced {formatDateTime(record.syncedAt)}
+                        Order {record.orderId.slice(0, 8)} · queued {formatDateTime(record.queuedAt)} · synced{' '}
+                        {formatDateTime(record.syncedAt)}
                       </p>
                     ))}
                   </div>

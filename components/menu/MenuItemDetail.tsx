@@ -5,15 +5,16 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { ChefHat, Loader2, UtensilsCrossed } from '@/components/icons';
+import { DeleteMenuItemButton } from '@/components/menu/DeleteMenuItemButton';
 import { MenuItemForm } from '@/components/menu/MenuItemForm';
 import { RecipeEditor } from '@/components/menu/RecipeEditorPage';
-import { DeleteMenuItemButton } from '@/components/menu/DeleteMenuItemButton';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 
-import { getMenuItems } from '@/lib/api/menu.service';
+import { getMenuItems } from '@/lib/modules/catalog/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const MENU_ITEM_FORM_ID = 'menu-item-detail-form';
@@ -42,7 +43,7 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
   const [dirty, setDirty] = useState(false);
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ['menu-items', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId),
     queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: !!tenantId,
   });

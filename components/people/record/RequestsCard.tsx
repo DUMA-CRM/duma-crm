@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Badge } from '@/components/ui/badge';
 
-import type { HelpdeskTicket } from '@/lib/api/people-ops.service';
+import type { HelpdeskTicket } from '@/lib/modules/people/client';
 import { formatDate } from '@/lib/utils/date';
 import { openTicketsFor } from '@/lib/utils/employee-record';
 

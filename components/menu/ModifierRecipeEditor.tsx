@@ -5,7 +5,8 @@ import { RecipeTotals } from '@/components/menu/RecipeTotals';
 import { type SizeColumn, useRecipeDraft } from '@/components/menu/useRecipeDraft';
 import { Button } from '@/components/ui/button';
 
-import { getModifierRecipe, setModifierRecipe } from '@/lib/api/recipes.service';
+import { getModifierRecipe, setModifierRecipe } from '@/lib/modules/inventory/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 
 interface ModifierRecipeEditorProps {
   modifierId: string;
@@ -23,7 +24,7 @@ interface ModifierRecipeEditorProps {
  */
 export function ModifierRecipeEditor({ modifierId, sizes }: ModifierRecipeEditorProps) {
   const recipe = useRecipeDraft({
-    queryKey: ['modifier-recipe', modifierId],
+    queryKey: moduleQueryKeys.inventory.key('modifier-recipe', modifierId),
     fetchLines: () => getModifierRecipe(modifierId),
     saveLines: (lines) => setModifierRecipe(modifierId, lines),
     sizes: sizes.filter((s) => s.id !== modifierId),

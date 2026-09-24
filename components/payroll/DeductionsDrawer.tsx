@@ -8,7 +8,8 @@ import { Drawer } from '@/components/shared/Drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { type PayrollRun, type PayrollRunLine, lineIsComplete, setPayrollLineDeductions } from '@/lib/api/payroll.service';
+import { type PayrollRun, type PayrollRunLine, lineIsComplete, setPayrollLineDeductions } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/stores/toastStore';
 
 import { money } from './shared';
@@ -72,7 +73,7 @@ export function DeductionsDrawer({ run, line, onClose }: { run: PayrollRun; line
         netPay: form.netPay.trim(),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['payroll-runs'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('payroll-runs') });
       toast('success', `Deductions recorded for ${line.employeeName ?? 'this employee'}.`);
       onClose();
     },

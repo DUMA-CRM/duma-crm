@@ -9,8 +9,14 @@ import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { type ModuleChangePreview, changeTenantModule, getTenantModules, previewTenantModuleChange } from '@/lib/api/modules.service';
 import { CRM_MODULE_MANIFESTS, type ModuleId } from '@/lib/modules/manifest';
+import {
+  type ModuleChangePreview,
+  changeTenantModule,
+  getTenantModules,
+  previewTenantModuleChange,
+} from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -78,8 +84,8 @@ function ModuleChangeDialog({ preview, onClose }: { preview: ModuleChangePreview
     mutationFn: () => changeTenantModule(tenantId, preview, reason.trim()),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['tenant-modules', tenantId] }),
-        queryClient.invalidateQueries({ queryKey: ['current-tenant-modules', tenantId] }),
+        queryClient.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenant-modules', tenantId) }),
+        queryClient.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId) }),
       ]);
       toast('success', `${nameOf(preview.moduleId)} ${isDisabling ? 'disabled' : 'enabled'}.`);
       onClose();
@@ -213,7 +219,7 @@ export function ModuleManagement() {
     onError: (error) => toast('error', error instanceof Error ? error.message : 'The change preview could not be loaded.'),
   });
   const modules = useQuery({
-    queryKey: ['tenant-modules', tenantId],
+    queryKey: moduleQueryKeys.organization.key('tenant-modules', tenantId),
     queryFn: () => getTenantModules(tenantId!),
     enabled: Boolean(tenantId),
   });

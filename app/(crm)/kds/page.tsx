@@ -26,10 +26,11 @@ import {
   getOrder,
   getOrders,
   updateOrderStatus,
-} from '@/lib/api/orders.service';
+} from '@/lib/modules/ordering/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { chime } from '@/lib/utils/chime';
-import { CRASH_MINS, ageState, stageSince, type AgeState } from '@/lib/utils/kitchen-age';
 import { cn } from '@/lib/utils/cn';
+import { type AgeState, CRASH_MINS, ageState, stageSince } from '@/lib/utils/kitchen-age';
 import { useKdsStore } from '@/stores/kdsStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -77,7 +78,8 @@ function orderQueryKey(locationId: string, status: OrderStatus) {
 
 async function getLaneOrders(locationId: string, status: OrderStatus): Promise<OrdersResponse> {
   const firstPage = await getOrders({ page: 1, limit: 100, locationId, status, paymentStatus: 'paid' });
-  const released = (orders: Order[]) => orders.filter((order) => !order.kitchenReleaseAt || new Date(order.kitchenReleaseAt).getTime() <= Date.now());
+  const released = (orders: Order[]) =>
+    orders.filter((order) => !order.kitchenReleaseAt || new Date(order.kitchenReleaseAt).getTime() <= Date.now());
   if (firstPage.pages <= 1) return { ...firstPage, data: released(firstPage.data), total: released(firstPage.data).length };
 
   const remainingPages = await Promise.all(
@@ -163,7 +165,13 @@ function KdsCard({
             #{orderNumber}
           </p>
           <span className="mt-1 flex items-center gap-1.5 text-label font-semibold uppercase tracking-label text-muted-foreground">
-            {order.source === 'pos' ? <Monitor size={13} aria-hidden="true" /> : order.source === 'qr_code' ? <QrCode size={13} aria-hidden="true" /> : <Smartphone size={13} aria-hidden="true" />}
+            {order.source === 'pos' ? (
+              <Monitor size={13} aria-hidden="true" />
+            ) : order.source === 'qr_code' ? (
+              <QrCode size={13} aria-hidden="true" />
+            ) : (
+              <Smartphone size={13} aria-hidden="true" />
+            )}
             {order.source === 'pos' ? 'POS' : order.source === 'qr_code' ? 'QR code' : 'Mobile'}
           </span>
         </div>
@@ -316,7 +324,7 @@ export default function KdsPage() {
 
   const detailQueries = useQueries({
     queries: live.map((order) => ({
-      queryKey: ['order', order.id],
+      queryKey: moduleQueryKeys.ordering.key('order', order.id),
       queryFn: () => getOrder(order.id),
       enabled: !Array.isArray(order.items),
       staleTime: 10 * 60_000,
@@ -354,7 +362,7 @@ export default function KdsPage() {
       setPendingIds((current) => new Set(current).add(id));
       if (!locationId) return {};
 
-      await queryClient.cancelQueries({ queryKey: ['kds-orders', locationId] });
+      await queryClient.cancelQueries({ queryKey: moduleQueryKeys.ordering.key('kds-orders', locationId) });
 
       let previous: Order | undefined;
       for (const status of LIVE_STATUSES) {
@@ -419,11 +427,11 @@ export default function KdsPage() {
         next.delete(variables.id);
         return next;
       });
-      queryClient.invalidateQueries({ queryKey: ['kds-orders'] });
-      queryClient.invalidateQueries({ queryKey: ['orders-all'] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory-overview'] });
-      queryClient.invalidateQueries({ queryKey: ['location-stock'] });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('kds-orders') });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders-all') });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders') });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('inventory-overview') });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('location-stock') });
     },
   });
 

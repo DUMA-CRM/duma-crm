@@ -9,7 +9,7 @@ import { ServiceWorkerRegistrar } from '@/components/providers/ServiceWorkerRegi
 import { LoadingToast } from '@/components/shared/LoadingToast';
 import { GlobalToaster } from '@/components/shared/Toast';
 
-import { ApiError } from '@/lib/api/client';
+import { ApiError } from '@/lib/modules/core/client';
 import { toast } from '@/stores/toastStore';
 
 function queryErrorMessage(error: unknown) {

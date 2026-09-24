@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { Input } from '@/components/ui/input';
 
-import { requestPasswordReset } from '@/lib/api/auth.service';
+import { requestPasswordReset } from '@/lib/modules/identity/client';
 
 export default function Page() {
   const [email, setEmail] = useState('');
@@ -37,7 +37,11 @@ export default function Page() {
             Check your inbox. If an account exists for that email, its reset link is on the way.
           </p>
         )}
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <Input label="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <button disabled={loading} className="h-10 w-full rounded-sm bg-primary text-sm font-semibold text-white">
           {loading ? 'Sending…' : 'Send reset link'}

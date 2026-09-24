@@ -6,8 +6,7 @@
 // work summed together pays that work twice. One survives, the other is set
 // aside — so the only real decision is which, and that is what this decides.
 // ---------------------------------------------------------------------------
-
-import type { PayrollRun } from '@/lib/api/payroll.service';
+import type { PayrollRun } from '@/lib/modules/people/client';
 
 /** A period, and every run anyone has taken of it. */
 export interface PeriodGroup {

@@ -13,7 +13,8 @@ import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 
-import { createModifierGroup, getModifierGroups, getModifiers, updateModifier } from '@/lib/api/menu.service';
+import { createModifierGroup, getModifierGroups, getModifiers, updateModifier } from '@/lib/modules/catalog/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { formatMoney } from '@/lib/utils/dashboard';
 import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import { toast } from '@/stores/toastStore';
@@ -40,12 +41,12 @@ export function ModifiersWorkspace() {
   const [groupIsSize, setGroupIsSize] = useState(false);
 
   const { data: modifiers = [], isLoading } = useQuery({
-    queryKey: ['modifiers', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('modifiers', tenantId),
     queryFn: () => getModifiers(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: groups = [] } = useQuery({
-    queryKey: ['modifier-groups', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('modifier-groups', tenantId),
     queryFn: () => getModifierGroups(tenantId ?? undefined),
     enabled: Boolean(tenantId),
   });
@@ -54,7 +55,7 @@ export function ModifiersWorkspace() {
     onSuccess: () => {
       setGroupName('');
       setGroupIsSize(false);
-      void qc.invalidateQueries({ queryKey: ['modifier-groups'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('modifier-groups') });
       toast('success', 'Modifier group created.');
     },
     onError: (error) => toast('error', error.message || 'The modifier group was not created.'),
@@ -62,7 +63,7 @@ export function ModifiersWorkspace() {
 
   const availability = useMutation({
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => updateModifier(id, { isAvailable }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['modifiers'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('modifiers') }),
     onError: (err) => toast('error', err.message || 'Availability wasn’t updated. Try again.'),
   });
 
@@ -154,7 +155,10 @@ export function ModifiersWorkspace() {
               </div>
               <div className="flex flex-wrap gap-1.5 lg:max-w-md">
                 {groups.map((group) => (
-                  <span key={group.id} className="inline-flex items-center gap-1 rounded-sm border border-rule bg-card px-2 py-1 text-xs text-muted-foreground">
+                  <span
+                    key={group.id}
+                    className="inline-flex items-center gap-1 rounded-sm border border-rule bg-card px-2 py-1 text-xs text-muted-foreground"
+                  >
                     {group.isSize && <Scale size={11} aria-hidden="true" />}
                     {group.name} · {group.modifierCount}
                   </span>
@@ -167,12 +171,25 @@ export function ModifiersWorkspace() {
                   createGroup.mutate();
                 }}
               >
-                <Input value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="New group" aria-label="New modifier group name" className="w-40" />
+                <Input
+                  value={groupName}
+                  onChange={(event) => setGroupName(event.target.value)}
+                  placeholder="New group"
+                  aria-label="New modifier group name"
+                  className="w-40"
+                />
                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <input type="checkbox" checked={groupIsSize} onChange={(event) => setGroupIsSize(event.target.checked)} className="accent-primary" />
+                  <input
+                    type="checkbox"
+                    checked={groupIsSize}
+                    onChange={(event) => setGroupIsSize(event.target.checked)}
+                    className="accent-primary"
+                  />
                   Sizes
                 </label>
-                <Button type="submit" size="sm" disabled={!groupName.trim() || createGroup.isPending}>Add group</Button>
+                <Button type="submit" size="sm" disabled={!groupName.trim() || createGroup.isPending}>
+                  Add group
+                </Button>
               </form>
             </div>
           </section>

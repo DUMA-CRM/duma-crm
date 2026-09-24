@@ -11,7 +11,7 @@ test('the orders workspace requires read access, not bulk access', () => {
 });
 
 test('refund controls are unavailable without orders:refund', () => {
-  assert.match(page, /hasCapability\([^;]+, 'orders:refund'\)/);
+  assert.match(page, /hasCapability\(\s*useAuthStore\([^;]+?\),\s*'orders:refund',?\s*\)/);
   assert.match(page, /canRefund && data\.status === 'done'/);
   assert.match(page, /canRefund && showRefund/);
 });

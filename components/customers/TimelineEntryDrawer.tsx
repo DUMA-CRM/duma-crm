@@ -8,11 +8,12 @@ import { Drawer } from '@/components/shared/Drawer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { getEmailDeliveries } from '@/lib/api/email.service';
-import { type OrderStatus, getOrder } from '@/lib/api/orders.service';
+import { getEmailDeliveries } from '@/lib/modules/communications/client';
+import { type OrderStatus, getOrder } from '@/lib/modules/ordering/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { cn } from '@/lib/utils/cn';
 import { formatDateTime } from '@/lib/utils/date';
 import { fmtGbpExact } from '@/lib/utils/format';
-import { cn } from '@/lib/utils/cn';
 import type { TimelineEntry } from '@/types/customers';
 
 /**
@@ -97,7 +98,12 @@ export function TimelineEntryDrawer({ entry, customerId, tenantId, onRetryEmail,
 // ── Order ─────────────────────────────────────────────────────────────────
 
 function OrderDetailBody({ orderId }: { orderId: string }) {
-  const { data: order, isLoading, isError, refetch } = useQuery({ queryKey: ['order', orderId], queryFn: () => getOrder(orderId) });
+  const {
+    data: order,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({ queryKey: moduleQueryKeys.ordering.key('order', orderId), queryFn: () => getOrder(orderId) });
 
   if (isLoading) return <Loading label="Loading the order" />;
   if (isError || !order) return <LoadError what="order" onRetry={() => void refetch()} />;
@@ -156,9 +162,7 @@ function OrderDetailBody({ orderId }: { orderId: string }) {
                 </p>
               )}
               {item.refundStatus && item.refundStatus !== 'none' && (
-                <p className="mt-1 text-xs text-exception">
-                  {item.refundStatus === 'refunded' ? 'Refunded' : 'Partly refunded'}
-                </p>
+                <p className="mt-1 text-xs text-exception">{item.refundStatus === 'refunded' ? 'Refunded' : 'Partly refunded'}</p>
               )}
             </li>
           ))}
@@ -199,7 +203,7 @@ function EmailDetailBody({ entry, customerId, tenantId }: { entry: TimelineEntry
   // There is no single-delivery endpoint, so the customer's deliveries are read
   // and matched by id. Cheap, and already cached by the communications screens.
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['email-deliveries', tenantId, 1, customerId],
+    queryKey: moduleQueryKeys.communications.key('email-deliveries', tenantId, 1, customerId),
     queryFn: () => getEmailDeliveries(tenantId, 1, { customerId, limit: 100 }),
   });
 
@@ -216,7 +220,13 @@ function EmailDetailBody({ entry, customerId, tenantId }: { entry: TimelineEntry
       <div className="flex flex-wrap items-center gap-2">
         <Badge
           variant={
-            entry.status === 'sent' ? 'success' : entry.status === 'failed' ? 'destructive' : entry.status === 'cancelled' ? 'muted' : 'warning'
+            entry.status === 'sent'
+              ? 'success'
+              : entry.status === 'failed'
+                ? 'destructive'
+                : entry.status === 'cancelled'
+                  ? 'muted'
+                  : 'warning'
           }
         >
           {entry.status === 'failed' && <MailX aria-hidden="true" />}
@@ -308,11 +318,7 @@ function PointsDetailBody({ entry }: { entry: TimelineEntry }) {
 
 function ConsentDetailBody({ entry }: { entry: TimelineEntry }) {
   const headline =
-    entry.action === 'opted_in'
-      ? 'Opted in to marketing'
-      : entry.action === 'opted_out'
-        ? 'Opted out of marketing'
-        : 'Address suppressed';
+    entry.action === 'opted_in' ? 'Opted in to marketing' : entry.action === 'opted_out' ? 'Opted out of marketing' : 'Address suppressed';
 
   return (
     <div className="space-y-5">

@@ -11,15 +11,16 @@ import { WorkspaceReadinessChecklist } from '@/components/settings/workspaces/Wo
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Button } from '@/components/ui/button';
 
-import type { StaffRole } from '@/lib/api/staff.service';
-import { getResolvedDashboardLayout } from '@/lib/api/workspace-composition.service';
 import { ANALYTICS_WIDGET_KEYS, LAUNCH_WIDGET_KEYS } from '@/lib/dashboard/widget-registry';
+import type { StaffRole } from '@/lib/modules/identity/client';
+import { getResolvedDashboardLayout } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 export function ResolvedDashboard({ role }: { role: StaffRole }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const layout = useQuery({
-    queryKey: ['dashboard-layout', 'resolved', tenantId],
+    queryKey: moduleQueryKeys.organization.key('dashboard-layout', 'resolved', tenantId),
     queryFn: () => getResolvedDashboardLayout(tenantId),
     enabled: !!tenantId,
   });

@@ -1,15 +1,18 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Boxes, PackageSearch, ReceiptText, RefreshCw, UsersRound } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
+import { AlertTriangle, Boxes, PackageSearch, ReceiptText, RefreshCw, UsersRound } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { StatCard, StatCardGrid, comparisonDelta } from '@/components/shared/StatCard';
 import { Button } from '@/components/ui/button';
 
+import { serverCache } from '@/lib/api/cache-policy';
+import { useVatContext } from '@/lib/hooks/useVatContext';
+import { computeCosting } from '@/lib/menu/costing';
 import {
   type AnalyticsRangeParams,
   type StaffHoursAnalytics,
@@ -17,21 +20,19 @@ import {
   getStaffHours,
   getStockSummary,
   getTopItems,
-} from '@/lib/api/analytics.service';
-import { getInventoryForecast, getStockItems } from '@/lib/api/inventory.service';
-import { getLossLog } from '@/lib/api/loss.service';
-import { type PurchaseOrder, getPurchaseOrders } from '@/lib/api/purchasing.service';
-import { getMenuItems } from '@/lib/api/menu.service';
-import { getMenuItemRecipe } from '@/lib/api/recipes.service';
-import { getVariance } from '@/lib/api/scheduling.service';
-import { getLocations } from '@/lib/api/workspace.service';
-import { useVatContext } from '@/lib/hooks/useVatContext';
-import { computeCosting } from '@/lib/menu/costing';
+} from '@/lib/modules/analytics/client';
+import { getMenuItems } from '@/lib/modules/catalog/client';
+import { getInventoryForecast, getStockItems } from '@/lib/modules/inventory/client';
+import { getLossLog } from '@/lib/modules/inventory/client';
+import { getMenuItemRecipe } from '@/lib/modules/inventory/client';
+import { getLocations } from '@/lib/modules/organization/client';
+import { type PurchaseOrder, getPurchaseOrders } from '@/lib/modules/purchasing/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getVariance } from '@/lib/modules/workforce/client';
 import type { BusinessReportSection } from '@/lib/utils/business-reports';
 import { cn } from '@/lib/utils/cn';
 import { formatCompact, formatMoney, orderMetrics } from '@/lib/utils/dashboard';
 import { previousDateRange, reportDateRange, shortDateLabel, trailingDateRange } from '@/lib/utils/reporting';
-import { serverCache } from '@/lib/api/cache-policy';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const panel = 'rounded-sm border border-rule bg-card shadow-sm';
@@ -114,27 +115,37 @@ interface ReportContext {
 
 function LabourReport({ context }: { context: ReportContext }) {
   const currentHours = useQuery({
-    queryKey: ['report-labour-hours', context.dates.from, context.dates.to, context.locationId],
+    queryKey: moduleQueryKeys.analytics.key('report-labour-hours', context.dates.from, context.dates.to, context.locationId),
     queryFn: () => getStaffHours(context.current),
     ...serverCache('staffHours'),
   });
   const previousHours = useQuery({
-    queryKey: ['report-labour-hours-previous', context.previousDates.from, context.previousDates.to, context.locationId],
+    queryKey: moduleQueryKeys.analytics.key(
+      'report-labour-hours-previous',
+      context.previousDates.from,
+      context.previousDates.to,
+      context.locationId,
+    ),
     queryFn: () => getStaffHours(context.previous),
     ...serverCache('staffHours'),
   });
   const currentOrders = useQuery({
-    queryKey: ['report-labour-orders', context.dates.from, context.dates.to, context.locationId],
+    queryKey: moduleQueryKeys.analytics.key('report-labour-orders', context.dates.from, context.dates.to, context.locationId),
     queryFn: () => getOrderAnalytics(context.current),
     ...serverCache('orders'),
   });
   const previousOrders = useQuery({
-    queryKey: ['report-labour-orders-previous', context.previousDates.from, context.previousDates.to, context.locationId],
+    queryKey: moduleQueryKeys.analytics.key(
+      'report-labour-orders-previous',
+      context.previousDates.from,
+      context.previousDates.to,
+      context.locationId,
+    ),
     queryFn: () => getOrderAnalytics(context.previous),
     ...serverCache('orders'),
   });
   const variance = useQuery({
-    queryKey: ['report-labour-variance', context.dates.from, context.dates.to, context.locationId],
+    queryKey: moduleQueryKeys.analytics.key('report-labour-variance', context.dates.from, context.dates.to, context.locationId),
     queryFn: () =>
       getVariance({
         from: context.current.from,
@@ -143,7 +154,12 @@ function LabourReport({ context }: { context: ReportContext }) {
       }),
   });
   const previousVariance = useQuery({
-    queryKey: ['report-labour-variance-previous', context.previousDates.from, context.previousDates.to, context.locationId],
+    queryKey: moduleQueryKeys.analytics.key(
+      'report-labour-variance-previous',
+      context.previousDates.from,
+      context.previousDates.to,
+      context.locationId,
+    ),
     queryFn: () =>
       getVariance({
         from: context.previous.from,
@@ -298,23 +314,28 @@ function LabourReport({ context }: { context: ReportContext }) {
 
 function InventoryReport({ context }: { context: ReportContext }) {
   const summary = useQuery({
-    queryKey: ['report-stock-summary', context.dates.from, context.dates.to, context.locationId],
+    queryKey: moduleQueryKeys.inventory.key('report-stock-summary', context.dates.from, context.dates.to, context.locationId),
     queryFn: () => getStockSummary(context.current),
     ...serverCache('stockSummary'),
   });
   const previousSummary = useQuery({
-    queryKey: ['report-stock-summary-previous', context.previousDates.from, context.previousDates.to, context.locationId],
+    queryKey: moduleQueryKeys.inventory.key(
+      'report-stock-summary-previous',
+      context.previousDates.from,
+      context.previousDates.to,
+      context.locationId,
+    ),
     queryFn: () => getStockSummary(context.previous),
     ...serverCache('stockSummary'),
   });
-  const stockItems = useQuery({ queryKey: ['stock-items'], queryFn: getStockItems });
+  const stockItems = useQuery({ queryKey: moduleQueryKeys.inventory.key('stock-items'), queryFn: getStockItems });
   const forecast = useQuery({
-    queryKey: ['report-inventory-forecast', context.locationId, context.days],
+    queryKey: moduleQueryKeys.inventory.key('report-inventory-forecast', context.locationId, context.days),
     queryFn: () => getInventoryForecast(context.locationId ?? undefined, context.days),
     ...serverCache('inventoryForecast'),
   });
   const losses = useQuery({
-    queryKey: ['report-losses', context.dates.from, context.dates.to, context.locationId],
+    queryKey: moduleQueryKeys.inventory.key('report-losses', context.dates.from, context.dates.to, context.locationId),
     queryFn: () =>
       getLossLog({
         from: context.current.from,
@@ -508,7 +529,7 @@ function purchaseOrderValue(order: PurchaseOrder) {
 function PurchasingReport({ context }: { context: ReportContext }) {
   const [asOf] = useState(() => Date.now());
   const ordersQuery = useQuery({
-    queryKey: ['report-purchase-orders-all', context.locationId],
+    queryKey: moduleQueryKeys.purchasing.key('report-purchase-orders-all', context.locationId),
     queryFn: () => getAllPurchaseOrders(context.locationId ?? undefined),
   });
   const inPeriod = (order: PurchaseOrder, range: AnalyticsRangeParams) => {
@@ -655,21 +676,21 @@ function ProfitabilityReport({ context }: { context: ReportContext }) {
   const { tenantId } = useWorkspaceStore();
   const { ctx: vat } = useVatContext();
   const topItems = useQuery({
-    queryKey: ['report-profitability-top-items', context.dates.from, context.dates.to, context.locationId],
+    queryKey: moduleQueryKeys.analytics.key('report-profitability-top-items', context.dates.from, context.dates.to, context.locationId),
     queryFn: () => getTopItems(context.current, 25),
     ...serverCache('topItems'),
   });
   // Needed for each item's VAT rate — hot and cold food are rated differently,
   // so a single tenant default would misstate margin per line.
   const menuQuery = useQuery({
-    queryKey: ['menu-items', tenantId, 'report-profitability'],
+    queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId, 'report-profitability'),
     queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const menuById = new Map((menuQuery.data ?? []).map((item) => [item.id, item]));
   const recipeQueries = useQueries({
     queries: (topItems.data ?? []).map((item) => ({
-      queryKey: ['menu-item-recipe', item.menuItemId, 'report-profitability'],
+      queryKey: moduleQueryKeys.inventory.key('menu-item-recipe', item.menuItemId, 'report-profitability'),
       queryFn: () => getMenuItemRecipe(item.menuItemId),
       enabled: topItems.isSuccess,
     })),
@@ -833,7 +854,7 @@ export function BusinessReportPage({ section }: { section: BusinessReportSection
   const router = useRouter();
   const { locationId } = useWorkspaceStore();
   const [days, setDays] = useState(30);
-  const locationsQuery = useQuery({ queryKey: ['locations-accessible'], queryFn: getLocations });
+  const locationsQuery = useQuery({ queryKey: moduleQueryKeys.organization.key('locations-accessible'), queryFn: getLocations });
   const locations = locationsQuery.data ?? [];
   const selectedLocation = locations.find((location) => location.id === locationId);
   const activeLocationId = selectedLocation?.id ?? null;

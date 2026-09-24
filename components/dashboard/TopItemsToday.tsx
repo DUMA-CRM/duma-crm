@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 import { ArrowRight, Coffee } from '@/components/icons';
 
-import type { TopItemAnalytics } from '@/lib/api/analytics.service';
+import type { TopItemAnalytics } from '@/lib/modules/analytics/client';
 import { formatMoney } from '@/lib/utils/dashboard';
 
 /* What is actually selling today, ranked by quantity net of refunds. Lifted from

@@ -8,6 +8,15 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
 import {
+  type StaffProfile,
+  type StaffRole,
+  type StaffScope,
+  type UpdateStaffPayload,
+  createStaff,
+  updateStaff,
+} from '@/lib/modules/identity/client';
+import { getRoles } from '@/lib/modules/identity/client';
+import {
   type CreateEmployeePayload,
   type EmploymentType,
   type HrEmployee,
@@ -15,16 +24,8 @@ import {
   createEmployee,
   offboardEmployee,
   updateEmployee,
-} from '@/lib/api/hr.service';
-import {
-  type StaffProfile,
-  type StaffRole,
-  type StaffScope,
-  type UpdateStaffPayload,
-  createStaff,
-  updateStaff,
-} from '@/lib/api/staff.service';
-import { getRoles } from '@/lib/api/roles.service';
+} from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useAuthStore } from '@/stores/authStore';
 
 import { Avatar, EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, SCOPES, inp, lbl, sel, toDateInput } from './shared';
@@ -34,7 +35,7 @@ import { Avatar, EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, SCOPES, inp, lbl, sel, toD
 export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onClose: () => void }) {
   const qc = useQueryClient();
   const actorRole = useAuthStore((state) => state.role);
-  const { data: roleCatalog } = useQuery({ queryKey: ['roles', tenantId], queryFn: () => getRoles(tenantId) });
+  const { data: roleCatalog } = useQuery({ queryKey: moduleQueryKeys.identity.key('roles', tenantId), queryFn: () => getRoles(tenantId) });
   const roles = (roleCatalog?.roles ?? []).filter((entry) => actorRole === 'super_admin' || entry.key !== 'super_admin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -44,7 +45,7 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
   const { mutate, isPending, error } = useMutation({
     mutationFn: () => createStaff({ name, email, tenantId, role, scope }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['staff'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('staff') });
       onClose();
     },
   });
@@ -141,7 +142,10 @@ export function EditStaffModal({
 }) {
   const qc = useQueryClient();
   const actorRole = useAuthStore((state) => state.role);
-  const { data: roleCatalog } = useQuery({ queryKey: ['roles', member.tenantId], queryFn: () => getRoles(member.tenantId) });
+  const { data: roleCatalog } = useQuery({
+    queryKey: moduleQueryKeys.identity.key('roles', member.tenantId),
+    queryFn: () => getRoles(member.tenantId),
+  });
   const roles = (roleCatalog?.roles ?? []).filter((entry) => actorRole === 'super_admin' || entry.key !== 'super_admin');
   const [role, setRole] = useState<StaffRole>(member.role);
   const [scope, setScope] = useState<StaffScope>(member.scope);
@@ -155,7 +159,7 @@ export function EditStaffModal({
       return updateStaff(member.userId, payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['staff'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('staff') });
       onClose();
     },
   });
@@ -278,7 +282,7 @@ export function EnrollEmployeeModal({ member, onClose }: { member: StaffProfile;
       return createEmployee(payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['hr-employees'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employees') });
       onClose();
     },
   });
@@ -375,7 +379,7 @@ export function EditEmployeeModal({ employee, name, onClose }: { employee: HrEmp
       return updateEmployee(employee.userId, payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['hr-employees'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employees') });
       onClose();
     },
   });
@@ -383,7 +387,7 @@ export function EditEmployeeModal({ employee, name, onClose }: { employee: HrEmp
   const offboard = useMutation({
     mutationFn: () => offboardEmployee(employee.userId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['hr-employees'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employees') });
       onClose();
     },
   });

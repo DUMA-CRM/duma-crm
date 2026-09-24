@@ -1,11 +1,13 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, LogOut } from '@/components/icons';
 
+import { Loader2, LogOut } from '@/components/icons';
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
-import { clockOut } from '@/lib/api/shifts.service';
+
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { clockOut } from '@/lib/modules/workforce/client';
 import { toast } from '@/stores/toastStore';
 
 interface ClockOutDialogProps {
@@ -22,8 +24,15 @@ export function ClockOutDialog({ locationId, onClose, onClockedOut }: ClockOutDi
   const finish = useMutation({
     mutationFn: () => clockOut({ locationId }),
     onSuccess: () => {
-      for (const key of ['shifts', 'location-stock', 'inventory-overview', 'inventory-forecast', 'low-stock-alerts']) {
-        void queryClient.invalidateQueries({ queryKey: [key] });
+      const affectedQueries = [
+        moduleQueryKeys.workforce.key('shifts'),
+        moduleQueryKeys.inventory.key('location-stock'),
+        moduleQueryKeys.inventory.key('inventory-overview'),
+        moduleQueryKeys.inventory.key('inventory-forecast'),
+        moduleQueryKeys.inventory.key('low-stock-alerts'),
+      ];
+      for (const queryKey of affectedQueries) {
+        void queryClient.invalidateQueries({ queryKey });
       }
       toast('success', 'Clocked out. Have a good one!');
       onClockedOut();

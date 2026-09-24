@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { signIn, signOut } from '@/lib/api/auth.service';
+import { signIn, signOut } from '@/lib/modules/identity/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLoginIntroStore } from '@/stores/loginIntroStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';

@@ -3,7 +3,6 @@
 import { ChevronDown } from '@/components/icons';
 import { DataTable, type DataTableColumn, type DataTablePagination } from '@/components/ui/data-table';
 
-import type { AuditLog } from '@/lib/api/audit.service';
 import { type AuditGroup, summariseActors, summariseVerbs } from '@/lib/audit/groups';
 import {
   type AuditStatus,
@@ -18,6 +17,7 @@ import {
   severityClass,
   stampLabel,
 } from '@/lib/audit/narrative';
+import type { AuditLog } from '@/lib/modules/compliance/client';
 import { cn } from '@/lib/utils/cn';
 
 import { AuditGlyph, auditIcon } from './AuditGlyph';

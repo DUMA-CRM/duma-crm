@@ -1,10 +1,10 @@
 import { AlertTriangle, Download } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
-import type { Payslip } from '@/lib/api/people-ops.service';
+import type { Payslip } from '@/lib/modules/people/client';
+import type { AttendanceDay } from '@/lib/modules/people/client';
 import { formatDate } from '@/lib/utils/date';
 import { payPeriodHours, payslipDeductions, payslipReconciles } from '@/lib/utils/my-hr';
-import type { AttendanceDay } from '@/lib/api/people-ops.service';
 
 /**
  * An itemised pay statement, as ERA 1996 s.8 requires one to look: gross at the

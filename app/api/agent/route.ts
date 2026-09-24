@@ -1,11 +1,11 @@
 import { ApprovalError } from '@/lib/ai/action-seal';
-import { consumeAgentBudget, recordAgentTurn } from '@/lib/api/agent-state.service';
 import type { AgentActionSubmission, AgentChatMessage, AgentStreamEvent } from '@/lib/ai/agent-types';
 import type { AgentContext } from '@/lib/ai/duma-agent.server';
 import { CapabilityError, executeConfirmedAction, runDumaAgent } from '@/lib/ai/duma-agent.server';
 import { isAgentProviderPreference } from '@/lib/ai/provider-chain';
-import type { StaffProfile } from '@/lib/api/staff.service';
-import { getMyStaffProfile } from '@/lib/api/staff.service';
+import { consumeAgentBudget, recordAgentTurn } from '@/lib/modules/agent/client';
+import type { StaffProfile } from '@/lib/modules/identity/client';
+import { getMyStaffProfile } from '@/lib/modules/identity/client';
 
 export const runtime = 'nodejs';
 

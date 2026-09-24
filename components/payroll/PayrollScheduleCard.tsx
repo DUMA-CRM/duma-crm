@@ -6,7 +6,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
-import { getPayrollSchedule, savePayrollSchedule } from '@/lib/api/payroll.service';
+import { getPayrollSchedule, savePayrollSchedule } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { formatDate } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 
@@ -28,7 +29,7 @@ const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
  */
 export function PayrollScheduleCard() {
   const qc = useQueryClient();
-  const { data: settings } = useQuery({ queryKey: ['payroll-schedule'], queryFn: getPayrollSchedule });
+  const { data: settings } = useQuery({ queryKey: moduleQueryKeys.people.key('payroll-schedule'), queryFn: getPayrollSchedule });
 
   const [autoFinalise, setAutoFinalise] = useState<boolean>();
   const [period, setPeriod] = useState<'weekly' | 'monthly'>();
@@ -47,7 +48,7 @@ export function PayrollScheduleCard() {
         payrollPayWeekday: Number(payWeekday ?? settings!.payrollPayWeekday),
       }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['payroll-schedule'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('payroll-schedule') });
       toast('success', 'Payroll schedule saved.');
     },
     onError: (error) => toast('error', error instanceof Error ? error.message : 'The payroll schedule wasn’t saved. Try again.'),

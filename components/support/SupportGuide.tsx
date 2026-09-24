@@ -49,10 +49,11 @@ import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { getMyTickets } from '@/lib/api/people-ops.service';
-import type { StaffRole } from '@/lib/api/staff.service';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { ARTICLE_CATEGORIES, SUPPORT_ARTICLES, type SupportArticle } from '@/lib/content/support-articles';
+import type { StaffRole } from '@/lib/modules/identity/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getMyTickets } from '@/lib/modules/support/client';
 
 type GuideTab = 'overview' | 'guides' | 'service' | 'management' | 'people' | 'access' | 'fix' | 'glossary' | 'faq';
 
@@ -894,7 +895,7 @@ function GuideGrid({ topics }: { topics: GuideTopic[] }) {
  * check on a problem has no way in from here — only another way to report it.
  */
 function OpenRequests() {
-  const { data: tickets = [] } = useQuery({ queryKey: ['helpdesk-my'], queryFn: getMyTickets });
+  const { data: tickets = [] } = useQuery({ queryKey: moduleQueryKeys.support.key('helpdesk-my'), queryFn: getMyTickets });
   const open = tickets.filter((ticket) => isOpenStatus(ticket.status));
   if (open.length === 0) return null;
 

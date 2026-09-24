@@ -1,17 +1,10 @@
 'use client';
 
+import '@/components/icons';
+import '@/components/people/shared';
 
-import {
-} from '@/components/icons';
-import {
-} from '@/components/people/shared';
-
-import {
-  getEmployee,
-} from '@/lib/api/hr.service';
-import {
-} from '@/lib/api/people-ops.service';
-
+import { getEmployee } from '@/lib/modules/people/client';
+import '@/lib/modules/people/client';
 
 /* The pieces more than one section of the record needs. */
 
@@ -38,7 +31,6 @@ export function Info({ label, value }: { label: string; value?: string | null })
     </div>
   );
 }
-
 
 // ── The card shell ───────────────────────────────────────────────────────────
 //

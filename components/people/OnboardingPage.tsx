@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
-import { type OnboardPayload, onboardEmployee } from '@/lib/api/onboarding.service';
-import type { StaffRole } from '@/lib/api/staff.service';
-import { getRoles } from '@/lib/api/roles.service';
-import { getLocationsByTenant } from '@/lib/api/workspace.service';
+import { type OnboardPayload, onboardEmployee } from '@/lib/modules/identity/client';
+import type { StaffRole } from '@/lib/modules/identity/client';
+import { getRoles } from '@/lib/modules/identity/client';
+import { getLocationsByTenant } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { ageBasedMinimumWage } from '@/lib/utils/employee-compliance';
 import { useAuthStore } from '@/stores/authStore';
@@ -41,15 +42,15 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
   const actorRole = useAuthStore((state) => state.role);
   const { tenantId } = useWorkspaceStore();
   const { data: roleCatalog } = useQuery({
-    queryKey: ['roles', tenantId],
+    queryKey: moduleQueryKeys.identity.key('roles', tenantId),
     queryFn: () => getRoles(tenantId ?? undefined),
     enabled: !!tenantId,
   });
-  const availableRoles = (roleCatalog?.roles ?? []).filter((role) =>
-    role.key !== 'super_admin' && (actorRole !== 'hr_manager' || role.key !== 'franchise_owner'),
+  const availableRoles = (roleCatalog?.roles ?? []).filter(
+    (role) => role.key !== 'super_admin' && (actorRole !== 'hr_manager' || role.key !== 'franchise_owner'),
   );
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations', tenantId],
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });
@@ -82,8 +83,8 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
       return onboardEmployee(payload);
     },
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['staff'] });
-      qc.invalidateQueries({ queryKey: ['hr-employees'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('staff') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employees') });
       toast('success', `${f.name} onboarded.`);
       onCreated(res.userId);
     },
@@ -289,9 +290,7 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                     onClick={() => set({ payType: p })}
                     className={cn(
                       'flex-1 h-10 rounded-sm border text-sm font-medium transition-colors',
-                      f.payType === p
-                        ? 'border-primary bg-band text-primary'
-                        : 'border-rule text-muted-foreground hover:text-foreground',
+                      f.payType === p ? 'border-primary bg-band text-primary' : 'border-rule text-muted-foreground hover:text-foreground',
                     )}
                   >
                     {PAY_CONFIG[p].label}

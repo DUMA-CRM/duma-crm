@@ -1,6 +1,7 @@
-import type { HrEmployee } from '@/lib/api/hr.service';
-import type { EmployeeDocument } from '@/lib/api/people-ops.service';
-import type { StaffProfile } from '@/lib/api/staff.service';
+import type { StaffProfile } from '@/lib/modules/identity/client';
+import type { HrEmployee } from '@/lib/modules/people/client';
+import type { EmployeeDocument } from '@/lib/modules/people/client';
+
 // Relative, not aliased: the test runner strips types but resolves value
 // imports, and it has no path mapping.
 import { formatDate } from './date.ts';

@@ -8,8 +8,9 @@ import { MonthGrid, monthBounds } from '@/components/shared/AttendanceCalendar';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Button } from '@/components/ui/button';
 
-import { getEmployeeAbsences, getEmployeeAttendance } from '@/lib/api/people-ops.service';
-import { getScheduledShifts } from '@/lib/api/scheduling.service';
+import { getEmployeeAbsences, getEmployeeAttendance } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getScheduledShifts } from '@/lib/modules/workforce/client';
 import { attendanceTotals, mergeAbsenceDays, mergeRosteredDays } from '@/lib/utils/my-hr';
 
 /**
@@ -35,7 +36,7 @@ export function EmployeeAttendanceCard({ userId, canReadRota }: { userId: string
     isError,
     refetch,
   } = useQuery({
-    queryKey: ['employee-attendance', userId, range.from, range.to],
+    queryKey: moduleQueryKeys.people.key('employee-attendance', userId, range.from, range.to),
     queryFn: () => getEmployeeAttendance(userId, range.from, range.to),
   });
 
@@ -44,13 +45,13 @@ export function EmployeeAttendanceCard({ userId, canReadRota }: { userId: string
   // 2026-09-11; without the capability the month simply ends early rather than
   // showing a failed request.
   const { data: roster = [] } = useQuery({
-    queryKey: ['scheduled-shifts', userId, range.from, range.to],
+    queryKey: moduleQueryKeys.workforce.key('scheduled-shifts', userId, range.from, range.to),
     queryFn: () => getScheduledShifts({ userId, from: range.from, to: range.to }),
     enabled: canReadRota,
   });
 
   const { data: absences = [] } = useQuery({
-    queryKey: ['employee-absences', userId],
+    queryKey: moduleQueryKeys.people.key('employee-absences', userId),
     queryFn: () => getEmployeeAbsences(userId),
     retry: false,
   });

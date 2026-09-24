@@ -7,8 +7,9 @@
 // what "open" means, including the late shift that closes after midnight.
 // Relative, not aliased: `node --experimental-strip-types` erases type-only
 // imports but has to resolve value imports for real, and it does not know `@/`.
+import type { DayHours, OpeningHours, Weekday } from '@/lib/modules/organization/client';
+
 import { isWithinHours, zonedNow } from '../ai/agent-format.ts';
-import type { DayHours, OpeningHours, Weekday } from '@/lib/api/workspace.service';
 
 export type DayState =
   /** No hours configured for this location — we can't say when the day starts or ends. */

@@ -29,12 +29,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, type SelectOption } from '@/components/ui/select';
 
-import { type AuditLog, getAuditLogs } from '@/lib/api/audit.service';
-import { getStaff } from '@/lib/api/staff.service';
 import { groupAuditLogs } from '@/lib/audit/groups';
 import { auditActor, auditPhrase, auditRole, auditSeverity, fullTimestamp } from '@/lib/audit/narrative';
 import { COMMON_ACTIONS, actionFilterLabel, actionResource, resourceMeta, resourcePickerOptions } from '@/lib/audit/vocabulary';
 import { hasCapability } from '@/lib/auth/capabilities';
+import { type AuditLog, getAuditLogs } from '@/lib/modules/compliance/client';
+import { getStaff } from '@/lib/modules/identity/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -199,13 +200,13 @@ function AuditLogPageContent() {
     Number(actorId !== 'all') + Number(resourceType !== 'all') + Number(!!resourceId) + Number(datePreset === 'custom' && (!!from || !!to));
 
   const { data: staff = [] } = useQuery({
-    queryKey: ['staff', tenantId],
+    queryKey: moduleQueryKeys.identity.key('staff', tenantId),
     queryFn: () => getStaff(tenantId ?? undefined),
     enabled: canView && !!tenantId,
   });
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ['audit-logs', page, pageSize, action, resourceType, actorId, resourceId, from, to],
+    queryKey: moduleQueryKeys.compliance.key('audit-logs', page, pageSize, action, resourceType, actorId, resourceId, from, to),
     queryFn: () =>
       getAuditLogs({
         page,

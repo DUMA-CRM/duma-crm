@@ -38,15 +38,16 @@ import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { getCustomer, getCustomerLedger, unmergeCustomer } from '@/lib/api/customers.service';
-import { getOrders } from '@/lib/api/orders.service';
-import { getPrivacyRequests } from '@/lib/api/privacy.service';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { TIER_CONFIG } from '@/lib/constants/customers';
-import { formatDate } from '@/lib/utils/date';
+import { getPrivacyRequests } from '@/lib/modules/compliance/client';
+import { getCustomer, getCustomerLedger, unmergeCustomer } from '@/lib/modules/customers/client';
+import { getOrders } from '@/lib/modules/ordering/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
+import { formatDate } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
+import { toast } from '@/stores/toastStore';
 
 type Section = 'guest' | 'timeline' | 'compliance';
 
@@ -98,11 +99,15 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
     [pathname, router, searchParams],
   );
 
-  const { data: customer, isLoading, isError } = useQuery({ queryKey: ['customer', customerId], queryFn: () => getCustomer(customerId) });
+  const {
+    data: customer,
+    isLoading,
+    isError,
+  } = useQuery({ queryKey: moduleQueryKeys.customers.key('customer', customerId), queryFn: () => getCustomer(customerId) });
 
   // Only the visit heatmap needs order rows, and it lives on the Guest tab.
   const { data: ordersData } = useQuery({
-    queryKey: ['customer-visits', customerId],
+    queryKey: moduleQueryKeys.customers.key('customer-visits', customerId),
     queryFn: () => getOrders({ customerId, limit: 200 }),
     enabled: section === 'guest',
   });
@@ -111,7 +116,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   // balance and the ledger disagree, points were written outside a transaction
   // and the number on screen cannot be trusted.
   const { data: ledger } = useQuery({
-    queryKey: ['customer-ledger', customerId],
+    queryKey: moduleQueryKeys.customers.key('customer-ledger', customerId),
     queryFn: () => getCustomerLedger(customerId, 1),
     enabled: hasCapability(capabilities, 'customers:read'),
   });
@@ -119,7 +124,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   // Fetched for the tab badge, not for the panel — an outstanding erasure
   // request is exactly the thing you should not have to open a tab to discover.
   const { data: privacyRequests } = useQuery({
-    queryKey: ['privacy-requests', undefined, customerId],
+    queryKey: moduleQueryKeys.compliance.key('privacy-requests', undefined, customerId),
     queryFn: () => getPrivacyRequests({ customerId }),
   });
 
@@ -135,8 +140,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const unmerge = useMutation({
     mutationFn: () => unmergeCustomer(customerId),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['customer', customerId] });
-      void qc.invalidateQueries({ queryKey: ['customers'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer', customerId) });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customers') });
       setModal(null);
       toast('success', 'Records separated.');
     },
@@ -155,8 +160,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const canMerge = hasCapability(capabilities, 'customers:merge');
 
   function handleSaved() {
-    void qc.invalidateQueries({ queryKey: ['customer', customerId] });
-    void qc.invalidateQueries({ queryKey: ['customers'] });
+    void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer', customerId) });
+    void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customers') });
   }
 
   const name = customer ? `${customer.firstName} ${customer.lastName}` : isLoading ? 'Loading…' : 'Customer';
@@ -195,10 +200,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                 in the masthead so the fact does not vanish when someone is two
                 tabs deep in a timeline — one glyph, not a second copy. */}
             {(hasAllergies || hasCriticalAlert) && (
-              <Badge
-                variant="destructive"
-                title={hasAllergies ? `Allergies: ${customer.allergies!.join(', ')}` : 'Has a critical alert'}
-              >
+              <Badge variant="destructive" title={hasAllergies ? `Allergies: ${customer.allergies!.join(', ')}` : 'Has a critical alert'}>
                 <AlertTriangle aria-hidden="true" />
                 {hasAllergies ? 'Allergies' : 'Critical alert'}
               </Badge>
@@ -241,8 +243,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
             <p className="flex items-start gap-2 rounded-sm border border-rule bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
               <ShieldCheck size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
               <span>
-                This record was erased on {fmtDate(customer.anonymisedAt)} to fulfil a GDPR request. Order history is retained for
-                financial reporting; the personal details are gone and cannot be restored.
+                This record was erased on {fmtDate(customer.anonymisedAt)} to fulfil a GDPR request. Order history is retained for financial
+                reporting; the personal details are gone and cannot be restored.
               </span>
             </p>
           )}
@@ -298,27 +300,9 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                       accent="success"
                       size="sm"
                     />
-                    <StatCard
-                      label="Visits"
-                      value={customer.totalVisits.toLocaleString()}
-                      icon={Repeat}
-                      accent="info"
-                      size="sm"
-                    />
-                    <StatCard
-                      label="Average order"
-                      value={`£${avgTicket.toFixed(0)}`}
-                      icon={Receipt}
-                      accent="warning"
-                      size="sm"
-                    />
-                    <StatCard
-                      label="Points"
-                      value={customer.pointsBalance.toLocaleString()}
-                      icon={Star}
-                      accent="purple"
-                      size="sm"
-                    />
+                    <StatCard label="Visits" value={customer.totalVisits.toLocaleString()} icon={Repeat} accent="info" size="sm" />
+                    <StatCard label="Average order" value={`£${avgTicket.toFixed(0)}`} icon={Receipt} accent="warning" size="sm" />
+                    <StatCard label="Points" value={customer.pointsBalance.toLocaleString()} icon={Star} accent="purple" size="sm" />
                   </StatCardGrid>
 
                   {/* The projection and the ledger disagreeing is a data-integrity
@@ -328,8 +312,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                       <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
                       <span>
                         The points balance ({ledger.pointsBalance.toLocaleString()}) does not match the loyalty ledger (
-                        {ledger.ledgerTotal.toLocaleString()}). Points were changed outside the ledger, or the opening backfill has not
-                        been run.
+                        {ledger.ledgerTotal.toLocaleString()}). Points were changed outside the ledger, or the opening backfill has not been
+                        run.
                       </span>
                     </p>
                   )}

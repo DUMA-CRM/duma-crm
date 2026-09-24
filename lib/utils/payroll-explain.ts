@@ -9,9 +9,8 @@
 // disagrees with the API's, the API is right and this is the bug — which is
 // why `reconciles` exists.
 // ---------------------------------------------------------------------------
-
-import type { TimesheetShift } from '@/lib/api/hr.service';
-import type { PayrollPeriod, PayrollPreviewLine } from '@/lib/api/payroll.service';
+import type { TimesheetShift } from '@/lib/modules/people/client';
+import type { PayrollPeriod, PayrollPreviewLine } from '@/lib/modules/people/client';
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 

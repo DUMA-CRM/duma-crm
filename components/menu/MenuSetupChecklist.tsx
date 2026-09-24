@@ -6,8 +6,9 @@ import Link from 'next/link';
 import { Check, Package, SlidersHorizontal, UtensilsCrossed } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
-import { getStockItems } from '@/lib/api/inventory.service';
-import { getModifiers } from '@/lib/api/menu.service';
+import { getModifiers } from '@/lib/modules/catalog/client';
+import { getStockItems } from '@/lib/modules/inventory/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -26,9 +27,9 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 export function MenuSetupChecklist() {
   const { tenantId } = useWorkspaceStore();
 
-  const { data: stockItems = [] } = useQuery({ queryKey: ['stock-items'], queryFn: getStockItems });
+  const { data: stockItems = [] } = useQuery({ queryKey: moduleQueryKeys.inventory.key('stock-items'), queryFn: getStockItems });
   const { data: modifiers = [] } = useQuery({
-    queryKey: ['modifiers', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('modifiers', tenantId),
     queryFn: () => getModifiers(tenantId ?? undefined),
     enabled: !!tenantId,
   });

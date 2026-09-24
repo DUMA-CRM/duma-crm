@@ -32,13 +32,14 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { getEmployees } from '@/lib/api/hr.service';
-import { getPayrollRuns } from '@/lib/api/payroll.service';
-import { getScheduledShifts, getVariance, publishScheduledShifts } from '@/lib/api/scheduling.service';
-import { type Shift, getActiveShifts, getShifts } from '@/lib/api/shifts.service';
-import { getStaff } from '@/lib/api/staff.service';
-import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { hasCapability } from '@/lib/auth/capabilities';
+import { getStaff } from '@/lib/modules/identity/client';
+import { getLocationsByTenant } from '@/lib/modules/organization/client';
+import { getEmployees } from '@/lib/modules/people/client';
+import { getPayrollRuns } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getScheduledShifts, getVariance, publishScheduledShifts } from '@/lib/modules/workforce/client';
+import { type Shift, getActiveShifts, getShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { reconcileClockEntries } from '@/lib/utils/shift-reconciliation';
@@ -190,17 +191,17 @@ export function ShiftsWorkspace({
   // ── Data ────────────────────────────────────────────────────────────────────
 
   const { data: staff = [] } = useQuery({
-    queryKey: ['staff', tenantId],
+    queryKey: moduleQueryKeys.identity.key('staff', tenantId),
     queryFn: () => getStaff(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations', tenantId],
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });
   const { data: employees = [] } = useQuery({
-    queryKey: ['hr-employees', tenantId],
+    queryKey: moduleQueryKeys.people.key('hr-employees', tenantId),
     queryFn: getEmployees,
     enabled: !!tenantId,
   });
@@ -210,27 +211,31 @@ export function ShiftsWorkspace({
     isError: shiftsError,
     refetch: refetchShifts,
   } = useQuery({
-    queryKey: ['scheduled-shifts', locationId, fromISO, toISO],
+    queryKey: moduleQueryKeys.workforce.key('scheduled-shifts', locationId, fromISO, toISO),
     queryFn: () => getScheduledShifts({ locationId: locationId ?? undefined, from: fromISO, to: toISO }),
     enabled: !!tenantId,
   });
   // Planned-vs-actual, joined into each row by scheduledShiftId.
   const { data: variance = [] } = useQuery({
-    queryKey: ['variance', locationId, fromISO, toISO],
+    queryKey: moduleQueryKeys.workforce.key('variance', locationId, fromISO, toISO),
     queryFn: () => getVariance({ locationId: locationId ?? undefined, from: fromISO, to: toISO }),
     enabled: !!tenantId,
   });
-  const { data: active = [] } = useQuery({ queryKey: ['shifts-active'], queryFn: getActiveShifts, refetchInterval: 60_000 });
+  const { data: active = [] } = useQuery({
+    queryKey: moduleQueryKeys.workforce.key('shifts-active'),
+    queryFn: getActiveShifts,
+    refetchInterval: 60_000,
+  });
   // Exact clock in/out times. store_manager+ on the API — a 403 (hr_manager)
   // just means rows fall back to the variance summary, so keep it quiet.
   const { data: clockRecords = [] } = useQuery({
-    queryKey: ['shifts', locationId],
+    queryKey: moduleQueryKeys.workforce.key('shifts', locationId),
     queryFn: () => getShifts({ locationId: locationId ?? undefined }),
     meta: { silentError: true },
   });
   // Which days are already through payroll.
   const { data: payrollRuns = [] } = useQuery({
-    queryKey: ['payroll-runs'],
+    queryKey: moduleQueryKeys.people.key('payroll-runs'),
     queryFn: getPayrollRuns,
     enabled: money,
     meta: { silentError: true },
@@ -425,7 +430,7 @@ export function ShiftsWorkspace({
   const draftCount = shifts.filter((s) => s.status === 'draft').length;
   const publish = useMutation({
     mutationFn: () => publishScheduledShifts({ locationId: locationId!, from: fromISO, to: toISO }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['scheduled-shifts'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('scheduled-shifts') }),
   });
 
   const filtersActive = !!search || stateFilter !== 'all' || staffFilter !== 'all';

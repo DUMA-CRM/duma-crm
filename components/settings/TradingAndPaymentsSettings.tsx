@@ -4,22 +4,21 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { EditorShell } from '@/components/shared/EditorShell';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
+import { getTradingSettings, saveTradingSettings } from '@/lib/modules/organization/client';
 import {
   addPaymentConnection,
   deletePaymentConnection,
   getPaymentConnections,
-  getTradingSettings,
   setPaymentConnectionActive,
-  saveTradingSettings,
-} from '@/lib/api/operations.service';
-import { Badge } from '@/components/ui/badge';
-
+} from '@/lib/modules/payments/client';
+import type { PaymentProvider } from '@/lib/modules/payments/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import type { PaymentProvider } from '@/lib/api/payments.service';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -28,14 +27,14 @@ export function TradingAndPaymentsSettings() {
     qc = useQueryClient();
   const { tenantId, locationId } = useWorkspaceStore();
   const { data: settings } = useQuery({
-    queryKey: ['trading', tenantId],
+    queryKey: moduleQueryKeys.organization.key('trading', tenantId),
     queryFn: () => getTradingSettings(tenantId!),
     enabled: !!tenantId,
   });
   // Management view: disabled readers included, or one could never be turned
   // back on. The till uses `getPaymentMethods`, which stays filtered to active.
   const { data: methods = [] } = useQuery({
-    queryKey: ['payment-connections', locationId],
+    queryKey: moduleQueryKeys.payments.key('payment-connections', locationId),
     queryFn: () => getPaymentConnections(locationId!),
     enabled: !!locationId,
   });
@@ -43,8 +42,8 @@ export function TradingAndPaymentsSettings() {
   const toggle = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => setPaymentConnectionActive(id, isActive),
     onSuccess: (_, { isActive }) => {
-      void qc.invalidateQueries({ queryKey: ['payment-connections'] });
-      void qc.invalidateQueries({ queryKey: ['payment-methods'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-connections') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-methods') });
       toast('success', isActive ? 'Reader enabled.' : 'Reader disabled — it will no longer be offered at the till.');
     },
     onError: (error) => toast('error', error instanceof Error ? error.message : 'The reader wasn’t updated. Try again.'),
@@ -53,8 +52,8 @@ export function TradingAndPaymentsSettings() {
   const remove = useMutation({
     mutationFn: (id: string) => deletePaymentConnection(id),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['payment-connections'] });
-      void qc.invalidateQueries({ queryKey: ['payment-methods'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-connections') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-methods') });
       toast('success', 'Reader deleted.');
     },
     // The API refuses once a reader has taken payments, and says to disable it
@@ -96,10 +95,11 @@ export function TradingAndPaymentsSettings() {
         pricesIncludeTax: pricesIncludeTax ?? settings!.pricesIncludeTax,
       }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['trading'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('trading') });
       toast('success', 'Trading settings saved.');
     },
-    onError: (error) => toast('error', error instanceof Error ? error.message : 'Trading settings weren’t saved. Review them and try again.'),
+    onError: (error) =>
+      toast('error', error instanceof Error ? error.message : 'Trading settings weren’t saved. Review them and try again.'),
   });
   const add = useMutation({
     mutationFn: () =>
@@ -119,7 +119,7 @@ export function TradingAndPaymentsSettings() {
                 : {},
       }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['payment-methods'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-methods') });
       setName('');
       setSecret('');
       setDevice('');
@@ -128,7 +128,8 @@ export function TradingAndPaymentsSettings() {
       setAffiliateKey('');
       toast('success', 'Payment method added.');
     },
-    onError: (error) => toast('error', error instanceof Error ? error.message : 'The payment method wasn’t added. Review the details and try again.'),
+    onError: (error) =>
+      toast('error', error instanceof Error ? error.message : 'The payment method wasn’t added. Review the details and try again.'),
   });
   return (
     <EditorShell eyebrow="Settings" title="Trading & payments" onClose={() => router.push('/settings/connectors')}>
@@ -219,12 +220,7 @@ export function TradingAndPaymentsSettings() {
                       <span className="block truncate text-xs text-muted-foreground">{method.provider.replaceAll('_', ' ')}</span>
                     </span>
                     {!active && <Badge variant="muted">Disabled</Badge>}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => toggle.mutate({ id: method.id, isActive: !active })}
-                    >
+                    <Button variant="outline" size="sm" disabled={busy} onClick={() => toggle.mutate({ id: method.id, isActive: !active })}>
                       {active ? 'Disable' : 'Enable'}
                     </Button>
                     <Button
@@ -269,7 +265,6 @@ export function TradingAndPaymentsSettings() {
             </Button>
           </div>
         </section>
-
       </div>
     </EditorShell>
   );

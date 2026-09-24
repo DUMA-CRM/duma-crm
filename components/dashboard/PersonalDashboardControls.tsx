@@ -10,7 +10,8 @@ import {
   type ResolvedDashboardLayout,
   publishPersonalDashboardLayout,
   resetPersonalDashboardLayout,
-} from '@/lib/api/workspace-composition.service';
+} from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 
 function orderedKeys(layout: ResolvedDashboardLayout) {
   const visible = layout.widgets.map((widget) => widget.widgetKey);
@@ -26,7 +27,7 @@ export function PersonalDashboardControls({ layout }: { layout: ResolvedDashboar
 
   const byKey = useMemo(() => new Map(layout.availableWidgets.map((widget) => [widget.widgetKey, widget])), [layout.availableWidgets]);
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['dashboard-layout', 'resolved', layout.tenantId] });
+    await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('dashboard-layout', 'resolved', layout.tenantId) });
     setSaved(true);
   };
   const publish = useMutation({

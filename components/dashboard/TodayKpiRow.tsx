@@ -1,9 +1,9 @@
 'use client';
 
-import { ReceiptText, ShoppingBag, RotateCcw, Users } from '@/components/icons';
+import { ReceiptText, RotateCcw, ShoppingBag, Users } from '@/components/icons';
 import { StatCard, StatCardGrid, changeDelta } from '@/components/shared/StatCard';
 
-import type { DayBaseline, LabourAnalytics } from '@/lib/api/analytics.service';
+import type { DayBaseline, LabourAnalytics } from '@/lib/modules/analytics/client';
 import { formatCompact, formatMoney, percentageChange } from '@/lib/utils/dashboard';
 import { MIN_BASELINE_SAMPLES, baselineByMinute } from '@/lib/utils/pace';
 import type { TradingDay } from '@/lib/utils/trading-day';
@@ -88,7 +88,9 @@ export function TodayKpiRow({
         label="Average order"
         value={formatMoney(averageOrderValue, 2)}
         hint={comparable && typicalAov > 0 ? `${formatMoney(typicalAov, 2)} on a typical ${day.weekday}` : 'No comparison available'}
-        delta={comparable && typicalAov > 0 ? changeDelta(percentageChange(averageOrderValue, typicalAov), { label: vsTypical }) : undefined}
+        delta={
+          comparable && typicalAov > 0 ? changeDelta(percentageChange(averageOrderValue, typicalAov), { label: vsTypical }) : undefined
+        }
         icon={ReceiptText}
         accent="purple"
         href="/reports"

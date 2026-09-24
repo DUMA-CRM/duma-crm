@@ -4,29 +4,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import { HelpdeskBoard } from '@/components/helpdesk/HelpdeskBoard';
-import {
-  CalendarCheck,
-  CalendarDays,
-  CircleHelp,
-  FileText,
-  LayoutDashboard,
-  MessageSquarePlus,
-  Pencil,
-  Plus,
-} from '@/components/icons';
+import { CalendarCheck, CalendarDays, CircleHelp, FileText, LayoutDashboard, MessageSquarePlus, Pencil, Plus } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 
-import { getEmployeeBank, getMyEmployee } from '@/lib/api/hr.service';
-import {
-  getMyDocuments,
-  getMyEntitlements,
-  getMyLeaveRequests,
-  getMyPayslips,
-  getMyTickets,
-} from '@/lib/api/people-ops.service';
+import { getEmployeeBank, getMyEmployee } from '@/lib/modules/people/client';
+import { getMyDocuments, getMyEntitlements, getMyLeaveRequests, getMyPayslips, getMyTickets } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type MyHrAction, myHrActions } from '@/lib/utils/my-hr';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -59,15 +45,22 @@ export function MyHrWorkspace() {
   const [ticket, setTicket] = useState<TicketPreset | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
 
-  const { data: employee, isLoading: employeeLoading } = useQuery({ queryKey: ['hr-employee-me'], queryFn: getMyEmployee, retry: false });
-  const { data: entitlements = [] } = useQuery({ queryKey: ['leave-entitlements-me'], queryFn: () => getMyEntitlements() });
-  const { data: requests = [] } = useQuery({ queryKey: ['leave-requests-me'], queryFn: getMyLeaveRequests });
-  const ticketsQuery = useQuery({ queryKey: ['helpdesk-my'], queryFn: getMyTickets });
+  const { data: employee, isLoading: employeeLoading } = useQuery({
+    queryKey: moduleQueryKeys.people.key('hr-employee-me'),
+    queryFn: getMyEmployee,
+    retry: false,
+  });
+  const { data: entitlements = [] } = useQuery({
+    queryKey: moduleQueryKeys.people.key('leave-entitlements-me'),
+    queryFn: () => getMyEntitlements(),
+  });
+  const { data: requests = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('leave-requests-me'), queryFn: getMyLeaveRequests });
+  const ticketsQuery = useQuery({ queryKey: moduleQueryKeys.support.key('helpdesk-my'), queryFn: getMyTickets });
   // Memoised because `?? []` hands back a fresh array every render, which
   // would defeat the `actions` memo below.
   const tickets = useMemo(() => ticketsQuery.data ?? [], [ticketsQuery.data]);
-  const { data: documents = [] } = useQuery({ queryKey: ['documents-me'], queryFn: getMyDocuments });
-  const { data: payslips = [] } = useQuery({ queryKey: ['payslips-me'], queryFn: getMyPayslips, retry: false });
+  const { data: documents = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('documents-me'), queryFn: getMyDocuments });
+  const { data: payslips = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('payslips-me'), queryFn: getMyPayslips, retry: false });
 
   // AI and notifications may deep-link to a specific self-service action. Once
   // the employee record has loaded, open the existing form and consume the
@@ -86,7 +79,7 @@ export function MyHrWorkspace() {
   // refusal means "cannot tell", never "none held" — so nothing downstream is
   // allowed to assert the details are missing.
   const bankQuery = useQuery({
-    queryKey: ['my-bank', employee?.userId],
+    queryKey: moduleQueryKeys.people.key('my-bank', employee?.userId),
     queryFn: () => getEmployeeBank(employee!.userId),
     enabled: !!employee?.userId,
     retry: false,
@@ -234,7 +227,7 @@ export function MyHrWorkspace() {
           selectedId={selectedTicket}
           onSelect={setSelectedTicket}
           onNew={() => setTicket({})}
-          onChanged={() => qc.invalidateQueries({ queryKey: ['helpdesk-my'] })}
+          onChanged={() => qc.invalidateQueries({ queryKey: moduleQueryKeys.support.key('helpdesk-my') })}
           emptyTitle="No requests yet"
           emptyDescription="Ask HR a question, request a document, or query something on your record."
         />
@@ -245,8 +238,8 @@ export function MyHrWorkspace() {
           onClose={() => setLeaveOpen(false)}
           onDone={() => {
             setLeaveOpen(false);
-            qc.invalidateQueries({ queryKey: ['leave-requests-me'] });
-            qc.invalidateQueries({ queryKey: ['leave-entitlements-me'] });
+            qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('leave-requests-me') });
+            qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('leave-entitlements-me') });
           }}
         />
       )}
@@ -256,8 +249,8 @@ export function MyHrWorkspace() {
           onClose={() => setEditOpen(false)}
           onDone={() => {
             setEditOpen(false);
-            qc.invalidateQueries({ queryKey: ['hr-employee-me'] });
-            qc.invalidateQueries({ queryKey: ['my-bank', employee.userId] });
+            qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employee-me') });
+            qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('my-bank', employee.userId) });
           }}
         />
       )}
@@ -270,7 +263,7 @@ export function MyHrWorkspace() {
             setTab('requests');
             // Open the request straight away so the employee lands on what they just raised.
             if (createdId) setSelectedTicket(createdId);
-            qc.invalidateQueries({ queryKey: ['helpdesk-my'] });
+            qc.invalidateQueries({ queryKey: moduleQueryKeys.support.key('helpdesk-my') });
           }}
         />
       )}

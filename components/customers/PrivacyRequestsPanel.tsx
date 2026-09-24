@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
+import { hasCapability } from '@/lib/auth/capabilities';
 import {
   type PrivacyRequest,
   type PrivacyRequestType,
@@ -19,12 +20,12 @@ import {
   getPrivacyRequests,
   privacyExportUrl,
   updatePrivacyRequest,
-} from '@/lib/api/privacy.service';
-import { hasCapability } from '@/lib/auth/capabilities';
-import { formatDate } from '@/lib/utils/date';
+} from '@/lib/modules/compliance/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
+import { formatDate } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
+import { toast } from '@/stores/toastStore';
 
 /**
  * Privacy requests: recording them, working them, and closing them.
@@ -98,19 +99,19 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
     isError,
     refetch,
   } = useQuery({
-    queryKey: ['privacy-requests', tenantId, customerId],
+    queryKey: moduleQueryKeys.compliance.key('privacy-requests', tenantId, customerId),
     queryFn: () => getPrivacyRequests({ tenantId, customerId }),
     enabled: Boolean(tenantId || customerId),
   });
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ['privacy-requests'] });
+  const refresh = () => qc.invalidateQueries({ queryKey: moduleQueryKeys.compliance.key('privacy-requests') });
 
   const create = useMutation({
     mutationFn: () =>
       createPrivacyRequest({ tenantId, customerId: customerId!, type, requestChannel: channel, details: details.trim() || undefined }),
     onSuccess: () => {
       void refresh();
-      if (customerId) void qc.invalidateQueries({ queryKey: ['customer-timeline', customerId] });
+      if (customerId) void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-timeline', customerId) });
       setCreating(false);
       setDetails('');
       toast('success', 'Privacy request recorded.');
@@ -129,8 +130,8 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
     onSuccess: () => {
       void refresh();
       if (customerId) {
-        void qc.invalidateQueries({ queryKey: ['customer', customerId] });
-        void qc.invalidateQueries({ queryKey: ['customer-timeline', customerId] });
+        void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer', customerId) });
+        void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-timeline', customerId) });
       }
       setCompleting(null);
       setResolution('');
@@ -156,12 +157,7 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
 
   return (
     <section className={cn(scoped && 'rounded-sm border border-rule bg-card')} aria-label="Privacy requests">
-      <div
-        className={cn(
-          'flex flex-wrap items-center justify-between gap-3',
-          scoped ? 'border-b border-rule/60 px-4 py-3' : 'px-1',
-        )}
-      >
+      <div className={cn('flex flex-wrap items-center justify-between gap-3', scoped ? 'border-b border-rule/60 px-4 py-3' : 'px-1')}>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className={cn('font-semibold text-foreground', scoped ? 'text-sm' : 'text-lg tracking-title')}>
@@ -169,9 +165,7 @@ export function PrivacyRequestsPanel({ customerId, tenantId }: { customerId?: st
             </h2>
             <Badge variant={openCount ? 'warning' : 'success'}>{openCount} open</Badge>
           </div>
-          {!scoped && (
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Only requests that still need action are shown here.</p>
-          )}
+          {!scoped && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Only requests that still need action are shown here.</p>}
         </div>
         {scoped && (
           <Button variant="outline" size="sm" onClick={() => setCreating(true)}>

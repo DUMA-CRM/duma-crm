@@ -1,9 +1,9 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ChefHat, Flame, Loader2, Pencil, TriangleAlert } from '@/components/icons';
 import { useState } from 'react';
 
+import { ChefHat, Flame, Loader2, Pencil, TriangleAlert } from '@/components/icons';
 import { ModifierRecipeEditor } from '@/components/menu/ModifierRecipeEditor';
 import { RecipeIngredientEditor } from '@/components/menu/RecipeIngredientEditor';
 import { DEFAULT_COL, type SizeColumn, computeRecipeTotals, mergeNutrition, useRecipeDraft } from '@/components/menu/useRecipeDraft';
@@ -12,11 +12,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 
-import { NUTRITION_FIELDS, type NutritionFacts } from '@/lib/api/inventory.service';
-import { getMenuItemModifiers } from '@/lib/api/menu.service';
-import { getMenuItemRecipe, getModifierRecipe, setMenuItemRecipe } from '@/lib/api/recipes.service';
 import { useVatContext } from '@/lib/hooks/useVatContext';
 import { computeCosting } from '@/lib/menu/costing';
+import { getMenuItemModifiers } from '@/lib/modules/catalog/client';
+import { NUTRITION_FIELDS, type NutritionFacts } from '@/lib/modules/inventory/client';
+import { getMenuItemRecipe, getModifierRecipe, setMenuItemRecipe } from '@/lib/modules/inventory/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import type { AttachedModifier } from '@/types/menu';
@@ -46,7 +47,7 @@ function MacroList({ nutrition, missing }: { nutrition: NutritionFacts; missing?
  */
 export function RecipeSummaryChips({ menuItemId, price, vatRate }: { menuItemId: string; price: string; vatRate?: string | null }) {
   const { rows, summary, allAllergens, isLoading, hasIngredients } = useRecipeDraft({
-    queryKey: ['menu-item-recipe', menuItemId],
+    queryKey: moduleQueryKeys.inventory.key('menu-item-recipe', menuItemId),
     fetchLines: () => getMenuItemRecipe(menuItemId),
     saveLines: () => Promise.resolve(),
     sizes: [],
@@ -93,7 +94,7 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
   const { ctx: vat } = useVatContext();
   // Size columns = this item's attached modifiers in the "Size" category.
   const { data: attached = [] } = useQuery({
-    queryKey: ['menu-item-modifiers', menuItemId],
+    queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', menuItemId),
     queryFn: () => getMenuItemModifiers(menuItemId),
   });
   // isSizeModifier reads the real column when the API provides it and only
@@ -103,7 +104,7 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
     .map((m) => ({ id: m.id, label: modifierLabel(m), priceAdjust: m.priceAdjust }));
   const { rows, edit, dirty, isLoading, save, stockItems, itemMap, usedIds, columns, summary, allAllergens, hasIngredients } =
     useRecipeDraft({
-      queryKey: ['menu-item-recipe', menuItemId],
+      queryKey: moduleQueryKeys.inventory.key('menu-item-recipe', menuItemId),
       fetchLines: () => getMenuItemRecipe(menuItemId),
       saveLines: (lines) => setMenuItemRecipe(menuItemId, lines),
       sizes,
@@ -117,7 +118,7 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
   // preview. Cache keys match the modifier editor, so edits reflect instantly.
   const modifierRecipeQueries = useQueries({
     queries: attached.map((m) => ({
-      queryKey: ['modifier-recipe', m.id],
+      queryKey: moduleQueryKeys.inventory.key('modifier-recipe', m.id),
       queryFn: () => getModifierRecipe(m.id),
     })),
   });
@@ -319,9 +320,7 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
                                 aria-pressed={on}
                                 className={cn(
                                   'px-2.5 h-9 rounded-sm border text-xs font-medium transition-colors',
-                                  on
-                                    ? 'border-primary bg-band text-primary'
-                                    : 'border-rule text-muted-foreground hover:text-foreground',
+                                  on ? 'border-primary bg-band text-primary' : 'border-rule text-muted-foreground hover:text-foreground',
                                 )}
                               >
                                 {modifierLabel(m)}

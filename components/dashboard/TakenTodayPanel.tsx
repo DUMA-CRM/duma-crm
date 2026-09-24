@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { DailyTargetControl } from '@/components/dashboard/DailyTargetControl';
 import { ArrowRight, Target, TrendingDown, TrendingUp } from '@/components/icons';
 
-import type { DayBaseline, HourlyVolume } from '@/lib/api/analytics.service';
+import type { DayBaseline, HourlyVolume } from '@/lib/modules/analytics/client';
 import { cn } from '@/lib/utils/cn';
 import { formatMoney } from '@/lib/utils/dashboard';
 import { MIN_BASELINE_SAMPLES, type Pace, type TargetProgress } from '@/lib/utils/pace';
-import { axisHours, axisNowMinutes, axisRange, type TradingDay } from '@/lib/utils/trading-day';
+import { type TradingDay, axisHours, axisNowMinutes, axisRange } from '@/lib/utils/trading-day';
 
 /* The board: what the site has taken today, measured against what a typical
    same-weekday had taken by this exact minute.
@@ -87,12 +87,7 @@ function TodayCurve({
   // figure can never disagree by a rounding of the hour buckets.
   if (showToday) todayPoints.push({ x: nowX, y: takenSoFar });
 
-  const ceiling = Math.max(
-    takenSoFar,
-    hasTypical ? (baseline?.dailyMedianRevenue ?? 0) : 0,
-    target?.target ?? 0,
-    1,
-  );
+  const ceiling = Math.max(takenSoFar, hasTypical ? (baseline?.dailyMedianRevenue ?? 0) : 0, target?.target ?? 0, 1);
   const yAt = (value: number) => 100 - (value / ceiling) * 100;
 
   // At most six ticks, always including the first and last hour of the day.
@@ -352,7 +347,12 @@ export function TakenTodayPanel({
               >
                 {ahead ? <TrendingUp size={13} aria-hidden="true" /> : <TrendingDown size={13} aria-hidden="true" />}
                 {formatMoney(Math.abs(pace.delta))} {ahead ? 'ahead of' : 'behind'} typical
-                {pace.deltaPct !== null && <span className="font-normal">({pace.deltaPct > 0 ? '+' : ''}{pace.deltaPct.toFixed(0)}%)</span>}
+                {pace.deltaPct !== null && (
+                  <span className="font-normal">
+                    ({pace.deltaPct > 0 ? '+' : ''}
+                    {pace.deltaPct.toFixed(0)}%)
+                  </span>
+                )}
               </span>
               {pace.projected !== null && day.state === 'trading' && (
                 <span className="text-xs text-muted-foreground">

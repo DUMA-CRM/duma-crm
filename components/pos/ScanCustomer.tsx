@@ -1,13 +1,13 @@
 'use client';
 
-import { Loader2, ScanLine } from '@/components/icons';
 import { useState } from 'react';
 
+import { Loader2, ScanLine } from '@/components/icons';
 import { QrScanner } from '@/components/pos/QrScanner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { getCustomer } from '@/lib/api/customers.service';
+import { getCustomer } from '@/lib/modules/customers/client';
 import { parseCustomerQr } from '@/lib/utils/customer-qr';
 import { usePosSettingsStore } from '@/stores/posSettingsStore';
 import { Customer } from '@/types/customers';

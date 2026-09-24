@@ -8,7 +8,8 @@ import { createPortal } from 'react-dom';
 import { ArrowRight, Check, ChevronDown, MapPin, Search } from '@/components/icons';
 import { Tooltip } from '@/components/shared/Tooltip';
 
-import { type Location, getLocationsByTenant } from '@/lib/api/workspace.service';
+import { type Location, getLocationsByTenant } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -45,7 +46,7 @@ export function LocationPicker() {
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations', tenantId],
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });

@@ -22,7 +22,8 @@ import {
   createPayrollRun,
   getPayrollPreview,
   getPayrollRuns,
-} from '@/lib/api/payroll.service';
+} from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/stores/toastStore';
 
 import {
@@ -136,7 +137,7 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
   const validRange = Boolean(from && to);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['payroll-preview', period, from, to],
+    queryKey: moduleQueryKeys.people.key('payroll-preview', period, from, to),
     queryFn: () => getPayrollPreview(period, from, to),
     enabled: validRange,
   });
@@ -144,7 +145,7 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
   const finalise = useMutation({
     mutationFn: () => createPayrollRun({ period, periodStart: from, periodEnd: to }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['payroll-runs'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('payroll-runs') });
       toast('success', 'Payroll run finalised.');
       setConfirmOpen(false);
       onFinalised();
@@ -156,7 +157,7 @@ export function RunPayrollPanel({ onFinalised }: { onFinalised: () => void }) {
   // there is no UNIQUE on (tenant, period_start, period_end, period), recorded
   // as a double-payment risk in DB-TD-019. The UI is the only thing that can
   // notice, so it looks.
-  const { data: runs = [] } = useQuery({ queryKey: ['payroll-runs'], queryFn: getPayrollRuns });
+  const { data: runs = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('payroll-runs'), queryFn: getPayrollRuns });
   const existingRun = runs.find((run) => run.periodStart === from && run.periodEnd === to && run.period === period);
 
   const lines = data?.lines ?? [];

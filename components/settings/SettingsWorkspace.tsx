@@ -44,6 +44,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { hasCapability } from '@/lib/auth/capabilities';
+import { MIN_PASSWORD_LENGTH, passwordLengthHint } from '@/lib/auth/password-policy';
+import { useTenants } from '@/lib/hooks/useTenants';
 import {
   type Session,
   changeEmail,
@@ -52,11 +55,9 @@ import {
   listSessions,
   revokeOtherSessions,
   revokeSession,
-} from '@/lib/api/auth.service';
-import { getLocationsByTenant } from '@/lib/api/workspace.service';
-import { hasCapability } from '@/lib/auth/capabilities';
-import { MIN_PASSWORD_LENGTH, passwordLengthHint } from '@/lib/auth/password-policy';
-import { useTenants } from '@/lib/hooks/useTenants';
+} from '@/lib/modules/identity/client';
+import { getLocationsByTenant } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { chime } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
@@ -211,7 +212,7 @@ function SessionsSection() {
   const qc = useQueryClient();
 
   const { data: current } = useQuery({
-    queryKey: ['auth', 'current-session'],
+    queryKey: moduleQueryKeys.identity.key('auth', 'current-session'),
     queryFn: () => getSession(),
   });
   const {
@@ -220,17 +221,17 @@ function SessionsSection() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ['auth', 'sessions'],
+    queryKey: moduleQueryKeys.identity.key('auth', 'sessions'),
     queryFn: listSessions,
   });
 
   const revoke = useMutation({
     mutationFn: (token: string) => revokeSession(token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['auth', 'sessions'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('auth', 'sessions') }),
   });
   const revokeOthers = useMutation({
     mutationFn: revokeOtherSessions,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['auth', 'sessions'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('auth', 'sessions') }),
   });
 
   const currentToken = current?.session.token;
@@ -402,7 +403,7 @@ function PasswordSection() {
       setCurrent('');
       setNext('');
       setConfirm('');
-      void queryClient.invalidateQueries({ queryKey: ['auth'] });
+      void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('auth') });
     },
   });
   return (
@@ -585,7 +586,7 @@ export function SettingsWorkspace({ tab }: { tab: SettingsTab }) {
 
   const { tenants } = useTenants({ enabled: !!tenantId });
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations', tenantId],
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });

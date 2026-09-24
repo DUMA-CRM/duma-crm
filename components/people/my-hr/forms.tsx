@@ -11,16 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
+import { type HrEmployee, updateMyEmployee } from '@/lib/modules/people/client';
+import { type TicketCategory, type TicketPriority, createTicket, getLeaveTypes, submitLeaveRequest } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-
-import { type HrEmployee, updateMyEmployee } from '@/lib/api/hr.service';
-import {
-  type TicketCategory,
-  type TicketPriority,
-  createTicket,
-  getLeaveTypes,
-  submitLeaveRequest,
-} from '@/lib/api/people-ops.service';
 import {
   formatNiNumber,
   formatSortCode,
@@ -133,15 +127,7 @@ const DETAILS_FORM_ID = 'my-hr-details-form';
  * Wrong bank or NI details mean unpaid wages or emergency-rate tax, so their
  * format is checked before submit rather than discovered at payday.
  */
-export function EditDetailsDrawer({
-  employee,
-  onClose,
-  onDone,
-}: {
-  employee: HrEmployee;
-  onClose: () => void;
-  onDone: () => void;
-}) {
+export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrEmployee; onClose: () => void; onDone: () => void }) {
   const [form, setForm] = useState({
     address: employee.address ?? '',
     emergencyContactName: employee.emergencyContactName ?? '',
@@ -162,11 +148,11 @@ export function EditDetailsDrawer({
   const bankComplete = !!form.bankAccountName.trim() && isValidSortCode(form.bankSortCode) && isValidAccountNumber(form.bankAccountNumber);
   const niValid = !form.nationalInsuranceNumber || isValidNiNumber(form.nationalInsuranceNumber);
 
-  const sortCodeError = touched.bankSortCode && form.bankSortCode && !isValidSortCode(form.bankSortCode) ? 'Six digits, e.g. 04-00-04.' : '';
+  const sortCodeError =
+    touched.bankSortCode && form.bankSortCode && !isValidSortCode(form.bankSortCode) ? 'Six digits, e.g. 04-00-04.' : '';
   const accountError =
     touched.bankAccountNumber && form.bankAccountNumber && !isValidAccountNumber(form.bankAccountNumber) ? 'Eight digits.' : '';
-  const niError =
-    touched.nationalInsuranceNumber && !niValid ? 'Two letters, six digits, then a letter A–D. e.g. AB 12 34 56 C.' : '';
+  const niError = touched.nationalInsuranceNumber && !niValid ? 'Two letters, six digits, then a letter A–D. e.g. AB 12 34 56 C.' : '';
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -248,10 +234,7 @@ export function EditDetailsDrawer({
         </section>
 
         <section className="space-y-3 border-t border-rule pt-5">
-          <FieldsetHeading
-            icon={HeartHandshake}
-            title="Emergency contact"
-          />
+          <FieldsetHeading icon={HeartHandshake} title="Emergency contact" />
           <div className="grid gap-3 sm:grid-cols-2">
             <Labelled label="Name">
               <Input value={form.emergencyContactName} onChange={set('emergencyContactName')} />
@@ -280,10 +263,7 @@ export function EditDetailsDrawer({
         </section>
 
         <section className="space-y-3 border-t border-rule pt-5">
-          <FieldsetHeading
-            icon={Landmark}
-            title="Pay details"
-          />
+          <FieldsetHeading icon={Landmark} title="Pay details" />
           <Labelled label="Account holder">
             <Input
               value={form.bankAccountName}
@@ -341,7 +321,7 @@ export function EditDetailsDrawer({
 const LEAVE_FORM_ID = 'my-hr-leave-form';
 
 export function LeaveRequestDrawer({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const { data: types = [] } = useQuery({ queryKey: ['leave-types'], queryFn: getLeaveTypes });
+  const { data: types = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('leave-types'), queryFn: getLeaveTypes });
   const [form, setForm] = useState<Parameters<typeof submitLeaveRequest>[0]>({
     leaveTypeId: '',
     startDate: '',

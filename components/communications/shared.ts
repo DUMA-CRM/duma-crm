@@ -1,5 +1,5 @@
 // Shared constants and label helpers for the Communications feature.
-import type { EmailAutomation, EmailDelivery } from '@/lib/api/email.service';
+import type { EmailAutomation, EmailDelivery } from '@/lib/modules/communications/client';
 
 export const labelClass = 'text-xs font-bold uppercase tracking-widest text-muted-foreground';
 
@@ -126,5 +126,4 @@ export const DEFAULT_TEMPLATE_CATEGORY = 'general';
  * category still reads sensibly and stays editable, rather than disappearing
  * from a list it no longer matches.
  */
-export const templateCategoryLabel = (value: string) =>
-  TEMPLATE_CATEGORIES.find((category) => category.value === value)?.label ?? value;
+export const templateCategoryLabel = (value: string) => TEMPLATE_CATEGORIES.find((category) => category.value === value)?.label ?? value;

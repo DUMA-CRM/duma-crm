@@ -1,10 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Search, Users, X } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
+import { Search, Users, X } from '@/components/icons';
 import { Avatar, EMPLOYMENT_CONFIG, fmtMoney, roleConfig } from '@/components/people/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -14,10 +14,11 @@ import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { type HrEmployee, getEmployees } from '@/lib/api/hr.service';
-import { type StaffProfile, type StaffRole, getStaff } from '@/lib/api/staff.service';
-import { getRoles } from '@/lib/api/roles.service';
 import { hasCapability } from '@/lib/auth/capabilities';
+import { type StaffProfile, type StaffRole, getStaff } from '@/lib/modules/identity/client';
+import { getRoles } from '@/lib/modules/identity/client';
+import { type HrEmployee, getEmployees } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { setupProgress } from '@/lib/utils/employee-compliance';
 import { coreSetupChecks } from '@/lib/utils/staff-overview';
@@ -55,17 +56,21 @@ export function StaffDirectory() {
     isError: staffError,
     refetch: refetchStaff,
   } = useQuery({
-    queryKey: ['staff', tenantId],
+    queryKey: moduleQueryKeys.identity.key('staff', tenantId),
     queryFn: () => getStaff(tenantId ?? undefined),
     enabled: !!tenantId,
   });
-  const { data: employees = [], isError: employeeError, refetch: refetchEmployees } = useQuery({
-    queryKey: ['hr-employees', tenantId],
+  const {
+    data: employees = [],
+    isError: employeeError,
+    refetch: refetchEmployees,
+  } = useQuery({
+    queryKey: moduleQueryKeys.people.key('hr-employees', tenantId),
     queryFn: getEmployees,
     enabled: !!tenantId,
   });
   const { data: roleCatalog } = useQuery({
-    queryKey: ['roles', tenantId],
+    queryKey: moduleQueryKeys.identity.key('roles', tenantId),
     queryFn: () => getRoles(tenantId ?? undefined),
     enabled: !!tenantId,
   });
@@ -100,7 +105,8 @@ export function StaffDirectory() {
   const actionCount = staff.filter((member) => coreProgress(member, empByUser.get(member.userId) ?? null, complianceAsOf) < 100).length;
   const activeCount = staff.filter((s) => s.isActive).length;
 
-  const filtersActive = !!search || roleFilter !== 'all' || statusFilter !== 'active' || departmentFilter !== 'all' || recordFilter !== 'all';
+  const filtersActive =
+    !!search || roleFilter !== 'all' || statusFilter !== 'active' || departmentFilter !== 'all' || recordFilter !== 'all';
 
   function clearFilters() {
     setSearch('');

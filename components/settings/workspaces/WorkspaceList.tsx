@@ -11,8 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { type Tenant, type TenantPayload, changeTenantStatus, createTenant, updateTenant } from '@/lib/api/workspace.service';
 import { useTenants } from '@/lib/hooks/useTenants';
+import { type Tenant, type TenantPayload, changeTenantStatus, createTenant, updateTenant } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -85,8 +86,8 @@ function WorkspaceLifecycleForm({ tenant, onClose }: { tenant: Tenant; onClose: 
   const mutation = useMutation({
     mutationFn: () => changeTenantStatus(tenant.id, status, reason.trim()),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['tenants'] });
-      qc.invalidateQueries({ queryKey: ['locations', tenant.id] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenants') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('locations', tenant.id) });
       onClose();
     },
   });
@@ -178,7 +179,7 @@ export function WorkspaceList() {
   const createMutation = useMutation({
     mutationFn: createTenant,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['tenants'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenants') });
       setModal(null);
     },
   });
@@ -186,7 +187,7 @@ export function WorkspaceList() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<TenantPayload> }) => updateTenant(id, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['tenants'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenants') });
       setModal(null);
     },
   });

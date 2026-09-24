@@ -2,7 +2,7 @@
 
 import { Drawer } from '@/components/shared/Drawer';
 
-import type { EmailDelivery } from '@/lib/api/email.service';
+import type { EmailDelivery } from '@/lib/modules/communications/client';
 
 /**
  * Email preview slide-over — renders an email the way an inbox would. It docks

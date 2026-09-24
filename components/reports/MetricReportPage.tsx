@@ -9,20 +9,21 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { DeltaBadge, StatCard, StatCardGrid, changeDelta } from '@/components/shared/StatCard';
 
+import { serverCache } from '@/lib/api/cache-policy';
 import {
   type DailyOrderAnalytics,
   getCustomerRetention,
   getOrderAnalytics,
   getRevenueByLocation,
   getTopItems,
-} from '@/lib/api/analytics.service';
-import { getOrders } from '@/lib/api/orders.service';
-import { getLocations } from '@/lib/api/workspace.service';
+} from '@/lib/modules/analytics/client';
+import { getOrders } from '@/lib/modules/ordering/client';
+import { getLocations } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { type DashboardRange, formatCompact, formatMoney, getDateWindow, orderMetrics, percentageChange } from '@/lib/utils/dashboard';
 import { formatDate } from '@/lib/utils/date';
 import { type MetricKey, buildMetricDetail } from '@/lib/utils/reports';
-import { serverCache } from '@/lib/api/cache-policy';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ReportTrendChart } from './ReportChart';
@@ -42,7 +43,7 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
   const [range, setRange] = useState<DashboardRange>('30d');
   const [showPrevious, setShowPrevious] = useState(true);
 
-  const locationsQuery = useQuery({ queryKey: ['locations-accessible'], queryFn: getLocations });
+  const locationsQuery = useQuery({ queryKey: moduleQueryKeys.organization.key('locations-accessible'), queryFn: getLocations });
   const locations = locationsQuery.data ?? [];
   const selectedLocation = locations.find((l) => l.id === locationId);
   const activeLocationId = selectedLocation?.id ?? null;
@@ -58,44 +59,44 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
   const ready = locationsQuery.isSuccess;
 
   const currentOrders = useQuery({
-    queryKey: ['analytics-orders', range, scopeKey, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('analytics-orders', range, scopeKey, timeZone),
     queryFn: () => getOrderAnalytics(currentParams()),
     ...serverCache('orders'),
     enabled: ready,
   });
   const previousOrders = useQuery({
-    queryKey: ['analytics-orders-previous', range, scopeKey, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('analytics-orders-previous', range, scopeKey, timeZone),
     queryFn: () => getOrderAnalytics(previousParams()),
     ...serverCache('orders'),
     enabled: ready,
   });
   const retention = useQuery({
-    queryKey: ['analytics-retention', range, scopeKey, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('analytics-retention', range, scopeKey, timeZone),
     queryFn: () => getCustomerRetention(currentParams()),
     ...serverCache('customerRetention'),
     enabled: ready && metric === 'retention',
   });
   const previousRetention = useQuery({
-    queryKey: ['analytics-retention-previous', range, scopeKey, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('analytics-retention-previous', range, scopeKey, timeZone),
     queryFn: () => getCustomerRetention(previousParams()),
     ...serverCache('customerRetention'),
     enabled: ready && metric === 'retention',
   });
   const byLocation = useQuery({
-    queryKey: ['analytics-locations', range, scopeKey, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('analytics-locations', range, scopeKey, timeZone),
     queryFn: () => getRevenueByLocation(currentParams()),
     ...serverCache('revenueByLocation'),
     enabled: ready && !activeLocationId && metric !== 'retention',
   });
   const topItems = useQuery({
-    queryKey: ['analytics-top-items', range, scopeKey, timeZone, 'metric'],
+    queryKey: moduleQueryKeys.analytics.key('analytics-top-items', range, scopeKey, timeZone, 'metric'),
     queryFn: () => getTopItems(currentParams(), 8),
     ...serverCache('topItems'),
     enabled: ready && (metric === 'revenue' || metric === 'orders'),
   });
   const liveOrderQueries = useQueries({
     queries: (['pending', 'preparing', 'ready'] as const).map((status) => ({
-      queryKey: ['orders-live-dashboard', status, scopeKey],
+      queryKey: moduleQueryKeys.ordering.key('orders-live-dashboard', status, scopeKey),
       queryFn: () => getOrders({ status, limit: 10, locationId: activeLocationId ?? undefined }),
       enabled: ready && metric === 'orders',
     })),
@@ -202,7 +203,9 @@ export function MetricReportPage({ metric }: { metric: MetricKey }) {
                 <ReportTrendChart
                   series={[
                     { name: 'Current period', values: currentDaily, tone: 'primary' },
-                    ...(showPrevious ? [{ name: 'Previous period', values: previousDaily, tone: 'comparison' as const, dashed: true }] : []),
+                    ...(showPrevious
+                      ? [{ name: 'Previous period', values: previousDaily, tone: 'comparison' as const, dashed: true }]
+                      : []),
                   ]}
                   labels={dayLabels}
                   formatValue={chartFormat}

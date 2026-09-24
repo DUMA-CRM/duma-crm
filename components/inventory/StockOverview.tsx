@@ -22,6 +22,7 @@ import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 
+import { serverCache } from '@/lib/api/cache-policy';
 import {
   type InventoryForecast,
   type InventoryOverviewRow,
@@ -29,10 +30,10 @@ import {
   getInventoryForecast,
   getInventoryOverview,
   getLocationStock,
-} from '@/lib/api/inventory.service';
+} from '@/lib/modules/inventory/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
-import { serverCache } from '@/lib/api/cache-policy';
 import { toast } from '@/stores/toastStore';
 
 // Last track is the row's chevron — fixed so the header grid and the row grids
@@ -106,24 +107,24 @@ export function StockOverview({
   const [expiryCutoff] = useState(() => Date.now() + 7 * 86400000);
 
   function invalidateStock() {
-    void queryClient.invalidateQueries({ queryKey: ['location-stock', locationId] });
-    void queryClient.invalidateQueries({ queryKey: ['inventory-overview', locationId] });
-    void queryClient.invalidateQueries({ queryKey: ['inventory-forecast', locationId] });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('location-stock', locationId) });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('inventory-overview', locationId) });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('inventory-forecast', locationId) });
   }
 
   const { data: rawStock, isLoading } = useQuery({
-    queryKey: ['location-stock', locationId],
+    queryKey: moduleQueryKeys.inventory.key('location-stock', locationId),
     queryFn: () => getLocationStock(locationId),
   });
 
   const { data: rawForecast } = useQuery({
-    queryKey: ['inventory-forecast', locationId],
+    queryKey: moduleQueryKeys.inventory.key('inventory-forecast', locationId),
     queryFn: () => getInventoryForecast(locationId),
     ...serverCache('inventoryForecast'),
   });
 
   const { data: rawOverview } = useQuery({
-    queryKey: ['inventory-overview', locationId],
+    queryKey: moduleQueryKeys.inventory.key('inventory-overview', locationId),
     queryFn: () => getInventoryOverview(locationId),
   });
 
@@ -174,9 +175,7 @@ export function StockOverview({
 
   const outCount = enriched.filter((s) => s.status === 'out').length;
   const attentionCount = enriched.filter((s) => s.status === 'low' || s.status === 'critical' || s.status === 'out').length;
-  const soonCount = enriched.filter(
-    (s) => s.forecast?.daysOfStockRemaining != null && s.forecast.daysOfStockRemaining <= 7,
-  ).length;
+  const soonCount = enriched.filter((s) => s.forecast?.daysOfStockRemaining != null && s.forecast.daysOfStockRemaining <= 7).length;
   const expiringCount = enriched.filter((s) => s.earliestExpiryDate && new Date(s.earliestExpiryDate).getTime() <= expiryCutoff).length;
 
   const hasFilters = !!search;
@@ -257,10 +256,7 @@ export function StockOverview({
                   <Link
                     key={s.id}
                     href={`/inventory/items/${s.stockItemId}`}
-                    className={cn(
-                      'grid gap-4 border-b border-rule px-4 py-3 transition-colors last:border-0 hover:bg-band',
-                      GRID,
-                    )}
+                    className={cn('grid gap-4 border-b border-rule px-4 py-3 transition-colors last:border-0 hover:bg-band', GRID)}
                   >
                     {/* Item */}
                     <div className="flex min-w-0 items-center gap-2.5">

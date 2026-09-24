@@ -12,8 +12,8 @@ import { TopItemsToday } from '@/components/dashboard/TopItemsToday';
 import { AlertTriangle, ArrowRight, LayoutDashboard } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 
-import type { StaffRole } from '@/lib/api/staff.service';
 import { useTodayDashboard } from '@/lib/hooks/useTodayDashboard';
+import type { StaffRole } from '@/lib/modules/identity/client';
 import { tradingDayLabel } from '@/lib/utils/trading-day';
 
 /* The manager dashboard: today, live, and nothing else.

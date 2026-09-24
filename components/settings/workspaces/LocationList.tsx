@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { useTenants } from '@/lib/hooks/useTenants';
 import {
   type Location,
   type LocationPayload,
@@ -23,8 +24,8 @@ import {
   getLocationsByTenant,
   setLocationActive,
   updateLocation,
-} from '@/lib/api/workspace.service';
-import { useTenants } from '@/lib/hooks/useTenants';
+} from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -279,7 +280,7 @@ export function LocationList() {
     isLoading,
     isSuccess,
   } = useQuery({
-    queryKey: ['locations', tenantId],
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });
@@ -297,7 +298,7 @@ export function LocationList() {
   const createMutation = useMutation({
     mutationFn: createLocation,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['locations', tenantId] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('locations', tenantId) });
       setModal(null);
     },
   });
@@ -305,7 +306,7 @@ export function LocationList() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Omit<LocationPayload, 'tenantId'>> }) => updateLocation(id, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['locations', tenantId] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('locations', tenantId) });
       setModal(null);
     },
   });
@@ -313,7 +314,7 @@ export function LocationList() {
   const deleteMutation = useMutation({
     mutationFn: deleteLocation,
     onSuccess: (_, id) => {
-      qc.invalidateQueries({ queryKey: ['locations', tenantId] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('locations', tenantId) });
       if (locationId === id) setLocationId(null);
       setModal(null);
     },
@@ -322,7 +323,7 @@ export function LocationList() {
   const activeMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => setLocationActive(id, isActive),
     onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ['locations', tenantId] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('locations', tenantId) });
       if (!variables.isActive && locationId === variables.id) setLocationId(null);
     },
   });

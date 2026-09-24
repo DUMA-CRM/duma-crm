@@ -11,9 +11,10 @@ import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Select } from '@/components/ui/select';
 
-import { type EmailDelivery, getEmailDeliveries, retryEmailDelivery } from '@/lib/api/email.service';
-import { formatDateTime } from '@/lib/utils/date';
+import { type EmailDelivery, getEmailDeliveries, retryEmailDelivery } from '@/lib/modules/communications/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { formatDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -82,7 +83,7 @@ export function HistoryPanel({ onPreview }: { onPreview: (delivery: EmailDeliver
   const [search, setSearch] = useState('');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['email-deliveries', tenantId, page],
+    queryKey: moduleQueryKeys.communications.key('email-deliveries', tenantId, page),
     queryFn: () => getEmailDeliveries(tenantId ?? undefined, page),
     enabled: !!tenantId,
     refetchInterval: 15_000,
@@ -90,7 +91,7 @@ export function HistoryPanel({ onPreview }: { onPreview: (delivery: EmailDeliver
   const retry = useMutation({
     mutationFn: (id: string) => retryEmailDelivery(id, tenantId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email-deliveries'] });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-deliveries') });
       toast('success', 'Queued for another attempt.');
     },
     onError: (error) => toast('error', error.message),

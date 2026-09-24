@@ -7,7 +7,8 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { closeCashUp, getCashUps, openCashUp } from '@/lib/api/operations.service';
+import { closeCashUp, getCashUps, openCashUp } from '@/lib/modules/payments/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -16,7 +17,7 @@ export function CashUpPage() {
     qc = useQueryClient();
   const { locationId } = useWorkspaceStore();
   const { data: rows = [] } = useQuery({
-    queryKey: ['cashups', locationId],
+    queryKey: moduleQueryKeys.payments.key('cashups', locationId),
     queryFn: () => getCashUps(locationId!),
     enabled: !!locationId,
   });
@@ -29,7 +30,7 @@ export function CashUpPage() {
   const start = useMutation({
     mutationFn: () => openCashUp({ locationId: locationId!, tradingDate, openingFloat: Number(opening) }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['cashups'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('cashups') });
       toast('success', 'Trading day opened.');
     },
     onError: (error) => toast('error', error instanceof Error ? error.message : 'The trading day wasn’t opened. Try again.'),
@@ -37,10 +38,11 @@ export function CashUpPage() {
   const close = useMutation({
     mutationFn: () => closeCashUp(current!.id, { countedCash: Number(cash), terminalCardTotal: Number(card) }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['cashups'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('cashups') });
       toast('success', 'Cash-up closed and variances recorded.');
     },
-    onError: (error) => toast('error', error instanceof Error ? error.message : 'The cash-up wasn’t closed. Review the figures and try again.'),
+    onError: (error) =>
+      toast('error', error instanceof Error ? error.message : 'The cash-up wasn’t closed. Review the figures and try again.'),
   });
   return (
     <EditorShell eyebrow="Operations" title="Cash-up" onClose={() => router.push('/reports/library')}>

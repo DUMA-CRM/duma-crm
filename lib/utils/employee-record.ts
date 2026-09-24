@@ -9,9 +9,8 @@
 // Pure, so the rules about somebody's employment can be tested without a
 // browser. → UI-ADR-007
 // ---------------------------------------------------------------------------
-
+import type { HelpdeskTicket } from '@/lib/modules/people/client';
 import type { ComplianceCheck } from '@/lib/utils/employee-compliance';
-import type { HelpdeskTicket } from '@/lib/api/people-ops.service';
 
 export type RecordAttentionSeverity = 'blocking' | 'attention' | 'info';
 

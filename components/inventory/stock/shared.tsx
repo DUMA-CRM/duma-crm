@@ -1,5 +1,5 @@
-import type { InventoryCategory, InventoryForecast, LocationStock } from '@/lib/api/inventory.service';
-import type { LossCreateReason, LossReason } from '@/lib/api/loss.service';
+import type { InventoryCategory, InventoryForecast, LocationStock } from '@/lib/modules/inventory/client';
+import type { LossCreateReason, LossReason } from '@/lib/modules/inventory/client';
 import { cn } from '@/lib/utils/cn';
 import { formatDate as formatAppDate } from '@/lib/utils/date';
 

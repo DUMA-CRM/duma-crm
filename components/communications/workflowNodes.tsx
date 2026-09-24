@@ -2,7 +2,7 @@
 
 import { CheckCircle2, Clock, GitCompareArrows, type IconComponent, Send, Zap } from '@/components/icons';
 
-import type { EmailWorkflowNode } from '@/lib/api/email.service';
+import type { EmailWorkflowNode } from '@/lib/modules/communications/client';
 import { cn } from '@/lib/utils/cn';
 
 import { TRIGGER_LABELS } from './shared';
@@ -46,7 +46,13 @@ export function nodeDetail(node: EmailWorkflowNode, templateName?: (id: string) 
     case 'delay':
       return `${node.config.amount} ${node.config.unit}`;
     case 'condition':
-      return node.config.field.split('.').at(-1)?.replaceAll(/([A-Z])/g, ' $1').toLowerCase() ?? 'Condition';
+      return (
+        node.config.field
+          .split('.')
+          .at(-1)
+          ?.replaceAll(/([A-Z])/g, ' $1')
+          .toLowerCase() ?? 'Condition'
+      );
     default:
       return 'Finish';
   }

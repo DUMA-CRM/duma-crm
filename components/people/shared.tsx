@@ -1,7 +1,7 @@
 import { GravatarImage } from '@/components/shared/GravatarImage';
 
-import type { EmploymentType, PayType } from '@/lib/api/hr.service';
-import { type StaffRole, type StaffScope } from '@/lib/api/staff.service';
+import { type StaffRole, type StaffScope } from '@/lib/modules/identity/client';
+import type { EmploymentType, PayType } from '@/lib/modules/people/client';
 import { formatDate } from '@/lib/utils/date';
 
 // ── Role / scope config ───────────────────────────────────────────────────────
@@ -30,12 +30,14 @@ export const ROLES: StaffRole[] = [
   'auditor',
 ];
 export function roleConfig(role: StaffRole, label?: string): RoleAppearance {
-  return ROLE_CONFIG[role] ?? {
-    label: label ?? role.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
-    bg: 'bg-muted',
-    text: 'text-foreground',
-    border: 'border-rule',
-  };
+  return (
+    ROLE_CONFIG[role] ?? {
+      label: label ?? role.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
+      bg: 'bg-muted',
+      text: 'text-foreground',
+      border: 'border-rule',
+    }
+  );
 }
 export const SCOPES: StaffScope[] = ['global', 'franchise', 'location'];
 

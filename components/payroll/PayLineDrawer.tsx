@@ -7,14 +7,14 @@ import { Drawer } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Badge } from '@/components/ui/badge';
 
-import { getEmployeeHours } from '@/lib/api/hr.service';
-import type { PayrollPeriod, PayrollPreviewLine } from '@/lib/api/payroll.service';
+import { getEmployeeHours } from '@/lib/modules/people/client';
+import type { PayrollPeriod, PayrollPreviewLine } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { explainPay, reconciles } from '@/lib/utils/payroll-explain';
 
 import { formatDate, formatRange, hours, money } from './shared';
 
-const time = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
+const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—');
 
 /**
  * How one person's gross pay was arrived at.
@@ -37,13 +37,8 @@ export function PayLineDrawer({
   to: string;
   onClose: () => void;
 }) {
-  const {
-    data,
-    isPending,
-    isError,
-    refetch,
-  } = useQuery({
-    queryKey: ['employee-hours', line.userId, from, to],
+  const { data, isPending, isError, refetch } = useQuery({
+    queryKey: moduleQueryKeys.people.key('employee-hours', line.userId, from, to),
     queryFn: () => getEmployeeHours(line.userId, from, to),
   });
 
@@ -61,9 +56,7 @@ export function PayLineDrawer({
                 Salaried — annual pay divided by {explanation.salaryDivisor}, one {period === 'weekly' ? 'week' : 'month'} of it.
               </p>
               <p className="mt-2 font-mono text-2xl font-semibold tabular-nums">{money(line.grossPay)}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Hours are recorded for attendance and do not change this figure.
-              </p>
+              <p className="mt-2 text-xs text-muted-foreground">Hours are recorded for attendance and do not change this figure.</p>
             </>
           ) : explanation.basis === 'missing-rate' ? (
             <div className="flex gap-3">
@@ -103,11 +96,7 @@ export function PayLineDrawer({
         <section className="grid grid-cols-3 gap-px overflow-hidden rounded-md border border-rule bg-rule">
           <Figure label="Clocked" value={hours(line.rawHours)} />
           <Figure label="Payable" value={hours(explanation.payableHours)} />
-          <Figure
-            label="Unpaid"
-            value={hours(explanation.unpaidHours)}
-            tone={explanation.unpaidHours > 0 ? 'measured' : undefined}
-          />
+          <Figure label="Unpaid" value={hours(explanation.unpaidHours)} tone={explanation.unpaidHours > 0 ? 'measured' : undefined} />
         </section>
 
         {explanation.unpaidHours > 0 && (

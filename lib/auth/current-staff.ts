@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { cache } from 'react';
 import 'server-only';
 
-import { getMyStaffProfile } from '@/lib/api/staff.service';
+import { getMyStaffProfile } from '@/lib/modules/identity/client';
 
 // Layouts and pages render in the same request but cannot pass data directly to
 // one another. React cache gives them one authoritative profile result per

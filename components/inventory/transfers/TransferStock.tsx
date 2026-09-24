@@ -11,15 +11,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
-import { getLocationStock } from '@/lib/api/inventory.service';
+import { getLocationStock } from '@/lib/modules/inventory/client';
 import {
   type StockTransfer,
   cancelStockTransfer,
   completeStockTransfer,
   createStockTransfer,
   getStockTransfers,
-} from '@/lib/api/transfers.service';
-import { getLocationsByTenant } from '@/lib/api/workspace.service';
+} from '@/lib/modules/inventory/client';
+import { getLocationsByTenant } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatDateTime as formatAppDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
@@ -52,8 +53,14 @@ export function TransferStockDrawer({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
-  const { data: locations = [] } = useQuery({ queryKey: ['locations', tenantId], queryFn: () => getLocationsByTenant(tenantId) });
-  const { data: stock = [] } = useQuery({ queryKey: ['location-stock', locationId], queryFn: () => getLocationStock(locationId) });
+  const { data: locations = [] } = useQuery({
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
+    queryFn: () => getLocationsByTenant(tenantId),
+  });
+  const { data: stock = [] } = useQuery({
+    queryKey: moduleQueryKeys.inventory.key('location-stock', locationId),
+    queryFn: () => getLocationStock(locationId),
+  });
 
   const [toLocationId, setToLocationId] = useState('');
   const [notes, setNotes] = useState('');
@@ -77,7 +84,7 @@ export function TransferStockDrawer({
         lines: validLines.map((l) => ({ stockItemId: l.stockItemId, quantity: Number(l.quantity) })),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['stock-transfers'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-transfers') });
       toast('success', 'Transfer created — complete it when the stock physically moves.');
       onClose();
     },
@@ -210,16 +217,16 @@ export function ItemTransfersSection({ stockItemId, locationId }: { stockItemId:
   const [confirm, setConfirm] = useState<{ transfer: StockTransfer; action: 'complete' | 'cancel' } | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['stock-transfers', locationId],
+    queryKey: moduleQueryKeys.inventory.key('stock-transfers', locationId),
     queryFn: () => getStockTransfers({ locationId, limit: 50 }),
     enabled: !!locationId,
   });
   const transfers = (data?.data ?? []).filter((t) => t.lines.some((l) => l.stockItemId === stockItemId));
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['stock-transfers'] });
-    qc.invalidateQueries({ queryKey: ['location-stock'] });
-    qc.invalidateQueries({ queryKey: ['inventory-forecast'] });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-transfers') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('location-stock') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('inventory-forecast') });
   };
 
   const complete = useMutation({

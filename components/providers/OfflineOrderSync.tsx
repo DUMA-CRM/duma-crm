@@ -3,8 +3,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
-import { createOrder } from '@/lib/api/orders.service';
-import { confirmPayment, startPayment } from '@/lib/api/payments.service';
+import { createOrder } from '@/lib/modules/ordering/client';
+import { confirmPayment, startPayment } from '@/lib/modules/payments/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { classifyOfflineOrderFailure } from '@/lib/utils/offline-order-sync';
 import { useAuthStore } from '@/stores/authStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
@@ -74,8 +75,14 @@ export function OfflineOrderSync() {
         }
         if (synced > 0) {
           toast('success', `${synced} queued ${synced === 1 ? 'order' : 'orders'} synced.`);
-          for (const key of ['orders', 'orders-all', 'location-stock', 'inventory-forecast']) {
-            void qc.invalidateQueries({ queryKey: [key] });
+          const affectedQueries = [
+            moduleQueryKeys.ordering.key('orders'),
+            moduleQueryKeys.ordering.key('orders-all'),
+            moduleQueryKeys.inventory.key('location-stock'),
+            moduleQueryKeys.inventory.key('inventory-forecast'),
+          ];
+          for (const queryKey of affectedQueries) {
+            void qc.invalidateQueries({ queryKey });
           }
         }
       } finally {

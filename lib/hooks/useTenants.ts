@@ -3,7 +3,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { type Tenant, getTenants } from '@/lib/api/workspace.service';
+import { type Tenant, getTenants } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /**
@@ -22,7 +23,11 @@ export function useTenants({ enabled = true }: { enabled?: boolean } = {}): { te
   const tenantId = useWorkspaceStore((s) => s.tenantId);
   const setTenantId = useWorkspaceStore((s) => s.setTenantId);
 
-  const { data: tenants = [], isLoading, isSuccess } = useQuery({ queryKey: ['tenants'], queryFn: getTenants, enabled });
+  const {
+    data: tenants = [],
+    isLoading,
+    isSuccess,
+  } = useQuery({ queryKey: moduleQueryKeys.organization.key('tenants'), queryFn: getTenants, enabled });
 
   useEffect(() => {
     // Only act on a loaded list, never on the transient empty/loading state.

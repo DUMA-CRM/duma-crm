@@ -1,15 +1,16 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CircleHelp, Loader2, Lock, MessageSquarePlus, Search, X } from '@/components/icons';
 import { useMemo, useState } from 'react';
 
+import { ArrowLeft, CircleHelp, Loader2, Lock, MessageSquarePlus, Search, X } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import {
   type HelpdeskTicket,
   type TicketPriority,
@@ -17,7 +18,7 @@ import {
   getTicket,
   replyTicket,
   updateTicket,
-} from '@/lib/api/people-ops.service';
+} from '@/lib/modules/support/client';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 
@@ -262,12 +263,12 @@ function TicketView({
   const [internal, setInternal] = useState(false);
 
   const { data: ticket, isLoading } = useQuery({
-    queryKey: ['helpdesk-ticket', scope, ticketId],
+    queryKey: moduleQueryKeys.support.key('helpdesk-ticket', scope, ticketId),
     queryFn: () => getTicket(ticketId),
   });
 
   function refresh() {
-    void qc.invalidateQueries({ queryKey: ['helpdesk-ticket', scope, ticketId] });
+    void qc.invalidateQueries({ queryKey: moduleQueryKeys.support.key('helpdesk-ticket', scope, ticketId) });
     onChanged?.();
   }
 

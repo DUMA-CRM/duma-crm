@@ -1,5 +1,5 @@
 // Shared constants and small helpers for purchasing components.
-import type { PurchaseOrderLine, PurchaseOrderStatus } from '@/lib/api/purchasing.service';
+import type { PurchaseOrderLine, PurchaseOrderStatus } from '@/lib/modules/purchasing/client';
 
 export const inputClass =
   'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';

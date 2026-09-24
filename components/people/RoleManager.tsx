@@ -6,7 +6,9 @@ import { useMemo, useState } from 'react';
 import { Plus } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { createRole, deleteRole, getRoles, updateRole, type AccessRole } from '@/lib/api/roles.service';
+
+import { type AccessRole, createRole, deleteRole, getRoles, updateRole } from '@/lib/modules/identity/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -18,7 +20,7 @@ export function RoleManager() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ['roles', tenantId],
+    queryKey: moduleQueryKeys.identity.key('roles', tenantId),
     queryFn: () => getRoles(tenantId ?? undefined),
     enabled: !!tenantId,
   });
@@ -29,11 +31,21 @@ export function RoleManager() {
   const selectedRole = draft.id ? data?.roles.find((role) => role.id === draft.id) : undefined;
 
   const save = useMutation({
-    mutationFn: () => draft.id
-      ? updateRole(draft.id, { name: draft.name, description: draft.description || null, capabilities: draft.capabilities }, tenantId ?? undefined)
-      : createRole({ name: draft.name, description: draft.description || null, capabilities: draft.capabilities, tenantId: tenantId ?? undefined }),
+    mutationFn: () =>
+      draft.id
+        ? updateRole(
+            draft.id,
+            { name: draft.name, description: draft.description || null, capabilities: draft.capabilities },
+            tenantId ?? undefined,
+          )
+        : createRole({
+            name: draft.name,
+            description: draft.description || null,
+            capabilities: draft.capabilities,
+            tenantId: tenantId ?? undefined,
+          }),
     onSuccess: async (role) => {
-      await queryClient.invalidateQueries({ queryKey: ['roles', tenantId] });
+      await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('roles', tenantId) });
       setDraft({ id: role.id, name: role.name, description: role.description ?? '', capabilities: role.capabilities });
       toast('success', draft.id ? 'Role updated. Assigned staff will sign in again.' : 'Role created.');
     },
@@ -44,7 +56,7 @@ export function RoleManager() {
     mutationFn: (role: AccessRole) => deleteRole(role.id, tenantId ?? undefined),
     onSuccess: async () => {
       setDraft(emptyDraft());
-      await queryClient.invalidateQueries({ queryKey: ['roles', tenantId] });
+      await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('roles', tenantId) });
       toast('success', 'Role deleted.');
     },
     onError: (error) => toast('error', (error as Error).message || 'Reassign everyone using this role first.'),
@@ -54,12 +66,13 @@ export function RoleManager() {
     setDraft({ id: role.id, name: role.name, description: role.description ?? '', capabilities: role.capabilities });
     setOpen(true);
   };
-  const toggleCapability = (capability: string) => setDraft((current) => ({
-    ...current,
-    capabilities: current.capabilities.includes(capability)
-      ? current.capabilities.filter((entry) => entry !== capability)
-      : [...current.capabilities, capability].sort(),
-  }));
+  const toggleCapability = (capability: string) =>
+    setDraft((current) => ({
+      ...current,
+      capabilities: current.capabilities.includes(capability)
+        ? current.capabilities.filter((entry) => entry !== capability)
+        : [...current.capabilities, capability].sort(),
+    }));
 
   return (
     <section className="rounded-sm border border-rule bg-card">
@@ -78,11 +91,7 @@ export function RoleManager() {
       {open && (
         <div className="grid border-t border-rule lg:grid-cols-[260px_1fr]">
           <div className="border-b border-rule p-3 lg:border-b-0 lg:border-r">
-            <Button
-              variant="outline"
-              className="mb-3 w-full gap-1.5"
-              onClick={() => setDraft(emptyDraft())}
-            >
+            <Button variant="outline" className="mb-3 w-full gap-1.5" onClick={() => setDraft(emptyDraft())}>
               <Plus size={14} /> New role
             </Button>
             {isPending && <p className="px-2 py-3 text-xs text-muted-foreground">Loading roles…</p>}
@@ -141,7 +150,11 @@ export function RoleManager() {
                   const visible = capabilities.filter((capability) => editable.has(capability) || draft.capabilities.includes(capability));
                   if (visible.length === 0) return null;
                   return (
-                    <details key={moduleId} className="rounded-sm border border-rule p-3" open={visible.some((capability) => draft.capabilities.includes(capability))}>
+                    <details
+                      key={moduleId}
+                      className="rounded-sm border border-rule p-3"
+                      open={visible.some((capability) => draft.capabilities.includes(capability))}
+                    >
                       <summary className="cursor-pointer text-xs font-semibold capitalize text-foreground">
                         {moduleId} · {visible.filter((capability) => draft.capabilities.includes(capability)).length}/{visible.length}
                       </summary>
@@ -173,10 +186,7 @@ export function RoleManager() {
                   </Button>
                 )}
               </div>
-              <Button
-                onClick={() => save.mutate()}
-                disabled={!!selectedRole?.isBuiltIn || draft.name.trim().length < 2 || save.isPending}
-              >
+              <Button onClick={() => save.mutate()} disabled={!!selectedRole?.isBuiltIn || draft.name.trim().length < 2 || save.isPending}>
                 {save.isPending ? 'Saving…' : draft.id ? 'Save role' : 'Create role'}
               </Button>
             </div>

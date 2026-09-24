@@ -11,9 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
-import { type LocationStock, getLocationStock } from '@/lib/api/inventory.service';
-import { type RestockPriority, createRestockRequest, encodeNotes, getRestockRequests } from '@/lib/api/restock.service';
-import { getLocationsByTenant } from '@/lib/api/workspace.service';
+import { type LocationStock, getLocationStock } from '@/lib/modules/inventory/client';
+import { type RestockPriority, createRestockRequest, encodeNotes, getRestockRequests } from '@/lib/modules/inventory/client';
+import { getLocationsByTenant } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -92,13 +93,13 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
   const [errors, setErrors] = useState<FormErrors>({});
 
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations', tenantId],
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });
 
   const { data: locationStock = [], isLoading: loadingStock } = useQuery({
-    queryKey: ['location-stock', locationId],
+    queryKey: moduleQueryKeys.inventory.key('location-stock', locationId),
     queryFn: () => getLocationStock(locationId!),
     enabled: !!locationId,
   });
@@ -118,7 +119,7 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
   const locationName = locations.find((l) => l.id === locationId)?.name;
 
   const { data: duplicateResponse } = useQuery({
-    queryKey: ['restock-requests', 'duplicate', locationId, validStockItemId],
+    queryKey: moduleQueryKeys.inventory.key('restock-requests', 'duplicate', locationId, validStockItemId),
     queryFn: () => getRestockRequests({ locationId: locationId!, stockItemId: validStockItemId, status: 'pending', limit: 1 }),
     enabled: !!locationId && !!validStockItemId,
   });
@@ -127,7 +128,7 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
   const { mutate: submit, isPending } = useMutation({
     mutationFn: createRestockRequest,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['restock-requests'] });
+      void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('restock-requests') });
       setStockItemId('');
       setQty('');
       setPriority('standard');

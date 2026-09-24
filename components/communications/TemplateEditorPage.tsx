@@ -36,7 +36,8 @@ import {
   getEmailVariables,
   sendEmail,
   updateEmailTemplate,
-} from '@/lib/api/email.service';
+} from '@/lib/modules/communications/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
@@ -45,16 +46,17 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { EmailPreviewDrawer } from './EmailPreviewDrawer';
 import { type CanvasDnd, type DragPayload, TemplateCanvas, blockFromPayload } from './TemplateCanvas';
 import { VariablePalette } from './VariablePalette';
+import { DEFAULT_TEMPLATE_CATEGORY, TEMPLATE_CATEGORIES } from './shared';
 import {
   COLUMN_LAYOUTS,
   type TemplateBlock,
   type TemplateDesign,
   type TemplateLeafBlock,
   defaultTemplateDesign,
+  findTemplateBlock,
   insertTemplateBlock,
   isColumnsBlock,
   isTemplateDesign,
-  findTemplateBlock,
   legacyHtmlToDesign,
   normalizeTemplateDesign,
   relayoutColumns,
@@ -62,7 +64,6 @@ import {
   templateDesignToPlainText,
   updateTemplateBlock,
 } from './templateDesign';
-import { DEFAULT_TEMPLATE_CATEGORY, TEMPLATE_CATEGORIES } from './shared';
 import { workflowForAutomation } from './workflowModel';
 
 const FORM_ID = 'email-template-form';
@@ -140,14 +141,17 @@ export function TemplateEditorPage({
   const [initialSnapshot, setInitialSnapshot] = useState(snapshot);
   const dirty = snapshot !== initialSnapshot;
 
-  const { data: variables = [] } = useQuery({ queryKey: ['email-variables'], queryFn: getEmailVariables });
+  const { data: variables = [] } = useQuery({
+    queryKey: moduleQueryKeys.communications.key('email-variables'),
+    queryFn: getEmailVariables,
+  });
   const { data: automations = [] } = useQuery({
-    queryKey: ['email-automations', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-automations', tenantId),
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: connection } = useQuery({
-    queryKey: ['email-connection', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
     enabled: !!tenantId,
     retry: false,
@@ -156,9 +160,7 @@ export function TemplateEditorPage({
   // it stays selectable instead of silently jumping to another bucket on save.
   const categoryOptions = useMemo(() => {
     const known = TEMPLATE_CATEGORIES.map(({ value, label }) => ({ value, label }));
-    return known.some((option) => option.value === category)
-      ? known
-      : [...known, { value: category, label: `${category} (old category)` }];
+    return known.some((option) => option.value === category) ? known : [...known, { value: category, label: `${category} (old category)` }];
   }, [category]);
   const categoryHint = TEMPLATE_CATEGORIES.find((option) => option.value === category)?.hint ?? 'Kept from an earlier category.';
 
@@ -186,7 +188,7 @@ export function TemplateEditorPage({
     const saved = savedId ? await updateEmailTemplate(savedId, payload) : await createEmailTemplate(payload);
     setSavedId(saved.id);
     setInitialSnapshot(snapshot);
-    await queryClient.invalidateQueries({ queryKey: ['email-templates'] });
+    await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-templates') });
     onSaved?.(saved);
     return saved;
   };
@@ -205,7 +207,7 @@ export function TemplateEditorPage({
       return sendEmail({ tenantId: tenantId ?? undefined, templateId: saved.id, toEmail: testEmail, toName: user?.name ?? undefined });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email-deliveries'] });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-deliveries') });
       setTestOpen(false);
       toast('success', `Test email queued to ${testEmail}.`);
     },
@@ -214,7 +216,7 @@ export function TemplateEditorPage({
   const destroy = useMutation({
     mutationFn: () => archiveEmailTemplate(savedId ?? '', tenantId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email-templates'] });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-templates') });
       onClose();
       toast('success', 'Template deleted.');
     },
@@ -323,9 +325,7 @@ export function TemplateEditorPage({
           {/* Layouts come second: pick the shape of a row, then fill its cells. */}
           <div className="mt-6 border-t border-rule pt-4">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Layouts</p>
-            <p className="mt-1.5 text-label leading-relaxed text-muted-foreground">
-              Drop a row in, then drag content into each column.
-            </p>
+            <p className="mt-1.5 text-label leading-relaxed text-muted-foreground">Drop a row in, then drag content into each column.</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {COLUMN_LAYOUTS.map(({ value, label, widths }) => (
                 <button

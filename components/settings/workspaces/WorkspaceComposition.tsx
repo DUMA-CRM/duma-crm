@@ -8,21 +8,22 @@ import { WorkspaceReadinessChecklist } from '@/components/settings/workspaces/Wo
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { getDashboardLayouts, publishDashboardLayout } from '@/lib/api/workspace-composition.service';
+import { getDashboardLayouts, publishDashboardLayout } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 export function WorkspaceComposition() {
   const qc = useQueryClient();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const layoutsQuery = useQuery({
-    queryKey: ['dashboard-layouts', tenantId],
+    queryKey: moduleQueryKeys.organization.key('dashboard-layouts', tenantId),
     queryFn: () => getDashboardLayouts(tenantId!),
     enabled: !!tenantId,
   });
 
   const publish = useMutation({
     mutationFn: () => publishDashboardLayout(tenantId!, 'owner', 'Owner dashboard'),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard-layouts', tenantId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('dashboard-layouts', tenantId) }),
   });
 
   const ownerLayouts = (layoutsQuery.data ?? []).filter((layout) => layout.audienceKey === 'owner');

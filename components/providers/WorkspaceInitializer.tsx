@@ -2,8 +2,8 @@
 
 import { useLayoutEffect } from 'react';
 
-import type { StaffProfile } from '@/lib/api/staff.service';
 import { useTenants } from '@/lib/hooks/useTenants';
+import type { StaffProfile } from '@/lib/modules/identity/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';

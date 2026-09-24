@@ -1,9 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, ChevronRight, History, Send } from '@/components/icons';
 import { useState } from 'react';
 
+import { AlertTriangle, CheckCircle2, ChevronRight, History, Send } from '@/components/icons';
 import { DeductionsDrawer } from '@/components/payroll/DeductionsDrawer';
 import { PayrollScheduleCard } from '@/components/payroll/PayrollScheduleCard';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 
+import { hasCapability } from '@/lib/auth/capabilities';
 import {
   type PayrollRun,
   type PayrollRunLine,
@@ -21,7 +22,9 @@ import {
   issuePayrollRun,
   lineIsComplete,
   supersedePayrollRun,
-} from '@/lib/api/payroll.service';
+} from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { cn } from '@/lib/utils/cn';
 import {
   type PeriodGroup,
   combineBlockedReason,
@@ -30,8 +33,6 @@ import {
   isSuperseded,
   suggestSurvivor,
 } from '@/lib/utils/payroll-duplicates';
-import { hasCapability } from '@/lib/auth/capabilities';
-import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
@@ -121,10 +122,10 @@ function RunCard({ run, canWrite }: { run: PayrollRun; canWrite: boolean }) {
   const issue = useMutation({
     mutationFn: () => issuePayrollRun(run.id, source.trim()),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['payroll-runs'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('payroll-runs') });
       // The employee's own view reads a different key.
-      qc.invalidateQueries({ queryKey: ['payslips-me'] });
-      qc.invalidateQueries({ queryKey: ['employee-payslips'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('payslips-me') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('employee-payslips') });
       setIssuing(false);
       toast('success', 'Payslips issued. Employees can now see them in My HR.');
     },
@@ -141,7 +142,10 @@ function RunCard({ run, canWrite }: { run: PayrollRun; canWrite: boolean }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold text-foreground">{formatRange(run.periodStart, run.periodEnd)}</span>
-            <Badge variant={issued ? 'success' : setAside ? 'muted' : run.status === 'finalised' ? 'warning' : 'muted'} className="capitalize">
+            <Badge
+              variant={issued ? 'success' : setAside ? 'muted' : run.status === 'finalised' ? 'warning' : 'muted'}
+              className="capitalize"
+            >
               {setAside ? 'Set aside' : run.status}
             </Badge>
             {editable && incomplete.length > 0 && (
@@ -239,7 +243,12 @@ function RunCard({ run, canWrite }: { run: PayrollRun; canWrite: boolean }) {
 }
 
 export function PayrollHistoryPanel() {
-  const { data: runs = [], isLoading, isError, refetch } = useQuery({ queryKey: ['payroll-runs'], queryFn: getPayrollRuns });
+  const {
+    data: runs = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({ queryKey: moduleQueryKeys.people.key('payroll-runs'), queryFn: getPayrollRuns });
   // Reading a run is `hr.payroll:read`; entering deductions and issuing are
   // writes, so an auditor sees the history and none of the controls.
   const canWrite = hasCapability(
@@ -357,7 +366,7 @@ function CombineDialog({ group, onClose }: { group: PeriodGroup; onClose: () => 
       for (const loser of losers) await supersedePayrollRun(loser.id, survivorId);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['payroll-runs'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('payroll-runs') });
       onClose();
       toast('success', 'The duplicate runs were set aside.');
     },

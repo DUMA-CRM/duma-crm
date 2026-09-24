@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react';
 
-import type { StaffRole } from '@/lib/api/staff.service';
-import type { User } from '@/lib/api/auth.service';
+import type { StaffRole } from '@/lib/modules/identity/client';
+import type { User } from '@/lib/modules/identity/client';
 import { useAuthStore } from '@/stores/authStore';
 
 export function AuthInitializer({

@@ -4,7 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { type LeaveEntitlement, type LeaveRequest, cancelLeaveRequest } from '@/lib/api/people-ops.service';
+import { type LeaveEntitlement, type LeaveRequest, cancelLeaveRequest } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/stores/toastStore';
 
 import { PanelHeading } from './PanelHeading';
@@ -16,8 +17,8 @@ export function TimeOffPanel({ requests, entitlements }: { requests: LeaveReques
   const cancel = useMutation({
     mutationFn: cancelLeaveRequest,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['leave-requests-me'] });
-      qc.invalidateQueries({ queryKey: ['leave-entitlements-me'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('leave-requests-me') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('leave-entitlements-me') });
       toast('success', 'Leave request cancelled.');
     },
     onError: (e) => toast('error', (e as Error).message),

@@ -1,5 +1,6 @@
-import type { HrEmployee } from '@/lib/api/hr.service';
-import type { AttendanceDay, EmployeeDocument, HelpdeskTicket, LeaveEntitlement, Payslip } from '@/lib/api/people-ops.service';
+import type { HrEmployee } from '@/lib/modules/people/client';
+import type { AttendanceDay, EmployeeDocument, HelpdeskTicket, LeaveEntitlement, Payslip } from '@/lib/modules/people/client';
+
 // Relative, not aliased: `node --experimental-strip-types` erases type-only
 // imports but resolves value ones, and the test runner has no path mapping.
 import { formatDate } from './date.ts';

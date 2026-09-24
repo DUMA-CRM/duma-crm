@@ -4,15 +4,16 @@ import { useQueries } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { AlertTriangle, Banknote, CalendarRange, CircleHelp, Clock, Info, ShieldCheck, UsersRound } from '@/components/icons';
-import { type AttentionTone, AttentionList } from '@/components/shared/AttentionList';
+import { AttentionList, type AttentionTone } from '@/components/shared/AttentionList';
 import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 
-import { getEmployees } from '@/lib/api/hr.service';
-import { getPayrollRuns } from '@/lib/api/payroll.service';
-import { getManagedLeaveRequests, getManagedTickets } from '@/lib/api/people-ops.service';
-import { getScheduledShifts, getVariance } from '@/lib/api/scheduling.service';
-import { getActiveShifts } from '@/lib/api/shifts.service';
-import { getStaff } from '@/lib/api/staff.service';
+import { getStaff } from '@/lib/modules/identity/client';
+import { getEmployees } from '@/lib/modules/people/client';
+import { getPayrollRuns } from '@/lib/modules/people/client';
+import { getManagedLeaveRequests, getManagedTickets } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getScheduledShifts, getVariance } from '@/lib/modules/workforce/client';
+import { getActiveShifts } from '@/lib/modules/workforce/client';
 import { findCoverGaps } from '@/lib/utils/attendance';
 import {
   type StaffAttentionSeverity,
@@ -77,27 +78,39 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
 
   const results = useQueries({
     queries: [
-      { queryKey: ['staff', tenantId], queryFn: () => getStaff(tenantId ?? undefined), enabled: access.team && !!tenantId },
-      { queryKey: ['hr-employees', tenantId], queryFn: getEmployees, enabled: access.team && !!tenantId },
       {
-        queryKey: ['scheduled-shifts', 'overview', today],
+        queryKey: moduleQueryKeys.identity.key('staff', tenantId),
+        queryFn: () => getStaff(tenantId ?? undefined),
+        enabled: access.team && !!tenantId,
+      },
+      { queryKey: moduleQueryKeys.people.key('hr-employees', tenantId), queryFn: getEmployees, enabled: access.team && !!tenantId },
+      {
+        queryKey: moduleQueryKeys.workforce.key('scheduled-shifts', 'overview', today),
         queryFn: () => getScheduledShifts({ from: today, to: today }),
         enabled: access.rota && !!today,
       },
-      { queryKey: ['shifts-active'], queryFn: getActiveShifts, enabled: access.rota, refetchInterval: 60_000 },
+      { queryKey: moduleQueryKeys.workforce.key('shifts-active'), queryFn: getActiveShifts, enabled: access.rota, refetchInterval: 60_000 },
       {
-        queryKey: ['scheduled-shifts', 'overview-drafts'],
+        queryKey: moduleQueryKeys.workforce.key('scheduled-shifts', 'overview-drafts'),
         queryFn: () => getScheduledShifts({ status: 'draft' }),
         enabled: access.rota,
       },
       {
-        queryKey: ['variance', 'overview', weekAgo, today],
+        queryKey: moduleQueryKeys.workforce.key('variance', 'overview', weekAgo, today),
         queryFn: () => getVariance({ from: weekAgo, to: today }),
         enabled: access.rota && !!today,
       },
-      { queryKey: ['leave-managed', 'pending'], queryFn: () => getManagedLeaveRequests('pending'), enabled: access.leave },
-      { queryKey: ['helpdesk-managed', 'open', '', ''], queryFn: () => getManagedTickets({ status: 'open' }), enabled: access.helpdesk },
-      { queryKey: ['payroll-runs'], queryFn: getPayrollRuns, enabled: access.payroll },
+      {
+        queryKey: moduleQueryKeys.people.key('leave-managed', 'pending'),
+        queryFn: () => getManagedLeaveRequests('pending'),
+        enabled: access.leave,
+      },
+      {
+        queryKey: moduleQueryKeys.support.key('helpdesk-managed', 'open', '', ''),
+        queryFn: () => getManagedTickets({ status: 'open' }),
+        enabled: access.helpdesk,
+      },
+      { queryKey: moduleQueryKeys.people.key('payroll-runs'), queryFn: getPayrollRuns, enabled: access.payroll },
     ],
   });
 

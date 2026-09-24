@@ -9,8 +9,9 @@ import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { hasActiveFilters } from '@/lib/api/customers.service';
-import { createSegment, deleteSegment } from '@/lib/api/segments.service';
+import { hasActiveFilters } from '@/lib/modules/customers/client';
+import { createSegment, deleteSegment } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import type { CustomerFilters, CustomerSegment } from '@/types/customers';
 
@@ -48,7 +49,7 @@ export function SegmentBar({ filters, appliedSegmentId, segments, onApply, canWr
   const save = useMutation({
     mutationFn: () => createSegment({ name: name.trim(), filters }),
     onSuccess: (segment) => {
-      void qc.invalidateQueries({ queryKey: ['customer-segments'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-segments') });
       setShowSave(false);
       setName('');
       setError(null);
@@ -61,7 +62,7 @@ export function SegmentBar({ filters, appliedSegmentId, segments, onApply, canWr
   const remove = useMutation({
     mutationFn: (id: string) => deleteSegment(id),
     onSuccess: (_result, id) => {
-      void qc.invalidateQueries({ queryKey: ['customer-segments'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-segments') });
       if (appliedSegmentId === id) onApply(null);
     },
   });
@@ -109,11 +110,7 @@ export function SegmentBar({ filters, appliedSegmentId, segments, onApply, canWr
                         aria-pressed={isApplied}
                         className="flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-sm px-2 text-left text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                       >
-                        <Check
-                          size={14}
-                          className={cn('shrink-0 text-primary', !isApplied && 'invisible')}
-                          aria-hidden="true"
-                        />
+                        <Check size={14} className={cn('shrink-0 text-primary', !isApplied && 'invisible')} aria-hidden="true" />
                         <span className="truncate">{segment.name}</span>
                       </button>
                       {canWrite && (

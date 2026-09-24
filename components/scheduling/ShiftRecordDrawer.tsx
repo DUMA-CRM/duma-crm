@@ -44,10 +44,16 @@ import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
-import type { HrEmployee } from '@/lib/api/hr.service';
-import { type ScheduledShiftStatus, createScheduledShift, deleteScheduledShift, updateScheduledShift } from '@/lib/api/scheduling.service';
-import { type Shift, adjustShift, createManualShift, deleteShift } from '@/lib/api/shifts.service';
-import type { StaffProfile } from '@/lib/api/staff.service';
+import type { StaffProfile } from '@/lib/modules/identity/client';
+import type { HrEmployee } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import {
+  type ScheduledShiftStatus,
+  createScheduledShift,
+  deleteScheduledShift,
+  updateScheduledShift,
+} from '@/lib/modules/workforce/client';
+import { type Shift, adjustShift, createManualShift, deleteShift } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
@@ -370,20 +376,22 @@ function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftRecordD
         : list.some((item) => item.id === row.id)
           ? list.map((item) => (item.id === row.id ? { ...item, ...row } : item))
           : [row, ...list];
-    qc.setQueriesData<Shift[]>({ queryKey: ['shifts'] }, upsert);
-    qc.setQueriesData<Shift[]>({ queryKey: ['shifts-active'] }, (list) =>
+    qc.setQueriesData<Shift[]>({ queryKey: moduleQueryKeys.workforce.key('shifts') }, upsert);
+    qc.setQueriesData<Shift[]>({ queryKey: moduleQueryKeys.workforce.key('shifts-active') }, (list) =>
       !list ? list : row.clockedOut ? list.filter((item) => item.id !== row.id) : upsert(list),
     );
-    qc.invalidateQueries({ queryKey: ['shifts'] });
-    qc.invalidateQueries({ queryKey: ['shifts-active'] });
-    qc.invalidateQueries({ queryKey: ['variance'] });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts-active') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('variance') });
   };
   const applyClockDeletion = (id: string) => {
-    qc.setQueriesData<Shift[]>({ queryKey: ['shifts'] }, (list) => list?.filter((item) => item.id !== id));
-    qc.setQueriesData<Shift[]>({ queryKey: ['shifts-active'] }, (list) => list?.filter((item) => item.id !== id));
-    qc.invalidateQueries({ queryKey: ['shifts'] });
-    qc.invalidateQueries({ queryKey: ['shifts-active'] });
-    qc.invalidateQueries({ queryKey: ['variance'] });
+    qc.setQueriesData<Shift[]>({ queryKey: moduleQueryKeys.workforce.key('shifts') }, (list) => list?.filter((item) => item.id !== id));
+    qc.setQueriesData<Shift[]>({ queryKey: moduleQueryKeys.workforce.key('shifts-active') }, (list) =>
+      list?.filter((item) => item.id !== id),
+    );
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts-active') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('variance') });
   };
 
   const createMatchingShift = useMutation({
@@ -416,9 +424,9 @@ function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftRecordD
       return created;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['scheduled-shifts'] });
-      qc.invalidateQueries({ queryKey: ['shifts'] });
-      qc.invalidateQueries({ queryKey: ['variance'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('scheduled-shifts') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('variance') });
       toast('success', 'Matching rota shift created and linked.');
     },
   });
@@ -516,9 +524,9 @@ function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser
         clockedOut: times.endsAt,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['shifts'] });
-      qc.invalidateQueries({ queryKey: ['shifts-active'] });
-      qc.invalidateQueries({ queryKey: ['variance'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts-active') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('variance') });
       toast('success', 'Worked time recorded.');
       onClose();
     },
@@ -679,8 +687,8 @@ function PlannedShiftDrawer({
   const estimatedCost = hourlyRate != null ? (hourlyRate * payableMinutes * occurrences.length) / 60 : 0;
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['scheduled-shifts'] });
-    qc.invalidateQueries({ queryKey: ['variance'] });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('scheduled-shifts') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('variance') });
   };
 
   const save = useMutation({
@@ -746,21 +754,23 @@ function PlannedShiftDrawer({
     const upsert = (list: Shift[] | undefined) =>
       !list ? list : list.some((s) => s.id === row.id) ? list.map((s) => (s.id === row.id ? { ...s, ...row } : s)) : [row, ...list];
 
-    qc.setQueriesData<Shift[]>({ queryKey: ['shifts'] }, upsert);
+    qc.setQueriesData<Shift[]>({ queryKey: moduleQueryKeys.workforce.key('shifts') }, upsert);
     // A closed shift is no longer active.
-    qc.setQueriesData<Shift[]>({ queryKey: ['shifts-active'] }, (list) =>
+    qc.setQueriesData<Shift[]>({ queryKey: moduleQueryKeys.workforce.key('shifts-active') }, (list) =>
       !list ? list : row.clockedOut ? list.filter((s) => s.id !== row.id) : upsert(list),
     );
-    qc.invalidateQueries({ queryKey: ['shifts'] });
-    qc.invalidateQueries({ queryKey: ['shifts-active'] });
-    qc.invalidateQueries({ queryKey: ['variance'] });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts-active') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('variance') });
   };
   const applyClockDeletion = (id: string) => {
-    qc.setQueriesData<Shift[]>({ queryKey: ['shifts'] }, (list) => list?.filter((item) => item.id !== id));
-    qc.setQueriesData<Shift[]>({ queryKey: ['shifts-active'] }, (list) => list?.filter((item) => item.id !== id));
-    qc.invalidateQueries({ queryKey: ['shifts'] });
-    qc.invalidateQueries({ queryKey: ['shifts-active'] });
-    qc.invalidateQueries({ queryKey: ['variance'] });
+    qc.setQueriesData<Shift[]>({ queryKey: moduleQueryKeys.workforce.key('shifts') }, (list) => list?.filter((item) => item.id !== id));
+    qc.setQueriesData<Shift[]>({ queryKey: moduleQueryKeys.workforce.key('shifts-active') }, (list) =>
+      list?.filter((item) => item.id !== id),
+    );
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts-active') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('variance') });
   };
 
   const startClock = useMutation({

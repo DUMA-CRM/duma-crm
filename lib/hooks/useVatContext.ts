@@ -2,8 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { getTradingSettings } from '@/lib/api/operations.service';
 import { type VatContext, vatContextFrom } from '@/lib/menu/costing';
+import { getTradingSettings } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /**
@@ -21,7 +22,7 @@ export function useVatContext(): { ctx: VatContext; isLoading: boolean } {
   const { tenantId } = useWorkspaceStore();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['trading', tenantId],
+    queryKey: moduleQueryKeys.organization.key('trading', tenantId),
     queryFn: () => getTradingSettings(tenantId!),
     enabled: !!tenantId,
     // Tax posture changes about once a year; refetching it per mount is waste.

@@ -1,4 +1,4 @@
-import type { OrderAnalytics } from '@/lib/api/analytics.service';
+import type { OrderAnalytics } from '@/lib/modules/analytics/client';
 
 export type DashboardRange = 'today' | '7d' | '30d';
 

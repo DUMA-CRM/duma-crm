@@ -8,8 +8,9 @@ import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
-import { getMarketingPreferences } from '@/lib/api/customers.service';
-import { getEmailTemplates, sendEmail } from '@/lib/api/email.service';
+import { getEmailTemplates, sendEmail } from '@/lib/modules/communications/client';
+import { getMarketingPreferences } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -62,13 +63,13 @@ export function SendEmailModal({ customerId, orderId, recipientName, recipientEm
   const [acknowledged, setAcknowledged] = useState(false);
 
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['email-templates', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-templates', tenantId),
     queryFn: () => getEmailTemplates(tenantId ?? undefined),
     enabled: !!tenantId,
   });
 
   const { data: preferences, isLoading: consentLoading } = useQuery({
-    queryKey: ['marketing-preferences', customerId],
+    queryKey: moduleQueryKeys.customers.key('marketing-preferences', customerId),
     queryFn: () => getMarketingPreferences(customerId!),
     enabled: !!customerId,
   });
@@ -84,9 +85,7 @@ export function SendEmailModal({ customerId, orderId, recipientName, recipientEm
           : 'opted_out';
 
   const activeTemplates = templates.filter((template) => template.isActive);
-  const effectiveTemplateId = activeTemplates.some((template) => template.id === templateId)
-    ? templateId
-    : (activeTemplates[0]?.id ?? '');
+  const effectiveTemplateId = activeTemplates.some((template) => template.id === templateId) ? templateId : (activeTemplates[0]?.id ?? '');
   const selected = activeTemplates.find((template) => template.id === effectiveTemplateId);
 
   const send = useMutation({
@@ -98,8 +97,8 @@ export function SendEmailModal({ customerId, orderId, recipientName, recipientEm
         ...(orderId ? { orderId } : {}),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email-deliveries'] });
-      if (customerId) queryClient.invalidateQueries({ queryKey: ['customer-timeline', customerId] });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-deliveries') });
+      if (customerId) queryClient.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-timeline', customerId) });
       toast('success', 'Email queued for delivery.');
       onClose();
     },
@@ -208,7 +207,10 @@ function ConsentNotice({ consent }: { consent: Exclude<Consent, 'unknown'> }) {
   const { icon: Icon, label, className } = CONSENT_COPY[consent];
 
   return (
-    <div className={cn('flex items-start gap-2.5 rounded-sm border px-3 py-2.5 text-sm', className)} role={consent === 'suppressed' ? 'alert' : undefined}>
+    <div
+      className={cn('flex items-start gap-2.5 rounded-sm border px-3 py-2.5 text-sm', className)}
+      role={consent === 'suppressed' ? 'alert' : undefined}
+    >
       <Icon size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
       <div className="min-w-0">
         <p className="font-semibold">{label}</p>

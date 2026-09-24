@@ -23,13 +23,14 @@ import {
   Users,
   Wallet,
 } from '@/components/icons';
-import { type AttentionTone, AttentionList } from '@/components/shared/AttentionList';
+import { AttentionList, type AttentionTone } from '@/components/shared/AttentionList';
 import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
 import { StatCard } from '@/components/shared/StatCard';
 
-import type { HrEmployee } from '@/lib/api/hr.service';
-import type { LeaveEntitlement, Payslip } from '@/lib/api/people-ops.service';
-import { getMyScheduledShifts } from '@/lib/api/scheduling.service';
+import type { HrEmployee } from '@/lib/modules/people/client';
+import type { LeaveEntitlement, Payslip } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getMyScheduledShifts } from '@/lib/modules/workforce/client';
 import { type ActionSeverity, type MyHrAction, leaveBalance } from '@/lib/utils/my-hr';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -169,7 +170,12 @@ export function Overview({
         </DetailCard>
 
         <DetailCard title="Pay details">
-          <InfoRow icon={Shield} label="National Insurance number" value={employee.hasNiNumber ? 'Held' : undefined} missingLabel="Missing" />
+          <InfoRow
+            icon={Shield}
+            label="National Insurance number"
+            value={employee.hasNiNumber ? 'Held' : undefined}
+            missingLabel="Missing"
+          />
           <InfoRow icon={Receipt} label="Tax code" value={employee.taxCode ?? undefined} missingLabel="Set by payroll" />
           <InfoRow
             icon={Landmark}
@@ -218,7 +224,7 @@ function NextShift() {
   const from = now.toISOString().slice(0, 10);
   const to = new Date(now.getTime() + 28 * 86400000).toISOString().slice(0, 10);
   const { data = [], isLoading } = useQuery({
-    queryKey: ['my-scheduled-shifts', from, to],
+    queryKey: moduleQueryKeys.workforce.key('my-scheduled-shifts', from, to),
     queryFn: () => getMyScheduledShifts({ from, to }),
     retry: false,
   });

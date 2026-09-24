@@ -25,7 +25,8 @@ import { DataTable } from '@/components/ui/data-table';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
-import { getStockItems } from '@/lib/api/inventory.service';
+import { getStockItems } from '@/lib/modules/inventory/client';
+import { updateRestockRequest } from '@/lib/modules/inventory/client';
 import {
   type PurchaseOrder,
   type PurchaseOrderStatus,
@@ -35,8 +36,8 @@ import {
   getPurchaseOrders,
   receivePurchaseOrder,
   updatePurchaseOrder,
-} from '@/lib/api/purchasing.service';
-import { updateRestockRequest } from '@/lib/api/restock.service';
+} from '@/lib/modules/purchasing/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
@@ -79,7 +80,7 @@ function CreatePoForm({
   onManageSuppliers?: () => void;
 }) {
   const qc = useQueryClient();
-  const { data: stockItems = [] } = useQuery({ queryKey: ['stock-items'], queryFn: getStockItems });
+  const { data: stockItems = [] } = useQuery({ queryKey: moduleQueryKeys.inventory.key('stock-items'), queryFn: getStockItems });
   const [supplierId, setSupplierId] = useState('');
   const [expectedAt, setExpectedAt] = useState('');
   const [notes, setNotes] = useState(draft?.notes ?? '');
@@ -99,12 +100,12 @@ function CreatePoForm({
         lines: validLines.map((l) => ({ stockItemId: l.stockItemId, quantityOrdered: Number(l.quantity), unitCost: Number(l.unitCost) })),
       }),
     onSuccess: async () => {
-      void qc.invalidateQueries({ queryKey: ['purchase-orders'] });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.purchasing.key('purchase-orders') });
       const linked = draft?.restockRequestIds ?? [];
       if (linked.length > 0) {
         try {
           await Promise.all(linked.map((requestId) => updateRestockRequest(requestId, { status: 'fulfilled' })));
-          void qc.invalidateQueries({ queryKey: ['restock-requests'] });
+          void qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('restock-requests') });
           toast(
             'success',
             linked.length === 1
@@ -227,7 +228,12 @@ function CreatePoForm({
       </div>
 
       {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
-      <FormActions onClose={onClose} isPending={isPending} disabled={!supplierId || validLines.length === 0} submitLabel="Create purchase order" />
+      <FormActions
+        onClose={onClose}
+        isPending={isPending}
+        disabled={!supplierId || validLines.length === 0}
+        submitLabel="Create purchase order"
+      />
     </form>
   );
 }
@@ -236,7 +242,7 @@ function CreatePoForm({
 
 function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const qc = useQueryClient();
-  const { data: po } = useQuery({ queryKey: ['purchase-order', id], queryFn: () => getPurchaseOrder(id) });
+  const { data: po } = useQuery({ queryKey: moduleQueryKeys.purchasing.key('purchase-order', id), queryFn: () => getPurchaseOrder(id) });
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [receiveQty, setReceiveQty] = useState<Record<string, string>>({});
   const [receiveContainers, setReceiveContainers] = useState<Record<string, string>>({});
@@ -247,10 +253,10 @@ function PoDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const [cancelOpen, setCancelOpen] = useState(false);
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['purchase-orders'] });
-    qc.invalidateQueries({ queryKey: ['purchase-order', id] });
-    qc.invalidateQueries({ queryKey: ['location-stock'] });
-    qc.invalidateQueries({ queryKey: ['stock-items'] });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.purchasing.key('purchase-orders') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.purchasing.key('purchase-order', id) });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('location-stock') });
+    qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-items') });
   };
 
   const update = useMutation({
@@ -550,7 +556,7 @@ export function PurchaseOrdersPanel({
   const [supplierFilter, setSupplierFilter] = useState('all');
   const [page, setPage] = useState(1);
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['purchase-orders', locationId, statusFilter, supplierFilter, page],
+    queryKey: moduleQueryKeys.purchasing.key('purchase-orders', locationId, statusFilter, supplierFilter, page),
     queryFn: () =>
       getPurchaseOrders({
         locationId,
@@ -617,7 +623,9 @@ export function PurchaseOrdersPanel({
           <DataTable className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-rule bg-muted">
-                <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">PO</th>
+                <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
+                  PO
+                </th>
                 <th className="px-3 md:px-5 py-3.5 text-left text-micro font-semibold text-muted-foreground uppercase tracking-micro">
                   Supplier
                 </th>

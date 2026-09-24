@@ -3,21 +3,16 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import { ChevronDown, ChevronLeft, ChevronRight, HeartPulse } from '@/components/icons';
+import { MonthGrid, STATUS, dayLabel, hrs, monthBounds, shortDay, toHours } from '@/components/shared/AttendanceCalendar';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { getMyAbsences, getMyAttendance } from '@/lib/api/people-ops.service';
-import { getMyScheduledShifts } from '@/lib/api/scheduling.service';
+import { getMyAbsences, getMyAttendance } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getMyScheduledShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
-import {
-  attendanceTotals,
-  groupAttendanceByWeek,
-  mergeAbsenceDays,
-  mergeRosteredDays,
-} from '@/lib/utils/my-hr';
-
-import { MonthGrid, STATUS, dayLabel, hrs, monthBounds, shortDay, toHours } from '@/components/shared/AttendanceCalendar';
+import { attendanceTotals, groupAttendanceByWeek, mergeAbsenceDays, mergeRosteredDays } from '@/lib/utils/my-hr';
 
 import { DayDetailDrawer } from './DayDetailDrawer';
 import { PanelHeading } from './PanelHeading';
@@ -36,19 +31,19 @@ export function AttendancePanel({ onCorrection }: { onCorrection: (date: string)
 
   const range = monthBounds(offset);
   const { data: attendance = [], isLoading } = useQuery({
-    queryKey: ['attendance-me', range.from, range.to],
+    queryKey: moduleQueryKeys.people.key('attendance-me', range.from, range.to),
     queryFn: () => getMyAttendance(range.from, range.to),
   });
   // The rota carries the days still to come; attendance only describes what has
   // already happened, so on its own the calendar would end at today.
   const { data: roster = [] } = useQuery({
-    queryKey: ['my-scheduled-shifts', range.from, range.to],
+    queryKey: moduleQueryKeys.workforce.key('my-scheduled-shifts', range.from, range.to),
     queryFn: () => getMyScheduledShifts({ from: range.from, to: range.to }),
     retry: false,
   });
 
   // Shares the Absence card's cache entry, so this costs no extra request.
-  const { data: absences = [] } = useQuery({ queryKey: ['absences-me'], queryFn: getMyAbsences, retry: false });
+  const { data: absences = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('absences-me'), queryFn: getMyAbsences, retry: false });
 
   const data = useMemo(() => mergeAbsenceDays(mergeRosteredDays(attendance, roster), absences), [attendance, roster, absences]);
   const byDate = useMemo(() => new Map(data.map((day) => [day.date, day])), [data]);
@@ -164,13 +159,7 @@ function BreakdownCard({
   );
 }
 
-function WeeklyLedger({
-  weeks,
-  onQuery,
-}: {
-  weeks: ReturnType<typeof groupAttendanceByWeek>;
-  onQuery: (date: string) => void;
-}) {
+function WeeklyLedger({ weeks, onQuery }: { weeks: ReturnType<typeof groupAttendanceByWeek>; onQuery: (date: string) => void }) {
   // No card of its own: it renders inside BreakdownCard's body.
   return (
     <div>
@@ -248,7 +237,11 @@ function WeeklyLedger({
  * they can see it. Sits beside the breakdown as a matching card.
  */
 function AbsenceCard() {
-  const { data: absences = [], isLoading, isError } = useQuery({ queryKey: ['absences-me'], queryFn: getMyAbsences, retry: false });
+  const {
+    data: absences = [],
+    isLoading,
+    isError,
+  } = useQuery({ queryKey: moduleQueryKeys.people.key('absences-me'), queryFn: getMyAbsences, retry: false });
 
   // Nothing to say if the endpoint is unavailable to this account — but the card
   // still holds its place in the row rather than collapsing the grid.

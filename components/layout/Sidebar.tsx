@@ -7,10 +7,11 @@ import { LogOut } from '@/components/icons';
 import { Logo } from '@/components/shared/Logo';
 import { Tooltip } from '@/components/shared/Tooltip';
 
-import { getOrders } from '@/lib/api/orders.service';
-import { getCurrentTenantModules, type TenantModuleState } from '@/lib/api/modules.service';
 import { analyticsNavItems, filterNavByCapability, footerNavItems, mainNavItems } from '@/lib/constants/nav';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { getOrders } from '@/lib/modules/ordering/client';
+import { type TenantModuleState, getCurrentTenantModules } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useLoginIntroStore } from '@/stores/loginIntroStore';
@@ -35,7 +36,7 @@ export function Sidebar({ capabilities, moduleState }: { capabilities: readonly 
   const effective = hydrated ? storeCapabilities : capabilities;
 
   const modulesQuery = useQuery({
-    queryKey: ['current-tenant-modules', tenantId],
+    queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
     queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
     enabled: Boolean(tenantId),
     initialData: { modules: [...moduleState] },
@@ -63,7 +64,7 @@ export function Sidebar({ capabilities, moduleState }: { capabilities: readonly 
   }, [showOrders]);
   const activeOrderQueries = useQueries({
     queries: (['pending', 'preparing', 'ready'] as const).map((status) => ({
-      queryKey: ['orders-nav-count', status, locationId],
+      queryKey: moduleQueryKeys.ordering.key('orders-nav-count', status, locationId),
       queryFn: () => getOrders({ limit: 100, status, paymentStatus: 'paid', locationId: locationId ?? undefined }),
       enabled: showOrders && badgeEnabled,
       staleTime: 60_000,
@@ -71,7 +72,9 @@ export function Sidebar({ capabilities, moduleState }: { capabilities: readonly 
     })),
   });
   const activeOrders = activeOrderQueries.reduce(
-    (total, query) => total + (query.data?.data.filter((order) => !order.kitchenReleaseAt || new Date(order.kitchenReleaseAt).getTime() <= Date.now()).length ?? 0),
+    (total, query) =>
+      total +
+      (query.data?.data.filter((order) => !order.kitchenReleaseAt || new Date(order.kitchenReleaseAt).getTime() <= Date.now()).length ?? 0),
     0,
   );
   const badges: Record<string, number> = { '/orders': activeOrders, '/kds': activeOrders };

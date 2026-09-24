@@ -4,28 +4,17 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import QRCode from 'react-qr-code';
 
-import {
-  Ban,
-  Calendar,
-  Check,
-  CheckCircle2,
-  Coins,
-  Copy,
-  Mail,
-  Pencil,
-  Phone,
-  Send,
-  ShieldAlert,
-} from '@/components/icons';
-import type { IconComponent } from '@/components/icons';
 import { CustomerNotesPanel } from '@/components/customers/CustomerNotesPanel';
+import { Ban, Calendar, Check, CheckCircle2, Coins, Copy, Mail, Pencil, Phone, Send, ShieldAlert } from '@/components/icons';
+import type { IconComponent } from '@/components/icons';
 import { InfoRow } from '@/components/shared/InfoRow';
 import { Button } from '@/components/ui/button';
 
-import { getMarketingPreferences } from '@/lib/api/customers.service';
+import { getMarketingPreferences } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { cn } from '@/lib/utils/cn';
 import { customerQrValue } from '@/lib/utils/customer-qr';
 import { formatDate } from '@/lib/utils/date';
-import { cn } from '@/lib/utils/cn';
 import type { Customer } from '@/types/customers';
 
 /**
@@ -59,7 +48,7 @@ export function CustomerWorkbench({ customer, canEdit, canAdjustPoints, onAction
   // Read-only here; the Compliance tab owns changing it. Failing quietly is
   // correct — a missing consent record must not blank out the contact card.
   const { data: preferences } = useQuery({
-    queryKey: ['marketing-preferences', customer.id],
+    queryKey: moduleQueryKeys.customers.key('marketing-preferences', customer.id),
     queryFn: () => getMarketingPreferences(customer.id),
     enabled: Boolean(customer.email),
   });

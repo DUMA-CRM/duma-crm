@@ -1,14 +1,14 @@
 import 'server-only';
 
-import type { HrEmployee } from '@/lib/api/hr.service';
-import type { LocationStock } from '@/lib/api/inventory.service';
-import type { Order } from '@/lib/api/orders.service';
-import type { LeaveEntitlement, LeaveRequest, LeaveType } from '@/lib/api/people-ops.service';
-import type { PurchaseOrder } from '@/lib/api/purchasing.service';
-import type { QrOrderingConfig } from '@/lib/api/qr-ordering.service';
-import { encodeNotes } from '@/lib/api/restock.service';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
-import { isModuleSurfaceEnabled, MODULE_IDS, type ModuleId } from '@/lib/modules/manifest';
+import type { LocationStock } from '@/lib/modules/inventory/client';
+import { encodeNotes } from '@/lib/modules/inventory/client';
+import { MODULE_IDS, type ModuleId, isModuleSurfaceEnabled } from '@/lib/modules/manifest';
+import type { Order } from '@/lib/modules/ordering/client';
+import type { QrOrderingConfig } from '@/lib/modules/ordering/client';
+import type { HrEmployee } from '@/lib/modules/people/client';
+import type { LeaveEntitlement, LeaveRequest, LeaveType } from '@/lib/modules/people/client';
+import type { PurchaseOrder } from '@/lib/modules/purchasing/client';
 import { isValidNiNumber, normaliseNiNumber } from '@/lib/utils/my-hr';
 import type { Customer, CustomersResponse } from '@/types/customers';
 import type { MenuItem } from '@/types/menu';
@@ -98,10 +98,8 @@ interface ActionDefinitionBase {
   execute(action: ResolvedAction, runtime: AgentRuntime): Promise<ActionResult>;
 }
 
-export type ActionDefinition = ActionDefinitionBase & (
-  | { capability: Capability; module?: never }
-  | { capability?: never; module: ModuleId }
-);
+export type ActionDefinition = ActionDefinitionBase &
+  ({ capability: Capability; module?: never } | { capability?: never; module: ModuleId });
 
 function schema(properties: JsonObject): JsonObject {
   return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
@@ -1015,9 +1013,6 @@ const cancelLeaveRequest: ActionDefinition = {
   },
 };
 
-
-
-
 const raiseHrRequest: ActionDefinition = {
   module: 'support',
   kind: 'raise_hr_request',
@@ -1509,10 +1504,7 @@ export const ACTIONS: ActionDefinition[] = [
 const ACTION_BY_TOOL = new Map(ACTIONS.map((action) => [action.tool.name, action]));
 const ACTION_BY_KIND = new Map(ACTIONS.map((action) => [action.kind, action]));
 
-export function actionsForCapabilities(
-  capabilities: readonly string[],
-  enabledModuleIds: readonly ModuleId[] = MODULE_IDS,
-) {
+export function actionsForCapabilities(capabilities: readonly string[], enabledModuleIds: readonly ModuleId[] = MODULE_IDS) {
   return ACTIONS.filter((action) => {
     if (action.capability && !hasCapability(capabilities, action.capability)) return false;
     return isModuleSurfaceEnabled(action, enabledModuleIds);

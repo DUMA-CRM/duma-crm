@@ -3,9 +3,10 @@
 import { useQueries } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { getMenuItemRecipe } from '@/lib/api/recipes.service';
 import { useVatContext } from '@/lib/hooks/useVatContext';
 import { type Costing, computeCosting } from '@/lib/menu/costing';
+import { getMenuItemRecipe } from '@/lib/modules/inventory/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import type { MenuItem } from '@/types/menu';
 
 export interface MenuItemCost {
@@ -34,14 +35,14 @@ export function useMenuItemCosts(items: MenuItem[]): Map<string, MenuItemCost> {
 
   const queries = useQueries({
     queries: items.map((item) => ({
-      queryKey: ['menu-item-recipe', item.id],
+      queryKey: moduleQueryKeys.inventory.key('menu-item-recipe', item.id),
       queryFn: () => getMenuItemRecipe(item.id),
     })),
   });
 
   // Depend on the resolved data rather than the query objects, which are new
   // on every render and would defeat the memo entirely.
-  const signature = queries.map((q) => (q.isPending ? 'p' : q.data?.length ?? 0)).join(',');
+  const signature = queries.map((q) => (q.isPending ? 'p' : (q.data?.length ?? 0))).join(',');
 
   return useMemo(() => {
     const out = new Map<string, MenuItemCost>();

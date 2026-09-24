@@ -79,8 +79,9 @@ import {
   removeLocationStock,
   splitStockUnit,
   updateLocationStock,
-} from '@/lib/api/inventory.service';
-import { type LossRecord, getLossLog } from '@/lib/api/loss.service';
+} from '@/lib/modules/inventory/client';
+import { type LossRecord, getLossLog } from '@/lib/modules/inventory/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatDate as formatAppDate, formatDateTime } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
@@ -137,11 +138,11 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
   const [selectedUnitIds, setSelectedUnitIds] = useState<Set<string>>(() => new Set());
 
   const { data: item, isLoading: itemLoading } = useQuery({
-    queryKey: ['stock-item', stockItemId],
+    queryKey: moduleQueryKeys.inventory.key('stock-item', stockItemId),
     queryFn: () => getStockItem(stockItemId),
   });
   const { data: units = [], isLoading: unitsLoading } = useQuery({
-    queryKey: ['stock-units', locationId, stockItemId, { showInactive: showInactiveUnits }],
+    queryKey: moduleQueryKeys.inventory.key('stock-units', locationId, stockItemId, { showInactive: showInactiveUnits }),
     queryFn: () =>
       getStockUnits({
         locationId: locationId ?? undefined,
@@ -155,30 +156,30 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
     isLoading: ledgerLoading,
     isFetching: ledgerFetching,
   } = useQuery({
-    queryKey: ['stock-movements', stockItemId, 'detail', ledgerPage],
+    queryKey: moduleQueryKeys.inventory.key('stock-movements', stockItemId, 'detail', ledgerPage),
     queryFn: () => getStockItemMovements(stockItemId, { page: ledgerPage, limit: LEDGER_PAGE_SIZE }),
     placeholderData: (previous) => previous,
   });
   // The per-location row carries the reorder threshold, availability flag and the
   // id every stock action is keyed by — the list page used to hand it over.
   const { data: rawStock } = useQuery({
-    queryKey: ['location-stock', locationId],
+    queryKey: moduleQueryKeys.inventory.key('location-stock', locationId),
     queryFn: () => getLocationStock(locationId!),
     enabled: !!locationId,
   });
   const { data: rawOverview } = useQuery({
-    queryKey: ['inventory-overview', locationId],
+    queryKey: moduleQueryKeys.inventory.key('inventory-overview', locationId),
     queryFn: () => getInventoryOverview(locationId!),
     enabled: !!locationId,
   });
   const { data: rawForecast } = useQuery({
-    queryKey: ['inventory-forecast', locationId],
+    queryKey: moduleQueryKeys.inventory.key('inventory-forecast', locationId),
     queryFn: () => getInventoryForecast(locationId!),
     ...serverCache('inventoryForecast'),
     enabled: !!locationId,
   });
   const { data: rawLosses, isLoading: lossesLoading } = useQuery({
-    queryKey: ['loss-log', 'item', stockItemId, locationId],
+    queryKey: moduleQueryKeys.inventory.key('loss-log', 'item', stockItemId, locationId),
     queryFn: () => getLossLog({ tenantId: tenantId!, stockItemId, locationId: locationId ?? undefined, limit: 50 }),
     enabled: !!tenantId,
   });
@@ -220,11 +221,11 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
   const allergens = item?.allergens ?? [];
 
   function invalidateStock() {
-    void queryClient.invalidateQueries({ queryKey: ['stock-units', locationId, stockItemId] });
-    void queryClient.invalidateQueries({ queryKey: ['stock-movements', stockItemId] });
-    void queryClient.invalidateQueries({ queryKey: ['inventory-overview', locationId] });
-    void queryClient.invalidateQueries({ queryKey: ['location-stock', locationId] });
-    void queryClient.invalidateQueries({ queryKey: ['inventory-forecast', locationId] });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-units', locationId, stockItemId) });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-movements', stockItemId) });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('inventory-overview', locationId) });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('location-stock', locationId) });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('inventory-forecast', locationId) });
   }
 
   function toggleUnitSelection(id: string) {
@@ -706,7 +707,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
           item={stock}
           onClose={() => setRestockOpen(false)}
           onSuccess={() => {
-            void queryClient.invalidateQueries({ queryKey: ['restock-requests'] });
+            void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('restock-requests') });
             toast('success', 'Restock request submitted.');
           }}
         />
@@ -718,7 +719,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
           onClose={() => setLossOpen(false)}
           onSuccess={() => {
             invalidateStock();
-            void queryClient.invalidateQueries({ queryKey: ['loss-log'] });
+            void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('loss-log') });
             toast('success', 'Loss entry recorded.');
           }}
         />
@@ -728,8 +729,8 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
           item={item}
           onClose={() => setEditItemOpen(false)}
           onSuccess={() => {
-            void queryClient.invalidateQueries({ queryKey: ['stock-item', stockItemId] });
-            void queryClient.invalidateQueries({ queryKey: ['stock-items'] });
+            void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-item', stockItemId) });
+            void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-items') });
             invalidateStock();
             toast('success', 'Stock item updated.');
           }}

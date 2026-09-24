@@ -1,10 +1,10 @@
 'use client';
-import { Banknote, Check, CloudUpload, CreditCard, Loader2, Mail, Printer, ReceiptText, X, XCircle } from '@/components/icons';
 import { useEffect } from 'react';
 
+import { Banknote, Check, CloudUpload, CreditCard, Loader2, Mail, Printer, ReceiptText, X, XCircle } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
-import type { PaymentMethod } from '@/lib/api/payments.service';
+import type { PaymentMethod } from '@/lib/modules/payments/client';
 
 export type CheckoutStep = 'method' | 'verify' | 'confirm' | 'receipt';
 interface Props {

@@ -43,6 +43,7 @@ import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
+import { serverCache } from '@/lib/api/cache-policy';
 import {
   type DailyOrderAnalytics,
   type HourlyVolume,
@@ -51,10 +52,10 @@ import {
   getHourlyVolume,
   getOrderAnalytics,
   getTopItems,
-} from '@/lib/api/analytics.service';
-import { getLocations } from '@/lib/api/workspace.service';
+} from '@/lib/modules/analytics/client';
+import { getLocations } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { serverCache } from '@/lib/api/cache-policy';
 import {
   REPORT_METRICS,
   REPORT_METRIC_MAP,
@@ -520,37 +521,37 @@ function ReportsOverview({
   const scoped = (range: { from: string; to: string }) => ({ ...range, ...(activeLocationId ? { locationId: activeLocationId } : {}) });
 
   const currentOrders = useQuery({
-    queryKey: ['reports-overview-orders', dates.from, dates.to, scope, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('reports-overview-orders', dates.from, dates.to, scope, timeZone),
     queryFn: () => getOrderAnalytics(scoped(currentRange!)),
     ...serverCache('orders'),
     enabled: valid,
   });
   const comparisonOrders = useQuery({
-    queryKey: ['reports-overview-orders-comparison', previousDates.from, previousDates.to, scope, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('reports-overview-orders-comparison', previousDates.from, previousDates.to, scope, timeZone),
     queryFn: () => getOrderAnalytics(scoped(comparisonRange!)),
     ...serverCache('orders'),
     enabled: valid,
   });
   const currentRetention = useQuery({
-    queryKey: ['reports-overview-retention', dates.from, dates.to, scope, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('reports-overview-retention', dates.from, dates.to, scope, timeZone),
     queryFn: () => getCustomerRetention(scoped(currentRange!)),
     ...serverCache('customerRetention'),
     enabled: valid,
   });
   const comparisonRetention = useQuery({
-    queryKey: ['reports-overview-retention-comparison', previousDates.from, previousDates.to, scope, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('reports-overview-retention-comparison', previousDates.from, previousDates.to, scope, timeZone),
     queryFn: () => getCustomerRetention(scoped(comparisonRange!)),
     ...serverCache('customerRetention'),
     enabled: valid,
   });
   const topItems = useQuery({
-    queryKey: ['reports-overview-top-items', dates.from, dates.to, scope, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('reports-overview-top-items', dates.from, dates.to, scope, timeZone),
     queryFn: () => getTopItems(scoped(currentRange!), 10),
     ...serverCache('topItems'),
     enabled: valid,
   });
   const hourly = useQuery({
-    queryKey: ['reports-overview-hourly', dates.from, dates.to, scope, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('reports-overview-hourly', dates.from, dates.to, scope, timeZone),
     queryFn: () => getHourlyVolume(scoped(currentRange!)),
     ...serverCache('hourlyVolume'),
     enabled: valid,
@@ -571,7 +572,7 @@ function ReportsOverview({
     { label: 'Mobile', orders: current.values.mobileOrders, value: current.values.mobileValue, dot: 'bg-chart-2' },
     { label: 'QR code', orders: current.values.qrOrders, value: current.values.qrValue, dot: 'bg-chart-3' },
   ];
-  const leadingChannel = channelRows.reduce((leader, channel) => channel.orders > leader.orders ? channel : leader);
+  const leadingChannel = channelRows.reduce((leader, channel) => (channel.orders > leader.orders ? channel : leader));
   const leadingChannelOrders = leadingChannel.orders;
   const totalChannelOrders = channelRows.reduce((total, channel) => total + channel.orders, 0);
   const leadingItem = topItems.data?.[0];
@@ -879,25 +880,25 @@ function ComparisonWorkspace({
   const paramsB = rangeB ? { ...rangeB, ...(locationB ? { locationId: locationB } : {}) } : null;
 
   const ordersA = useQuery({
-    queryKey: ['reports-compare-orders-a', fromA, toA, locationA, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('reports-compare-orders-a', fromA, toA, locationA, timeZone),
     queryFn: () => getOrderAnalytics(paramsA!),
     ...serverCache('orders'),
     enabled: Boolean(paramsA),
   });
   const ordersB = useQuery({
-    queryKey: ['reports-compare-orders-b', effectiveB.from, effectiveB.to, locationB, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('reports-compare-orders-b', effectiveB.from, effectiveB.to, locationB, timeZone),
     queryFn: () => getOrderAnalytics(paramsB!),
     ...serverCache('orders'),
     enabled: Boolean(paramsB),
   });
   const retentionA = useQuery({
-    queryKey: ['reports-compare-retention-a', fromA, toA, locationA, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('reports-compare-retention-a', fromA, toA, locationA, timeZone),
     queryFn: () => getCustomerRetention(paramsA!),
     ...serverCache('customerRetention'),
     enabled: Boolean(paramsA),
   });
   const retentionB = useQuery({
-    queryKey: ['reports-compare-retention-b', effectiveB.from, effectiveB.to, locationB, timeZone],
+    queryKey: moduleQueryKeys.analytics.key('reports-compare-retention-b', effectiveB.from, effectiveB.to, locationB, timeZone),
     queryFn: () => getCustomerRetention(paramsB!),
     ...serverCache('customerRetention'),
     enabled: Boolean(paramsB),
@@ -1203,7 +1204,7 @@ const TAB_PATH: Record<ReportsTab, string> = {
 export function ReportsWorkspace({ tab = 'overview' }: { tab?: ReportsTab }) {
   const router = useRouter();
   const { locationId } = useWorkspaceStore();
-  const locationsQuery = useQuery({ queryKey: ['locations-accessible'], queryFn: getLocations });
+  const locationsQuery = useQuery({ queryKey: moduleQueryKeys.organization.key('locations-accessible'), queryFn: getLocations });
   const locations = locationsQuery.data ?? [];
   const selectedLocation = locations.find((location) => location.id === locationId);
   const activeLocationId = selectedLocation?.id ?? null;

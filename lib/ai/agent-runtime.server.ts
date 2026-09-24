@@ -1,10 +1,10 @@
 import 'server-only';
 
-import { apiFetch } from '@/lib/api/client';
-import type { StockItem } from '@/lib/api/inventory.service';
-import type { Supplier } from '@/lib/api/purchasing.service';
-import type { StaffProfile } from '@/lib/api/staff.service';
-import type { Location } from '@/lib/api/workspace.service';
+import { apiFetch } from '@/lib/modules/core/client';
+import type { StaffProfile } from '@/lib/modules/identity/client';
+import type { StockItem } from '@/lib/modules/inventory/client';
+import type { Location } from '@/lib/modules/organization/client';
+import type { Supplier } from '@/lib/modules/purchasing/client';
 import type { MenuItem } from '@/types/menu';
 
 import { toNumber } from './agent-format.ts';

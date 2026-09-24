@@ -1,12 +1,13 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryKey, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { NUTRITION_FIELDS, type NutritionFacts, type StockItem, getStockItems } from '@/lib/api/inventory.service';
-import type { RecipeLine, RecipeLineInput } from '@/lib/api/recipes.service';
 import { useVatContext } from '@/lib/hooks/useVatContext';
 import { computeCosting } from '@/lib/menu/costing';
+import { NUTRITION_FIELDS, type NutritionFacts, type StockItem, getStockItems } from '@/lib/modules/inventory/client';
+import type { RecipeLine, RecipeLineInput } from '@/lib/modules/inventory/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/stores/toastStore';
 
 export const DEFAULT_COL = '';
@@ -104,7 +105,7 @@ export interface RecipeRow {
 }
 
 interface UseRecipeDraftArgs {
-  queryKey: (string | undefined)[];
+  queryKey: QueryKey;
   fetchLines: () => Promise<RecipeLine[]>;
   saveLines: (lines: RecipeLineInput[]) => Promise<unknown>;
   sizes: SizeColumn[];
@@ -124,7 +125,7 @@ export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePri
   const qc = useQueryClient();
   const { ctx: vat } = useVatContext();
   const { data: recipe = [], isLoading } = useQuery({ queryKey, queryFn: fetchLines });
-  const { data: stockItems = [] } = useQuery({ queryKey: ['stock-items'], queryFn: getStockItems });
+  const { data: stockItems = [] } = useQuery({ queryKey: moduleQueryKeys.inventory.key('stock-items'), queryFn: getStockItems });
 
   // Draft starts null (mirror server); first edit copies server state in — no effects.
   const [draft, setDraft] = useState<RecipeRow[] | null>(null);

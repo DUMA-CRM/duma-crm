@@ -1,4 +1,4 @@
-import type { DayBaseline } from '@/lib/api/analytics.service';
+import type { DayBaseline } from '@/lib/modules/analytics/client';
 
 // Is today ahead or behind? Everything here answers that one question, and every
 // path can refuse to answer it — a pace line drawn off two Thursdays or off the
@@ -77,9 +77,7 @@ export function computePace({
     delta,
     deltaPct: expectedByNow > 0 ? (delta / expectedByNow) * 100 : null,
     projected:
-      enoughHistory && progress >= MIN_PROGRESS_TO_PROJECT && expectedByNow > 0
-        ? takenSoFar * (typicalFullDay / expectedByNow)
-        : null,
+      enoughHistory && progress >= MIN_PROGRESS_TO_PROJECT && expectedByNow > 0 ? takenSoFar * (typicalFullDay / expectedByNow) : null,
   };
 }
 

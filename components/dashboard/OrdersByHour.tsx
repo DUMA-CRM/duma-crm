@@ -2,10 +2,10 @@
 
 import { Clock } from '@/components/icons';
 
-import type { DayBaseline, HourlyVolume } from '@/lib/api/analytics.service';
+import type { DayBaseline, HourlyVolume } from '@/lib/modules/analytics/client';
 import { cn } from '@/lib/utils/cn';
 import { MIN_BASELINE_SAMPLES } from '@/lib/utils/pace';
-import { axisHours, axisNowMinutes, type TradingDay } from '@/lib/utils/trading-day';
+import { type TradingDay, axisHours, axisNowMinutes } from '@/lib/utils/trading-day';
 
 /* Orders per hour of the local trading day, so prep and staffing can be planned
    against the shape of the day rather than a total.
@@ -93,7 +93,10 @@ export function OrdersByHour({
                     />
                   )}
                   <span
-                    className={cn('relative w-full rounded-t-sm', future ? 'bg-band' : bucket.hour === busiest ? 'bg-measured' : 'bg-measured/45')}
+                    className={cn(
+                      'relative w-full rounded-t-sm',
+                      future ? 'bg-band' : bucket.hour === busiest ? 'bg-measured' : 'bg-measured/45',
+                    )}
                     style={{ height: `${count ? Math.max(4, (count / max) * 100) : 2}%` }}
                   />
                 </div>

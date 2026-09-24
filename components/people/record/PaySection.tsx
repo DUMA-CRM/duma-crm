@@ -4,27 +4,18 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { Banknote, Eye, EyeOff, Landmark, Loader2, Receipt, Shield, UserRound } from '@/components/icons';
-import {
-  fmtDate,
-  fmtMoney,
-} from '@/components/people/shared';
+import { fmtDate, fmtMoney } from '@/components/people/shared';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { InfoRow } from '@/components/shared/InfoRow';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import {
-  getEmployee,
-  getEmployeeBank,
-} from '@/lib/api/hr.service';
-import {
-  getEmployeePayslips,
-} from '@/lib/api/people-ops.service';
+import { getEmployee, getEmployeeBank } from '@/lib/modules/people/client';
+import { getEmployeePayslips } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 
 import { DetailCard } from './OverviewSection';
-
-
-import { type Employee, CARD } from './shared';
+import { CARD, type Employee } from './shared';
 
 export function PayslipsCard({ userId }: { userId: string }) {
   const {
@@ -33,7 +24,7 @@ export function PayslipsCard({ userId }: { userId: string }) {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ['employee-payslips', userId],
+    queryKey: moduleQueryKeys.people.key('employee-payslips', userId),
     queryFn: () => getEmployeePayslips(userId),
   });
   return (
@@ -91,7 +82,6 @@ export function PayslipsCard({ userId }: { userId: string }) {
   );
 }
 
-
 // ── Bank & Statutory (money roles only) ───────────────────────────────────────
 
 export function BankTab({ userId, emp, onEdit, className }: { userId: string; emp: Employee; onEdit?: () => void; className?: string }) {
@@ -101,9 +91,9 @@ export function BankTab({ userId, emp, onEdit, className }: { userId: string; em
     isPending,
     isError,
     refetch,
-  } = useQuery({ queryKey: ['employee-bank', userId, reveal], queryFn: () => getEmployeeBank(userId, reveal) });
+  } = useQuery({ queryKey: moduleQueryKeys.people.key('employee-bank', userId, reveal), queryFn: () => getEmployeeBank(userId, reveal) });
   const { data: revealedEmp } = useQuery({
-    queryKey: ['hr-employee', userId, 'reveal'],
+    queryKey: moduleQueryKeys.people.key('hr-employee', userId, 'reveal'),
     queryFn: () => getEmployee(userId, true),
     enabled: reveal,
   });

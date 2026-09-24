@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { getRefundReport, refundReportCsvUrl } from '@/lib/api/refunds.service';
+import { getRefundReport, refundReportCsvUrl } from '@/lib/modules/payments/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { formatDate, formatDateTime } from '@/lib/utils/date';
 
 const reasons = [
@@ -36,7 +37,10 @@ export function RefundReportPage() {
     [from, to],
   );
   const params = { ...range, basis, ...(reason !== 'all' ? { reason } : {}) };
-  const { data, isPending, error } = useQuery({ queryKey: ['refund-report', params], queryFn: () => getRefundReport(params) });
+  const { data, isPending, error } = useQuery({
+    queryKey: moduleQueryKeys.payments.key('refund-report', params),
+    queryFn: () => getRefundReport(params),
+  });
 
   return (
     <EditorShell eyebrow="Report" title="Refunds" icon={<RotateCcw size={20} />} onClose={() => router.push('/reports/library')}>

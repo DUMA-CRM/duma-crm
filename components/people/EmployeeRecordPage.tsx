@@ -16,41 +16,33 @@ import {
   Pencil,
   TrendingUp,
 } from '@/components/icons';
-import {
-  Avatar,
-  fmtHours,
-  fmtMoney,
-} from '@/components/people/shared';
+import { Avatar, fmtHours, fmtMoney } from '@/components/people/shared';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SectionTabs } from '@/components/shared/SectionTabs';
 import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 import { Button } from '@/components/ui/button';
 
-import {
-  getEmployee,
-  getEmployeeHours,
-  offboardEmployee,
-} from '@/lib/api/hr.service';
-import {
-} from '@/lib/api/people-ops.service';
-import { type StaffProfile, updateStaff } from '@/lib/api/staff.service';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
-import { getManagedTickets } from '@/lib/api/people-ops.service';
-import { getEmployeeEntitlements } from '@/lib/api/people-ops.service';
-import { getScheduledShifts } from '@/lib/api/scheduling.service';
-import { leaveBalance } from '@/lib/utils/my-hr';
+import { type StaffProfile, updateStaff } from '@/lib/modules/identity/client';
+import { getEmployee, getEmployeeHours, offboardEmployee } from '@/lib/modules/people/client';
+import '@/lib/modules/people/client';
+import { getManagedTickets } from '@/lib/modules/people/client';
+import { getEmployeeEntitlements } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getScheduledShifts } from '@/lib/modules/workforce/client';
 import { openTicketsFor, ticketsForEmployee } from '@/lib/utils/employee-record';
+import { leaveBalance } from '@/lib/utils/my-hr';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
 import { EmployeeAttendanceCard } from './record/AttendanceCard';
 import { EditDetailsDrawer } from './record/EditDetailsDrawer';
 import { AccessCard, ComplianceSummaryCard, EmploymentTab, PersonalTab } from './record/OverviewSection';
-import { EmployeeRequestsCard } from './record/RequestsCard';
 import { BankTab, PayslipsCard } from './record/PaySection';
-import { monthRange } from './record/shared';
+import { EmployeeRequestsCard } from './record/RequestsCard';
 import { AbsenceCard, EmployeeDocumentsCard, LeaveAllowanceCard, TimesheetCard, WorkPatternCard } from './record/TimeSection';
+import { monthRange } from './record/shared';
 
 type RecordSection = 'overview' | 'time' | 'pay';
 
@@ -106,8 +98,8 @@ export function EmployeeRecordPage({
   const offboard = useMutation({
     mutationFn: () => offboardEmployee(userId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['hr-employees'] });
-      qc.invalidateQueries({ queryKey: ['staff'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employees') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('staff') });
       setOffboardOpen(false);
       toast('success', 'Employee offboarded.');
       // Stay on the record (now inactive) so it can be re-onboarded from here.
@@ -121,18 +113,22 @@ export function EmployeeRecordPage({
   const reactivate = useMutation({
     mutationFn: () => updateStaff(userId, { isActive: true }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['staff'] });
-      qc.invalidateQueries({ queryKey: ['hr-employees'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('staff') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employees') });
       toast('success', 'Employee account reactivated.');
     },
     onError: (err) => toast('error', (err as Error).message || 'The employee account wasn’t reactivated. Try again.'),
   });
 
-  const { data: emp, isLoading, isError } = useQuery({ queryKey: ['hr-employee', userId], queryFn: () => getEmployee(userId) });
+  const {
+    data: emp,
+    isLoading,
+    isError,
+  } = useQuery({ queryKey: moduleQueryKeys.people.key('hr-employee', userId), queryFn: () => getEmployee(userId) });
   const [monthOffset, setMonthOffset] = useState(0);
   const range = monthRange(monthOffset);
   const { data: hours } = useQuery({
-    queryKey: ['employee-hours', userId, range.from, range.to],
+    queryKey: moduleQueryKeys.people.key('employee-hours', userId, range.from, range.to),
     queryFn: () => getEmployeeHours(userId, range.from, range.to),
   });
 
@@ -141,7 +137,7 @@ export function EmployeeRecordPage({
   // network call that the allowance mutations then fail to invalidate.
   const entitlementYear = new Date().getFullYear();
   const entitlementsQuery = useQuery({
-    queryKey: ['employee-entitlements', userId, entitlementYear],
+    queryKey: moduleQueryKeys.people.key('employee-entitlements', userId, entitlementYear),
     queryFn: () => getEmployeeEntitlements(userId, entitlementYear),
   });
   const entitlements = entitlementsQuery.data ?? [];
@@ -157,7 +153,7 @@ export function EmployeeRecordPage({
     };
   });
   const rotaQuery = useQuery({
-    queryKey: ['scheduled-shifts', userId, today, horizon],
+    queryKey: moduleQueryKeys.workforce.key('scheduled-shifts', userId, today, horizon),
     queryFn: () => getScheduledShifts({ userId, from: today, to: horizon }),
     enabled: canReadRota,
   });
@@ -166,7 +162,7 @@ export function EmployeeRecordPage({
   // `/helpdesk/manage` has no userId filter — only status, category and a
   // search that also matches subject text — so the queue is narrowed here.
   const ticketsQuery = useQuery({
-    queryKey: ['helpdesk-managed', '', '', ''],
+    queryKey: moduleQueryKeys.support.key('helpdesk-managed', '', '', ''),
     queryFn: () => getManagedTickets({}),
     enabled: canReadHelpdesk,
   });
@@ -386,15 +382,11 @@ export function EmployeeRecordPage({
                 <PayslipsCard userId={userId} />
               </div>
             )}
-
-
           </>
         )}
       </div>
 
-      {editing && emp && (
-        <EditDetailsDrawer userId={userId} employee={emp} canEditPay={canEditPay} onClose={() => setEditing(false)} />
-      )}
+      {editing && emp && <EditDetailsDrawer userId={userId} employee={emp} canEditPay={canEditPay} onClose={() => setEditing(false)} />}
 
       {/* Portaled modal — centers on the viewport above the record view. */}
       {member && offboardOpen && (

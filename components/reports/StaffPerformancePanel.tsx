@@ -25,17 +25,10 @@ import { ErrorState } from '@/components/shared/ErrorState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { StatCard, StatCardGrid, comparisonDelta } from '@/components/shared/StatCard';
 
-import { type StaffPerfWindowKey, getStaffPerformance } from '@/lib/api/staff.service';
+import { type StaffPerfWindowKey, getStaffPerformance } from '@/lib/modules/identity/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import {
-  divide,
-  fmtMins,
-  fmtPct,
-  hasSlowTail,
-  otherOrders,
-  otherSources,
-  performanceMetrics,
-} from '@/lib/utils/staff-performance';
+import { divide, fmtMins, fmtPct, hasSlowTail, otherOrders, otherSources, performanceMetrics } from '@/lib/utils/staff-performance';
 
 /* One person's attributed sales and throughput.
  *
@@ -96,7 +89,7 @@ function Insight({ tone, children }: { tone: 'good' | 'watch' | 'neutral'; child
 export function StaffPerformancePanel({ userId }: { userId: string }) {
   const [win, setWin] = useState<StaffPerfWindowKey>('last30Days');
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['staff-performance', userId],
+    queryKey: moduleQueryKeys.analytics.key('staff-performance', userId),
     queryFn: () => getStaffPerformance(userId),
   });
   const w = data?.windows[win];

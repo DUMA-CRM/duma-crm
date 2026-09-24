@@ -16,8 +16,9 @@ import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { getMenuCategories, getMenuItems, updateMenuItem } from '@/lib/api/menu.service';
 import { type MenuItemCost, useMenuItemCosts } from '@/lib/hooks/useMenuItemCosts';
+import { getMenuCategories, getMenuItems, updateMenuItem } from '@/lib/modules/catalog/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatMoney } from '@/lib/utils/dashboard';
 import { toast } from '@/stores/toastStore';
@@ -87,12 +88,12 @@ export function MenuItemsWorkspace() {
   };
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ['menu-items', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId),
     queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: categories = [] } = useQuery({
-    queryKey: ['menu-categories', tenantId],
+    queryKey: moduleQueryKeys.catalog.key('menu-categories', tenantId),
     queryFn: () => getMenuCategories(tenantId!),
     enabled: Boolean(tenantId),
   });
@@ -113,7 +114,7 @@ export function MenuItemsWorkspace() {
 
   const availability = useMutation({
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => updateMenuItem(id, { isAvailable }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['menu-items'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-items') }),
     onError: (err) => toast('error', err.message || 'Availability wasn’t updated. Try again.'),
   });
 
@@ -169,7 +170,9 @@ export function MenuItemsWorkspace() {
             width: 'fit',
             cell: ({ row }) => {
               const cost = costs.get(row.id);
-              return <span className="tabular-nums text-muted-foreground">{cost?.costComplete ? formatMoney(cost.costing!.cogs, 2) : '—'}</span>;
+              return (
+                <span className="tabular-nums text-muted-foreground">{cost?.costComplete ? formatMoney(cost.costing!.cogs, 2) : '—'}</span>
+              );
             },
           },
           {

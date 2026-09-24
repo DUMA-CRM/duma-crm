@@ -1,10 +1,12 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3 } from '@/components/icons';
 import { useMemo, useState } from 'react';
 
-import { type CoverageRow, type CoverageWeekdayRow, getCoverage, isWeekdayRow } from '@/lib/api/scheduling.service';
+import { BarChart3 } from '@/components/icons';
+
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { type CoverageRow, type CoverageWeekdayRow, getCoverage, isWeekdayRow } from '@/lib/modules/workforce/client';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const inp =
@@ -54,7 +56,7 @@ export function CoveragePanel() {
   const [byWeekday, setByWeekday] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['coverage', locationId, lookbackDays, ordersPerStaff, minStaff, byWeekday],
+    queryKey: moduleQueryKeys.workforce.key('coverage', locationId, lookbackDays, ordersPerStaff, minStaff, byWeekday),
     queryFn: () => getCoverage({ locationId: locationId!, lookbackDays, ordersPerStaff, minStaff, byWeekday }),
     enabled: !!locationId,
   });
@@ -78,11 +80,37 @@ export function CoveragePanel() {
     <div className="bg-card border border-rule rounded-sm shrink-0 overflow-hidden">
       {/* Controls */}
       <div className="p-3 flex flex-wrap items-end gap-3 border-b border-rule">
-        <div><label className={lbl}>Lookback days</label><input type="number" min={1} value={lookbackDays} onChange={(e) => setLookbackDays(Number(e.target.value))} className={inp + ' w-24'} /></div>
-        <div><label className={lbl}>Orders / staff</label><input type="number" min={1} value={ordersPerStaff} onChange={(e) => setOrdersPerStaff(Number(e.target.value))} className={inp + ' w-24'} /></div>
-        <div><label className={lbl}>Min staff</label><input type="number" min={0} value={minStaff} onChange={(e) => setMinStaff(Number(e.target.value))} className={inp + ' w-24'} /></div>
+        <div>
+          <label className={lbl}>Lookback days</label>
+          <input
+            type="number"
+            min={1}
+            value={lookbackDays}
+            onChange={(e) => setLookbackDays(Number(e.target.value))}
+            className={inp + ' w-24'}
+          />
+        </div>
+        <div>
+          <label className={lbl}>Orders / staff</label>
+          <input
+            type="number"
+            min={1}
+            value={ordersPerStaff}
+            onChange={(e) => setOrdersPerStaff(Number(e.target.value))}
+            className={inp + ' w-24'}
+          />
+        </div>
+        <div>
+          <label className={lbl}>Min staff</label>
+          <input type="number" min={0} value={minStaff} onChange={(e) => setMinStaff(Number(e.target.value))} className={inp + ' w-24'} />
+        </div>
         <label className="flex items-center gap-2 cursor-pointer select-none h-9">
-          <input type="checkbox" checked={byWeekday} onChange={(e) => setByWeekday(e.target.checked)} className="w-4 h-4 rounded accent-primary" />
+          <input
+            type="checkbox"
+            checked={byWeekday}
+            onChange={(e) => setByWeekday(e.target.checked)}
+            className="w-4 h-4 rounded accent-primary"
+          />
           <span className="text-sm text-foreground">By weekday</span>
         </label>
       </div>
@@ -90,7 +118,9 @@ export function CoveragePanel() {
       {/* Bars */}
       {isLoading ? (
         <div className="p-4 space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-5 bg-muted rounded animate-pulse" style={{ width: `${40 + ((i * 17) % 55)}%` }} />)}
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-5 bg-muted rounded animate-pulse" style={{ width: `${40 + ((i * 17) % 55)}%` }} />
+          ))}
         </div>
       ) : coverage.length === 0 ? (
         <div className="py-8 text-center">
@@ -105,16 +135,22 @@ export function CoveragePanel() {
             <span className="w-14 shrink-0 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">Orders</span>
             <span className="w-16 shrink-0 text-right text-micro font-semibold text-muted-foreground uppercase tracking-micro">Rec.</span>
           </div>
-          {grouped ? (
-            grouped.map((g) => (
-              <div key={g.name} className="mt-1">
-                <p className="px-4 pt-3 pb-1 text-xs font-bold text-primary uppercase tracking-widest">{g.name}</p>
-                {g.rows.slice().sort((a, b) => a.hour - b.hour).map((r) => <HourBar key={`${g.name}-${r.hour}`} row={r} maxOrders={maxOrders} />)}
-              </div>
-            ))
-          ) : (
-            coverage.slice().sort((a, b) => a.hour - b.hour).map((r) => <HourBar key={r.hour} row={r} maxOrders={maxOrders} />)
-          )}
+          {grouped
+            ? grouped.map((g) => (
+                <div key={g.name} className="mt-1">
+                  <p className="px-4 pt-3 pb-1 text-xs font-bold text-primary uppercase tracking-widest">{g.name}</p>
+                  {g.rows
+                    .slice()
+                    .sort((a, b) => a.hour - b.hour)
+                    .map((r) => (
+                      <HourBar key={`${g.name}-${r.hour}`} row={r} maxOrders={maxOrders} />
+                    ))}
+                </div>
+              ))
+            : coverage
+                .slice()
+                .sort((a, b) => a.hour - b.hour)
+                .map((r) => <HourBar key={r.hour} row={r} maxOrders={maxOrders} />)}
         </div>
       )}
     </div>

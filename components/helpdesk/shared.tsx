@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, ChevronsUp, Equal, type IconComponent } from '@/components/icons';
 
-import type { HelpdeskTicket, TicketCategory, TicketPriority, TicketStatus } from '@/lib/api/people-ops.service';
+import type { HelpdeskTicket, TicketCategory, TicketPriority, TicketStatus } from '@/lib/modules/support/client';
 import { cn } from '@/lib/utils/cn';
 import { formatDate, formatDateTime } from '@/lib/utils/date';
 

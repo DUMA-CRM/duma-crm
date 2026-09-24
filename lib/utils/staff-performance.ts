@@ -11,8 +11,7 @@
 // matched by `orders.createdBy`, so they measure the till a person stood at as
 // much as the person.
 // ---------------------------------------------------------------------------
-
-import type { StaffPerfWindow } from '@/lib/api/staff.service';
+import type { StaffPerfWindow } from '@/lib/modules/identity/client';
 
 /** Guarded division — an empty window must yield 0, never `NaN` or `Infinity`. */
 export const divide = (value: number, denominator: number): number => (denominator > 0 ? value / denominator : 0);

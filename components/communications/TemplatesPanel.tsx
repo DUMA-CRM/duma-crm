@@ -13,7 +13,8 @@ import {
   createEmailTemplate,
   getEmailAutomations,
   getEmailTemplates,
-} from '@/lib/api/email.service';
+} from '@/lib/modules/communications/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -32,12 +33,12 @@ export function TemplatesPanel({
   const [deleteTarget, setDeleteTarget] = useState<EmailTemplate | null>(null);
 
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['email-templates', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-templates', tenantId),
     queryFn: () => getEmailTemplates(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: automations = [] } = useQuery({
-    queryKey: ['email-automations', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-automations', tenantId),
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
     enabled: !!tenantId,
   });
@@ -55,7 +56,7 @@ export function TemplatesPanel({
         isActive: true,
       }),
     onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: ['email-templates'] });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-templates') });
       toast('success', 'Copy created — opening it now.');
       onEdit({ template: created });
     },
@@ -65,7 +66,7 @@ export function TemplatesPanel({
   const remove = useMutation({
     mutationFn: (template: EmailTemplate) => archiveEmailTemplate(template.id, tenantId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['email-templates'] });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-templates') });
       setDeleteTarget(null);
       toast('success', 'Template deleted.');
     },
@@ -145,8 +146,8 @@ export function TemplatesPanel({
           title="Delete this template?"
           message={
             <>
-              “{deleteTarget.name}” will be removed from your templates, and any automation step using it will stop sending. Emails
-              already sent stay in History.
+              “{deleteTarget.name}” will be removed from your templates, and any automation step using it will stop sending. Emails already
+              sent stay in History.
             </>
           }
           confirmLabel="Delete template"

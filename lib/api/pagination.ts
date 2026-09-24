@@ -96,7 +96,7 @@ export function cursorQuery(params: CursorParams): string {
  * with `cursor=null` for ever.
  *
  *   useInfiniteQuery({
- *     queryKey: ['orders', filters],
+ *     queryKey: moduleQueryKeys.ordering.key('orders', filters),
  *     queryFn: ({ pageParam }) => getOrdersPage({ ...filters, cursor: pageParam }),
  *     initialPageParam: undefined as string | undefined,
  *     getNextPageParam: nextPageParam,

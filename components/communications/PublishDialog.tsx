@@ -6,8 +6,9 @@ import { CheckCircle2, Clock, Loader2, Send, Tags, TriangleAlert, Zap } from '@/
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 
-import { getSegment } from '@/lib/api/segments.service';
-import type { EmailWorkflowDefinition } from '@/lib/api/email.service';
+import type { EmailWorkflowDefinition } from '@/lib/modules/communications/client';
+import { getSegment } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 
 import { TRIGGER_HELP, TRIGGER_LABELS } from './shared';
@@ -52,7 +53,7 @@ export function PublishDialog({
   // Only a segment trigger has a knowable audience up front. Everything else is
   // driven by events that have not happened yet.
   const { data: segment, isLoading: segmentLoading } = useQuery({
-    queryKey: ['customer-segment', segmentId],
+    queryKey: moduleQueryKeys.customers.key('customer-segment', segmentId),
     queryFn: () => getSegment(segmentId!),
     enabled: Boolean(segmentId),
   });
@@ -158,9 +159,7 @@ export function PublishDialog({
         {isRepublish && (
           <p className="flex items-start gap-2 rounded-sm border border-rule bg-band/55 px-3 py-2.5 text-xs text-muted-foreground">
             <CheckCircle2 size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-            <span>
-              Runs already in flight finish on the version they started with. Only new runs use v{(publishedVersion ?? 0) + 1}.
-            </span>
+            <span>Runs already in flight finish on the version they started with. Only new runs use v{(publishedVersion ?? 0) + 1}.</span>
           </p>
         )}
       </div>

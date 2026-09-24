@@ -4,11 +4,20 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { createCustomer } from '@/lib/api/customers.service';
+import { createCustomer } from '@/lib/modules/customers/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { Customer } from '@/types/customers';
 
-export function NewCustomerForm({ defaultPhone = '', onCreated, onClose }: { defaultPhone?: string; onCreated: (c: Customer) => void; onClose: () => void }) {
+export function NewCustomerForm({
+  defaultPhone = '',
+  onCreated,
+  onClose,
+}: {
+  defaultPhone?: string;
+  onCreated: (c: Customer) => void;
+  onClose: () => void;
+}) {
   const { tenantId } = useWorkspaceStore();
   const qc = useQueryClient();
   const [firstName, setFirstName] = useState('');
@@ -18,7 +27,7 @@ export function NewCustomerForm({ defaultPhone = '', onCreated, onClose }: { def
   const { mutate, isPending, error } = useMutation({
     mutationFn: () => createCustomer({ tenantId: tenantId!, firstName, lastName, phone }),
     onSuccess: (customer) => {
-      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customers') });
       onCreated(customer);
     },
   });
@@ -36,7 +45,11 @@ export function NewCustomerForm({ defaultPhone = '', onCreated, onClose }: { def
         <Input label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} required placeholder="Smith" />
       </div>
       <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+447911123456" type="tel" />
-      {error && <p role="alert" className="text-xs text-exception">The customer wasn’t created. Check the details and try again.</p>}
+      {error && (
+        <p role="alert" className="text-xs text-exception">
+          The customer wasn’t created. Check the details and try again.
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-2 pt-0.5">
         <Button variant="outline" onClick={onClose} size="sm">
           Cancel

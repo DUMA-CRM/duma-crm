@@ -16,7 +16,8 @@ import {
   getEmailConnection,
   saveEmailConnection,
   testEmailConnection,
-} from '@/lib/api/email.service';
+} from '@/lib/modules/communications/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -76,7 +77,7 @@ function useEmailConnectionForm() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
   const { data: connection, isLoading } = useQuery({
-    queryKey: ['email-connection', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
     enabled: !!tenantId,
     retry: false,
@@ -118,7 +119,7 @@ function useEmailConnectionForm() {
         ...(form.password ? {} : { password: undefined }),
       }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['email-connection'] });
+      void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-connection') });
       setOverrides((current) => ({ ...current, password: '' }));
     },
   });
@@ -160,10 +161,14 @@ function useConnectionTest() {
   const test = useMutation({
     mutationFn: () => testEmailConnection({ tenantId: tenantId ?? undefined, ...(testEmail ? { toEmail: testEmail } : {}) }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['email-connection'] });
+      void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-connection') });
       toast('success', testEmail ? `It works — test email sent to ${testEmail}.` : 'It works — the mail server accepted the connection.');
     },
-    onError: (error) => toast('error', error instanceof Error ? error.message : 'DUMA couldn’t connect to the mail server. Check the settings and try again.'),
+    onError: (error) =>
+      toast(
+        'error',
+        error instanceof Error ? error.message : 'DUMA couldn’t connect to the mail server. Check the settings and try again.',
+      ),
   });
 
   return { testEmail, setTestEmail, test };

@@ -11,7 +11,8 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { type UpdateEmployeePayload, setEmployeeBank, updateEmployee } from '@/lib/api/hr.service';
+import { type UpdateEmployeePayload, setEmployeeBank, updateEmployee } from '@/lib/modules/people/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import {
   formatNiNumber,
   formatSortCode,
@@ -77,8 +78,7 @@ export function EditDetailsDrawer({
     sortCode: '',
     accountNumber: '',
   });
-  const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) =>
-    setForm({ ...form, [key]: event.target.value });
+  const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: event.target.value });
 
   // Bank details are all-or-nothing: a sort code with no account number cannot
   // be paid into, so a half-filled set blocks the save rather than storing a
@@ -121,9 +121,9 @@ export function EditDetailsDrawer({
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['hr-employee', userId] });
-      qc.invalidateQueries({ queryKey: ['hr-employees'] });
-      qc.invalidateQueries({ queryKey: ['employee-bank', userId] });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employee', userId) });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employees') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('employee-bank', userId) });
       toast('success', 'Employee record updated.');
       onClose();
     },

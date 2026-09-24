@@ -6,7 +6,8 @@ import { useMemo, useState } from 'react';
 import { FileText, MailX, Send, Zap } from '@/components/icons';
 import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
 
-import { type EmailDelivery, getEmailAutomations, getEmailDeliveries, getEmailTemplates } from '@/lib/api/email.service';
+import { type EmailDelivery, getEmailAutomations, getEmailDeliveries, getEmailTemplates } from '@/lib/modules/communications/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /**
@@ -36,17 +37,17 @@ export function OverviewPanel({
   const tenantId = useWorkspaceStore((state) => state.tenantId);
 
   const { data: automations = [] } = useQuery({
-    queryKey: ['email-automations', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-automations', tenantId),
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: templates = [] } = useQuery({
-    queryKey: ['email-templates', tenantId],
+    queryKey: moduleQueryKeys.communications.key('email-templates', tenantId),
     queryFn: () => getEmailTemplates(tenantId ?? undefined),
     enabled: !!tenantId,
   });
   const { data: deliveries } = useQuery({
-    queryKey: ['email-deliveries', tenantId, 1],
+    queryKey: moduleQueryKeys.communications.key('email-deliveries', tenantId, 1),
     queryFn: () => getEmailDeliveries(tenantId ?? undefined, 1),
     enabled: !!tenantId,
     refetchInterval: 60_000,

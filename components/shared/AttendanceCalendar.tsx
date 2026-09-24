@@ -3,9 +3,9 @@
 import { CalendarCheck } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
 
-import type { AttendanceDay, AttendanceStatus } from '@/lib/api/people-ops.service';
-import { type AttendanceDayWithAbsence, attendanceTotals } from '@/lib/utils/my-hr';
+import type { AttendanceDay, AttendanceStatus } from '@/lib/modules/people/client';
 import { cn } from '@/lib/utils/cn';
+import { type AttendanceDayWithAbsence, attendanceTotals } from '@/lib/utils/my-hr';
 
 /* The attendance month, shared by the employee's own view and the manager's
    view of them.
@@ -119,7 +119,6 @@ export const ABSENCE = {
   swatch: 'border-stock/45 bg-stock/8',
 };
 
-
 export function MonthGrid({
   range,
   monthName,
@@ -149,7 +148,9 @@ export function MonthGrid({
 
           {isLoading
             ? // Same height as a real cell, so the grid does not jump when data lands.
-              Array.from({ length: 35 }, (_, i) => <div key={`skeleton-${i}`} className="h-20 animate-pulse rounded-sm bg-band/60 md:h-24" />)
+              Array.from({ length: 35 }, (_, i) => (
+                <div key={`skeleton-${i}`} className="h-20 animate-pulse rounded-sm bg-band/60 md:h-24" />
+              ))
             : [
                 ...Array.from({ length: range.blank }, (_, i) => <div key={`blank-${i}`} />),
                 ...Array.from({ length: range.days }, (_, i) => {
@@ -242,7 +243,12 @@ export function DayCell({
   const active = !!entry && (entry.status !== 'no_shift' || absent);
 
   // The hours are the figure; leave and an absence with no shift have none.
-  const figure = !active || entry!.status === 'leave' || entry!.status === 'no_shift' ? null : entry!.status === 'scheduled' ? hrs(planned) : hrs(worked);
+  const figure =
+    !active || entry!.status === 'leave' || entry!.status === 'no_shift'
+      ? null
+      : entry!.status === 'scheduled'
+        ? hrs(planned)
+        : hrs(worked);
   // Absence takes the wash and the word — it explains the day better than
   // "missed" does, and the hours beside it still say what was worked.
   const label = absent ? (entry!.absence!.isHalfDay ? 'Absent ½' : ABSENCE.label) : status.label;
@@ -288,5 +294,3 @@ export function DayCell({
     </button>
   );
 }
-
-

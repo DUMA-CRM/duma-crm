@@ -17,8 +17,7 @@
  * unregistered café a margin reduced by VAT it never owes would be worse than
  * disagreeing with a figure that is itself incorrect. Tracked separately.
  */
-
-import type { TradingSettings } from '@/lib/api/operations.service';
+import type { TradingSettings } from '@/lib/modules/organization/client';
 
 /** Tenant-level tax posture. */
 export interface VatContext {

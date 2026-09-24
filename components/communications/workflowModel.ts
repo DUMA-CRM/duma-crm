@@ -1,4 +1,10 @@
-import type { EmailAutomation, EmailTrigger, EmailWorkflowDefinition, EmailWorkflowEdge, EmailWorkflowNode } from '@/lib/api/email.service';
+import type {
+  EmailAutomation,
+  EmailTrigger,
+  EmailWorkflowDefinition,
+  EmailWorkflowEdge,
+  EmailWorkflowNode,
+} from '@/lib/modules/communications/client';
 
 const id = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -223,9 +229,7 @@ function detachNode(definition: EmailWorkflowDefinition, nodeId: string) {
 
 /** Put an existing step on the connection leaving `afterNodeId` down `branch`. */
 function attachAfter(definition: EmailWorkflowDefinition, node: EmailWorkflowNode, afterNodeId: string, branch: string) {
-  const edge = definition.edges.find(
-    (candidate) => candidate.source === afterNodeId && (candidate.branch ?? 'next') === branch,
-  );
+  const edge = definition.edges.find((candidate) => candidate.source === afterNodeId && (candidate.branch ?? 'next') === branch);
   if (!edge) return definition;
   return {
     ...definition,
