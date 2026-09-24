@@ -56,6 +56,63 @@ export interface SetupRequirement {
   label: string;
   isRequired: boolean;
   isSatisfied: boolean;
+  moduleId?: string | null;
+  evidence?: Record<string, unknown>;
+}
+
+export type WorkspaceModuleId =
+  | 'core'
+  | 'identity'
+  | 'organization'
+  | 'customers'
+  | 'catalog'
+  | 'ordering'
+  | 'payments'
+  | 'inventory'
+  | 'purchasing'
+  | 'workforce'
+  | 'people'
+  | 'communications'
+  | 'compliance'
+  | 'analytics'
+  | 'agent'
+  | 'support';
+
+export interface WorkspaceOnboardingAnswers {
+  businessType?: 'cafe' | 'restaurant' | 'retail' | 'online_retail' | 'services' | 'people_management' | 'other';
+  locationCount?: number;
+  salesChannels: Array<'counter' | 'online' | 'qr' | 'phone' | 'marketplace'>;
+  paymentMethods: Array<'cash' | 'card' | 'invoice'>;
+  fulfilment: Array<'prepare' | 'pick_pack' | 'delivery' | 'collection' | 'table_service'>;
+  liveFulfilmentQueue: boolean;
+  stockTracking: 'none' | 'simple' | 'batch_expiry' | 'serial' | 'container';
+  automaticConsumption: boolean;
+  purchasing: boolean;
+  peopleRecords: boolean;
+  scheduling: boolean;
+  attendance: boolean;
+  leave: boolean;
+  payroll: boolean;
+  customers: boolean;
+  loyalty: boolean;
+  communications: boolean;
+  compliance: boolean;
+  analytics: boolean;
+  support: boolean;
+  agent: boolean;
+  declinedModules: WorkspaceModuleId[];
+}
+
+export interface WorkspaceRecommendation {
+  rulesVersion: number;
+  revision: number;
+  selectedModules: WorkspaceModuleId[];
+  requiredModules: WorkspaceModuleId[];
+  optionalModules: WorkspaceModuleId[];
+  reasons: Record<string, string[]>;
+  assumptions: Array<{ key: string; message: string; blocking: boolean }>;
+  conflicts: Array<{ key: string; message: string; answerKeys: string[] }>;
+  expectedConfigurationVersions: Record<string, number>;
 }
 
 export interface SetupTask {
@@ -75,6 +132,12 @@ export interface WorkspaceSetupSession {
   tenantId: string;
   version: number;
   status: 'in_progress' | 'completed' | 'cancelled';
+  currentStep: string;
+  answers: Partial<WorkspaceOnboardingAnswers>;
+  recommendationRevision: number;
+  recommendation?: WorkspaceRecommendation | null;
+  recommendationGeneratedAt?: string | null;
+  reviewedAt?: string | null;
   completedAt?: string | null;
   requirements: SetupRequirement[];
   tasks: SetupTask[];
@@ -114,6 +177,30 @@ export const getWorkspaceSetup = (tenantId: string) => apiFetch<WorkspaceSetupSe
 
 export const startWorkspaceSetup = (tenantId: string) =>
   apiFetch<WorkspaceSetupSession>(`/workspace-setup/${tenantId}/start`, { method: 'POST' });
+
+export const generateWorkspaceRecommendation = (
+  tenantId: string,
+  answers: WorkspaceOnboardingAnswers,
+  expectedRecommendationRevision: number,
+) =>
+  apiFetch<WorkspaceSetupSession>(`/workspace-setup/${tenantId}/recommendation`, {
+    method: 'POST',
+    body: JSON.stringify({ currentStep: 'recommendation', answers, expectedRecommendationRevision }),
+  });
+
+export const applyWorkspaceRecommendation = (
+  tenantId: string,
+  selectedModules: WorkspaceModuleId[],
+  expectedRecommendationRevision: number,
+) =>
+  apiFetch<WorkspaceSetupSession & { changes: unknown[] }>(`/workspace-setup/${tenantId}/apply`, {
+    method: 'POST',
+    body: JSON.stringify({
+      selectedModules,
+      expectedRecommendationRevision,
+      reason: 'Approved during workspace onboarding',
+    }),
+  });
 
 export const completeWorkspaceSetup = (tenantId: string) =>
   apiFetch<WorkspaceSetupSession>(`/workspace-setup/${tenantId}/complete`, { method: 'POST' });
