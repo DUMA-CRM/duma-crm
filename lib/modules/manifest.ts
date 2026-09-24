@@ -158,7 +158,7 @@ const dependencies: Record<ModuleId, readonly ModuleId[]> = {
   purchasing: ['inventory'],
   workforce: ['identity', 'organization'],
   people: ['identity', 'workforce'],
-  communications: ['customers'],
+  communications: ['customers', 'identity'],
   compliance: ['customers', 'identity'],
   analytics: ['ordering'],
   agent: ['core'],
