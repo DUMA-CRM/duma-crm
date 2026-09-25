@@ -8,6 +8,16 @@ import {
   ModifierGroup,
   ModifierPayload,
 } from '@/types/menu';
+import type {
+  CatalogDiscount,
+  CatalogDiscountPayload,
+  CatalogOption,
+  CatalogOptionValue,
+  CatalogVariant,
+  CatalogVariantLocation,
+  CatalogVariantPayload,
+  ItemCatalog,
+} from '@/types/catalog';
 
 import { apiFetch } from './client';
 
@@ -90,3 +100,55 @@ export const detachModifier = (menuItemId: string, modifierId: string) =>
     method: 'DELETE',
     body: JSON.stringify({ menuItemId, modifierId }),
   });
+
+// ── Retail catalog ───────────────────────────────────────────────────────────
+
+const catalogPath = (path: string, tenantId?: string) =>
+  `${path}${tenantId ? `${path.includes('?') ? '&' : '?'}tenantId=${encodeURIComponent(tenantId)}` : ''}`;
+
+export const getItemCatalog = (menuItemId: string, tenantId?: string) =>
+  apiFetch<ItemCatalog>(catalogPath(`/catalog/items/${menuItemId}`, tenantId));
+
+export const lookupCatalogBarcode = (barcode: string, locationId?: string, tenantId?: string) =>
+  apiFetch<{ variant: CatalogVariant & { menuItem: MenuItem }; location: CatalogVariantLocation | null }>(
+    catalogPath(`/catalog/variants/barcode/${encodeURIComponent(barcode)}${locationId ? `?locationId=${encodeURIComponent(locationId)}` : ''}`, tenantId),
+  );
+
+export const createCatalogOption = (data: { menuItemId: string; name: string; sortOrder?: number }, tenantId?: string) =>
+  apiFetch<CatalogOption>(catalogPath('/catalog/options', tenantId), { method: 'POST', body: JSON.stringify(data) });
+
+export const updateCatalogOption = (id: string, data: Partial<Pick<CatalogOption, 'name' | 'sortOrder'>>, tenantId?: string) =>
+  apiFetch<CatalogOption>(catalogPath(`/catalog/options/${id}`, tenantId), { method: 'PATCH', body: JSON.stringify(data) });
+
+export const deleteCatalogOption = (id: string, tenantId?: string) =>
+  apiFetch<{ deleted: true }>(catalogPath(`/catalog/options/${id}`, tenantId), { method: 'DELETE' });
+
+export const createCatalogOptionValue = (optionId: string, data: { label: string; sortOrder?: number }, tenantId?: string) =>
+  apiFetch<CatalogOptionValue>(catalogPath(`/catalog/options/${optionId}/values`, tenantId), { method: 'POST', body: JSON.stringify(data) });
+
+export const updateCatalogOptionValue = (id: string, data: Partial<Pick<CatalogOptionValue, 'label' | 'sortOrder'>>, tenantId?: string) =>
+  apiFetch<CatalogOptionValue>(catalogPath(`/catalog/option-values/${id}`, tenantId), { method: 'PATCH', body: JSON.stringify(data) });
+
+export const deleteCatalogOptionValue = (id: string, tenantId?: string) =>
+  apiFetch<{ deleted: true }>(catalogPath(`/catalog/option-values/${id}`, tenantId), { method: 'DELETE' });
+
+export const createCatalogVariant = (data: CatalogVariantPayload, tenantId?: string) =>
+  apiFetch<CatalogVariant>(catalogPath('/catalog/variants', tenantId), { method: 'POST', body: JSON.stringify(data) });
+
+export const updateCatalogVariant = (id: string, data: Partial<Omit<CatalogVariantPayload, 'menuItemId'>>, tenantId?: string) =>
+  apiFetch<CatalogVariant>(catalogPath(`/catalog/variants/${id}`, tenantId), { method: 'PATCH', body: JSON.stringify(data) });
+
+export const setCatalogVariantLocation = (
+  variantId: string,
+  locationId: string,
+  data: { price?: string | null; compareAtPrice?: string | null; isAvailable: boolean },
+  tenantId?: string,
+) => apiFetch<CatalogVariantLocation>(catalogPath(`/catalog/variants/${variantId}/locations/${locationId}`, tenantId), { method: 'PUT', body: JSON.stringify(data) });
+
+export const getCatalogDiscounts = (tenantId?: string) => apiFetch<CatalogDiscount[]>(catalogPath('/catalog/discounts', tenantId));
+
+export const createCatalogDiscount = (data: CatalogDiscountPayload, tenantId?: string) =>
+  apiFetch<CatalogDiscount>(catalogPath('/catalog/discounts', tenantId), { method: 'POST', body: JSON.stringify(data) });
+
+export const updateCatalogDiscount = (id: string, data: Partial<CatalogDiscountPayload>, tenantId?: string) =>
+  apiFetch<CatalogDiscount>(catalogPath(`/catalog/discounts/${id}`, tenantId), { method: 'PATCH', body: JSON.stringify(data) });

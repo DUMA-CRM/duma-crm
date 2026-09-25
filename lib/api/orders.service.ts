@@ -16,9 +16,13 @@ export type RefundStatus = 'none' | 'partially_refunded' | 'refunded';
 export interface OrderItem {
   id: string;
   menuItemId: string;
+  variantId?: string | null;
+  variantName?: string | null;
+  variantSku?: string | null;
   name: string;
   quantity: number;
   unitPrice: string;
+  listPrice?: string | null;
   subtotal: string;
   notes?: string;
   refundStatus?: RefundStatus;
@@ -62,6 +66,9 @@ export interface OrderRefundLine {
   name: string;
   quantity: number;
   amount: string;
+  restockedQuantity?: number;
+  restockedStockUnitId?: string | null;
+  restockedAt?: string | null;
 }
 
 export interface RefundOptions {
@@ -71,6 +78,9 @@ export interface RefundOptions {
   items: Array<{
     id: string;
     name: string;
+    variantName?: string | null;
+    variantSku?: string | null;
+    canRestock?: boolean;
     quantity: number;
     refundStatus: RefundStatus;
     base: { remainingQuantity: number; remainingAmount: string; unitAmounts: string[] };
@@ -176,6 +186,8 @@ export interface CreateOrderModifier {
 
 export interface CreateOrderItem {
   menuItemId: string;
+  variantId?: string;
+  discountCode?: string;
   quantity: number;
   notes?: string;
   modifiers?: CreateOrderModifier[];
@@ -209,7 +221,7 @@ export const getRefundOptions = (id: string) => apiFetch<RefundOptions>(`/orders
 
 export const createRefund = (
   id: string,
-  data: { lines: Array<{ orderItemId: string; orderItemModifierId?: string; quantity: number }>; reason: RefundReason; notes?: string },
+  data: { lines: Array<{ orderItemId: string; orderItemModifierId?: string; quantity: number; restock?: boolean }>; reason: RefundReason; notes?: string },
 ) => apiFetch<OrderRefund>(`/orders/${id}/refunds`, { method: 'POST', body: JSON.stringify(data) });
 
 export const approveCashOrder = (id: string) => apiFetch<Order>(`/orders/${id}/approve-cash`, { method: 'POST' });
