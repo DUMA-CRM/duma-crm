@@ -1,4 +1,4 @@
-import type { AuditLog } from '@/lib/modules/compliance/client';
+import type { AuditLog } from '@/lib/modules/audit/client';
 
 /**
  * Where an entry's record lives in the CRM.

@@ -1,5 +1,5 @@
-import { SettingsWorkspace } from '@/components/settings/SettingsWorkspace';
+import { WorkspaceTab } from '@/components/settings/tabs/WorkspaceTab';
 
 export default function SettingsWorkspacesPage() {
-  return <SettingsWorkspace tab="workspaces" />;
+  return <WorkspaceTab />;
 }

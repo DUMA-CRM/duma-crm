@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 
+import { MermaidDiagram } from '@/components/ai/MermaidDiagram';
 import { Markdown } from '@/components/shared/Markdown';
+
+import { splitAgentContent } from '@/lib/ai/mermaid-content';
 
 /**
  * `active` fakes a typewriter for a message that arrived all at once.
@@ -12,6 +15,7 @@ import { Markdown } from '@/components/shared/Markdown';
  */
 export function LiveMarkdown({ content, active, onDone }: { content: string; active?: boolean; onDone?: () => void }) {
   const [visible, setVisible] = useState(() => (active ? 0 : content.length));
+  const blocks = splitAgentContent(content.slice(0, visible));
 
   useEffect(() => {
     if (!active) return;
@@ -37,7 +41,13 @@ export function LiveMarkdown({ content, active, onDone }: { content: string; act
 
   return (
     <div className="relative">
-      <Markdown content={content.slice(0, visible)} variant="compact" />
+      {blocks.map((block, index) =>
+        block.kind === 'mermaid' ? (
+          <MermaidDiagram key={`diagram-${index}-${block.source}`} source={block.source} />
+        ) : (
+          <Markdown key={`markdown-${index}`} content={block.content} variant="compact" />
+        ),
+      )}
       {active && visible < content.length ? (
         <span
           className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-primary align-text-bottom motion-reduce:hidden"

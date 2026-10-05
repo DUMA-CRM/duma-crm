@@ -1,8 +1,9 @@
 'use client';
 
-import { Boxes, Clock3, PackagePlus, Users } from '@/components/icons';
+import { AlertTriangle, Boxes, Clock3, PackagePlus, Users } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
-import { AttentionList } from '@/components/shared/AttentionList';
+import { NeedsAttention, type NeedsAttentionTone } from '@/components/shared/NeedsAttention';
+import { Button } from '@/components/ui/button';
 
 import type { InventoryForecast } from '@/lib/modules/inventory/client';
 import type { RestockRequest } from '@/lib/modules/inventory/client';
@@ -22,6 +23,8 @@ interface ExceptionItem {
   label: string;
   detail: string;
   href: string;
+  /** Names the place the row's button opens. */
+  fixLabel: string;
   tone: 'exception' | 'stock' | 'measured';
 }
 
@@ -64,6 +67,7 @@ export function buildExceptions({
       label: `Order #${order.id.slice(0, 6).toUpperCase()} is over ${CRASH_MINS} minutes`,
       detail: `${Math.floor(ageState(order, now).mins)} minutes ${STAGE_LABEL[order.status] ?? 'in this stage'}`,
       href: '/kds',
+      fixLabel: 'Open KDS',
       tone: 'exception' as const,
     })),
     ...attendanceIssues.map((issue) => ({
@@ -75,6 +79,7 @@ export function buildExceptions({
           ? `${formatHours(issue.minutes)} on the clock — check they meant to clock out`
           : `${formatHours(issue.minutes)} so far with no published shift covering now`,
       href: '/staff/shifts',
+      fixLabel: 'Open shifts',
       tone: 'measured' as const,
     })),
     ...coverGaps.map((gap) => ({
@@ -83,6 +88,7 @@ export function buildExceptions({
       label: gap.reason === 'unassigned' ? 'Shift running with nobody assigned' : `${gap.name} has not clocked in`,
       detail: `${slotWindow(gap.slot)}${gap.slot.role ? ` · ${gap.slot.role}` : ''} · ${formatHours(gap.minutesLate)} into the shift`,
       href: '/staff/rota',
+      fixLabel: 'Open rota',
       tone: 'exception' as const,
     })),
     ...criticalStock.map((item) => ({
@@ -91,6 +97,7 @@ export function buildExceptions({
       label: `${item.stockItemName} runs out soon`,
       detail: `${item.daysOfStockRemaining ?? 0} days of stock left`,
       href: '/inventory',
+      fixLabel: 'Open stock',
       tone: 'stock' as const,
     })),
     ...urgentRestocks.map((request) => ({
@@ -99,15 +106,26 @@ export function buildExceptions({
       label: `Urgent restock: ${request.stockItem?.name ?? 'stock item'}`,
       detail: `Quantity ${request.requestedQty} · awaiting review`,
       href: '/inventory?tab=demand',
+      fixLabel: 'Review',
       tone: 'stock' as const,
     })),
   ];
 }
 
+/** The shared card has two warning strengths; stock is a shortage to act on, so it reads as measured. */
+const TONE: Record<ExceptionItem['tone'], NeedsAttentionTone> = {
+  exception: 'exception',
+  measured: 'measured',
+  stock: 'measured',
+};
+
 /**
- * The dashboard's wording around the shared attention panel. The panel itself
- * lives in `shared/AttentionList` so this strip and the employee's "needs you"
- * list on My HR cannot drift apart.
+ * The dashboard's wording around the shared "needs you" card — the same folded
+ * card the staff overview, My HR and every workspace use, so a manager learns
+ * one shape for "something needs you" across the product.
+ *
+ * The card has no loading or failed state of its own, so those are drawn here
+ * in its frame: a failed read must never fall through to "nothing needs you".
  */
 export function ExceptionStrip({
   items,
@@ -120,14 +138,36 @@ export function ExceptionStrip({
   error: boolean;
   onRetry: () => void;
 }) {
+  if (error)
+    return (
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3" role="alert">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-exception/8 text-exception">
+          <AlertTriangle size={18} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-foreground">The live checks couldn’t run</span>
+          <span className="block text-xs text-muted-foreground">Today’s figures below are unaffected.</span>
+        </span>
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Try again
+        </Button>
+      </div>
+    );
+
+  if (loading) return <div className="h-16 animate-pulse rounded-lg bg-band/60" aria-label="Checking what needs you" />;
+
   return (
-    <AttentionList
-      items={items}
-      loading={loading}
-      error={error}
-      onRetry={onRetry}
-      clearDescription="Orders, stock and shift cover all look clear."
-      errorDescription="Today’s figures below are unaffected."
+    <NeedsAttention
+      label="Needs you"
+      items={items.map((item) => ({
+        key: item.key,
+        tone: TONE[item.tone],
+        icon: item.icon,
+        title: item.label,
+        detail: item.detail,
+        fix: { label: item.fixLabel, href: item.href },
+      }))}
+      clear={{ title: 'Nothing needs you', detail: 'Orders, stock and shift cover all look clear.' }}
     />
   );
 }

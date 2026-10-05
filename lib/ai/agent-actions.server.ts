@@ -5,7 +5,7 @@ import type { LocationStock } from '@/lib/modules/inventory/client';
 import { encodeNotes } from '@/lib/modules/inventory/client';
 import { MODULE_IDS, type ModuleId, isModuleSurfaceEnabled } from '@/lib/modules/manifest';
 import type { Order } from '@/lib/modules/ordering/client';
-import type { QrOrderingConfig } from '@/lib/modules/ordering/client';
+import type { QrOrderingConfig } from '@/lib/modules/qr-ordering/client';
 import type { HrEmployee } from '@/lib/modules/people/client';
 import type { LeaveEntitlement, LeaveRequest, LeaveType } from '@/lib/modules/people/client';
 import type { PurchaseOrder } from '@/lib/modules/purchasing/client';

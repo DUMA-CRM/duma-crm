@@ -55,7 +55,7 @@ const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-passwo
  * > `strict-dynamic` was bought for. `CSP_ALLOW_EVAL` is opt-in instead: absent
  * > means strict, which is the right way for this switch to fail.
  */
-function contentSecurityPolicy(nonce: string, allowEval: boolean) {
+function contentSecurityPolicy(nonce: string, allowEval: boolean, frameable = false) {
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${allowEval ? " 'unsafe-eval'" : ''}`,
@@ -70,7 +70,8 @@ function contentSecurityPolicy(nonce: string, allowEval: boolean) {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
+    // Only the guest QR page may be framed, and only by this app (the settings preview).
+    frameable ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     'upgrade-insecure-requests',
   ].join('; ');
 }
@@ -96,7 +97,7 @@ export function proxy(req: NextRequest) {
   // A fresh nonce per request — a predictable one is no nonce at all.
   const nonce = crypto.randomUUID().replaceAll('-', '');
   // React uses eval in development for readable error stacks. Opt in locally.
-  const csp = contentSecurityPolicy(nonce, process.env.CSP_ALLOW_EVAL === 'true');
+  const csp = contentSecurityPolicy(nonce, process.env.CSP_ALLOW_EVAL === 'true', pathname.startsWith('/order/'));
   const header = process.env.CSP_REPORT_ONLY === 'true' ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
 
   // Next reads both of these off the *request* to stamp its own scripts.

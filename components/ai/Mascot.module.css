@@ -1,0 +1,118 @@
+.mascot {
+  isolation: isolate;
+}
+.gesture {
+  opacity: 0;
+  animation: gesture-in 3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.arm {
+  stroke-dasharray: 54;
+  stroke-dashoffset: 54;
+  animation: draw-arm 3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.fingers {
+  transform-box: view-box;
+  transform-origin: 129px 6px;
+  animation: wave-fingers 3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.gesture[data-gesture='celebrate'] {
+  animation-name: celebrate-in;
+}
+.gesture[data-gesture='celebrate'] .fingers {
+  animation-name: celebrate-fingers;
+}
+.mascot[data-paused='true'] .gesture {
+  opacity: 0.82;
+}
+.mascot[data-paused='true'] .arm {
+  stroke-dashoffset: 0;
+}
+.mascot[data-paused='true'] .gesture,
+.mascot[data-paused='true'] .arm,
+.mascot[data-paused='true'] .fingers {
+  animation: none;
+}
+@keyframes gesture-in {
+  0% {
+    opacity: 0;
+  }
+  14%,
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes draw-arm {
+  0% {
+    stroke-dashoffset: 54;
+  }
+  20%,
+  90% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -54;
+  }
+}
+@keyframes wave-fingers {
+  0%,
+  16% {
+    transform: rotate(18deg) scale(0.7);
+  }
+  32% {
+    transform: rotate(-18deg) scale(1);
+  }
+  48% {
+    transform: rotate(17deg);
+  }
+  64% {
+    transform: rotate(-14deg);
+  }
+  80%,
+  100% {
+    transform: rotate(7deg);
+  }
+}
+@keyframes celebrate-in {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  16%,
+  84% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+@keyframes celebrate-fingers {
+  0%,
+  16% {
+    transform: rotate(18deg) scale(0.75);
+  }
+  38% {
+    transform: rotate(-18deg) scale(1.04);
+  }
+  58% {
+    transform: rotate(15deg);
+  }
+  78%,
+  100% {
+    transform: rotate(-6deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gesture,
+  .arm,
+  .fingers {
+    animation: none;
+  }
+  .gesture {
+    opacity: 0.82;
+  }
+  .arm {
+    stroke-dashoffset: 0;
+  }
+}

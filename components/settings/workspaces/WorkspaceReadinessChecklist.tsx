@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 
 import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed, ClipboardList, Loader2, RefreshCw } from '@/components/icons';
@@ -18,13 +19,15 @@ const MODULE_NAMES: Record<string, string> = {
   inventory: 'Inventory',
   purchasing: 'Purchasing',
   workforce: 'Workforce',
-  people: 'People & payroll',
+  people: 'People',
+  payroll: 'Payroll',
   communications: 'Communications',
 };
 
 export function WorkspaceReadinessChecklist({ compact = false }: { compact?: boolean }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
+  const reduceMotion = useReducedMotion();
   const queryKey = ['workspace-setup', tenantId];
   const setup = useQuery({ queryKey, queryFn: () => getWorkspaceSetup(tenantId!), enabled: Boolean(tenantId) });
   const refresh = () => queryClient.invalidateQueries({ queryKey });
@@ -90,27 +93,44 @@ export function WorkspaceReadinessChecklist({ compact = false }: { compact?: boo
   const ready = session.readiness.ready;
   const complete = session.status === 'completed';
 
+  const { completedCount, totalCount, blockingCount } = session.readiness;
+  const share = totalCount === 0 ? 1 : completedCount / totalCount;
+  const titleId = compact ? 'dashboard-readiness-title' : 'workspace-readiness-title';
+
   return (
-    <section aria-labelledby={compact ? 'dashboard-readiness-title' : 'workspace-readiness-title'}>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          {ready ? (
-            <CheckCircle2 size={18} className="shrink-0 text-success" aria-hidden="true" />
-          ) : (
-            <ClipboardList size={18} className="shrink-0 text-primary" aria-hidden="true" />
-          )}
-          <div>
-            <h3 id={compact ? 'dashboard-readiness-title' : 'workspace-readiness-title'} className="text-sm font-semibold text-foreground">
-              {ready
-                ? 'Ready for service'
-                : `${session.readiness.blockingCount} required ${session.readiness.blockingCount === 1 ? 'blocker' : 'blockers'}`}
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              {session.readiness.completedCount} of {session.readiness.totalCount} enabled-module checks complete
-            </p>
+    <section aria-labelledby={titleId}>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 id={titleId} className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            {ready ? (
+              <CheckCircle2 size={17} className="shrink-0 text-success" aria-hidden="true" />
+            ) : (
+              <ClipboardList size={17} className="shrink-0 text-primary" aria-hidden="true" />
+            )}
+            {ready ? 'Ready for service' : `${blockingCount} ${blockingCount === 1 ? 'thing' : 'things'} left before service`}
+          </h3>
+          <div className="mt-2 flex items-center gap-3">
+            <div
+              className="h-1.5 flex-1 overflow-hidden rounded-full bg-band"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={totalCount}
+              aria-valuenow={completedCount}
+              aria-label="Setup checks complete"
+            >
+              <motion.div
+                className={cn('h-full rounded-full', ready ? 'bg-success' : 'bg-primary')}
+                initial={reduceMotion ? false : { width: 0 }}
+                animate={{ width: `${share * 100}%` }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              />
+            </div>
+            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+              {completedCount} of {totalCount}
+            </span>
           </div>
         </div>
-        <Button size="icon-sm" variant="ghost" aria-label="Refresh workspace readiness" disabled={pending} onClick={() => void refresh()}>
+        <Button size="icon-sm" variant="ghost" aria-label="Check again" disabled={pending} onClick={() => void refresh()}>
           <RefreshCw aria-hidden="true" />
         </Button>
         {ready && !complete && (
@@ -127,38 +147,49 @@ export function WorkspaceReadinessChecklist({ compact = false }: { compact?: boo
         )}
       </div>
 
-      <div className={cn('divide-y divide-rule/45 border-y border-rule/55', compact && 'max-h-[28rem] overflow-y-auto')}>
-        {tasks.map((task) => {
+      <ul className={cn('space-y-2', compact && 'max-h-[28rem] overflow-y-auto')}>
+        {tasks.map((task, index) => {
           const done = task.status === 'completed';
           return (
-            <div key={task.id} className="flex items-start gap-3 py-3">
-              {done ? (
-                <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-success" aria-hidden="true" />
-              ) : (
-                <CircleDashed size={17} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <motion.li
+              key={task.id}
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: reduceMotion ? 0 : index * 0.04, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className={cn(
+                'flex items-center gap-3 rounded-lg border px-3.5 py-3',
+                done ? 'border-rule/40 bg-transparent' : 'border-rule/60 bg-background/60',
               )}
+            >
+              <span
+                className={cn(
+                  'flex size-9 shrink-0 items-center justify-center rounded-md',
+                  done ? 'bg-success-highlight text-success' : 'bg-band text-muted-foreground',
+                )}
+              >
+                {done ? <CheckCircle2 size={17} aria-hidden="true" /> : <CircleDashed size={17} aria-hidden="true" />}
+              </span>
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <p className={cn('text-sm font-medium', done ? 'text-muted-foreground' : 'text-foreground')}>{task.title}</p>
-                  <span className="text-xs text-muted-foreground">{MODULE_NAMES[task.moduleId] ?? task.moduleId}</span>
-                  {!task.requiredBeforeGoLive && !done && <span className="text-xs font-medium text-reference">Next value</span>}
-                </div>
-                <p className="mt-0.5 max-w-[68ch] text-xs leading-relaxed text-muted-foreground">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className={cn('text-sm font-semibold', done ? 'text-muted-foreground' : 'text-foreground')}>{task.title}</span>
+                  <span className="text-label uppercase text-muted-foreground">{MODULE_NAMES[task.moduleId] ?? task.moduleId}</span>
+                  {!task.requiredBeforeGoLive && !done && <span className="annot text-reference">Optional</span>}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
                   {done ? task.description : (task.blockerReason ?? task.description)}
                 </p>
               </div>
               {!done && (
-                <Link
-                  href={task.deepLink}
-                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-semibold text-primary hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  Fix <ArrowRight size={13} aria-hidden="true" />
-                </Link>
+                <Button asChild size="sm" variant="outline" className="shrink-0">
+                  <Link href={task.deepLink}>
+                    Fix <ArrowRight aria-hidden="true" />
+                  </Link>
+                </Button>
               )}
-            </div>
+            </motion.li>
           );
         })}
-      </div>
+      </ul>
       {error && <p className="mt-3 text-xs text-exception">{error.message}</p>}
     </section>
   );

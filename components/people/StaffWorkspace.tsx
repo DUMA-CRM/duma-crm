@@ -6,18 +6,15 @@ import { useMemo, useState } from 'react';
 
 import { HelpdeskBoard, type HelpdeskFilters } from '@/components/helpdesk/HelpdeskBoard';
 import { Banknote, CalendarDays, CalendarRange, CircleHelp, Clock, LayoutDashboard, Lock, Plus, UsersRound } from '@/components/icons';
-import { PayrollHistoryPanel } from '@/components/payroll/PayrollHistoryPanel';
-import { RunPayrollPanel } from '@/components/payroll/RunPayrollPanel';
+import { PayrollWorkspace } from '@/components/payroll/PayrollWorkspace';
 import { LeaveInbox } from '@/components/people/HrInbox';
 import { OnboardingPage } from '@/components/people/OnboardingPage';
-import { RoleManager } from '@/components/people/RoleManager';
 import { StaffDirectory } from '@/components/people/StaffDirectory';
 import { StaffOverview } from '@/components/people/StaffOverview';
 import { ShiftsWorkspace } from '@/components/scheduling/ShiftsWorkspace';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
 
 import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
@@ -46,7 +43,7 @@ const TAB_PATH: Record<StaffTab, string> = {
   payroll: '/staff/payroll',
 };
 
-export function StaffWorkspace({ tab }: { tab: StaffTab }) {
+export function StaffWorkspace({ tab, initialTicket = null }: { tab: StaffTab; initialTicket?: string | null }) {
   const router = useRouter();
   const qc = useQueryClient();
   const capabilities = useAuthStore((state) => state.capabilities);
@@ -63,24 +60,15 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
   const canPayroll = hasCapability(capabilities, 'hr.payroll:read');
 
   const canOnboard = hasCapability(capabilities, 'staff:onboard');
-  const canManageRoles = hasCapability(capabilities, 'staff:access');
   const canWriteRota = hasCapability(capabilities, 'scheduling:write');
   const canCorrectHours = hasCapability(capabilities, 'shifts:write');
-  // Read without write is the auditor's whole point: they see payroll history
-  // and never reach the panel that creates a run.
-  const canRunPayroll = hasCapability(capabilities, 'hr.payroll:write');
 
   const [onboarding, setOnboarding] = useState(false);
   const [newShift, setNewShift] = useState<'planned' | 'worked' | null>(null);
   const [leaveStatus, setLeaveStatus] = useState('pending');
-  // Not `useState(canRunPayroll ? 'run' : 'history')`: `capabilities` arrives
-  // with the session, so on the first render it is empty, the initialiser —
-  // which runs exactly once — locks this to 'history', and the tab then opens
-  // on History for someone who can run payroll. Default to 'run' and clamp at
-  // render instead, so a read-only holder still cannot reach the panel.
-  const [payrollView, setPayrollView] = useState<'run' | 'history'>('run');
-  const [ticketFilters, setTicketFilters] = useState<HelpdeskFilters>({ search: '', status: 'open', category: '' });
-  const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
+  // Every status: the board shows them as columns. Defaulting to 'open' hid everything already being worked.
+  const [ticketFilters, setTicketFilters] = useState<HelpdeskFilters>({ search: '', status: '', category: '' });
+  const [selectedTicket, setSelectedTicket] = useState<string | null>(initialTicket);
 
   // Counts for the tab badges. Cheap list reads, shared by key with the panels
   // below and with the overview.
@@ -196,15 +184,6 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
               </Button>
             )}
           </div>
-        ) : active === 'payroll' && canRunPayroll ? (
-          <SegmentedControl
-            options={[
-              { value: 'run', label: 'Run payroll' },
-              { value: 'history', label: 'History' },
-            ]}
-            value={canRunPayroll ? payrollView : 'history'}
-            onChange={setPayrollView}
-          />
         ) : undefined
       }
       subheader={
@@ -216,20 +195,17 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
             router.push(TAB_PATH[next]);
           }}
           ariaLabel="Staff sections"
+          animationId="staff-section-tabs"
         />
       }
-      // The helpdesk queue/detail split scrolls its own panes.
-      flush={active === 'helpdesk'}
     >
       {active === 'overview' && (
         <StaffOverview access={{ team: canTeam, rota: canRota, leave: canLeave, helpdesk: canHelpdesk, payroll: canPayroll }} />
       )}
 
       {active === 'team' && (
-        <div className="space-y-4">
-          {canManageRoles && <RoleManager />}
-          <StaffDirectory />
-        </div>
+        // Roles & access lives in Settings: it configures the workspace, it isn't a way of browsing people.
+        <StaffDirectory />
       )}
 
       {active === 'rota' && <ShiftsWorkspace creating={newShift} onCreatingChange={setNewShift} />}
@@ -244,7 +220,11 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
           error={ticketsError}
           onRetry={() => void refetchTickets()}
           selectedId={selectedTicket}
-          onSelect={setSelectedTicket}
+          onSelect={(id) => {
+            setSelectedTicket(id);
+            // Drop a deep link once its ticket is closed, so a reload doesn't reopen it.
+            if (!id && initialTicket) router.replace('/staff/helpdesk', { scroll: false });
+          }}
           filters={ticketFilters}
           onFiltersChange={setTicketFilters}
           onChanged={() => qc.invalidateQueries({ queryKey: moduleQueryKeys.support.key('helpdesk-managed') })}
@@ -253,12 +233,7 @@ export function StaffWorkspace({ tab }: { tab: StaffTab }) {
         />
       )}
 
-      {active === 'payroll' &&
-        (canRunPayroll && payrollView === 'run' ? (
-          <RunPayrollPanel onFinalised={() => setPayrollView('history')} />
-        ) : (
-          <PayrollHistoryPanel />
-        ))}
+      {active === 'payroll' && <PayrollWorkspace />}
 
       {/* Full-screen onboarding, then straight into the new record */}
       {onboarding && tenantId && (

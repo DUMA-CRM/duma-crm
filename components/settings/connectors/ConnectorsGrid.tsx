@@ -3,18 +3,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
-import { Plug, PlugZap, Settings, Zap } from '@/components/icons';
-import { Badge } from '@/components/ui/badge';
+import { Plug, Settings, Zap } from '@/components/icons';
+import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
 
 import { getEmailConnection } from '@/lib/modules/communications/client';
-import { getPaymentMethods } from '@/lib/modules/payments/client';
+import { getPaymentConnections } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { type ConnectorAccount, type ConnectorAction, ConnectorCard } from './ConnectorCard';
 import { emailConnectorState } from './EmailConnector';
 import { PROVIDER_LABELS, paymentsConnectorState } from './PaymentsConnector';
-import { CONNECTORS, type ConnectorDefinition, type ConnectorId, type ConnectorState } from './registry';
+import { CONNECTORS, type ConnectorId, type ConnectorState } from './registry';
 import { relativeTime } from './shared';
 
 /**
@@ -33,9 +34,12 @@ export function ConnectorsGrid() {
     enabled: !!tenantId,
     retry: false,
   });
+  // Every reader, paused ones included: the till list (payment-methods) hides
+  // paused readers, which made a paused-only location look unconnected and sent
+  // "Connect" into the add flow instead of to the reader you already have.
   const { data: paymentMethods } = useQuery({
-    queryKey: moduleQueryKeys.payments.key('payment-methods', locationId),
-    queryFn: () => getPaymentMethods(locationId!),
+    queryKey: moduleQueryKeys.payments.key('payment-connections', locationId),
+    queryFn: () => getPaymentConnections(locationId!),
     enabled: !!locationId,
   });
 
@@ -76,7 +80,9 @@ export function ConnectorsGrid() {
     }
 
     if (definition.id === 'card-payments') {
-      const [first, ...rest] = paymentMethods ?? [];
+      const all = paymentMethods ?? [];
+      // Name an active reader first, so a paused backup doesn't headline the card.
+      const [first, ...rest] = [...all.filter((reader) => reader.isActive !== false), ...all.filter((reader) => reader.isActive === false)];
       const accounts: ConnectorAccount[] = first ? [{ label: first.displayName, meta: PROVIDER_LABELS[first.provider] }] : [];
       const action: ConnectorAction = first
         ? { label: 'Manage', icon: Settings, onClick: () => open('card-payments'), variant: 'outline' }
@@ -87,63 +93,40 @@ export function ConnectorsGrid() {
     return { definition, state: 'unavailable' as ConnectorState, accounts: [] };
   });
 
-  const connectedCount = cards.filter((card) => card.state === 'connected' || card.state === 'paused').length;
-  const attentionCount = cards.filter((card) => card.state === 'attention').length;
-  const available = cards.filter((card) => card.definition.available);
+  // One grid, most urgent first: broken, then working, then not set up. The status line tells them apart.
+  const rank = (state: ConnectorState) => ({ attention: 0, connected: 1, paused: 2, disconnected: 3, unavailable: 4 })[state];
+  const live = cards.filter((card) => card.definition.available).sort((a, b) => rank(a.state) - rank(b.state));
   const upcoming = cards.filter((card) => !card.definition.available);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-rule/65 bg-band/45 px-4 py-3 text-sm">
-        <div className="flex items-center gap-2 font-medium text-foreground">
-          <PlugZap size={16} className="text-success" aria-hidden="true" />
-          {connectedCount} connected
-        </div>
-        {attentionCount > 0 && <Badge variant="destructive">{attentionCount} needs attention</Badge>}
-        <span className="text-muted-foreground">
-          Connections apply to the current workspace and, for card readers, the active location.
-        </span>
+    <SettingsTabBody>
+      {/* No card around these: each tile is already a card, and a wrapper would only box them twice. */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {live.map((card, index) => (
+          <ConnectorCard key={card.definition.id} {...card} index={index} />
+        ))}
       </div>
 
-      <div>
-        <h3 className="mb-3 text-base font-semibold text-foreground">Available now</h3>
-        <div className="space-y-3">
-          {available.map((card) => (
-            <ConnectorCard key={card.definition.id} {...card} />
-          ))}
-        </div>
-      </div>
-
-      <ComingSoonTile cards={upcoming} />
-    </div>
-  );
-}
-
-function ComingSoonTile({ cards }: { cards: { definition: ConnectorDefinition }[] }) {
-  return (
-    <section>
-      <h3 className="mb-3 text-base font-semibold text-foreground">Planned connectors</h3>
-      <div className="grid overflow-hidden rounded-lg border border-rule/65 bg-card sm:grid-cols-2">
-        {cards.map(({ definition }, index) => {
-          const Icon = definition.icon;
-          return (
-            <div
-              key={definition.id}
-              className={`flex items-center gap-3 px-4 py-3 ${index > 0 ? 'border-t border-rule/45 sm:border-t-0' : ''} ${index > 1 ? 'sm:border-t' : ''} ${index % 2 === 1 ? 'sm:border-l sm:border-rule/45' : ''}`}
-            >
-              <Icon size={17} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">{definition.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{definition.tags.slice(0, 2).join(' · ')}</p>
-              </div>
-              <Badge variant="muted" className="ml-auto shrink-0">
-                Planned
-              </Badge>
-            </div>
-          );
-        })}
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground">These will appear here automatically when they are released.</p>
-    </section>
+      {upcoming.length > 0 && (
+        <SettingsSection title="Coming soon">
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {upcoming.map(({ definition }) => {
+              const Icon = definition.icon;
+              return (
+                <li key={definition.id} className="flex items-center gap-3 rounded-lg border border-dashed border-rule/60 px-3.5 py-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground">
+                    <Icon size={17} aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-muted-foreground">{definition.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{definition.tags.slice(0, 2).join(' · ')}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </SettingsSection>
+      )}
+    </SettingsTabBody>
   );
 }

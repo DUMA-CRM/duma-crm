@@ -12,6 +12,7 @@ import { OverviewPanel } from '@/components/communications/OverviewPanel';
 import { SuppressionsPanel } from '@/components/communications/SuppressionsPanel';
 import { TemplateEditorPage } from '@/components/communications/TemplateEditorPage';
 import { TemplatesPanel } from '@/components/communications/TemplatesPanel';
+import { useEmailAccess } from '@/components/communications/useEmailAccess';
 import { Activity, CheckCircle2, FileText, Loader2, MailX, Plus, Send, ShieldOff, TriangleAlert, Zap } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -27,7 +28,7 @@ import {
 } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { useAuthStore } from '@/stores/authStore';
+import { type ConnectionState, connectionState } from '@/lib/utils/communications';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /**
@@ -66,8 +67,8 @@ function CommunicationsView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
-  const role = useAuthStore((state) => state.role);
-  const canConfigure = role === 'super_admin' || role === 'franchise_owner';
+  const access = useEmailAccess();
+  const canConfigure = access.canConfigure;
 
   const requestedTab = searchParams.get('tab');
   const tab: Tab = TAB_VALUES.includes(requestedTab as Tab) ? (requestedTab as Tab) : 'overview';
@@ -103,10 +104,12 @@ function CommunicationsView() {
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
     enabled: !!tenantId,
   });
+  // Gated on its own capability: marketing and store managers run email but
+  // can't read the SMTP settings, and a 403 must not read as "not set up".
   const { data: connection } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
-    enabled: !!tenantId,
+    enabled: !!tenantId && access.canReadConnection,
     retry: false,
   });
   const { data: deliveries } = useQuery({
@@ -117,7 +120,7 @@ function CommunicationsView() {
     // (The history table shares this key and polls faster while it is open.)
     refetchInterval: 60_000,
   });
-  const emailReady = Boolean(connection?.isEnabled && connection.lastTestSucceeded);
+  const connectionStatus = connectionState(connection, access.canReadConnection);
   const activeTemplates = useMemo(() => templates.filter((template) => template.isActive), [templates]);
   const sendingCount = automations.filter((automation) => automation.isEnabled).length;
   // Failures on the newest page — surfaced on the History tab so they aren't missed.
@@ -201,7 +204,7 @@ function CommunicationsView() {
 
   // One primary action, always in the same place — whatever the open tab is for.
   const action =
-    tab === 'automations'
+    tab === 'automations' && access.canWrite
       ? {
           icon: Plus,
           label: 'New automation',
@@ -209,9 +212,9 @@ function CommunicationsView() {
           disabled: activeTemplates.length === 0,
           title: activeTemplates.length === 0 ? 'Create a ready-to-use template first' : undefined,
         }
-      : tab === 'templates'
+      : tab === 'templates' && access.canWrite
         ? { icon: Plus, label: 'New template', onClick: () => navigate({ template: 'new' }) }
-        : tab === 'suppressions'
+        : tab === 'suppressions' && access.canSuppress
           ? { icon: Plus, label: 'Add email', onClick: () => setAddingSuppression(true) }
           : null;
   const ActionIcon = action?.icon;
@@ -225,13 +228,7 @@ function CommunicationsView() {
       eyebrow="Customer engagement"
       title="Communications"
       icon={<Send size={20} aria-hidden="true" />}
-      meta={
-        <ConnectionStatus
-          ready={emailReady}
-          configured={Boolean(connection)}
-          onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined}
-        />
-      }
+      meta={<ConnectionStatus state={connectionStatus} onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined} />}
       actions={
         action && ActionIcon ? (
           <Button className="h-9 gap-1.5" disabled={action.disabled} title={action.title} onClick={action.onClick}>
@@ -244,7 +241,7 @@ function CommunicationsView() {
         <SectionTabs
           tabs={tabs}
           value={tab}
-          onChange={(value) => navigate({ tab: value }, 'replace')}
+          onChange={(value) => navigate({ tab: value, status: null }, 'replace')}
           ariaLabel="Communications sections"
         />
       }
@@ -252,9 +249,13 @@ function CommunicationsView() {
       <div className="space-y-5">
         {tab === 'overview' && (
           <OverviewPanel
+            connection={connectionStatus}
+            onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined}
             onOpenAutomations={() => navigate({ tab: 'automations' }, 'replace')}
-            onOpenTemplates={() => navigate({ tab: 'templates' }, 'replace')}
-            onOpenFailures={() => navigate({ tab: 'history' }, 'replace')}
+            onOpenAutomation={(id) => navigate({ automation: id })}
+            onOpenFailures={() => navigate({ tab: 'history', status: 'failed' }, 'replace')}
+            onOpenHistory={() => navigate({ tab: 'history', status: null }, 'replace')}
+            onPreviewDelivery={setOpenedDelivery}
           />
         )}
         {tab === 'automations' && (
@@ -269,7 +270,14 @@ function CommunicationsView() {
             onPreview={(template) => navigate({ preview: template.id })}
           />
         )}
-        {tab === 'history' && <HistoryPanel onPreview={setOpenedDelivery} />}
+        {tab === 'history' && (
+          <HistoryPanel
+            // Keyed so a link into failures (?status=failed) starts on that filter.
+            key={searchParams.get('status') ?? 'all'}
+            initialStatus={searchParams.get('status') === 'failed' ? 'failed' : 'all'}
+            onPreview={setOpenedDelivery}
+          />
+        )}
         {tab === 'suppressions' && <SuppressionsPanel adding={addingSuppression} onAddingChange={setAddingSuppression} />}
       </div>
 
@@ -283,13 +291,15 @@ function CommunicationsView() {
           textBody={previewTemplate.textBody}
           note="Variables are filled in with real customer and order details when the email is sent."
           actions={
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => navigate({ preview: null, template: previewTemplate.id }, 'replace')}
-            >
-              Edit template
-            </Button>
+            access.canWrite ? (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate({ preview: null, template: previewTemplate.id }, 'replace')}
+              >
+                Edit template
+              </Button>
+            ) : undefined
           }
           onClose={() => navigate({ preview: null })}
         />
@@ -307,9 +317,12 @@ function CommunicationsView() {
  * you happen to have open, and a full-width banner repeating it on every tab was
  * the loudest thing on a page whose job is the work underneath.
  */
-function ConnectionStatus({ ready, configured, onOpenConnection }: { ready: boolean; configured: boolean; onOpenConnection?: () => void }) {
+function ConnectionStatus({ state, onOpenConnection }: { state: ConnectionState; onOpenConnection?: () => void }) {
+  // Unreadable (no email.connections:read) is not the same as missing — say nothing.
+  if (state === 'unknown') return null;
+  const ready = state === 'ready';
   const Icon = ready ? CheckCircle2 : TriangleAlert;
-  const label = ready ? 'Email connected' : configured ? 'Email not verified' : 'Email not set up';
+  const label = ready ? 'Email connected' : state === 'unverified' ? 'Email not verified' : 'Email not set up';
   const className = cn(
     'inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 text-xs font-semibold',
     ready ? 'border-momentum/40 bg-momentum/6 text-momentum' : 'border-warning/40 bg-warning/6 text-warning',
@@ -321,7 +334,7 @@ function ConnectionStatus({ ready, configured, onOpenConnection }: { ready: bool
     </>
   );
 
-  // Only owners and admins can act on it, so only they get a button.
+  // Only people who can change the connector get a button.
   if (!onOpenConnection) return <span className={className}>{body}</span>;
   return (
     <button

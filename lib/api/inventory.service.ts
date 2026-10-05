@@ -119,6 +119,10 @@ export interface StockMovement {
   sourceId?: string | null;
   orderId?: string | null;
   notes?: string;
+  relatedLocationId?: string | null;
+  /** Included by `/inventory/ledger` (and `location`/`user` by `/stock-items/:id/movements`). */
+  location?: { id: string; name: string } | null;
+  user?: { id?: string; name: string } | null;
   createdAt: string;
 }
 
@@ -136,6 +140,22 @@ export const getStockItemMovements = (id: string, params?: { page?: number; limi
   if (params?.limit) query.set('limit', String(params.limit));
   const qs = query.toString();
   return apiFetch<StockMovementsResponse>(`/stock-items/${id}/movements${qs ? `?${qs}` : ''}`);
+};
+
+/**
+ * The canonical ledger, filtered server-side by location and item and scoped to
+ * the locations the caller may see — unlike `/stock-items/:id/movements`, which
+ * returns every location's movements. Includes the container label and user.
+ */
+export const getInventoryLedger = (params: { locationId?: string; stockItemId?: string; stockUnitId?: string; page?: number; limit?: number }) => {
+  const query = new URLSearchParams();
+  if (params.locationId) query.set('locationId', params.locationId);
+  if (params.stockItemId) query.set('stockItemId', params.stockItemId);
+  if (params.stockUnitId) query.set('stockUnitId', params.stockUnitId);
+  if (params.page) query.set('page', String(params.page));
+  if (params.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiFetch<StockMovementsResponse>(`/inventory/ledger${qs ? `?${qs}` : ''}`);
 };
 
 // ── Location Stock ────────────────────────────────────────────────────────────

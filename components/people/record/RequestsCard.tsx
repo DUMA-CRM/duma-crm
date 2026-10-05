@@ -2,33 +2,32 @@
 
 import Link from 'next/link';
 
-import { ArrowRight, CircleHelp } from '@/components/icons';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { STATUS_ICON, STATUS_META, fmtAgo, ticketKey } from '@/components/helpdesk/shared';
+import { ChevronRight, CircleHelp } from '@/components/icons';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Badge } from '@/components/ui/badge';
 
-import type { HelpdeskTicket } from '@/lib/modules/people/client';
-import { formatDate } from '@/lib/utils/date';
-import { openTicketsFor } from '@/lib/utils/employee-record';
+import type { HelpdeskTicket, TicketStatus } from '@/lib/modules/people/client';
+import { openTicketsFor, recordRequestList } from '@/lib/utils/employee-record';
 
-import { DetailCard } from './OverviewSection';
+import { RecordBlock, RecordList, RecordListRow } from './shared';
 
-const STATUS_TONE: Record<string, 'warning' | 'success' | 'muted'> = {
-  open: 'warning',
-  in_progress: 'warning',
-  waiting_employee: 'warning',
-  resolved: 'success',
-  closed: 'muted',
+/** A ticket's status as the row's tint and pill — waiting on them is the one that wants attention. */
+const STATUS_ROW: Record<TicketStatus, { tone: 'team' | 'money' | 'reference' | 'muted'; pill: 'success' | 'warning' | 'exception' | null }> = {
+  open: { tone: 'reference', pill: null },
+  in_progress: { tone: 'team', pill: null },
+  waiting_employee: { tone: 'money', pill: 'warning' },
+  resolved: { tone: 'muted', pill: 'success' },
+  closed: { tone: 'muted', pill: null },
 };
 
 /**
- * What this employee has asked HR, on the record rather than only in the
- * helpdesk queue. My HR gives the employee a Requests tab; a manager reviewing
- * them could previously see none of it without going to the queue and
- * searching by name.
+ * What this employee has asked HR, drawn as audit-log rows: the status icon in
+ * its tile, the subject, the ticket key and age, and each row opens that
+ * ticket on the helpdesk board.
  *
- * Deliberately a summary, not a second helpdesk: the newest few, and a way
- * through to the real board.
+ * Deliberately a summary, not a second helpdesk: open ones first, then the
+ * newest closed.
  */
 export function EmployeeRequestsCard({
   tickets,
@@ -41,16 +40,32 @@ export function EmployeeRequestsCard({
   error: boolean;
   onRetry: () => void;
 }) {
-  const open = tickets ? openTicketsFor(tickets) : [];
+  const open = tickets ? openTicketsFor(tickets).length : 0;
+  const shown = tickets ? recordRequestList(tickets) : [];
+  const more = tickets ? tickets.length - shown.length : 0;
 
   return (
-    <DetailCard
+    <RecordBlock
+      id="record-requests"
       title="Requests"
-      description={tickets && !error ? `${open.length} open · ${tickets.length} in total` : undefined}
       action={
-        <Link href="/staff/helpdesk" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover">
-          Helpdesk <ArrowRight size={13} aria-hidden="true" />
-        </Link>
+        <>
+          {open > 0 && <Badge variant="warning">{open} open</Badge>}
+          <Link
+            href="/staff/helpdesk"
+            className="flex items-center gap-0.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Helpdesk
+            <ChevronRight size={13} aria-hidden="true" />
+          </Link>
+        </>
+      }
+      note={
+        more > 0 && (
+          <Link href="/staff/helpdesk" className="font-semibold hover:text-foreground">
+            {more} older {more === 1 ? 'request' : 'requests'} on the helpdesk
+          </Link>
+        )
       }
     >
       {error ? (
@@ -59,25 +74,33 @@ export function EmployeeRequestsCard({
           title="Requests couldn’t be loaded"
           description="Nothing was read, so this is not an empty history."
           onRetry={onRetry}
-          className="py-6"
         />
       ) : loading ? (
-        <div className="h-16 animate-pulse rounded-sm bg-band" aria-hidden="true" />
-      ) : !tickets || tickets.length === 0 ? (
-        <EmptyState icon={CircleHelp} title="No requests" description="This employee hasn’t raised anything with HR." />
+        <div className="h-32 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
       ) : (
-        <ul className="divide-y divide-rule/45">
-          {tickets.slice(0, 5).map((ticket) => (
-            <li key={ticket.id} className="flex items-center gap-3 py-2.5">
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-foreground">{ticket.subject}</span>
-                <span className="block truncate text-xs text-muted-foreground">{formatDate(ticket.createdAt)}</span>
-              </span>
-              <Badge variant={STATUS_TONE[ticket.status] ?? 'muted'}>{ticket.status.replaceAll('_', ' ')}</Badge>
-            </li>
-          ))}
-        </ul>
+        <RecordList>
+          {shown.length === 0 ? (
+            <RecordListRow icon={CircleHelp} tone="muted" label="Helpdesk" placeholder="They haven’t raised anything with HR" />
+          ) : (
+            shown.map((ticket) => {
+              const row = STATUS_ROW[ticket.status];
+              return (
+                <RecordListRow
+                  key={ticket.id}
+                  href={`/staff/helpdesk?ticket=${ticket.id}`}
+                  icon={STATUS_ICON[ticket.status].icon}
+                  tone={row.tone}
+                  value={ticket.subject}
+                  label={ticketKey(ticket)}
+                  detail={fmtAgo(ticket.createdAt)}
+                  pill={row.pill ? { label: STATUS_META[ticket.status].label, tone: row.pill } : undefined}
+                  trailing={row.pill ? undefined : STATUS_META[ticket.status].label}
+                />
+              );
+            })
+          )}
+        </RecordList>
       )}
-    </DetailCard>
+    </RecordBlock>
   );
 }

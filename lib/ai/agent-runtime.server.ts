@@ -1,9 +1,10 @@
 import 'server-only';
 
-import { apiFetch } from '@/lib/modules/core/client';
+import { ApiError, apiFetch } from '@/lib/modules/core/client';
 import type { StaffProfile } from '@/lib/modules/identity/client';
 import type { StockItem } from '@/lib/modules/inventory/client';
 import type { Location } from '@/lib/modules/organization/client';
+import type { HrEmployee } from '@/lib/modules/people/client';
 import type { Supplier } from '@/lib/modules/purchasing/client';
 import type { MenuItem } from '@/types/menu';
 
@@ -34,6 +35,7 @@ export class AgentRuntime {
     readonly profile: StaffProfile,
     readonly locationId: string | null,
     readonly tenantId: string | null,
+    readonly signal?: AbortSignal,
   ) {}
 
   /** Report progress mid-tool. Silently ignored when nothing is listening. */
@@ -54,12 +56,13 @@ export class AgentRuntime {
   }
 
   get<T>(path: string) {
-    return apiFetch<T>(path, { cookieHeader: this.cookieHeader });
+    return this.once(`GET:${path}`, () => apiFetch<T>(path, { cookieHeader: this.cookieHeader, signal: this.signal }));
   }
 
   send<T>(path: string, method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', body?: unknown) {
     return apiFetch<T>(path, {
       method,
+      signal: this.signal,
       cookieHeader: this.cookieHeader,
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
@@ -89,6 +92,23 @@ export class AgentRuntime {
         .filter((row) => row.isActive)
         .map((row) => ({ ...row, name: row.name ?? row.user?.name, email: row.email ?? row.user?.email })),
     );
+  }
+
+  /**
+   * The signed-in account and staff profile always establish identity. The HR
+   * employee row is an optional second layer (employment, pay and personal
+   * details), so its absence must not turn a known operator into an anonymous
+   * or "unlinked" user.
+   */
+  myEmployee() {
+    return this.once('my-employee', async () => {
+      try {
+        return await this.get<HrEmployee>('/hr/employees/me');
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    });
   }
 
   /** userId → display name, for endpoints that return ids without the account. */

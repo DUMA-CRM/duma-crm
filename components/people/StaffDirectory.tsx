@@ -1,16 +1,17 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { motion, useReducedMotion } from 'motion/react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
-import { Search, Users, X } from '@/components/icons';
+import { ChevronRight, Search, Users, X } from '@/components/icons';
 import { Avatar, EMPLOYMENT_CONFIG, fmtMoney, roleConfig } from '@/components/people/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
@@ -33,9 +34,11 @@ function coreProgress(member: StaffProfile, employee: HrEmployee | null, asOf: D
   return setupProgress(coreSetupChecks(member, employee, asOf));
 }
 
-/** The team directory: who exists, what state their record is in, and a way in. */
+/**
+ * The team directory: who exists, what state their record is in, and a way in —
+ * one row per person, each a link to their record.
+ */
 export function StaffDirectory() {
-  const router = useRouter();
   // Pay and statutory identifiers, not "is this a senior account".
   const money = hasCapability(
     useAuthStore((s) => s.capabilities),
@@ -116,103 +119,10 @@ export function StaffDirectory() {
     setRecordFilter('all');
   }
 
-  const columns: DataTableColumn<StaffProfile>[] = [
-    {
-      id: 'member',
-      header: 'Member',
-      minWidth: 220,
-      cell: ({ row: member }) => (
-        <div className="flex items-center gap-3">
-          <Avatar name={member.name} email={member.email} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{member.name ?? '—'}</p>
-            <p className="truncate text-xs text-muted-foreground">{member.email ?? '—'}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'role',
-      header: 'Role',
-      width: 'fit',
-      cell: ({ row: member }) => {
-        const rc = roleConfig(member.role, roleNames.get(member.role));
-        return (
-          <span
-            className={cn(
-              'inline-flex items-center rounded-sm border px-2.5 py-1 text-label font-semibold uppercase tracking-label',
-              rc.bg,
-              rc.text,
-              rc.border,
-            )}
-          >
-            {rc.label}
-          </span>
-        );
-      },
-    },
-    {
-      id: 'employment',
-      header: 'Employment',
-      visibility: 'md',
-      minWidth: 150,
-      cell: ({ row: member }) => {
-        const emp = empByUser.get(member.userId);
-        if (!emp) return <span className="text-xs text-muted-foreground/60">—</span>;
-        return (
-          <div className="min-w-0">
-            <p className="truncate text-sm text-foreground">{emp.jobTitle}</p>
-            <p className="truncate text-xs text-muted-foreground">{EMPLOYMENT_CONFIG[emp.employmentType].label}</p>
-          </div>
-        );
-      },
-    },
-    ...(money
-      ? [
-          {
-            id: 'pay',
-            header: 'Pay',
-            visibility: 'lg' as const,
-            width: 'fit' as const,
-            wrap: 'nowrap' as const,
-            cellClassName: 'tabular-nums text-sm',
-            cell: ({ row: member }: { row: StaffProfile }) => {
-              const emp = empByUser.get(member.userId);
-              if (!emp?.payType) return <span className="text-xs text-muted-foreground/60">—</span>;
-              return emp.payType === 'hourly' ? `${fmtMoney(emp.hourlyRate)}/hr` : `${fmtMoney(emp.annualSalary)}/yr`;
-            },
-          },
-        ]
-      : []),
-    {
-      id: 'readiness',
-      header: 'Record readiness',
-      width: 'fit',
-      cell: ({ row: member }) => (
-        <RecordReadinessBadge member={member} emp={empByUser.get(member.userId)} money={money} asOf={complianceAsOf} />
-      ),
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      width: 'fit',
-      cell: ({ row: member }) => (
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-label font-semibold uppercase tracking-label',
-            member.isActive ? 'border-success/30 bg-success/6 text-success' : 'border-rule bg-muted text-muted-foreground',
-          )}
-        >
-          <span className={cn('size-1.5 shrink-0 rounded-full', member.isActive ? 'bg-success' : 'bg-muted-foreground')} />
-          {member.isActive ? 'Active' : 'Inactive'}
-        </span>
-      ),
-    },
-  ];
+  const statusCounts = { active: activeCount, inactive: staff.length - activeCount, all: staff.length };
 
   return (
     <div className="space-y-4">
-      {/* Search and filters — one row, out of the page header */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="min-w-56 flex-1">
           <Input
@@ -221,6 +131,7 @@ export function StaffDirectory() {
             onChange={(e) => setSearch(e.target.value)}
             leftIcon={<Search size={14} />}
             placeholder="Search name or email…"
+            aria-label="Search the team"
             rightAction={
               search ? (
                 <button
@@ -239,43 +150,45 @@ export function StaffDirectory() {
           value={roleFilter}
           onValueChange={(value) => setRoleFilter(value as 'all' | StaffRole)}
           options={[
-            { value: 'all', label: 'All roles' },
+            { value: 'all', label: 'Every role' },
             ...(roleCatalog?.roles ?? []).map((role) => ({ value: role.key, label: role.name })),
           ]}
           ariaLabel="Filter by role"
           className="w-40"
         />
-        <Select
-          value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-          options={[
-            { value: 'active', label: 'Active' },
-            { value: 'inactive', label: 'Inactive' },
-            { value: 'all', label: 'All statuses' },
-          ]}
-          ariaLabel="Filter by status"
-          className="w-36"
-        />
-        <Select
-          value={recordFilter}
-          onValueChange={(value) => setRecordFilter(value as RecordFilter)}
-          options={[
-            { value: 'all', label: 'All records' },
-            { value: 'ready', label: 'Core setup ready' },
-            { value: 'action', label: 'Action needed' },
-          ]}
-          ariaLabel="Filter by record readiness"
-          className="w-44"
-        />
         {departments.length > 0 && (
           <Select
             value={departmentFilter}
             onValueChange={setDepartmentFilter}
-            options={[{ value: 'all', label: 'All departments' }, ...departments.map((d) => ({ value: d, label: d }))]}
+            options={[{ value: 'all', label: 'Every department' }, ...departments.map((d) => ({ value: d, label: d }))]}
             ariaLabel="Filter by department"
-            className="hidden w-44 lg:flex"
+            className="w-44"
           />
         )}
+        <SegmentedControl
+          options={[
+            { value: 'active', label: `Active · ${statusCounts.active}` },
+            { value: 'inactive', label: `Left · ${statusCounts.inactive}` },
+            { value: 'all', label: 'All' },
+          ]}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          ariaLabel="Filter by status"
+        />
+        <button
+          type="button"
+          aria-pressed={recordFilter === 'action'}
+          onClick={() => setRecordFilter((current) => (current === 'action' ? 'all' : 'action'))}
+          className={cn(
+            'flex h-9 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+            recordFilter === 'action'
+              ? 'border-measured/40 bg-measured/10 text-measured'
+              : 'border-rule/60 bg-field text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <span className={cn('size-1.5 rounded-full', actionCount > 0 ? 'bg-measured' : 'bg-muted-foreground/50')} aria-hidden="true" />
+          Needs setup · {actionCount}
+        </button>
         {filtersActive && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5">
             <X size={14} /> Clear
@@ -283,72 +196,142 @@ export function StaffDirectory() {
         )}
       </div>
 
-      <DataTable
-        aria-label="Staff directory"
-        data={filtered}
-        columns={columns}
-        getRowKey={(member) => member.userId}
-        isLoading={isLoading}
-        isError={staffError || employeeError}
-        stickyHeader
-        minWidth={720}
-        errorState={
-          <ErrorState
-            icon={Users}
-            title="The staff directory couldn’t be loaded"
-            description="Nobody has been read, so this is not an empty team."
-            onRetry={() => {
-              void refetchStaff();
-              void refetchEmployees();
-            }}
-          />
-        }
-        emptyState={
-          !tenantId ? (
-            <EmptyState icon={Users} title="No workspace selected" description="Select a workspace to view people." />
-          ) : (
-            <EmptyState
-              icon={staff.length === 0 ? Users : Search}
-              title={staff.length === 0 ? 'No people yet' : 'No matches'}
-              description={staff.length === 0 ? 'Use “Onboard” to add your first team member.' : 'Try a different search or filter.'}
-            />
-          )
-        }
-        onRowClick={({ row }) => router.push(`/staff/${row.userId}`)}
-        rowAriaLabel={({ row }) => `Open ${row.name ?? row.email ?? 'member'}`}
-        footer={
-          staff.length > 0 ? (
-            <div className="border-t border-rule px-4 py-3">
-              <p className="text-xs text-muted-foreground">
-                {filtered.length !== staff.length && `${filtered.length} of `}
-                {staff.length} {staff.length === 1 ? 'person' : 'people'} · {activeCount} active · {enrolledCount} with HR records ·{' '}
-                {actionCount} need core setup
-              </p>
-            </div>
-          ) : null
-        }
-        footerClassName="p-0"
-      />
+      {isLoading ? (
+        <div className="space-y-2" aria-label="Loading the team">
+          {[0, 1, 2, 3, 4].map((index) => (
+            <div key={index} className="h-16 animate-pulse rounded-lg bg-band/60" />
+          ))}
+        </div>
+      ) : staffError || employeeError ? (
+        <ErrorState
+          icon={Users}
+          title="The team couldn’t be loaded"
+          description="Nobody has been read, so this is not an empty team."
+          onRetry={() => {
+            void refetchStaff();
+            void refetchEmployees();
+          }}
+        />
+      ) : !tenantId ? (
+        <EmptyState icon={Users} title="No workspace selected" description="Select a workspace to view people." />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={staff.length === 0 ? Users : Search}
+          title={staff.length === 0 ? 'No people yet' : 'No one matches'}
+          description={staff.length === 0 ? 'Use “Onboard” to add your first team member.' : 'Try a different search or filter.'}
+        />
+      ) : (
+        <>
+          <ul className="space-y-2" aria-label="Team">
+            {filtered.map((member, index) => (
+              <MemberRow
+                key={member.userId}
+                index={index}
+                member={member}
+                employee={empByUser.get(member.userId)}
+                roleLabel={roleConfig(member.role, roleNames.get(member.role)).label}
+                money={money}
+                asOf={complianceAsOf}
+              />
+            ))}
+          </ul>
+          <p className="px-1 text-xs text-muted-foreground">
+            {filtered.length !== staff.length && `Showing ${filtered.length} of `}
+            {staff.length} {staff.length === 1 ? 'person' : 'people'} · {activeCount} active · {enrolledCount} with HR records ·{' '}
+            {actionCount} need setup
+          </p>
+        </>
+      )}
     </div>
   );
 }
 
-function RecordReadinessBadge({
+type Readiness = { label: string; tone: 'ok' | 'todo' | 'risk' | 'none' };
+
+/** Where a member's record stands, in a word — the table's badge, as a dot and a label. */
+function readinessOf(member: StaffProfile, emp: HrEmployee | undefined, money: boolean, asOf: Date): Readiness {
+  if (!emp) return { label: 'Account only', tone: 'none' };
+  if (!money) return { label: 'Record linked', tone: 'ok' };
+  const checks = coreSetupChecks(member, emp, asOf);
+  if (checks.some((check) => check.tone === 'destructive')) return { label: 'Pay risk', tone: 'risk' };
+  const open = checks.filter((check) => !check.complete).length;
+  return setupProgress(checks) === 100 ? { label: 'Ready', tone: 'ok' } : { label: `${open} to do`, tone: 'todo' };
+}
+
+const READINESS_STYLE: Record<Readiness['tone'], { dot: string; text: string }> = {
+  ok: { dot: 'bg-momentum', text: 'text-momentum' },
+  todo: { dot: 'bg-measured', text: 'text-measured' },
+  risk: { dot: 'bg-exception', text: 'text-exception' },
+  none: { dot: 'bg-muted-foreground/50', text: 'text-muted-foreground' },
+};
+
+function MemberRow({
   member,
-  emp,
+  employee,
+  roleLabel,
   money,
   asOf,
+  index,
 }: {
-  member: Parameters<typeof coreSetupChecks>[0];
-  emp?: HrEmployee;
+  member: StaffProfile;
+  employee?: HrEmployee;
+  roleLabel: string;
   money: boolean;
   asOf: Date;
+  index: number;
 }) {
-  if (!emp) return <Badge variant="warning">Account only</Badge>;
-  if (!money) return <Badge variant="success">Record linked</Badge>;
-  const checks = coreSetupChecks(member, emp, asOf);
-  const progress = setupProgress(checks);
-  if (checks.some((check) => check.tone === 'destructive')) return <Badge variant="destructive">Pay risk</Badge>;
-  if (progress === 100) return <Badge variant="success">Core ready</Badge>;
-  return <Badge variant="warning">{checks.filter((check) => !check.complete).length} actions</Badge>;
+  const reduceMotion = useReducedMotion();
+  const readiness = readinessOf(member, employee, money, asOf);
+  const style = READINESS_STYLE[readiness.tone];
+  const detail = [employee?.jobTitle, employee ? EMPLOYMENT_CONFIG[employee.employmentType]?.label : null, employee?.department]
+    .filter(Boolean)
+    .join(' · ');
+  const pay =
+    money && employee?.payType
+      ? employee.payType === 'hourly'
+        ? `${fmtMoney(employee.hourlyRate)}/hr`
+        : `${fmtMoney(employee.annualSalary)}/yr`
+      : null;
+
+  return (
+    <motion.li
+      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: reduceMotion ? 0 : Math.min(index, 10) * 0.03, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <Link
+        href={`/staff/${member.userId}`}
+        aria-label={`Open ${member.name ?? member.email ?? 'member'}`}
+        className={cn(
+          'group flex items-center gap-3 rounded-lg border bg-field px-4 py-3 transition-colors hover:border-rule hover:bg-band/40',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+          member.isActive ? 'border-rule/60' : 'border-dashed border-rule/60',
+        )}
+      >
+        <span className={cn(!member.isActive && 'opacity-50 grayscale')}>
+          <Avatar name={member.name} email={member.email} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className={cn('truncate text-sm font-semibold', member.isActive ? 'text-foreground' : 'text-muted-foreground')}>
+              {member.name ?? member.email ?? 'Unnamed'}
+            </span>
+            {!member.isActive && <Badge variant="muted">Left</Badge>}
+          </span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{detail || member.email || 'No HR record yet'}</span>
+        </span>
+        <span className="hidden shrink-0 rounded-md bg-band px-2 py-1 text-xs font-medium text-foreground md:inline">{roleLabel}</span>
+        {pay && <span className="hidden w-24 shrink-0 text-right text-sm text-foreground lg:inline">{pay}</span>}
+        <span className={cn('flex w-28 shrink-0 items-center justify-end gap-1.5 text-xs font-semibold', style.text)}>
+          <span className={cn('size-2 rounded-full', style.dot)} aria-hidden="true" />
+          {readiness.label}
+        </span>
+        <ChevronRight
+          size={15}
+          className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
+      </Link>
+    </motion.li>
+  );
 }

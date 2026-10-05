@@ -5,16 +5,22 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { HelpdeskBoard } from '@/components/helpdesk/HelpdeskBoard';
 import { CalendarCheck, CalendarDays, CircleHelp, FileText, LayoutDashboard, MessageSquarePlus, Pencil, Plus } from '@/components/icons';
+import { EnrollEmployeeModal } from '@/components/people/PeopleModals';
+import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 
+import { hasCapability } from '@/lib/auth/capabilities';
 import { getEmployeeBank, getMyEmployee } from '@/lib/modules/people/client';
-import { getMyDocuments, getMyEntitlements, getMyLeaveRequests, getMyPayslips, getMyTickets } from '@/lib/modules/people/client';
+import { getMyPayslips } from '@/lib/modules/payroll/client';
+import { getCurrentTenantModules } from '@/lib/modules/organization/client';
+import { getMyDocuments, getMyEntitlements, getMyLeaveRequests, getMyTickets } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type MyHrAction, myHrActions } from '@/lib/utils/my-hr';
 import { useAuthStore } from '@/stores/authStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { AttendancePanel } from './AttendancePanel';
 import { DocumentsPanel } from './DocumentsPanel';
@@ -35,6 +41,15 @@ export function MyHrWorkspace() {
   const qc = useQueryClient();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const capabilities = useAuthStore((s) => s.capabilities);
+  const tenantId = useWorkspaceStore((s) => s.tenantId);
+  const modules = useQuery({
+    queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
+    queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
+    staleTime: 30_000,
+  });
+  const payrollEnabled =
+    modules.data?.modules.some((module) => module.moduleId === 'payroll' && module.status === 'enabled') ?? false;
   // `?tab=` lets other pages (Support, notifications) link to a section.
   const searchParams = useSearchParams();
   const requested = searchParams.get('tab');
@@ -42,6 +57,7 @@ export function MyHrWorkspace() {
 
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [createEmployeeOpen, setCreateEmployeeOpen] = useState(false);
   const [ticket, setTicket] = useState<TicketPreset | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
 
@@ -50,6 +66,7 @@ export function MyHrWorkspace() {
     queryFn: getMyEmployee,
     retry: false,
   });
+  const canCreateOwnEmployeeRecord = Boolean(user && tenantId && hasCapability(capabilities, 'hr.people:write'));
   const { data: entitlements = [] } = useQuery({
     queryKey: moduleQueryKeys.people.key('leave-entitlements-me'),
     queryFn: () => getMyEntitlements(),
@@ -60,7 +77,12 @@ export function MyHrWorkspace() {
   // would defeat the `actions` memo below.
   const tickets = useMemo(() => ticketsQuery.data ?? [], [ticketsQuery.data]);
   const { data: documents = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('documents-me'), queryFn: getMyDocuments });
-  const { data: payslips = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('payslips-me'), queryFn: getMyPayslips, retry: false });
+  const { data: payslips = [] } = useQuery({
+    queryKey: moduleQueryKeys.payroll.key('payslips-me'),
+    queryFn: getMyPayslips,
+    enabled: payrollEnabled,
+    retry: false,
+  });
 
   // AI and notifications may deep-link to a specific self-service action. Once
   // the employee record has loaded, open the existing form and consume the
@@ -198,8 +220,6 @@ export function MyHrWorkspace() {
         </>
       }
       subheader={<SectionTabs tabs={tabs} value={tab} onChange={setTab} ariaLabel="My HR sections" />}
-      // The requests board is a split queue/detail view — it manages its own scrolling.
-      flush={tab === 'requests'}
     >
       {tab === 'overview' && (
         <Overview
@@ -207,16 +227,21 @@ export function MyHrWorkspace() {
           loading={employeeLoading}
           entitlements={entitlements}
           latestPayslip={payslips[0]}
-          openTickets={openTickets}
+          payrollEnabled={payrollEnabled}
           bank={bank}
           actions={actions}
           onAction={runAction}
+          onEdit={() => setEditOpen(true)}
           go={setTab}
+          canCreateOwnEmployeeRecord={canCreateOwnEmployeeRecord}
+          onCreateOwnEmployeeRecord={() => setCreateEmployeeOpen(true)}
         />
       )}
       {tab === 'time-off' && <TimeOffPanel requests={requests} entitlements={entitlements} />}
       {tab === 'attendance' && <AttendancePanel onCorrection={requestCorrection} />}
-      {tab === 'documents' && <DocumentsPanel employee={employee} documents={documents} onDataRequest={requestData} />}
+      {tab === 'documents' && (
+        <DocumentsPanel employee={employee} documents={documents} payrollEnabled={payrollEnabled} onDataRequest={requestData} />
+      )}
       {tab === 'requests' && (
         <HelpdeskBoard
           mode="employee"
@@ -253,6 +278,20 @@ export function MyHrWorkspace() {
             qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('my-bank', employee.userId) });
           }}
         />
+      )}
+      {createEmployeeOpen && user && tenantId && (
+        <Drawer
+          title="Add employee record"
+          description="Create your employment record for this workspace. You can add pay and personal details afterwards."
+          onClose={() => setCreateEmployeeOpen(false)}
+        >
+          <EnrollEmployeeModal
+            member={{ userId: user.id, name: user.name, email: user.email }}
+            onClose={() => setCreateEmployeeOpen(false)}
+            initialJobTitle="Franchise owner"
+            submitLabel="Create record"
+          />
+        </Drawer>
       )}
       {ticket && (
         <NewTicketDrawer

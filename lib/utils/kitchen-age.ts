@@ -32,11 +32,19 @@ export interface AgeState {
 export interface TicketTimes {
   createdAt: string;
   updatedAt?: string | null;
+  /** A scheduled pre-order reaches the kitchen at this time, not when it was placed. */
+  kitchenReleaseAt?: string | null;
 }
 
-/** When the ticket entered its current stage. */
+/**
+ * When the ticket entered its current stage: its last update, or its kitchen
+ * release if that is later — a pre-order placed an hour ago is new the moment
+ * it is released, not already an hour late.
+ */
 export function stageSince(order: TicketTimes) {
-  return order.updatedAt ?? order.createdAt;
+  const since = order.updatedAt ?? order.createdAt;
+  if (order.kitchenReleaseAt && new Date(order.kitchenReleaseAt).getTime() > new Date(since).getTime()) return order.kitchenReleaseAt;
+  return since;
 }
 
 export function ageState(order: TicketTimes, now: number): AgeState {

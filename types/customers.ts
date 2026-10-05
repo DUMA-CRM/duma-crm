@@ -155,6 +155,16 @@ export interface LedgerResponse {
 
 export type TimelineKind = 'order' | 'points' | 'email' | 'consent' | 'privacy';
 
+export interface OrderLoyaltyMovement {
+  orderId: string | null;
+  programId: string;
+  programName: string;
+  unitSingular: string;
+  unitPlural: string;
+  delta: number;
+  source: 'order_earn' | 'redemption' | 'reversal' | 'manual';
+}
+
 export interface TimelineEntry {
   kind: TimelineKind;
   id: string;
@@ -166,6 +176,8 @@ export interface TimelineEntry {
   paymentStatus?: string;
   refundStatus?: string;
   customerId?: string;
+  loyalty?: OrderLoyaltyMovement[];
+  points?: { orderId: string | null; delta: number; balanceAfter: number; reason: string | null } | null;
   // points
   delta?: number;
   balanceAfter?: number;

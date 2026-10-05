@@ -1,23 +1,35 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 
-import { PanelRight, RotateCcw } from '@/components/icons';
 import { DumaAgent } from '@/components/ai/DumaAgent';
+import { PanelRight, RotateCcw } from '@/components/icons';
 
+import { type TenantModuleState, getCurrentTenantModules } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { usePageHeaderStore } from '@/stores/pageHeaderStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { SidebarToggle } from './SidebarToggle';
 import { ThemeToggle } from './ThemeToggle';
 
 const iconButton = 'w-9 h-9 rounded-md flex items-center justify-center hover:bg-band hover:text-foreground transition-colors';
 
-export function Header() {
+export function Header({ moduleState }: { moduleState: readonly TenantModuleState[] }) {
   const [spinning, setSpinning] = useState(false);
   const qc = useQueryClient();
+  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const modules = useQuery({
+    queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
+    queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
+    enabled: Boolean(tenantId),
+    initialData: { modules: [...moduleState] },
+    staleTime: 30_000,
+  });
+  const agentEnabled = modules.data.modules.some((module) => module.moduleId === 'agent' && module.status === 'enabled');
   // Only pages that render a right-hand panel get the drawer toggle.
   const { present: hasPageSidebar, toggle: togglePageSidebar, open: pageSidebarOpen } = usePageSidebarStore();
 
@@ -51,7 +63,7 @@ export function Header() {
       {/* Location scope and activity history live in the sidebar; the header
           keeps only what acts on the page in front of you. */}
       <div className="flex shrink-0 items-center gap-1 md:gap-2">
-        <DumaAgent />
+        {agentEnabled && <DumaAgent />}
 
         <button onClick={handleReload} aria-label="Reload data" className={iconButton}>
           <RotateCcw size={18} aria-hidden="true" className={cn('transition-transform duration-500', spinning && 'rotate-180')} />

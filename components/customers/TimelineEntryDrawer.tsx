@@ -2,9 +2,26 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
-import { AlertTriangle, ExternalLink, Loader2, MailX, RefreshCw, ShieldCheck } from '@/components/icons';
+import { PILL_TONE, TIMELINE_KIND_META } from '@/components/customers/timelineKinds';
+import {
+  AlertTriangle,
+  Coins,
+  ExternalLink,
+  Gift,
+  type IconComponent,
+  Loader2,
+  MailX,
+  RefreshCw,
+  ShieldCheck,
+  TrendingDown,
+  TrendingUp,
+} from '@/components/icons';
+import { Fact } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -12,9 +29,9 @@ import { getEmailDeliveries } from '@/lib/modules/communications/client';
 import { type OrderStatus, getOrder } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { timelineRowText } from '@/lib/utils/customer-timeline';
 import { formatDateTime } from '@/lib/utils/date';
-import { fmtGbpExact } from '@/lib/utils/format';
-import type { TimelineEntry } from '@/types/customers';
+import type { OrderLoyaltyMovement, TimelineEntry } from '@/types/customers';
 
 /**
  * The detail behind one timeline row.
@@ -28,6 +45,9 @@ import type { TimelineEntry } from '@/types/customers';
  * Only orders and emails need a request. Points, consent and privacy entries
  * already carry everything they can say, so those open instantly rather than
  * showing a spinner to render four fields the caller already had.
+ *
+ * Laid out as the audit inspector is: the row's own tile and sentence as the
+ * header, then titled sections of label/value rows on the porcelain field.
  */
 
 /** Mirrors the Orders screen's own status vocabulary, in badge terms. */
@@ -40,13 +60,7 @@ const ORDER_STATUS_VARIANT: Record<OrderStatus, 'success' | 'warning' | 'destruc
   expired: 'warning',
 };
 
-const KIND_TITLE: Record<TimelineEntry['kind'], string> = {
-  order: 'Order',
-  points: 'Points adjustment',
-  email: 'Email',
-  consent: 'Marketing consent',
-  privacy: 'Privacy request',
-};
+type Money = (amount: string | number | null | undefined) => string;
 
 interface Props {
   entry: TimelineEntry;
@@ -60,11 +74,34 @@ interface Props {
 
 export function TimelineEntryDrawer({ entry, customerId, tenantId, onRetryEmail, retryPending, onClose }: Props) {
   const router = useRouter();
+  const money = useWorkspaceMoney();
+  // Pinned per open; only "overdue" reads it.
+  const [now] = useState(() => Date.now());
+  const meta = TIMELINE_KIND_META[entry.kind];
+  const Icon = meta.icon;
+  const row = timelineRowText(entry, money, now);
+  // Consent and privacy are owned by the Compliance tab, which can change them.
+  const toCompliance = () => {
+    onClose();
+    router.push(`/customers/${customerId}?tab=compliance`);
+  };
 
   return (
     <Drawer
-      title={KIND_TITLE[entry.kind]}
-      description={formatDateTime(entry.at)}
+      title={`${row.lead} ${row.phrase}`}
+      description={
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {row.pill && (
+            <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', PILL_TONE[row.pill.tone])}>{row.pill.label}</span>
+          )}
+          {formatDateTime(entry.at)}
+        </span>
+      }
+      leading={
+        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', meta.tile)}>
+          <Icon size={18} aria-hidden="true" />
+        </span>
+      }
       onClose={onClose}
       footer={
         entry.kind === 'order' ? (
@@ -74,14 +111,19 @@ export function TimelineEntryDrawer({ entry, customerId, tenantId, onRetryEmail,
           </Button>
         ) : entry.kind === 'email' && entry.status === 'failed' && onRetryEmail ? (
           <Button size="lg" onClick={() => onRetryEmail(entry.id)} disabled={retryPending} className="w-full">
-            <RefreshCw data-icon="inline-start" />
+            {retryPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw data-icon="inline-start" />}
             {retryPending ? 'Queueing…' : 'Try sending again'}
+          </Button>
+        ) : entry.kind === 'consent' || entry.kind === 'privacy' ? (
+          <Button size="lg" variant="outline" onClick={toCompliance} className="w-full">
+            <ShieldCheck data-icon="inline-start" />
+            Open the Compliance tab
           </Button>
         ) : undefined
       }
     >
       {entry.kind === 'order' ? (
-        <OrderDetailBody orderId={entry.id} />
+        <OrderDetailBody orderId={entry.id} loyalty={entry.loyalty ?? []} points={entry.points ?? null} money={money} />
       ) : entry.kind === 'email' ? (
         <EmailDetailBody entry={entry} customerId={customerId} tenantId={tenantId} />
       ) : entry.kind === 'points' ? (
@@ -97,52 +139,79 @@ export function TimelineEntryDrawer({ entry, customerId, tenantId, onRetryEmail,
 
 // ── Order ─────────────────────────────────────────────────────────────────
 
-function OrderDetailBody({ orderId }: { orderId: string }) {
+const CHANNEL: Record<string, string> = { pos: 'At the till', qr_code: 'QR code' };
+
+function OrderDetailBody({
+  orderId,
+  loyalty,
+  points,
+  money,
+}: {
+  orderId: string;
+  loyalty: OrderLoyaltyMovement[];
+  points: TimelineEntry['points'];
+  money: Money;
+}) {
   const {
     data: order,
-    isLoading,
+    isPending,
     isError,
     refetch,
   } = useQuery({ queryKey: moduleQueryKeys.ordering.key('order', orderId), queryFn: () => getOrder(orderId) });
 
-  if (isLoading) return <Loading label="Loading the order" />;
-  if (isError || !order) return <LoadError what="order" onRetry={() => void refetch()} />;
+  if (isPending) return <Loading />;
+  if (isError || !order) return <ErrorState title="This order couldn’t be loaded" onRetry={() => void refetch()} />;
 
   const discount = Number(order.discountAmount ?? 0);
   const refunded = (order.refunds ?? []).reduce((sum, refund) => sum + Number(refund.amount), 0);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={ORDER_STATUS_VARIANT[order.status]}>
-          <span className="capitalize">{order.status}</span>
-        </Badge>
-        {order.refundStatus && order.refundStatus !== 'none' && (
-          <Badge variant="destructive">{order.refundStatus === 'refunded' ? 'Refunded' : 'Part refunded'}</Badge>
-        )}
-        <span className="font-mono text-xs uppercase tracking-micro text-muted-foreground">#{order.id.slice(0, 8)}</span>
-      </div>
+    <div className="space-y-6">
+      <section>
+        <SectionTitle>The order</SectionTitle>
+        <Panel>
+          <Row label="Status">
+            <Badge variant={ORDER_STATUS_VARIANT[order.status]}>
+              <span className="capitalize">{order.status}</span>
+            </Badge>
+            {order.refundStatus && order.refundStatus !== 'none' && (
+              <Badge variant="destructive">{order.refundStatus === 'refunded' ? 'Refunded' : 'Part refunded'}</Badge>
+            )}
+          </Row>
+          <Row label="Total">
+            <span className="font-semibold tabular-nums">{money(order.totalAmount)}</span>
+          </Row>
+          {discount > 0 && (
+            <Row label="Discount">
+              <span className="tabular-nums">−{money(discount)}</span>
+            </Row>
+          )}
+          {refunded > 0 && (
+            <Row label="Refunded">
+              <span className="tabular-nums text-exception">−{money(refunded)}</span>
+            </Row>
+          )}
+          <Row label="Payment">{order.paymentMethod === 'cash' ? 'Cash' : 'Card'}</Row>
+          <Row label="Taken">{CHANNEL[order.source] ?? 'Mobile'}</Row>
+          <Row label="Reference">
+            <span className="font-mono text-xs uppercase">#{order.id.slice(0, 8)}</span>
+          </Row>
+        </Panel>
+      </section>
 
-      <Facts
-        rows={[
-          { label: 'Total', value: fmtGbpExact(Number(order.totalAmount)), figure: true },
-          { label: 'Payment', value: order.paymentMethod === 'cash' ? 'Cash' : 'Card' },
-          { label: 'Taken', value: order.source === 'pos' ? 'At the till' : order.source === 'qr_code' ? 'QR code' : 'Mobile' },
-          ...(discount > 0 ? [{ label: 'Discount', value: `−${fmtGbpExact(discount)}`, figure: true }] : []),
-          ...(refunded > 0 ? [{ label: 'Refunded', value: `−${fmtGbpExact(refunded)}`, figure: true, tone: 'exception' as const }] : []),
-        ]}
-      />
-
-      <Block title={`Items (${order.items.length})`}>
-        <ul className="divide-y divide-rule/50 overflow-hidden rounded-sm border border-rule">
+      <section>
+        <SectionTitle>
+          {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
+        </SectionTitle>
+        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
           {order.items.map((item) => (
-            <li key={item.id} className="bg-background px-3 py-2.5">
+            <li key={item.id} className="border-b border-rule/45 px-3.5 py-3 last:border-b-0">
               <div className="flex items-start justify-between gap-3">
                 <p className="min-w-0 text-sm text-foreground">
                   <span className="font-semibold tabular-nums">{item.quantity}×</span> {item.name}
                 </p>
                 <span data-figure className="shrink-0 text-sm tabular-nums text-foreground">
-                  {fmtGbpExact(Number(item.subtotal))}
+                  {money(item.subtotal)}
                 </span>
               </div>
               {(item.modifiers?.length ?? 0) > 0 && (
@@ -167,17 +236,56 @@ function OrderDetailBody({ orderId }: { orderId: string }) {
             </li>
           ))}
         </ul>
-      </Block>
+      </section>
+
+      {(loyalty.length > 0 || points) && (
+        <section>
+          <SectionTitle>Rewards and points</SectionTitle>
+          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+            {points && (
+              <IconRow
+                icon={Coins}
+                tile="bg-stock/10 text-stock"
+                title={`Points ${points.delta >= 0 ? 'earned' : 'reversed'}`}
+                detail={`Balance after this order: ${points.balanceAfter.toLocaleString()}`}
+                figure={`${points.delta >= 0 ? '+' : '−'}${Math.abs(points.delta).toLocaleString()} pts`}
+                tone={points.delta >= 0 ? 'good' : 'bad'}
+              />
+            )}
+            {loyalty.map((movement, index) => {
+              const amount = Math.abs(movement.delta);
+              return (
+                <IconRow
+                  key={`${movement.programId}-${movement.source}-${index}`}
+                  icon={Gift}
+                  tile="bg-stock/10 text-stock"
+                  title={movement.programName}
+                  detail={
+                    movement.source === 'order_earn'
+                      ? 'Earned with this order'
+                      : movement.source === 'redemption'
+                        ? 'Used on this order'
+                        : 'Adjusted when this order changed'
+                  }
+                  figure={`${movement.delta > 0 ? '+' : '−'}${amount} ${amount === 1 ? movement.unitSingular : movement.unitPlural}`}
+                  tone={movement.delta > 0 ? 'good' : 'bad'}
+                />
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {(order.refunds?.length ?? 0) > 0 && (
-        <Block title="Refunds">
-          <ul className="space-y-2">
+        <section>
+          <SectionTitle>Refunds</SectionTitle>
+          <ul className="overflow-hidden rounded-lg border border-exception/30 bg-exception/5">
             {order.refunds!.map((refund) => (
-              <li key={refund.id} className="rounded-sm border border-exception/30 bg-exception/6 px-3 py-2.5">
+              <li key={refund.id} className="border-b border-exception/20 px-3.5 py-3 last:border-b-0">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-semibold capitalize text-exception">{refund.reason.replaceAll('_', ' ')}</span>
                   <span data-figure className="text-sm tabular-nums text-exception">
-                    −{fmtGbpExact(Number(refund.amount))}
+                    −{money(refund.amount)}
                   </span>
                 </div>
                 {refund.notes && <p className="mt-0.5 text-xs text-muted-foreground">{refund.notes}</p>}
@@ -185,13 +293,14 @@ function OrderDetailBody({ orderId }: { orderId: string }) {
               </li>
             ))}
           </ul>
-        </Block>
+        </section>
       )}
 
       {order.notes && (
-        <Block title="Order notes">
-          <p className="rounded-sm border border-rule bg-background px-3 py-2.5 text-sm text-foreground">{order.notes}</p>
-        </Block>
+        <section>
+          <SectionTitle>Order notes</SectionTitle>
+          <p className="rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-sm text-foreground">{order.notes}</p>
+        </section>
       )}
     </div>
   );
@@ -202,74 +311,75 @@ function OrderDetailBody({ orderId }: { orderId: string }) {
 function EmailDetailBody({ entry, customerId, tenantId }: { entry: TimelineEntry; customerId: string; tenantId?: string }) {
   // There is no single-delivery endpoint, so the customer's deliveries are read
   // and matched by id. Cheap, and already cached by the communications screens.
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isPending, isError, refetch } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-deliveries', tenantId, 1, customerId),
     queryFn: () => getEmailDeliveries(tenantId, 1, { customerId, limit: 100 }),
   });
 
   const delivery = data?.data.find((item) => item.id === entry.id);
 
-  if (isLoading) return <Loading label="Loading the message" />;
-  if (isError) return <LoadError what="message" onRetry={() => void refetch()} />;
+  if (isPending) return <Loading />;
+  if (isError) return <ErrorState title="This message couldn’t be loaded" onRetry={() => void refetch()} />;
 
   return (
     // A column with a definite height so the preview below can claim whatever
     // the facts above it do not use — reading the message is the point of
     // opening this row, and a fixed 384px window made you scroll a scroll.
-    <div className="flex h-full min-h-0 flex-col gap-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge
-          variant={
-            entry.status === 'sent'
-              ? 'success'
-              : entry.status === 'failed'
-                ? 'destructive'
-                : entry.status === 'cancelled'
-                  ? 'muted'
-                  : 'warning'
-          }
-        >
-          {entry.status === 'failed' && <MailX aria-hidden="true" />}
-          <span className="capitalize">{entry.status}</span>
-        </Badge>
-        {delivery && delivery.attemptCount > 1 && (
-          <span className="text-xs text-muted-foreground">
-            {delivery.attemptCount} of {delivery.maxAttempts} attempts
-          </span>
-        )}
-      </div>
-
-      <Facts
-        rows={[
-          { label: 'Subject', value: entry.subject ?? delivery?.subject ?? '—' },
-          { label: 'To', value: entry.toEmail ?? delivery?.toEmail ?? '—' },
-          ...(entry.trigger ? [{ label: 'Sent because', value: entry.trigger.replaceAll('_', ' ') }] : []),
-          ...(delivery?.template?.name ? [{ label: 'Template', value: delivery.template.name }] : []),
-          ...(delivery?.sentAt ? [{ label: 'Sent at', value: formatDateTime(delivery.sentAt) }] : []),
-        ]}
-      />
+    <div className="flex h-full min-h-0 flex-col gap-6">
+      <section>
+        <SectionTitle>The message</SectionTitle>
+        <Panel>
+          <Row label="Subject">
+            <span className="font-semibold wrap-break-word">{entry.subject ?? delivery?.subject ?? '—'}</span>
+          </Row>
+          <Row label="To">
+            <span className="break-all">{entry.toEmail ?? delivery?.toEmail ?? '—'}</span>
+          </Row>
+          <Row label="Status">
+            <span className="capitalize">{entry.status}</span>
+            {delivery && delivery.attemptCount > 1 && (
+              <span className="text-xs text-muted-foreground">
+                · {delivery.attemptCount} of {delivery.maxAttempts} attempts
+              </span>
+            )}
+          </Row>
+          {entry.trigger && (
+            <Row label="Sent because">
+              <span className="capitalize">{entry.trigger.replaceAll('_', ' ')}</span>
+            </Row>
+          )}
+          {delivery?.template?.name && <Row label="Template">{delivery.template.name}</Row>}
+          {delivery?.sentAt && <Row label="Sent at">{formatDateTime(delivery.sentAt)}</Row>}
+        </Panel>
+      </section>
 
       {/* The failure reason is the whole reason this row was worth opening. */}
       {delivery?.lastError && (
-        <div className="rounded-sm border border-exception/30 bg-exception/8 px-3 py-2.5">
-          <p className="text-micro font-semibold uppercase tracking-micro text-exception">Why it failed</p>
-          <p className="mt-1 break-words text-sm text-exception">{delivery.lastError}</p>
+        <div className="flex items-start gap-3 rounded-lg border border-exception/30 bg-exception/5 px-3.5 py-3" role="alert">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-exception/10 text-exception">
+            <MailX size={16} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-exception">Why it failed</p>
+            <p className="mt-0.5 wrap-break-word text-sm text-foreground">{delivery.lastError}</p>
+          </div>
         </div>
       )}
 
       {delivery?.htmlBody ? (
-        <Block title="What was sent" fill>
+        <section className="flex min-h-0 flex-1 flex-col">
+          <SectionTitle>What was sent</SectionTitle>
           <iframe
             title="Email preview"
             sandbox=""
             srcDoc={delivery.htmlBody}
             // Floors at 24rem so a long fact list shrinks the drawer's scroll
             // rather than squeezing the message down to a letterbox.
-            className="min-h-96 w-full flex-1 rounded-sm border border-rule bg-white"
+            className="min-h-96 w-full flex-1 rounded-lg border border-rule/60 bg-white"
           />
-        </Block>
+        </section>
       ) : (
-        <p className="rounded-sm border border-dashed border-rule px-3 py-4 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-4 text-center text-sm text-muted-foreground">
           The body of this message is no longer held — it was redacted, or it has aged out of the delivery log.
         </p>
       )}
@@ -284,68 +394,58 @@ function PointsDetailBody({ entry }: { entry: TimelineEntry }) {
   const added = delta > 0;
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 overflow-hidden rounded-sm border border-rule">
-        <div className={cn('p-4', added ? 'bg-momentum/8' : 'bg-exception/8')}>
-          <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Change</p>
-          <p data-figure className={cn('mt-1 text-2xl font-semibold tabular-nums', added ? 'text-momentum' : 'text-exception')}>
-            {added ? '+' : ''}
-            {delta.toLocaleString()}
-          </p>
-        </div>
-        <div className="border-l border-rule bg-band/40 p-4">
-          <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Balance after</p>
-          <p data-figure className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
-            {entry.balanceAfter?.toLocaleString() ?? '—'}
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <dl className="grid grid-cols-2 gap-3">
+        <Fact
+          surface="card"
+          icon={added ? TrendingUp : TrendingDown}
+          tone={added ? 'default' : 'danger'}
+          label="Change"
+          value={`${added ? '+' : '−'}${Math.abs(delta).toLocaleString()} pts`}
+        />
+        <Fact surface="card" icon={Coins} label="Balance after" value={entry.balanceAfter?.toLocaleString() ?? '—'} />
+      </dl>
 
-      <Block title="Reason">
+      <section>
+        <SectionTitle>Reason</SectionTitle>
         {entry.reason ? (
-          <p className="rounded-sm border border-rule bg-background px-3 py-2.5 text-sm text-foreground">{entry.reason}</p>
+          <p className="rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-sm text-foreground">{entry.reason}</p>
         ) : (
-          <p className="rounded-sm border border-dashed border-rule px-3 py-2.5 text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">
             No reason was recorded against this adjustment. Recording one makes the ledger answerable later.
           </p>
         )}
-      </Block>
-
-      <Facts rows={[{ label: 'When', value: formatDateTime(entry.at) }]} />
+      </section>
     </div>
   );
 }
 
 function ConsentDetailBody({ entry }: { entry: TimelineEntry }) {
-  const headline =
-    entry.action === 'opted_in' ? 'Opted in to marketing' : entry.action === 'opted_out' ? 'Opted out of marketing' : 'Address suppressed';
-
   return (
-    <div className="space-y-5">
-      <div
-        className={cn(
-          'flex items-start gap-2.5 rounded-sm border px-3 py-2.5',
-          entry.action === 'opted_in' ? 'border-momentum/30 bg-momentum/6 text-momentum' : 'border-rule bg-band/55 text-foreground',
-        )}
-      >
-        <ShieldCheck size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-        <p className="text-sm font-semibold">{headline}</p>
-      </div>
-
-      <Facts
-        rows={[
-          { label: 'How it was recorded', value: (entry.source ?? '—').replaceAll('_', ' ') },
-          { label: 'When', value: formatDateTime(entry.at) },
-        ]}
-      />
-
-      {entry.reason && (
-        <Block title="Reason or customer wording">
-          <p className="rounded-sm border border-rule bg-background px-3 py-2.5 text-sm text-foreground">{entry.reason}</p>
-        </Block>
-      )}
-
-      <p className="text-xs text-muted-foreground">
+    <div className="space-y-6">
+      <section>
+        <SectionTitle>The change</SectionTitle>
+        <Panel>
+          <Row label="Now">
+            <span className="font-semibold">
+              {entry.action === 'opted_in'
+                ? 'Opted in to marketing'
+                : entry.action === 'opted_out'
+                  ? 'Opted out of marketing'
+                  : 'Address suppressed'}
+            </span>
+          </Row>
+          <Row label="Recorded by">
+            <span className="capitalize">{(entry.source ?? '—').replaceAll('_', ' ')}</span>
+          </Row>
+          {entry.reason && (
+            <Row label="Wording">
+              <span className="wrap-break-word">{entry.reason}</span>
+            </Row>
+          )}
+        </Panel>
+      </section>
+      <p className="text-xs leading-relaxed text-muted-foreground">
         Consent history is kept permanently and cannot be edited — that is what makes it evidence. Record a correction as a new change on
         the Compliance tab.
       </p>
@@ -355,78 +455,82 @@ function ConsentDetailBody({ entry }: { entry: TimelineEntry }) {
 
 function PrivacyDetailBody({ entry }: { entry: TimelineEntry }) {
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={entry.status === 'completed' ? 'success' : entry.status === 'declined' ? 'muted' : 'warning'}>
-          <span className="capitalize">{(entry.status ?? '').replaceAll('_', ' ')}</span>
-        </Badge>
-        <span className="text-sm font-semibold capitalize text-foreground">{(entry.type ?? '').replaceAll('_', ' ')} request</span>
-      </div>
-
-      <Facts
-        rows={[
-          { label: 'Received', value: formatDateTime(entry.at) },
-          ...(entry.dueAt ? [{ label: 'Due', value: formatDateTime(entry.dueAt) }] : []),
-        ]}
-      />
-
-      <p className="text-xs text-muted-foreground">
+    <div className="space-y-6">
+      <section>
+        <SectionTitle>The request</SectionTitle>
+        <Panel>
+          <Row label="Status">
+            <Badge variant={entry.status === 'completed' ? 'success' : entry.status === 'declined' ? 'muted' : 'warning'}>
+              <span className="capitalize">{(entry.status ?? '').replaceAll('_', ' ')}</span>
+            </Badge>
+          </Row>
+          <Row label="Received">{formatDateTime(entry.at)}</Row>
+          {entry.dueAt && <Row label="Due">{formatDateTime(entry.dueAt)}</Row>}
+        </Panel>
+      </section>
+      <p className="text-xs leading-relaxed text-muted-foreground">
         The full request — its wording, the checks performed and the outcome — lives on the Compliance tab of this record.
       </p>
     </div>
   );
 }
 
-// ── Shared bits ───────────────────────────────────────────────────────────
+// ── Pieces — the audit inspector's ────────────────────────────────────────
 
-/** `fill` makes the block a flex column that grows into the space left over. */
-function Block({ title, fill, children }: { title: string; fill?: boolean; children: React.ReactNode }) {
-  return (
-    <section className={cn(fill && 'flex min-h-0 flex-1 flex-col')}>
-      <h3 className="mb-2 text-micro font-semibold uppercase tracking-micro text-muted-foreground">{title}</h3>
-      {children}
-    </section>
-  );
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h3 className="mb-2 text-sm font-semibold text-foreground">{children}</h3>;
 }
 
-function Facts({ rows }: { rows: { label: string; value: string; figure?: boolean; tone?: 'exception' }[] }) {
-  return (
-    <dl className="divide-y divide-rule/50 overflow-hidden rounded-sm border border-rule">
-      {rows.map((row) => (
-        <div key={row.label} className="flex items-baseline justify-between gap-4 bg-background px-3 py-2.5">
-          <dt className="shrink-0 text-xs text-muted-foreground">{row.label}</dt>
-          <dd
-            {...(row.figure ? { 'data-figure': true } : {})}
-            className={cn(
-              'min-w-0 break-words text-right text-sm font-medium',
-              row.tone === 'exception' ? 'text-exception' : 'text-foreground',
-              row.figure && 'tabular-nums',
-            )}
-          >
-            {row.value}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
+function Panel({ children }: { children: React.ReactNode }) {
+  return <dl className="overflow-hidden rounded-lg border border-rule/60 bg-field">{children}</dl>;
 }
 
-function Loading({ label }: { label: string }) {
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-      <Loader2 size={18} className="animate-spin" aria-hidden="true" />
-      {label}…
+    <div className="flex items-baseline gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+      <dt className="w-24 shrink-0 text-xs text-muted-foreground">{label}</dt>
+      <dd className="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5 text-sm text-foreground">{children}</dd>
     </div>
   );
 }
 
-function LoadError({ what, onRetry }: { what: string; onRetry: () => void }) {
+function IconRow({
+  icon: Icon,
+  tile,
+  title,
+  detail,
+  figure,
+  tone,
+}: {
+  icon: IconComponent;
+  tile: string;
+  title: string;
+  detail: string;
+  figure: string;
+  tone: 'good' | 'bad';
+}) {
   return (
-    <div className="rounded-sm border border-exception/30 bg-card p-6 text-center">
-      <p className="text-sm text-muted-foreground">This {what} could not be loaded.</p>
-      <Button variant="outline" className="mt-3" onClick={onRetry}>
-        Try again
-      </Button>
+    <li className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+      <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', tile)}>
+        <Icon size={16} aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-foreground">{title}</span>
+        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{detail}</span>
+      </span>
+      <span className={cn('shrink-0 text-sm font-semibold tabular-nums', tone === 'good' ? 'text-momentum' : 'text-exception')}>
+        {figure}
+      </span>
+    </li>
+  );
+}
+
+function Loading() {
+  return (
+    <div className="space-y-3" aria-label="Loading">
+      <div className="h-4 w-24 animate-pulse rounded-sm bg-band" />
+      <div className="h-40 animate-pulse rounded-lg bg-band/60" />
+      <div className="h-24 animate-pulse rounded-lg bg-band/60" />
     </div>
   );
 }

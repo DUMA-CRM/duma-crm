@@ -9,9 +9,6 @@ export const labelClass = 'mb-1.5 block text-micro uppercase text-muted-foregrou
 
 export const thClass = 'px-3 py-3 text-left text-micro uppercase text-muted-foreground md:px-5';
 
-/** Pounds and pence, e.g. "£4.20". Accepts numbers or numeric strings. */
-export const money = (v: number | string | null | undefined) => `£${Number(v ?? 0).toFixed(2)}`;
-
 /** Hours with up to 2dp and no trailing zeros, e.g. "32.5h" / "8h". */
 export const hours = (v: number | string | null | undefined) => `${+Number(v ?? 0).toFixed(2)}h`;
 

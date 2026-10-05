@@ -27,6 +27,8 @@ const read = (file: string) => readFileSync(join(root, file), 'utf8');
 
 const TOOLS_SOURCE = read('lib/ai/agent-tools.server.ts');
 const ACTIONS_SOURCE = read('lib/ai/agent-actions.server.ts');
+const RUNTIME_SOURCE = read('lib/ai/agent-runtime.server.ts');
+const DUMA_AGENT_SOURCE = read('lib/ai/duma-agent.server.ts');
 const AGENT_SOURCE = `${TOOLS_SOURCE}\n${ACTIONS_SOURCE}`;
 
 /** Every literal path the agent asks the API for. */
@@ -134,4 +136,31 @@ test('no tool description promises data DUMA does not hold', () => {
       .filter((description) => !/does not hold/i.test(description));
     assert.deepEqual(offers, [], `an agent ${label} description still offers payslips or expense claims`);
   }
+});
+
+test('a missing optional HR record does not erase the signed-in account identity', () => {
+  const profileStart = TOOLS_SOURCE.indexOf('const getMyProfile: ToolDefinition = {');
+  const profileEnd = TOOLS_SOURCE.indexOf('// ── My HR: attendance', profileStart);
+  assert.ok(profileStart >= 0 && profileEnd > profileStart, 'could not find the get_my_profile tool');
+
+  const profileTool = TOOLS_SOURCE.slice(profileStart, profileEnd);
+  assert.match(profileTool, /module: 'identity'/, 'account identity must remain available when the people module is disabled');
+  assert.match(profileTool, /runtime\.myEmployee\(\)/, 'the profile tool must use the nullable employee lookup');
+  assert.match(profileTool, /employeeRecordAvailable/, 'the tool must distinguish account identity from employment details');
+  assert.doesNotMatch(
+    profileTool,
+    /runtime\.get<HrEmployee>\('\/hr\/employees\/me'\)/,
+    'the profile tool must not hard-fail when the optional employee row is absent',
+  );
+
+  assert.match(
+    RUNTIME_SOURCE,
+    /error instanceof ApiError && error\.status === 404\) return null/,
+    'only a missing employee row should become null; other API errors must still surface',
+  );
+  assert.match(
+    DUMA_AGENT_SOURCE,
+    /absence never means the account is unlinked/,
+    'the model must be told not to describe an authenticated account as unlinked',
+  );
 });

@@ -1,5 +1,5 @@
-import { SettingsWorkspace } from '@/components/settings/SettingsWorkspace';
+import { QrOrderingSettings } from '@/components/settings/QrOrderingSettings';
 
 export default function QrOrderingPage() {
-  return <SettingsWorkspace tab="qr-ordering" />;
+  return <QrOrderingSettings />;
 }

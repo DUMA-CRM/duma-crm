@@ -9,8 +9,9 @@
 // disagrees with the API's, the API is right and this is the bug — which is
 // why `reconciles` exists.
 // ---------------------------------------------------------------------------
-import type { TimesheetShift } from '@/lib/modules/people/client';
-import type { PayrollPeriod, PayrollPreviewLine } from '@/lib/modules/people/client';
+import type { PayrollPeriod, PayrollPreviewLine, TimesheetShift } from '@/lib/modules/payroll/client';
+
+import { PERIODS_PER_YEAR } from './payroll-periods.ts';
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
@@ -80,7 +81,7 @@ export function explainPay(line: PayrollPreviewLine, period: PayrollPeriod, shif
     breakHours: round2(explained.reduce((sum, item) => sum + item.breakHours, 0)),
     unrosteredShifts: explained.filter((item) => item.unrostered).length,
     shifts: explained,
-    salaryDivisor: line.payType === 'salaried' ? (period === 'weekly' ? 52 : 12) : null,
+    salaryDivisor: line.payType === 'salaried' ? PERIODS_PER_YEAR[period] : null,
   };
 }
 

@@ -1,40 +1,28 @@
 import { ShoppingCart } from '@/components/icons';
 
-import { cartItemTotal, formatPrice } from '@/lib/utils/pos';
+import { cartCount, cartTotal, formatPrice } from '@/lib/utils/pos';
 import type { CartItem } from '@/types/pos';
 
-interface CartBarProps {
-  cart: CartItem[];
-  onOpen: () => void;
-  currency?: string;
-}
-
 /**
- * Floating order summary shown below lg, where the order panel is an overlay
- * drawer. Keeps the running count/total visible while browsing the menu and
- * opens the drawer in one tap — without it the only way in is the small
- * header toggle.
+ * Below lg the ticket is a drawer, so this bar keeps the running count and
+ * total in view while browsing, and opens the ticket in one tap.
  */
-export function CartBar({ cart, onOpen, currency }: CartBarProps) {
-  const count = cart.reduce((n, c) => n + c.quantity, 0);
+export function CartBar({ cart, onOpen, currency }: { cart: CartItem[]; onOpen: () => void; currency?: string }) {
+  const count = cartCount(cart);
   if (count === 0) return null;
-  const subtotal = cart.reduce((sum, c) => sum + cartItemTotal(c), 0);
 
   return (
     <button
+      type="button"
       onClick={onOpen}
-      className="lg:hidden fixed bottom-4 inset-x-4 z-10 h-14 rounded-sm bg-primary text-primary-foreground shadow-lg flex items-center justify-between px-5 active:translate-y-px transition-transform"
+      className="fixed inset-x-4 bottom-4 z-10 flex h-16 touch-manipulation items-center justify-between rounded-xl bg-primary px-5 text-primary-foreground shadow-lg transition-transform active:scale-[0.99] lg:hidden"
     >
-      <span className="flex items-center gap-2.5 text-sm font-semibold">
-        <span className="relative">
-          <ShoppingCart size={20} aria-hidden="true" />
-          <span className="absolute -top-2 -right-2.5 min-w-4.5 h-4.5 px-1 rounded-full bg-card text-primary text-micro font-semibold tabular-nums font-mono flex items-center justify-center">
-            {count}
-          </span>
-        </span>
-        <p className="ml-2.5">View Order</p>
+      <span className="flex items-center gap-3 text-base font-semibold">
+        <ShoppingCart size={20} aria-hidden="true" />
+        View ticket
+        <span className="rounded-full bg-primary-foreground/15 px-2 py-0.5 text-sm tabular-nums">{count}</span>
       </span>
-      <span className="text-base font-bold tabular-nums font-mono">{formatPrice(subtotal, currency)}</span>
+      <span data-figure className="text-lg font-semibold tabular-nums">{formatPrice(cartTotal(cart), currency)}</span>
     </button>
   );
 }

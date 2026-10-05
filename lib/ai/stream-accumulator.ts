@@ -10,9 +10,9 @@ import type { AssistantMessage, AssistantToolCall } from './provider-chain.ts';
  * 1. **Tool-call arguments arrive as string fragments**, split at arbitrary
  *    points — often mid-token, sometimes mid-UTF-8-escape. They must be
  *    concatenated in order and parsed only at the end.
- * 2. **Deltas are addressed by `index`, not by id**, and the id may appear on
- *    any fragment (or, on some routers, only the first). Accumulating into an
- *    array by position is the only thing that works across providers.
+ * 2. **Providers disagree on addressing.** OpenAI uses `index`; Gemini can omit
+ *    it while emitting several calls one-by-one, each with a distinct id. Use
+ *    the index when present, then the id, then the fragment's array position.
  * 3. **Unknown fields must survive.** Gemini's thinking models attach an
  *    `extra_content.google.thought_signature` to each tool call and reject the
  *    *next* request if it does not come back. So fragments are merged into the
@@ -60,9 +60,20 @@ export class StreamAccumulator {
     if (Array.isArray(toolCalls)) {
       for (const [position, entry] of toolCalls.entries()) {
         const fragment = entry as ToolCallDelta;
-        // `index` is authoritative; fall back to array position for the routers
-        // that omit it on a single-call stream.
-        const index = typeof fragment.index === 'number' ? fragment.index : position;
+        const fragmentId = typeof fragment.id === 'string' && fragment.id ? fragment.id : undefined;
+        const knownById = fragmentId ? this.calls.findIndex((call) => call.id === fragmentId) : -1;
+        const positionIsFree = !this.calls[position] || !this.calls[position].id;
+        // `index` is authoritative. Gemini may omit it for multiple calls sent
+        // in separate chunks, so a new id must get a new slot rather than
+        // repeatedly overwriting position zero.
+        const index =
+          typeof fragment.index === 'number'
+            ? fragment.index
+            : knownById >= 0
+              ? knownById
+              : fragmentId && !positionIsFree
+                ? this.calls.length
+                : position;
         const target = (this.calls[index] ??= { function: {} });
 
         const { function: fn, index: fragmentIndex, ...top } = fragment;
@@ -73,8 +84,24 @@ export class StreamAccumulator {
           const { name, arguments: args, ...fnExtra } = fn;
           for (const [key, value] of Object.entries(fnExtra)) if (value !== undefined) target.function[key] = value;
           if (typeof name === 'string' && name) target.function.name = name;
-          // The fragment case: append, never replace.
-          if (typeof args === 'string') target.function.arguments = `${(target.function.arguments as string) ?? ''}${args}`;
+          if (typeof args === 'string') {
+            // OpenAI sends argument fragments. Gemini's compatibility stream can
+            // instead send a succession of complete JSON snapshots for the same
+            // call. Appending those produces `{}{...}{...}`, which Gemini then
+            // rejects when the tool result is returned. A complete object/array
+            // is a snapshot; everything else remains an ordinary fragment.
+            let completeSnapshot = false;
+            const trimmed = args.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                completeSnapshot = parsed !== null && typeof parsed === 'object';
+              } catch {
+                // An incomplete JSON object is a stream fragment.
+              }
+            }
+            target.function.arguments = completeSnapshot ? args : `${(target.function.arguments as string) ?? ''}${args}`;
+          }
           else if (args !== undefined && args !== null) target.function.arguments = JSON.stringify(args);
         }
       }

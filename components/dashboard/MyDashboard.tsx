@@ -4,10 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { type ReactNode, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
-import { CalendarClock, ChevronDown, Clock, LogIn, LogOut, MapPin, Send } from '@/components/icons';
+import { CalendarClock, ChevronDown, Clock, LogOut, MapPin, Send } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
 import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
+import { SlideToClockIn } from '@/components/shifts/SlideToClockIn';
 import { DatePicker } from '@/components/ui/date-picker';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -155,7 +156,7 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
                   <>
                     <p className="text-sm font-semibold text-foreground">Ready to start your shift?</p>
                     <p className="text-sm text-muted-foreground">
-                      {locationId ? 'Tap clock in to start your shift.' : 'Use the location picker before you clock in.'}
+                      {locationId ? 'Slide to clock in and start your shift.' : 'Use the location picker before you clock in.'}
                     </p>
                   </>
                 )}
@@ -172,14 +173,12 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
                 Clock Out
               </button>
             ) : (
-              <button
-                onClick={() => clockInM.mutate()}
-                disabled={busy || !locationId}
-                className="relative flex h-11 items-center gap-2 rounded-sm bg-primary px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary-hover active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <LogIn size={20} />
-                {clockInM.isPending ? 'Clocking in…' : 'Clock In'}
-              </button>
+              <SlideToClockIn
+                onClockIn={() => clockInM.mutateAsync()}
+                pending={clockInM.isPending}
+                disabled={!locationId}
+                className="relative w-full sm:w-64"
+              />
             )}
           </div>
         </div>

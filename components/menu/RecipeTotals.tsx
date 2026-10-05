@@ -1,7 +1,7 @@
 'use client';
 
 import { Flame, TriangleAlert } from '@/components/icons';
-import { Badge } from '@/components/ui/badge';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 
 import { cn } from '@/lib/utils/cn';
 import { formatMoney } from '@/lib/utils/dashboard';
@@ -41,80 +41,79 @@ export function RecipeTotals({
   const missingData = summary.some((s) => s.missingCost > 0 || s.missingNutrition > 0);
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-
-      <div className="space-y-2">
+    <SettingsSection title={title}>
+      <div className="space-y-3">
         {summary.map((s) => (
-          <div key={s.col.id} className="rounded-sm border border-rule bg-card p-3">
+          <div key={s.col.id} className="rounded-lg border border-rule/60 bg-card px-3.5 py-3">
             {/* Only worth a size heading when there is more than one size. */}
-            {summary.length > 1 && (
-              <p className="mb-2 text-micro font-semibold uppercase tracking-micro text-muted-foreground">{s.col.label}</p>
-            )}
-
-            <div className="space-y-1.5 text-sm tabular-nums">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-muted-foreground">Ingredients</span>
-                <span className="font-semibold text-foreground">
-                  {formatMoney(s.cogs, 2)}
-                  {s.missingCost > 0 && <span className="text-warning">*</span>}
-                </span>
-              </div>
-
+            {summary.length > 1 && <p className="mb-2 text-label uppercase text-muted-foreground">{s.col.label}</p>}
+            <dl className="space-y-1.5 text-sm tabular-nums">
+              <Figure label="Ingredients" value={formatMoney(s.cogs, 2)} strong incomplete={s.missingCost > 0} />
               {showMargin && s.costing && (
                 <>
-                  {s.costing.vat > 0 && (
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-muted-foreground">VAT ({s.costing.vatRate}%)</span>
-                      <span className="text-muted-foreground">−{formatMoney(s.costing.vat, 2)}</span>
-                    </div>
-                  )}
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-muted-foreground">Margin</span>
-                    <span className={cn('font-semibold', s.costing.margin >= 0 ? 'text-success' : 'text-destructive')}>
-                      {formatMoney(s.costing.margin, 2)}{' '}
-                      <span className="font-normal text-muted-foreground">({s.costing.marginPct.toFixed(0)}%)</span>
-                    </span>
-                  </div>
+                  {s.costing.vat > 0 && <Figure label={`VAT (${s.costing.vatRate}%)`} value={`−${formatMoney(s.costing.vat, 2)}`} />}
+                  <Figure
+                    label="Margin"
+                    value={
+                      <>
+                        {formatMoney(s.costing.margin, 2)} <span className="font-normal text-muted-foreground">({s.costing.marginPct.toFixed(0)}%)</span>
+                      </>
+                    }
+                    strong
+                    tone={s.costing.margin >= 0 ? 'good' : 'bad'}
+                  />
                 </>
               )}
-
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <Flame size={13} aria-hidden="true" />
-                  Energy
-                </span>
-                <span className="text-foreground">
-                  {Math.round(s.kcal)} kcal
-                  {s.missingNutrition > 0 && <span className="text-warning">*</span>}
-                </span>
-              </div>
-            </div>
+              <Figure label={<><Flame size={13} aria-hidden="true" /> Energy</>} value={`${Math.round(s.kcal)} kcal`} incomplete={s.missingNutrition > 0} />
+            </dl>
           </div>
         ))}
-      </div>
 
-      {allAllergens.length > 0 && (
-        <div className="rounded-sm border border-rule bg-card p-3">
-          <p className="mb-2 text-micro font-semibold uppercase tracking-micro text-muted-foreground">Allergens</p>
-          <div className="flex flex-wrap gap-1.5">
-            {allAllergens.map((allergen) => (
-              <Badge key={allergen} variant="warning" className="capitalize">
-                {allergen}
-              </Badge>
-            ))}
+        {allAllergens.length > 0 && (
+          <div>
+            <p className="mb-2 text-label uppercase text-muted-foreground">Allergens</p>
+            <div className="flex flex-wrap gap-1.5">
+              {allAllergens.map((allergen) => (
+                <span key={allergen} className="rounded-sm bg-measured/10 px-2 py-0.5 text-xs font-semibold capitalize text-measured">
+                  {allergen}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {missingData && (
-        <div className="flex items-start gap-2 rounded-sm border border-warning/40 bg-warning/6 p-3">
-          <TriangleAlert size={15} className="mt-0.5 shrink-0 text-warning" aria-hidden="true" />
-          <p className="text-xs leading-relaxed text-warning">
+        {missingData && (
+          <p className="flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs leading-relaxed text-measured">
+            <TriangleAlert size={13} className="mt-px shrink-0" aria-hidden="true" />
             Marked figures (*) are incomplete — some ingredients have no cost or nutrition set on the stock item.
           </p>
-        </div>
-      )}
+        )}
+      </div>
+    </SettingsSection>
+  );
+}
+
+/** One label–value line in a figures block; `*` marks a figure missing data. */
+export function Figure({
+  label,
+  value,
+  strong,
+  tone,
+  incomplete,
+}: {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  strong?: boolean;
+  tone?: 'good' | 'bad';
+  incomplete?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="flex items-center gap-1 text-muted-foreground">{label}</dt>
+      <dd className={cn(strong && 'font-semibold', tone === 'good' ? 'text-momentum' : tone === 'bad' ? 'text-exception' : 'text-foreground')}>
+        {value}
+        {incomplete && <span className="text-measured">*</span>}
+      </dd>
     </div>
   );
 }

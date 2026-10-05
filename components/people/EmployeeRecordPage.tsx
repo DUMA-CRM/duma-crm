@@ -1,47 +1,30 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'motion/react';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
-import { PrivacyRequestsPanel } from '@/components/customers/PrivacyRequestsPanel';
-import {
-  AlertTriangle,
-  Banknote,
-  CalendarClock,
-  CalendarDays,
-  CircleHelp,
-  Clock,
-  LayoutDashboard,
-  Loader2,
-  Pencil,
-  TrendingUp,
-} from '@/components/icons';
-import { Avatar, fmtHours, fmtMoney } from '@/components/people/shared';
-import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { AlertTriangle, Banknote, CalendarDays, Clock, LayoutDashboard, Loader2, Pencil, TrendingUp } from '@/components/icons';
+import { Avatar } from '@/components/people/shared';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SectionTabs } from '@/components/shared/SectionTabs';
-import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
 import { type StaffProfile, updateStaff } from '@/lib/modules/identity/client';
 import { getEmployee, getEmployeeHours, offboardEmployee } from '@/lib/modules/people/client';
-import '@/lib/modules/people/client';
-import { getManagedTickets } from '@/lib/modules/people/client';
-import { getEmployeeEntitlements } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { getScheduledShifts } from '@/lib/modules/workforce/client';
-import { openTicketsFor, ticketsForEmployee } from '@/lib/utils/employee-record';
-import { leaveBalance } from '@/lib/utils/my-hr';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
 import { EmployeeAttendanceCard } from './record/AttendanceCard';
 import { EditDetailsDrawer } from './record/EditDetailsDrawer';
-import { AccessCard, ComplianceSummaryCard, EmploymentTab, PersonalTab } from './record/OverviewSection';
+import { OffboardModal } from './record/OffboardModal';
+import { OverviewSection } from './record/OverviewSection';
 import { BankTab, PayslipsCard } from './record/PaySection';
-import { EmployeeRequestsCard } from './record/RequestsCard';
 import { AbsenceCard, EmployeeDocumentsCard, LeaveAllowanceCard, TimesheetCard, WorkPatternCard } from './record/TimeSection';
 import { monthRange } from './record/shared';
 
@@ -92,6 +75,10 @@ export function EmployeeRecordPage({
   const canReadRota = hasCapability(capabilities, 'scheduling:read');
   const canReadAttendance = hasCapability(capabilities, 'hr.attendance:read');
   const canReadPrivacy = hasCapability(capabilities, 'privacy:read');
+  const canReadPayroll = hasCapability(capabilities, 'hr.payroll:read');
+  // Reactivating and the Access panel's edit both call `PATCH /staff/:userId`,
+  // which checks `staff:access` — not the `hr.sensitive:read` they were gated on.
+  const canChangeAccess = hasCapability(capabilities, 'staff:access');
   const [editing, setEditing] = useState(false);
   // Owned here (not the parent) so the confirm dialog sits with this record view.
   const [offboardOpen, setOffboardOpen] = useState(false);
@@ -134,55 +121,19 @@ export function EmployeeRecordPage({
     queryFn: () => getEmployeeHours(userId, range.from, range.to),
   });
 
-  // Same key and year as `LeaveAllowanceCard` on the Time tab, deliberately:
-  // keys here are hand-written literals, so a second spelling would be a second
-  // network call that the allowance mutations then fail to invalidate.
-  const entitlementYear = new Date().getFullYear();
-  const entitlementsQuery = useQuery({
-    queryKey: moduleQueryKeys.people.key('employee-entitlements', userId, entitlementYear),
-    queryFn: () => getEmployeeEntitlements(userId, entitlementYear),
-  });
-  const entitlements = entitlementsQuery.data ?? [];
-  const leave = leaveBalance(entitlements);
-
-  // Fixed once per mount: reading the clock during render is impure, and a
-  // date that moves every render would churn the query key with it.
-  const [{ today, horizon }] = useState(() => {
-    const now = Date.now();
-    return {
-      today: new Date(now).toISOString().slice(0, 10),
-      horizon: new Date(now + 28 * 86_400_000).toISOString().slice(0, 10),
-    };
-  });
-  const rotaQuery = useQuery({
-    queryKey: moduleQueryKeys.workforce.key('scheduled-shifts', userId, today, horizon),
-    queryFn: () => getScheduledShifts({ userId, from: today, to: horizon }),
-    enabled: canReadRota,
-  });
-  const nextShift = [...(rotaQuery.data ?? [])].sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
-
-  // `/helpdesk/manage` has no userId filter — only status, category and a
-  // search that also matches subject text — so the queue is narrowed here.
-  const ticketsQuery = useQuery({
-    queryKey: moduleQueryKeys.support.key('helpdesk-managed', '', '', ''),
-    queryFn: () => getManagedTickets({}),
-    enabled: canReadHelpdesk,
-  });
-  const tickets = useMemo(
-    () => (ticketsQuery.data ? ticketsForEmployee(ticketsQuery.data, userId) : undefined),
-    [ticketsQuery.data, userId],
-  );
-  const openTickets = tickets ? openTicketsFor(tickets).length : 0;
-
   const name = member?.name ?? emp?.jobTitle ?? 'Employee';
-  const estGross =
-    emp?.payType === 'salaried' ? Number(emp.annualSalary ?? 0) / 12 : (hours?.totals.rawHours ?? 0) * Number(emp?.hourlyRate ?? 0);
 
   return (
     <EditorShell
       title={name}
       onClose={onClose}
-      leading={<Avatar name={name} email={member?.email} size="lg" />}
+      leading={<Avatar name={name} email={member?.email} />}
+      meta={
+        <>
+          {emp?.jobTitle && member?.name && <span className="truncate text-sm text-muted-foreground">{emp.jobTitle}</span>}
+          {member && !member.isActive && <Badge variant="muted">Can’t sign in</Badge>}
+        </>
+      }
       actions={
         member && (
           <>
@@ -193,24 +144,24 @@ export function EmployeeRecordPage({
               </Button>
             )}
             {/* Performance moved to Reports; the record keeps the way to it. */}
-            <Link
-              href={`/reports/staff/${userId}`}
-              className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-rule px-3 text-xs font-semibold transition-colors hover:bg-band"
-            >
-              <TrendingUp size={14} aria-hidden="true" />
-              <span className="hidden md:inline">Performance</span>
-            </Link>
-            {money &&
-              (member.isActive ? (
-                <Button variant="outline" onClick={() => setOffboardOpen(true)} className="h-9 text-destructive hover:text-destructive">
-                  Offboard
-                </Button>
-              ) : (
+            <Button asChild variant="outline" className="h-9 gap-1.5">
+              <Link href={`/reports/staff/${userId}`}>
+                <TrendingUp size={14} aria-hidden="true" />
+                <span className="hidden md:inline">Performance</span>
+              </Link>
+            </Button>
+            {member.isActive
+              ? money && (
+                  <Button variant="outline" onClick={() => setOffboardOpen(true)} className="h-9 text-destructive hover:text-destructive">
+                    Offboard
+                  </Button>
+                )
+              : canChangeAccess && (
                 <Button onClick={() => reactivate.mutate()} disabled={reactivate.isPending} className="h-9 gap-2">
                   {reactivate.isPending && <Loader2 size={15} className="animate-spin" />}
                   Reactivate account
                 </Button>
-              ))}
+              )}
           </>
         )
       }
@@ -227,16 +178,17 @@ export function EmployeeRecordPage({
         />
       }
     >
-      {/* Everything on one page: stat tiles, a 2-per-row card grid, then the full-width timesheet. */}
       <div className="space-y-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-24 text-muted-foreground">
             <Loader2 size={22} className="animate-spin" />
           </div>
         ) : isError && !member ? (
-          <div className="rounded-sm border border-destructive/30 bg-destructive/5 p-8 text-center">
-            <AlertTriangle className="mx-auto text-destructive" />
-            <h2 className="mt-3 font-semibold">Employee record unavailable</h2>
+          <div className="rounded-lg border border-rule/60 bg-field p-8 text-center">
+            <span className="mx-auto flex size-10 items-center justify-center rounded-md bg-exception/8 text-exception">
+              <AlertTriangle size={18} aria-hidden="true" />
+            </span>
+            <h2 className="mt-3 text-sm font-semibold">Employee record unavailable</h2>
             <p className="mt-1 text-sm text-muted-foreground">It may have been removed, or you may not have access to it.</p>
             <Button variant="outline" className="mt-4" onClick={onClose}>
               Back to staff
@@ -245,145 +197,58 @@ export function EmployeeRecordPage({
         ) : (
           <>
             {section === 'overview' && (
-              <>
-                {member && (
-                  <ComplianceSummaryCard
-                    member={member}
-                    employee={emp ?? null}
-                    tickets={tickets}
-                    canReadDocuments={canReadDocuments}
-                    onAction={(target) => {
-                      if (target === 'edit') return setEditing(true);
-                      if (target === 'documents') return setSection('time');
-                      if (target === 'pay') return setSection('pay');
-                      // Access and requests both live on this tab already.
-                    }}
-                  />
-                )}
-
-                {emp && (
-                  <StatCardGrid columns="auto">
-                    <StatCard
-                      size="sm"
-                      icon={CalendarDays}
-                      accent="primary"
-                      label="Holiday left"
-                      value={leave.hasEntitlement ? leave.remaining : '—'}
-                      unit={leave.hasEntitlement ? 'days' : undefined}
-                      caption={leave.hasEntitlement ? `${leave.used} of ${leave.total} used` : 'No allowance set'}
-                      loading={entitlementsQuery.isPending}
-                      error={entitlementsQuery.isError}
-                      onSelect={() => setSection('time')}
-                    />
-                    {canReadRota && (
-                      <StatCard
-                        size="sm"
-                        icon={CalendarClock}
-                        accent="neutral"
-                        label="Next shift"
-                        value={
-                          nextShift
-                            ? new Date(nextShift.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-                            : '—'
-                        }
-                        caption={nextShift ? (nextShift.location?.name ?? 'Scheduled') : 'Nothing in the next four weeks'}
-                        loading={rotaQuery.isPending}
-                        error={rotaQuery.isError}
-                        href="/staff/rota"
-                      />
-                    )}
-                    <StatCard
-                      size="sm"
-                      icon={Clock}
-                      accent="info"
-                      label={`Clocked · ${range.label}`}
-                      value={fmtHours(hours?.totals.rawHours ?? 0)}
-                      onSelect={() => setSection('time')}
-                    />
-                    {canReadHelpdesk && (
-                      <StatCard
-                        size="sm"
-                        icon={CircleHelp}
-                        accent={openTickets > 0 ? 'warning' : 'neutral'}
-                        label="Open requests"
-                        value={openTickets}
-                        caption={openTickets === 0 ? 'Nothing outstanding' : 'With HR now'}
-                        loading={ticketsQuery.isPending}
-                        error={ticketsQuery.isError}
-                      />
-                    )}
-                    {money && (
-                      <StatCard
-                        size="sm"
-                        icon={Banknote}
-                        accent="success"
-                        label={emp.payType === 'hourly' ? 'Clocked value' : 'Monthly salary'}
-                        value={fmtMoney(estGross)}
-                        onSelect={() => setSection('pay')}
-                      />
-                    )}
-                  </StatCardGrid>
-                )}
-
-                {/* Columns, not a grid: these cards hold different numbers of
-                    rows, and a grid reserves the height of its tallest.
-                    `-mb-4` cancels the last card's trailing margin. */}
-                <div className="columns-1 gap-4 lg:columns-2 -mb-4">
-                  {emp ? (
-                    <>
-                      <PersonalTab emp={emp} email={member?.email} />
-                      <EmploymentTab emp={emp} canSeePay={money} />
-                    </>
-                  ) : (
-                    <div className="mb-4 break-inside-avoid rounded-md border border-dashed border-rule bg-card p-5">
-                      <p className="font-medium">Account only</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        This login has no linked employment record. Do not schedule or pay this person until onboarding is completed.
-                      </p>
-                    </div>
-                  )}
-                  {member && <AccessCard member={member} locations={locations} canEdit={money} />}
-                  {canReadHelpdesk && (
-                    <EmployeeRequestsCard
-                      tickets={tickets}
-                      loading={ticketsQuery.isPending}
-                      error={ticketsQuery.isError}
-                      onRetry={() => void ticketsQuery.refetch()}
-                    />
-                  )}
-                </div>
-                {emp && canReadPrivacy && <PrivacyRequestsPanel employeeUserId={userId} tenantId={emp.tenantId} />}
-              </>
+              <OverviewSection
+                userId={userId}
+                member={member}
+                employee={emp ?? null}
+                locations={locations}
+                access={{
+                  money,
+                  documents: canReadDocuments,
+                  rota: canReadRota,
+                  helpdesk: canReadHelpdesk,
+                  privacy: canReadPrivacy,
+                  payroll: canReadPayroll,
+                  staffAccess: canChangeAccess,
+                }}
+                onEdit={() => setEditing(true)}
+                onOpenSection={setSection}
+              />
             )}
 
             {section === 'time' && emp && (
-              <>
-                {/* The calendar earns the full width — a month does not
-                    reflow into a column. Everything after it is a card of
-                    unpredictable height, so they flow rather than sit in a
-                    grid that reserves the tallest one's space. */}
+              // The Overview's frame: the calendar across the page (a month
+              // doesn't reflow into a column), then what they worked and the
+              // paperwork in the main column, the standing terms beside it.
+              <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
                 {canReadAttendance && <EmployeeAttendanceCard userId={userId} canReadRota={canReadRota} />}
-
-                <div className="columns-1 gap-4 lg:columns-2 -mb-4">
-                  <WorkPatternCard userId={userId} />
-                  <LeaveAllowanceCard userId={userId} employmentType={emp.employmentType} />
-                  <AbsenceCard userId={userId} />
-                  {canReadDocuments && <EmployeeDocumentsCard userId={userId} />}
-                  {/* The timesheet flows with the rest rather than spanning the
-                      page. Its six columns are narrow and it already scrolls
-                      horizontally, so half the width costs little — and a card
-                      that spanned the full width left the column above it
-                      ending in dead space. */}
+                <SettingsTabBody
+                  aside={
+                    <>
+                      <WorkPatternCard userId={userId} />
+                      <LeaveAllowanceCard userId={userId} employmentType={emp.employmentType} />
+                      <AbsenceCard userId={userId} />
+                    </>
+                  }
+                >
                   <TimesheetCard hours={hours} monthOffset={monthOffset} onMonthChange={setMonthOffset} />
-                </div>
-              </>
+                  {canReadDocuments && <EmployeeDocumentsCard userId={userId} />}
+                </SettingsTabBody>
+              </motion.div>
             )}
 
             {section === 'pay' && emp && money && (
-              <div className="columns-1 gap-4 lg:columns-2 -mb-4">
-                <BankTab userId={userId} emp={emp} onEdit={canEditPay ? () => setEditing(true) : undefined} />
-                <PayslipsCard userId={userId} />
-              </div>
+              // The other tabs' frame: payslips in the main column, where
+              // their pay goes and the identifiers payroll needs beside them.
+              <motion.div initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
+                {canReadPayroll ? (
+                  <SettingsTabBody aside={<BankTab userId={userId} emp={emp} onEdit={canEditPay ? () => setEditing(true) : undefined} />}>
+                    <PayslipsCard userId={userId} />
+                  </SettingsTabBody>
+                ) : (
+                  <BankTab userId={userId} emp={emp} onEdit={canEditPay ? () => setEditing(true) : undefined} />
+                )}
+              </motion.div>
             )}
           </>
         )}
@@ -393,22 +258,9 @@ export function EmployeeRecordPage({
 
       {/* Portaled modal — centers on the viewport above the record view. */}
       {member && offboardOpen && (
-        <ConfirmModal
-          title="Offboard this employee?"
-          message={
-            <div className="space-y-3">
-              <p>
-                Offboard <span className="font-semibold text-foreground">{member.name ?? member.email}</span>? Their HR history is retained
-                and their account is marked inactive.
-              </p>
-              <div className="rounded-sm border border-warning/30 bg-warning/5 p-3 text-left text-xs text-muted-foreground">
-                Before confirming, record the last working day and reason in the employment documents, approve final time and expenses,
-                calculate unused holiday, arrange final payroll/P45, recover assets, and confirm when access must end.
-              </div>
-            </div>
-          }
-          confirmLabel="Offboard employee"
-          pendingLabel="Offboarding…"
+        <OffboardModal
+          userId={userId}
+          name={member.name ?? member.email ?? 'this employee'}
           isPending={offboard.isPending}
           onConfirm={() => offboard.mutate()}
           onClose={() => setOffboardOpen(false)}

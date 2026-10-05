@@ -1,12 +1,15 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { ChefHat, UtensilsCrossed } from '@/components/icons';
-import { RecipeSummaryChips } from '@/components/menu/RecipeEditorPage';
-import { AvailabilityToggle, categoryTone, inputClass, labelClass, selectClass } from '@/components/menu/shared';
-import { Button } from '@/components/ui/button';
+import { UtensilsCrossed } from '@/components/icons';
+import { categoryTone } from '@/components/menu/shared';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
+import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { useVatContext } from '@/lib/hooks/useVatContext';
@@ -64,12 +67,27 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
         qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-item-modifier-groups', menuItemId) }),
       ]);
     },
+    onError: (err) => toast('error', err.message || 'The modifier wasn’t updated. Try again.'),
   });
 
+  // A default *moves* within a group whose rule caps the choices: the API
+  // refuses a second default in a "choose one" group (400 "Too many defaults"),
+  // so the old default(s) are cleared first — the way a radio button behaves.
   const toggleDefault = useMutation({
-    mutationFn: ({ modifierId, isDefault }: { modifierId: string; isDefault: boolean }) =>
-      setModifierDefault(menuItemId, modifierId, isDefault),
-    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', menuItemId) }),
+    mutationFn: async ({ modifierId, isDefault }: { modifierId: string; isDefault: boolean }) => {
+      if (isDefault) {
+        const target = all.find((m) => m.id === modifierId);
+        const rule = target?.groupId ? rules.find((entry) => entry.id === target.groupId) : undefined;
+        if (target?.groupId && rule?.maxSelections != null) {
+          const others = attached.filter((m) => m.isDefault && m.id !== modifierId && all.find((x) => x.id === m.id)?.groupId === target.groupId);
+          const excess = others.length + 1 - rule.maxSelections;
+          for (const other of others.slice(0, Math.max(0, excess))) await setModifierDefault(menuItemId, other.id, false);
+        }
+      }
+      await setModifierDefault(menuItemId, modifierId, isDefault);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', menuItemId) }),
+    onError: (err) => toast('error', err.message || 'The default wasn’t changed. Try again.'),
   });
 
   const updateRule = useMutation({
@@ -86,74 +104,86 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
 
   const groups = groupByCategory(all, (m) => modifierCategory(m));
 
+  if (all.length === 0)
+    return (
+      <p className="text-sm text-muted-foreground">
+        No modifiers exist yet.{' '}
+        <Link href="/menu/modifiers/new" className="font-semibold text-primary hover:underline">
+          Create one
+        </Link>{' '}
+        — sizes, milks, syrups — then attach it here.
+      </p>
+    );
+
   return (
-    <div>
-      {all.length === 0 ? (
-        <p className="text-xs text-muted-foreground">No modifiers exist yet. Create some in the Modifiers tab first.</p>
-      ) : (
-        <div className="flex flex-col gap-2 overflow-y-auto pr-1">
-          {groups.map((group) => (
-            <div key={group.category}>
-              <div className="flex items-center justify-between gap-3 px-1 pb-1">
-                <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">{group.category}</p>
-                {(() => {
-                  const groupId = group.items.find((modifier) => modifier.groupId)?.groupId;
-                  const rule = rules.find((entry) => entry.id === groupId);
-                  if (!groupId || !rule) return null;
-                  const value = `${rule.minSelections}:${rule.maxSelections ?? 'many'}`;
-                  return (
-                    <Select
-                      value={value}
-                      onValueChange={(next) => updateRule.mutate({ groupId, value: next })}
-                      options={[
-                        { value: '0:1', label: 'Optional · choose one' },
-                        { value: '1:1', label: 'Required · choose one' },
-                        { value: '0:many', label: 'Optional · choose many' },
-                        { value: '1:many', label: 'Required · choose many' },
-                      ]}
-                      ariaLabel={`${group.category} selection rule`}
-                      className="h-8 w-48 text-xs"
-                    />
-                  );
-                })()}
-              </div>
+    <div className="space-y-4">
+      {groups.map((group) => {
+        const groupId = group.items.find((modifier) => modifier.groupId)?.groupId;
+        const rule = rules.find((entry) => entry.id === groupId);
+        const attachedHere = group.items.filter((m) => attachedIds.has(m.id)).length;
+        return (
+          <div key={group.category}>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-label uppercase text-muted-foreground">
+                {group.category}
+                <span className="ml-2 normal-case tabular-nums">
+                  {attachedHere}/{group.items.length} offered
+                </span>
+              </p>
+              {groupId && rule && (
+                <Select
+                  value={`${rule.minSelections}:${rule.maxSelections ?? 'many'}`}
+                  onValueChange={(next) => updateRule.mutate({ groupId, value: next })}
+                  options={[
+                    { value: '0:1', label: 'Optional · choose one' },
+                    { value: '1:1', label: 'Required · choose one' },
+                    { value: '0:many', label: 'Optional · choose many' },
+                    { value: '1:many', label: 'Required · choose many' },
+                  ]}
+                  ariaLabel={`${group.category} selection rule`}
+                  className="h-8 w-auto min-w-48 shrink-0 whitespace-nowrap text-xs"
+                />
+              )}
+            </div>
+            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
               {group.items.map((m) => {
                 const isAttached = attachedIds.has(m.id);
                 return (
-                  <div key={m.id} className="flex items-center gap-2.5 px-3 py-2 rounded-sm hover:bg-muted transition-colors">
-                    <label className="flex items-center gap-2.5 cursor-pointer select-none flex-1 min-w-0">
+                  <li key={m.id} className={cn('flex items-center border-b border-rule/45 transition-colors last:border-b-0 hover:bg-band/40', isAttached && 'bg-primary/4')}>
+                    {/* The label carries the padding, so the whole row — not just the text — toggles it. */}
+                    <label className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-3 px-3.5 py-2.5">
                       <input
                         type="checkbox"
                         checked={isAttached}
                         disabled={toggle.isPending}
                         onChange={(e) => toggle.mutate({ modifierId: m.id, on: e.target.checked })}
-                        className="w-4 h-4 rounded accent-primary"
+                        className="size-4 shrink-0 rounded accent-primary"
                       />
-                      <span className="text-sm text-foreground truncate">{modifierLabel(m)}</span>
-                      {adjust(m.priceAdjust) && <span className="text-xs text-muted-foreground tabular-nums">{adjust(m.priceAdjust)}</span>}
+                      <span className={cn('truncate text-sm', isAttached ? 'font-semibold text-foreground' : 'text-muted-foreground')}>{modifierLabel(m)}</span>
+                      {adjust(m.priceAdjust) && <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{adjust(m.priceAdjust)}</span>}
                     </label>
                     {isAttached && (
-                      <label
-                        className="flex items-center gap-1.5 cursor-pointer select-none text-label font-medium text-muted-foreground shrink-0"
-                        title="Pre-select this as the default variant in the POS"
+                      <button
+                        type="button"
+                        disabled={toggleDefault.isPending}
+                        onClick={() => toggleDefault.mutate({ modifierId: m.id, isDefault: !defaultIds.has(m.id) })}
+                        aria-pressed={defaultIds.has(m.id)}
+                        title="Pre-select this at the till"
+                        className={cn(
+                          'mr-3.5 shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold transition-colors',
+                          defaultIds.has(m.id) ? 'bg-primary text-primary-foreground' : 'bg-band text-muted-foreground hover:text-foreground',
+                        )}
                       >
-                        <input
-                          type="checkbox"
-                          checked={defaultIds.has(m.id)}
-                          disabled={toggleDefault.isPending}
-                          onChange={(e) => toggleDefault.mutate({ modifierId: m.id, isDefault: e.target.checked })}
-                          className="w-3.5 h-3.5 rounded accent-primary"
-                        />
-                        Default
-                      </label>
+                        {defaultIds.has(m.id) ? 'Default' : 'Set default'}
+                      </button>
                     )}
-                  </div>
+                  </li>
                 );
               })}
-            </div>
-          ))}
-        </div>
-      )}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -165,7 +195,6 @@ export function MenuItemForm({
   item,
   onCreated,
   onSaved,
-  onOpenRecipe,
   formId,
   onPendingChange,
   onDirtyChange,
@@ -176,8 +205,6 @@ export function MenuItemForm({
   onCreated?: (created: MenuItem) => void;
   /** Called after an update to an existing item. */
   onSaved?: (saved: MenuItem) => void;
-  /** Switches the detail pane to its Recipe tab. */
-  onOpenRecipe: () => void;
   /** The <form> gets this id so a Save button in the pane header can submit it. */
   formId?: string;
   /** Reports the mutation's pending state so the header Save button can reflect it. */
@@ -196,6 +223,7 @@ export function MenuItemForm({
   const [imageUrl, setImageUrl] = useState(item?.imageUrl ?? '');
   const [isAvailable, setIsAvailable] = useState(item?.isAvailable ?? true);
   const [imageBroken, setImageBroken] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const { data: categories = [] } = useQuery({
     queryKey: moduleQueryKeys.catalog.key('menu-categories', tenantId),
     queryFn: () => getMenuCategories(tenantId),
@@ -203,16 +231,16 @@ export function MenuItemForm({
   });
   const currentCategory = categories.find((entry) => entry.id === categoryId);
 
-  const { mutate, isPending, error } = useMutation({
+  const { mutate, isPending } = useMutation({
     mutationFn: () => {
       const payload = {
-        name,
+        name: name.trim(),
         categoryId,
-        price,
+        price: price.trim(),
         // null clears the override on the server; undefined would leave it be.
         vatRate: vatRate.trim() === '' ? null : vatRate.trim(),
-        description: description || undefined,
-        imageUrl: imageUrl || undefined,
+        description: description.trim() || undefined,
+        imageUrl: imageUrl.trim() || undefined,
         isAvailable,
       };
       return item ? updateMenuItem(item.id, payload) : createMenuItem({ tenantId, ...payload });
@@ -227,6 +255,7 @@ export function MenuItemForm({
       toast('success', 'Menu item updated.');
       onSaved?.(saved);
     },
+    onError: (err) => toast('error', err.message || 'The item wasn’t saved. Check the fields and try again.'),
   });
 
   useEffect(() => onPendingChange?.(isPending), [isPending, onPendingChange]);
@@ -241,165 +270,142 @@ export function MenuItemForm({
     isAvailable !== (item?.isAvailable ?? true);
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
+  const nameError = name.trim().length < 2 ? 'At least two characters.' : null;
+  const categoryError = !categoryId ? 'Choose a section.' : null;
+  const priceError = !/^\d+(\.\d{1,2})?$/.test(price.trim()) ? 'A price like 3.20.' : null;
+  // The API takes any string; links and inline data images are what's actually used.
+  const imageError = imageUrl.trim() && !/^(https?:\/\/\S+|data:image\/)/.test(imageUrl.trim()) ? 'A full web address, starting https://' : null;
+  const valid = !nameError && !categoryError && !priceError && !imageError;
+  const show = (error: string | null) => (submitted ? (error ?? undefined) : undefined);
+  const priceText = /^\d+(\.\d{1,2})?$/.test(price.trim()) ? `£${Number(price).toFixed(2)}` : '£—';
+
   return (
     <form
       id={formId}
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
-        mutate();
+        setSubmitted(true);
+        if (valid) mutate();
       }}
-      className="space-y-4"
     >
-      {/* Two cards side by side: a narrower item-details card and a wider
-          modifiers card — the modifier list is the denser of the two. */}
-      <div className="flex gap-4 items-stretch">
-        <section className="bg-card border border-rule rounded-sm overflow-hidden shadow-sm flex flex-col max-w-md">
-          {/* Image hero — live preview doubles as the card banner; grows to fill the card height */}
-          <div className="relative flex-1 min-h-52 bg-linear-to-br from-primary/15 via-surface-offset to-surface-offset">
-            {imageUrl.trim() && !imageBroken ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt="" onError={() => setImageBroken(true)} className="absolute inset-0 w-full h-full object-cover" />
+      <SettingsTabBody
+        aside={
+          <SettingsSection title="Modifiers" description="Tick to offer, and set the default the till pre-selects.">
+            {item ? (
+              <ItemModifiersEditor menuItemId={item.id} tenantId={item.tenantId} />
             ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-muted-foreground/40 select-none">
-                <UtensilsCrossed size={30} aria-hidden="true" />
-                <span className="text-label font-semibold">{imageBroken ? 'Image didn’t load' : 'No image yet'}</span>
-              </div>
+              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">Create the item first — sizes, milks and syrups can be attached straight after.</p>
             )}
-            <span
-              className={cn(
-                'absolute top-3 left-3 px-2.5 py-1 rounded-sm text-micro font-semibold uppercase tracking-micro backdrop-blur-sm',
-                categoryTone(currentCategory?.slug ?? '', currentCategory),
-              )}
-            >
-              {currentCategory?.name ?? 'Choose category'}
-            </span>
-            <div className="absolute top-3 right-3">
-              <AvailabilityToggle on={isAvailable} onToggle={() => setIsAvailable((v) => !v)} />
-            </div>
-          </div>
-
-          <div className="p-4 space-y-4 shrink-0">
-            <div className="flex items-center gap-2">
-              <UtensilsCrossed size={13} className="text-primary" aria-hidden="true" />
-              <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Item Details</p>
-            </div>
-
-            <div>
-              <label className={labelClass}>Name</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                minLength={2}
-                placeholder="Flat White"
-                className={cn(inputClass, 'h-10 text-base font-medium')}
-                autoFocus
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>Category</label>
-                <Select
-                  value={categoryId}
-                  onValueChange={setCategoryId}
-                  options={categories
-                    .filter((entry) => entry.isActive || entry.id === item?.categoryId)
-                    .map((entry) => ({ value: entry.id, label: entry.name }))}
-                  ariaLabel="Menu item category"
-                  className={selectClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Price</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">£</span>
-                  <input
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    required
-                    inputMode="decimal"
-                    pattern="^\d+(\.\d{1,2})?$"
-                    placeholder="3.20"
-                    className={cn(inputClass, 'pl-7 tabular-nums')}
-                  />
+          </SettingsSection>
+        }
+      >
+        {/* One card, the settings profile card's shape: the item as it reads at
+            the till (image tile, name, section, price) over the fields that
+            make it, with availability at the foot. */}
+        <SettingsSection>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+            <div className="relative size-28 shrink-0 overflow-hidden rounded-xl bg-linear-to-br from-primary/15 via-band to-band shadow-sm">
+              {imageUrl.trim() && !imageBroken && !imageError ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageUrl} alt="" onError={() => setImageBroken(true)} className={cn('absolute inset-0 size-full object-cover', !isAvailable && 'opacity-60 grayscale')} />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground/50 select-none">
+                  <UtensilsCrossed size={26} aria-hidden="true" />
+                  <span className="text-micro font-semibold">{imageBroken ? 'Didn’t load' : 'No image'}</span>
                 </div>
-              </div>
+              )}
             </div>
-
-            {/* Only meaningful for a VAT-registered tenant — otherwise no rate
-                applies to anything and the field is pure noise. */}
-            {vat.vatRegistered && (
+            <div className="min-w-0 flex-1 space-y-3">
               <div>
-                <label className={labelClass}>VAT rate</label>
-                <Select
-                  value={vatRate}
-                  onValueChange={setVatRate}
-                  options={[
-                    { value: '', label: `Use default (${vat.defaultVatRate}%)` },
-                    { value: '20', label: 'Standard — 20%' },
-                    { value: '5', label: 'Reduced — 5%' },
-                    { value: '0', label: 'Zero-rated — 0%' },
-                  ]}
-                  ariaLabel="VAT rate for this item"
-                  className={selectClass}
-                />
-                <p className="mt-1.5 text-label text-muted-foreground">
-                  Hot food and drink are standard-rated; most cold takeaway food is zero-rated. This changes the margin shown, not the
-                  price.
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className={cn('truncate text-2xl font-semibold tracking-headline', name.trim() ? 'text-foreground' : 'text-muted-foreground/60')}>{name.trim() || 'New item'}</p>
+                  <p className="shrink-0 text-xl font-semibold tabular-nums text-foreground">{priceText}</p>
+                </div>
+                <p className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold uppercase tracking-micro', categoryTone(currentCategory?.slug ?? '', currentCategory))}>
+                    {currentCategory?.name ?? 'No section'}
+                  </span>
+                  <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', isAvailable ? 'bg-momentum/8 text-momentum' : 'bg-band text-muted-foreground')}>{isAvailable ? 'On the menu' : 'Off the menu'}</span>
                 </p>
               </div>
-            )}
-            <div>
-              <label className={labelClass}>Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                placeholder="Optional — a short note shown to staff"
-                className={inputClass + ' h-auto py-2 resize-none'}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Image URL</label>
-              <input
+              <Input
+                label="Image"
                 value={imageUrl}
                 onChange={(e) => {
                   setImageUrl(e.target.value);
                   setImageBroken(false);
                 }}
-                placeholder="https://…"
-                className={inputClass}
+                placeholder="https://… (optional)"
+                error={show(imageError)}
               />
-              <p className="mt-1.5 text-label text-muted-foreground">Paste a link — the preview above updates as you type.</p>
             </div>
           </div>
-        </section>
 
-        <section className="bg-band border border-rule rounded-sm p-4 flex-1 w-full">
-          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-3">Modifiers</p>
-          {item ? (
-            <ItemModifiersEditor menuItemId={item.id} tenantId={item.tenantId} />
-          ) : (
-            <p className="text-xs text-muted-foreground">Modifiers (milk, size, syrups…) can be attached right after creating the item.</p>
-          )}
-        </section>
-      </div>
-
-      {/* Recipe / ingredients — drives usage recording, forecasts and COGS/margin */}
-      {item && (
-        <section className="bg-band border border-rule rounded-sm p-4">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Recipe &amp; Cost</p>
-            <Button type="button" size="sm" onClick={onOpenRecipe} className="gap-1.5">
-              <ChefHat size={14} />
-              Edit Recipe
-            </Button>
+          <div className="mt-6 border-t border-rule/45 pt-6">
+          <div className="space-y-4">
+              <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} maxLength={255} placeholder="e.g. Flat white" autoFocus={!item} error={show(nameError)} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-label uppercase text-muted-foreground">Section</span>
+                  <Select
+                    value={categoryId}
+                    onValueChange={setCategoryId}
+                    options={[
+                      ...(categoryId ? [] : [{ value: '', label: 'Choose a section' }]),
+                      ...categories.filter((entry) => entry.isActive || entry.id === item?.categoryId).map((entry) => ({ value: entry.id, label: entry.name })),
+                    ]}
+                    ariaLabel="Menu section"
+                    ariaInvalid={submitted && !!categoryError}
+                    className="w-full"
+                  />
+                  {submitted && categoryError && <p className="text-xs text-destructive">{categoryError}</p>}
+                </div>
+                <Input label="Price" value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="3.20" leftIcon={<span className="text-sm">£</span>} className="tabular-nums" error={show(priceError)} />
+              </div>
+              {/* Only meaningful for a VAT-registered tenant — otherwise no rate
+                  applies to anything and the field is pure noise. */}
+              {vat.vatRegistered && (
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-label uppercase text-muted-foreground">VAT rate</span>
+                  <Select
+                    value={vatRate}
+                    onValueChange={setVatRate}
+                    options={[
+                      { value: '', label: `Use default (${vat.defaultVatRate}%)` },
+                      { value: '20', label: 'Standard — 20%' },
+                      { value: '5', label: 'Reduced — 5%' },
+                      { value: '0', label: 'Zero-rated — 0%' },
+                    ]}
+                    ariaLabel="VAT rate for this item"
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">Hot food and drink are standard-rated; most cold takeaway food is zero-rated. This changes the margin shown, not the price.</p>
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-label uppercase text-muted-foreground">Description</span>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                  placeholder="Optional — shown to staff and online"
+                  aria-label="Description"
+                  className="w-full resize-none rounded-md border border-input bg-field px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured sm:text-sm"
+                />
+              </div>
+            </div>
           </div>
-          <RecipeSummaryChips menuItemId={item.id} price={price || item.price} vatRate={vatRate.trim() === '' ? null : vatRate.trim()} />
-        </section>
-      )}
 
-      {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
+          <div className="mt-6 border-t border-rule/45 pt-5">
+            <SettingRows>
+              <SettingRow icon={UtensilsCrossed} title="On the menu">
+                <Switch label="On the menu" checked={isAvailable} onChange={setIsAvailable} />
+              </SettingRow>
+            </SettingRows>
+          </div>
+        </SettingsSection>
+      </SettingsTabBody>
     </form>
   );
 }

@@ -53,7 +53,31 @@ export interface AgentListCard {
   emptyTone?: AgentEmptyTone;
 }
 
-export type AgentCard = AgentMetricCard | AgentListCard;
+export type AgentChartFormat = 'currency' | 'number' | 'percent';
+
+export interface AgentChartSeries {
+  key: string;
+  label: string;
+  tone?: 'primary' | 'comparison' | 'positive' | 'warning';
+}
+
+export interface AgentChartPoint {
+  label: string;
+  values: Record<string, number>;
+}
+
+/** A compact, read-only visual built server-side from exact tool results. */
+export interface AgentChartCard {
+  kind: 'chart';
+  type: 'bar' | 'column' | 'line';
+  title: string;
+  caption?: string;
+  format: AgentChartFormat;
+  series: AgentChartSeries[];
+  points: AgentChartPoint[];
+}
+
+export type AgentCard = AgentMetricCard | AgentListCard | AgentChartCard;
 
 // ── Editable action cards ────────────────────────────────────────────────────
 // Every write the agent proposes arrives as a field spec rather than a fixed
@@ -164,6 +188,8 @@ export interface AgentChatMessage {
   followUps?: string[];
   /** Names the backup model when the primary was out of capacity for this answer. */
   fallbackModel?: string;
+  /** When the answer was produced, shown with its evidence freshness. */
+  generatedAt?: string;
   /** Reveal a newly-arrived assistant message progressively in the client. */
   live?: boolean;
   /**
@@ -204,6 +230,7 @@ export interface AgentChatResponse {
   model: string;
   /** Set when the primary model was out of capacity and a backup answered instead. */
   fallbackModel?: string;
+  generatedAt?: string;
 }
 
 /** NDJSON frames streamed from POST /api/agent while the agent works. */
@@ -221,4 +248,5 @@ export type AgentStreamEvent =
    */
   | { type: 'delta-reset' }
   | { type: 'result'; response: AgentChatResponse }
+  | { type: 'notice'; message: string }
   | { type: 'error'; message: string };

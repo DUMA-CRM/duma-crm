@@ -1,127 +1,42 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Popover } from 'radix-ui';
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
+import { AuditActivityList } from '@/components/audit/AuditActivityList';
 import { AuditCopyButton, AuditInspector, type AuditPivot } from '@/components/audit/AuditInspector';
-import { AuditTable, auditRowId } from '@/components/audit/AuditTable';
-import {
-  AlertCircle,
-  CalendarDays,
-  History,
-  Layers3,
-  ListView,
-  Loader2,
-  PanelRight,
-  Search,
-  SlidersHorizontal,
-  User,
-  X,
-} from '@/components/icons';
+import { History, Loader2, Search, User, X } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { FilterChip } from '@/components/shared/FilterChip';
-import { SegmentedControl, type SegmentedOption } from '@/components/shared/SegmentedControl';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, type SelectOption } from '@/components/ui/select';
 
-import { groupAuditLogs } from '@/lib/audit/groups';
+import { ApiError } from '@/lib/api/client';
+import { entryMatches, groupEntriesLocally, mergeGroupPages } from '@/lib/audit/groups';
 import { auditActor, auditPhrase, auditRole, auditSeverity, fullTimestamp } from '@/lib/audit/narrative';
-import { COMMON_ACTIONS, actionFilterLabel, actionResource, resourceMeta, resourcePickerOptions } from '@/lib/audit/vocabulary';
+import { actionFilterLabel, resourcePickerOptions } from '@/lib/audit/vocabulary';
 import { hasCapability } from '@/lib/auth/capabilities';
-import { type AuditLog, getAuditLogs } from '@/lib/modules/compliance/client';
+import { type AuditGroupsResponse, type AuditLog, getAuditGroups, getAuditLogs } from '@/lib/modules/audit/client';
 import { getStaff } from '@/lib/modules/identity/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-/**
- * The audit endpoint is mounted with `getPagination(c, 50, 200)`, so 200 is a
- * hard ceiling — a 500 option would be silently clamped and the control would
- * be claiming a page size the API will not serve.
- */
-const PAGE_SIZES = [50, 100, 200] as const;
-const DEFAULT_PAGE_SIZE = 50;
+/** Groups per "Load more". */
+const PAGE_SIZE = 25;
 /** Long enough not to churn the list under someone reading it. */
 const LIVE_INTERVAL_MS = 20_000;
+const SEARCH_DEBOUNCE_MS = 300;
 
-type DatePreset = 'all' | 'today' | '7d' | '30d' | 'custom';
-type GroupMode = 'record' | 'entry';
+// The whole known vocabulary: a record type missing from the picker is
+// indistinguishable from one the log has never seen.
+const RECORD_OPTIONS: SelectOption[] = [{ value: 'all', label: 'Everything' }, ...resourcePickerOptions()];
 
-const DATE_FILTERS: SelectOption[] = [
-  { value: 'all', label: 'Any time' },
-  { value: 'today', label: 'Today' },
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: 'custom', label: 'Custom range' },
-];
-
-const RANGE_LABEL: Record<DatePreset, string> = {
-  today: 'Today',
-  '7d': 'Last 7 days',
-  '30d': 'Last 30 days',
-  all: 'Any time',
-  custom: 'Custom range',
-};
-
-const GROUP_OPTIONS: SegmentedOption<GroupMode>[] = [
-  { value: 'record', label: 'By record', icon: Layers3 },
-  { value: 'entry', label: 'Every entry', icon: ListView },
-];
-
-const ACTION_OPTIONS: SelectOption[] = [
-  { value: 'all', label: 'All actions' },
-  ...COMMON_ACTIONS.map((value) => ({ value, label: actionFilterLabel(value) })),
-];
-
-// The whole known vocabulary, not a shortlist: a record type missing from the
-// picker is indistinguishable from one the log has never seen.
-const RESOURCE_OPTIONS: SelectOption[] = [{ value: 'all', label: 'All records' }, ...resourcePickerOptions()];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function optionLabel(options: SelectOption[], value: string) {
-  return options.find((option) => option.value === value)?.label ?? value;
-}
-
-function dateInputValue(date: Date) {
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10);
-}
-
-function datesForPreset(preset: Exclude<DatePreset, 'all' | 'custom'>) {
-  const end = new Date();
-  const start = new Date();
-  if (preset === '7d') start.setDate(start.getDate() - 6);
-  if (preset === '30d') start.setDate(start.getDate() - 29);
-  return { from: dateInputValue(start), to: dateInputValue(end) };
-}
-
-function startOfLocalDay(value: string) {
-  return new Date(`${value}T00:00:00`).toISOString();
-}
-
-function endOfLocalDay(value: string) {
-  return new Date(`${value}T23:59:59.999`).toISOString();
-}
-
-function initialPage(value: string | null) {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
-}
-
-/** A hand-edited `?limit=` outside the offered sizes falls back rather than being sent. */
-function initialPageSize(value: string | null) {
-  const parsed = Number(value);
-  return PAGE_SIZES.includes(parsed as (typeof PAGE_SIZES)[number]) ? parsed : DEFAULT_PAGE_SIZE;
-}
-
-/** The inspector docks beside the table on wide screens and slides over below it. */
+/** The detail panel docks beside the list on wide screens and slides over below it. */
 function useWideLayout() {
   const [wide, setWide] = useState(false);
   useEffect(() => {
@@ -134,12 +49,25 @@ function useWideLayout() {
   return wide;
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+function useDebounced<T>(value: T, delay: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
+/**
+ * The audit log: who did what, grouped by the API into one row per person per
+ * record per day, under day headings, newest first, loading more as you
+ * scroll. Search, a person and a record type are the whole toolbar — the
+ * "trace from here" pivots in the detail panel cover the rest (one action, one
+ * record) and show as chips.
+ */
 function AuditLogPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Same gate as the header's audit drawer.
   const role = useAuthStore((s) => s.role);
   const capabilities = useAuthStore((s) => s.capabilities);
   const canView = hasCapability(capabilities, 'audit:read');
@@ -149,55 +77,27 @@ function AuditLogPageContent() {
 
   const tenantId = useWorkspaceStore((s) => s.tenantId);
   const wide = useWideLayout();
+  const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
-  const initialFrom = searchParams.get('from') ?? '';
-  const initialTo = searchParams.get('to') ?? '';
-  const requestedPreset = searchParams.get('range') as DatePreset | null;
-  const validPreset = requestedPreset && requestedPreset in RANGE_LABEL ? requestedPreset : null;
-
-  const [page, setPage] = useState(() => initialPage(searchParams.get('page')));
-  const [pageSize, setPageSize] = useState(() => initialPageSize(searchParams.get('limit')));
-  const [action, setAction] = useState(searchParams.get('action') ?? 'all');
-  const [resourceType, setResourceType] = useState(searchParams.get('resourceType') ?? 'all');
+  const [search, setSearch] = useState(searchParams.get('q') ?? '');
+  const q = useDebounced(search.trim(), SEARCH_DEBOUNCE_MS);
   const [actorId, setActorId] = useState(searchParams.get('userId') ?? 'all');
+  const [resourceType, setResourceType] = useState(searchParams.get('resourceType') ?? 'all');
+  // Set only by a pivot from the detail panel; shown as removable chips.
+  const [action, setAction] = useState(searchParams.get('action') ?? '');
   const [resourceId, setResourceId] = useState(searchParams.get('resourceId') ?? '');
-  const [datePreset, setDatePreset] = useState<DatePreset>(validPreset ?? (initialFrom || initialTo ? 'custom' : 'all'));
-  const [from, setFrom] = useState(initialFrom);
-  const [to, setTo] = useState(initialTo);
 
-  const [search, setSearch] = useState('');
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [groupMode, setGroupMode] = useState<GroupMode>('record');
-  const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string>>(new Set());
-  // Highlight and inspection are one thing on wide screens and two on narrow:
-  // there the slide-over only opens on an explicit click.
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Auto-refresh never stops now, so an entry being read can drop off page one
-  // mid-read. Retaining the last one keeps the inspector from blanking; the row
-  // highlight goes with it, which is the honest signal that it has scrolled out
-  // of the live view.
-  const [lastSelected, setLastSelected] = useState<AuditLog | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  // Closed until an entry is picked: the page opens on a table nobody has
-  // chosen a row in yet, so ~440px of empty inspector would be width the log
-  // could have used. Selecting a row opens it; the header button and a second
-  // click on the same row put it away again.
-  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [selected, setSelected] = useState<AuditLog | null>(null);
 
-  const searchRef = useRef<HTMLInputElement>(null);
-
-  // Relative times stay honest while the page is left open.
+  // Relative day headings stay honest while the page is left open.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(id);
   }, []);
 
-  const invalidDateRange = Boolean(from && to && from > to);
-  const hasFilters = action !== 'all' || resourceType !== 'all' || actorId !== 'all' || !!resourceId || datePreset !== 'all';
-  // Everything the popover now owns, so its badge counts what is out of sight.
-  const advancedFilterCount =
-    Number(actorId !== 'all') + Number(resourceType !== 'all') + Number(!!resourceId) + Number(datePreset === 'custom' && (!!from || !!to));
+  const filtered = !!q || actorId !== 'all' || resourceType !== 'all' || !!action || !!resourceId;
 
   const { data: staff = [] } = useQuery({
     queryKey: moduleQueryKeys.identity.key('staff', tenantId),
@@ -205,641 +105,216 @@ function AuditLogPageContent() {
     enabled: canView && !!tenantId,
   });
 
-  const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: moduleQueryKeys.compliance.key('audit-logs', page, pageSize, action, resourceType, actorId, resourceId, from, to),
-    queryFn: () =>
-      getAuditLogs({
-        page,
-        limit: pageSize,
-        action: action === 'all' ? undefined : action,
-        resourceType: resourceType === 'all' ? undefined : resourceType,
+  const queryClient = useQueryClient();
+  const activity = useInfiniteQuery({
+    queryKey: moduleQueryKeys.audit.key('audit-groups', q, actorId, resourceType, action, resourceId, timeZone),
+    queryFn: async ({ pageParam }): Promise<AuditGroupsResponse & { approximate?: true }> => {
+      const filters = {
         userId: actorId === 'all' ? undefined : actorId,
+        resourceType: resourceType === 'all' ? undefined : resourceType,
+        action: action || undefined,
         resourceId: resourceId || undefined,
-        from: from ? startOfLocalDay(from) : undefined,
-        to: to ? endOfLocalDay(to) : undefined,
-      }),
-    enabled: canView && !invalidDateRange,
-    placeholderData: (previousData) => previousData,
-    // Always on: the log keeps itself current with no switch to find.
+      };
+      try {
+        return await getAuditGroups({ ...filters, page: pageParam, limit: PAGE_SIZE, tz: timeZone, q: q || undefined });
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 404) throw error;
+        // An API from before GET /audit-logs/groups: group each page of raw
+        // entries here instead. Search covers only that page, and a record's
+        // entries can split across pages — the limits the endpoint removes.
+        const entries = await getAuditLogs({ ...filters, page: pageParam, limit: 100 });
+        const groups = groupEntriesLocally(
+          entries.data.filter((entry) => entryMatches(entry, q)),
+          timeZone,
+          auditSeverity,
+        );
+        // That API ignores `?ids=`, so an opened group is served from here.
+        for (const group of groups) {
+          const own = entries.data.filter((entry) => group.entryIds.includes(entry.id));
+          queryClient.setQueryData(moduleQueryKeys.audit.key('audit-group-entries', group.key, group.entryIds.join(',')), {
+            ...entries,
+            data: own,
+          });
+        }
+        return {
+          data: groups,
+          total: entries.total,
+          page: entries.page,
+          limit: entries.limit,
+          pages: entries.pages,
+          timeZone,
+          approximate: true,
+        };
+      }
+    },
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
+    enabled: canView,
+    placeholderData: (previous) => previous,
     refetchInterval: LIVE_INTERVAL_MS,
   });
 
-  const logs = useMemo(() => data?.data ?? [], [data?.data]);
-  const totalPages = data?.pages ?? 1;
-
-  /**
-   * Text search runs over the loaded page only — the API has no free-text
-   * filter — so the placeholder states its scope rather than implying it
-   * searched everything.
-   */
-  const visibleLogs = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    if (!needle) return logs;
-    return logs.filter((log) => {
-      return `${auditActor(log)} ${auditRole(log) ?? ''} ${auditPhrase(log)} ${resourceMeta(log.resourceType).plural}`
-        .toLowerCase()
-        .includes(needle);
-    });
-  }, [logs, search]);
-
-  const groups = useMemo(() => groupAuditLogs(visibleLogs, auditSeverity, groupMode === 'record'), [groupMode, visibleLogs]);
-
-  // Actions and records the API returned that the shipped lists don't name yet.
-  const actionOptions = useMemo(() => {
-    const discovered = logs
-      .map((log) => log.action)
-      .filter((value, index, values) => values.indexOf(value) === index)
-      .filter((value) => !ACTION_OPTIONS.some((option) => option.value === value))
-      .map((value) => ({ value, label: actionFilterLabel(value) }));
-    if (action !== 'all' && ![...ACTION_OPTIONS, ...discovered].some((option) => option.value === action)) {
-      discovered.unshift({ value: action, label: actionFilterLabel(action) });
-    }
-
-    const all = [...ACTION_OPTIONS, ...discovered];
-    if (resourceType === 'all') return all;
-    // Picking a record type narrows the action list to that type's own events —
-    // an unmapped action stays visible rather than being hidden on a guess.
-    return all.filter((option) => {
-      if (option.value === 'all' || option.value === action) return true;
-      const owner = actionResource(option.value);
-      return owner === null || owner === resourceType;
-    });
-  }, [action, logs, resourceType]);
-
-  const resourceOptions = useMemo(() => {
-    const discovered = logs
-      .map((log) => log.resourceType)
-      .filter((value, index, values) => values.indexOf(value) === index)
-      .filter((value) => !RESOURCE_OPTIONS.some((option) => option.value === value))
-      .map((value) => ({ value, label: resourceMeta(value).plural }));
-    if (resourceType !== 'all' && ![...RESOURCE_OPTIONS, ...discovered].some((option) => option.value === resourceType)) {
-      discovered.unshift({ value: resourceType, label: resourceMeta(resourceType).plural });
-    }
-    return [...RESOURCE_OPTIONS, ...discovered];
-  }, [logs, resourceType]);
+  const groups = useMemo(() => mergeGroupPages(activity.data?.pages ?? []), [activity.data?.pages]);
+  const total = activity.data?.pages[0]?.total ?? 0;
+  // Counts from the fallback are entries, not groups.
+  const approximate = !!activity.data?.pages[0]?.approximate;
 
   const actorOptions = useMemo<SelectOption[]>(() => {
     const options = staff
       .map((member) => ({ value: member.userId, label: member.name || member.email || member.userId }))
       .sort((a, b) => a.label.localeCompare(b.label));
-    if (actorId !== 'all' && !options.some((option) => option.value === actorId)) {
-      options.unshift({ value: actorId, label: actorId });
-    }
-    return [{ value: 'all', label: 'All actors' }, ...options];
+    if (actorId !== 'all' && !options.some((option) => option.value === actorId))
+      options.unshift({ value: actorId, label: 'Someone else' });
+    return [{ value: 'all', label: 'Everyone' }, ...options];
   }, [actorId, staff]);
 
-  // ── URL sync ────────────────────────────────────────────────────────────────
+  // A shareable URL for the view on screen.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (actorId !== 'all') params.set('userId', actorId);
+    if (resourceType !== 'all') params.set('resourceType', resourceType);
+    if (action) params.set('action', action);
+    if (resourceId) params.set('resourceId', resourceId);
+    const query = params.toString();
+    const next = `${window.location.pathname}${query ? `?${query}` : ''}`;
+    if (next !== `${window.location.pathname}${window.location.search}`) window.history.replaceState(null, '', next);
+  }, [q, actorId, resourceType, action, resourceId]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    ['page', 'limit', 'action', 'resourceType', 'userId', 'resourceId', 'range', 'from', 'to'].forEach((key) => params.delete(key));
-    if (page > 1) params.set('page', String(page));
-    if (pageSize !== DEFAULT_PAGE_SIZE) params.set('limit', String(pageSize));
-    if (action !== 'all') params.set('action', action);
-    if (resourceType !== 'all') params.set('resourceType', resourceType);
-    if (actorId !== 'all') params.set('userId', actorId);
-    if (resourceId) params.set('resourceId', resourceId);
-    if (datePreset !== 'all') params.set('range', datePreset);
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
-
-    const query = params.toString();
-    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
-    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    if (nextUrl !== currentUrl) window.history.replaceState(null, '', nextUrl);
-  }, [action, actorId, datePreset, resourceId, from, page, pageSize, resourceType, to]);
-
-  // ── Filter actions ──────────────────────────────────────────────────────────
-
-  const resetPage = useCallback(() => setPage(1), []);
-
-  const clearDates = useCallback(() => {
-    setDatePreset('all');
-    setFrom('');
-    setTo('');
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !document.querySelector('[role="dialog"]')) setSelected(null);
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  function changeDatePreset(value: string) {
-    const next = value as DatePreset;
-    setDatePreset(next);
-    resetPage();
-    if (next === 'all') {
-      setFrom('');
-      setTo('');
-      return;
-    }
-    if (next === 'custom') {
-      window.setTimeout(() => setAdvancedOpen(true), 0);
-      return;
-    }
-    const dates = datesForPreset(next);
-    setFrom(dates.from);
-    setTo(dates.to);
-  }
+  if (!canView) return null;
 
   function clearFilters() {
-    setAction('all');
-    setResourceType('all');
-    setActorId('all');
-    setResourceId('');
     setSearch('');
-    clearDates();
-    resetPage();
+    setActorId('all');
+    setResourceType('all');
+    setAction('');
+    setResourceId('');
   }
 
-  /**
-   * A pivot promises "everything", so it clears the date range too — otherwise
-   * a trace started from a Today view would silently hide the record's history.
-   */
+  /** A pivot narrows to one person, action or record — and clears the search so nothing else hides it. */
   function applyPivot(pivot: AuditPivot) {
     if (pivot.kind === 'actor') setActorId(pivot.value);
     if (pivot.kind === 'action') setAction(pivot.value);
     if (pivot.kind === 'resourceId') setResourceId(pivot.value);
-    clearDates();
     setSearch('');
-    resetPage();
+    setExpandedKey(null);
   }
-
-  function toggleGroup(key: string) {
-    setExpandedKeys((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
-
-  const leaveCurrentRows = useCallback(() => {
-    setSelectedId(null);
-    setLastSelected(null);
-    setDrawerOpen(false);
-    setExpandedKeys(new Set());
-  }, []);
-
-  function goToPage(next: number) {
-    setPage(Math.min(Math.max(1, next), totalPages));
-    leaveCurrentRows();
-  }
-
-  function changePageSize(next: number) {
-    setPageSize(next);
-    // Page 4 of 50-row pages is not page 4 of 200-row pages, so the offset is
-    // meaningless after a resize.
-    setPage(1);
-    leaveCurrentRows();
-  }
-
-  // ── Selection & keyboard ────────────────────────────────────────────────────
-
-  const selected = useMemo(
-    () => visibleLogs.find((log) => log.id === selectedId) ?? (selectedId ? lastSelected : null),
-    [lastSelected, selectedId, visibleLogs],
-  );
-
-  const selectEntry = useCallback((log: AuditLog) => {
-    setSelectedId(log.id);
-    setLastSelected(log);
-  }, []);
-
-  /** Every entry currently on screen, in display order — what the arrows walk. */
-  const walkable = useMemo(
-    () => groups.flatMap((group) => (group.entries.length > 1 && !expandedKeys.has(group.key) ? [] : group.entries)),
-    [expandedKeys, groups],
-  );
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null;
-      const typing = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable === true);
-
-      if (event.key === '/' && !typing) {
-        event.preventDefault();
-        searchRef.current?.focus();
-        return;
-      }
-      if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
-      // A dialog on top owns its own keys.
-      if (document.querySelector('[role="dialog"]')) return;
-
-      if (event.key === 'Escape') {
-        setSelectedId(null);
-        setLastSelected(null);
-        return;
-      }
-      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-      if (walkable.length === 0) return;
-
-      event.preventDefault();
-      const index = walkable.findIndex((log) => log.id === selectedId);
-      const next =
-        event.key === 'ArrowDown'
-          ? index < 0
-            ? 0
-            : Math.min(index + 1, walkable.length - 1)
-          : index < 0
-            ? walkable.length - 1
-            : Math.max(index - 1, 0);
-
-      const nextLog = walkable[next];
-      selectEntry(nextLog);
-      document.getElementById(auditRowId(nextLog.id))?.scrollIntoView({ block: 'nearest' });
-    }
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [selectEntry, selectedId, walkable]);
-
-  if (!canView) return null;
-
-  // ── Toolbar ─────────────────────────────────────────────────────────────────
 
   const toolbar = (
-    <div className="space-y-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-56 flex-1 lg:max-w-sm">
-          <Input
-            ref={searchRef}
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            aria-label="Search the entries loaded below"
-            placeholder={logs.length ? `Search these ${logs.length} entries…` : 'Search these entries…'}
-            leftIcon={<Search size={14} />}
-            rightAction={
-              search ? (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  aria-label="Clear search"
-                  className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <X size={13} aria-hidden="true" />
-                </button>
-              ) : undefined
-            }
-            className="border-rule bg-background"
-          />
-        </div>
-
-        <Select
-          value={action}
-          onValueChange={(value) => {
-            setAction(value);
-            resetPage();
-          }}
-          options={actionOptions}
-          ariaLabel="Filter by action"
-          className="w-[calc(50%-0.25rem)] sm:w-48"
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="min-w-56 flex-1 lg:max-w-sm">
+        <Input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          aria-label="Search the audit log"
+          placeholder="Search people, records, details…"
+          leftIcon={<Search size={14} />}
+          rightAction={
+            search ? (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X size={13} aria-hidden="true" />
+              </button>
+            ) : undefined
+          }
         />
-        <Select
-          value={datePreset}
-          onValueChange={changeDatePreset}
-          options={DATE_FILTERS}
-          ariaLabel="Filter by date range"
-          icon={<CalendarDays />}
-          className="w-[calc(50%-0.25rem)] sm:w-40"
-        />
-
-        <Popover.Root open={advancedOpen} onOpenChange={setAdvancedOpen}>
-          <Popover.Trigger asChild>
-            <Button variant="outline" className="w-[calc(50%-0.25rem)] sm:w-auto" aria-label="Open more audit filters">
-              <SlidersHorizontal data-icon="inline-start" />
-              More filters
-              {advancedFilterCount > 0 && (
-                <span className="ml-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-micro font-semibold text-primary-foreground">
-                  {advancedFilterCount}
-                </span>
-              )}
-            </Button>
-          </Popover.Trigger>
-          <Popover.Portal>
-            <Popover.Content
-              align="end"
-              sideOffset={8}
-              collisionPadding={16}
-              className="z-90 w-[calc(100vw-2rem)] max-w-sm rounded-sm border border-rule bg-surface p-4 shadow-xl outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
-            >
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">More filters</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Narrow to one record or an exact date range.</p>
-                </div>
-                <Popover.Close asChild>
-                  <button
-                    type="button"
-                    aria-label="Close filters"
-                    className="flex size-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                  >
-                    <X size={14} aria-hidden="true" />
-                  </button>
-                </Popover.Close>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <span className="text-micro font-semibold tracking-micro uppercase text-muted-foreground">Actor</span>
-                  <Select
-                    value={actorId}
-                    onValueChange={(value) => {
-                      setActorId(value);
-                      resetPage();
-                    }}
-                    options={actorOptions}
-                    ariaLabel="Filter by actor"
-                    icon={<User />}
-                    className="w-full"
-                  />
-                  {!tenantId && <p className="text-xs text-muted-foreground">Select a workspace to load named actors.</p>}
-                </div>
-
-                <div className="space-y-1.5">
-                  <span className="text-micro font-semibold tracking-micro uppercase text-muted-foreground">Record type</span>
-                  <Select
-                    value={resourceType}
-                    onValueChange={(value) => {
-                      setResourceType(value);
-                      resetPage();
-                    }}
-                    options={resourceOptions}
-                    ariaLabel="Filter by record type"
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="audit-record-id" className="text-micro font-semibold tracking-micro uppercase text-muted-foreground">
-                    Record ID
-                  </label>
-                  <Input
-                    id="audit-record-id"
-                    value={resourceId}
-                    onChange={(event) => {
-                      setResourceId(event.target.value.trim());
-                      resetPage();
-                    }}
-                    placeholder="Paste an exact ID…"
-                    className="border-rule bg-background"
-                  />
-                  <p className="text-xs text-muted-foreground">Matched in full — the audit API has no partial text search.</p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <span className="text-micro font-semibold tracking-micro uppercase text-muted-foreground">Custom dates</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="date"
-                      value={from}
-                      onChange={(event) => {
-                        setFrom(event.target.value);
-                        setDatePreset('custom');
-                        resetPage();
-                      }}
-                      aria-label="Audit entries from date"
-                      className="border-rule bg-background px-2"
-                    />
-                    <Input
-                      type="date"
-                      value={to}
-                      onChange={(event) => {
-                        setTo(event.target.value);
-                        setDatePreset('custom');
-                        resetPage();
-                      }}
-                      aria-label="Audit entries to date"
-                      className="border-rule bg-background px-2"
-                    />
-                  </div>
-                  {invalidDateRange && (
-                    <p role="alert" className="flex items-center gap-1.5 text-xs text-exception">
-                      <AlertCircle size={12} aria-hidden="true" /> The end date must be on or after the start date.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </Popover.Content>
-          </Popover.Portal>
-        </Popover.Root>
       </div>
-
-      {/* Only present when something is filtered — with the view switcher moved
-          to the masthead this row has nothing else to hold, and an empty one
-          would still take a gap from the stack above it. */}
-      <div className={cn('flex flex-wrap items-center gap-1.5', !hasFilters && 'hidden')}>
-        {hasFilters && (
-          <>
-            {actorId !== 'all' && (
-              <FilterChip
-                label={`Actor: ${optionLabel(actorOptions, actorId)}`}
-                onRemove={() => {
-                  setActorId('all');
-                  resetPage();
-                }}
-              />
-            )}
-            {action !== 'all' && (
-              <FilterChip
-                label={`Action: ${optionLabel(actionOptions, action)}`}
-                onRemove={() => {
-                  setAction('all');
-                  resetPage();
-                }}
-              />
-            )}
-            {resourceType !== 'all' && (
-              <FilterChip
-                label={`Record: ${optionLabel(resourceOptions, resourceType)}`}
-                onRemove={() => {
-                  setResourceType('all');
-                  resetPage();
-                }}
-              />
-            )}
-            {resourceId && (
-              <FilterChip
-                label={`ID: ${resourceId}`}
-                onRemove={() => {
-                  setResourceId('');
-                  resetPage();
-                }}
-              />
-            )}
-            {datePreset !== 'all' && (
-              <FilterChip
-                label={datePreset === 'custom' ? `Dates: ${from || 'any'} – ${to || 'any'}` : `Range: ${RANGE_LABEL[datePreset]}`}
-                onRemove={() => {
-                  clearDates();
-                  resetPage();
-                }}
-              />
-            )}
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ml-1 h-7 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-            >
-              Clear all
-            </button>
-          </>
-        )}
-      </div>
+      <Select value={actorId} onValueChange={setActorId} options={actorOptions} ariaLabel="Who" icon={<User />} className="w-44" />
+      <Select value={resourceType} onValueChange={setResourceType} options={RECORD_OPTIONS} ariaLabel="What" className="w-44" />
+      {action && <FilterChip label={`Only “${actionFilterLabel(action)}”`} onRemove={() => setAction('')} />}
+      {resourceId && <FilterChip label="One record" onRemove={() => setResourceId('')} />}
+      {filtered && (
+        <button type="button" onClick={clearFilters} className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+          Clear
+        </button>
+      )}
     </div>
   );
 
-  // ── Table states ────────────────────────────────────────────────────────────
-
-  const constraints = [
-    actorId !== 'all' ? `by ${optionLabel(actorOptions, actorId)}` : null,
-    action !== 'all' ? `matching “${optionLabel(actionOptions, action)}”` : null,
-    resourceType !== 'all' ? `on ${optionLabel(resourceOptions, resourceType).toLowerCase()}` : null,
-    resourceId ? `for record ${resourceId}` : null,
-    datePreset !== 'all' ? `in ${RANGE_LABEL[datePreset].toLowerCase()}` : null,
-  ].filter(Boolean);
-
-  const emptyState = search ? (
+  const body = activity.isPending ? (
+    <div className="space-y-2" aria-label="Loading activity">
+      <div className="h-4 w-24 animate-pulse rounded-sm bg-band" />
+      {Array.from({ length: 8 }, (_, index) => (
+        <div key={index} className="h-15 animate-pulse rounded-lg bg-band/60" />
+      ))}
+    </div>
+  ) : activity.isError && groups.length === 0 ? (
+    <ErrorState title="The audit log could not be loaded" onRetry={() => void activity.refetch()} />
+  ) : groups.length === 0 ? (
     <EmptyState
-      icon={Search}
-      title="Nothing on this page matches"
-      description={`No loaded entry mentions “${search}”. The search only covers the ${logs.length} entries fetched for this page.`}
+      icon={filtered ? Search : History}
+      title={filtered ? 'Nothing matches' : 'No activity yet'}
+      description={
+        filtered
+          ? 'Try another search, or clear the filters.'
+          : 'Every change made in this workspace lands here — who did it, what changed, and whether it worked.'
+      }
     />
   ) : (
-    <EmptyState
-      icon={History}
-      title={hasFilters ? 'No entries match' : 'No activity recorded yet'}
-      description={
-        hasFilters
-          ? `Nothing was recorded ${constraints.join(', ')}. Clear a filter or widen the range.`
-          : 'Every action taken in this workspace lands here — who did it, what changed, and whether it worked.'
-      }
+    <AuditActivityList
+      groups={groups}
+      now={now}
+      selectedId={selected?.id ?? null}
+      expandedKey={expandedKey}
+      onToggle={(key) => setExpandedKey((current) => (current === key ? null : key))}
+      onSelect={(entry) => setSelected((current) => (current?.id === entry.id ? null : entry))}
+      hasMore={!!activity.hasNextPage}
+      loadingMore={activity.isFetchingNextPage}
+      onLoadMore={() => void activity.fetchNextPage()}
+      total={approximate ? null : total}
     />
   );
 
-  const pagination = {
-    page,
-    totalPages,
-    onPageChange: goToPage,
-    pageSize,
-    pageSizeOptions: PAGE_SIZES,
-    onPageSizeChange: changePageSize,
-    rowLabel: 'Entries',
-  };
-
-  // The total is a property of the page, not of the toolbar, so it reads once
-  // in the masthead where every other page states its own scale.
-  const meta = data ? (
-    <span className="flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground" aria-live="polite">
-      {isFetching && !isLoading && <Loader2 size={12} className="animate-spin" aria-label="Updating results" />}
-      {data.total.toLocaleString()} {data.total === 1 ? 'entry' : 'entries'}
-    </span>
-  ) : undefined;
+  // No count on the fallback path: it would be raw entries, not what is listed.
+  const meta =
+    activity.data && !approximate ? (
+      <span className="flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground" aria-live="polite">
+        {activity.isFetching && !activity.isFetchingNextPage && <Loader2 size={12} className="animate-spin" aria-label="Updating" />}
+        {total.toLocaleString()} {total === 1 ? 'activity' : 'activities'}
+      </span>
+    ) : undefined;
 
   return (
-    <EditorShell
-      title="Audit log"
-      icon={<History size={20} aria-hidden="true" />}
-      meta={meta}
-      // A view control, not a filter — it changes how the same entries read, so
-      // it belongs with the page's own chrome rather than among the filters
-      // that change which entries are there at all.
-      actions={
-        <>
-          <SegmentedControl
-            options={GROUP_OPTIONS}
-            value={groupMode}
-            onChange={setGroupMode}
-            ariaLabel="Group entries by record, or list every entry"
-          />
-          {/* Gated by CSS, not the `wide` state: that starts false and flips
-              after mount, which would blink the control on every load. Below
-              this breakpoint the panel is a slide-over and has its own close. */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden size-9 shrink-0 xl:inline-flex"
-            aria-expanded={inspectorOpen}
-            aria-label={inspectorOpen ? 'Hide the entry detail panel' : 'Show the entry detail panel'}
-            title={inspectorOpen ? 'Hide detail panel' : 'Show detail panel'}
-            onClick={() => setInspectorOpen((open) => !open)}
-          >
-            <PanelRight size={17} aria-hidden="true" />
-          </Button>
-        </>
-      }
-      flush
-    >
-      {/* One scroll region holding toolbar and table, so the filters scroll
-          away with the page. It still needs `min-h-0` to be a scroll container
-          at all — without it the column's intrinsic minimum is the full table
-          height and the whole shell grows instead. The table's own sticky
-          header then pins to the top of this region as the toolbar leaves. */}
+    <EditorShell title="Audit log" icon={<History size={20} aria-hidden="true" />} meta={meta} flush>
       <div className="flex min-h-0 flex-1">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4 md:px-6 md:py-6">
-            {toolbar}
-
-            {invalidDateRange ? (
-              <EmptyState icon={CalendarDays} title="Check the date range" description="The end date must be on or after the start date." />
-            ) : isError ? (
-              <div className="flex min-h-72 flex-col items-center justify-center rounded-sm border border-exception/30 bg-card px-6 text-center">
-                <span className="flex size-12 items-center justify-center rounded-md bg-exception/8 text-exception">
-                  <AlertCircle size={22} aria-hidden="true" />
-                </span>
-                <h2 className="mt-4 text-base font-semibold text-foreground">The audit log could not be loaded</h2>
-                <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                  Check your connection and try again. Your search and filters will stay in place.
-                </p>
-                <Button variant="outline" className="mt-4" onClick={() => void refetch()}>
-                  Try again
-                </Button>
-              </div>
-            ) : (
-              <AuditTable
-                groups={groups}
-                now={now}
-                selectedId={selectedId}
-                expandedKeys={expandedKeys}
-                onToggleGroup={toggleGroup}
-                onSelect={(log) => {
-                  // Clicking the row already being read toggles the panel shut,
-                  // so the same gesture that opened it closes it. The highlight
-                  // stays — that row is still where the reader is.
-                  if (wide && log.id === selectedId) {
-                    setInspectorOpen((open) => !open);
-                    return;
-                  }
-                  selectEntry(log);
-                  // Choosing a different entry is asking to read it. With the
-                  // panel away, a click that only moved a highlight looks broken.
-                  if (wide) setInspectorOpen(true);
-                  else setDrawerOpen(true);
-                }}
-                isLoading={isLoading}
-                emptyState={emptyState}
-                pagination={pagination}
-              />
-            )}
-          </div>
+        <div className="min-h-0 min-w-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 md:px-6 md:py-6">
+          {toolbar}
+          {body}
         </div>
 
-        {/* The workbench: band-tinted so it reads as attached to the table. */}
-        {inspectorOpen && (
-          <aside aria-label="Entry detail" className="hidden w-110 shrink-0 flex-col border-l border-rule bg-band/45 xl:flex 2xl:w-125">
+        {wide && selected && (
+          <aside aria-label="Entry detail" className="flex w-110 shrink-0 flex-col border-l border-rule bg-band/45 2xl:w-125">
             <AuditInspector
               log={selected}
               activeActorId={actorId}
               activeAction={action}
               activeResourceId={resourceId}
               onPivot={applyPivot}
+              onClose={() => setSelected(null)}
+              now={now}
             />
           </aside>
         )}
       </div>
 
-      {/* Below the split breakpoint the same panel slides over the table. */}
-      {!wide && drawerOpen && selected && (
+      {!wide && selected && (
         <Drawer
           title={`${auditActor(selected)}${auditRole(selected) ? ` (${auditRole(selected)})` : ''} ${auditPhrase(selected)}`}
           description={fullTimestamp(selected.createdAt)}
-          onClose={() => setDrawerOpen(false)}
+          onClose={() => setSelected(null)}
           actions={<AuditCopyButton value={JSON.stringify(selected, null, 2)} label="entry as JSON" />}
         >
           <AuditInspector
@@ -849,8 +324,7 @@ function AuditLogPageContent() {
             activeResourceId={resourceId}
             onPivot={(pivot) => {
               applyPivot(pivot);
-              setDrawerOpen(false);
-              setSelectedId(null);
+              setSelected(null);
             }}
             chrome="drawer"
           />
@@ -863,17 +337,11 @@ function AuditLogPageContent() {
 function AuditLogPageFallback() {
   return (
     <EditorShell title="Audit log" icon={<History size={20} aria-hidden="true" />} flush>
-      <div className="flex min-h-0 flex-1">
-        <div className="min-w-0 flex-1 px-3 py-4 md:px-6 md:py-6">
-          <div className="h-9 w-full max-w-sm animate-pulse rounded-sm bg-muted" />
-          <div className="mt-4 space-y-2">
-            {Array.from({ length: 10 }).map((_, index) => (
-              <div key={index} className="h-11 animate-pulse rounded-sm bg-muted/70" />
-            ))}
-          </div>
-        </div>
-        {/* No inspector placeholder: the real page opens with it closed, so
-            reserving the column here would flash a panel that then vanishes. */}
+      <div className="space-y-2 px-3 py-4 md:px-6 md:py-6">
+        <div className="h-10 w-full max-w-sm animate-pulse rounded-md bg-band" />
+        {Array.from({ length: 8 }, (_, index) => (
+          <div key={index} className="h-15 animate-pulse rounded-lg bg-band/60" />
+        ))}
       </div>
     </EditorShell>
   );

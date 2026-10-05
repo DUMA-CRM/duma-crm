@@ -95,6 +95,10 @@ export interface Payslip {
   payPeriodEnd: string;
   grossPay: string;
   netPay: string;
+  /** Named lines — the payslip itself. The four UK-shaped figures below are derived from these. */
+  deductions?: { label: string; kind: 'tax' | 'social' | 'pension' | 'other'; paidBy: 'employee' | 'employer'; amount: string }[];
+  employeeDeductions?: string;
+  employerContributions?: string;
   taxDeducted: string;
   nationalInsurance?: string | null;
   pensionDeduction?: string | null;
@@ -110,6 +114,9 @@ export const getLeaveTypes = () => apiFetch<LeaveType[]>('/hr/leave-types');
 export const getMyEntitlements = (year = new Date().getFullYear()) => apiFetch<LeaveEntitlement[]>(`/hr/entitlements/me?year=${year}`);
 export const getMyLeaveRequests = () => apiFetch<LeaveRequest[]>('/hr/leave-requests/my');
 export const getManagedLeaveRequests = (status = 'pending') => apiFetch<LeaveRequest[]>(`/hr/leave-requests?status=${status}`);
+/** Every entitlement in the workspace for a year — needs `hr.leave:read`. */
+export const getEntitlements = (year = new Date().getFullYear()) =>
+  apiFetch<(LeaveEntitlement & { userId: string })[]>(`/hr/entitlements?year=${year}`);
 export const getEmployeeEntitlements = (userId: string, year = new Date().getFullYear()) =>
   apiFetch<LeaveEntitlement[]>(`/hr/entitlements?userId=${encodeURIComponent(userId)}&year=${year}`);
 export const createLeaveType = (data: { name: string; isPaid?: boolean; requiresApproval?: boolean; defaultAllowanceDays?: string }) =>

@@ -39,6 +39,7 @@ import {
 } from '@/components/scheduling/shared';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -78,8 +79,8 @@ export function hourlyRateOf(employee: HrEmployee | undefined): number | null {
 function Field({ icon: Icon, label, children }: { icon: IconComponent; label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-1 items-center gap-1.5 sm:grid-cols-[10.5rem_minmax(0,1fr)] sm:gap-4">
-      <span className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Icon size={15} aria-hidden="true" className="shrink-0" />
+      <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <Icon size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
         {label}
       </span>
       {children}
@@ -91,10 +92,10 @@ function Hint({ tone, children }: { tone: 'success' | 'warning' | 'muted'; child
   return (
     <p
       className={cn(
-        'mt-2 rounded-sm border px-3 py-2 text-xs font-medium',
-        tone === 'success' && 'border-success/20 bg-success/6 text-success',
-        tone === 'warning' && 'border-warning/20 bg-warning/6 text-warning',
-        tone === 'muted' && 'border-rule bg-band text-muted-foreground',
+        'mt-2 rounded-md px-3 py-2 text-xs font-medium',
+        tone === 'success' && 'bg-primary/8 text-primary',
+        tone === 'warning' && 'bg-measured/10 text-measured',
+        tone === 'muted' && 'bg-band/60 text-muted-foreground',
       )}
     >
       {children}
@@ -104,7 +105,7 @@ function Hint({ tone, children }: { tone: 'success' | 'warning' | 'muted'; child
 
 function Card({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="rounded-sm border border-rule bg-band p-4">
+    <section className="rounded-lg border border-rule/60 bg-field p-4">
       <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
       {children}
     </section>
@@ -186,7 +187,7 @@ function ClockEntryRow({
   }
 
   return (
-    <div className="rounded-sm border border-rule bg-card p-3">
+    <div className="rounded-md border border-rule/50 bg-background/60 p-3">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(10rem,1fr)_7rem_7rem] sm:items-end">
         <div className="space-y-1 text-xs font-medium text-muted-foreground">
           <span>Date</span>
@@ -351,6 +352,61 @@ interface ShiftRecordDrawerProps {
   /** May change the rota plan; independent from correcting worked time. */
   canPlan: boolean;
   onClose: () => void;
+}
+
+const SUMMARY_TONE: Record<ShiftRecord['state'], string> = {
+  scheduled: 'bg-band text-muted-foreground',
+  running: 'bg-primary/10 text-primary',
+  completed: 'bg-momentum/10 text-momentum',
+  no_show: 'bg-exception/8 text-exception',
+  cancelled: 'bg-band text-muted-foreground',
+};
+
+/**
+ * The shift at a glance, at the top of the drawer: where it stands, what was
+ * planned against what was worked, and how the start went — before any of the
+ * fields below, which are for changing it.
+ */
+function ShiftSummary({ record }: { record: ShiftRecord }) {
+  const late = record.startDeltaMinutes != null && record.startDeltaMinutes > 0;
+  const early = record.startDeltaMinutes != null && record.startDeltaMinutes < 0;
+  return (
+    <div className="rounded-lg border border-rule/60 bg-field p-4">
+      <div className="flex items-center gap-2">
+        <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', SUMMARY_TONE[record.state])}>
+          {WORK_STATE[record.state].label}
+        </span>
+        {record.status === 'draft' && <Badge variant="muted">Draft</Badge>}
+        {(late || early) && (
+          <span className={cn('text-xs font-semibold', late ? 'text-exception' : 'text-momentum')}>
+            Started {Math.abs(record.startDeltaMinutes!)} min {late ? 'late' : 'early'}
+          </span>
+        )}
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-3">
+        <div>
+          <dt className="text-label uppercase text-muted-foreground">Planned</dt>
+          <dd className="mt-0.5 text-lg font-semibold text-foreground">
+            {record.plannedMinutes > 0 ? fmtDuration(record.plannedMinutes) : '—'}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-label uppercase text-muted-foreground">Worked</dt>
+          <dd className="mt-0.5 text-lg font-semibold text-foreground">
+            {record.workedMinutes > 0 ? fmtDuration(record.workedMinutes) : '—'}
+          </dd>
+        </div>
+      </dl>
+      {record.plannedMinutes > 0 && (
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-band" aria-hidden="true">
+          <div
+            className={cn('h-full rounded-full', record.workedMinutes > record.plannedMinutes ? 'bg-measured' : 'bg-primary')}
+            style={{ width: `${Math.min(100, (record.workedMinutes / record.plannedMinutes) * 100)}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function ShiftRecordDrawer(props: ShiftRecordDrawerProps) {
@@ -559,7 +615,7 @@ function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser
       }
     >
       <div className="space-y-6">
-        <div className="rounded-sm border border-rule bg-band px-4 py-3">
+        <div className="rounded-lg border border-rule/60 bg-field px-4 py-3">
           <p className="text-sm font-semibold text-foreground">This records what actually happened</p>
           <p className="mt-1 text-sm text-muted-foreground">
             It will appear in attendance and payroll, but it will not add a shift to the rota.
@@ -844,6 +900,8 @@ function PlannedShiftDrawer({
       }
     >
       <div className="space-y-5">
+        {editing && <ShiftSummary record={editing} />}
+
         {/* Identity */}
         <div className="space-y-3.5">
           <Field icon={MapPin} label="Location">
@@ -887,18 +945,31 @@ function PlannedShiftDrawer({
           </Field>
 
           <Field icon={ListChecks} label="Shift status">
-            <Select
-              value={status}
-              onValueChange={(value) => setStatus(value as ScheduledShiftStatus)}
-              options={[
-                { value: 'draft', label: 'Draft — not visible to staff' },
-                { value: 'published', label: 'Published' },
-                { value: 'cancelled', label: 'Cancelled' },
-              ]}
-              ariaLabel="Shift status"
-              className="w-full"
-              disabled={!canPlan}
-            />
+            <div>
+              {canPlan ? (
+                <SegmentedControl
+                  options={[
+                    { value: 'draft', label: 'Draft' },
+                    { value: 'published', label: 'Published' },
+                    { value: 'cancelled', label: 'Cancelled' },
+                  ]}
+                  value={status}
+                  onChange={(value) => setStatus(value as ScheduledShiftStatus)}
+                  ariaLabel="Shift status"
+                />
+              ) : (
+                <span className="text-sm text-foreground">
+                  {status === 'draft' ? 'Draft' : status === 'published' ? 'Published' : 'Cancelled'}
+                </span>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                {status === 'draft'
+                  ? 'Only managers can see a draft — publish it to show the team.'
+                  : status === 'published'
+                    ? 'On the team’s rota.'
+                    : 'Kept for the record, off the rota.'}
+              </p>
+            </div>
           </Field>
 
           <Field icon={FileText} label="Notes">
@@ -1037,10 +1108,10 @@ function PlannedShiftDrawer({
                       onClick={() => toggleDay(day)}
                       aria-pressed={active}
                       className={cn(
-                        'h-8 rounded-sm border px-2.5 text-xs font-semibold transition-colors',
+                        'h-9 min-w-11 rounded-md border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                         active
-                          ? 'border-primary bg-band text-primary'
-                          : 'border-rule bg-background text-muted-foreground hover:text-foreground',
+                          ? 'border-primary bg-primary/8 text-primary'
+                          : 'border-rule/60 bg-background/60 text-muted-foreground hover:text-foreground',
                       )}
                     >
                       {label}
@@ -1100,7 +1171,7 @@ function PlannedShiftDrawer({
                     <dd className="tabular-nums text-foreground">{occurrences.length}</dd>
                   </div>
                 )}
-                <div className="flex items-center justify-between gap-3 border-t border-rule pt-2">
+                <div className="flex items-center justify-between gap-3 border-t border-rule/50 pt-2">
                   <dt className="font-semibold text-foreground">Estimated total</dt>
                   <dd className="text-base font-semibold tabular-nums text-foreground">{fmtMoney(estimatedCost)}</dd>
                 </div>
@@ -1114,8 +1185,7 @@ function PlannedShiftDrawer({
         )}
 
         {editing && (
-          <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant={WORK_STATE[editing.state].variant}>{WORK_STATE[editing.state].label}</Badge>
+          <p className="text-xs text-muted-foreground">
             Changes apply to this shift only — other repeats of the same schedule are separate shifts.
           </p>
         )}

@@ -13,16 +13,31 @@ export interface CurrentTenantModules {
   modules: TenantModuleState[];
 }
 
+/** Why a module is pulled in: `requiredBy` needs it, reached through `path`. Mirrors duma-api `ModuleDependencyExplanation`. */
+export interface ModuleDependency {
+  moduleId: ModuleId;
+  kind: 'required' | 'recommended';
+  requiredBy: ModuleId;
+  path: ModuleId[];
+}
+
+/** An enabled module that stops another being disabled. Mirrors duma-api `ModuleDisablementBlocker`. */
+export interface ModuleBlocker {
+  moduleId: ModuleId;
+  path: ModuleId[];
+}
+
 export interface ModuleChangePreview {
   moduleId: ModuleId;
   expectedConfigurationVersion: number;
   current: Pick<TenantModuleState, 'status' | 'configuration'>;
   proposed: Pick<TenantModuleState, 'status' | 'configuration'>;
   canApply: boolean;
-  blockers: { foundation: boolean; requiredBy: ModuleId[] };
+  // Objects, not ids: the API explains each one. Typed as ids, they rendered as a crash.
+  blockers: { foundation: boolean; requiredBy: ModuleBlocker[] };
   changes: Array<{ moduleId: ModuleId; status: 'enabled' | 'disabled' }>;
-  additions: ModuleId[];
-  recommendations: ModuleId[];
+  additions: ModuleDependency[];
+  recommendations: ModuleDependency[];
   blastRadius: {
     capabilities: string[];
     workflows: { backgroundWorkers: string[]; publishedEvents: string[]; consumedEvents: string[] };
@@ -35,8 +50,8 @@ export interface ModuleChangePreview {
 export interface ModuleChangeResult {
   module: TenantModuleState;
   changes: TenantModuleState[];
-  additions: ModuleId[];
-  recommendations: ModuleId[];
+  additions: ModuleDependency[];
+  recommendations: ModuleDependency[];
 }
 
 export const getCurrentTenantModules = (tenantId?: string, cookieHeader?: string) =>

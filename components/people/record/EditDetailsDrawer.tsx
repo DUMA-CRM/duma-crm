@@ -3,16 +3,20 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { Banknote, Building2, HeartHandshake, Landmark, Loader2, UserRound } from '@/components/icons';
+import { usePayrollSettings } from '@/components/payroll/usePayroll';
 import { AddressFields } from '@/components/people/AddressFields';
 import { EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, PAY_CONFIG, PAY_TYPES, lbl } from '@/components/people/shared';
 import { Drawer } from '@/components/shared/Drawer';
+import { FormSection } from '@/components/shared/FormParts';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 
+import { hasCapability } from '@/lib/auth/capabilities';
 import { type UpdateEmployeePayload, setEmployeeBank, updateEmployee } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { statutoryIdLabel } from '@/lib/utils/employee-record';
 import {
   formatNiNumber,
   formatSortCode,
@@ -23,9 +27,10 @@ import {
   normaliseNiNumber,
   normaliseSortCode,
 } from '@/lib/utils/my-hr';
+import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
-import type { Employee } from './shared';
+import { ChoiceCards, type Employee } from './shared';
 
 /**
  * One way in to everything this record holds about a person.
@@ -33,7 +38,7 @@ import type { Employee } from './shared';
  * It replaces three in-place card editors. My HR made the same move and left
  * the reason in a comment: *"one way in, one drawer, instead of four buttons
  * that all open the same form."* The cards below are now read-only, which is
- * what lets them use `InfoRow` and say "Missing" rather than render a form.
+ * what lets them say "Missing" rather than render a form.
  *
  * **Access is deliberately not here.** Role, scope and locations are
  * `updateStaff`, not `updateEmployee` — a different resource, and a privilege
@@ -56,6 +61,13 @@ export function EditDetailsDrawer({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  // Country and currency come from payroll settings, readable with `hr.payroll:read`.
+  const canReadPayroll = hasCapability(useAuthStore((state) => state.capabilities), 'hr.payroll:read');
+  const { data: payroll } = usePayrollSettings(canReadPayroll);
+  const country = payroll?.payrollCountry ?? null;
+  const uk = !country || country === 'GB';
+  const currency = payroll?.currency ?? 'GBP';
+  const idLabel = statutoryIdLabel(country);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const blur = (key: string) => () => setTouched((current) => ({ ...current, [key]: true }));
 
@@ -83,9 +95,18 @@ export function EditDetailsDrawer({
   // Bank details are all-or-nothing: a sort code with no account number cannot
   // be paid into, so a half-filled set blocks the save rather than storing a
   // fragment. Same rule My HR applies to the employee's own entry.
+  //
+  // The UK formats are checked as UK formats. Anywhere else the fields hold
+  // the local equivalents, so only the API's own limits apply (bank code 10,
+  // account 20, ID 13) — a PESEL or a Ukrainian account number is not wrong
+  // for failing a sort-code rule.
   const bankTouched = !!(form.accountHolder || form.sortCode || form.accountNumber);
-  const bankComplete = !!form.accountHolder.trim() && isValidSortCode(form.sortCode) && isValidAccountNumber(form.accountNumber);
-  const niValid = !form.niNumber || isValidNiNumber(form.niNumber);
+  const sortCodeValid = uk ? isValidSortCode(form.sortCode) : form.sortCode.trim().length > 0 && form.sortCode.trim().length <= 10;
+  const accountValid = uk
+    ? isValidAccountNumber(form.accountNumber)
+    : form.accountNumber.replace(/\s/g, '').length > 0 && form.accountNumber.replace(/\s/g, '').length <= 20;
+  const bankComplete = !!form.accountHolder.trim() && sortCodeValid && accountValid;
+  const niValid = !form.niNumber || (uk ? isValidNiNumber(form.niNumber) : form.niNumber.trim().length <= 13);
   const canSave = (!bankTouched || bankComplete) && niValid && form.jobTitle.trim() !== '';
 
   const save = useMutation({
@@ -105,7 +126,7 @@ export function EditDetailsDrawer({
         payload.hourlyRate = form.payType === 'hourly' ? Number(form.hourlyRate) || 0 : null;
         payload.annualSalary = form.payType === 'salaried' ? Number(form.annualSalary) || 0 : null;
         payload.taxCode = form.taxCode.trim() || null;
-        if (form.niNumber) payload.niNumber = normaliseNiNumber(form.niNumber);
+        if (form.niNumber) payload.niNumber = uk ? normaliseNiNumber(form.niNumber) : form.niNumber.trim();
       }
       await updateEmployee(userId, payload);
 
@@ -115,8 +136,8 @@ export function EditDetailsDrawer({
         await setEmployeeBank(userId, {
           accountHolder: form.accountHolder.trim(),
           bankName: form.bankName.trim() || null,
-          sortCode: normaliseSortCode(form.sortCode),
-          accountNumber: normaliseAccountNumber(form.accountNumber),
+          sortCode: uk ? normaliseSortCode(form.sortCode) : form.sortCode.trim(),
+          accountNumber: uk ? normaliseAccountNumber(form.accountNumber) : form.accountNumber.replace(/\s/g, ''),
         });
       }
     },
@@ -133,138 +154,142 @@ export function EditDetailsDrawer({
   return (
     <Drawer
       title="Edit details"
-      description={employee.jobTitle}
+      description="Their employment record. Access and sign-in are changed on the record itself."
       onClose={onClose}
       footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
+        <div className="flex gap-2">
+          <Button variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button onClick={() => save.mutate()} disabled={!canSave || save.isPending}>
-            {save.isPending ? 'Saving…' : 'Save changes'}
+          <Button size="lg" className="flex-1" onClick={() => save.mutate()} disabled={!canSave || save.isPending}>
+            {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+            Save changes
           </Button>
         </div>
       }
     >
-      <div className="space-y-6">
-        <Section title="Employment">
-          <div>
-            <label className={lbl}>Job title</label>
-            <Input value={form.jobTitle} onChange={set('jobTitle')} />
-          </div>
-          <div>
-            <label className={lbl}>Department</label>
-            <Input value={form.department} onChange={set('department')} />
-          </div>
-          <div>
-            <label className={lbl}>Employment type</label>
-            <Select
+      <div className="space-y-7">
+        <FormSection icon={Building2} title="Employment">
+          <Field label="Job title">
+            <Input value={form.jobTitle} onChange={set('jobTitle')} aria-invalid={!form.jobTitle.trim()} />
+            {!form.jobTitle.trim() && <p className="mt-1 text-xs font-semibold text-destructive">A job title is needed.</p>}
+          </Field>
+          <Field label="Department">
+            <Input value={form.department} onChange={set('department')} placeholder="e.g. Front of house" />
+          </Field>
+          <Field label="Contract">
+            <ChoiceCards
               value={form.employmentType}
-              onValueChange={(value) => setForm({ ...form, employmentType: value as typeof form.employmentType })}
+              onChange={(employmentType) => setForm({ ...form, employmentType })}
               options={EMPLOYMENT_TYPES.map((type) => ({ value: type, label: EMPLOYMENT_CONFIG[type].label }))}
-              ariaLabel="Employment type"
             />
-          </div>
-        </Section>
+          </Field>
+        </FormSection>
 
-        <Section title="Personal">
+        <FormSection icon={UserRound} title="Personal">
           <DatePicker
             label="Date of birth"
             value={form.dateOfBirth}
             onValueChange={(dateOfBirth) => setForm({ ...form, dateOfBirth })}
             max={new Date().toISOString().slice(0, 10)}
           />
-          <div>
-            <label className={lbl}>Home address</label>
-            <AddressFields value={form.address} onChange={(address) => setForm({ ...form, address })} />
-          </div>
-        </Section>
+          {/* Labels its own four inputs, so no wrapping label. */}
+          <AddressFields value={form.address} onChange={(address) => setForm({ ...form, address })} />
+        </FormSection>
 
-        <Section title="Emergency contact">
-          <div>
-            <label className={lbl}>Name</label>
-            <Input value={form.emergencyContactName} onChange={set('emergencyContactName')} />
+        <FormSection icon={HeartHandshake} title="Emergency contact" note="Who to call if something happens at work.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Name">
+              <Input value={form.emergencyContactName} onChange={set('emergencyContactName')} />
+            </Field>
+            <Field label="Relationship">
+              <Input value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')} placeholder="e.g. Partner" />
+            </Field>
           </div>
-          <div>
-            <label className={lbl}>Phone</label>
-            <Input value={form.emergencyContactPhone} onChange={set('emergencyContactPhone')} />
-          </div>
-          <div>
-            <label className={lbl}>Relationship</label>
-            <Input value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')} />
-          </div>
-        </Section>
+          <Field label="Phone">
+            <Input type="tel" value={form.emergencyContactPhone} onChange={set('emergencyContactPhone')} />
+          </Field>
+        </FormSection>
 
         {canEditPay && (
           <>
-            <Section title="Pay">
-              <div>
-                <label className={lbl}>Pay basis</label>
-                <Select
+            <FormSection icon={Banknote} title="Pay" note={`Amounts in ${currency}. Nothing here is calculated — payroll uses what you enter.`}>
+              <Field label="Pay basis">
+                <ChoiceCards
                   value={form.payType}
-                  onValueChange={(value) => setForm({ ...form, payType: value as typeof form.payType })}
+                  onChange={(payType) => setForm({ ...form, payType })}
                   options={PAY_TYPES.map((type) => ({ value: type, label: PAY_CONFIG[type].label }))}
-                  ariaLabel="Pay basis"
                 />
+              </Field>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {form.payType === 'hourly' ? (
+                  <Field label={`Hourly rate (${currency})`}>
+                    <Input inputMode="decimal" value={String(form.hourlyRate ?? '')} onChange={set('hourlyRate')} placeholder="0.00" />
+                  </Field>
+                ) : (
+                  <Field label={`Annual salary (${currency})`}>
+                    <Input inputMode="decimal" value={String(form.annualSalary ?? '')} onChange={set('annualSalary')} placeholder="0.00" />
+                  </Field>
+                )}
+                <Field label="Tax code">
+                  <Input value={form.taxCode} onChange={set('taxCode')} placeholder={uk ? '1257L' : 'If your payroll uses one'} />
+                </Field>
               </div>
-              {form.payType === 'hourly' ? (
-                <div>
-                  <label className={lbl}>Hourly rate</label>
-                  <Input inputMode="decimal" value={String(form.hourlyRate ?? '')} onChange={set('hourlyRate')} />
-                </div>
-              ) : (
-                <div>
-                  <label className={lbl}>Annual salary</label>
-                  <Input inputMode="decimal" value={String(form.annualSalary ?? '')} onChange={set('annualSalary')} />
-                </div>
-              )}
-              <div>
-                <label className={lbl}>Tax code</label>
-                <Input value={form.taxCode} onChange={set('taxCode')} />
-              </div>
-              <div>
-                <label className={lbl}>National Insurance number</label>
+              <Field label={idLabel}>
                 <Input
-                  value={formatNiNumber(form.niNumber)}
+                  value={uk ? formatNiNumber(form.niNumber) : form.niNumber}
                   onChange={set('niNumber')}
                   onBlur={blur('niNumber')}
-                  placeholder={employee.hasNiNumber ? 'Held — type to replace' : 'AB 12 34 56 C'}
+                  maxLength={uk ? undefined : 13}
+                  placeholder={employee.hasNiNumber ? 'On file — type to replace' : uk ? 'AB 12 34 56 C' : ''}
                 />
                 {touched.niNumber && !niValid && (
-                  <p className="mt-1 text-xs font-semibold text-destructive">Two letters, six digits, then a letter A–D.</p>
+                  <p className="mt-1 text-xs font-semibold text-destructive">
+                    {uk ? 'Two letters, six digits, then a letter A–D.' : 'Up to 13 characters.'}
+                  </p>
                 )}
-              </div>
-            </Section>
+              </Field>
+            </FormSection>
 
-            <Section title="Bank details" note="Leave blank to keep what is on file. Entering any of these replaces all of them.">
-              <div>
-                <label className={lbl}>Account holder</label>
-                <Input value={form.accountHolder} onChange={set('accountHolder')} />
-              </div>
-              <div>
-                <label className={lbl}>Bank name</label>
-                <Input value={form.bankName} onChange={set('bankName')} />
-              </div>
-              <div>
-                <label className={lbl}>Sort code</label>
-                <Input value={formatSortCode(form.sortCode)} onChange={set('sortCode')} onBlur={blur('sortCode')} placeholder="04-00-04" />
-                {touched.sortCode && form.sortCode && !isValidSortCode(form.sortCode) && (
-                  <p className="mt-1 text-xs font-semibold text-destructive">Six digits, e.g. 04-00-04.</p>
-                )}
-              </div>
-              <div>
-                <label className={lbl}>Account number</label>
-                <Input value={form.accountNumber} onChange={set('accountNumber')} onBlur={blur('accountNumber')} placeholder="12345678" />
-                {touched.accountNumber && form.accountNumber && !isValidAccountNumber(form.accountNumber) && (
-                  <p className="mt-1 text-xs font-semibold text-destructive">Eight digits.</p>
-                )}
+            <FormSection icon={Landmark} title="Bank details" note="Leave blank to keep what’s on file. Entering any of these replaces all of them.">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Account holder">
+                  <Input value={form.accountHolder} onChange={set('accountHolder')} />
+                </Field>
+                <Field label="Bank name">
+                  <Input value={form.bankName} onChange={set('bankName')} />
+                </Field>
+                <Field label={uk ? 'Sort code' : 'Bank code'}>
+                  <Input
+                    value={uk ? formatSortCode(form.sortCode) : form.sortCode}
+                    onChange={set('sortCode')}
+                    onBlur={blur('sortCode')}
+                    maxLength={uk ? undefined : 10}
+                    placeholder={uk ? '04-00-04' : ''}
+                  />
+                  {touched.sortCode && form.sortCode && !sortCodeValid && (
+                    <p className="mt-1 text-xs font-semibold text-destructive">{uk ? 'Six digits, e.g. 04-00-04.' : 'Up to 10 characters.'}</p>
+                  )}
+                </Field>
+                <Field label="Account number">
+                  <Input
+                    value={form.accountNumber}
+                    onChange={set('accountNumber')}
+                    onBlur={blur('accountNumber')}
+                    maxLength={uk ? undefined : 20}
+                    placeholder={uk ? '12345678' : ''}
+                  />
+                  {touched.accountNumber && form.accountNumber && !accountValid && (
+                    <p className="mt-1 text-xs font-semibold text-destructive">{uk ? 'Eight digits.' : 'Up to 20 characters.'}</p>
+                  )}
+                </Field>
               </div>
               {bankTouched && !bankComplete && (
-                <p className="text-xs text-muted-foreground">
-                  An account holder, sort code and account number are all needed — a partial set cannot be paid into.
+                <p className="rounded-md bg-measured/10 px-3 py-2 text-xs text-measured">
+                  An account holder, {uk ? 'sort code' : 'bank code'} and account number are all needed — a partial set can’t be paid into.
                 </p>
               )}
-            </Section>
+            </FormSection>
           </>
         )}
       </div>
@@ -272,14 +297,11 @@ export function EditDetailsDrawer({
   );
 }
 
-function Section({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-3">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}
-      </div>
+    <div>
+      <label className={lbl}>{label}</label>
       {children}
-    </section>
+    </div>
   );
 }

@@ -40,7 +40,8 @@
    simply wrong):
 
      --rule            2.20 / 2.44 / 1.98:1 — light-mode borders miss 1.4.11.
-                       Night rule is fine (3.20–3.94). Fixing it repaints every
+                       Night --rule is 2.74–3.44 (inputs ≥3 on ground/field);
+                       night --border is a deliberately quiet seam. Fixing day repaints every
                        border in the app, so it is called out, not smuggled in.
      --sidebar-border  1.66:1 on the shell — a seam inside one block of forest.
      --ink-2           4.39:1 on band only.
@@ -233,59 +234,90 @@
    materials: a near-black warm charcoal ladder — ground → field → band —
    with roles at full chroma over it.
 
-   Green is therefore structure rather than the room: the navigation shell
-   (deepened, so it holds the edge instead of lighting it), the action key,
-   team/success ink, and healthy states. No work SURFACE is green — the shell and
-   the keys may be, the ground, field and band never are.
+   Green is therefore signal rather than the room: the action key, the
+   mascot, team/success ink and healthy states. No SURFACE is green at night,
+   and that includes the navigation shell, which becomes the deepest charcoal.
    ════════════════════════════════════════════════════════════════ */
 .dark {
+  /* Native controls, form widgets and scrollbars render in their dark variant. */
+  color-scheme: dark;
+
   /* Warm charcoal, not graphite: hue stays on the oat side of neutral, chroma
-     is low enough that the eye reads it as dark rather than as a colour. */
-  --ground: #121110;
-  --field: #1c1b18;
-  --band: #272521;
+     is low enough that the eye reads it as dark rather than as a colour.
 
-  --ink: #f6f0e6;
-  --ink-2: #c3bcae;
+     Lifted off near-black (was #121110 / #1c1b18 / #272521). A near-black
+     ground under near-white ink measured 16.6:1 — past the point where
+     contrast helps and into halation, where light text smears against the
+     dark around it for anyone with astigmatism, and the glare is worst in a
+     dim room, which is exactly when night mode is on. The ladder keeps its
+     spacing, so field still lifts off ground and band still reads as a trough. */
+  --ground: #181716;
+  --field: #1f1e1c;
+  --band: #292724;
 
-  --grid-minor: #2c2924;
-  --grid-major: #3a362e;
-  /* 3.20–3.94:1 across ground, field and band: a panel edge has to survive on
-     a dark surface, where a hairline disappears long before it does on oat. */
-  --rule: #787264;
+  /* Soft bone rather than paper white: 13.9 / 12.9 / 11.6:1 — still well over
+     7:1 body-ink, without the vibration. ink-2 stays ≥6:1 on every surface. */
+  --ink: #e8e2d8;
+  --ink-2: #aba497;
 
-  --measured: #ef936b;
-  --reference: #a7b0ff;
-  --momentum: #75c7a2;
-  --exception: #ff9298;
-  --stock: #e8bd67;
+  --grid-minor: #252321;
+  --grid-major: #34312c;
 
-  --ghost: color-mix(in oklab, var(--reference) 34%, transparent);
+  /* Two border tiers at night, where one would do by day. Every hairline in
+     the app at 3.2–3.9:1 is what made the room busy: a dark surface ruled in
+     bright lines reads as a wireframe. Structural borders (panels, rows,
+     dividers) drop to a quiet seam; --rule, which still drives inputs and the
+     plot field, stays ≥3:1 on ground and field so a control's edge still
+     meets 1.4.11 where it has to be found. */
+  --rule: #726c62;
+  --border: #46423c;
+  --input: var(--rule);
 
-  /* The night key: light enough to carry #1a1611 text as a fill (6.83:1) and to
-     read as text on all three charcoals (6.54 / 7.16 / 5.81:1). Held a step
-     deeper than --momentum so the two greens stay tellable apart; hover lifts. */
-  --primary: #4fb187;
-  --primary-hover: #5cbf95;
-  --primary-foreground: #1a1611;
+  /* Roles pulled ~10–15% toward the surface in chroma. Full-chroma pastels
+     vibrate on charcoal — the eye cannot settle on them — and in the old set
+     exception (#ff9298) and reference (#a7b0ff) were the loudest things on
+     screen even when nothing was wrong. Every role text is still ≥6.2:1 on
+     field, ground and band, and hues are unchanged, so meaning is unchanged. */
+  --measured: #e39574;
+  --reference: #a4abe6;
+  --momentum: #7fbf9f;
+  --exception: #e8959a;
+  --stock: #d8b673;
 
-  /* Night success is a light green, so its label flips to the dark ink (8.95:1). */
-  --success-foreground: #1a1611;
+  --ghost: color-mix(in oklab, var(--reference) 30%, transparent);
 
-  /* The shell keeps its forest — place-memory is worth more than tidiness —
-     but at night it drops to the deepest tier, ~4× darker than the daytime
-     column, so it reads as a dark edge holding the room rather than a lit
-     green wall. Active items still step up one forest tier. */
-  --sidebar: #0e241b;
-  --sidebar-foreground: #ece6d9;
-  --sidebar-primary: #f8f1e5;
-  --sidebar-primary-foreground: #12241b;
-  --sidebar-accent: #204734;
-  --sidebar-accent-foreground: #f7f1e7;
-  --sidebar-border: #2a4b3a;
-  --sidebar-ring: #f8f1e5;
+  /* The night key: carries #171512 as a fill (6.53:1) and reads as text on all
+     three charcoals (6.41 / 5.97 / 5.34:1). Softer than the old #4fb187, still a
+     step deeper than --momentum so the two greens stay tellable apart. */
+  --primary: #5aaa85;
+  --primary-hover: #66b690;
+  --primary-foreground: #171512;
 
-  --chart-5: oklch(0.7 0.02 250);
+  /* Night success is a light green, so its label flips to the dark ink (8.55:1). */
+  --success-foreground: #171512;
+
+  /* At night the shell drops its forest and becomes the darkest charcoal in
+     the ladder, one step below --ground. Even at its deepest tier a green
+     column was the only coloured block on a neutral screen, so it pulled the
+     eye to the edge of the room. Most dark-mode apps do this: navigation is
+     the quietest surface, and it stays separate from the content through
+     its seam and a slight difference in value, not through hue. Brand green
+     still appears at night in the action key and the mascot. Active and
+     hover states step up to band. */
+  --sidebar: #141312;
+  --sidebar-foreground: #e3ddd1;
+  --sidebar-primary: #ece6da;
+  --sidebar-primary-foreground: #141312;
+  --sidebar-accent: #2a2825;
+  --sidebar-accent-foreground: #e8e2d8;
+  --sidebar-border: #34312c;
+  --sidebar-ring: #ece6da;
+
+  --chart-5: oklch(0.68 0.018 250);
+
+  /* Shadows barely register on charcoal, so overlays lean on a darker tint
+     and on field sitting a step above ground. */
+  --shadow-tint: oklch(0.08 0.005 60);
 
   /* The night tier of the same green, so the mascot is one character across both
      themes rather than a green one by day and a bone one by night.
@@ -294,7 +326,7 @@
      inverts on its own — the body becomes the light thing and the eyes the dark
      ones. That is the same drawing read the other way up, and both directions are
      legible. See the day block. */
-  --mascot-ink: #4fb187;
+  --mascot-ink: #5aaa85;
 }
 
 /* ════════════════════════════════════════════════════════════════

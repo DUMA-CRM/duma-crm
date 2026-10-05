@@ -1,8 +1,9 @@
 'use client';
 
+import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { Check, Loader2, Plus, RotateCcw, Trash2, TriangleAlert } from '@/components/icons';
+import { Check, Loader2, Plus, RotateCcw, ShieldCheck, Trash2, TriangleAlert } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { InlineChoice, InlineDate, InlineNumber, type InlineOption, InlineText } from '@/components/ui/inline-edit';
 
@@ -122,6 +123,7 @@ export function ActionCard({
   onConfirm: (submission: AgentActionSubmission) => void;
   onCancel: () => void;
 }) {
+  const reduceMotion = useReducedMotion();
   const [draft, setDraft] = useState<Draft>(() => initialDraft(action));
   const [adding, setAdding] = useState(false);
   const [drafted, setDrafted] = useState(action);
@@ -187,37 +189,45 @@ export function ActionCard({
     group?.lines.find((line) => line.id === id)?.subtitle ?? group?.options.find((option) => option.value === id)?.hint;
 
   return (
-    <section
-      className={cn('mt-4 rounded-md border bg-field', critical ? 'border-exception/55' : 'border-stock/60')}
+    <motion.section
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      className="mt-4 overflow-hidden rounded-lg border border-rule/70 bg-field shadow-sm"
       aria-label={`${action.title} awaiting approval`}
     >
-      <header
-        className={cn(
-          'flex items-start justify-between gap-3 border-b px-3.5 py-3',
-          critical ? 'border-exception/25 bg-exception/5' : 'border-stock/25 bg-stock/5',
-        )}
-      >
-        <div className="min-w-0">
-          <p className={cn('text-label uppercase tracking-wide', critical ? 'text-exception' : 'text-stock')}>
-            {critical ? 'Approval required · destructive' : 'Approval required'}
-          </p>
-          <h3 className="mt-1 truncate text-sm font-semibold text-foreground">{action.title}</h3>
-          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{action.summary}</p>
+      <header className="flex items-start justify-between gap-4 px-4 py-4">
+        <div className="flex min-w-0 gap-3.5">
+          <span
+            className={cn(
+              'flex size-9 shrink-0 items-center justify-center rounded-md',
+              critical ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary',
+            )}
+          >
+            {critical ? <TriangleAlert size={17} aria-hidden="true" /> : <ShieldCheck size={17} aria-hidden="true" />}
+          </span>
+          <div className="min-w-0">
+            <p className={cn('text-label font-semibold uppercase tracking-label', critical ? 'text-exception' : 'text-primary')}>
+              {critical ? 'Permanent change' : 'Approval required'}
+            </p>
+            <h3 className="mt-1 line-clamp-2 text-base font-semibold tracking-title text-foreground">{action.title}</h3>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{action.summary}</p>
+          </div>
         </div>
         <div className="shrink-0 text-right">
           {total != null && (
-            <>
-              <p className="font-mono text-sm font-semibold tabular-nums text-foreground">
+            <div className="rounded-md bg-background/70 px-2.5 py-2">
+              <p className="font-mono text-base font-semibold tabular-nums text-foreground">
                 {group?.total?.format === 'currency' ? money(total) : total.toLocaleString('en-GB')}
               </p>
-              <p className="text-label text-muted-foreground">{group?.total?.label}</p>
-            </>
+              <p className="mt-0.5 text-label uppercase tracking-label text-muted-foreground">{group?.total?.label}</p>
+            </div>
           )}
           {!pristine && (
             <button
               type="button"
               onClick={() => setDraft(initialDraft(action))}
-              className="mt-1 inline-flex items-center gap-1 text-label font-semibold text-measured hover:underline"
+              className="mt-2 inline-flex items-center gap-1 rounded-sm px-1.5 py-1 text-label font-semibold text-reference transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
             >
               <RotateCcw size={11} aria-hidden="true" />
               Reset edits
@@ -226,33 +236,58 @@ export function ActionCard({
         </div>
       </header>
 
-      <dl className="divide-y divide-divider px-3.5">
-        {visibleFields.map((field) => (
-          <div key={field.key} className="flex items-start justify-between gap-3 py-2">
-            <dt className="pt-1 text-xs text-muted-foreground">
-              {field.label}
-              {field.hint && <span className="mt-0.5 block text-label leading-4 text-muted-foreground/80">{field.hint}</span>}
-            </dt>
-            <dd className={cn('min-w-0 text-right', field.type === 'textarea' && 'flex-1')}>
-              <FieldControl field={field} value={draft.fields[field.key] ?? null} onChange={(next) => setField(field.key, next)} />
-            </dd>
+      {visibleFields.length > 0 && (
+        <section className="border-t border-rule/40" aria-labelledby="request-details-heading">
+          <div className="flex items-baseline justify-between gap-3 px-4 pb-1 pt-3.5">
+            <h4 id="request-details-heading" className="text-label font-semibold uppercase tracking-label text-muted-foreground">
+              Request details
+            </h4>
+            <span className="text-label text-muted-foreground">Select a value to edit</span>
           </div>
-        ))}
-      </dl>
+          <dl className="divide-y divide-rule/40 px-4 pb-1">
+            {visibleFields.map((field) => (
+              <div
+                key={field.key}
+                className={cn(
+                  'gap-3 py-3',
+                  field.type === 'textarea' ? 'grid' : 'flex items-start justify-between',
+                )}
+              >
+                <dt className="min-w-0 pt-0.5 text-sm font-medium text-foreground">
+                  {field.label}
+                  {field.hint && <span className="mt-0.5 block text-xs font-normal leading-5 text-muted-foreground">{field.hint}</span>}
+                </dt>
+                <dd className={cn('min-w-0 text-right', field.type === 'textarea' && 'text-left')}>
+                  <FieldControl field={field} value={draft.fields[field.key] ?? null} onChange={(next) => setField(field.key, next)} />
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
 
       {group && (
-        <div className="border-t border-divider px-3.5 py-2">
-          <p className="text-label uppercase tracking-wide text-muted-foreground">{group.label}</p>
+        <section className="border-t border-rule/40 px-4 py-3.5" aria-labelledby="request-lines-heading">
+          <div className="flex items-baseline justify-between gap-3">
+            <h4 id="request-lines-heading" className="text-label font-semibold uppercase tracking-label text-muted-foreground">
+              {group.label}
+            </h4>
+            <span className="text-label text-muted-foreground">
+              {draft.lines.length} of {group.maxLines}
+            </span>
+          </div>
           {draft.lines.length === 0 ? (
-            <p className="py-2 text-xs text-muted-foreground">{group.emptyLabel}</p>
+            <p className="mt-2 rounded-md border border-dashed border-rule/60 px-3 py-4 text-center text-xs leading-5 text-muted-foreground">
+              {group.emptyLabel}
+            </p>
           ) : (
-            <ul className="mt-1 divide-y divide-divider">
+            <ul className="mt-2 divide-y divide-rule/40 overflow-hidden rounded-md border border-rule/50 bg-background/55">
               {draft.lines.map((line) => (
-                <li key={line.id} className="flex items-center gap-2 py-2">
+                <li key={line.id} className="flex items-center gap-2.5 px-3 py-2.5">
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-foreground">{lineTitle(line.id)}</span>
+                    <span className="block truncate text-sm font-medium text-foreground">{lineTitle(line.id)}</span>
                     {lineSubtitle(line.id) && (
-                      <span className="block truncate text-label text-muted-foreground">{lineSubtitle(line.id)}</span>
+                      <span className="mt-0.5 block truncate text-label text-muted-foreground">{lineSubtitle(line.id)}</span>
                     )}
                   </span>
                   <span className="flex shrink-0 items-center gap-1">
@@ -271,9 +306,9 @@ export function ActionCard({
                     type="button"
                     onClick={() => setDraft((current) => ({ ...current, lines: current.lines.filter((row) => row.id !== line.id) }))}
                     aria-label={`Remove ${lineTitle(line.id)}`}
-                    className="shrink-0 rounded-sm p-1 text-muted-foreground transition-colors hover:bg-exception/10 hover:text-exception focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-exception/8 hover:text-exception focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                   >
-                    <Trash2 size={13} aria-hidden="true" />
+                    <Trash2 size={14} aria-hidden="true" />
                   </button>
                 </li>
               ))}
@@ -281,7 +316,7 @@ export function ActionCard({
           )}
 
           {draft.lines.length < group.maxLines && addOptions.length > 0 && (
-            <div className="pb-1 pt-1.5">
+            <div className="pt-2.5">
               {adding ? (
                 <InlineChoice
                   value=""
@@ -295,7 +330,7 @@ export function ActionCard({
                 <button
                   type="button"
                   onClick={() => setAdding(true)}
-                  className="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-1 text-xs font-semibold text-measured transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rule bg-field px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   <Plus size={12} aria-hidden="true" />
                   {group.addLabel}
@@ -303,27 +338,40 @@ export function ActionCard({
               )}
             </div>
           )}
-        </div>
+        </section>
       )}
 
-      <footer className="border-t border-divider px-3.5 py-3">
-        <p className="flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
-          {critical && <TriangleAlert size={13} className="mt-0.5 shrink-0 text-exception" aria-hidden="true" />}
-          <span>{action.note}</span>
-        </p>
+      <footer className="border-t border-rule/40 bg-background/45 px-4 py-3.5">
+        <div className="flex items-start gap-2.5">
+          <span
+            className={cn(
+              'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-sm',
+              critical ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary',
+            )}
+          >
+            {critical ? <TriangleAlert size={13} aria-hidden="true" /> : <ShieldCheck size={13} aria-hidden="true" />}
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-foreground">Check before DUMA makes this change</p>
+            <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{action.note}</p>
+          </div>
+        </div>
         {blocked && (
-          <p className="mt-2 text-xs text-exception" role="status">
-            {tooFewLines ? `Add at least ${group?.minLines} item to continue.` : `${missing?.label} still needs a value.`}
-          </p>
+          <div className="mt-3 flex items-start gap-2 rounded-md border border-exception/25 bg-exception/5 px-3 py-2 text-xs text-exception" role="status">
+            <TriangleAlert size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span>{tooFewLines ? `Add at least ${group?.minLines} item to continue.` : `${missing?.label} still needs a value.`}</span>
+          </div>
         )}
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <span className="text-label text-muted-foreground">{pristine ? 'As DUMA proposed it' : 'Edited by you'}</span>
-          <span className="flex gap-2">
-            <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
-              Cancel
+        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-rule/40 pt-3.5">
+          <span className="max-w-44 text-label leading-4 text-muted-foreground">
+            {pristine ? 'Nothing changes until you confirm.' : 'Your edits will be used when you confirm.'}
+          </span>
+          <span className="ml-auto flex gap-2">
+            <Button size="default" variant="outline" onClick={onCancel} disabled={busy}>
+              Not now
             </Button>
             <Button
-              size="sm"
+              size="default"
               variant={critical ? 'destructive' : 'default'}
               disabled={busy || blocked}
               onClick={() =>
@@ -331,11 +379,11 @@ export function ActionCard({
               }
             >
               {busy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
-              {action.confirmLabel}
+              {busy ? 'Working…' : action.confirmLabel}
             </Button>
           </span>
         </div>
       </footer>
-    </section>
+    </motion.section>
   );
 }

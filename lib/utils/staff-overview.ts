@@ -12,7 +12,7 @@
 // ---------------------------------------------------------------------------
 import type { StaffProfile } from '@/lib/modules/identity/client';
 import type { HrEmployee } from '@/lib/modules/people/client';
-import type { PayrollRun } from '@/lib/modules/people/client';
+import type { PayrollRun } from '@/lib/modules/payroll/client';
 import type { HelpdeskTicket, LeaveRequest } from '@/lib/modules/people/client';
 import type { ScheduledShift, VarianceRow } from '@/lib/modules/workforce/client';
 import type { ComplianceCheck } from '@/lib/utils/employee-compliance';
@@ -52,8 +52,13 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
  */
 const DOCUMENT_DERIVED = ['right-to-work', 'contract'];
 
-export function coreSetupChecks(member: StaffProfile | null, employee: HrEmployee | null, asOf: Date): ComplianceCheck[] {
-  return employeeSetupChecks(member, employee, [], asOf).filter((check) => !DOCUMENT_DERIVED.includes(check.id));
+export function coreSetupChecks(
+  member: StaffProfile | null,
+  employee: HrEmployee | null,
+  asOf: Date,
+  country: string | null = null,
+): ComplianceCheck[] {
+  return employeeSetupChecks(member, employee, [], asOf, country).filter((check) => !DOCUMENT_DERIVED.includes(check.id));
 }
 
 export interface TeamRecordState {
@@ -74,7 +79,13 @@ export interface TeamRecordState {
  * not a thing anyone needs to act on, and counting them would make the figure
  * grow forever.
  */
-export function teamRecordState(staff: StaffProfile[], employees: HrEmployee[], asOf: Date): TeamRecordState {
+export function teamRecordState(
+  staff: StaffProfile[],
+  employees: HrEmployee[],
+  asOf: Date,
+  /** Payroll country — the UK wage rule applies only in the UK (or when unset). */
+  country: string | null = null,
+): TeamRecordState {
   const byUserId = new Map(employees.map((employee) => [employee.userId, employee]));
   const active = staff.filter((member) => member.isActive);
 
@@ -86,7 +97,7 @@ export function teamRecordState(staff: StaffProfile[], employees: HrEmployee[], 
 
   for (const member of active) {
     const employee = byUserId.get(member.userId) ?? null;
-    const checks = coreSetupChecks(member, employee, asOf);
+    const checks = coreSetupChecks(member, employee, asOf, country);
     total += checks.length;
     completed += checks.filter((check) => check.complete).length;
 
@@ -97,7 +108,7 @@ export function teamRecordState(staff: StaffProfile[], employees: HrEmployee[], 
     // Read straight from the rate rather than inferring it from the check's
     // tone: this one is a legal exposure, and it should not depend on how a
     // shared helper happens to colour a row.
-    const wage = employee?.payType === 'hourly' ? ageBasedMinimumWage(employee.dateOfBirth, asOf) : null;
+    const wage = employee?.payType === 'hourly' ? ageBasedMinimumWage(employee.dateOfBirth, asOf, country) : null;
     if (wage && Number(employee?.hourlyRate ?? 0) > 0 && Number(employee?.hourlyRate ?? 0) < wage.rate) {
       belowMinimumWage.push(member);
     }
@@ -144,13 +155,9 @@ export const noShows = (variance: VarianceRow[]) => variance.filter((row) => row
  */
 export const awaitingIssue = (runs: PayrollRun[]) => runs.filter((run) => run.status === 'finalised');
 
-/** Lines on those runs still missing tax, National Insurance or net pay. */
+/** Lines on those runs whose deductions and net pay nobody has entered yet. */
 export function linesAwaitingDeductions(runs: PayrollRun[]): number {
-  return awaitingIssue(runs).reduce(
-    (total, run) =>
-      total + run.lines.filter((line) => line.taxDeducted === null || line.nationalInsurance === null || line.netPay === null).length,
-    0,
-  );
+  return awaitingIssue(runs).reduce((total, run) => total + run.lines.filter((line) => line.netPay === null).length, 0);
 }
 
 // ── Assembly ─────────────────────────────────────────────────────────────────

@@ -1,52 +1,60 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useMemo, useState } from 'react';
 
+import { PrivacyRequestsPanel } from '@/components/customers/PrivacyRequestsPanel';
 import {
   AlertTriangle,
-  Banknote,
-  Building2,
   CalendarCheck,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Clock,
-  HeartHandshake,
   Info as InfoIcon,
   Mail,
-  MapPin,
-  Phone,
-  Receipt,
-  Shield,
-  Users,
+  Timer,
 } from '@/components/icons';
-import { EMPLOYMENT_CONFIG, SCOPES, fmtDate, fmtMoney, lbl, roleConfig, sel } from '@/components/people/shared';
-import { AttentionList, type AttentionTone } from '@/components/shared/AttentionList';
-import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
+import { usePayrollSettings } from '@/components/payroll/usePayroll';
+import { fmtDate, fmtHours } from '@/components/people/shared';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
+import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { Badge } from '@/components/ui/badge';
+import { Fact } from '@/components/settings/controls';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
 
-import { type StaffProfile, type StaffRole, type StaffScope, type UpdateStaffPayload, updateStaff } from '@/lib/modules/identity/client';
-import { getRoles } from '@/lib/modules/identity/client';
-import type { HelpdeskTicket } from '@/lib/modules/people/client';
-import '@/lib/modules/people/client';
-import { getEmployeeDocuments } from '@/lib/modules/people/client';
+import type { StaffProfile } from '@/lib/modules/identity/client';
+import { getEmployeeDocuments, getEmployeeEntitlements, getEmployeeHours, getManagedTickets } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getScheduledShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
 import { employeeSetupChecks } from '@/lib/utils/employee-compliance';
-import { type RecordAttentionItem, type RecordAttentionSeverity, buildRecordAttention } from '@/lib/utils/employee-record';
-import { toast } from '@/stores/toastStore';
+import {
+  type RecordAttentionItem,
+  type RecordAttentionSeverity,
+  buildRecordAttention,
+  lengthOfService,
+  ticketsForEmployee,
+} from '@/lib/utils/employee-record';
+import { leaveBalance } from '@/lib/utils/my-hr';
+import { formatMoney } from '@/lib/utils/payroll-totals';
 
-import { CARD_PADDED } from './shared';
-import { type Employee, Info } from './shared';
+import { AccessCard, EmploymentPanel, PersonalPanel } from './OverviewPanels';
+import { EmployeeRequestsCard } from './RequestsCard';
+import { type Employee, monthRange } from './shared';
 
 /** The checks that need the document list, and so need `hr.documents:read`. */
 const DOCUMENT_DERIVED = ['right-to-work', 'contract'];
 
-/** Consequence maps onto the shared panel's tones, as it does on My HR. */
-const SEVERITY_TONE: Record<RecordAttentionSeverity, AttentionTone> = {
-  blocking: 'exception',
-  attention: 'measured',
-  info: 'reference',
+/** Consequence as colour — the same tiles the staff overview uses. */
+const SEVERITY_TILE: Record<RecordAttentionSeverity, string> = {
+  blocking: 'bg-exception/8 text-exception',
+  attention: 'bg-measured/10 text-measured',
+  info: 'bg-primary/8 text-primary',
 };
 const SEVERITY_ICON: Record<RecordAttentionSeverity, typeof AlertTriangle> = {
   blocking: AlertTriangle,
@@ -54,22 +62,177 @@ const SEVERITY_ICON: Record<RecordAttentionSeverity, typeof AlertTriangle> = {
   info: InfoIcon,
 };
 
-export function ComplianceSummaryCard({
+const SHIFT_DAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+const SHIFT_TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+export interface OverviewAccess {
+  /** `hr.sensitive:read` — pay, tax code, statutory ID. */
+  money: boolean;
+  documents: boolean;
+  rota: boolean;
+  helpdesk: boolean;
+  privacy: boolean;
+  payroll: boolean;
+  /** `staff:access` — what `PATCH /staff/:userId` checks, and what guards `/settings/roles`. */
+  staffAccess: boolean;
+}
+
+/**
+ * The record's front page, top to bottom: what needs someone, four facts that
+ * say where this person stands, then the reference — employment, personal,
+ * access and what they have asked HR.
+ *
+ * Nothing is said twice. The start date lives in the service tile, pay in the
+ * employment panel, open requests in the requests panel; the tiles that used
+ * to repeat them ("Monthly salary", "Open requests") are gone. There is one
+ * edit for the employment record — the page header's — and Access keeps its
+ * own because it writes a different record (the login, not the employment).
+ */
+export function OverviewSection({
+  userId,
   member,
   employee,
+  locations,
+  access,
+  onEdit,
+  onOpenSection,
+}: {
+  userId: string;
+  member: StaffProfile | null;
+  employee: Employee | null;
+  locations: { id: string; name: string }[];
+  access: OverviewAccess;
+  onEdit: () => void;
+  onOpenSection: (section: 'time' | 'pay') => void;
+}) {
+  const { data: payroll } = usePayrollSettings(access.payroll);
+  const currency = payroll?.currency ?? 'GBP';
+
+  // `/helpdesk/manage` has no userId filter — only status, category and a
+  // search that also matches subject text — so the queue is narrowed here.
+  const ticketsQuery = useQuery({
+    queryKey: moduleQueryKeys.support.key('helpdesk-managed', '', '', ''),
+    queryFn: () => getManagedTickets({}),
+    enabled: access.helpdesk,
+  });
+  const tickets = useMemo(
+    () => (ticketsQuery.data ? ticketsForEmployee(ticketsQuery.data, userId) : undefined),
+    [ticketsQuery.data, userId],
+  );
+
+  const [firstName = '', lastName = ''] = (member?.name ?? '').split(' ');
+  const profileLine = employee ? [employee.jobTitle, employee.department].filter(Boolean).join(' · ') : 'No employment record';
+
+  return (
+    <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
+      {member && (
+        <motion.section variants={SECTION_RISE} aria-label="Needs you">
+          <RecordAttention
+            member={member}
+            employee={employee}
+            country={payroll?.payrollCountry ?? null}
+            tickets={tickets}
+            canReadDocuments={access.documents}
+            onAction={(target) => {
+              if (target === 'edit') return onEdit();
+              if (target === 'documents') return onOpenSection('time');
+              if (target === 'pay') return onOpenSection('pay');
+              // Access and requests are both further down this page.
+              document.getElementById(`record-${target}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+          />
+        </motion.section>
+      )}
+
+      {/* Laid out as a settings tab is — the same body, panels and read-outs —
+          so a person's record and their own Profile read as one product: who
+          they are in the main column, what the login can do and what they have
+          asked for beside it. */}
+      <SettingsTabBody
+        aside={
+          <>
+            {employee && <PersonalPanel employee={employee} email={member?.email} onEdit={access.money ? onEdit : undefined} />}
+            {member && <AccessCard member={member} locations={locations} canEdit={access.staffAccess} canManageRoles={access.staffAccess} />}
+            {access.helpdesk && (
+              <EmployeeRequestsCard
+                tickets={tickets}
+                loading={ticketsQuery.isPending}
+                error={ticketsQuery.isError}
+                onRetry={() => void ticketsQuery.refetch()}
+              />
+            )}
+            {employee && access.privacy && <PrivacyRequestsPanel employeeUserId={userId} tenantId={employee.tenantId} />}
+          </>
+        }
+      >
+        <SettingsSection>
+          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+            <InitialsAvatar
+              firstName={firstName || '?'}
+              lastName={lastName}
+              email={member?.email}
+              className="size-24 shrink-0 rounded-xl text-3xl shadow-sm"
+            />
+            <div className="min-w-0">
+              <p className="truncate text-2xl font-semibold tracking-headline text-foreground">{member?.name ?? employee?.jobTitle ?? 'Employee'}</p>
+              <p className="mt-1 truncate text-sm text-muted-foreground">{profileLine}</p>
+              {member && (
+                <p className="mt-1.5 flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground sm:justify-start">
+                  <Mail size={15} aria-hidden="true" />
+                  <span className="truncate">{member.email}</span>
+                  <Badge variant={member.isActive ? 'success' : 'muted'}>{member.isActive ? 'Active' : 'Can’t sign in'}</Badge>
+                </p>
+              )}
+            </div>
+          </div>
+          {employee && (
+            <div className="mt-6">
+              <GlanceFacts userId={userId} employee={employee} access={access} currency={currency} onOpenSection={onOpenSection} />
+            </div>
+          )}
+        </SettingsSection>
+
+        {employee ? (
+          <EmploymentPanel userId={userId} employee={employee} canSeePay={access.money} currency={currency} country={payroll?.payrollCountry ?? null} />
+        ) : (
+          <SettingsSection title="Account only">
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              This login has no linked employment record. Don’t schedule or pay this person until onboarding is complete.
+            </p>
+          </SettingsSection>
+        )}
+      </SettingsTabBody>
+    </motion.div>
+  );
+}
+
+// ── Needs you ────────────────────────────────────────────────────────────────
+
+/**
+ * Folded by default to one line that says how much and what. Opened, the
+ * outstanding checks come first and the completed ones follow as a single
+ * line of ticks — during onboarding the checklist is a form being completed,
+ * so what is already done stays visible, but it never takes a row each.
+ */
+function RecordAttention({
+  member,
+  employee,
+  country,
   tickets,
   canReadDocuments,
   onAction,
 }: {
   member: StaffProfile;
   employee: Employee | null;
+  country: string | null;
   /** Already narrowed to this employee; `undefined` when not fetched. */
-  tickets?: HelpdeskTicket[];
+  tickets?: Parameters<typeof buildRecordAttention>[0]['tickets'];
   canReadDocuments: boolean;
   onAction: (target: RecordAttentionItem['target']) => void;
 }) {
+  const reduceMotion = useReducedMotion();
   const [asOf] = useState(() => new Date());
-  const [showAll, setShowAll] = useState(false);
+  const [open, setOpen] = useState(false);
 
   // Right-to-work and contract are derived from documents, so without the
   // capability those two would report "missing" when the truth is that they
@@ -80,285 +243,248 @@ export function ComplianceSummaryCard({
     enabled: canReadDocuments,
   });
 
-  const checks = employeeSetupChecks(member, employee, documentsQuery.data ?? [], asOf).filter(
+  const checks = employeeSetupChecks(member, employee, documentsQuery.data ?? [], asOf, country).filter(
     (check) => canReadDocuments || !DOCUMENT_DERIVED.includes(check.id),
   );
   const items = buildRecordAttention({ now: asOf, checks, tickets });
+  const done = checks.filter((check) => check.complete);
+  const worst: RecordAttentionSeverity = items.some((item) => item.severity === 'blocking')
+    ? 'blocking'
+    : items.some((item) => item.severity === 'attention')
+      ? 'attention'
+      : 'info';
 
-  return (
-    <div className="space-y-3">
-      <AttentionList
-        items={items.map((item) => ({
-          key: item.id,
-          tone: SEVERITY_TONE[item.severity],
-          icon: SEVERITY_ICON[item.severity],
-          label: item.title,
-          detail: item.detail,
-          actionLabel: item.actionLabel,
-          onSelect: () => onAction(item.target),
-        }))}
-        loading={canReadDocuments && documentsQuery.isPending}
-        error={canReadDocuments && documentsQuery.isError}
-        onRetry={() => void documentsQuery.refetch()}
-        clearTitle="This record is complete"
-        clearDescription="Every check is done and nothing is waiting on a reply."
-        errorTitle="The record checks could not be run"
-        errorDescription="Documents did not load, so right-to-work and contract status are unknown."
-      />
+  if (canReadDocuments && documentsQuery.isPending) return <div className="h-16 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />;
 
-      {/* The full checklist stays reachable — during onboarding it is a form
-          being completed, not only an exception feed — but it no longer spends
-          the top of the page on six green badges. */}
-      <details open={showAll} onToggle={(event) => setShowAll((event.currentTarget as HTMLDetailsElement).open)}>
-        <summary className="cursor-pointer list-none text-xs font-semibold text-muted-foreground hover:text-foreground">
-          {showAll ? 'Hide' : 'Show'} all {checks.length} employment checks
-        </summary>
-        <div className="mt-2 grid gap-px overflow-hidden rounded-sm border border-rule bg-rule md:grid-cols-2 xl:grid-cols-3">
-          {checks.map((check) => (
-            <div key={check.id} className="bg-card p-4">
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-sm font-semibold">{check.label}</p>
-                <Badge variant={check.tone}>{check.complete ? 'Ready' : check.tone === 'destructive' ? 'Urgent' : 'Action'}</Badge>
-              </div>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{check.detail}</p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-2 text-label text-muted-foreground">
-          Operational checks only — pension assessment and HMRC starter declarations still need completing in payroll.
-        </p>
-      </details>
-    </div>
-  );
-}
-
-export function EmploymentTab({ emp, canSeePay }: { emp: Employee; canSeePay: boolean }) {
-  const pay =
-    emp.payType === 'hourly'
-      ? emp.hourlyRate
-        ? `${fmtMoney(emp.hourlyRate)} / hour`
-        : undefined
-      : emp.annualSalary
-        ? `${fmtMoney(emp.annualSalary)} / year`
-        : undefined;
-
-  return (
-    <DetailCard title="Employment">
-      <InfoRow icon={Building2} label="Job title" value={emp.jobTitle} />
-      <InfoRow icon={Users} label="Department" value={emp.department} missingLabel="Not assigned" />
-      <InfoRow icon={Clock} label="Employment type" value={EMPLOYMENT_CONFIG[emp.employmentType]?.label} />
-      <InfoRow icon={CalendarCheck} label="Started" value={emp.startDate ? fmtDate(emp.startDate) : undefined} />
-      {canSeePay && (
-        <>
-          <InfoRow icon={Banknote} label="Pay" value={pay} missingLabel="No rate set" />
-          <InfoRow icon={Receipt} label="Tax code" value={emp.taxCode ?? undefined} missingLabel="Set by payroll" />
-          <InfoRow
-            icon={Shield}
-            label="National Insurance"
-            // Only whether one is held. Revealing the number is a separate,
-            // audited request.
-            value={emp.hasNiNumber ? 'Held' : undefined}
-            missingLabel="Missing"
-          />
-        </>
-      )}
-    </DetailCard>
-  );
-}
-
-export function AccessCard({
-  member,
-  locations,
-  canEdit,
-}: {
-  member: StaffProfile;
-  locations: { id: string; name: string }[];
-  canEdit: boolean;
-}) {
-  const qc = useQueryClient();
-  const { data: roleCatalog } = useQuery({
-    queryKey: moduleQueryKeys.identity.key('roles', member.tenantId),
-    queryFn: () => getRoles(member.tenantId),
-  });
-  const [edit, setEdit] = useState(false);
-  const [role, setRole] = useState<StaffRole>(member.role);
-  const [scope, setScope] = useState<StaffScope>(member.scope);
-  const [isActive, setIsActive] = useState(member.isActive);
-  const [locs, setLocs] = useState<string[]>(member.locationIds ?? []);
-  const toggleLoc = (id: string) => setLocs((prev) => (prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]));
-
-  const save = useMutation({
-    mutationFn: () => {
-      const payload: UpdateStaffPayload = { role, scope, isActive };
-      if (scope === 'location') payload.locationIds = locs;
-      return updateStaff(member.userId, payload);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('staff') });
-      setEdit(false);
-      toast('success', 'Access updated.');
-    },
-    onError: (err) => toast('error', (err as Error).message || 'Access wasn’t updated. Review the role and locations, then try again.'),
-  });
-
-  const locNames = (member.locationIds ?? []).map((id) => locations.find((l) => l.id === id)?.name ?? id);
-  const appearance = roleConfig(member.role, roleCatalog?.roles.find((entry) => entry.key === member.role)?.name);
-
-  if (edit) {
+  if (canReadDocuments && documentsQuery.isError)
     return (
-      <div className={`${CARD_PADDED} space-y-4`}>
-        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Access & Role</p>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className={lbl}>Role</label>
-            <Select
-              className={sel}
-              value={role}
-              onValueChange={(value) => setRole(value as StaffRole)}
-              options={(roleCatalog?.roles ?? []).map((nextRole) => ({ value: nextRole.key, label: nextRole.name }))}
-              ariaLabel="Role"
-            />
-          </div>
-          <div>
-            <label className={lbl}>Scope</label>
-            <Select
-              className={sel}
-              value={scope}
-              onValueChange={(value) => setScope(value as StaffScope)}
-              options={SCOPES.map((nextScope) => ({ value: nextScope, label: nextScope[0].toUpperCase() + nextScope.slice(1) }))}
-              ariaLabel="Scope"
-            />
-          </div>
-        </div>
-        {scope === 'location' && locations.length > 0 && (
-          <div>
-            <label className={lbl}>Assigned locations</label>
-            <div className="flex flex-wrap gap-1.5">
-              {locations.map((l) => (
-                <button
-                  key={l.id}
-                  type="button"
-                  onClick={() => toggleLoc(l.id)}
-                  className={cn(
-                    'px-3 h-9 rounded-sm border text-xs font-medium transition-colors',
-                    locs.includes(l.id) ? 'border-primary bg-band text-primary' : 'border-rule text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {l.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        <label className="flex items-center gap-2.5 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            className="w-4 h-4 rounded accent-primary"
-          />
-          <span className="text-sm text-foreground">Account active (can sign in)</span>
-        </label>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEdit(false)} className="flex-1">
-            Cancel
-          </Button>
-          <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1">
-            {save.isPending ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3" role="alert">
+        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', SEVERITY_TILE.blocking)}>
+          <AlertTriangle size={18} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-foreground">The record checks couldn’t run</span>
+          <span className="block text-xs text-muted-foreground">Documents didn’t load, so right-to-work and contract status are unknown.</span>
+        </span>
+        <Button variant="outline" size="sm" onClick={() => void documentsQuery.refetch()}>
+          Try again
+        </Button>
       </div>
     );
-  }
+
+  if (items.length === 0)
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-momentum/10 text-momentum">
+          <CheckCircle2 size={18} aria-hidden="true" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-foreground">This record is complete</span>
+          <span className="block text-xs text-muted-foreground">
+            All {checks.length} employment checks are done and nothing is waiting on a reply.
+          </span>
+        </span>
+      </div>
+    );
 
   return (
-    <div className={CARD_PADDED}>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Access & Role</p>
-        {canEdit && (
-          <Button variant="outline" size="sm" onClick={() => setEdit(true)}>
-            Edit
-          </Button>
-        )}
-      </div>
-      <dl className="grid sm:grid-cols-2 gap-4 text-sm">
-        <div>
-          <dt className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Role</dt>
-          <dd className="mt-1">
-            <span
-              className={cn(
-                'inline-flex items-center px-2 py-0.5 rounded text-micro font-semibold uppercase tracking-micro',
-                appearance.bg,
-                appearance.text,
-              )}
-            >
-              {appearance.label}
+    <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+      >
+        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', SEVERITY_TILE[worst])}>
+          <AlertTriangle size={18} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-foreground">
+            {items.length} {items.length === 1 ? 'thing needs' : 'things need'} you
+            <span className="ml-2 font-normal text-muted-foreground">
+              · {done.length} of {checks.length} checks done
             </span>
-          </dd>
-        </div>
-        <Info label="Scope" value={member.scope[0].toUpperCase() + member.scope.slice(1)} />
-        <Info
-          label="Locations"
-          value={member.scope === 'location' ? (locNames.length ? locNames.join(', ') : 'None assigned') : 'All in workspace'}
+          </span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{items.map((item) => item.title).join(' · ')}</span>
+        </span>
+        <span className="shrink-0 text-xs font-semibold text-muted-foreground">{open ? 'Hide' : 'Show'}</span>
+        <ChevronDown
+          size={15}
+          aria-hidden="true"
+          className={cn('shrink-0 text-muted-foreground transition-transform duration-200', open && 'rotate-180')}
         />
-        <div>
-          <dt className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Account</dt>
-          <dd className="mt-1">
-            <Badge variant={member.isActive ? 'success' : 'muted'}>{member.isActive ? 'Active' : 'Inactive'}</Badge>
-          </dd>
-        </div>
-      </dl>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden border-t border-rule/50"
+          >
+            <ul className="space-y-2 p-2">
+              {items.map((item) => {
+                const Icon = SEVERITY_ICON[item.severity];
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => onAction(item.target)}
+                      className={cn(
+                        'group flex w-full items-center gap-3 rounded-lg border bg-background/60 px-3.5 py-3 text-left transition-colors hover:bg-band/40',
+                        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                        item.severity === 'blocking' ? 'border-exception/35' : 'border-rule/60',
+                      )}
+                    >
+                      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', SEVERITY_TILE[item.severity])}>
+                        <Icon size={18} aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-foreground">{item.title}</span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{item.detail}</span>
+                      </span>
+                      <span className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-foreground sm:flex">
+                        {item.actionLabel}
+                        <ChevronRight
+                          size={14}
+                          className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                          aria-hidden="true"
+                        />
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {done.length > 0 && (
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-rule/45 px-4 py-2.5 text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">Done</span>
+                {done.map((check) => (
+                  <span key={check.id} className="inline-flex items-center gap-1">
+                    <CheckCircle2 size={13} className="text-momentum" aria-hidden="true" />
+                    {check.label}
+                  </span>
+                ))}
+              </p>
+            )}
+            <p className="border-t border-rule/45 px-4 py-2.5 text-xs leading-relaxed text-muted-foreground">
+              Operational checks only — tax registration, pension enrolment and starter paperwork are still done in payroll.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-// ── Personal (view + inline edit for HR/owner) ────────────────────────────────
+// ── At a glance ──────────────────────────────────────────────────────────────
 
-export function PersonalTab({ emp, email }: { emp: Employee; email?: string }) {
-  return (
-    <DetailCard title="Personal details">
-      <InfoRow icon={Mail} label="Email" value={email} copyable missingLabel="No account email" />
-      <InfoRow icon={CalendarCheck} label="Date of birth" value={emp.dateOfBirth ? fmtDate(emp.dateOfBirth) : undefined} />
-      <InfoRow icon={MapPin} label="Home address" value={emp.address} />
-      <InfoRow
-        icon={HeartHandshake}
-        label="Emergency contact"
-        value={emp.emergencyContactName}
-        hint={emp.emergencyContactRelation ?? undefined}
-        missingLabel="None recorded"
-      />
-      <InfoRow icon={Phone} label="Emergency phone" value={emp.emergencyContactPhone} copyable missingLabel="None recorded" />
-    </DetailCard>
-  );
-}
-
-/** The record's card shell — the same shape My HR's Overview uses. */
-export function DetailCard({
-  title,
-  description,
-  action,
-  className,
-  children,
+function GlanceFacts({
+  userId,
+  employee,
+  access,
+  currency,
+  onOpenSection,
 }: {
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-  /** `mb-4` and `break-inside-avoid` serve the `columns-*` flow on Overview. A
-   *  caller laying these out in a `gap-*` grid should pass `mb-0`, or the gap
-   *  and the margin stack. */
-  className?: string;
-  children: React.ReactNode;
+  userId: string;
+  employee: Employee;
+  access: OverviewAccess;
+  currency: string;
+  onOpenSection: (section: 'time' | 'pay') => void;
 }) {
+  // Fixed once per mount: reading the clock during render is impure, and a
+  // date that moves every render would churn the query keys with it.
+  const [{ now, today, horizon, month }] = useState(() => {
+    const at = new Date();
+    return {
+      now: at,
+      today: at.toISOString().slice(0, 10),
+      horizon: new Date(at.getTime() + 28 * 86_400_000).toISOString().slice(0, 10),
+      month: monthRange(0),
+    };
+  });
+
+  // Same keys as the Time tab's cards, deliberately: keys here are hand-written
+  // literals, so a second spelling would be a second network call that the
+  // mutations on that tab then fail to invalidate.
+  const year = now.getFullYear();
+  const entitlementsQuery = useQuery({
+    queryKey: moduleQueryKeys.people.key('employee-entitlements', userId, year),
+    queryFn: () => getEmployeeEntitlements(userId, year),
+  });
+  const hoursQuery = useQuery({
+    queryKey: moduleQueryKeys.people.key('employee-hours', userId, month.from, month.to),
+    queryFn: () => getEmployeeHours(userId, month.from, month.to),
+  });
+  const rotaQuery = useQuery({
+    queryKey: moduleQueryKeys.workforce.key('scheduled-shifts', userId, today, horizon),
+    queryFn: () => getScheduledShifts({ userId, from: today, to: horizon }),
+    enabled: access.rota,
+  });
+
+  const leave = leaveBalance(entitlementsQuery.data ?? []);
+  const nextShift = [...(rotaQuery.data ?? [])].sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
+  const rawHours = hoursQuery.data?.totals.rawHours ?? 0;
+  const service = employee.startDate ? lengthOfService(employee.startDate, now) : null;
+  // Only for hourly pay: a salary is the same every month, and it is already
+  // on the employment panel below.
+  const hourlyValue = access.money && employee.payType === 'hourly' && employee.hourlyRate ? rawHours * Number(employee.hourlyRate) : null;
+
   return (
-    <section className={cn(CARD_PADDED, className)}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
-        </div>
-        {action}
-      </div>
-      <InfoGroup className="mt-3 border-0 bg-transparent px-0 py-0">{children}</InfoGroup>
-    </section>
+    <dl className="grid gap-3 sm:grid-cols-2">
+      <Fact
+        icon={CalendarDays}
+        label="Holiday left"
+        value={
+          entitlementsQuery.isPending ? '…' : entitlementsQuery.isError ? '—' : leave.hasEntitlement ? `${leave.remaining} days` : 'No allowance'
+        }
+        hint={
+          entitlementsQuery.isError
+            ? 'Couldn’t be loaded'
+            : leave.hasEntitlement
+              ? `${leave.used} of ${leave.total} used in ${year}`
+              : 'Set one on Time & leave'
+        }
+        tone={entitlementsQuery.isError ? 'warning' : 'default'}
+        onSelect={() => onOpenSection('time')}
+      />
+      {access.rota && (
+        <Fact
+            icon={CalendarClock}
+          label="Next shift"
+          value={rotaQuery.isPending ? '…' : rotaQuery.isError ? '—' : nextShift ? SHIFT_DAY.format(new Date(nextShift.startsAt)) : 'None planned'}
+          hint={
+            rotaQuery.isError
+              ? 'Couldn’t be loaded'
+              : nextShift
+                ? `${SHIFT_TIME.format(new Date(nextShift.startsAt))}–${SHIFT_TIME.format(new Date(nextShift.endsAt))}${nextShift.location?.name ? ` · ${nextShift.location.name}` : ''}`
+                : 'Nothing in the next four weeks'
+          }
+          tone={rotaQuery.isError ? 'warning' : 'default'}
+          href="/staff/rota"
+        />
+      )}
+      <Fact
+        icon={Timer}
+        label={`Clocked · ${month.label.split(' ')[0]}`}
+        value={hoursQuery.isPending ? '…' : hoursQuery.isError ? '—' : fmtHours(rawHours)}
+        hint={
+          hoursQuery.isError
+            ? 'Couldn’t be loaded'
+            : hourlyValue !== null
+              ? `≈ ${formatMoney(hourlyValue, currency)} before deductions`
+              : `${hoursQuery.data?.totals.shiftCount ?? 0} shifts`
+        }
+        tone={hoursQuery.isError ? 'warning' : 'default'}
+        onSelect={() => onOpenSection('time')}
+      />
+      <Fact
+        icon={CalendarCheck}
+        label="With you"
+        value={service ?? (employee.startDate ? `Starts ${fmtDate(employee.startDate)}` : 'No start date')}
+        hint={service && employee.startDate ? `Since ${fmtDate(employee.startDate)}` : undefined}
+      />
+    </dl>
   );
 }

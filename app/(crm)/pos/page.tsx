@@ -1,67 +1,73 @@
 'use client';
 
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
-import { Building2, Clock, CloudUpload, LogIn, MapPin, Monitor, WifiOff } from '@/components/icons';
+import { CashUpButton, CashUpDrawer, CashUpNudge, useCashUpDay } from '@/components/cash-up/TillCashUp';
+import { AlertTriangle, Building2, Clock, CloudUpload, MapPin, Monitor, WifiOff } from '@/components/icons';
 import { PageSidebar } from '@/components/layout/PageSidebar';
 import { CartBar } from '@/components/pos/CartBar';
 import { CheckoutFlow, type CheckoutStep } from '@/components/pos/CheckoutFlow';
 import { MenuGrid } from '@/components/pos/MenuGrid';
 import { OrderPanel } from '@/components/pos/OrderPanel';
+import { TillMenu } from '@/components/pos/TillMenu';
+import { MENU_STALE_MS, pence, useTillMenuData } from '@/components/pos/useTillMenuData';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Toast, type ToastMessage } from '@/components/shared/Toast';
+import { SlideToClockIn } from '@/components/shifts/SlideToClockIn';
 import { Button } from '@/components/ui/button';
 
-import { getMenuCategories, getMenuItemModifiers, getMenuItems } from '@/lib/modules/catalog/client';
-import { API_PREFIX, ApiError } from '@/lib/modules/core/client';
-import { getCustomer } from '@/lib/modules/customers/client';
-import { type CreateOrderPayload, createOrder } from '@/lib/modules/ordering/client';
-import { getTradingSettings } from '@/lib/modules/organization/client';
+import { getMenuItemModifierGroups, getMenuItemModifiers } from '@/lib/modules/catalog/client';
+import { API_PREFIX } from '@/lib/modules/core/client';
+import { getCustomer, getCustomerLoyaltyWallet } from '@/lib/modules/customers/client';
+import { type CreateOrderPayload, createOrder, updateOrderStatus } from '@/lib/modules/ordering/client';
+import { getLocationsByTenant, getTradingSettings } from '@/lib/modules/organization/client';
 import { type PaymentAttempt, type PaymentMethod, confirmPayment, getPaymentMethods, startPayment } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
 import { formatDateTime } from '@/lib/utils/date';
-import { cartItemTotal, selectionKey } from '@/lib/utils/pos';
+import {
+  type OptionGroupRule, buildOptionGroups, cartSignature, cartTotal, changeDue, countByItem, isUnreachable, lineKey,
+} from '@/lib/utils/pos';
 import { useAuthStore } from '@/stores/authStore';
+import { MAX_HELD, useHeldTicketsStore } from '@/stores/heldTicketsStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
+import { usePosSettingsStore } from '@/stores/posSettingsStore';
+import { useSidebarStore } from '@/stores/sidebarStore';
+import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { Customer } from '@/types/customers';
-import type { MenuItem as ApiMenuItem, AttachedModifier } from '@/types/menu';
-import type { CartItem, Category, MenuItem, MenuOption } from '@/types/pos';
+import type { AttachedModifier } from '@/types/menu';
+import type { AppliedLoyaltyReward, CartItem, MenuItem, MenuOption } from '@/types/pos';
 
 // ── API → POS type mapping ────────────────────────────────────────────────────
 
-function pence(decimal: string): number {
-  return Math.round(Number.parseFloat(decimal) * 100);
-}
-
 const subscribeToClientReady = () => () => undefined;
 
-function toPosItem(api: ApiMenuItem, modifiers: AttachedModifier[], modifiersLoaded: boolean): MenuItem {
-  return {
-    id: api.id,
-    name: api.name,
-    category: api.categoryId,
-    price: pence(api.price),
-    image: api.imageUrl ?? '',
-    modifiersLoaded,
-    modifiers: modifiers
-      .filter((m) => m.isAvailable)
-      .map((m): MenuOption => {
-        return {
-          id: m.id,
-          label: m.label,
-          price: m.priceAdjust ? pence(m.priceAdjust) : 0,
-          category: m.category ?? undefined,
-          isDefault: m.isDefault,
-        };
-      }),
-  };
+const toOption = (m: AttachedModifier): MenuOption & { groupId?: string | null; sortOrder?: number } => ({
+  id: m.id,
+  label: m.label,
+  price: m.priceAdjust ? pence(m.priceAdjust) : 0,
+  category: m.category ?? undefined,
+  isDefault: m.isDefault,
+  groupId: m.groupId ?? null,
+  sortOrder: m.sortOrder,
+});
+
+/**
+ * One charge attempt at one basket. The order is created once per basket and
+ * reused by every retry while the basket is unchanged — `POST /orders` does
+ * not honour its Idempotency-Key (API TD-069), so the key alone can't stop a
+ * second order after a declined card.
+ */
+interface ChargeSession {
+  signature: string;
+  key: string;
+  orderId: string | null;
+  /** A cash attempt started but not yet confirmed — confirm it rather than starting another. */
+  cashAttempt: PaymentAttempt | null;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -72,38 +78,28 @@ export default function POSPage() {
   // Hold the till behind one neutral frame until React has attached so a hard
   // refresh cannot compare the server defaults with already-restored browser
   // state and discard the server-rendered POS tree during hydration.
-  const clientReady = useSyncExternalStore(
-    subscribeToClientReady,
-    () => true,
-    () => false,
-  );
+  const clientReady = useSyncExternalStore(subscribeToClientReady, () => true, () => false);
   const { tenantId, locationId } = useWorkspaceStore();
   const userId = useAuthStore((state) => state.user?.id);
-  const [activeCategory, setActiveCategory] = useState<Category>('all');
+
+  const layout = usePosSettingsStore();
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-  const [pending, setPending] = useState<MenuOption[]>([]);
+  const [customising, setCustomising] = useState<{ item: MenuItem; groups: OptionGroupRule[] | null } | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [loyaltyRewards, setLoyaltyRewards] = useState<AppliedLoyaltyReward[]>([]);
   const [notes, setNotes] = useState('');
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const [removed, setRemoved] = useState<{ line: CartItem; index: number } | null>(null);
 
-  // Full-screen checkout flow. Total and customer email are snapshotted when it
-  // opens — the cart and customer are cleared as soon as the order succeeds.
+  // Checkout. The ticket is snapshotted when it opens — the live cart clears as soon as the sale is recorded.
   const [checkout, setCheckout] = useState<CheckoutStep | 'closed'>('closed');
-  const [checkoutTotal, setCheckoutTotal] = useState(0);
-  const [checkoutEmail, setCheckoutEmail] = useState<string | undefined>();
-  const [checkoutQueued, setCheckoutQueued] = useState(false);
-  const [checkoutOrderId, setCheckoutOrderId] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState<{ lines: CartItem[]; total: number; customerName?: string; loyaltyReward?: { label: string; discountCents: number } }>({ lines: [], total: 0 });
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [paymentAttempt, setPaymentAttempt] = useState<PaymentAttempt | null>(null);
-  const [paymentLabel, setPaymentLabel] = useState('');
-  const [offlinePayment, setOfflinePayment] = useState<{ method: PaymentMethod; idempotencyKey: string } | null>(null);
-
-  function addToast(type: ToastMessage['type'], message: string) {
-    setToasts((prev) => [...prev, { id: Date.now(), type, message }]);
-  }
-  function dismissToast(id: number) {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [offlinePayment, setOfflinePayment] = useState<PaymentMethod | null>(null);
+  const [done, setDone] = useState<{ orderId: string | null; queued: boolean; change: number }>({ orderId: null, queued: false, change: 0 });
+  const session = useRef<ChargeSession | null>(null);
 
   // Deep link: /pos?customer=<id> (e.g. from a customer's profile) opens the
   // POS with that customer already attached to the order.
@@ -113,205 +109,119 @@ export default function POSPage() {
     getCustomer(id)
       .then((c) => {
         setSelectedCustomer(c);
-        addToast('success', `${c.firstName} ${c.lastName} attached to this order.`);
+        toast('success', `${c.firstName} ${c.lastName} added to this ticket.`);
       })
-      .catch(() => addToast('error', 'The linked customer couldn’t load. Search for them again.'));
+      .catch(() => toast('error', 'The linked customer couldn’t load. Search for them again.'));
   }, []);
 
-  // The POS is locked until the signed-in staff member is clocked in.
-  const { data: myShifts = [], isLoading: shiftsLoading } = useQuery({
+  // A till needs its width for the menu: fold the app navigation to its icon rail
+  // while selling, and put it back as it was on the way out.
+  useEffect(() => {
+    const wasCollapsed = useSidebarStore.getState().collapsed;
+    if (!wasCollapsed) useSidebarStore.setState({ collapsed: true });
+    return () => {
+      if (!wasCollapsed) useSidebarStore.setState({ collapsed: false });
+    };
+  }, []);
+
+  // A shared counter tablet: the next person to sign in starts with an empty ticket, not the last cashier's.
+  const [ticketOwner, setTicketOwner] = useState(userId);
+  if (ticketOwner !== userId) {
+    setTicketOwner(userId);
+    setCart([]);
+    setSelectedCustomer(null);
+    setLoyaltyRewards([]);
+    setNotes('');
+    setCustomising(null);
+  }
+
+  // The removed-line Undo lasts five seconds.
+  useEffect(() => {
+    if (!removed) return;
+    const timer = window.setTimeout(() => setRemoved(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [removed]);
+  useEffect(() => {
+    if (!flashId) return;
+    const timer = window.setTimeout(() => setFlashId(null), 700);
+    return () => window.clearTimeout(timer);
+  }, [flashId]);
+
+  // ── Shift gate ──
+  const shifts = useQuery({
     queryKey: moduleQueryKeys.workforce.key('shifts-my'),
     queryFn: getMyShifts,
     enabled: !!tenantId && !!locationId,
   });
-  const onShift = myShifts.some((s) => !s.clockedOut);
+  const onShift = (shifts.data ?? []).some((s) => !s.clockedOut);
 
-  const { mutate: doClockIn, isPending: clockingIn } = useMutation({
+  const { mutateAsync: doClockIn, isPending: clockingIn } = useMutation({
     mutationFn: () => clockIn({ locationId: locationId! }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts-my') });
-      addToast('success', 'Clocked in — the POS is unlocked.');
+      toast('success', 'Clocked in — the till is unlocked.');
     },
-    onError: (err) => addToast('error', (err as Error).message || 'You weren’t clocked in. Try again before taking orders.'),
+    onError: (err) => toast('error', (err as Error).message || 'You weren’t clocked in. Try again before taking orders.'),
   });
 
-  // The menu changes rarely — keep it fresh for 5 minutes to avoid refetch storms.
-  const MENU_STALE_MS = 5 * 60_000;
-  const { data: apiItems = [], isLoading: itemsLoading } = useQuery({
-    queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId),
-    queryFn: () => getMenuItems(tenantId ?? undefined),
+  // ── Menu ──
+  const { menu, items: posItems, categories, favourites, favouritesLabel, stockStatus } = useTillMenuData({
+    tenantId,
+    locationId,
+    layout,
+    pinned: tenantId ? layout.pinned[tenantId] : undefined,
+  });
+  const { data: locations = [] } = useQuery({
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
+    queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
-    staleTime: MENU_STALE_MS,
   });
-  const { data: menuCategories = [] } = useQuery({
-    queryKey: moduleQueryKeys.catalog.key('menu-categories', tenantId),
-    queryFn: () => getMenuCategories(tenantId ?? undefined),
-    enabled: Boolean(tenantId),
-    staleTime: MENU_STALE_MS,
+  const location = locations.find((entry) => entry.id === locationId);
+  const locationName = location?.name;
+  // Opening and closing the trading day lives here, at the drawer it counts.
+  // `/cash-up` lands with `?cashup` to open it straight away.
+  const cashUpDay = useCashUpDay(locationId, location?.timezone ?? 'Europe/London');
+  const [cashUpOpen, setCashUpOpen] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('cashup'));
+  const closeCashUp = () => {
+    setCashUpOpen(false);
+    if (window.location.search.includes('cashup')) window.history.replaceState(null, '', window.location.pathname);
+  };
+  const loyaltyWallet = useQuery({
+    queryKey: moduleQueryKeys.customers.key('loyalty-wallet', selectedCustomer?.id, locationId),
+    queryFn: () => getCustomerLoyaltyWallet(selectedCustomer!.id, locationId ?? undefined),
+    enabled: Boolean(selectedCustomer && locationId),
   });
-  const categoryOptions: { value: Category; label: string }[] = [
-    { value: 'all', label: 'All' },
-    ...menuCategories.filter((category) => category.isActive).map((category) => ({ value: category.id, label: category.name })),
-  ];
-
-  // Load modifiers on demand instead of firing one request for every menu item
-  // at POS startup. Results remain cached, so repeat taps are immediate.
-  const modifierQueries = useQueries({
-    queries: apiItems.map((item) => ({
-      queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', item.id),
-      queryFn: () => getMenuItemModifiers(item.id),
-      enabled: selectedItem?.id === item.id,
-      staleTime: MENU_STALE_MS,
-    })),
-  });
-
-  // Pair each item with its query BEFORE filtering — modifierQueries is
-  // positional against the unfiltered apiItems, so filtering first would shift
-  // every item after an unavailable one onto the wrong modifier set.
-  const posItems = useMemo<MenuItem[]>(
-    () =>
-      apiItems
-        .map((item, i) => ({ item, query: modifierQueries[i] }))
-        .filter(({ item }) => item.isAvailable)
-        .map(({ item, query }) => toPosItem(item, query?.data ?? [], query?.isSuccess ?? false)),
-    [apiItems, modifierQueries],
-  );
-
-  const filtered = useMemo(
-    () => (activeCategory === 'all' ? posItems : posItems.filter((i) => i.category === activeCategory)),
-    [posItems, activeCategory],
-  );
-
-  // selectedItem is a snapshot from tap time — resolve it against the latest
-  // posItems so modifiers that stream in after the customiser opened still appear.
-  const liveSelectedItem = useMemo(
-    () => (selectedItem ? (posItems.find((i) => i.id === selectedItem.id) ?? selectedItem) : null),
-    [selectedItem, posItems],
-  );
-
-  const addLine = useCallback((item: MenuItem, selected: MenuOption[]) => {
-    const key = selectionKey(selected);
-    setCart((prev) => {
-      // Merge into an existing line with the same item + same modifiers.
-      const existing = prev.find((c) => c.item.id === item.id && selectionKey(c.selected) === key);
-      if (existing) {
-        return prev.map((c) => (c.cartId === existing.cartId ? { ...c, quantity: c.quantity + 1 } : c));
+  useEffect(() => {
+    if (loyaltyRewards.length === 0) return;
+    const programmeUsage = new Map<string, number>();
+    const valid: AppliedLoyaltyReward[] = [];
+    for (const reward of loyaltyRewards) {
+      const programme = loyaltyWallet.data?.programmes.find((row) => row.id === reward.programId);
+      const line = cart.find((row) => row.cartId === reward.cartId);
+      if (!programme?.canRedeem || !line) continue;
+      const available = programme.rewards?.length ?? Math.floor(programme.balance / programme.rewardRule.cost);
+      const used = programmeUsage.get(programme.id) ?? 0;
+      const quantity = Math.min(reward.quantity, line.quantity, Math.max(0, available - used));
+      if (quantity < 1) continue;
+      if (programme.rewardRule.kind === 'free_modifier') {
+        const modifier = line.selected.find((row) => row.id === reward.modifierId);
+        if (!modifier?.groupId || !programme.rewardRule.modifierGroupIds.includes(modifier.groupId)) continue;
+      } else {
+        const itemAllowed = programme.rewardRule.menuItemIds.length === 0 || programme.rewardRule.menuItemIds.includes(line.item.id);
+        const categoryAllowed = programme.rewardRule.categoryIds.length === 0 || programme.rewardRule.categoryIds.includes(line.item.category);
+        if (!itemAllowed || !categoryAllowed) continue;
       }
-      return [...prev, { cartId: `${item.id}-${Date.now()}`, item, quantity: 1, selected }];
+      programmeUsage.set(programme.id, used + quantity);
+      valid.push({ ...reward, quantity, discountCents: reward.unitDiscountCents * quantity });
+    }
+    const unchanged = valid.length === loyaltyRewards.length && valid.every((reward, index) => {
+      const current = loyaltyRewards[index];
+      return current && reward.programId === current.programId && reward.cartId === current.cartId
+        && reward.modifierId === current.modifierId && reward.quantity === current.quantity && reward.discountCents === current.discountCents;
     });
-  }, []);
-
-  const selectionRequest = useRef(0);
-
-  async function handleSelectItem(item: MenuItem) {
-    const request = ++selectionRequest.current;
-    // Nothing to customise — add in one tap and stay on the menu. Only trust an
-    // empty modifier list once it has actually loaded. Any customisation in
-    // progress for another item is abandoned, mirroring the tap-to-switch below.
-    if (item.modifiersLoaded && item.modifiers.length === 0) {
-      addLine(item, []);
-      setSelectedItem(null);
-      setPending([]);
-      return;
-    }
-    // Tapping the already-selected item again toggles its customiser off.
-    if (selectedItem?.id === item.id) {
-      handleCancelItem();
-      return;
-    }
-
-    setSelectedItem(item);
-    // On small screens the order panel is a drawer — open it so the customiser is visible.
-    usePageSidebarStore.getState().setOpen(true);
-    setPending([]);
-
-    const apiItem = apiItems.find((candidate) => candidate.id === item.id);
-    if (!apiItem) {
-      setSelectedItem(null);
-      usePageSidebarStore.getState().setOpen(false);
-      return;
-    }
-
-    try {
-      const modifiers = await qc.fetchQuery({
-        queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', item.id),
-        queryFn: () => getMenuItemModifiers(item.id),
-        staleTime: MENU_STALE_MS,
-      });
-      if (selectionRequest.current !== request) return;
-
-      const hydratedItem = toPosItem(apiItem, modifiers, true);
-      if (hydratedItem.modifiers.length === 0) {
-        addLine(hydratedItem, []);
-        setSelectedItem(null);
-        usePageSidebarStore.getState().setOpen(false);
-        return;
-      }
-
-      setSelectedItem(hydratedItem);
-      // Pre-select the item's default variants (one per category is enforced by
-      // the single-select rule in the customiser, so this respects that too).
-      setPending(hydratedItem.modifiers.filter((option) => option.isDefault));
-    } catch {
-      if (selectionRequest.current !== request) return;
-      setSelectedItem(null);
-      usePageSidebarStore.getState().setOpen(false);
-      addToast('error', 'This item’s options couldn’t load. Try again.');
-    }
-  }
-
-  function handleAddToCart() {
-    if (!liveSelectedItem) return;
-    addLine(liveSelectedItem, pending);
-    setSelectedItem(null);
-    setPending([]);
-    // On small screens the drawer covered the menu — close it so the next item
-    // is one tap away. No-op on lg+ where the panel is inline.
-    usePageSidebarStore.getState().setOpen(false);
-  }
-
-  function handleCancelItem() {
-    selectionRequest.current += 1;
-    setSelectedItem(null);
-    setPending([]);
-    usePageSidebarStore.getState().setOpen(false);
-  }
-
-  function handleClearCart() {
-    setCart([]);
-    setNotes('');
-    // Also discard any customisation in progress — "Clear All" means start over.
-    handleCancelItem();
-  }
-
-  function handleQty(cartId: string, delta: number) {
-    setCart((prev) => prev.map((c) => (c.cartId === cartId ? { ...c, quantity: c.quantity + delta } : c)).filter((c) => c.quantity > 0));
-  }
-
-  // Prices, item names and the order total are computed server-side. We send IDs only.
-  const buildOrderPayload = (method: string, notes: string): CreateOrderPayload => ({
-    locationId: locationId!,
-    ...(selectedCustomer ? { customerId: selectedCustomer.id } : {}),
-    source: 'pos',
-    paymentMethod: method,
-    notes: notes || undefined,
-    items: cart.map((c) => ({
-      menuItemId: c.item.id,
-      quantity: c.quantity,
-      ...(c.selected.length > 0 ? { modifiers: c.selected.map((o) => ({ modifierId: o.id })) } : {}),
-    })),
-  });
-
-  // Shared post-order cleanup: clear the order and advance the checkout flow
-  // to the confirmation screen (which then flows into the receipt question).
-  function finishOrder(queued: boolean) {
-    setCart([]);
-    setSelectedCustomer(null);
-    setNotes('');
-    setCheckoutQueued(queued);
-    setCheckout('confirm');
-    usePageSidebarStore.getState().setOpen(false);
-  }
+    if (!unchanged) setLoyaltyRewards(valid);
+  }, [cart, loyaltyRewards, loyaltyWallet.data]);
+  const counts = useMemo(() => countByItem(cart), [cart]);
 
   const { data: configuredPaymentMethods = [] } = useQuery({
     queryKey: moduleQueryKeys.payments.key('payment-methods', locationId),
@@ -323,182 +233,364 @@ export default function POSPage() {
     queryFn: () => getTradingSettings(tenantId!),
     enabled: !!tenantId,
   });
+  const currency = tradingSettings?.currency ?? 'GBP';
   const checkoutMethods: PaymentMethod[] = [
     { id: 'cash', provider: 'cash', displayName: 'Cash' },
-    { id: 'manual', provider: 'manual_terminal', displayName: 'Manual terminal' },
     ...configuredPaymentMethods,
+    { id: 'manual', provider: 'manual_terminal', displayName: 'Card machine' },
   ];
 
-  const { mutate: submitOrder, isPending: isPaying } = useMutation({
+  // ── Ticket ──
+  function addLine(item: MenuItem, selected: MenuOption[], quantity = 1, note = '') {
+    const key = lineKey(item.id, selected, note);
+    const existing = cart.find((c) => lineKey(c.item.id, c.selected, c.note) === key);
+    if (existing) {
+      setCart((prev) => prev.map((c) => (c.cartId === existing.cartId ? { ...c, quantity: c.quantity + quantity } : c)));
+      setFlashId(existing.cartId);
+      return;
+    }
+    const cartId = `${item.id}-${crypto.randomUUID()}`;
+    setCart((prev) => [...prev, { cartId, item, quantity, selected, note: note || undefined }]);
+    setFlashId(cartId);
+  }
+
+  const selectionRequest = useRef(0);
+
+  async function handleSelectItem(item: MenuItem) {
+    const request = ++selectionRequest.current;
+    if (customising?.item.id === item.id) {
+      handleCancelItem();
+      return;
+    }
+    const modifiersKey = moduleQueryKeys.catalog.key('menu-item-modifiers', item.id);
+    // Already known to have no options: add in one tap and stay on the menu.
+    const cached = qc.getQueryData<AttachedModifier[]>(modifiersKey);
+    if (cached && cached.filter((m) => m.isAvailable).length === 0) {
+      addLine(item, []);
+      setCustomising(null);
+      return;
+    }
+
+    setCustomising({ item, groups: null });
+    usePageSidebarStore.getState().setOpen(true);
+    try {
+      const [modifiers, rules] = await Promise.all([
+        qc.fetchQuery({ queryKey: modifiersKey, queryFn: () => getMenuItemModifiers(item.id), staleTime: MENU_STALE_MS }),
+        // The rules are what the API enforces. If they can't load, fall back to the
+        // legacy one-per-category behaviour rather than blocking the sale.
+        qc
+          .fetchQuery({
+            queryKey: moduleQueryKeys.catalog.key('menu-item-modifier-groups', item.id),
+            queryFn: () => getMenuItemModifierGroups(item.id),
+            staleTime: MENU_STALE_MS,
+          })
+          .catch(() => []),
+      ]);
+      if (selectionRequest.current !== request) return;
+      const options = modifiers.filter((m) => m.isAvailable).map(toOption);
+      if (options.length === 0) {
+        addLine(item, []);
+        setCustomising(null);
+        usePageSidebarStore.getState().setOpen(false);
+        return;
+      }
+      setCustomising({ item, groups: buildOptionGroups(options, rules) });
+    } catch {
+      if (selectionRequest.current !== request) return;
+      setCustomising(null);
+      usePageSidebarStore.getState().setOpen(false);
+      toast('error', `${item.name}’s options couldn’t load. Try again.`);
+    }
+  }
+
+  function handleCancelItem() {
+    selectionRequest.current += 1;
+    setCustomising(null);
+    usePageSidebarStore.getState().setOpen(false);
+  }
+
+  function handleAddToCart(selected: MenuOption[], quantity: number, note: string) {
+    if (!customising) return;
+    addLine(customising.item, selected, quantity, note);
+    setCustomising(null);
+    // On small screens the drawer covered the menu — close it so the next item is one tap away.
+    usePageSidebarStore.getState().setOpen(false);
+  }
+
+  function handleRemove(cartId: string) {
+    const index = cart.findIndex((c) => c.cartId === cartId);
+    if (index < 0) return;
+    setRemoved({ line: cart[index], index });
+    setCart((prev) => prev.filter((c) => c.cartId !== cartId));
+  }
+
+  function handleUndoRemove() {
+    if (!removed) return;
+    setCart((prev) => [...prev.slice(0, removed.index), removed.line, ...prev.slice(removed.index)]);
+    setRemoved(null);
+  }
+
+  function resetTicket() {
+    setCart([]);
+    setSelectedCustomer(null);
+    setNotes('');
+    setLoyaltyRewards([]);
+    setRemoved(null);
+    handleCancelItem();
+  }
+
+  // ── Held tickets ──
+  const allHeld = useHeldTicketsStore((state) => state.tickets);
+  const held = useMemo(() => allHeld.filter((t) => t.tenantId === tenantId && t.locationId === locationId), [allHeld, locationId, tenantId]);
+
+  function handleHold() {
+    if (!tenantId || !locationId || cart.length === 0) return;
+    if (held.length >= MAX_HELD) {
+      toast('error', `There are already ${MAX_HELD} tickets on hold. Charge or discard one first.`);
+      return;
+    }
+    const time = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const name = selectedCustomer ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}`.trim() : notes.trim().slice(0, 40) || `Ticket · ${time}`;
+    useHeldTicketsStore.getState().hold({ name, cart, customer: selectedCustomer, notes, heldBy: userId ?? null, tenantId, locationId });
+    resetTicket();
+    toast('success', `Held as “${name}”. Pick it up from Held.`);
+  }
+
+  function handleResume(id: string) {
+    if (cart.length > 0) return;
+    const ticket = useHeldTicketsStore.getState().take(id);
+    if (!ticket) return;
+    setCart(ticket.cart);
+    setSelectedCustomer(ticket.customer);
+    setNotes(ticket.notes);
+  }
+
+  // ── Checkout ──
+  const buildOrderPayload = (provider: string, orderNotes: string): CreateOrderPayload => ({
+    locationId: locationId!,
+    ...(selectedCustomer ? { customerId: selectedCustomer.id } : {}),
+    source: 'pos',
+    paymentMethod: provider,
+    notes: orderNotes || undefined,
+    ...(loyaltyRewards.length > 0
+      ? {
+          loyaltyRedemptions: loyaltyRewards.map((reward) => ({
+            programId: reward.programId,
+            itemIndex: cart.findIndex((line) => line.cartId === reward.cartId),
+            ...(reward.modifierId ? { modifierId: reward.modifierId } : {}),
+            quantity: reward.quantity,
+          })),
+        }
+      : {}),
+    items: cart.map((c) => ({
+      menuItemId: c.item.id,
+      quantity: c.quantity,
+      ...(c.note ? { notes: c.note } : {}),
+      ...(c.selected.length > 0 ? { modifiers: c.selected.map((o) => ({ modifierId: o.id })) } : {}),
+    })),
+  });
+
+  function handleCharge() {
+    const signature = `${cartSignature(cart, selectedCustomer?.id, notes)}|${JSON.stringify(loyaltyRewards.map(({ programId, cartId, modifierId, quantity }) => ({ programId, cartId, modifierId, quantity })))}`;
+    const previous = session.current;
+    if (!previous || previous.signature !== signature) {
+      // The basket changed since an order was created for it: that order will never be paid, so void it.
+      // Best effort — it needs `orders:status`, and an unpaid order left behind is visible on /orders.
+      if (previous?.orderId) void updateOrderStatus(previous.orderId, 'cancelled', { voidReason: 'staff_error', voidNotes: 'Basket changed at the till before payment' }).catch(() => undefined);
+      session.current = { signature, key: crypto.randomUUID(), orderId: null, cashAttempt: null };
+    }
+    setSnapshot({
+      lines: cart,
+      total: Math.max(0, cartTotal(cart) - loyaltyRewards.reduce((sum, reward) => sum + reward.discountCents, 0)),
+      customerName: selectedCustomer ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}` : undefined,
+      ...(loyaltyRewards.length > 0 ? {
+        loyaltyReward: {
+          label: `${loyaltyRewards.reduce((sum, reward) => sum + reward.quantity, 0)} loyalty reward${loyaltyRewards.reduce((sum, reward) => sum + reward.quantity, 0) === 1 ? '' : 's'}`,
+          discountCents: loyaltyRewards.reduce((sum, reward) => sum + reward.discountCents, 0),
+        },
+      } : {}),
+    });
+    setCheckoutError(null);
+    setOfflinePayment(null);
+    setPaymentAttempt(null);
+    setCheckout('method');
+  }
+
+  const online = useOnline();
+
+  const { mutate: submitOrder, isPending: isStarting } = useMutation({
     // CRITICAL: React Query's default networkMode 'online' PAUSES mutations
     // while offline — mutationFn never runs, isPending spins forever, and our
     // queueing logic below is unreachable. 'always' hands control to us.
     networkMode: 'always',
-    mutationFn: async ({ method, idempotencyKey }: { method: PaymentMethod; idempotencyKey: string }) => {
-      // Known-offline: don't even attempt the request — fail straight into the
-      // offline-queue path instead of waiting out a timeout.
-      if (!navigator.onLine) return Promise.reject(new Error('offline'));
-      const order = checkoutOrderId
-        ? { id: checkoutOrderId }
-        : await createOrder(buildOrderPayload(method.provider, notes), idempotencyKey);
-      const payment = await startPayment(order.id, {
+    mutationFn: async (method: PaymentMethod) => {
+      const current = session.current!;
+      if (!navigator.onLine) throw new Error('offline');
+      if (method.provider === 'cash' && current.cashAttempt?.status === 'pending') {
+        return { orderId: current.orderId!, total: null, payment: current.cashAttempt, method };
+      }
+      let total: number | null = null;
+      if (!current.orderId) {
+        const order = await createOrder(buildOrderPayload(method.provider, notes), current.key);
+        // Recorded before the payment starts, so a failure from here on retries against this order.
+        current.orderId = order.id;
+        total = Math.round(Number(order.totalAmount) * 100);
+      }
+      const payment = await startPayment(current.orderId, {
         ...(method.id === 'cash'
           ? { provider: 'cash' as const }
           : method.id === 'manual'
             ? { provider: 'manual_terminal' as const }
             : { connectionId: method.id }),
-        idempotencyKey: `pay-${idempotencyKey}`,
+        // Per attempt: reusing a key would hand back the attempt that was just declined.
+        idempotencyKey: `pay-${crypto.randomUUID()}`,
       });
-      return { order, payment, method };
+      if (method.provider === 'cash') current.cashAttempt = payment;
+      return { orderId: current.orderId, total, payment, method };
     },
-    onSuccess: ({ order, payment, method }) => {
-      setOfflinePayment(null);
-      setCheckoutOrderId(order.id);
-      if ('totalAmount' in order) setCheckoutTotal(Math.round(Number(order.totalAmount) * 100));
+    onSuccess: ({ total, payment, method }) => {
+      // The server's total is the real one — VAT, discounts and current prices.
+      if (total !== null && Number.isFinite(total)) setSnapshot((s) => ({ ...s, total }));
       if (payment.status === 'failed') {
-        addToast('error', payment.failureMessage ?? 'Payment provider failed. Choose another method or retry.');
-        setCheckout('method');
+        setCheckoutError(payment.failureMessage ?? `${method.displayName} didn’t start. Try again or choose another method.`);
         return;
       }
       setPaymentAttempt(payment);
-      setPaymentLabel(method.displayName);
-      setCheckout('verify');
-      // Refresh exactly what an order touches — invalidating the whole cache
-      // refetched every list in the app after every sale.
-      const affectedQueries = [
-        moduleQueryKeys.ordering.key('orders'),
-        moduleQueryKeys.ordering.key('orders-all'),
-        moduleQueryKeys.inventory.key('location-stock'),
-        moduleQueryKeys.inventory.key('inventory-forecast'),
-        moduleQueryKeys.inventory.key('low-stock-alerts'),
-        moduleQueryKeys.customers.key('customers'),
-      ];
-      for (const queryKey of affectedQueries) {
-        void qc.invalidateQueries({ queryKey });
-      }
-      if (selectedCustomer) void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-visits', selectedCustomer.id) });
+      setPaymentMethod(method);
+      setCheckout(method.provider === 'cash' ? 'cash' : 'verify');
+      invalidateAfterSale();
     },
-    onError: (err, { method, idempotencyKey }) => {
-      // Queue when the API never really answered: fetch/abort failures, and
-      // 502/503/504 which are the proxy saying the API is unreachable.
-      const unreachable = !(err instanceof ApiError) || err.status === 502 || err.status === 503 || err.status === 504;
-      if (unreachable && (method.provider === 'cash' || method.provider === 'manual_terminal')) {
-        setOfflinePayment({ method, idempotencyKey });
-        setPaymentLabel(method.displayName);
+    onError: (err, method) => {
+      const unreachable = isUnreachable(err);
+      const orderExists = !!session.current?.orderId;
+      if (unreachable && !orderExists && (method.provider === 'cash' || method.provider === 'manual_terminal')) {
+        setOfflinePayment(method);
+        setPaymentMethod(method);
         setPaymentAttempt(null);
-        setCheckout('verify');
+        setCheckout(method.provider === 'cash' ? 'cash' : 'verify');
         return;
       }
-      // Real API rejection — stay on the method screen so the cashier can retry.
-      addToast('error', err.message || 'The order wasn’t placed. Check the basket and try again.');
+      setCheckoutError(
+        unreachable && orderExists
+          ? 'The order reached the server but the payment didn’t start. Try again — it won’t create a second order.'
+          : err.message || 'The order wasn’t placed. Check the ticket and try again.',
+      );
     },
   });
 
-  const { mutate: recordOutcome, isPending: isConfirmingPayment } = useMutation({
-    mutationFn: (outcome: 'succeeded' | 'failed' | 'cancelled') => confirmPayment(paymentAttempt!.id, outcome),
-    onSuccess: (payment) => {
-      if (payment.status === 'succeeded') finishOrder(false);
-      else {
-        addToast('error', 'Payment was not completed. Select a method to retry.');
-        setCheckout('method');
-        setPaymentAttempt(null);
+  const { mutate: recordOutcome, isPending: isConfirming } = useMutation({
+    mutationFn: ({ outcome }: { outcome: 'succeeded' | 'failed' | 'cancelled'; tendered?: number }) => confirmPayment(paymentAttempt!.id, outcome),
+    onSuccess: (payment, { outcome, tendered }) => {
+      if (payment.status === 'succeeded') {
+        finishSale(false, tendered);
+        return;
       }
+      if (session.current) session.current.cashAttempt = null;
+      setPaymentAttempt(null);
+      setCheckout('method');
+      setCheckoutError(outcome === 'cancelled' ? null : 'The payment was declined. Try again or choose another method.');
     },
-    onError: (error) => addToast('error', error.message || 'The payment result wasn’t recorded. Keep this order open and try again.'),
+    onError: (error) => setCheckoutError(error.message || 'The payment result wasn’t recorded. Keep this screen open and try again.'),
   });
 
-  function handlePaymentOutcome(outcome: 'succeeded' | 'failed' | 'cancelled') {
-    if (!offlinePayment) {
-      recordOutcome(outcome);
-      return;
-    }
-    if (outcome !== 'succeeded') {
-      setOfflinePayment(null);
-      setCheckout('method');
-      return;
-    }
-    if (!userId || !tenantId) {
-      addToast('error', 'The order could not be saved offline because the account or workspace is missing.');
+  function invalidateAfterSale() {
+    for (const queryKey of [
+      moduleQueryKeys.ordering.key('orders'),
+      moduleQueryKeys.ordering.key('orders-all'),
+      moduleQueryKeys.inventory.key('location-stock'),
+      moduleQueryKeys.inventory.key('inventory-forecast'),
+      moduleQueryKeys.inventory.key('low-stock-alerts'),
+      moduleQueryKeys.customers.key('customers'),
+      moduleQueryKeys.customers.key('loyalty-wallet'),
+    ]) void qc.invalidateQueries({ queryKey });
+    if (selectedCustomer) void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-visits', selectedCustomer.id) });
+  }
+
+  function finishSale(queued: boolean, tendered?: number) {
+    setDone({
+      orderId: queued ? null : (session.current?.orderId ?? null),
+      queued,
+      change: tendered !== undefined ? changeDue(tendered, snapshot.total).change : 0,
+    });
+    session.current = null;
+    setPaymentAttempt(null);
+    setOfflinePayment(null);
+    setCheckoutError(null);
+    setCheckout('done');
+    resetTicket();
+    usePageSidebarStore.getState().setOpen(false);
+  }
+
+  function saveOffline(method: PaymentMethod, tendered?: number) {
+    if (!userId || !tenantId || !session.current) {
+      setCheckoutError('The sale couldn’t be saved on this till because the account or workspace is missing.');
       return;
     }
     const takenAt = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     const offlineNote = `Taken offline at ${takenAt}`;
-    useOfflineOrdersStore
-      .getState()
-      .enqueue(buildOrderPayload(offlinePayment.method.provider, notes ? `${notes} · ${offlineNote}` : offlineNote), {
-        idempotencyKey: offlinePayment.idempotencyKey,
-        ownerUserId: userId,
-        tenantId,
-        paymentProvider: offlinePayment.method.provider as 'cash' | 'manual_terminal',
-      });
-    setOfflinePayment(null);
-    setCheckoutOrderId(null);
-    finishOrder(true);
+    useOfflineOrdersStore.getState().enqueue(buildOrderPayload(method.provider, notes ? `${notes} · ${offlineNote}` : offlineNote), {
+      idempotencyKey: session.current.key,
+      ownerUserId: userId,
+      tenantId,
+      paymentProvider: method.provider as 'cash' | 'manual_terminal',
+    });
+    finishSale(true, tendered);
   }
 
-  function handleCharge() {
-    setCheckoutTotal(cart.reduce((sum, c) => sum + cartItemTotal(c), 0));
-    setCheckoutEmail(selectedCustomer?.email);
-    setCheckoutQueued(false);
-    setCheckoutOrderId(null);
-    setOfflinePayment(null);
-    setCheckout('method');
+  function handleTender(tendered: number) {
+    if (offlinePayment) saveOffline(offlinePayment, tendered);
+    else recordOutcome({ outcome: 'succeeded', tendered });
   }
 
-  function handleReceipt(choice: 'email' | 'print' | 'none') {
-    if (choice === 'email') {
-      addToast('error', 'Email receipts are not available until the API provides a receipt-delivery endpoint.');
+  function handlePaymentOutcome(outcome: 'succeeded' | 'failed' | 'cancelled') {
+    if (offlinePayment) {
+      if (outcome === 'succeeded') saveOffline(offlinePayment);
+      else {
+        setOfflinePayment(null);
+        setCheckout('method');
+      }
       return;
     }
-    if (choice === 'print') {
-      if (!checkoutOrderId) {
-        addToast('error', 'The receipt will be available after the offline order has synced.');
-        return;
-      }
-      const receiptWindow = window.open('about:blank', '_blank');
-      if (!receiptWindow) {
-        addToast('error', 'Allow pop-ups to open the printable receipt.');
-        return;
-      }
-      receiptWindow.opener = null;
-      receiptWindow.location.href = `${API_PREFIX}/v1/receipts/${encodeURIComponent(checkoutOrderId)}/receipt`;
-      addToast('info', 'Receipt opened. Use the browser print command to print it.');
-    }
-    setCheckout('closed');
+    recordOutcome({ outcome });
   }
 
-  // Only the item list gates the grid — waiting on all N modifier queries
-  // blocked the whole POS behind the slowest one.
-  const isLoading = itemsLoading;
+  // Leaving the cash or card screen abandons that attempt — tell the API, so it isn't left pending.
+  function handleCheckoutBack() {
+    if (paymentAttempt && !offlinePayment) recordOutcome({ outcome: 'cancelled' });
+    else {
+      setOfflinePayment(null);
+      setCheckout('method');
+    }
+  }
 
-  // Offline awareness: banner while disconnected, queued-order count until synced.
+  function handlePrint() {
+    if (!done.orderId) return;
+    const receiptWindow = window.open('about:blank', '_blank');
+    if (!receiptWindow) {
+      toast('error', 'Allow pop-ups to open the printable receipt.');
+      return;
+    }
+    receiptWindow.opener = null;
+    receiptWindow.location.href = `${API_PREFIX}/v1/receipts/${encodeURIComponent(done.orderId)}/receipt`;
+  }
+
+  // ── Offline awareness ──
   const offlineQueue = useOfflineOrdersStore((state) => state.queue);
   const offlineHistory = useOfflineOrdersStore((state) => state.history);
   const queuedOrders = useMemo(
     () => offlineQueue.filter((order) => order.ownerUserId === userId && order.tenantId === tenantId),
     [offlineQueue, tenantId, userId],
   );
-  const queuedCount = queuedOrders.length;
-  const needsAttentionCount = queuedOrders.filter((order) => order.status === 'needs-attention').length;
+  const needsAttention = queuedOrders.filter((order) => order.status === 'needs-attention');
   const recentSyncs = useMemo(
     () => offlineHistory.filter((record) => record.ownerUserId === userId && record.tenantId === tenantId).slice(0, 5),
     [offlineHistory, tenantId, userId],
   );
-  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
-  useEffect(() => {
-    const up = () => setOnline(true);
-    const down = () => setOnline(false);
-    window.addEventListener('online', up);
-    window.addEventListener('offline', down);
-    return () => {
-      window.removeEventListener('online', up);
-      window.removeEventListener('offline', down);
-    };
-  }, []);
 
+  const shellTitle = locationName ?? 'Till';
   if (!clientReady) {
     return (
-      <EditorShell eyebrow="Service Mode" title="Roastery Menu" icon={<Monitor size={20} aria-hidden="true" />} flush>
+      <EditorShell eyebrow="Till" title="Till" icon={<Monitor size={20} aria-hidden="true" />} flush>
         <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-16" aria-live="polite">
           <p className="text-sm font-medium text-muted-foreground">Preparing the till…</p>
         </div>
@@ -506,166 +598,222 @@ export default function POSPage() {
     );
   }
 
-  return (
-    <>
-      <EditorShell
-        eyebrow="Service Mode"
-        title="Roastery Menu"
-        icon={<Monitor size={20} aria-hidden="true" />}
-        // The till is a split view — grid on the left, order panel on the right —
-        // and each side scrolls itself.
-        flush
-      >
-        <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col">
-            {/* Categories belong to the menu grid, not to the app chrome — but they
-                stay out of the scroll area so they never leave during service. */}
-            <div className="shrink-0 px-3 pt-4 md:px-6">
-              <SegmentedControl options={categoryOptions} value={activeCategory} onChange={setActiveCategory} size="lg" />
-            </div>
+  const ready = !!tenantId && !!locationId && onShift;
+  let body: React.ReactNode;
+  if (!tenantId) {
+    body = <EmptyState icon={Building2} title="No workspace selected" description="Select a workspace before taking orders." />;
+  } else if (!locationId) {
+    body = <EmptyState icon={MapPin} title="No location selected" description="Use the location picker to choose where you’re taking orders." />;
+  } else if (shifts.isLoading) {
+    body = <MenuGrid items={[]} counts={{}} selectedId={null} onSelectItem={() => undefined} isLoading />;
+  } else if (shifts.isError && !shifts.data) {
+    body = (
+      <Gate icon={AlertTriangle} title="Your shift couldn’t be checked" description="The till unlocks once it can see you’re clocked in.">
+        <Button size="lg" onClick={() => void shifts.refetch()} className="mt-6 h-14 px-6 text-base">
+          Try again
+        </Button>
+      </Gate>
+    );
+  } else if (!onShift) {
+    body = (
+      <Gate icon={Clock} title="Clock in to start selling" description="The till unlocks while you’re on shift.">
+        <SlideToClockIn onClockIn={doClockIn} pending={clockingIn} className="mt-6 max-w-80" />
+      </Gate>
+    );
+  }
 
-            <div className="min-h-0 flex-1 overflow-auto px-3 py-4 md:px-6">
-              {/* Offline / sync status */}
-              {(!online || queuedCount > 0) && (
+  const banners = (
+    <>
+              <CashUpNudge status={cashUpDay.status} open={cashUpDay.open} onOpen={() => setCashUpOpen(true)} />
+              {(!online || queuedOrders.length > 0) && (
                 <div
+                  role="status"
                   className={cn(
-                    'mb-4 rounded-sm border px-3.5 py-2.5 text-sm font-medium',
-                    online ? 'border-primary/30 bg-band text-primary' : 'border-warning/40 bg-warning/6 text-warning',
+                    'mb-4 rounded-xl border px-4 py-3 text-sm',
+                    needsAttention.length > 0 ? 'border-exception/35 bg-destructive/6' : online ? 'border-primary/25 bg-primary/5' : 'border-warning/35 bg-warning/8',
                   )}
                 >
-                  <div className="flex items-center gap-2.5">
-                    {online ? (
-                      <CloudUpload size={16} className="shrink-0" aria-hidden="true" />
-                    ) : (
-                      <WifiOff size={16} className="shrink-0" aria-hidden="true" />
-                    )}
-                    {needsAttentionCount > 0
-                      ? `${needsAttentionCount} queued ${needsAttentionCount === 1 ? 'order needs' : 'orders need'} manager attention.`
+                  <p className="flex items-center gap-2.5 font-medium text-foreground">
+                    {online ? <CloudUpload size={17} aria-hidden="true" className="shrink-0 text-primary" /> : <WifiOff size={17} aria-hidden="true" className="shrink-0 text-warning" />}
+                    {needsAttention.length > 0
+                      ? `${needsAttention.length} saved ${needsAttention.length === 1 ? 'sale was' : 'sales were'} refused by the server and need${needsAttention.length === 1 ? 's' : ''} a manager.`
                       : !online
-                        ? `You're offline — orders are saved locally${queuedCount > 0 ? ` (${queuedCount} waiting)` : ''} and will send when the connection returns.`
-                        : `${queuedCount} ${queuedCount === 1 ? 'order' : 'orders'} waiting to sync…`}
-                  </div>
-                  {needsAttentionCount > 0 && (
-                    <div className="mt-2 space-y-2 border-t border-current/15 pt-2">
-                      {queuedOrders
-                        .filter((order) => order.status === 'needs-attention')
-                        .map((order) => (
-                          <div key={order.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                            <span>
-                              {formatDateTime(order.queuedAt)} · {order.lastError ?? 'Rejected by the API'}
-                            </span>
-                            <button
-                              type="button"
-                              className="rounded-sm border border-current/30 px-2 py-1 font-semibold hover:bg-current/10"
-                              onClick={() => useOfflineOrdersStore.getState().retry(order.id)}
-                            >
-                              Retry
-                            </button>
-                          </div>
-                        ))}
-                    </div>
+                        ? `Offline — cash and card-machine sales save on this till${queuedOrders.length ? ` (${queuedOrders.length} waiting)` : ''} and send when the connection returns.`
+                        : `Sending ${queuedOrders.length} saved ${queuedOrders.length === 1 ? 'sale' : 'sales'}…`}
+                  </p>
+                  {needsAttention.length > 0 && (
+                    <ul className="mt-3 divide-y divide-rule/40 border-t border-rule/40">
+                      {needsAttention.map((order) => (
+                        <li key={order.id} className="flex items-center justify-between gap-3 py-2">
+                          <span className="min-w-0 text-muted-foreground">
+                            {formatDateTime(order.queuedAt)} · {order.lastError ?? 'Refused by the server'}
+                          </span>
+                          <Button variant="outline" onClick={() => useOfflineOrdersStore.getState().retry(order.id)} className="h-11 shrink-0 px-4">
+                            Retry
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
               )}
 
-              {recentSyncs.length > 0 && (
-                <details className="mb-4 rounded-sm border border-rule/60 bg-card px-3.5 py-2.5 text-xs text-muted-foreground">
-                  <summary className="cursor-pointer font-semibold text-foreground">Recent offline syncs · {recentSyncs.length}</summary>
-                  <div className="mt-2 space-y-1 border-t border-rule/50 pt-2">
+              {ready && recentSyncs.length > 0 && online && queuedOrders.length === 0 && (
+                <details className="mb-4 rounded-xl border border-rule/60 bg-card px-4 py-3 text-sm text-muted-foreground">
+                  <summary className="cursor-pointer font-medium text-foreground">Recently sent from this till · {recentSyncs.length}</summary>
+                  <ul className="mt-2 space-y-1 border-t border-rule/50 pt-2">
                     {recentSyncs.map((record) => (
-                      <p key={record.queueId}>
-                        Order {record.orderId.slice(0, 8)} · queued {formatDateTime(record.queuedAt)} · synced{' '}
-                        {formatDateTime(record.syncedAt)}
-                      </p>
+                      <li key={record.queueId}>
+                        Order {record.orderId.slice(0, 8)} · taken {formatDateTime(record.queuedAt)} · sent {formatDateTime(record.syncedAt)}
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </details>
               )}
 
-              {tenantId && locationId && onShift && (
-                <>
-                  <MenuGrid
-                    items={filtered}
-                    selectedId={selectedItem?.id ?? null}
-                    onSelectItem={handleSelectItem}
-                    isLoading={isLoading}
-                    currency={tradingSettings?.currency ?? 'GBP'}
-                  />
-                  <CartBar
-                    cart={cart}
-                    onOpen={() => usePageSidebarStore.getState().setOpen(true)}
-                    currency={tradingSettings?.currency ?? 'GBP'}
-                  />
-                </>
-              )}
-              {/* Locked: staff must clock in before taking orders */}
-              {tenantId && locationId && !onShift && !shiftsLoading && (
-                <div className="flex flex-col items-center justify-center text-center px-6 py-16">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-3">
-                    <Clock size={28} className="text-muted-foreground" />
-                  </div>
-                  <p className="text-sm font-semibold text-muted-foreground">{"You're not clocked in"}</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Clock in to unlock the POS and start taking orders.</p>
-                  <Button size="touch" className="mt-5" onClick={() => doClockIn()} disabled={clockingIn}>
-                    <LogIn size={16} aria-hidden="true" />
-                    {clockingIn ? 'Clocking in…' : 'Clock in'}
-                  </Button>
-                </div>
-              )}
-              {!tenantId && (
-                <EmptyState icon={Building2} title="No workspace selected" description="Select a workspace before taking orders." />
-              )}
-              {tenantId && !locationId && (
-                <EmptyState
-                  icon={MapPin}
-                  title="No location selected"
-                  description="Use the location picker to choose where you’re taking orders."
-                />
-              )}
-            </div>
-          </div>
+    </>
+  );
 
-          {tenantId && locationId && onShift && (
+  return (
+    <>
+      <EditorShell
+        eyebrow="Till"
+        title={shellTitle}
+        icon={<Monitor size={20} aria-hidden="true" />}
+        meta={!online ? <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warning"><WifiOff size={13} aria-hidden="true" /> Offline</span> : undefined}
+        actions={<CashUpButton status={cashUpDay.status} onOpen={() => setCashUpOpen(true)} />}
+        flush
+      >
+        <div className="flex min-h-0 flex-1">
+          {ready ? (
+            <>
+              <TillMenu
+                items={posItems}
+                categories={categories}
+                favourites={favourites}
+                favouritesLabel={favouritesLabel}
+                layout={layout}
+                counts={counts}
+                stock={stockStatus}
+                selectedId={customising?.item.id ?? null}
+                onSelectItem={handleSelectItem}
+                isLoading={menu.isLoading}
+                isError={menu.isError && !menu.data}
+                onRetry={() => void menu.refetch()}
+                currency={currency}
+                banner={banners}
+              />
+              <CartBar cart={cart} onOpen={() => usePageSidebarStore.getState().setOpen(true)} currency={currency} />
+            </>
+          ) : (
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background px-4 py-4 md:px-6">
+              {banners}
+              {body}
+            </div>
+          )}
+
+          {ready && (
             <PageSidebar>
               <OrderPanel
                 cart={cart}
-                selectedItem={liveSelectedItem}
-                pending={pending}
-                setPending={setPending}
+                selectedItem={customising?.item ?? null}
+                groups={customising?.groups ?? null}
                 onAddToCart={handleAddToCart}
                 onCancelItem={handleCancelItem}
-                onQty={handleQty}
-                onClearCart={handleClearCart}
+                onQty={(cartId, delta) => setCart((prev) => prev.map((c) => (c.cartId === cartId ? { ...c, quantity: Math.max(1, c.quantity + delta) } : c)))}
+                onLineNote={(cartId, note) => setCart((prev) => prev.map((c) => (c.cartId === cartId ? { ...c, note: note || undefined } : c)))}
+                onRemove={handleRemove}
+                removed={removed?.line ?? null}
+                onUndoRemove={handleUndoRemove}
+                flashId={flashId}
+                onClearCart={resetTicket}
                 selectedCustomer={selectedCustomer}
-                onCustomerSelect={setSelectedCustomer}
+                onCustomerSelect={(customer) => { setSelectedCustomer(customer); setLoyaltyRewards([]); }}
+                loyaltyProgrammes={loyaltyWallet.data?.programmes ?? []}
+                loyaltyLoading={loyaltyWallet.isLoading}
+                loyaltyRewards={loyaltyRewards}
+                onLoyaltyRewards={setLoyaltyRewards}
                 notes={notes}
                 onNotesChange={setNotes}
+                held={held}
+                onHold={handleHold}
+                onResume={handleResume}
+                onDiscardHeld={(id) => useHeldTicketsStore.getState().discard(id)}
                 onCharge={handleCharge}
-                currency={tradingSettings?.currency ?? 'GBP'}
+                currency={currency}
               />
             </PageSidebar>
           )}
         </div>
       </EditorShell>
+
       {checkout !== 'closed' && (
         <CheckoutFlow
           step={checkout}
-          total={checkoutTotal}
-          currency={tradingSettings?.currency ?? 'GBP'}
-          isPaying={isPaying || isConfirmingPayment}
+          total={snapshot.total}
+          currency={currency}
+          lines={snapshot.lines}
+          customerName={snapshot.customerName}
+          loyaltyReward={snapshot.loyaltyReward}
           methods={checkoutMethods}
-          paymentLabel={paymentLabel}
-          paymentProvider={paymentAttempt?.provider ?? offlinePayment?.method.provider}
-          queued={checkoutQueued}
-          customerEmail={checkoutEmail}
-          onSelectMethod={(method) => submitOrder({ method, idempotencyKey: crypto.randomUUID() })}
+          busy={isStarting || isConfirming}
+          error={checkoutError}
+          paymentLabel={paymentMethod?.displayName}
+          paymentProvider={paymentAttempt?.provider ?? offlinePayment?.provider}
+          queued={checkout === 'done' ? done.queued : !!offlinePayment}
+          offline={!online}
+          change={done.change}
+          canPrint={!!done.orderId}
+          onSelectMethod={(method) => {
+            setCheckoutError(null);
+            submitOrder(method);
+          }}
+          onTender={handleTender}
+          onBack={handleCheckoutBack}
           onPaymentOutcome={handlePaymentOutcome}
-          onConfirmDone={() => setCheckout('receipt')}
-          onReceipt={handleReceipt}
+          onPrint={handlePrint}
+          onNewSale={() => setCheckout('closed')}
           onCancel={() => setCheckout('closed')}
         />
       )}
-      <Toast toasts={toasts} onDismiss={dismissToast} />
+
+      {cashUpOpen && locationId && cashUpDay.status !== 'hidden' && (
+        <CashUpDrawer
+          locationId={locationId}
+          locationName={locationName ?? 'This location'}
+          timezone={location?.timezone ?? 'Europe/London'}
+          currency={currency}
+          heldCount={held.length}
+          queuedCount={queuedOrders.length}
+          onClose={closeCashUp}
+        />
+      )}
     </>
   );
+}
+
+function Gate({ icon: Icon, title, description, children }: { icon: typeof Clock; title: string; description: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
+      <span className="flex size-16 items-center justify-center rounded-2xl bg-band text-muted-foreground" aria-hidden="true">
+        <Icon size={28} />
+      </span>
+      <p className="mt-5 text-xl font-semibold text-foreground">{title}</p>
+      <p className="mt-1.5 max-w-sm text-base text-muted-foreground">{description}</p>
+      {children}
+    </div>
+  );
+}
+
+const subscribeOnline = (notify: () => void) => {
+  window.addEventListener('online', notify);
+  window.addEventListener('offline', notify);
+  return () => {
+    window.removeEventListener('online', notify);
+    window.removeEventListener('offline', notify);
+  };
+};
+
+function useOnline() {
+  return useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
 }

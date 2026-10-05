@@ -20,6 +20,13 @@ export interface TenantPayload {
 
 export const getTenants = () => apiFetch<Tenant[]>('/tenants');
 
+// The caller's own workspace. `/tenants` is platform-only; these are what an
+// owner uses, and they cannot reach another tenant.
+export const getCurrentTenant = () => apiFetch<Tenant>('/tenants/current');
+
+export const renameCurrentTenant = (name: string) =>
+  apiFetch<Tenant>('/tenants/current', { method: 'PATCH', body: JSON.stringify({ name }) });
+
 export const createTenant = (data: TenantPayload) => apiFetch<Tenant>('/tenants', { method: 'POST', body: JSON.stringify(data) });
 
 export const updateTenant = (id: string, data: Partial<TenantPayload>) =>

@@ -1,20 +1,21 @@
 'use client';
 
+import { motion, useReducedMotion } from 'motion/react';
+
 import { AlertCircle, type IconComponent, Loader2 } from '@/components/icons';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
 
 import { type ConnectorDefinition, type ConnectorState, STATE_BADGE } from './registry';
 
-/** A connected account/device shown in the card's detail box. */
+/** A connected account/device shown on the card. */
 export interface ConnectorAccount {
   /** Primary line — the mailbox, reader name or device ID. */
   label: string;
   /** Secondary line — "Checked 2 min ago", the provider name, and so on. */
   meta?: string;
-  /** Spins a loader in place of the tick while a check is running. */
+  /** Spins a loader while a check is running. */
   busy?: boolean;
 }
 
@@ -26,11 +27,18 @@ export interface ConnectorAction {
   disabled?: boolean;
 }
 
+const DOT: Record<ConnectorState, string> = {
+  connected: 'bg-success',
+  attention: 'bg-exception',
+  paused: 'bg-stock',
+  disconnected: 'bg-muted-foreground/50',
+  unavailable: 'bg-muted-foreground/40',
+};
+
 /**
- * One integration, told top to bottom: what it is and whether it works, what it
- * can do, which account it is using, then the single thing to do about it. The
- * action always sits on the bottom edge so a row of cards lines its buttons up
- * however much copy each one carries.
+ * One integration as a tile: what it is and whether it works at the top, one
+ * line on what it does, then the account it uses and the single thing to do.
+ * The action sits on the bottom edge so a row of tiles lines its buttons up.
  */
 export function ConnectorCard({
   definition,
@@ -39,101 +47,81 @@ export function ConnectorCard({
   extraAccountCount = 0,
   alert,
   action,
+  index = 0,
 }: {
   definition: ConnectorDefinition;
   state: ConnectorState;
   accounts?: ConnectorAccount[];
-  /** Rendered as a "+3" chip beside the first account, like the reference design. */
   extraAccountCount?: number;
-  /** Red status line above the action — what broke and what it means. */
+  /** What broke and what it means — shown only when it needs attention. */
   alert?: { title: string; detail?: string };
   action?: ConnectorAction;
+  index?: number;
 }) {
+  const reduceMotion = useReducedMotion();
   const Icon = definition.icon;
-  const badge = STATE_BADGE[state];
   const ActionIcon = action?.icon;
+  const live = state === 'connected' || state === 'paused';
+  const account = accounts[0];
 
   return (
-    <article
+    <motion.article
+      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: reduceMotion ? 0 : index * 0.05, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
-        'rounded-lg border border-rule/65 bg-card p-4 transition-colors',
-        state === 'attention' && 'border-destructive/35 bg-destructive/5',
-        state === 'unavailable' && 'opacity-70',
+        'flex h-full flex-col rounded-lg border bg-field p-4',
+        state === 'attention' ? 'border-exception/40' : 'border-rule/60',
       )}
     >
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(12rem,0.55fr)_auto] md:items-center">
-        <div className="flex min-w-0 items-start gap-3">
-          <div
-            className={cn(
-              'flex size-10 shrink-0 items-center justify-center rounded-md bg-band',
-              state === 'attention' ? 'text-destructive' : state === 'connected' ? 'text-success' : 'text-primary',
-            )}
-          >
-            <Icon size={17} aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-base font-semibold text-foreground">{definition.name}</h3>
-              <Badge variant={badge.variant} className="shrink-0">
-                {badge.label}
-              </Badge>
-            </div>
-            <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">{definition.description}</p>
-            <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-              {definition.tags.slice(0, 4).map((tag) => (
-                <li key={tag} className="text-xs text-muted-foreground before:mr-1.5 before:text-rule before:content-['•']">
-                  {tag}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <div className="min-w-0">
-          {accounts.length > 0 ? (
-            <div className="space-y-2">
-              {accounts.map((account) => (
-                <div key={account.label} className="flex min-w-0 items-center gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">{account.label}</p>
-                    {account.meta && <p className="truncate text-xs text-muted-foreground">{account.meta}</p>}
-                  </div>
-                  {account.busy && <Loader2 size={15} className="shrink-0 animate-spin text-primary" aria-label="Checking" />}
-                </div>
-              ))}
-              {extraAccountCount > 0 && <p className="text-xs text-muted-foreground">And {extraAccountCount} more at this location</p>}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No account connected yet.</p>
+      <div className="flex items-start gap-3">
+        <span
+          className={cn(
+            'flex size-11 shrink-0 items-center justify-center rounded-lg',
+            state === 'attention' ? 'bg-exception/8 text-exception' : live ? 'bg-primary/8 text-primary' : 'bg-band text-muted-foreground',
           )}
-
-          {alert && (
-            <div className="mt-2 flex items-start gap-2 text-destructive">
-              <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium">{alert.title}</p>
-                {alert.detail && <p className="text-xs text-destructive/80">{alert.detail}</p>}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="md:justify-self-end">
-          {action ? (
-            <Button
-              variant={action.variant ?? 'default'}
-              disabled={action.disabled}
-              onClick={action.onClick}
-              className="w-full gap-2 md:w-auto"
-            >
-              {ActionIcon && <ActionIcon size={15} aria-hidden="true" />}
-              {action.label}
-            </Button>
-          ) : (
-            <p className="text-xs text-muted-foreground">Not available yet</p>
-          )}
+        >
+          <Icon size={20} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-semibold text-foreground">{definition.name}</h3>
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className={cn('size-1.5 rounded-full', DOT[state])} aria-hidden="true" />
+            {STATE_BADGE[state].label}
+          </p>
         </div>
       </div>
-    </article>
+
+      <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{definition.description}</p>
+
+      {alert && (
+        <div className="mt-3 flex items-start gap-2 rounded-md bg-exception/6 px-3 py-2 text-sm text-exception" role="status">
+          <AlertCircle size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0">
+            <span className="block font-medium">{alert.title}</span>
+            {alert.detail && <span className="block text-xs text-exception/80">{alert.detail}</span>}
+          </span>
+        </div>
+      )}
+
+      <div className="mt-auto flex items-center gap-3 pt-4">
+        <div className="min-w-0 flex-1">
+          {account ? (
+            <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              {account.busy && <Loader2 size={12} className="shrink-0 animate-spin" aria-label="Checking" />}
+              <span className="truncate font-medium text-foreground">{account.label}</span>
+              {extraAccountCount > 0 && <span className="shrink-0">+{extraAccountCount}</span>}
+            </p>
+          ) : null}
+          {account?.meta && <p className="truncate text-xs text-muted-foreground">{account.meta}</p>}
+        </div>
+        {action && (
+          <Button variant={action.variant ?? 'default'} size="sm" disabled={action.disabled} onClick={action.onClick} className="shrink-0">
+            {ActionIcon && <ActionIcon aria-hidden="true" />}
+            {action.label}
+          </Button>
+        )}
+      </div>
+    </motion.article>
   );
 }

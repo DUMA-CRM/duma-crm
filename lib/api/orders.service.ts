@@ -140,6 +140,8 @@ export interface Order {
   locationId: string;
   customerId?: string;
   status: OrderStatus;
+  /** `orders.refund_status` — the list returns whole rows, so this is present there too. */
+  refundStatus?: RefundStatus;
   paymentStatus?: 'unpaid' | 'processing' | 'awaiting_payment' | 'awaiting_cash_approval' | 'paid' | 'failed' | 'cancelled' | 'expired' | 'refunded';
   paymentMethod?: string | null;
   customerName?: string | null;
@@ -199,6 +201,12 @@ export interface CreateOrderPayload {
   source: 'pos' | 'mobile';
   paymentMethod?: string;
   notes?: string;
+  loyaltyRedemptions?: Array<{
+    programId: string;
+    itemIndex: number;
+    modifierId?: string;
+    quantity: number;
+  }>;
   items: CreateOrderItem[];
 }
 

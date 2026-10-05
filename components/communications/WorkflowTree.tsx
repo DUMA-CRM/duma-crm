@@ -46,12 +46,24 @@ interface Props {
   onRemove: (nodeId: string) => void;
   /** Resolves a template id to its name for the step's second line. */
   templateName?: (id: string) => string;
+  /** View only: steps can be selected to read, but not added, moved, copied or removed. */
+  readOnly?: boolean;
 }
 
 /** The two branch columns under a condition; BranchConnector mirrors this gap. */
 const BRANCH_GRID = 'grid w-full grid-cols-2 gap-8';
 
-export function WorkflowTree({ definition, selectedId, onSelect, onInsert, onMove, onDuplicate, onRemove, templateName }: Props) {
+export function WorkflowTree({
+  definition,
+  selectedId,
+  onSelect,
+  onInsert,
+  onMove,
+  onDuplicate,
+  onRemove,
+  templateName,
+  readOnly = false,
+}: Props) {
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<DropTarget | null>(null);
 
@@ -72,6 +84,7 @@ export function WorkflowTree({ definition, selectedId, onSelect, onInsert, onMov
     const connector = (branch: string, target?: EmailWorkflowNode) => (
       <>
         <Connection
+          readOnly={readOnly}
           target={{ afterNodeId: node.id, branch }}
           isDragging={Boolean(dragging)}
           isOver={over?.afterNodeId === node.id && over.branch === branch}
@@ -91,6 +104,7 @@ export function WorkflowTree({ definition, selectedId, onSelect, onInsert, onMov
           templateName={templateName}
           selected={node.id === selectedId}
           dragging={dragging === node.id}
+          readOnly={readOnly}
           onSelect={() => onSelect(node.id)}
           onDragStart={() => setDragging(node.id)}
           onDragEnd={() => {
@@ -145,6 +159,7 @@ export function WorkflowTree({ definition, selectedId, onSelect, onInsert, onMov
  * drag so the places a step can land are obvious rather than discovered.
  */
 function Connection({
+  readOnly,
   target,
   isDragging,
   isOver,
@@ -153,6 +168,7 @@ function Connection({
   onDrop,
   onInsert,
 }: {
+  readOnly: boolean;
   target: DropTarget;
   isDragging: boolean;
   isOver: boolean;
@@ -162,6 +178,9 @@ function Connection({
   onInsert: (type: InsertType) => void;
 }) {
   const [open, setOpen] = useState(false);
+
+  // Nothing to insert or drop onto — just the line between two steps.
+  if (readOnly) return <span className="h-10 w-px bg-rule" aria-hidden="true" />;
 
   return (
     <div
@@ -258,6 +277,7 @@ function StepCard({
   templateName,
   selected,
   dragging,
+  readOnly,
   onSelect,
   onDragStart,
   onDragEnd,
@@ -268,6 +288,7 @@ function StepCard({
   templateName?: (id: string) => string;
   selected: boolean;
   dragging: boolean;
+  readOnly: boolean;
   onSelect: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
@@ -277,8 +298,8 @@ function StepCard({
   // Icon and colour come from the shared step language, so a step looks the same
   // here as it does on its automation card in the list.
   const { icon: Icon, chip } = NODE_META[node.type];
-  const movable = isMovableNode(node);
-  const removable = node.type !== 'trigger' && node.type !== 'end';
+  const movable = !readOnly && isMovableNode(node);
+  const removable = !readOnly && node.type !== 'trigger' && node.type !== 'end';
 
   return (
     <div
@@ -292,9 +313,9 @@ function StepCard({
       }}
       onDragEnd={onDragEnd}
       className={cn(
-        'group/step relative flex w-64 items-center gap-2 rounded-sm border bg-card p-3 text-left shadow-sm',
+        'group/step relative flex w-64 items-center gap-2 rounded-lg border bg-card p-3 text-left',
         'transition-[border-color,box-shadow,opacity] duration-150',
-        selected ? 'border-primary ring-2 ring-primary/15' : 'border-rule hover:border-primary/40',
+        selected ? 'border-primary ring-2 ring-primary/15' : 'border-rule/60 hover:border-primary/40',
         dragging && 'opacity-40',
       )}
     >
@@ -310,7 +331,7 @@ function StepCard({
       )}
 
       <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-3 text-left outline-none">
-        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-sm', chip)}>
+        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', chip)}>
           <Icon size={17} aria-hidden="true" />
         </span>
         <span className="min-w-0">

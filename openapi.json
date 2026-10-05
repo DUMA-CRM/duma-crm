@@ -383,6 +383,654 @@
         }
       }
     },
+    "/v1/agent/conversations/memory": {
+      "get": {
+        "operationId": "getV1AgentConversationsMemory",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Read your Ask DUMA memory",
+        "responses": {
+          "200": {
+            "description": "Memory"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1AgentConversationsMemory",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Replace your Ask DUMA memory",
+        "responses": {
+          "200": {
+            "description": "Memory saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteV1AgentConversationsMemory",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Clear your Ask DUMA memory",
+        "responses": {
+          "204": {
+            "description": "Memory cleared"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/conversations": {
+      "get": {
+        "operationId": "getV1AgentConversations",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "List your recent conversations",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Conversation unavailable"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1AgentConversations",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Create a private conversation",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Conversation unavailable"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/conversations/{id}": {
+      "get": {
+        "operationId": "getV1AgentConversationsById",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Read your conversation",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Conversation unavailable"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1AgentConversationsById",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Delete your conversation",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Conversation unavailable"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/agent/conversations/{id}/turns": {
+      "post": {
+        "operationId": "postV1AgentConversationsByIdTurns",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Save a conversation turn once",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Conversation unavailable"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/agent/operations/overview": {
+      "get": {
+        "operationId": "getV1AgentOperationsOverview",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "DUMA operations command centre",
+        "responses": {
+          "200": {
+            "description": "Operations state"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/operations/refresh": {
+      "post": {
+        "operationId": "postV1AgentOperationsRefresh",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Refresh proactive operational findings",
+        "responses": {
+          "200": {
+            "description": "Findings refreshed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/operations/findings/{id}": {
+      "patch": {
+        "operationId": "patchV1AgentOperationsFindingsById",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Acknowledge or resolve a finding",
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/agent/operations/workflows": {
+      "post": {
+        "operationId": "postV1AgentOperationsWorkflows",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Create a durable workflow",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/operations/workflows/{id}/run": {
+      "post": {
+        "operationId": "postV1AgentOperationsWorkflowsByIdRun",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Run or resume a durable workflow",
+        "responses": {
+          "200": {
+            "description": "Advanced"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/agent/operations/workflows/{id}": {
+      "get": {
+        "operationId": "getV1AgentOperationsWorkflowsById",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Read a workflow timeline",
+        "responses": {
+          "200": {
+            "description": "Workflow"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/agent/operations/metrics": {
+      "get": {
+        "operationId": "getV1AgentOperationsMetrics",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Governed business metrics",
+        "responses": {
+          "200": {
+            "description": "Metrics"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/operations/scenarios": {
+      "post": {
+        "operationId": "postV1AgentOperationsScenarios",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Create a forecast scenario",
+        "responses": {
+          "201": {
+            "description": "Scenario"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "get": {
+        "operationId": "getV1AgentOperationsScenarios",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "List forecast scenarios",
+        "responses": {
+          "200": {
+            "description": "Scenarios"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/operations/documents": {
+      "post": {
+        "operationId": "postV1AgentOperationsDocuments",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Register extracted operational material",
+        "responses": {
+          "201": {
+            "description": "Document"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/operations/memory": {
+      "get": {
+        "operationId": "getV1AgentOperationsMemory",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "List inspectable DUMA memory",
+        "responses": {
+          "200": {
+            "description": "Memory"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1AgentOperationsMemory",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Save an inspectable memory",
+        "responses": {
+          "201": {
+            "description": "Memory"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/operations/memory/{id}": {
+      "delete": {
+        "operationId": "deleteV1AgentOperationsMemoryById",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Forget a DUMA memory",
+        "responses": {
+          "204": {
+            "description": "Forgotten"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/agent/operations/evaluations": {
+      "post": {
+        "operationId": "postV1AgentOperationsEvaluations",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Run a feedback-based AI evaluation",
+        "responses": {
+          "201": {
+            "description": "Evaluation"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/operations/outcomes": {
+      "post": {
+        "operationId": "postV1AgentOperationsOutcomes",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Track a recommendation outcome",
+        "responses": {
+          "201": {
+            "description": "Outcome"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/operations/outcomes/{id}": {
+      "patch": {
+        "operationId": "patchV1AgentOperationsOutcomesById",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Record an observed recommendation outcome",
+        "responses": {
+          "200": {
+            "description": "Outcome updated"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/agent/operations/locations": {
+      "get": {
+        "operationId": "getV1AgentOperationsLocations",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Cross-location operating benchmark",
+        "responses": {
+          "200": {
+            "description": "Location comparison"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/operations/extensions": {
+      "get": {
+        "operationId": "getV1AgentOperationsExtensions",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "List DUMA platform extensions",
+        "responses": {
+          "200": {
+            "description": "Extensions"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/agent/operations/extensions/{id}": {
+      "patch": {
+        "operationId": "patchV1AgentOperationsExtensionsById",
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Configure a DUMA extension",
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/agent/turns": {
       "post": {
         "operationId": "postV1AgentTurns",
@@ -2052,6 +2700,175 @@
         }
       }
     },
+    "/v1/loyalty-programs": {
+      "get": {
+        "operationId": "getV1LoyaltyPrograms",
+        "tags": [
+          "Loyalty"
+        ],
+        "summary": "List loyalty programmes",
+        "responses": {
+          "200": {
+            "description": "Programmes for the selected workspace"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1LoyaltyPrograms",
+        "tags": [
+          "Loyalty"
+        ],
+        "summary": "Create a loyalty programme",
+        "responses": {
+          "201": {
+            "description": "Programme created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/loyalty-programs/customers/{customerId}": {
+      "get": {
+        "operationId": "getV1LoyaltyProgramsCustomersByCustomerId",
+        "tags": [
+          "Loyalty"
+        ],
+        "summary": "Get a customer loyalty wallet",
+        "responses": {
+          "200": {
+            "description": "Active programmes, balances and redeemable state"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "customerId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/loyalty-programs/customers/{customerId}/adjustments": {
+      "post": {
+        "operationId": "postV1LoyaltyProgramsCustomersByCustomerIdAdjustments",
+        "tags": [
+          "Loyalty"
+        ],
+        "summary": "Adjust a customer loyalty balance",
+        "description": "Adds or removes programme units and records the reason in the append-only loyalty ledger.",
+        "responses": {
+          "200": {
+            "description": "Updated programme balance"
+          },
+          "400": {
+            "description": "The adjustment would make the balance negative"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Customer or programme not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "customerId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/loyalty-programs/customers/{customerId}/rewards": {
+      "post": {
+        "operationId": "postV1LoyaltyProgramsCustomersByCustomerIdRewards",
+        "tags": [
+          "Loyalty"
+        ],
+        "summary": "Give a customer a loyalty reward",
+        "description": "Adds one or more complete rewards to a customer wallet and records who issued them and why.",
+        "responses": {
+          "200": {
+            "description": "Updated reward balance"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Customer or programme not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "customerId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/loyalty-programs/{id}": {
+      "patch": {
+        "operationId": "patchV1LoyaltyProgramsById",
+        "tags": [
+          "Loyalty"
+        ],
+        "summary": "Update a loyalty programme",
+        "responses": {
+          "200": {
+            "description": "Programme updated"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/tenants": {
       "post": {
         "operationId": "postV1Tenants",
@@ -2120,6 +2937,50 @@
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/tenants/current": {
+      "get": {
+        "operationId": "getV1TenantsCurrent",
+        "tags": [
+          "Tenants"
+        ],
+        "summary": "Get the caller's own workspace",
+        "responses": {
+          "200": {
+            "description": "Tenant object"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No workspace on this profile"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchV1TenantsCurrent",
+        "tags": [
+          "Tenants"
+        ],
+        "summary": "Rename the caller's own workspace",
+        "responses": {
+          "200": {
+            "description": "Updated tenant"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No workspace on this profile"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -2410,7 +3271,7 @@
           "Modules"
         ],
         "summary": "Enable or disable a tenant module",
-        "description": "Records the desired lifecycle state, configuration revision, actor and timestamp. Enabling also applies the required dependency closure atomically and explains required and recommended additions.",
+        "description": "Records the desired lifecycle state, configuration revision, actor and timestamp. Required dependencies are enabled together, and enabled dependants are disabled together, in one transaction.",
         "responses": {
           "200": {
             "description": "Updated tenant module state"
@@ -2768,7 +3629,7 @@
           "Locations"
         ],
         "summary": "Create location",
-        "description": "Creates a new physical location for a tenant. Super admin only.",
+        "description": "Creates a new physical location. Franchise owners can create locations only inside their own workspace.",
         "requestBody": {
           "required": true,
           "content": {
@@ -3021,7 +3882,7 @@
           "Locations"
         ],
         "summary": "Update location",
-        "description": "Super admin only.",
+        "description": "Updates a location. Franchise owners can update locations only inside their own workspace.",
         "requestBody": {
           "required": true,
           "content": {
@@ -3102,7 +3963,7 @@
           "Locations"
         ],
         "summary": "Delete location",
-        "description": "Super admin only. Writes an audit log.",
+        "description": "Deletes an unused location. Franchise owners can delete locations only inside their own workspace. Writes an audit log.",
         "responses": {
           "200": {
             "description": "Deleted successfully"
@@ -5957,7 +6818,7 @@
           "Stock Items"
         ],
         "summary": "Create stock item",
-        "description": "Creates a new trackable stock item (e.g. \"Oat Milk\", \"Espresso Shots\"). Super admin only.",
+        "description": "Creates a new trackable stock item (e.g. \"Oat Milk\", \"Espresso Shots\") inside the caller’s workspace.",
         "requestBody": {
           "required": true,
           "content": {
@@ -6231,7 +7092,7 @@
           "Location Stock"
         ],
         "summary": "Add stock item to location",
-        "description": "Starts tracking a stock item at a specific location. Super admin only.",
+        "description": "Starts tracking a workspace stock item at a location the caller may manage.",
         "requestBody": {
           "required": true,
           "content": {
@@ -6971,6 +7832,46 @@
         ]
       }
     },
+    "/v1/restock-requests/{id}/receive": {
+      "post": {
+        "operationId": "postV1RestockRequestsByIdReceive",
+        "tags": [
+          "Restock Requests"
+        ],
+        "summary": "Receive an approved restock request",
+        "description": "Records delivered stock and closes the restock request without requiring the Purchasing module.",
+        "responses": {
+          "201": {
+            "description": "Stock received and request completed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Request already received or not ready to receive"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/menu-item-recipes/gaps": {
       "get": {
         "operationId": "getV1MenuItemRecipesGaps",
@@ -6988,6 +7889,44 @@
           },
           "403": {
             "description": "Forbidden or no tenant assigned"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/menu-item-recipes/batch": {
+      "get": {
+        "operationId": "getV1MenuItemRecipesBatch",
+        "tags": [
+          "Menu Item Recipes"
+        ],
+        "summary": "Get recipes for several menu items",
+        "description": "Recipe lines for up to 200 menu items, keyed by menu item id, with stock item name, unit and last unit cost. Items outside the caller's tenant, or unknown, are left out rather than failing the request.",
+        "parameters": [
+          {
+            "name": "menuItemIds",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated menu item UUIDs (max 200)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Object of menuItemId → recipe lines"
+          },
+          "400": {
+            "description": "No ids, or too many"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -10054,6 +10993,230 @@
         }
       }
     },
+    "/v1/analytics/payments": {
+      "get": {
+        "operationId": "getV1AnalyticsPayments",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Sales by payment method",
+        "description": "Orders and revenue per payment method (net of refunds) for the window. An order with no recorded method is reported as \"unrecorded\" rather than guessed.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter by location UUID."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of { method, orders, gross, refunded, revenue }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/analytics/tax": {
+      "get": {
+        "operationId": "getV1AnalyticsTax",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "VAT summary",
+        "description": "VAT charged in the window: the exact total recorded on orders, and a split by rate. Order lines do not store their rate, so the split uses each menu item's current rate (falling back to the workspace default) and is labelled `byRateBasis: \"current-rate\"`. Refunds are not netted off — they are reported separately by the refunds endpoint.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter by location UUID."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ vatRegistered, pricesIncludeTax, recorded: { gross, vat }, byRate[], byRateTotal, byRateBasis }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/analytics/exceptions": {
+      "get": {
+        "operationId": "getV1AnalyticsExceptions",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Discounts and voids",
+        "description": "Money given away or taken back in the window: discounts and markdowns applied to order lines (grouped by label), and cancelled orders grouped by void reason.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter by location UUID."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ discounts: [{ label, kind, lines, amount }], voids: [{ reason, orders, amount }] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/analytics/category-sales": {
+      "get": {
+        "operationId": "getV1AnalyticsCategorySales",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Sales by menu category",
+        "description": "Quantity, revenue and order count per menu category for the window (non-cancelled orders).",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Start of date range (ISO 8601). Defaults to 30 days ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "End of date range (ISO 8601). Defaults to now."
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter by location UUID."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of { categoryId, name, quantity, revenue, orders }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/audit-logs": {
       "get": {
         "operationId": "getV1AuditLogs",
@@ -10078,6 +11241,14 @@
               "type": "integer",
               "default": 50
             }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated entry ids (up to 200) — e.g. the `entryIds` of a group."
           },
           {
             "name": "userId",
@@ -10108,6 +11279,14 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Free text, matched against the actor, action, record type, record ID and request details."
+          },
+          {
             "name": "tenantId",
             "in": "query",
             "schema": {
@@ -10136,6 +11315,121 @@
         "responses": {
           "200": {
             "description": "{ data, total, page, limit, pages }"
+          },
+          "400": {
+            "description": "from/to is not a valid ISO 8601 timestamp, or ids is malformed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden — no capability, or no tenant assigned"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/audit-logs/groups": {
+      "get": {
+        "operationId": "getV1AuditLogsGroups",
+        "tags": [
+          "Audit"
+        ],
+        "summary": "List audit activity, grouped",
+        "description": "The audit log as one row per person, per record, per day: every entry sharing the local day (in `tz`), actor and record collapses into a group with its count, time span, actions and worst outcome. Groups are computed over the whole filtered range, newest first, and paginated as groups. Open one with `GET /audit-logs?ids=` and its `entryIds`. Same filters and tenant scoping as `GET /audit-logs`. Requires the audit:read capability.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 25
+            }
+          },
+          {
+            "name": "tz",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "UTC"
+            },
+            "description": "IANA time zone that decides where a day starts. Unknown zones fall back to UTC."
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resourceType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Free text, matched against the actor, action, record type, record ID and request details."
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter by tenant — super_admin only. Everyone else is pinned to their own tenant."
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: AuditGroup[], total, page, limit, pages, timeZone }"
           },
           "400": {
             "description": "from/to is not a valid ISO 8601 timestamp"
@@ -11659,6 +12953,8 @@
               "type": "string",
               "enum": [
                 "weekly",
+                "fortnightly",
+                "semi_monthly",
                 "monthly"
               ]
             }
@@ -11751,10 +13047,10 @@
           "Payroll"
         ],
         "summary": "Record a line's deductions",
-        "description": "Sets the tax, National Insurance, pension and net pay for one employee on a finalised run, from figures produced elsewhere. Refused once the run is issued — an issued payslip is immutable.",
+        "description": "Replaces one employee's deduction lines (named, each paid by the employee or the employer) and sets their net pay, from figures produced elsewhere. Refused once the run is issued — an issued payslip is immutable.",
         "responses": {
           "200": {
-            "description": "Updated line"
+            "description": "Updated line, with its items"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -11799,7 +13095,7 @@
           "Payroll"
         ],
         "summary": "Issue a payroll run to employees",
-        "description": "Publishes every line as a payslip the employee can see. Refused unless each line carries tax, National Insurance and net pay — a statement with blank deductions is not an itemised pay statement under ERA s.8. Irreversible.",
+        "description": "Publishes every line as a payslip the employee can see. Refused until every line has its deductions and net pay recorded — a statement with blank figures is not an itemised pay statement. Irreversible.",
         "responses": {
           "200": {
             "description": "Issued run"

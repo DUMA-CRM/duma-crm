@@ -20,7 +20,7 @@ import {
 } from '@/components/icons';
 
 import type { AuditSeverity } from '@/lib/audit/narrative';
-import type { AuditLog } from '@/lib/modules/compliance/client';
+import type { AuditLog } from '@/lib/modules/audit/client';
 import { cn } from '@/lib/utils/cn';
 
 /**

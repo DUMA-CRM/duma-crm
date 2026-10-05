@@ -6,7 +6,7 @@
 // work summed together pays that work twice. One survives, the other is set
 // aside — so the only real decision is which, and that is what this decides.
 // ---------------------------------------------------------------------------
-import type { PayrollRun } from '@/lib/modules/people/client';
+import type { PayrollRun } from '@/lib/modules/payroll/client';
 
 /** A period, and every run anyone has taken of it. */
 export interface PeriodGroup {
@@ -72,9 +72,7 @@ export function suggestSurvivor(group: PeriodGroup): PayrollRun | null {
   const issued = group.active.find((run) => run.status === 'issued');
   if (issued) return issued;
 
-  const withDeductions = group.active.filter((run) =>
-    run.lines.some((line) => line.taxDeducted !== null || line.nationalInsurance !== null || line.netPay !== null),
-  );
+  const withDeductions = group.active.filter((run) => run.lines.some((line) => line.netPay !== null || (line.items?.length ?? 0) > 0));
   if (withDeductions.length > 0) return withDeductions[0];
 
   return group.active[0];

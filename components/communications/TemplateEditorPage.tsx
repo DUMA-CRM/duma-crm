@@ -13,18 +13,19 @@ import {
   ListView,
   Loader2,
   Minus,
-  Plus,
+  Monitor,
+  PlugZap,
   Send,
-  Trash2,
+  Smartphone,
   TriangleAlert,
 } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Modal } from '@/components/shared/Modal';
+import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 
 import {
   type EmailTemplate,
@@ -39,13 +40,14 @@ import {
 } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { connectionState } from '@/lib/utils/communications';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { EmailPreviewDrawer } from './EmailPreviewDrawer';
 import { type CanvasDnd, type DragPayload, TemplateCanvas, blockFromPayload } from './TemplateCanvas';
-import { VariablePalette } from './VariablePalette';
+import { TemplateSettingsPanel } from './TemplateSettingsPanel';
 import { DEFAULT_TEMPLATE_CATEGORY, TEMPLATE_CATEGORIES } from './shared';
 import {
   COLUMN_LAYOUTS,
@@ -55,21 +57,25 @@ import {
   defaultTemplateDesign,
   findTemplateBlock,
   insertTemplateBlock,
-  isColumnsBlock,
   isTemplateDesign,
   legacyHtmlToDesign,
   normalizeTemplateDesign,
-  relayoutColumns,
   renderTemplateDesign,
+  templateChecks,
   templateDesignToPlainText,
   updateTemplateBlock,
 } from './templateDesign';
+import { useEmailAccess } from './useEmailAccess';
 import { workflowForAutomation } from './workflowModel';
 
 const FORM_ID = 'email-template-form';
 const MODES = [
   { value: 'visual' as const, label: 'Design' },
   { value: 'html' as const, label: 'HTML' },
+];
+const DEVICES = [
+  { value: 'desktop' as const, label: 'Desktop', icon: Monitor },
+  { value: 'mobile' as const, label: 'Mobile', icon: Smartphone },
 ];
 
 const BLOCKS: Array<{ type: TemplateLeafBlock['type']; label: string; icon: React.ComponentType<{ size?: number }> }> = [
@@ -93,6 +99,7 @@ export function TemplateEditorPage({
   onSaved?: (saved: EmailTemplate) => void;
   onOpenConnection?: () => void;
 }) {
+  const access = useEmailAccess();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
@@ -111,7 +118,10 @@ export function TemplateEditorPage({
   const [htmlBody, setHtmlBody] = useState(source?.htmlBody ?? renderTemplateDesign(initialDesign));
   const [textBody, setTextBody] = useState(source?.textBody ?? templateDesignToPlainText(initialDesign));
   const [mode, setMode] = useState<'visual' | 'html'>('visual');
-  const [selectedId, setSelectedId] = useState(initialDesign.blocks[0]?.id ?? '');
+  // Nothing selected on open: the panel starts on the email's own settings.
+  const [selectedId, setSelectedId] = useState('');
+  const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const [lastField, setLastField] = useState<'subject' | 'preheader'>('subject');
   const [previewing, setPreviewing] = useState(false);
   const [testOpen, setTestOpen] = useState(false);
   const [testEmail, setTestEmail] = useState(user?.email ?? '');
@@ -153,7 +163,8 @@ export function TemplateEditorPage({
   const { data: connection } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
-    enabled: !!tenantId,
+    // Without email.connections:read the state is unknown — never reported as "not set up".
+    enabled: !!tenantId && access.canReadConnection,
     retry: false,
   });
   // A template saved under an older free-text category keeps its own entry, so
@@ -171,7 +182,12 @@ export function TemplateEditorPage({
   const compiledHtml = mode === 'visual' ? renderTemplateDesign(design) : htmlBody;
   const compiledText = mode === 'visual' ? templateDesignToPlainText(design) : textBody;
   const canSave = Boolean(name.trim() && subject.trim() && compiledHtml.trim());
-  const emailReady = connection?.isEnabled && connection.lastTestSucceeded;
+  const connectionStatus = connectionState(connection, access.canReadConnection);
+  const readOnly = !access.canWrite;
+  const checks =
+    mode === 'visual'
+      ? templateChecks(design, subject, variables)
+      : templateChecks({ ...design, blocks: [], preheader: 'x' }, subject, variables);
 
   const persist = async () => {
     const payload: EmailTemplatePayload = {
@@ -195,10 +211,8 @@ export function TemplateEditorPage({
 
   const save = useMutation({
     mutationFn: persist,
-    onSuccess: () => {
-      toast('success', savedId ? 'Template saved.' : 'Template created.');
-      onClose();
-    },
+    // Stays in the editor, as every builder does — Close is one click away.
+    onSuccess: () => toast('success', savedId ? 'Template saved.' : 'Template created.'),
     onError: (error) => toast('error', error.message),
   });
   const sendTest = useMutation({
@@ -262,9 +276,37 @@ export function TemplateEditorPage({
       updateBlock({ ...selected, text: `${selected.text}${selected.text ? ' ' : ''}${token}` });
       return true;
     }
+    if (lastField === 'preheader' && mode === 'visual') {
+      setDesign((current) => ({ ...current, preheader: `${current.preheader ?? ''}${current.preheader ? ' ' : ''}${token}` }));
+      return true;
+    }
     setSubject((value) => `${value}${value ? ' ' : ''}${token}`);
     return true;
   };
+
+  // The checklist, plus the connection — the one problem that isn't in the email itself.
+  const attention: NeedsAttentionItem[] = [
+    ...(connectionStatus === 'missing' || connectionStatus === 'unverified'
+      ? [
+          {
+            key: 'connection',
+            tone: 'exception' as const,
+            icon: PlugZap,
+            title: connectionStatus === 'missing' ? 'Email isn’t set up — nothing will send' : 'The email connection hasn’t passed a test',
+            fix: onOpenConnection ? { label: 'Open connector', run: onOpenConnection } : undefined,
+          },
+        ]
+      : []),
+    ...checks.map((check) => ({
+      key: check.key,
+      tone: check.tone,
+      icon: TriangleAlert,
+      title: check.title,
+      detail: check.detail,
+      fix: check.blockId ? { label: 'Show me', run: () => setSelectedId(check.blockId!) } : undefined,
+    })),
+  ];
+  const blocking = checks.filter((check) => check.tone === 'exception').length;
 
   return (
     <EditorShell
@@ -275,18 +317,41 @@ export function TemplateEditorPage({
       flush
       actions={
         <>
+          <SegmentedControl
+            options={DEVICES}
+            value={device}
+            onChange={setDevice}
+            ariaLabel="Preview size"
+            iconOnly
+            className="hidden md:flex"
+          />
           <Button variant="outline" onClick={() => setPreviewing(true)} className="h-9 gap-2">
             <Eye size={15} />
             <span className="hidden sm:inline">Preview</span>
           </Button>
-          <Button variant="outline" onClick={() => setTestOpen(true)} disabled={!canSave} className="h-9 gap-2">
-            <Send size={15} />
-            <span className="hidden sm:inline">Send test</span>
-          </Button>
-          <Button type="submit" form={FORM_ID} disabled={!canSave || save.isPending} className="h-9 gap-2 px-5">
-            {save.isPending && <Loader2 size={14} className="animate-spin" />}
-            {save.isPending ? 'Saving…' : 'Save'}
-          </Button>
+          {access.canSend && (
+            <Button
+              variant="outline"
+              onClick={() => setTestOpen(true)}
+              disabled={!canSave || blocking > 0}
+              title={blocking ? 'Fix the problems first' : undefined}
+              className="h-9 gap-2"
+            >
+              <Send size={15} />
+              <span className="hidden sm:inline">Send test</span>
+            </Button>
+          )}
+          {access.canWrite && (
+            <Button
+              type="submit"
+              form={FORM_ID}
+              disabled={!canSave || save.isPending || (!dirty && Boolean(savedId))}
+              className="h-9 gap-2 px-5"
+            >
+              {save.isPending && <Loader2 size={14} className="animate-spin" />}
+              {save.isPending ? 'Saving…' : !dirty && savedId ? 'Saved' : 'Save'}
+            </Button>
+          )}
         </>
       }
     >
@@ -296,42 +361,48 @@ export function TemplateEditorPage({
           event.preventDefault();
           save.mutate();
         }}
-        className="grid min-h-0 flex-1 lg:grid-cols-[15rem_minmax(32rem,1fr)_21rem]"
+        className={cn('grid min-h-0 flex-1', readOnly ? 'lg:grid-cols-[minmax(0,1fr)_24rem]' : 'lg:grid-cols-[13rem_minmax(0,1fr)_24rem]')}
       >
-        <aside className="overflow-auto border-b border-rule bg-card p-4 lg:border-b-0 lg:border-r">
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Content</p>
-          <p className="mt-1.5 text-label leading-relaxed text-muted-foreground">Drag onto the email, or click to add at the end.</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {BLOCKS.map(({ type, label, icon: Icon }) => (
-              <button
-                key={type}
-                type="button"
-                draggable
-                onDragStart={(event) => {
-                  dnd.start({ kind: 'new', type });
-                  event.dataTransfer.effectAllowed = 'copy';
-                  event.dataTransfer.setData('text/plain', type);
-                }}
-                onDragEnd={dnd.end}
-                onClick={() => addBlock({ kind: 'new', type })}
-                className="flex min-h-20 cursor-grab flex-col items-center justify-center gap-2 rounded-sm border border-rule bg-background text-xs font-semibold transition hover:border-primary/50 hover:bg-band active:cursor-grabbing"
-              >
-                <Icon size={19} />
-                {label}
-              </button>
-            ))}
-          </div>
+        {!readOnly && (
+          <aside className="overflow-auto border-b border-rule/60 bg-card p-3 lg:border-b-0 lg:border-r">
+            <p className="px-1 text-label uppercase text-muted-foreground">Add</p>
+            <p className="mt-1 px-1 text-xs leading-relaxed text-muted-foreground">Drag onto the email, or click to add at the end.</p>
+            <div className="mt-3 space-y-1">
+              {BLOCKS.map(({ type, label, icon: Icon }) => (
+                <button
+                  key={type}
+                  type="button"
+                  draggable={mode === 'visual'}
+                  disabled={mode !== 'visual'}
+                  onDragStart={(event) => {
+                    dnd.start({ kind: 'new', type });
+                    event.dataTransfer.effectAllowed = 'copy';
+                    event.dataTransfer.setData('text/plain', type);
+                  }}
+                  onDragEnd={dnd.end}
+                  onClick={() => addBlock({ kind: 'new', type })}
+                  className="flex h-10 w-full cursor-grab items-center gap-3 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-band active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span
+                    className="flex size-7 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground"
+                    aria-hidden="true"
+                  >
+                    <Icon size={15} />
+                  </span>
+                  {label}
+                </button>
+              ))}
+            </div>
 
-          {/* Layouts come second: pick the shape of a row, then fill its cells. */}
-          <div className="mt-6 border-t border-rule pt-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Layouts</p>
-            <p className="mt-1.5 text-label leading-relaxed text-muted-foreground">Drop a row in, then drag content into each column.</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            {/* Layouts come second: pick the shape of a row, then fill its cells. */}
+            <p className="mt-6 px-1 text-label uppercase text-muted-foreground">Columns</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
               {COLUMN_LAYOUTS.map(({ value, label, widths }) => (
                 <button
                   key={value}
                   type="button"
-                  draggable
+                  draggable={mode === 'visual'}
+                  disabled={mode !== 'visual'}
                   onDragStart={(event) => {
                     dnd.start({ kind: 'new', type: 'columns', layout: value });
                     event.dataTransfer.effectAllowed = 'copy';
@@ -341,50 +412,41 @@ export function TemplateEditorPage({
                   onClick={() => addBlock({ kind: 'new', type: 'columns', layout: value })}
                   title={label}
                   aria-label={`Add a ${label} row`}
-                  className="flex cursor-grab flex-col items-center gap-2 rounded-sm border border-rule bg-background p-2.5 transition hover:border-primary/50 hover:bg-band active:cursor-grabbing"
+                  className="flex h-11 cursor-grab items-stretch gap-1 rounded-md border border-rule/60 bg-background p-2 transition-colors hover:border-primary/50 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <span className="flex h-7 w-full items-stretch gap-1" aria-hidden="true">
-                    {widths.map((width, index) => (
-                      <span key={index} style={{ width: `${width}%` }} className="rounded bg-muted" />
-                    ))}
-                  </span>
-                  <span className="text-label font-semibold">{label}</span>
+                  {widths.map((width, index) => (
+                    <span key={index} style={{ width: `${width}%` }} className="rounded-sm bg-band" aria-hidden="true" />
+                  ))}
                 </button>
               ))}
             </div>
-          </div>
+          </aside>
+        )}
 
-          <div className="mt-6 space-y-3 border-t border-rule pt-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Template</p>
-            <Input label="Name" value={name} onChange={(event) => setName(event.target.value)} required />
-            <div className="space-y-1.5">
-              <label htmlFor="template-category" className="text-xs font-bold text-muted-foreground">
-                Category
-              </label>
-              <Select
-                id="template-category"
-                value={category}
-                onValueChange={setCategory}
-                options={categoryOptions}
-                ariaLabel="Template category"
-                className="w-full"
+        <main className="min-h-0 overflow-auto bg-band/60 p-4 md:p-6">
+          <div className={cn('mx-auto space-y-4 transition-[max-width] duration-300', device === 'mobile' ? 'max-w-sm' : 'max-w-3xl')}>
+            {!readOnly && (
+              <NeedsAttention
+                items={attention}
+                summary={
+                  blocking
+                    ? `${attention.length} to fix before sending`
+                    : `${attention.length} ${attention.length === 1 ? 'suggestion' : 'suggestions'}`
+                }
               />
-              <p className="text-xs text-muted-foreground">{categoryHint}</p>
-            </div>
-          </div>
-        </aside>
+            )}
 
-        <main className="min-h-0 overflow-auto bg-band p-4 md:p-6">
-          <div className="mx-auto max-w-3xl">
-            <div className="mb-4 rounded-sm border border-rule bg-card p-3 shadow-sm">
-              <Input
-                label="Subject line"
-                value={subject}
-                onChange={(event) => setSubject(event.target.value)}
-                required
-                placeholder="What customers see in their inbox"
-              />
-              <div className="mt-3 flex justify-end">
+            {/* How it lands in the inbox — the subject and preview text are the first thing anyone reads. */}
+            <div className="flex items-start justify-between gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {subject || <span className="text-muted-foreground">No subject yet</span>}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {design.preheader?.trim() || 'No preview text — the inbox shows the first words of the email'}
+                </p>
+              </div>
+              {!readOnly && (
                 <SegmentedControl
                   options={MODES}
                   value={mode}
@@ -395,25 +457,35 @@ export function TemplateEditorPage({
                     }
                     setMode(next);
                   }}
+                  ariaLabel="Editor"
+                  className="shrink-0"
                 />
-              </div>
+              )}
             </div>
-            {mode === 'html' ? (
-              <div className="space-y-4 rounded-sm border border-rule bg-card p-5 shadow-sm">
-                <div>
-                  <label className="text-xs font-bold text-muted-foreground">HTML body</label>
+
+            {readOnly ? (
+              // Reading, not building: the email as it renders.
+              <div className="overflow-hidden rounded-lg border border-rule/60 bg-white">
+                <iframe title="Email" sandbox="" srcDoc={compiledHtml} className="h-[calc(100dvh-16rem)] min-h-96 w-full border-0" />
+              </div>
+            ) : mode === 'html' ? (
+              <div className="space-y-4 rounded-lg border border-rule/60 bg-card p-5">
+                <div className="space-y-1.5">
+                  <p className="text-label uppercase text-muted-foreground">HTML</p>
                   <textarea
                     value={htmlBody}
                     onChange={(event) => setHtmlBody(event.target.value)}
-                    className="mt-2 min-h-96 w-full rounded-sm border border-rule bg-background p-3 font-mono text-xs outline-none focus:border-primary"
+                    aria-label="HTML body"
+                    className="min-h-96 w-full rounded-md border border-rule/60 bg-background p-3 font-mono text-xs outline-none focus:border-primary"
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-muted-foreground">Plain-text fallback</label>
+                <div className="space-y-1.5">
+                  <p className="text-label uppercase text-muted-foreground">Plain-text version</p>
                   <textarea
                     value={textBody}
                     onChange={(event) => setTextBody(event.target.value)}
-                    className="mt-2 min-h-32 w-full rounded-sm border border-rule bg-background p-3 text-sm outline-none focus:border-primary"
+                    aria-label="Plain-text fallback"
+                    className="min-h-32 w-full rounded-md border border-rule/60 bg-background p-3 text-sm outline-none focus:border-primary"
                   />
                 </div>
               </div>
@@ -430,24 +502,33 @@ export function TemplateEditorPage({
           </div>
         </main>
 
-        <aside className="overflow-auto border-t border-rule bg-card p-4 lg:border-l lg:border-t-0">
-          {/* Text and layout are handled on the email itself; this panel is for the
-              settings a block cannot show inline — links, sizes, alignment. */}
-          {mode === 'visual' && selected ? (
-            <>
-              <p className="text-xs font-bold uppercase tracking-widest text-primary">Selected block</p>
-              <p className="mt-1 font-semibold capitalize">{isColumnsBlock(selected) ? 'Column row' : selected.type}</p>
-              <div className="mt-4">
-                <BlockSettings block={selected} onChange={updateBlock} onChooseImage={() => requestImage(selected.id)} />
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {mode === 'visual'
-                ? 'Click a block on the email to change its settings. Text can be edited straight on the page.'
-                : 'Editing raw HTML — switch back to Design to use the builder.'}
-            </p>
-          )}
+        <aside className="min-h-0 overflow-auto border-t border-rule/60 bg-background lg:border-l lg:border-t-0">
+          <TemplateSettingsPanel
+            selected={readOnly ? undefined : selected}
+            onDeselect={() => setSelectedId('')}
+            onBlockChange={updateBlock}
+            onChooseImage={requestImage}
+            name={name}
+            onName={setName}
+            category={category}
+            onCategory={setCategory}
+            categoryOptions={categoryOptions}
+            categoryHint={categoryHint}
+            subject={subject}
+            onSubject={setSubject}
+            preheader={design.preheader ?? ''}
+            onPreheader={(preheader) => setDesign((current) => ({ ...current, preheader }))}
+            onFocusField={setLastField}
+            design={design}
+            onStyles={(patch) => setDesign((current) => ({ ...current, styles: { ...current.styles, ...patch } }))}
+            variables={variables}
+            onInsertVariable={insertVariable}
+            usedBy={usedBy}
+            canDelete={Boolean(savedId) && access.canWrite}
+            onDelete={() => setDeleting(true)}
+            readOnly={readOnly}
+            htmlMode={mode === 'html'}
+          />
           <input
             ref={fileRef}
             type="file"
@@ -459,43 +540,12 @@ export function TemplateEditorPage({
               event.currentTarget.value = '';
             }}
           />
-          <div className="mt-6 border-t border-rule pt-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Brand styles</p>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              {(['backgroundColor', 'contentColor', 'textColor', 'accentColor'] as const).map((key) => (
-                <label key={key} className="text-label capitalize text-muted-foreground">
-                  {key.replace('Color', '')}
-                  <input
-                    type="color"
-                    value={design.styles[key]}
-                    onChange={(event) => setDesign((current) => ({ ...current, styles: { ...current.styles, [key]: event.target.value } }))}
-                    className="mt-1 h-9 w-full rounded border border-rule bg-background"
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
-          <div className="mt-6 border-t border-rule pt-5">
-            <VariablePalette variables={variables} onInsert={insertVariable} />
-          </div>
-          {savedId && (
-            <div className="mt-6 border-t border-rule pt-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Used by</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {usedBy.length ? usedBy.map((item) => item.name).join(', ') : 'No workflows yet.'}
-              </p>
-              <Button type="button" variant="destructive" size="sm" onClick={() => setDeleting(true)} className="mt-4 w-full gap-2">
-                <Trash2 />
-                Delete template
-              </Button>
-            </div>
-          )}
         </aside>
       </form>
 
       {previewing && (
         <EmailPreviewDrawer
-          description="Responsive email preview"
+          description="How it looks in an inbox"
           title={name || 'Untitled template'}
           subject={subject}
           recipient={<span className="font-mono text-primary">{'{{customer.email}}'}</span>}
@@ -505,28 +555,40 @@ export function TemplateEditorPage({
         />
       )}
       {testOpen && (
-        <Modal title="Send a test email" onClose={() => setTestOpen(false)} className="max-w-lg">
-          <div className="space-y-4">
-            {!emailReady && (
-              <div className="flex gap-2 rounded-sm border border-warning/40 bg-warning/6 p-3 text-xs text-warning">
-                <TriangleAlert size={15} />
-                Email sending is not verified.
-                {onOpenConnection && (
-                  <button type="button" onClick={onOpenConnection} className="font-semibold underline">
-                    Set it up
-                  </button>
-                )}
-              </div>
-            )}
-            <Input label="Send to" type="email" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} />
+        <Modal
+          title="Send a test email"
+          description="Saves the template, then sends it. There’s no customer behind a test, so customer and order details come through blank."
+          onClose={() => setTestOpen(false)}
+          className="max-w-lg"
+          footer={
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setTestOpen(false)}>
                 Cancel
               </Button>
-              <Button disabled={!testEmail || sendTest.isPending} onClick={() => sendTest.mutate()}>
+              <Button
+                disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testEmail.trim()) || sendTest.isPending}
+                onClick={() => sendTest.mutate()}
+              >
                 {sendTest.isPending ? 'Sending…' : 'Send test'}
               </Button>
             </div>
+          }
+        >
+          <div className="space-y-4">
+            {(connectionStatus === 'missing' || connectionStatus === 'unverified') && (
+              <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/6 p-3 text-xs text-foreground">
+                <TriangleAlert size={15} className="mt-px shrink-0 text-warning" />
+                <span>
+                  Email sending isn’t verified, so this may not arrive.{' '}
+                  {onOpenConnection && (
+                    <button type="button" onClick={onOpenConnection} className="font-semibold underline">
+                      Set it up
+                    </button>
+                  )}
+                </span>
+              </div>
+            )}
+            <Input label="Send to" type="email" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} autoFocus />
           </div>
         </Modal>
       )}
@@ -535,7 +597,7 @@ export function TemplateEditorPage({
           title="Delete this template?"
           message={
             usedBy.length
-              ? `“${name}” is used by ${usedBy.length} workflow${usedBy.length === 1 ? '' : 's'} (${usedBy
+              ? `“${name}” is used by ${usedBy.length} automation${usedBy.length === 1 ? '' : 's'} (${usedBy
                   .map((item) => item.name)
                   .join(', ')}). Those steps will stop sending. Emails already sent stay in History.`
               : `“${name}” will be removed from your templates. Emails already sent stay in History.`
@@ -548,162 +610,5 @@ export function TemplateEditorPage({
         />
       )}
     </EditorShell>
-  );
-}
-
-function BlockSettings({
-  block,
-  onChange,
-  onChooseImage,
-}: {
-  block: TemplateBlock;
-  onChange: (block: TemplateBlock) => void;
-  onChooseImage: () => void;
-}) {
-  if (block.type === 'heading' || block.type === 'text')
-    return (
-      <div className="space-y-3">
-        <p className="rounded-sm bg-muted p-2.5 text-label leading-relaxed text-muted-foreground">
-          Click the text on the email to edit it in place.
-        </p>
-        <Alignment value={block.align} onChange={(align) => onChange({ ...block, align })} />
-      </div>
-    );
-  if (block.type === 'button')
-    return (
-      <div className="space-y-3">
-        <p className="rounded-sm bg-muted p-2.5 text-label leading-relaxed text-muted-foreground">
-          The label is edited on the button itself.
-        </p>
-        <Input label="Destination URL" value={block.url} onChange={(event) => onChange({ ...block, url: event.target.value })} />
-        <Alignment value={block.align} onChange={(align) => onChange({ ...block, align })} />
-      </div>
-    );
-  if (block.type === 'image')
-    return (
-      <div className="space-y-3">
-        <Button type="button" variant="outline" className="w-full gap-2" onClick={onChooseImage}>
-          <ImagePlus />
-          Upload image
-        </Button>
-        <Input label="Image URL" value={block.url} onChange={(event) => onChange({ ...block, url: event.target.value })} />
-        <Input label="Alt text" value={block.alt} onChange={(event) => onChange({ ...block, alt: event.target.value })} />
-        <Input label="Link URL" value={block.href} onChange={(event) => onChange({ ...block, href: event.target.value })} />
-        <Input
-          label="Width (%)"
-          type="number"
-          min={10}
-          max={100}
-          value={block.width}
-          onChange={(event) => onChange({ ...block, width: Number(event.target.value) })}
-        />
-        <Alignment value={block.align} onChange={(align) => onChange({ ...block, align })} />
-      </div>
-    );
-  if (block.type === 'spacer')
-    return (
-      <Input
-        label="Height (px)"
-        type="number"
-        min={8}
-        max={120}
-        value={block.height}
-        onChange={(event) => onChange({ ...block, height: Number(event.target.value) })}
-      />
-    );
-  if (block.type === 'columns')
-    return (
-      <div className="space-y-3">
-        <p className="rounded-sm bg-muted p-2.5 text-label leading-relaxed text-muted-foreground">
-          Drag content from the left panel into a column. Change the split below — content is kept.
-        </p>
-        <p className="text-xs font-bold tracking-widest text-muted-foreground">Split</p>
-        <div className="grid grid-cols-2 gap-2">
-          {COLUMN_LAYOUTS.map(({ value, label, widths }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => onChange(relayoutColumns(block, value))}
-              aria-pressed={block.layout === value}
-              title={label}
-              className={cn(
-                'flex flex-col items-center gap-1.5 rounded-sm border p-2 transition',
-                block.layout === value ? 'border-primary bg-band' : 'border-rule hover:border-primary/40',
-              )}
-            >
-              <span className="flex h-6 w-full items-stretch gap-1" aria-hidden="true">
-                {widths.map((width, index) => (
-                  <span key={index} style={{ width: `${width}%` }} className="rounded bg-muted" />
-                ))}
-              </span>
-              <span className="text-micro font-semibold">{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  if (block.type === 'social')
-    return (
-      <div className="space-y-3">
-        <p className="text-xs text-muted-foreground">Add links customers can use to find your brand.</p>
-        {block.links.map((link, index) => (
-          <div key={index} className="rounded-sm border border-rule p-2">
-            <Input
-              label="Label"
-              value={link.label}
-              onChange={(event) =>
-                onChange({
-                  ...block,
-                  links: block.links.map((item, position) => (position === index ? { ...item, label: event.target.value } : item)),
-                })
-              }
-            />
-            <Input
-              label="URL"
-              value={link.url}
-              onChange={(event) =>
-                onChange({
-                  ...block,
-                  links: block.links.map((item, position) => (position === index ? { ...item, url: event.target.value } : item)),
-                })
-              }
-            />
-          </div>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => onChange({ ...block, links: [...block.links, { label: 'Website', url: 'https://' }] })}
-        >
-          <Plus />
-          Add link
-        </Button>
-      </div>
-    );
-  return <p className="text-xs text-muted-foreground">This divider has no additional settings.</p>;
-}
-
-function Alignment({ value, onChange }: { value: 'left' | 'center' | 'right'; onChange: (value: 'left' | 'center' | 'right') => void }) {
-  return (
-    <div>
-      <p className="text-xs font-bold text-muted-foreground">Alignment</p>
-      <div className="mt-2 grid grid-cols-3 gap-1">
-        {(['left', 'center', 'right'] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => onChange(option)}
-            className={cn(
-              'rounded-sm border px-2 py-2 text-xs capitalize',
-              value === option ? 'border-primary bg-band text-primary' : 'border-rule',
-            )}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }

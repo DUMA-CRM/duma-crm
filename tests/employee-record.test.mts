@@ -142,3 +142,107 @@ test('compliance outranks correspondence', () => {
   });
   assert.deepEqual(idsOf(items), ['check-right-to-work', 'tickets-waiting-employee']);
 });
+
+// ── Length of service and the statutory ID's name ────────────────────────────
+
+{
+  const { lengthOfService, statutoryIdLabel } = await import('../lib/utils/employee-record.ts');
+  const at = new Date('2026-09-26T15:00:00Z');
+
+  test('length of service reads like a person says it', () => {
+    assert.equal(lengthOfService('2026-09-26', at), 'Started today');
+    assert.equal(lengthOfService('2026-09-25', at), '1 day');
+    assert.equal(lengthOfService('2026-09-10', at), '2 weeks');
+    assert.equal(lengthOfService('2026-08-26', at), '1 month');
+    assert.equal(lengthOfService('2026-02-27', at), '6 months');
+    assert.equal(lengthOfService('2025-09-26', at), '1 yr');
+    assert.equal(lengthOfService('2024-05-01', at), '2 yrs 4 mos');
+    assert.equal(lengthOfService('2025-08-01', at), '1 yr 1 mo');
+  });
+
+  test('a start on the 31st counts whole calendar months', () => {
+    assert.equal(lengthOfService('2026-01-31', new Date('2026-03-01T09:00:00Z')), '1 month');
+    assert.equal(lengthOfService('2026-01-31', new Date('2026-02-28T09:00:00Z')), '4 weeks');
+  });
+
+  test('a start in the future or an unreadable date has no service', () => {
+    assert.equal(lengthOfService('2026-10-01', at), null);
+    assert.equal(lengthOfService('not a date', at), null);
+  });
+
+  test('the statutory ID is named for the payroll country, neutrally elsewhere', () => {
+    assert.equal(statutoryIdLabel('GB'), 'National Insurance');
+    assert.equal(statutoryIdLabel('US'), 'SSN');
+    assert.equal(statutoryIdLabel('PL'), 'PESEL');
+    assert.equal(statutoryIdLabel(null), 'Tax / social ID');
+    assert.equal(statutoryIdLabel('BR'), 'Tax / social ID');
+  });
+}
+
+// ── The UK wage rule stays in the UK ─────────────────────────────────────────
+
+{
+  const { ageBasedMinimumWage, employeeSetupChecks } = await import('../lib/utils/employee-compliance.ts');
+  const on = new Date('2026-09-26T12:00:00Z');
+  const employee = { payType: 'hourly', hourlyRate: '9.00', dateOfBirth: '1990-01-01', hasNiNumber: false } as never;
+  const member = { scope: 'global', locationIds: [] } as never;
+  const pay = (country: string | null) => employeeSetupChecks(member, employee, [], on, country).find((check) => check.id === 'pay');
+
+  test('the UK minimum wage applies in the UK and where no country is set', () => {
+    assert.equal(ageBasedMinimumWage('1990-01-01', on, 'GB')?.rate, 12.71);
+    assert.equal(ageBasedMinimumWage('1990-01-01', on)?.rate, 12.71);
+    assert.equal(pay('GB')?.tone, 'destructive');
+    assert.equal(pay(null)?.tone, 'destructive');
+  });
+
+  test('elsewhere the rate is not judged against a UK threshold', () => {
+    assert.equal(ageBasedMinimumWage('1990-01-01', on, 'UA'), null);
+    assert.equal(pay('UA')?.complete, true);
+    assert.doesNotMatch(pay('PL')?.detail ?? '', /£/);
+  });
+
+  test('the payroll identity check names the local ID', () => {
+    const identity = employeeSetupChecks(member, employee, [], on, 'US').find((check) => check.id === 'statutory');
+    assert.match(identity?.detail ?? '', /SSN/);
+    assert.doesNotMatch(identity?.detail ?? '', /NI number|P45/);
+  });
+}
+
+// ── Working days and the requests summary ────────────────────────────────────
+
+{
+  const { recordRequestList, workingDaysLabel } = await import('../lib/utils/employee-record.ts');
+
+  test('working days collapse runs of three or more into a range', () => {
+    assert.equal(workingDaysLabel([1, 2, 3, 4, 5]), 'Mon–Fri');
+    assert.equal(workingDaysLabel([5, 4, 2, 1]), 'Mon, Tue, Thu, Fri');
+    assert.equal(workingDaysLabel([1, 2, 3, 5, 6, 7]), 'Mon–Wed, Fri–Sun');
+    assert.equal(workingDaysLabel([6, 7]), 'Sat, Sun');
+    assert.equal(workingDaysLabel([1, 2, 3, 4, 5, 6, 7]), 'Every day');
+    assert.equal(workingDaysLabel([]), null);
+  });
+
+  test('the requests panel lists open first, then the newest closed, capped', () => {
+    const t = (id: string, status: string, day: number) => ({ id, status, createdAt: `2026-09-${String(day).padStart(2, '0')}T09:00:00Z` }) as never;
+    const list = recordRequestList([t('a', 'resolved', 20), t('b', 'open', 1), t('c', 'waiting_employee', 10), t('d', 'in_progress', 5), t('e', 'closed', 25)], 4);
+    assert.deepEqual(
+      list.map((ticket: { id: string }) => ticket.id),
+      ['d', 'b', 'c', 'e'],
+    );
+  });
+}
+
+// ── Month ranges are local dates ─────────────────────────────────────────────
+
+{
+  const { monthRangeOf } = await import('../lib/utils/employee-record.ts');
+
+  test('a month runs from its own 1st to its last day, whatever the timezone', () => {
+    const now = new Date(2026, 8, 26, 10, 0);
+    assert.deepEqual({ ...monthRangeOf(now, 0), label: undefined }, { from: '2026-09-01', to: '2026-09-30', label: undefined });
+    assert.equal(monthRangeOf(now, 1).from, '2026-08-01');
+    assert.equal(monthRangeOf(now, 1).to, '2026-08-31');
+    assert.equal(monthRangeOf(new Date(2026, 2, 15), 1).to, '2026-02-28');
+    assert.equal(monthRangeOf(new Date(2026, 0, 10), 1).from, '2025-12-01');
+  });
+}

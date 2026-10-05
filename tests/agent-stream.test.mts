@@ -31,6 +31,18 @@ test('tool-call arguments split mid-JSON are concatenated, not overwritten', () 
   assert.deepEqual(JSON.parse(call.function.arguments), { from: '2026-09-01', to: '2026-09-10' });
 });
 
+test('complete Gemini argument snapshots replace earlier snapshots', () => {
+  const accumulator = new StreamAccumulator();
+  feed(accumulator, [
+    { tool_calls: [{ index: 0, id: 'call_1', type: 'function', function: { name: 'list_helpdesk_tickets', arguments: '{}' } }] },
+    { tool_calls: [{ index: 0, function: { arguments: '{"from":null,"limit":20,"status":null}' } }] },
+    { tool_calls: [{ index: 0, function: { arguments: '{"status":"open"}' } }] },
+  ]);
+
+  const [call] = accumulator.message().tool_calls ?? [];
+  assert.deepEqual(JSON.parse(call.function.arguments), { status: 'open' });
+});
+
 test('parallel tool calls are kept apart by index, not by arrival order', () => {
   const accumulator = new StreamAccumulator();
   feed(accumulator, [
@@ -44,6 +56,25 @@ test('parallel tool calls are kept apart by index, not by arrival order', () => 
   assert.equal(calls[0].id, 'a');
   assert.deepEqual(JSON.parse(calls[0].function.arguments), { status: 'pending' });
   assert.equal(calls[1].function.name, 'list_locations');
+});
+
+test('Gemini calls with ids but no indexes are kept as separate calls', () => {
+  const accumulator = new StreamAccumulator();
+  feed(accumulator, [
+    { tool_calls: [{ id: 'call_a', function: { name: 'list_locations', arguments: '{}' } }] },
+    { tool_calls: [{ id: 'call_b', function: { name: 'list_orders', arguments: '{"status":"open"}' } }] },
+    { tool_calls: [{ id: 'call_c', function: { name: 'list_helpdesk_tickets', arguments: '{"status":"open"}' } }] },
+  ]);
+
+  const calls = accumulator.message().tool_calls ?? [];
+  assert.deepEqual(
+    calls.map((call) => [call.id, call.function.name]),
+    [
+      ['call_a', 'list_locations'],
+      ['call_b', 'list_orders'],
+      ['call_c', 'list_helpdesk_tickets'],
+    ],
+  );
 });
 
 test('a provider field we do not know about survives the round trip', () => {

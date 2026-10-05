@@ -3,7 +3,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Check, FileText, Loader2 } from '@/components/icons';
+import { Check, Loader2, Lock } from '@/components/icons';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Button } from '@/components/ui/button';
 
 import { updateCustomer } from '@/lib/modules/customers/client';
@@ -66,7 +67,9 @@ export function CustomerNotesPanel({ customer, canEdit }: { customer: Customer; 
     return (
       <Panel>
         {customer.notes ? (
-          <p className="whitespace-pre-wrap text-sm text-foreground">{customer.notes}</p>
+          <p className="whitespace-pre-wrap rounded-md border-l-2 border-rule pl-3 text-sm leading-relaxed text-foreground">
+            {customer.notes}
+          </p>
         ) : (
           <p className="text-sm text-muted-foreground">No notes recorded for this guest.</p>
         )}
@@ -78,17 +81,17 @@ export function CustomerNotesPanel({ customer, canEdit }: { customer: Customer; 
     <Panel
       status={
         save.isPending ? (
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Loader2 size={12} className="animate-spin" aria-hidden="true" />
-            Saving…
-          </span>
+          <Pill className="bg-band text-muted-foreground">
+            <Loader2 size={11} className="animate-spin" aria-hidden="true" />
+            Saving
+          </Pill>
         ) : justSaved ? (
-          <span className="flex items-center gap-1.5 text-xs text-momentum" role="status">
-            <Check size={12} aria-hidden="true" />
+          <Pill className="bg-momentum/8 text-momentum" role="status">
+            <Check size={11} aria-hidden="true" />
             Saved
-          </span>
+          </Pill>
         ) : dirty ? (
-          <span className="text-xs text-muted-foreground">Unsaved</span>
+          <Pill className="bg-measured/10 text-measured">Unsaved</Pill>
         ) : undefined
       }
     >
@@ -101,47 +104,67 @@ export function CustomerNotesPanel({ customer, canEdit }: { customer: Customer; 
             event.preventDefault();
             commit();
           }
+          if (event.key === 'Escape' && dirty) {
+            event.preventDefault();
+            setValue(saved);
+          }
         }}
         maxLength={MAX}
         aria-label="Internal notes about this guest"
-        placeholder="Anything the team should know — how they take their coffee, who they usually come in with, a complaint you smoothed over."
+        aria-describedby="customer-notes-hint"
+        placeholder="How they take their coffee, who they come in with, a complaint you smoothed over…"
         className={cn(
-          'min-h-28 w-full resize-y rounded-sm border border-input bg-field p-3 text-sm text-foreground shadow-sm outline-none',
+          // Grows with what is written, between a few lines and a screenful.
+          'block min-h-24 max-h-96 w-full resize-none [field-sizing:content] rounded-md border border-input bg-card px-3 py-2.5 text-sm leading-relaxed text-foreground shadow-sm outline-none',
           'placeholder:text-muted-foreground transition-[border-color,outline-color]',
-          'focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured',
+          'focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-ring/30',
         )}
       />
 
-      <div className="mt-2 flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">
-          Visible to staff only. Never shown to the customer.
-          {value.length > MAX - 200 && (
-            <span className="ml-1.5 tabular-nums">
-              {MAX - value.length} character{MAX - value.length === 1 ? '' : 's'} left
-            </span>
-          )}
+      <div className="mt-2 flex min-h-8 items-center gap-3">
+        <p id="customer-notes-hint" className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground">
+          <Lock size={12} className="shrink-0" aria-hidden="true" />
+          <span className="truncate">
+            {value.length > MAX - 200
+              ? `${(MAX - value.length).toLocaleString()} character${MAX - value.length === 1 ? '' : 's'} left`
+              : dirty
+                ? 'Saves when you click away · ⌘↵'
+                : 'Staff only — never shown to the guest'}
+          </span>
         </p>
         {dirty && (
-          <Button size="sm" onClick={commit} disabled={save.isPending} className="shrink-0">
-            {save.isPending ? 'Saving…' : 'Save note'}
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => setValue(saved)}
+              disabled={save.isPending}
+            >
+              Discard
+            </Button>
+            <Button size="sm" onClick={commit} disabled={save.isPending} className="shrink-0">
+              Save
+            </Button>
+          </>
         )}
       </div>
     </Panel>
   );
 }
 
+function Pill({ className, children, role }: { className: string; children: React.ReactNode; role?: string }) {
+  return (
+    <span role={role} className={cn('inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-micro font-semibold', className)}>
+      {children}
+    </span>
+  );
+}
+
 function Panel({ children, status }: { children: React.ReactNode; status?: React.ReactNode }) {
   return (
-    <section className="rounded-sm border border-rule bg-card p-4" aria-label="Internal notes">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <FileText size={14} className="text-muted-foreground" aria-hidden="true" />
-          Notes
-        </h2>
-        {status}
-      </div>
+    <SettingsSection title="Notes" actions={status}>
       {children}
-    </section>
+    </SettingsSection>
   );
 }

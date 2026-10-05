@@ -9,6 +9,8 @@ export interface MenuOption {
   category?: string;
   // Pre-selected as the item's default variant when the customiser opens.
   isDefault?: boolean;
+  // The modifier group whose selection rule applies (see `buildOptionGroups`).
+  groupId?: string | null;
 }
 
 export interface MenuItem {
@@ -30,4 +32,16 @@ export interface CartItem {
   quantity: number;
   // Chosen add-ons for this line.
   selected: MenuOption[];
+  // Kitchen note for this line only ("no foam") — sent as `items[].notes`.
+  note?: string;
+}
+
+export interface AppliedLoyaltyReward {
+  programId: string;
+  cartId: string;
+  modifierId?: string;
+  quantity: number;
+  unitDiscountCents: number;
+  discountCents: number;
+  label: string;
 }

@@ -35,7 +35,14 @@ export interface PurchaseOrderLine {
   quantityOrdered: string;
   unitCost: string;
   quantityReceived: string;
-  stockItem?: { id: string; name: string; unit: string; isPerishable?: boolean; defaultContainerQuantity?: string | null; defaultShelfLifeDays?: number | null };
+  stockItem?: {
+    id: string;
+    name: string;
+    unit: string;
+    isPerishable?: boolean;
+    defaultContainerQuantity?: string | null;
+    defaultShelfLifeDays?: number | null;
+  };
 }
 
 export interface GoodsReceipt {
@@ -79,6 +86,7 @@ export interface CreatePurchaseOrderPayload {
   locationId: string;
   expectedAt?: string;
   notes?: string;
+  restockRequestIds?: string[];
   lines: { stockItemId: string; quantityOrdered: number; unitCost: number }[];
 }
 
@@ -96,8 +104,7 @@ export interface UpdatePurchaseOrderPayload {
 export const getSuppliers = (includeInactive = false) =>
   apiFetch<Supplier[]>(`/suppliers${includeInactive ? '?includeInactive=true' : ''}`);
 
-export const createSupplier = (data: SupplierPayload) =>
-  apiFetch<Supplier>('/suppliers', { method: 'POST', body: JSON.stringify(data) });
+export const createSupplier = (data: SupplierPayload) => apiFetch<Supplier>('/suppliers', { method: 'POST', body: JSON.stringify(data) });
 
 export const updateSupplier = (id: string, data: Partial<SupplierPayload>) =>
   apiFetch<Supplier>(`/suppliers/${id}`, { method: 'PATCH', body: JSON.stringify(data) });

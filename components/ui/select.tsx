@@ -11,6 +11,8 @@ export interface SelectOption {
   value: string;
   label: string;
   disabled?: boolean;
+  /** Drawn before the label in the list — and on the trigger while this option is chosen. */
+  icon?: ReactNode;
 }
 
 interface SelectProps {
@@ -49,6 +51,8 @@ function Select({
   disabled,
 }: SelectProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
+  // An explicit trigger icon wins; otherwise the chosen option brings its own.
+  const triggerIcon = icon ?? options.find((option) => option.value === value)?.icon;
 
   return (
     <SelectPrimitive.Root
@@ -56,9 +60,7 @@ function Select({
       onValueChange={(nextValue) => {
         const resolvedValue = nextValue === EMPTY_VALUE ? '' : nextValue;
         onValueChange(resolvedValue);
-        triggerRef.current?.dispatchEvent(
-          new CustomEvent('duma:select-change', { bubbles: true, detail: { value: resolvedValue } }),
-        );
+        triggerRef.current?.dispatchEvent(new CustomEvent('duma:select-change', { bubbles: true, detail: { value: resolvedValue } }));
       }}
       disabled={disabled}
       name={name}
@@ -82,7 +84,7 @@ function Select({
           className,
         )}
       >
-        {icon && <span className="shrink-0 text-muted-foreground [&>svg]:size-3.5">{icon}</span>}
+        {triggerIcon && <span className="shrink-0 text-muted-foreground [&>svg]:size-3.5">{triggerIcon}</span>}
         <SelectPrimitive.Value placeholder={placeholder} className="min-w-0 flex-1 truncate text-left" />
         <SelectPrimitive.Icon className="ml-auto shrink-0 text-muted-foreground">
           <ChevronDown size={14} aria-hidden="true" />
@@ -114,6 +116,7 @@ function Select({
                   'data-[highlighted]:bg-band data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
                 )}
               >
+                {option.icon && <span className="mr-2 inline-flex shrink-0 text-muted-foreground [&>svg]:size-3.5">{option.icon}</span>}
                 <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
                 <SelectPrimitive.ItemIndicator className="absolute right-3 inline-flex items-center text-measured">
                   <Check size={14} aria-hidden="true" />

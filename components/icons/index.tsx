@@ -63,7 +63,9 @@ import {
   ClockIcon,
   CloudOffIcon,
   CloudUploadIcon,
+  BeerIcon,
   CoffeeIcon,
+  CroissantIcon,
   CoinsIcon,
   CombineIcon,
   ComputerIcon,
@@ -138,6 +140,8 @@ import {
   PlugIcon,
   PlugSocketIcon,
   PlusSignIcon,
+  PauseIcon,
+  PowerIcon,
   PrinterIcon,
   QrCodeIcon,
   ReceiptTextIcon,
@@ -254,7 +258,9 @@ export const Clock = /*#__PURE__*/ glyph(ClockIcon, 'Clock');
 export const Clock3 = /*#__PURE__*/ glyph(ClockIcon, 'Clock3');
 export const CloudOff = /*#__PURE__*/ glyph(CloudOffIcon, 'CloudOff');
 export const CloudUpload = /*#__PURE__*/ glyph(CloudUploadIcon, 'CloudUpload');
+export const Beer = /*#__PURE__*/ glyph(BeerIcon, 'Beer');
 export const Coffee = /*#__PURE__*/ glyph(CoffeeIcon, 'Coffee');
+export const Croissant = /*#__PURE__*/ glyph(CroissantIcon, 'Croissant');
 export const Coins = /*#__PURE__*/ glyph(CoinsIcon, 'Coins');
 export const Combine = /*#__PURE__*/ glyph(CombineIcon, 'Combine');
 export const Copy = /*#__PURE__*/ glyph(CopyIcon, 'Copy');
@@ -327,6 +333,8 @@ export const Phone = /*#__PURE__*/ glyph(CallIcon, 'Phone');
 export const Play = /*#__PURE__*/ glyph(PlayIcon, 'Play');
 export const Plug = /*#__PURE__*/ glyph(PlugIcon, 'Plug');
 export const PlugZap = /*#__PURE__*/ glyph(PlugSocketIcon, 'PlugZap');
+export const Pause = /*#__PURE__*/ glyph(PauseIcon, 'Pause');
+export const Power = /*#__PURE__*/ glyph(PowerIcon, 'Power');
 export const Plus = /*#__PURE__*/ glyph(PlusSignIcon, 'Plus');
 export const Printer = /*#__PURE__*/ glyph(PrinterIcon, 'Printer');
 export const QrCode = /*#__PURE__*/ glyph(QrCodeIcon, 'QrCode');

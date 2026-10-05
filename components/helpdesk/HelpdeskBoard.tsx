@@ -1,11 +1,14 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { ArrowLeft, CircleHelp, Loader2, Lock, MessageSquarePlus, Search, X } from '@/components/icons';
+import { CalendarDays, CircleHelp, Loader2, Lock, MessageSquarePlus, Search, Send, X } from '@/components/icons';
+import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -20,6 +23,7 @@ import {
   updateTicket,
 } from '@/lib/modules/support/client';
 import { cn } from '@/lib/utils/cn';
+import { type BoardColumn, buildBoard, ticketAge } from '@/lib/utils/helpdesk-board';
 import { toast } from '@/stores/toastStore';
 
 import {
@@ -27,8 +31,8 @@ import {
   CATEGORY_META,
   PRIORITY_META,
   PriorityTag,
+  STATUS_ICON,
   STATUS_META,
-  StatusLozenge,
   TICKET_CATEGORIES,
   TICKET_PRIORITIES,
   TICKET_STATUSES,
@@ -40,22 +44,28 @@ import {
 
 export interface HelpdeskFilters {
   search: string;
+  /** Kept for callers that filter server-side; the board itself shows every status as columns. */
   status: string;
   category: string;
 }
 
 const EMPTY_FILTERS: HelpdeskFilters = { search: '', status: '', category: '' };
 
+const COLUMN_DOT: Record<BoardColumn<never>['key'], string> = {
+  open: 'bg-muted-foreground/50',
+  in_progress: 'bg-primary',
+  waiting_employee: 'bg-measured',
+  done: 'bg-momentum',
+};
+
 /**
- * Issue-tracker layout for helpdesk tickets: a filterable queue on the left, the
- * selected ticket on the right with its description, activity feed and a details
- * field panel.
+ * The helpdesk. Managers get a board — To do, In progress, Waiting for reply,
+ * Done — and move a request by dragging its card; an employee gets their own
+ * requests as a short list. Either way one click opens the request in a side
+ * panel: its fields once at the top, then the conversation, then the reply box.
  *
- * `mode` decides what the viewer may do — an employee reads their own tickets and
- * comments on them; an agent also moves the status, sets priority and can leave
- * private notes. Pass `filters`/`onFiltersChange` when the parent filters
- * server-side (the managed queue); leave them out and the board filters the list
- * it was given.
+ * Status is shown once per view: the column on the board, the field in the
+ * panel. Pass `filters`/`onFiltersChange` when the parent filters on the server.
  */
 export function HelpdeskBoard({
   mode,
@@ -96,173 +106,317 @@ export function HelpdeskBoard({
   const active = filters ?? localFilters;
   const setFilters = (next: HelpdeskFilters) => (onFiltersChange ? onFiltersChange(next) : setLocalFilters(next));
 
-  // A controlled parent has already applied the filters on the server.
   const visible = useMemo(() => {
-    if (controlled) return tickets;
     const needle = active.search.trim().toLowerCase();
     return tickets.filter((ticket) => {
-      if (active.status && ticket.status !== active.status) return false;
+      // A controlled parent has already applied these on the server.
+      if (controlled) return true;
       if (active.category && ticket.category !== active.category) return false;
       if (needle && !`${ticket.subject} ${ticketKey(ticket)}`.toLowerCase().includes(needle)) return false;
       return true;
     });
   }, [controlled, tickets, active]);
 
-  const hasFilters = !!(active.search || active.status || active.category);
+  const hasFilters = !!(active.search || active.category);
 
   return (
-    <div className="flex min-h-0 flex-1">
-      {/* Queue */}
-      <aside
-        className={cn(
-          'w-full min-w-0 flex-col border-rule bg-card lg:flex lg:w-88 lg:shrink-0 lg:border-r',
-          selectedId ? 'hidden' : 'flex',
-        )}
-      >
-        <div className="shrink-0 border-b border-rule px-4 py-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">
-              {visible.length} {visible.length === 1 ? 'request' : 'requests'}
-            </p>
-            {onNew && (
-              <Button size="sm" onClick={onNew} className="gap-1.5">
-                <MessageSquarePlus size={14} /> {newLabel}
-              </Button>
-            )}
-          </div>
-          <div className="mt-2.5 space-y-2">
-            <Input
-              value={active.search}
-              onChange={(event) => setFilters({ ...active, search: event.target.value })}
-              leftIcon={<Search size={14} />}
-              placeholder={isAgent ? 'Search employee or subject…' : 'Search your requests…'}
-              rightAction={
-                active.search ? (
-                  <button
-                    type="button"
-                    onClick={() => setFilters({ ...active, search: '' })}
-                    className="text-muted-foreground transition-colors hover:text-foreground"
-                    aria-label="Clear search"
-                  >
-                    <X size={14} />
-                  </button>
-                ) : undefined
-              }
-            />
-            <div className="flex gap-2">
-              <Select
-                value={active.status}
-                onValueChange={(value) => setFilters({ ...active, status: value })}
-                options={[
-                  { value: '', label: 'All statuses' },
-                  ...TICKET_STATUSES.map((value) => ({ value, label: STATUS_META[value].label })),
-                ]}
-                ariaLabel="Filter by status"
-                className="flex-1"
-              />
-              <Select
-                value={active.category}
-                onValueChange={(value) => setFilters({ ...active, category: value })}
-                options={[
-                  { value: '', label: 'All categories' },
-                  ...TICKET_CATEGORIES.map((value) => ({ value, label: CATEGORY_META[value].label })),
-                ]}
-                ariaLabel="Filter by category"
-                className="flex-1"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="animate-spin text-muted-foreground" />
-            </div>
-          ) : error ? (
-            <div className="px-4 py-12">
-              <ErrorState
-                icon={CircleHelp}
-                title="Requests couldn’t be loaded"
-                description="Nothing was read, so this is not an empty queue."
-                onRetry={onRetry}
-              />
-            </div>
-          ) : visible.length === 0 ? (
-            <div className="px-4 py-12">
-              <EmptyState
-                icon={CircleHelp}
-                title={hasFilters ? 'No matching requests' : emptyTitle}
-                description={hasFilters ? 'Try clearing the filters above.' : emptyDescription}
-              />
-            </div>
-          ) : (
-            visible.map((ticket) => {
-              const selected = ticket.id === selectedId;
-              return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-56 flex-1">
+          <Input
+            value={active.search}
+            onChange={(event) => setFilters({ ...active, search: event.target.value })}
+            leftIcon={<Search size={14} />}
+            placeholder={isAgent ? 'Search requests or people…' : 'Search your requests…'}
+            aria-label="Search requests"
+            rightAction={
+              active.search ? (
                 <button
-                  key={ticket.id}
                   type="button"
-                  onClick={() => onSelect(ticket.id)}
-                  className={cn(
-                    'w-full border-b border-rule px-4 py-3 text-left transition-colors last:border-0',
-                    selected ? 'border-l-2 border-l-primary bg-band pl-3.5' : 'hover:bg-band',
-                  )}
+                  onClick={() => setFilters({ ...active, search: '' })}
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Clear search"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-label font-semibold text-muted-foreground">{ticketKey(ticket)}</span>
-                    <PriorityTag priority={ticket.priority} showLabel={false} />
-                    <StatusLozenge status={ticket.status} className="ml-auto" />
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-sm font-medium text-foreground">{ticket.subject}</p>
-                  <p className="mt-1 text-label text-muted-foreground">
-                    {isAgent && ticket.employee ? `${ticket.employee.name ?? ticket.employee.email} · ` : ''}
-                    {CATEGORY_META[ticket.category].label} · {fmtAgo(ticket.updatedAt)}
-                  </p>
+                  <X size={14} />
                 </button>
-              );
-            })
-          )}
+              ) : undefined
+            }
+          />
         </div>
-      </aside>
-
-      {/* Selected ticket */}
-      <section className={cn('min-w-0 flex-1 flex-col lg:flex', selectedId ? 'flex' : 'hidden')}>
-        {selectedId ? (
-          <TicketView key={selectedId} ticketId={selectedId} isAgent={isAgent} onBack={() => onSelect(null)} onChanged={onChanged} />
-        ) : (
-          <div className="flex flex-1 items-center justify-center p-8">
-            <EmptyState
-              icon={CircleHelp}
-              title="Select a request"
-              description="Pick a request from the queue to read its history, add a comment and see its details."
-            />
-          </div>
+        <Select
+          value={active.category}
+          onValueChange={(value) => setFilters({ ...active, category: value })}
+          options={[
+            { value: '', label: 'Every topic' },
+            ...TICKET_CATEGORIES.map((value) => ({ value, label: CATEGORY_META[value].label })),
+          ]}
+          ariaLabel="Filter by topic"
+          className="w-40"
+        />
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              setFilters({ ...active, search: '', category: '' });
+            }}
+          >
+            <X size={14} /> Clear
+          </Button>
         )}
-      </section>
+        {onNew && (
+          <Button onClick={onNew} className="ml-auto gap-1.5">
+            <MessageSquarePlus size={15} /> {newLabel}
+          </Button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className={cn('grid gap-3', isAgent && 'md:grid-cols-2 xl:grid-cols-4')} aria-label="Loading requests">
+          {Array.from({ length: isAgent ? 4 : 3 }, (_, index) => (
+            <div key={index} className={cn('animate-pulse rounded-lg bg-band/60', isAgent ? 'h-72' : 'h-20')} />
+          ))}
+        </div>
+      ) : error ? (
+        <ErrorState
+          icon={CircleHelp}
+          title="Requests couldn’t be loaded"
+          description="Nothing was read, so this is not an empty queue."
+          onRetry={onRetry}
+        />
+      ) : isAgent ? (
+        <Board tickets={visible} onOpen={onSelect} onChanged={onChanged} />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon={CircleHelp}
+          title={hasFilters ? 'No requests match' : emptyTitle}
+          description={hasFilters ? 'Try clearing the search.' : emptyDescription}
+        />
+      ) : (
+        <MyRequests tickets={visible} onOpen={onSelect} />
+      )}
+
+      {selectedId && (
+        <TicketPanel key={selectedId} ticketId={selectedId} isAgent={isAgent} onClose={() => onSelect(null)} onChanged={onChanged} />
+      )}
     </div>
   );
 }
 
-// ── One ticket: description, activity, details panel ──────────────────────────
+// ── Board (managers) ──────────────────────────────────────────────────────────
 
-function TicketView({
+function Board({ tickets, onOpen, onChanged }: { tickets: HelpdeskTicket[]; onOpen: (id: string) => void; onChanged?: () => void }) {
+  const qc = useQueryClient();
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [over, setOver] = useState<string | null>(null);
+  const { columns, hiddenDone } = useMemo(() => buildBoard(tickets), [tickets]);
+
+  // No optimistic move: the card stays put, marked busy, until the server agrees.
+  const move = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: TicketStatus }) => updateTicket(id, { status }),
+    onSuccess: (_, variables) => {
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.support.key('helpdesk-ticket', 'agent', variables.id) });
+      onChanged?.();
+      toast('success', `Moved to ${STATUS_META[variables.status].label.toLowerCase()}.`);
+    },
+    onError: (error) => toast('error', (error as Error).message || 'The request wasn’t moved. Try again.'),
+  });
+
+  return (
+    <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
+      {columns.map((column) => (
+        <section
+          key={column.key}
+          aria-label={column.title}
+          onDragOver={(event) => {
+            if (!dragging) return;
+            event.preventDefault();
+            setOver(column.key);
+          }}
+          onDragLeave={() => setOver((current) => (current === column.key ? null : current))}
+          onDrop={(event) => {
+            event.preventDefault();
+            setOver(null);
+            const id = event.dataTransfer.getData('text/plain');
+            const ticket = tickets.find((item) => item.id === id);
+            setDragging(null);
+            if (ticket && column.tickets.every((item) => item.id !== id)) move.mutate({ id, status: column.dropStatus });
+          }}
+          className={cn(
+            'flex min-h-40 flex-col rounded-lg border bg-band/40 p-2 transition-colors',
+            over === column.key ? 'border-primary/50 bg-primary/5' : 'border-transparent',
+          )}
+        >
+          <header className="flex items-center gap-2 px-2 pt-1 pb-2.5">
+            <span className={cn('size-2 rounded-full', COLUMN_DOT[column.key])} aria-hidden="true" />
+            <h3 className="text-sm font-semibold text-foreground">{column.title}</h3>
+            <span className="rounded-sm bg-field px-1.5 text-xs font-semibold text-muted-foreground">
+              {column.tickets.length + (column.key === 'done' ? hiddenDone : 0)}
+            </span>
+          </header>
+          <ul className="space-y-2">
+            {column.tickets.map((ticket, index) => (
+              <TicketCard
+                key={ticket.id}
+                ticket={ticket}
+                index={index}
+                busy={move.isPending && move.variables?.id === ticket.id}
+                onOpen={() => onOpen(ticket.id)}
+                onDragStart={() => setDragging(ticket.id)}
+                onDragEnd={() => {
+                  setDragging(null);
+                  setOver(null);
+                }}
+              />
+            ))}
+          </ul>
+          {column.tickets.length === 0 && (
+            <p className="mx-1 rounded-md border border-dashed border-rule/70 px-3 py-6 text-center text-xs text-muted-foreground">
+              {dragging ? 'Drop here' : column.key === 'open' ? 'Nothing new' : 'Nothing here'}
+            </p>
+          )}
+          {column.key === 'done' && hiddenDone > 0 && (
+            <p className="px-2 pt-2 text-xs text-muted-foreground">+ {hiddenDone} older — search to find them</p>
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function TicketCard({
+  ticket,
+  index,
+  busy,
+  onOpen,
+  onDragStart,
+  onDragEnd,
+}: {
+  ticket: HelpdeskTicket;
+  index: number;
+  busy: boolean;
+  onOpen: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const [now] = useState(() => Date.now());
+  const age = ticketAge(ticket, now);
+  const requester = ticket.employee?.name ?? ticket.employee?.email ?? 'Someone';
+
+  return (
+    <motion.li
+      initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: reduceMotion ? 0 : Math.min(index, 6) * 0.03, duration: 0.25 }}
+    >
+      <button
+        type="button"
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.setData('text/plain', ticket.id);
+          event.dataTransfer.effectAllowed = 'move';
+          onDragStart();
+        }}
+        onDragEnd={onDragEnd}
+        onClick={onOpen}
+        className={cn(
+          'group w-full cursor-grab rounded-md border border-rule/60 bg-field p-3 text-left shadow-xs transition-[border-color,box-shadow,opacity] hover:border-rule hover:shadow-sm active:cursor-grabbing',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+          busy && 'pointer-events-none opacity-50',
+        )}
+      >
+        <p className="line-clamp-2 text-sm font-medium text-foreground">{ticket.subject}</p>
+        <div className="mt-2.5 flex items-center gap-2">
+          {/* Only when it changes what to do next — colour on a card means urgency, nothing else. */}
+          {(ticket.priority === 'urgent' || ticket.priority === 'high') && <PriorityTag priority={ticket.priority} showLabel={false} />}
+          <span className="rounded-sm bg-band px-1.5 py-0.5 font-sans text-xs font-medium text-muted-foreground">
+            {CATEGORY_META[ticket.category].label}
+          </span>
+          <span
+            className={cn('ml-auto text-xs', age.stale ? 'font-semibold text-exception' : 'text-muted-foreground')}
+            title={`Updated ${fmtWhen(ticket.updatedAt)}`}
+          >
+            {age.days < 1 ? 'Today' : `${age.days}d`}
+          </span>
+        </div>
+        <div className="mt-2.5 flex items-center gap-2 border-t border-rule/40 pt-2.5">
+          <AuthorAvatar name={requester} size="sm" />
+          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{requester}</span>
+          {busy ? <Loader2 size={13} className="animate-spin text-muted-foreground" aria-label="Moving" /> : null}
+        </div>
+      </button>
+    </motion.li>
+  );
+}
+
+// ── List (employees) ──────────────────────────────────────────────────────────
+
+function MyRequests({ tickets, onOpen }: { tickets: HelpdeskTicket[]; onOpen: (id: string) => void }) {
+  const open = tickets.filter((ticket) => isOpenStatus(ticket.status));
+  const closed = tickets.filter((ticket) => !isOpenStatus(ticket.status));
+  return (
+    <div className="space-y-5">
+      {[
+        { title: 'Open', rows: open },
+        { title: 'Finished', rows: closed },
+      ]
+        .filter((group) => group.rows.length > 0)
+        .map((group) => (
+          <section key={group.title}>
+            <h3 className="mb-2 px-1 text-sm font-semibold text-foreground">{group.title}</h3>
+            <ul className="space-y-2">
+              {group.rows.map((ticket) => (
+                <li key={ticket.id}>
+                  <button
+                    type="button"
+                    onClick={() => onOpen(ticket.id)}
+                    className="flex w-full items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-foreground">{ticket.subject}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {CATEGORY_META[ticket.category].label} · updated {fmtAgo(ticket.updatedAt)}
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-md bg-band px-2 py-1 text-xs font-medium text-foreground">
+                      {STATUS_META[ticket.status].label}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+    </div>
+  );
+}
+
+// ── The request, in a side panel ──────────────────────────────────────────────
+
+function TicketPanel({
   ticketId,
   isAgent,
-  onBack,
+  onClose,
   onChanged,
 }: {
   ticketId: string;
   isAgent: boolean;
-  onBack: () => void;
+  onClose: () => void;
   onChanged?: () => void;
 }) {
   const qc = useQueryClient();
   const scope = isAgent ? 'agent' : 'employee';
   const [comment, setComment] = useState('');
-  const [internal, setInternal] = useState(false);
+  const [kind, setKind] = useState<'reply' | 'note'>('reply');
 
-  const { data: ticket, isLoading } = useQuery({
+  const {
+    data: ticket,
+    isPending,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: moduleQueryKeys.support.key('helpdesk-ticket', scope, ticketId),
     queryFn: () => getTicket(ticketId),
   });
@@ -272,222 +426,189 @@ function TicketView({
     onChanged?.();
   }
 
+  const note = isAgent && kind === 'note';
   const send = useMutation({
-    mutationFn: () => replyTicket(ticketId, comment.trim(), isAgent && internal),
+    mutationFn: () => replyTicket(ticketId, comment.trim(), note),
     onSuccess: () => {
       setComment('');
       refresh();
     },
-    onError: (error) => toast('error', (error as Error).message || 'The comment wasn’t added. Try again.'),
+    onError: (error) => toast('error', (error as Error).message || 'The message wasn’t sent. Try again.'),
   });
-
   const setField = useMutation({
     mutationFn: (data: { status?: TicketStatus; priority?: TicketPriority }) => updateTicket(ticketId, data),
-    onSuccess: () => {
-      refresh();
-      toast('success', 'Request updated.');
-    },
+    onSuccess: refresh,
     onError: (error) => toast('error', (error as Error).message || 'The request wasn’t updated. Try again.'),
   });
 
-  if (isLoading || !ticket) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  const messages = ticket.messages ?? [];
-  const [description, ...activity] = messages;
-  const canComment = isAgent || isOpenStatus(ticket.status);
+  const messages = ticket?.messages ?? [];
+  const canComment = !!ticket && (isAgent || isOpenStatus(ticket.status));
+  const requester = ticket?.employee?.name ?? ticket?.employee?.email ?? 'You';
 
   return (
-    <>
-      {/* Issue header */}
-      <div className="shrink-0 border-b border-rule bg-card px-4 py-4 md:px-6">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 gap-1.5 lg:hidden">
-            <ArrowLeft size={14} /> Queue
-          </Button>
-          <span className="hidden lg:inline">{CATEGORY_META[ticket.category].label}</span>
-          <span className="hidden lg:inline" aria-hidden="true">
-            /
-          </span>
-          <span className="font-mono font-bold text-foreground">{ticketKey(ticket)}</span>
-        </div>
-        <h2 className="mt-1.5 text-xl font-semibold text-foreground">{ticket.subject}</h2>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {isAgent ? (
-            <Select
-              value={ticket.status}
-              onValueChange={(value) => setField.mutate({ status: value as TicketStatus })}
-              options={TICKET_STATUSES.map((value) => ({ value, label: STATUS_META[value].label }))}
-              ariaLabel="Request status"
-              className="w-44"
-            />
-          ) : (
-            <StatusLozenge status={ticket.status} />
-          )}
-          <PriorityTag priority={ticket.priority} />
-          <span className="text-xs text-muted-foreground">Updated {fmtAgo(ticket.updatedAt)}</span>
-        </div>
-      </div>
-
-      {/* Body: content + details panel */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="grid items-start gap-5 p-4 md:p-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="min-w-0 space-y-5">
-            <section>
-              <h3 className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Description</h3>
-              <div className="mt-2 rounded-sm border border-rule bg-card shadow-sm p-4">
-                {description ? (
-                  <p className="whitespace-pre-wrap text-sm text-foreground">{description.body}</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No description was given.</p>
-                )}
-                {description && (
-                  <p className="mt-3 text-label text-muted-foreground">
-                    {description.authorName} · {fmtWhen(description.createdAt)}
-                  </p>
-                )}
-              </div>
-            </section>
-
-            <section>
-              <h3 className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">
-                Activity {activity.length > 0 && <span className="text-muted-foreground/70">({activity.length})</span>}
-              </h3>
-              {activity.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">No comments yet.</p>
-              ) : (
-                <ol className="mt-3 space-y-4">
-                  {activity.map((message) => (
-                    <li key={message.id} className="flex gap-3">
-                      <AuthorAvatar name={message.authorName} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground">{message.authorName}</span>
-                          <span className="text-label text-muted-foreground">{fmtAgo(message.createdAt)}</span>
-                          {message.internal && (
-                            <span className="inline-flex h-5 items-center gap-1 rounded bg-warning/6 px-1.5 text-micro font-semibold uppercase tracking-micro text-warning">
-                              <Lock size={10} aria-hidden="true" /> Internal
-                            </span>
-                          )}
-                        </div>
-                        <div
-                          className={cn(
-                            'mt-1.5 rounded-sm border p-3 text-sm whitespace-pre-wrap',
-                            message.internal ? 'border-warning/30 bg-warning/5' : 'border-rule bg-card',
-                          )}
-                        >
-                          {message.body}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
+    <Drawer
+      title={ticket?.subject ?? 'Request'}
+      description={
+        ticket
+          ? // The topic and date have their own fields below; this line only says who.
+            `${ticketKey(ticket)} · from ${requester}`
+          : undefined
+      }
+      onClose={onClose}
+      footer={
+        canComment ? (
+          <div className="space-y-2">
+            {isAgent && (
+              <SegmentedControl
+                options={[
+                  { value: 'reply', label: `Reply to ${requester.split(' ')[0]}` },
+                  { value: 'note', label: 'Private note', icon: Lock },
+                ]}
+                value={kind}
+                onChange={setKind}
+                ariaLabel="Message type"
+              />
+            )}
+            <div
+              className={cn(
+                'rounded-lg border bg-background transition-colors',
+                note ? 'border-measured/40 bg-measured/5' : 'border-input',
               )}
+            >
+              <textarea
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+                placeholder={note ? 'Only managers will see this…' : 'Write a message…'}
+                rows={3}
+                aria-label={note ? 'Private note' : 'Message'}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && comment.trim()) send.mutate();
+                }}
+                className="block w-full resize-none rounded-t-lg bg-transparent px-3 pt-3 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              />
+              <div className="flex items-center justify-between gap-2 px-3 pb-2.5">
+                <span className="text-xs text-muted-foreground">⌘ / Ctrl + Enter</span>
+                <Button size="sm" onClick={() => send.mutate()} disabled={!comment.trim() || send.isPending} className="gap-1.5">
+                  {send.isPending ? <Loader2 size={13} className="animate-spin" /> : note ? <Lock size={13} /> : <Send size={13} />}
+                  {note ? 'Add note' : 'Send'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : ticket ? (
+          <p className="text-sm text-muted-foreground">
+            This request is {STATUS_META[ticket.status].label.toLowerCase()}. Raise a new one if you still need help.
+          </p>
+        ) : undefined
+      }
+    >
+      {isPending ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="animate-spin text-muted-foreground" />
+        </div>
+      ) : isError || !ticket ? (
+        <ErrorState title="This request couldn’t be loaded" onRetry={() => void refetch()} />
+      ) : (
+        <div className="space-y-6">
+          {/* The request's fields, once. */}
+          <dl className="grid grid-cols-1 gap-x-4 gap-y-3.5 rounded-lg border border-rule/60 bg-field p-4 sm:grid-cols-2">
+            <Property label="Status">
+              {isAgent ? (
+                <Select
+                  value={ticket.status}
+                  onValueChange={(value) => setField.mutate({ status: value as TicketStatus })}
+                  options={TICKET_STATUSES.map((value) => ({
+                    value,
+                    label: STATUS_META[value].label,
+                    icon: <StatusIcon status={value} />,
+                  }))}
+                  ariaLabel="Status"
+                  className="w-full"
+                  disabled={setField.isPending}
+                />
+              ) : (
+                <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <StatusIcon status={ticket.status} /> {STATUS_META[ticket.status].label}
+                </span>
+              )}
+            </Property>
+            <Property label="Priority">
+              {isAgent ? (
+                <Select
+                  value={ticket.priority}
+                  onValueChange={(value) => setField.mutate({ priority: value as TicketPriority })}
+                  options={TICKET_PRIORITIES.map((value) => ({
+                    value,
+                    label: PRIORITY_META[value].label,
+                    icon: <PriorityIcon priority={value} />,
+                  }))}
+                  ariaLabel="Priority"
+                  className="w-full"
+                  disabled={setField.isPending}
+                />
+              ) : (
+                <PriorityTag priority={ticket.priority} />
+              )}
+            </Property>
+            <Property label="Raised">
+              <span className="flex h-9 items-center gap-2 text-sm font-medium text-foreground" title={fmtWhen(ticket.createdAt)}>
+                <CalendarDays size={14} className="text-muted-foreground" aria-hidden="true" /> {fmtWhen(ticket.createdAt)}
+              </span>
+            </Property>
+          </dl>
 
-              {canComment ? (
-                <div className="mt-4">
-                  <textarea
-                    value={comment}
-                    onChange={(event) => setComment(event.target.value)}
-                    placeholder={internal ? 'Add a private note for HR…' : 'Add a comment…'}
-                    rows={3}
-                    onKeyDown={(event) => {
-                      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && comment.trim()) send.mutate();
-                    }}
-                    className="w-full rounded-sm border border-input bg-field p-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus:border-primary focus:ring-2 focus:ring-primary/15"
-                  />
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-                    {isAgent ? (
-                      <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-                        <input type="checkbox" checked={internal} onChange={(event) => setInternal(event.target.checked)} />
-                        Private note — the employee cannot see this
-                      </label>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">⌘/Ctrl + Enter to send</span>
+          {/* The conversation — the first message is the request itself. */}
+          <ol className="space-y-4" aria-label="Conversation">
+            {messages.length === 0 && <li className="text-sm text-muted-foreground">No description was given.</li>}
+            {messages.map((message, index) => (
+              <li key={message.id} className="flex gap-3">
+                <AuthorAvatar name={message.authorName} />
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground">{message.authorName}</span>
+                    <span className="text-xs text-muted-foreground" title={fmtWhen(message.createdAt)}>
+                      {fmtAgo(message.createdAt)}
+                    </span>
+                    {index === 0 && <span className="text-xs text-muted-foreground">· raised the request</span>}
+                    {message.internal && (
+                      <span className="inline-flex items-center gap-1 rounded-sm bg-measured/10 px-1.5 py-0.5 font-sans text-xs font-semibold text-measured">
+                        <Lock size={10} aria-hidden="true" /> Private note
+                      </span>
                     )}
-                    <Button onClick={() => send.mutate()} disabled={!comment.trim() || send.isPending} className="gap-1.5">
-                      {send.isPending && <Loader2 size={14} className="animate-spin" />}
-                      {internal ? 'Add note' : 'Comment'}
-                    </Button>
+                  </p>
+                  <div
+                    className={cn(
+                      'mt-1.5 rounded-lg px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap text-foreground',
+                      message.internal ? 'border border-dashed border-measured/40 bg-measured/5' : 'bg-band/60',
+                    )}
+                  >
+                    {message.body}
                   </div>
                 </div>
-              ) : (
-                <p className="mt-4 rounded-sm border border-dashed border-rule p-4 text-sm text-muted-foreground">
-                  This request is {STATUS_META[ticket.status].label.toLowerCase()}. Raise a new request if you still need help.
-                </p>
-              )}
-            </section>
-          </div>
-
-          {/* Details panel */}
-          <aside className="rounded-sm border border-rule bg-card shadow-sm xl:sticky xl:top-0">
-            <div className="border-b border-rule px-4 py-2.5">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Details</h3>
-            </div>
-            <dl className="divide-y divide-border/60 px-4">
-              <Field label="Status">
-                <StatusLozenge status={ticket.status} />
-              </Field>
-              <Field label="Priority">
-                {isAgent ? (
-                  <Select
-                    value={ticket.priority}
-                    onValueChange={(value) => setField.mutate({ priority: value as TicketPriority })}
-                    options={TICKET_PRIORITIES.map((value) => ({ value, label: PRIORITY_META[value].label }))}
-                    ariaLabel="Request priority"
-                    className="w-36"
-                  />
-                ) : (
-                  <PriorityTag priority={ticket.priority} />
-                )}
-              </Field>
-              <Field label="Category">
-                <span className="text-sm text-foreground">{CATEGORY_META[ticket.category].label}</span>
-              </Field>
-              <Field label="Reporter">
-                {ticket.employee ? (
-                  <span className="flex items-center gap-2">
-                    <AuthorAvatar name={ticket.employee.name ?? ticket.employee.email} size="sm" />
-                    <span className="min-w-0 text-sm text-foreground">{ticket.employee.name ?? ticket.employee.email}</span>
-                  </span>
-                ) : (
-                  <span className="text-sm text-muted-foreground">You</span>
-                )}
-              </Field>
-              <Field label="Assignee">
-                {ticket.assignee ? (
-                  <span className="flex items-center gap-2">
-                    <AuthorAvatar name={ticket.assignee.name} size="sm" />
-                    <span className="min-w-0 text-sm text-foreground">{ticket.assignee.name}</span>
-                  </span>
-                ) : (
-                  <span className="text-sm text-muted-foreground">Unassigned</span>
-                )}
-              </Field>
-              <Field label="Created">
-                <span className="text-sm text-foreground tabular-nums">{fmtWhen(ticket.createdAt)}</span>
-              </Field>
-              <Field label="Updated">
-                <span className="text-sm text-foreground tabular-nums">{fmtWhen(ticket.updatedAt)}</span>
-              </Field>
-            </dl>
-          </aside>
+              </li>
+            ))}
+          </ol>
         </div>
-      </div>
-    </>
+      )}
+    </Drawer>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function StatusIcon({ status }: { status: TicketStatus }) {
+  const { icon: Icon, className } = STATUS_ICON[status];
+  return <Icon size={14} className={className} aria-hidden="true" />;
+}
+
+function PriorityIcon({ priority }: { priority: TicketPriority }) {
+  const { icon: Icon, className } = PRIORITY_META[priority];
+  return <Icon size={14} className={className} aria-hidden="true" />;
+}
+
+function Property({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2.5">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="flex min-w-0 justify-end">{children}</dd>
+    <div className="min-w-0">
+      <dt className="mb-1 text-label uppercase text-muted-foreground">{label}</dt>
+      <dd>{children}</dd>
     </div>
   );
 }

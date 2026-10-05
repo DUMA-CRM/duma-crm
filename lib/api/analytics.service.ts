@@ -182,5 +182,59 @@ export const getDayBaseline = (params: { weekday?: string; weeks?: number; timez
   return apiFetch<DayBaseline>(`/analytics/baseline?${query}`);
 };
 
-export const getLabourAnalytics = (params: AnalyticsRangeParams) =>
-  apiFetch<LabourAnalytics>(`/analytics/labour?${rangeQuery(params)}`);
+export const getLabourAnalytics = (params: AnalyticsRangeParams) => apiFetch<LabourAnalytics>(`/analytics/labour?${rangeQuery(params)}`);
+
+// ── Sales reports (2026-10-04) ──────────────────────────────────────────────
+
+/** One payment method's sales in the window, net of refunds. `unrecorded` is its own method. */
+export interface PaymentMethodSales {
+  method: string;
+  orders: number;
+  gross: number;
+  refunded: number;
+  revenue: number;
+}
+
+export interface VatBucket {
+  rate: number;
+  gross: number;
+  vat: number;
+  net: number;
+  lines: number;
+}
+
+export interface TaxAnalytics {
+  vatRegistered: boolean;
+  pricesIncludeTax: boolean;
+  vatNumber: string | null;
+  /** Exact: the VAT recorded on each order when it was taken. */
+  recorded: { gross: number; vat: number };
+  /** Order lines don't store their rate, so this split uses each item's current rate. */
+  byRate: VatBucket[];
+  byRateTotal: Omit<VatBucket, 'rate'>;
+  byRateBasis: 'current-rate';
+}
+
+export interface ExceptionsAnalytics {
+  discounts: { label: string; kind: 'discount' | 'markdown'; lines: number; amount: number }[];
+  voids: { reason: string; orders: number; amount: number }[];
+}
+
+export interface CategorySales {
+  categoryId: string | null;
+  name: string;
+  quantity: number;
+  revenue: number;
+  orders: number;
+}
+
+export const getPaymentMethodSales = (params: AnalyticsRangeParams) =>
+  apiFetch<PaymentMethodSales[]>(`/analytics/payments?${rangeQuery(params)}`);
+
+export const getTaxAnalytics = (params: AnalyticsRangeParams) => apiFetch<TaxAnalytics>(`/analytics/tax?${rangeQuery(params)}`);
+
+export const getExceptionsAnalytics = (params: AnalyticsRangeParams) =>
+  apiFetch<ExceptionsAnalytics>(`/analytics/exceptions?${rangeQuery(params)}`);
+
+export const getCategorySales = (params: AnalyticsRangeParams) =>
+  apiFetch<CategorySales[]>(`/analytics/category-sales?${rangeQuery(params)}`);

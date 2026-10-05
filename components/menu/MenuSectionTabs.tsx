@@ -24,7 +24,19 @@ const TABS: SectionTab<Section>[] = [
 export function MenuSectionTabs() {
   const pathname = usePathname();
   const router = useRouter();
-  const section: Section = pathname.startsWith('/menu/modifiers') ? 'modifiers' : pathname.startsWith('/menu/categories') ? 'categories' : 'items';
+  const section: Section = pathname.startsWith('/menu/modifiers')
+    ? 'modifiers'
+    : pathname.startsWith('/menu/categories')
+      ? 'categories'
+      : 'items';
 
-  return <SectionTabs tabs={TABS} value={section} onChange={(value) => router.push(`/menu/${value}`)} ariaLabel="Menu sections" />;
+  return (
+    <SectionTabs
+      tabs={TABS}
+      value={section}
+      onChange={(value) => router.push(`/menu/${value}`)}
+      ariaLabel="Menu sections"
+      animationId="menu-section-tabs"
+    />
+  );
 }

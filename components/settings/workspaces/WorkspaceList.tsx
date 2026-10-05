@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Building2, Loader2, MoreHorizontal, Pencil, Plus, Search } from '@/components/icons';
+import { Building2, Check, Loader2, MoreHorizontal, Pencil, Plus, Search } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
@@ -201,7 +201,6 @@ export function WorkspaceList() {
   return (
     <SettingsSection
       title="Workspaces"
-      description="One workspace per business or franchise. The selected one sets the context for settings, reporting and connected services."
       actions={
         <Button size="sm" onClick={() => setModal({ mode: 'create' })}>
           <Plus size={14} aria-hidden="true" />
@@ -249,30 +248,21 @@ export function WorkspaceList() {
                     setTenantId(tenant.id);
                   }
                 }}
+                // Same row as a location, so picking a workspace and picking a site read alike.
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left transition-colors duration-150',
-                  'outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                  'flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors duration-150',
+                  'outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                   isSelected
-                    ? 'cursor-default border-primary bg-band'
-                    : 'cursor-pointer border-rule bg-card hover:border-primary/30 hover:bg-band',
+                    ? 'cursor-default border-primary/40 bg-primary/5'
+                    : 'cursor-pointer border-rule/50 bg-background/60 hover:border-rule hover:bg-band/45',
                 )}
               >
-                <div
-                  className={cn(
-                    'flex size-9 shrink-0 items-center justify-center rounded-md',
-                    isSelected ? 'bg-card text-primary' : 'bg-muted text-muted-foreground',
-                  )}
-                >
-                  <Building2 size={16} aria-hidden="true" />
-                </div>
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
+                  {isSelected ? <Check size={17} aria-hidden="true" /> : <Building2 size={17} aria-hidden="true" />}
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
                     {tenant.name}
-                    {isSelected && (
-                      <Badge variant="success" className="shrink-0">
-                        Current
-                      </Badge>
-                    )}
                     {tenant.status !== 'active' && (
                       <Badge variant={tenant.status === 'winding_down' ? 'warning' : 'muted'} className="shrink-0">
                         {TENANT_STATUS_COPY[tenant.status].label}
@@ -285,6 +275,11 @@ export function WorkspaceList() {
                       ` · ${tenant.locationCount} ${tenant.locationCount === 1 ? 'location' : 'locations'}`}
                   </p>
                 </div>
+                {isSelected && (
+                  <Badge variant="success" className="shrink-0">
+                    Current
+                  </Badge>
+                )}
                 <div className="flex shrink-0 gap-1">
                   {role === 'super_admin' && (
                     <Button

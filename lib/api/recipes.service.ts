@@ -1,5 +1,4 @@
 import { apiFetch } from './client';
-
 // Recipes / bill-of-materials. The effective recipe of a sold item composes:
 // the menu item's BASE recipe (ingredients common to every variant) + each
 // selected MODIFIER's recipe (Oat Milk → 200ml oat). Any line may carry
@@ -47,6 +46,22 @@ export interface RecipeGap {
 // ── Menu item (base) recipes ──────────────────────────────────────────────────
 
 export const getMenuItemRecipe = (menuItemId: string) => apiFetch<RecipeLine[]>(`/menu-item-recipes/menu-item/${menuItemId}`);
+
+/**
+ * Recipes for many menu items in one request (at most 200), keyed by menu item
+ * id. For reports that cost every item sold — one request instead of one per item.
+ */
+export const getMenuItemRecipes = async (menuItemIds: string[]): Promise<Record<string, RecipeLine[]>> => {
+  const unique = [...new Set(menuItemIds)];
+  const chunks: string[][] = [];
+  for (let index = 0; index < unique.length; index += 200) chunks.push(unique.slice(index, index + 200));
+  const results = await Promise.all(
+    chunks.map((ids) =>
+      apiFetch<Record<string, RecipeLine[]>>(`/menu-item-recipes/batch?menuItemIds=${encodeURIComponent(ids.join(','))}`),
+    ),
+  );
+  return Object.assign({}, ...results);
+};
 
 export const getRecipeGaps = (tenantId: string) =>
   apiFetch<RecipeGap[]>(`/menu-item-recipes/gaps?tenantId=${encodeURIComponent(tenantId)}`);

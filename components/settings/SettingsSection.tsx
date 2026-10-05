@@ -1,13 +1,23 @@
+'use client';
+
+import { motion } from 'motion/react';
+
 import { cn } from '@/lib/utils/cn';
 
+/** Shared with the tab body so sections rise in one after another. */
+export const SECTION_RISE = {
+  hidden: { opacity: 0, y: 10 },
+  shown: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] as const } },
+};
+
 /**
- * A settings plate: a labelled band strip over a porcelain field of controls.
+ * A settings panel: title and the reason it exists at the top, the controls
+ * below, and an optional caveat at the foot. Same porcelain field and hairline
+ * as the onboarding cards, so the two read as one product.
  *
- * The strip is the same Board Band the tables and the context workbench use, so
- * a settings page reads as a stack of labelled plates on the board — not as a
- * grid of cards with a tinted glyph and a sentence in the header. The
- * explanation belongs with the controls it explains, so it sits at the top of
- * the body rather than in the label.
+ * It carries the rise variant but no initial/animate of its own: inside a
+ * SettingsTabBody it staggers in with its siblings, anywhere else it simply
+ * renders.
  */
 export function SettingsSection({
   title,
@@ -18,32 +28,33 @@ export function SettingsSection({
   className,
   bodyClassName,
 }: {
-  title: string;
-  /** Why the controls exist / what they affect. Rendered above them, not in the label strip. */
+  /** Omit for a panel whose content introduces itself (the profile card). */
+  title?: string;
+  /** Why the controls exist / what they affect. */
   description?: React.ReactNode;
-  /** Controls pinned to the right of the label strip (e.g. a New button). */
+  /** Controls pinned to the right of the title (e.g. a New button). */
   actions?: React.ReactNode;
-  /** A closing caveat — scope, storage, or a limitation. Rendered as a foot rule. */
+  /** A closing caveat — scope, storage, or a limitation. */
   footnote?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
 }) {
   return (
-    <section className={cn('overflow-hidden rounded-lg border border-rule/65 bg-card', className)}>
-      <div className="flex min-h-11 items-center gap-3 border-b border-rule/55 bg-band/55 px-4 py-2">
-        <h2 className="min-w-0 flex-1 truncate text-base font-semibold tracking-title text-foreground">{title}</h2>
-        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
-      </div>
-
-      <div className={cn('px-4 py-4 md:px-5', bodyClassName)}>
-        {description && <p className="mb-4 max-w-[68ch] text-sm leading-relaxed text-muted-foreground">{description}</p>}
-        {children}
-      </div>
-
-      {footnote && (
-        <p className="border-t border-rule/45 bg-band/55 px-4 py-2 text-xs leading-relaxed text-muted-foreground md:px-5">{footnote}</p>
+    <motion.section variants={SECTION_RISE} className={cn('rounded-lg border border-rule/60 bg-field', className)}>
+      {(title || description || actions) && (
+        <header className="flex items-start gap-4 px-5 pt-5">
+          <div className="min-w-0 flex-1">
+            {title && <h2 className="text-base font-semibold tracking-title text-foreground">{title}</h2>}
+            {description && <p className="mt-1 max-w-[68ch] text-sm leading-relaxed text-muted-foreground">{description}</p>}
+          </div>
+          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        </header>
       )}
-    </section>
+
+      <div className={cn('px-5 pb-5', title || description || actions ? 'pt-4' : 'pt-5', bodyClassName)}>{children}</div>
+
+      {footnote && <p className="border-t border-rule/40 px-5 py-3 text-xs leading-relaxed text-muted-foreground">{footnote}</p>}
+    </motion.section>
   );
 }

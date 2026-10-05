@@ -86,8 +86,9 @@ export interface ChatProvider {
 
 /**
  * A provider failure that a different provider might not have — a quota, a rate
- * limit, an overloaded backend, a timeout. Anything else (a malformed request,
- * a bad key) would fail identically everywhere and must not trigger a hand-off.
+ * limit, an overloaded backend, a timeout, or a compatibility-layer rejection.
+ * The transport keeps the detailed cause in server logs and uses this error to
+ * hand the same request to the next configured model.
  */
 export class ProviderCapacityError extends Error {
   // Written as a plain field, not a constructor parameter property: the test

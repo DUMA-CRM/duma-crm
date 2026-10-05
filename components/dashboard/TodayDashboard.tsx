@@ -64,7 +64,14 @@ export function TodayDashboard({
   });
 
   const isOwner = role === 'franchise_owner' || role === 'super_admin';
-  const shows = (key: string) => !widgetKeys || widgetKeys.includes(key);
+  const dashboardKeys = widgetKeys ?? [
+    'analytics.exceptions',
+    'analytics.trading',
+    'analytics.live',
+    'analytics.kpis',
+    'analytics.orders-hourly',
+    'analytics.top-items',
+  ];
 
   if (errors.core) {
     return (
@@ -112,7 +119,7 @@ export function TodayDashboard({
             </p>
             {isOwner && (
               <Link
-                href="/reports/compare"
+                href="/reports/sales-by-location"
                 className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover"
               >
                 Compare locations <ArrowRight size={13} aria-hidden="true" />
@@ -136,19 +143,18 @@ export function TodayDashboard({
           </div>
         )}
 
-        {shows('analytics.exceptions') && (
-          <ExceptionStrip items={exceptions} loading={loading.operations} error={errors.operations} onRetry={() => void refresh()} />
-        )}
-
-        {(shows('analytics.trading') || shows('analytics.live')) && (
-          <section
-            className={
-              shows('analytics.trading') && shows('analytics.live')
-                ? 'grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]'
-                : 'grid gap-4'
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+          {dashboardKeys.map((key) => {
+            if (key === 'analytics.exceptions') {
+              return (
+                <div key={key} className="lg:col-span-12">
+                  <ExceptionStrip items={exceptions} loading={loading.operations} error={errors.operations} onRetry={() => void refresh()} />
+                </div>
+              );
             }
-          >
-            {shows('analytics.trading') && (
+            if (key === 'analytics.trading') {
+              return (
+                <div key={key} className="min-w-0 lg:col-span-8 [&>*]:h-full">
               <TakenTodayPanel
                 day={tradingDay}
                 takenSoFar={metrics.revenue}
@@ -162,8 +168,12 @@ export function TodayDashboard({
                 locationId={dashboard.activeLocationId}
                 dailyTarget={dashboard.dailyTarget}
               />
-            )}
-            {shows('analytics.live') && (
+                </div>
+              );
+            }
+            if (key === 'analytics.live') {
+              return (
+                <div key={key} className="min-w-0 lg:col-span-4 [&>*]:h-full">
               <LivePanel
                 day={tradingDay}
                 pendingOrders={dashboard.pendingOrders}
@@ -174,38 +184,45 @@ export function TodayDashboard({
                 labourOpenShifts={labour?.openShifts ?? 0}
                 loading={loading.operations}
               />
-            )}
-          </section>
-        )}
-
-        {shows('analytics.kpis') && (
-          <TodayKpiRow
-            day={tradingDay}
-            orders={metrics.orders}
-            averageOrderValue={metrics.averageOrderValue}
-            revenue={metrics.revenue}
-            refundsIssuedToday={Number(dashboard.refundsIssuedToday)}
-            refundsOnTodaysSales={Number(dashboard.refundsOnTodaysSales)}
-            labour={labour}
-            baseline={baseline}
-            loading={loading.core}
-            labourLoading={loading.labour}
-            labourError={errors.labour}
-          />
-        )}
-
-        {(shows('analytics.orders-hourly') || shows('analytics.top-items')) && (
-          <section
-            className={
-              shows('analytics.orders-hourly') && shows('analytics.top-items') ? 'grid grid-cols-1 gap-4 xl:grid-cols-2' : 'grid gap-4'
+                </div>
+              );
             }
-          >
-            {shows('analytics.orders-hourly') && (
-              <OrdersByHour day={tradingDay} hourly={hourly} baseline={baseline} loading={loading.hourly} />
-            )}
-            {shows('analytics.top-items') && <TopItemsToday rows={topItems} loading={loading.topItems} />}
-          </section>
-        )}
+            if (key === 'analytics.kpis') {
+              return (
+                <div key={key} className="lg:col-span-12">
+                  <TodayKpiRow
+                    day={tradingDay}
+                    orders={metrics.orders}
+                    averageOrderValue={metrics.averageOrderValue}
+                    revenue={metrics.revenue}
+                    refundsIssuedToday={Number(dashboard.refundsIssuedToday)}
+                    refundsOnTodaysSales={Number(dashboard.refundsOnTodaysSales)}
+                    labour={labour}
+                    baseline={baseline}
+                    loading={loading.core}
+                    labourLoading={loading.labour}
+                    labourError={errors.labour}
+                  />
+                </div>
+              );
+            }
+            if (key === 'analytics.orders-hourly') {
+              return (
+                <div key={key} className="min-w-0 lg:col-span-12 xl:col-span-6 [&>*]:h-full">
+                  <OrdersByHour day={tradingDay} hourly={hourly} baseline={baseline} loading={loading.hourly} />
+                </div>
+              );
+            }
+            if (key === 'analytics.top-items') {
+              return (
+                <div key={key} className="min-w-0 lg:col-span-12 xl:col-span-6 [&>*]:h-full">
+                  <TopItemsToday rows={topItems} loading={loading.topItems} />
+                </div>
+              );
+            }
+            return null;
+          })}
+        </div>
         {supplemental}
       </div>
     </EditorShell>

@@ -2,17 +2,38 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { CalendarDays, FileText, HeartHandshake, Landmark, Loader2, MapPin } from '@/components/icons';
+import {
+  AlertTriangle,
+  Banknote,
+  Building2,
+  CalendarClock,
+  CalendarDays,
+  CircleHelp,
+  FileText,
+  HeartHandshake,
+  Landmark,
+  MapPin,
+  MessageSquarePlus,
+  Monitor,
+  Sun,
+} from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { AddressFields } from '@/components/people/AddressFields';
 import { Drawer } from '@/components/shared/Drawer';
+import { ChoiceCards, FormSection, ModalActions } from '@/components/shared/FormParts';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { type HrEmployee, updateMyEmployee } from '@/lib/modules/people/client';
-import { type TicketCategory, type TicketPriority, createTicket, getLeaveTypes, submitLeaveRequest } from '@/lib/modules/people/client';
+import {
+  type TicketCategory,
+  type TicketPriority,
+  createTicket,
+  getLeaveTypes,
+  getMyEntitlements,
+  submitLeaveRequest,
+} from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import {
@@ -49,26 +70,17 @@ function Labelled({
   const Tag = plain ? 'div' : 'label';
   return (
     <Tag className={cn('block', grow && 'flex min-h-0 flex-1 flex-col')}>
-      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-      <div className={cn('mt-1', grow && 'min-h-0 flex-1')}>{children}</div>
+      {/* The `Input` label exactly, so a labelled control and an `Input` with its own label line up. */}
+      <span className="block text-label uppercase text-muted-foreground">{label}</span>
+      <div className={cn('mt-1.5', grow && 'min-h-0 flex-1')}>{children}</div>
       {error ? (
-        <span className="mt-1 block text-xs text-destructive">{error}</span>
+        <span className="mt-1 block text-xs text-exception">{error}</span>
       ) : (
         hint && <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>
       )}
     </Tag>
   );
 }
-
-const CATEGORY_LABELS: Record<TicketCategory, string> = {
-  hr: 'HR — contract, records, policy',
-  payroll: 'Payroll — pay, payslips, tax',
-  scheduling: 'Scheduling — rota, hours, attendance',
-  leave: 'Leave — holiday and absence',
-  workplace: 'Workplace — equipment, safety, site',
-  it: 'IT — accounts and devices',
-  other: 'Something else',
-};
 
 const PRIORITIES: { value: TicketPriority; label: string }[] = [
   { value: 'low', label: 'Low' },
@@ -96,21 +108,8 @@ const RELATIONSHIPS = [
   'Other',
 ];
 
-function FieldsetHeading({ icon: Icon, title, description }: { icon?: IconComponent; title: string; description?: string }) {
-  return (
-    <div className="flex items-start gap-2">
-      {/* A bare glyph, not a tinted chip: it marks where a section starts
-          without competing with the field labels underneath it. */}
-      {Icon && <Icon size={14} className="mt-px shrink-0 text-muted-foreground" aria-hidden="true" />}
-      <div className="min-w-0">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{title}</h3>
-        {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
-      </div>
-    </div>
-  );
-}
-
-const textarea = 'w-full min-h-24 rounded-sm border border-input bg-field p-3 text-sm';
+const textarea =
+  'w-full min-h-24 rounded-md border border-input bg-field p-3 text-sm leading-relaxed text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured';
 
 // ── Your details ──────────────────────────────────────────────────────────────
 
@@ -202,14 +201,14 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
       description="Changes go straight to your HR record."
       onClose={onClose}
       footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form={DETAILS_FORM_ID} disabled={blocked || mutation.isPending}>
-            {mutation.isPending && <Loader2 className="animate-spin" />}Save changes
-          </Button>
-        </div>
+        <ModalActions
+          form={DETAILS_FORM_ID}
+          submitLabel="Save changes"
+          pending={mutation.isPending}
+          pendingLabel="Saving…"
+          disabled={blocked}
+          onCancel={onClose}
+        />
       }
     >
       <form
@@ -220,8 +219,9 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
           mutation.mutate();
         }}
       >
-        <section className="space-y-3">
-          <FieldsetHeading icon={MapPin} title="Home address" />
+        {/* The staff record's edit drawer layout: each section an icon tile,
+            its title and why, then its fields on the porcelain panel. */}
+        <FormSection icon={MapPin} title="Home address" note="Where HR and payroll write to you.">
           {/* The record stores one address line, so the four fields compose into
               it and parse back out — the same component the HR-side forms use,
               so both sides write the address the same way round. */}
@@ -229,12 +229,11 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
             value={form.address}
             onChange={(address) => setForm((current) => ({ ...current, address }))}
             // Same label style as every other field in this drawer.
-            labelClassName="mb-1 block text-xs font-semibold text-muted-foreground"
+            labelClassName="mb-1.5 block text-label uppercase text-muted-foreground"
           />
-        </section>
+        </FormSection>
 
-        <section className="space-y-3 border-t border-rule pt-5">
-          <FieldsetHeading icon={HeartHandshake} title="Emergency contact" />
+        <FormSection icon={HeartHandshake} title="Emergency contact" note="Who we call if something happens to you at work.">
           <div className="grid gap-3 sm:grid-cols-2">
             <Labelled label="Name">
               <Input value={form.emergencyContactName} onChange={set('emergencyContactName')} />
@@ -260,10 +259,13 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
           <Labelled label="Phone">
             <Input type="tel" value={form.emergencyContactPhone} onChange={set('emergencyContactPhone')} />
           </Labelled>
-        </section>
+        </FormSection>
 
-        <section className="space-y-3 border-t border-rule pt-5">
-          <FieldsetHeading icon={Landmark} title="Pay details" />
+        <FormSection
+          icon={Landmark}
+          title="Pay details"
+          note="Stored details are never shown back to you. Leave these blank to keep what’s on file; fill them in only to set or replace them."
+        >
           <Labelled label="Account holder">
             <Input
               value={form.bankAccountName}
@@ -295,7 +297,10 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
             </Labelled>
           </div>
           {bankTouched && !bankComplete && (
-            <p className="text-xs text-warning">Fill in all three bank fields — a partial account cannot be paid into.</p>
+            <p className="flex items-start gap-2 rounded-md border border-measured/30 bg-measured/6 px-3 py-2 text-xs text-foreground">
+              <AlertTriangle size={13} className="mt-px shrink-0 text-measured" aria-hidden="true" />
+              Fill in all three bank fields — a partial account can’t be paid into.
+            </p>
           )}
           <Labelled
             label="National Insurance number"
@@ -310,7 +315,7 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
               autoComplete="off"
             />
           </Labelled>
-        </section>
+        </FormSection>
       </form>
     </Drawer>
   );
@@ -322,6 +327,11 @@ const LEAVE_FORM_ID = 'my-hr-leave-form';
 
 export function LeaveRequestDrawer({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const { data: types = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('leave-types'), queryFn: getLeaveTypes });
+  // My HR's own key, so the balances on the tiles are the ones already on screen.
+  const { data: entitlements = [] } = useQuery({
+    queryKey: moduleQueryKeys.people.key('leave-entitlements-me'),
+    queryFn: () => getMyEntitlements(),
+  });
   const [form, setForm] = useState<Parameters<typeof submitLeaveRequest>[0]>({
     leaveTypeId: '',
     startDate: '',
@@ -352,79 +362,113 @@ export function LeaveRequestDrawer({ onClose, onDone }: { onClose: () => void; o
   return (
     <Drawer
       title="Request time off"
-      description="Your manager reviews it, and you will see the outcome under Time off."
+      description="Your manager reviews it, and you’ll see the outcome under Time off."
       onClose={onClose}
       footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form={LEAVE_FORM_ID} disabled={incomplete || mutation.isPending}>
-            {mutation.isPending && <Loader2 className="animate-spin" />}Submit request
-          </Button>
-        </div>
+        <ModalActions
+          form={LEAVE_FORM_ID}
+          submitLabel="Submit request"
+          pending={mutation.isPending}
+          pendingLabel="Submitting…"
+          disabled={incomplete}
+          onCancel={onClose}
+        />
       }
     >
       <form
         id={LEAVE_FORM_ID}
-        className="space-y-5"
+        className="space-y-6"
         onSubmit={(e) => {
           e.preventDefault();
           mutation.mutate();
         }}
       >
-        <section className="space-y-3">
-          <FieldsetHeading icon={CalendarDays} title="What and when" />
-          <Labelled label="Type of leave">
-            <Select
-              value={leaveTypeId}
-              onValueChange={(v) => setForm({ ...form, leaveTypeId: v })}
-              options={types.map((t) => ({ value: t.id, label: t.isPaid ? t.name : `${t.name} (unpaid)` }))}
-              placeholder="Choose leave type"
-              ariaLabel="Leave type"
-              className="w-full"
-            />
-          </Labelled>
+        {/* The type as tiles with what you have left — the figure people check
+            before they ask, so it sits on the choice itself. */}
+        <FormSection icon={Sun} title="Type of leave" note="What you have left is shown on each.">
+          {types.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No leave types are set up yet. Ask HR to add one.</p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Type of leave">
+              {types.map((type) => {
+                const on = leaveTypeId === type.id;
+                const balance = entitlements.find((item) => item.leaveType.id === type.id);
+                const left = balance ? Math.round((Number(balance.totalDays) - Number(balance.usedDays)) * 100) / 100 : null;
+                return (
+                  <button
+                    key={type.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setForm({ ...form, leaveTypeId: type.id })}
+                    className={cn(
+                      'flex items-center justify-between gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors',
+                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                      on ? 'border-primary bg-primary/5' : 'border-rule/60 bg-background/60 hover:bg-band/40',
+                    )}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-foreground">{type.name}</span>
+                      <span className="block text-xs text-muted-foreground">{type.isPaid ? 'Paid' : 'Unpaid'}</span>
+                    </span>
+                    {left !== null && (
+                      <span
+                        className={cn('shrink-0 text-right text-xs tabular-nums', left <= 0 ? 'text-exception' : 'text-muted-foreground')}
+                      >
+                        <span className={cn('block text-base font-semibold', left <= 0 ? 'text-exception' : 'text-foreground')}>
+                          {left}
+                        </span>
+                        days left
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </FormSection>
+
+        <FormSection icon={CalendarDays} title="When">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Labelled label="First day">
-              <Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
-            </Labelled>
-            <Labelled label="Last day" error={inverted ? 'Ends before it starts.' : ''}>
-              <Input
-                type="date"
-                value={form.endDate}
-                min={form.startDate || undefined}
-                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-              />
-            </Labelled>
+            <Input label="First day" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
+            <Input
+              label="Last day"
+              type="date"
+              value={form.endDate}
+              min={form.startDate || undefined}
+              error={inverted ? 'Ends before it starts.' : undefined}
+              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+            />
           </div>
-          {backdated && <p className="text-xs text-warning">These dates are in the past. Check them before submitting.</p>}
-          <Labelled label="Day length">
-            <Select
+          {backdated && (
+            <p className="flex items-start gap-2 rounded-md border border-measured/30 bg-measured/6 px-3 py-2 text-xs text-foreground">
+              <AlertTriangle size={13} className="mt-px shrink-0 text-measured" aria-hidden="true" />
+              These dates are in the past. Check them before submitting.
+            </p>
+          )}
+          <Labelled label="Day length" plain>
+            <ChoiceCards
               value={form.partialDay ?? 'none'}
-              onValueChange={(v) =>
-                setForm({ ...form, partialDay: v as NonNullable<Parameters<typeof submitLeaveRequest>[0]['partialDay']> })
-              }
+              onChange={(partialDay) => setForm({ ...form, partialDay })}
+              columns={3}
               options={[
                 { value: 'none', label: 'Full days' },
-                { value: 'start', label: 'Half day on first day' },
-                { value: 'end', label: 'Half day on last day' },
+                { value: 'start', label: 'Half on first day' },
+                { value: 'end', label: 'Half on last day' },
               ]}
-              ariaLabel="Day length"
-              className="w-full"
             />
           </Labelled>
-        </section>
+        </FormSection>
 
-        <section className="space-y-3 border-t border-rule pt-5">
-          <FieldsetHeading icon={FileText} title="Anything to add" />
+        <FormSection icon={FileText} title="Anything to add" note="Optional — your manager sees it with the request.">
           <textarea
-            className={`${textarea} min-h-32`}
+            className={`${textarea} min-h-28`}
+            aria-label="Note for your manager"
             placeholder="e.g. covering childcare during half term"
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
-        </section>
+        </FormSection>
       </form>
     </Drawer>
   );
@@ -433,6 +477,17 @@ export function LeaveRequestDrawer({ onClose, onDone }: { onClose: () => void; o
 // ── Helpdesk / data requests ──────────────────────────────────────────────────
 
 const CATEGORIES: TicketCategory[] = ['hr', 'payroll', 'scheduling', 'leave', 'workplace', 'it', 'other'];
+
+/** Each topic as a tile: what it's called and what it covers, so nobody has to guess which one fits. */
+const TOPIC: Record<TicketCategory, { label: string; hint: string; icon: IconComponent }> = {
+  hr: { label: 'HR', hint: 'Contract, records, policy', icon: FileText },
+  payroll: { label: 'Payroll', hint: 'Pay, payslips, tax', icon: Banknote },
+  scheduling: { label: 'Scheduling', hint: 'Rota, hours, attendance', icon: CalendarClock },
+  leave: { label: 'Leave', hint: 'Holiday and absence', icon: Sun },
+  workplace: { label: 'Workplace', hint: 'Equipment, safety, site', icon: Building2 },
+  it: { label: 'IT', hint: 'Accounts and devices', icon: Monitor },
+  other: { label: 'Something else', hint: 'Anything not listed', icon: CircleHelp },
+};
 
 /** Pre-fills used by the callers that raise a ticket on the employee's behalf. */
 export interface TicketPreset {
@@ -480,67 +535,104 @@ export function NewTicketDrawer({
   return (
     <Drawer
       title={preset?.title ?? 'Ask HR for something'}
-      description="HR will reply in Requests, and you will be notified."
+      description="HR replies in Requests, and you’re notified when they do."
       onClose={onClose}
       footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form={TICKET_FORM_ID} disabled={incomplete || mutation.isPending}>
-            {mutation.isPending && <Loader2 className="animate-spin" />}Send to HR
-          </Button>
-        </div>
+        <ModalActions
+          form={TICKET_FORM_ID}
+          submitLabel="Send to HR"
+          pending={mutation.isPending}
+          pendingLabel="Sending…"
+          disabled={incomplete}
+          onCancel={onClose}
+        />
       }
     >
-      {/* Fills the drawer so the message field grows with the panel instead of
-          leaving dead space under a fixed-height box. */}
       <form
         id={TICKET_FORM_ID}
-        className="flex h-full flex-col gap-5"
+        className="space-y-6"
         onSubmit={(e) => {
           e.preventDefault();
           mutation.mutate();
         }}
       >
-        <Labelled label="Subject">
+        {/* The topic as tiles rather than a dropdown of long labels: seven
+            choices read at a glance, and the hint says what each covers. */}
+        <FormSection icon={CircleHelp} title="What it’s about" note="It decides who at HR picks it up first.">
+          <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Topic">
+            {CATEGORIES.map((category) => {
+              const topic = TOPIC[category];
+              const on = form.category === category;
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setForm({ ...form, category })}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors',
+                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                    on ? 'border-primary bg-primary/5' : 'border-rule/60 bg-background/60 hover:bg-band/40',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'flex size-8 shrink-0 items-center justify-center rounded-md',
+                      on ? 'bg-primary/10 text-primary' : 'bg-band text-muted-foreground',
+                    )}
+                  >
+                    <topic.icon size={15} aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-foreground">{topic.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{topic.hint}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </FormSection>
+
+        <FormSection icon={MessageSquarePlus} title="Your request" note="Include dates or amounts if they help — HR can act on it sooner.">
           <Input
+            label="Subject"
             value={form.subject}
             onChange={(e) => setForm({ ...form, subject: e.target.value })}
             placeholder="e.g. Wrong hours on my payslip"
           />
-        </Labelled>
 
-        <Labelled label="What is it about?">
-          <Select
-            value={form.category}
-            onValueChange={(v) => setForm({ ...form, category: v as TicketCategory })}
-            options={CATEGORIES.map((v) => ({ value: v, label: CATEGORY_LABELS[v] }))}
-            ariaLabel="Category"
-            className="w-full"
-          />
-        </Labelled>
+          {/* Four fixed choices read better as one row than as a dropdown that
+              hides three of them behind a click. */}
+          <Labelled
+            label="How urgent is it?"
+            plain
+            hint={
+              form.priority === 'urgent'
+                ? 'For things that can’t wait — HR is alerted straight away.'
+                : form.priority === 'high'
+                  ? 'Looked at before routine requests.'
+                  : undefined
+            }
+          >
+            <SegmentedControl
+              options={PRIORITIES}
+              value={form.priority}
+              onChange={(v) => setForm({ ...form, priority: v })}
+              ariaLabel="Priority"
+              className="w-full [&>button]:flex-1"
+            />
+          </Labelled>
 
-        {/* Four fixed choices read better as one row than as a dropdown that
-            hides three of them behind a click. */}
-        <Labelled label="How urgent is it?" plain>
-          <SegmentedControl
-            options={PRIORITIES}
-            value={form.priority}
-            onChange={(v) => setForm({ ...form, priority: v })}
-            ariaLabel="Priority"
-            className="w-full"
-          />
-        </Labelled>
-
-        <Labelled label="Details" grow>
-          <textarea
-            className={`${textarea} h-full min-h-40 resize-none`}
-            placeholder="Describe what you need. Include dates or amounts if they help."
-            value={form.message}
-            onChange={(e) => setForm({ ...form, message: e.target.value })}
-          />
-        </Labelled>
+          <Labelled label="Details">
+            <textarea
+              className={`${textarea} min-h-40 resize-y`}
+              placeholder="Describe what you need."
+              value={form.message}
+              onChange={(e) => setForm({ ...form, message: e.target.value })}
+            />
+          </Labelled>
+        </FormSection>
       </form>
     </Drawer>
   );

@@ -261,9 +261,21 @@ export function EditStaffModal({
 
 // ── Enroll as employee (create HR record for a specific person) ────────────────
 
-export function EnrollEmployeeModal({ member, onClose }: { member: StaffProfile; onClose: () => void }) {
+export function EnrollEmployeeModal({
+  member,
+  onClose,
+  onCreated,
+  initialJobTitle = '',
+  submitLabel = 'Enroll',
+}: {
+  member: Pick<StaffProfile, 'userId' | 'name' | 'email'>;
+  onClose: () => void;
+  onCreated?: () => void;
+  initialJobTitle?: string;
+  submitLabel?: string;
+}) {
   const qc = useQueryClient();
-  const [jobTitle, setJobTitle] = useState('');
+  const [jobTitle, setJobTitle] = useState(initialJobTitle);
   const [department, setDepartment] = useState('');
   const [employmentType, setEmploymentType] = useState<EmploymentType>('full_time');
   const [startDate, setStartDate] = useState('');
@@ -283,6 +295,9 @@ export function EnrollEmployeeModal({ member, onClose }: { member: StaffProfile;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employees') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employee', member.userId) });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employee-me') });
+      onCreated?.();
       onClose();
     },
   });
@@ -348,7 +363,7 @@ export function EnrollEmployeeModal({ member, onClose }: { member: StaffProfile;
           disabled={isPending}
           className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
         >
-          {isPending ? 'Enrolling…' : 'Enroll'}
+          {isPending ? 'Creating…' : submitLabel}
         </button>
       </div>
     </form>

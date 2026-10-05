@@ -1,5 +1,8 @@
 'use client';
 
+import { motion, useReducedMotion } from 'motion/react';
+import { useId } from 'react';
+
 import type { IconComponent } from '@/components/icons';
 
 import { cn } from '@/lib/utils/cn';
@@ -25,12 +28,24 @@ export function SectionTabs<T extends string>({
   value,
   onChange,
   ariaLabel,
+  animationId,
 }: {
   tabs: SectionTab<T>[];
   value: T;
   onChange: (value: T) => void;
   ariaLabel: string;
+  /**
+   * Stable id for the sliding indicator. Only needed when each tab is its own
+   * route that mounts a fresh bar (menu items / categories / modifiers): the
+   * shared id lets the indicator slide from the bar that just unmounted.
+   */
+  animationId?: string;
 }) {
+  // The active "folder" is one shared element that slides between tabs. Scoped
+  // per bar, so two bars on a page never animate into each other.
+  const generatedId = useId();
+  const indicatorId = animationId ?? generatedId;
+  const reduceMotion = useReducedMotion();
   return (
     // px matches the app header's px-3 md:px-6 so tabs, masthead and body all
     // sit on one left edge.
@@ -47,20 +62,27 @@ export function SectionTabs<T extends string>({
               aria-selected={active}
               onClick={() => onChange(tab.value)}
               className={cn(
-                'h-10 px-3 md:px-4 -mb-px rounded-t-md border border-transparent flex items-center gap-2 text-sm font-semibold transition-colors',
-                active
-                  ? 'border-rule/70 border-b-card bg-card text-foreground'
-                  : 'text-muted-foreground hover:bg-card/45 hover:text-foreground',
+                'relative h-10 px-3 md:px-4 -mb-px rounded-t-md flex items-center gap-2 text-sm font-semibold transition-colors',
+                active ? 'text-foreground' : 'text-muted-foreground hover:bg-card/45 hover:text-foreground',
               )}
             >
-              {Icon && <Icon size={15} aria-hidden="true" />}
-              {tab.label}
+              {active && (
+                <motion.span
+                  layoutId={indicatorId}
+                  aria-hidden="true"
+                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 40 }}
+                  className="absolute inset-0 z-0 rounded-t-md border border-rule/70 border-b-card bg-card"
+                />
+              )}
+              {/* z-10 across the whole bar: the sliding folder passes under every label, not just its own. */}
+              {Icon && <Icon size={15} aria-hidden="true" className="relative z-10" />}
+              <span className="relative z-10">{tab.label}</span>
               {!!tab.count && (
                 <span
                   title={tab.countLabel}
                   aria-label={tab.countLabel}
                   className={cn(
-                    'h-5 min-w-5 px-1.5 rounded-sm flex items-center justify-center text-label font-semibold tabular-nums',
+                    'relative z-10 h-5 min-w-5 px-1.5 rounded-sm flex items-center justify-center text-label font-semibold tabular-nums',
                     tab.countTone === 'danger'
                       ? 'bg-destructive/6 text-destructive'
                       : active

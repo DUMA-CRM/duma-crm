@@ -3,6 +3,8 @@ import type { AgentActionSubmission, AgentChatMessage, AgentStreamEvent } from '
 import type { AgentContext } from '@/lib/ai/duma-agent.server';
 import { CapabilityError, executeConfirmedAction, runDumaAgent } from '@/lib/ai/duma-agent.server';
 import { isAgentProviderPreference } from '@/lib/ai/provider-chain';
+import { learnAgentMemory } from '@/lib/ai/agent-memory';
+import { getAgentConversation, getAgentMemory, saveAgentMemory, saveAgentTurn } from '@/lib/api/agent-conversations.service';
 import { consumeAgentBudget, recordAgentTurn } from '@/lib/modules/agent/client';
 import type { StaffProfile } from '@/lib/modules/identity/client';
 import { getMyStaffProfile } from '@/lib/modules/identity/client';
@@ -35,6 +37,8 @@ const APP_PAGES = new Set([
 
 interface AgentRequestBody {
   messages?: AgentChatMessage[];
+  conversationId?: string;
+  requestId?: string;
   context?: AgentContext;
   confirmedAction?: AgentActionSubmission;
 }
@@ -81,13 +85,56 @@ function statusFor(error: unknown) {
  * instead of guessing from the prompt. Once the first frame is written the
  * status code is fixed, so failures after that point stream an error frame.
  */
-function streamTurn(messages: AgentChatMessage[], context: AgentContext, cookieHeader: string, profile: StaffProfile) {
+function streamTurn(
+  messages: AgentChatMessage[],
+  context: AgentContext,
+  cookieHeader: string,
+  profile: StaffProfile,
+  saved?: { conversationId: string; requestId: string },
+) {
   const encoder = new TextEncoder();
+  let cancelled = false;
+  const cancellation = new AbortController();
+  context = { ...context, signal: context.signal ? AbortSignal.any([context.signal, cancellation.signal]) : cancellation.signal };
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const write = (event: AgentStreamEvent) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      const write = (event: AgentStreamEvent) => {
+        if (!cancelled && !context.signal?.aborted) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      };
       try {
-        for await (const event of runDumaAgent(messages, context, cookieHeader, profile)) write(event);
+        for await (const event of runDumaAgent(messages, context, cookieHeader, profile)) {
+          if (cancelled || context.signal?.aborted) break;
+          write(event);
+          if (event.type === 'result' && saved) {
+            try {
+              await saveAgentTurn(
+                saved.conversationId,
+                {
+                  requestId: saved.requestId,
+                  question: messages.at(-1)!.content,
+                  answer:
+                    event.response.message +
+                    (event.response.pendingAction
+                      ? '\n\nThis was an action draft. Ask DUMA to prepare it again if it has not been approved.'
+                      : ''),
+                  model: event.response.model,
+                  evidence: event.response.evidence ?? [],
+                  presentation: {
+                    cards: event.response.cards,
+                    scope: event.response.scope,
+                    refused: event.response.refused,
+                    followUps: event.response.followUps,
+                    fallbackModel: event.response.fallbackModel,
+                    generatedAt: event.response.generatedAt,
+                  },
+                },
+                cookieHeader,
+              );
+            } catch {
+              write({ type: 'notice', message: 'This answer could not be saved to history. Keep this chat open to retain it.' });
+            }
+          }
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Ask DUMA could not complete that request.';
         write({ type: 'error', message });
@@ -104,8 +151,12 @@ function streamTurn(messages: AgentChatMessage[], context: AgentContext, cookieH
           cookieHeader,
         );
       } finally {
-        controller.close();
+        if (!cancelled) controller.close();
       }
+    },
+    cancel() {
+      cancelled = true;
+      cancellation.abort();
     },
   });
 
@@ -140,6 +191,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (!body || typeof body !== 'object') return errorResponse(new Error('Invalid request body.'), 400);
     const profile = await getMyStaffProfile(cookieHeader);
     if (!profile) return errorResponse(new Error('Your session has expired. Sign in again.'), 401);
 
@@ -152,10 +204,55 @@ export async function POST(request: Request) {
     if (!Array.isArray(body.messages) || body.messages.length === 0) {
       return errorResponse(new Error('Send at least one chat message.'), 400);
     }
+    if (
+      body.messages.some(
+        (message) =>
+          !message ||
+          !['user', 'assistant'].includes(message.role) ||
+          typeof message.content !== 'string' ||
+          !message.content.trim() ||
+          message.content.length > 4000,
+      ) ||
+      body.messages.at(-1)?.role !== 'user'
+    )
+      return errorResponse(new Error('Send a valid question of up to 4,000 characters.'), 400);
+
     // A long conversation is normal use, not a bad request: keep the recent
     // window and answer. The agent trims again to what the model reads.
     if (body.messages.length > MAX_HISTORY_PAYLOAD) {
       return errorResponse(new Error('That conversation is too large to send. Clear the chat and ask again.'), 413);
+    }
+
+    const safe = safeContext(body.context);
+    const memoryTenantId = safe.tenantId ?? profile.tenantId ?? null;
+    const storedMemory = memoryTenantId
+      ? await getAgentMemory(memoryTenantId, cookieHeader).then((value) => value.content).catch(() => '')
+      : '';
+    const latestRequest = body.messages.at(-1)!.content;
+    const learnedMemory = learnAgentMemory(storedMemory, latestRequest);
+    const context = {
+      ...safe,
+      memory: learnedMemory ?? storedMemory,
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(150_000)]),
+    };
+    let messages = body.messages.slice(-MAX_HISTORY);
+    let saved: { conversationId: string; requestId: string } | undefined;
+    if (body.conversationId) {
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuid.test(body.conversationId) || !body.requestId || !uuid.test(body.requestId))
+        return errorResponse(new Error('Invalid conversation or request id.'), 400);
+      const conversation = await getAgentConversation(body.conversationId, cookieHeader);
+      if (conversation.tenantId !== (context.tenantId ?? profile.tenantId) || conversation.locationId !== (context.locationId ?? null))
+        return errorResponse(new Error('This conversation belongs to another workspace.'), 403);
+      // History comes from the private store, never a client-supplied assistant turn.
+      messages = [
+        ...conversation.turns.slice(-20).flatMap((turn): AgentChatMessage[] => [
+          { role: 'user', content: turn.question },
+          { role: 'assistant', content: turn.answer },
+        ]),
+        messages.at(-1)!,
+      ];
+      saved = { conversationId: conversation.id, requestId: body.requestId };
     }
 
     // Before a provider is paid: one question is up to eight model calls and
@@ -172,7 +269,11 @@ export async function POST(request: Request) {
       );
     }
 
-    return streamTurn(body.messages.slice(-MAX_HISTORY), safeContext(body.context), cookieHeader, profile);
+    // Preference learning is best-effort and cannot prevent the answer. The
+    // stored text is loaded back only as untrusted context on a later turn.
+    if (learnedMemory !== null) await saveAgentMemory(learnedMemory, memoryTenantId, cookieHeader).catch(() => undefined);
+
+    return streamTurn(messages, context, cookieHeader, profile, saved);
   } catch (error) {
     return errorResponse(error, statusFor(error));
   }

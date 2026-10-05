@@ -1,7 +1,7 @@
 import { AlertTriangle, Download } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
-import type { Payslip } from '@/lib/modules/people/client';
+import type { Payslip } from '@/lib/modules/payroll/client';
 import type { AttendanceDay } from '@/lib/modules/people/client';
 import { formatDate } from '@/lib/utils/date';
 import { payPeriodHours, payslipDeductions, payslipReconciles } from '@/lib/utils/my-hr';

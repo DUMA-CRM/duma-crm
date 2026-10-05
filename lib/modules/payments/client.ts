@@ -4,9 +4,10 @@ export {
   addPaymentConnection,
   closeCashUp,
   deletePaymentConnection,
+  getCashUpExpectation,
   getCashUps,
   getPaymentConnections,
   openCashUp,
   setPaymentConnectionActive,
 } from '@/lib/api/operations.service';
-export type { CashUp } from '@/lib/api/operations.service';
+export type { CashUp, CashUpExpectation } from '@/lib/api/operations.service';

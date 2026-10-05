@@ -113,6 +113,12 @@ interface UseRecipeDraftArgs {
   basePrice?: number;
   /** Per-item VAT override; falls back to the tenant default. */
   vatRate?: string | null;
+  /**
+   * A size is the item's default, so the size-less column is only what blank
+   * sizes inherit and is never sold: label it "All sizes" and leave it out of
+   * the per-size summary.
+   */
+  defaultIsSize?: boolean;
 }
 
 /**
@@ -121,7 +127,7 @@ interface UseRecipeDraftArgs {
  * per-size overrides; the summary computes cost/margin/kcal/allergens per
  * column from the ingredients' stock data.
  */
-export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePrice, vatRate }: UseRecipeDraftArgs) {
+export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePrice, vatRate, defaultIsSize = false }: UseRecipeDraftArgs) {
   const qc = useQueryClient();
   const { ctx: vat } = useVatContext();
   const { data: recipe = [], isLoading } = useQuery({ queryKey, queryFn: fetchLines });
@@ -174,7 +180,7 @@ export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePri
     return Number(raw) || 0;
   };
 
-  const columns: SizeColumn[] = [{ id: DEFAULT_COL, label: sizes.length > 0 ? 'Default' : 'Qty' }, ...sizes];
+  const columns: SizeColumn[] = [{ id: DEFAULT_COL, label: sizes.length > 0 ? (defaultIsSize ? 'All sizes' : 'Default') : 'Qty' }, ...sizes];
 
   // Per-column totals via the shared resolver (default vs size override).
   const draftLines = rows.flatMap((row) =>
@@ -182,7 +188,7 @@ export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePri
       .filter(([, v]) => v?.trim())
       .map(([col, v]) => ({ stockItemId: row.stockItemId, sizeModifierId: col === DEFAULT_COL ? null : col, quantity: v })),
   );
-  const summary = columns.map((col) => {
+  const summary = columns.filter((col) => !(defaultIsSize && sizes.length > 0 && col.id === DEFAULT_COL)).map((col) => {
     const t = computeRecipeTotals(draftLines, col.id === DEFAULT_COL ? new Set<string>() : new Set([col.id]), itemMap);
     const price = basePrice !== undefined ? basePrice + Number(col.priceAdjust ?? 0) : undefined;
     // Margin is computed here, once, so no consumer is tempted to write

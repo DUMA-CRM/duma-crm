@@ -1,10 +1,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 
 import { CustomerFormDrawer } from '@/components/customers/CustomerForm';
+import { CustomerLoyaltyCards } from '@/components/customers/CustomerLoyaltyCards';
 import { CustomerTimeline } from '@/components/customers/CustomerTimeline';
 import { CustomerWorkbench, type WorkbenchAction } from '@/components/customers/CustomerWorkbench';
 import { GuestSafetyBlock } from '@/components/customers/GuestSafetyBlock';
@@ -12,12 +14,12 @@ import { LoyaltyProgress } from '@/components/customers/LoyaltyProgress';
 import { MarketingPreferencesPanel } from '@/components/customers/MarketingPreferencesPanel';
 import { PointsForm } from '@/components/customers/PointsForm';
 import { PrivacyRequestsPanel } from '@/components/customers/PrivacyRequestsPanel';
-import { VisitCalendar } from '@/components/customers/VisitCalendar';
+import { VisitCalendar, VisitLegend } from '@/components/customers/VisitCalendar';
 import { SendEmailModal } from '@/components/email/SendEmailModal';
 import {
   Activity,
   AlertTriangle,
-  Coins,
+  Clock,
   Combine,
   Loader2,
   Receipt,
@@ -25,29 +27,33 @@ import {
   RotateCcw,
   ShieldCheck,
   ShoppingBag,
-  Star,
   UserCircle2,
   Wallet,
 } from '@/components/icons';
+import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
+import { Fact } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
-import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
+import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
+import { ApiError } from '@/lib/api/client';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { TIER_CONFIG } from '@/lib/constants/customers';
 import { getPrivacyRequests } from '@/lib/modules/compliance/client';
-import { getCustomer, getCustomerLedger, unmergeCustomer } from '@/lib/modules/customers/client';
+import { getCustomer, getCustomerLedger, getCustomerLoyaltyWallet, unmergeCustomer } from '@/lib/modules/customers/client';
 import { getOrders } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
+import { type VisitSummary, summariseVisits } from '@/lib/utils/visit-pattern';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
+import type { Customer } from '@/types/customers';
 
 type Section = 'guest' | 'timeline' | 'compliance';
 
@@ -55,32 +61,41 @@ const SECTION_VALUES: Section[] = ['guest', 'timeline', 'compliance'];
 
 const fmtDate = (iso: string) => formatDate(iso);
 
-const monthYear = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+const VISIT_MONTHS = 6;
+
+const WEEKDAYS = ['Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays', 'Sundays'];
+
+/** Today as the guest's calendar sees it — local, not UTC. */
+function localToday(): string {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+const monthYear = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
 /**
  * A single customer.
  *
- * The page is a dossier with a stable workbench beside it: the wide column
- * answers "what do I know about this guest", the narrow one answers "what can I
- * do about it", and the second column does not change when the tab does. That is
- * the Board-Then-Workbench rule applied to a record rather than a shift.
+ * Laid out as a settings tab is — the same body, panels, fact tiles and rows —
+ * so a guest's record, a staff member's record and your own Profile read as one
+ * product. The main column answers "what do I know about this guest"; the
+ * narrow one beside it answers "what can I do about it", and it is the same
+ * column on every tab, so a note can be written while reading the timeline
+ * that prompted it.
  *
- * Two things this fixes. Every action used to be an unlabelled icon square in
- * the top bar — an envelope, a pile of coins, a pencil — which staff had to
- * learn by trial. And writing one line about a guest meant opening the edit
- * drawer and saving the whole record; notes are now a box in the workbench that
- * saves itself.
- *
- * Allergies, alerts and preferences lead the Guest tab, which is the tab this
- * page opens on. A compact marker rides in the masthead so the fact does not
- * disappear entirely while someone is reading the timeline.
+ * The Guest tab, which the page opens on, leads with who this is and four
+ * facts, then what must be known before serving them. A compact marker rides
+ * in the masthead so an allergy does not vanish while someone is reading the
+ * timeline.
  */
 export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const reduceMotion = useReducedMotion();
   const qc = useQueryClient();
   const capabilities = useAuthStore((state) => state.capabilities);
+  const money = useWorkspaceMoney();
   const [modal, setModal] = useState<WorkbenchAction | 'unmerge' | null>(null);
 
   // The open tab lives in the URL: a colleague can be sent straight to the
@@ -103,10 +118,11 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
     data: customer,
     isLoading,
     isError,
+    refetch,
   } = useQuery({ queryKey: moduleQueryKeys.customers.key('customer', customerId), queryFn: () => getCustomer(customerId) });
 
-  // Only the visit heatmap needs order rows, and it lives on the Guest tab.
-  const { data: ordersData } = useQuery({
+  // Only the Guest tab needs order rows: the visit heatmap and its rhythm.
+  const visitsQuery = useQuery({
     queryKey: moduleQueryKeys.customers.key('customer-visits', customerId),
     queryFn: () => getOrders({ customerId, limit: 200 }),
     enabled: section === 'guest',
@@ -119,6 +135,11 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
     queryKey: moduleQueryKeys.customers.key('customer-ledger', customerId),
     queryFn: () => getCustomerLedger(customerId, 1),
     enabled: hasCapability(capabilities, 'customers:read'),
+  });
+  const { data: loyaltyWallet } = useQuery({
+    queryKey: moduleQueryKeys.customers.key('loyalty-wallet', customerId),
+    // Every tab: the Actions panel beside each one offers the birthday reward.
+    queryFn: () => getCustomerLoyaltyWallet(customerId),
   });
 
   // Fetched for the tab badge, not for the panel — an outstanding erasure
@@ -148,7 +169,17 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
     onError: (error) => toast('error', error.message || 'Could not separate these records.'),
   });
 
-  const visits = (ordersData?.data ?? []).map((order) => ({ date: order.createdAt.slice(0, 10), spend: Number(order.totalAmount) }));
+  // `GET /orders` checks a capability some customer roles lack (see the
+  // `orders:bulk` note in CLAUDE.md). A refusal is not a failure to retry, so
+  // the panel steps aside instead of offering a "Try again" that cannot work.
+  const visitsForbidden = visitsQuery.error instanceof ApiError && visitsQuery.error.status === 403;
+  const visits = useMemo(
+    () => (visitsQuery.data?.data ?? []).map((order) => ({ date: order.createdAt.slice(0, 10), spend: Number(order.totalAmount) })),
+    [visitsQuery.data],
+  );
+  // Pinned per mount, like `now` below, so the grid and its facts agree.
+  const [today] = useState(localToday);
+  const visitSummary = useMemo(() => summariseVisits(visits, today, VISIT_MONTHS), [visits, today]);
 
   // From the customer's own running totals, not from the fetched page of orders:
   // deriving it from a `limit: 200` fetch gave a heavy regular the average of
@@ -185,6 +216,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
 
   return (
     <EditorShell
+      eyebrow="Customer"
       title={name}
       onClose={() => router.push('/customers')}
       leading={
@@ -196,25 +228,26 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
         customer && tier ? (
           <>
             <Badge variant={tier.variant}>{tier.label}</Badge>
-            {/* The safety block itself lives on the Guest tab. This marker rides
-                in the masthead so the fact does not vanish when someone is two
-                tabs deep in a timeline — one glyph, not a second copy. */}
-            {(hasAllergies || hasCriticalAlert) && (
+            <span className="hidden text-xs text-muted-foreground sm:inline">Guest since {monthYear(customer.createdAt)}</span>
+            {/* The safety block itself opens the Guest tab. This marker rides in
+                the masthead only on the other tabs, so the fact does not vanish
+                two tabs deep in a timeline — and is not said twice on the first. */}
+            {section !== 'guest' && (hasAllergies || hasCriticalAlert) && (
               <Badge variant="destructive" title={hasAllergies ? `Allergies: ${customer.allergies!.join(', ')}` : 'Has a critical alert'}>
                 <AlertTriangle aria-hidden="true" />
                 {hasAllergies ? 'Allergies' : 'Critical alert'}
               </Badge>
             )}
-            <span className="text-xs text-muted-foreground">
-              {customer.lastVisitAt ? `Last visit ${fmtDate(customer.lastVisitAt)}` : 'No visits yet'} · guest since{' '}
-              {monthYear(customer.createdAt)}
-            </span>
           </>
         ) : undefined
       }
       actions={
         customer && !erased ? (
-          <Button className="gap-1.5" onClick={() => router.push(`/pos?customer=${customer.id}`)} aria-label="Start an order in the POS">
+          <Button
+            className="h-9 gap-1.5"
+            onClick={() => router.push(`/pos?customer=${customer.id}`)}
+            aria-label="Start an order in the POS"
+          >
             <ShoppingBag size={15} aria-hidden="true" />
             <span className="hidden md:inline">Start an order</span>
           </Button>
@@ -229,136 +262,150 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
           <Loader2 size={22} className="animate-spin" aria-label="Loading customer" />
         </div>
       ) : isError || !customer ? (
-        <div className="mx-auto max-w-md rounded-sm border border-rule bg-card p-8 text-center">
-          <EmptyState icon={UserCircle2} title="Customer not found" description="It may have been removed, or the link is out of date." />
-          <Button variant="outline" onClick={() => router.push('/customers')}>
-            Back to customers
-          </Button>
+        <div className="mx-auto max-w-md rounded-lg border border-rule/60 bg-field">
+          {isError ? (
+            <ErrorState
+              title="This customer couldn’t be loaded"
+              description="Check your connection and try again. If it keeps failing, the record may have been removed."
+              onRetry={() => void refetch()}
+            />
+          ) : (
+            <ErrorState icon={UserCircle2} title="Customer not found" description="It may have been removed, or the link is out of date." />
+          )}
+          <div className="flex justify-center border-t border-rule/45 px-5 py-3">
+            <Button variant="outline" size="sm" onClick={() => router.push('/customers')}>
+              Back to customers
+            </Button>
+          </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        // Keyed by tab so only the body re-enters on a switch — the shell's
+        // stagger, the same as the settings tabs.
+        <motion.div
+          key={section}
+          className="space-y-5"
+          initial={reduceMotion ? false : 'hidden'}
+          animate="shown"
+          variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
+        >
           {/* ── Record-level state, before anything else ─────────────────── */}
 
           {customer.anonymisedAt && (
-            <p className="flex items-start gap-2 rounded-sm border border-rule bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
-              <ShieldCheck size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-              <span>
-                This record was erased on {fmtDate(customer.anonymisedAt)} to fulfil a GDPR request. Order history is retained for financial
-                reporting; the personal details are gone and cannot be restored.
-              </span>
-            </p>
+            <RecordNotice icon={ShieldCheck} tone="muted" title={`Erased on ${fmtDate(customer.anonymisedAt)}`}>
+              The personal details were removed to fulfil a GDPR request and cannot be restored. Order history is retained for financial
+              reporting.
+            </RecordNotice>
           )}
 
           {customer.mergedIntoId && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-warning/25 bg-warning/6 px-4 py-3">
-              <p className="flex items-start gap-2 text-sm text-warning">
-                <Combine size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-                <span>
-                  This record was merged into another on {customer.mergedAt ? fmtDate(customer.mergedAt) : 'an earlier date'}. It is hidden
-                  from lists, and its history now shows on the surviving record.
-                </span>
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => router.push(`/customers/${customer.mergedIntoId}`)}>
-                  Open surviving record
-                </Button>
-                {canMerge && (
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setModal('unmerge')}>
-                    <RotateCcw size={14} aria-hidden="true" />
-                    Separate
+            <RecordNotice
+              icon={Combine}
+              tone="warning"
+              title={`Merged into another record${customer.mergedAt ? ` on ${fmtDate(customer.mergedAt)}` : ''}`}
+              actions={
+                <>
+                  <Button variant="outline" size="sm" onClick={() => router.push(`/customers/${customer.mergedIntoId}`)}>
+                    Open surviving record
                   </Button>
-                )}
-              </div>
-            </div>
+                  {canMerge && (
+                    <Button variant="outline" size="sm" onClick={() => setModal('unmerge')}>
+                      <RotateCcw data-icon="inline-start" />
+                      Separate
+                    </Button>
+                  )}
+                </>
+              }
+            >
+              It is hidden from lists, and its history now shows on the surviving record.
+            </RecordNotice>
           )}
 
-          {/* ── Dossier ── workbench ──────────────────────────────────────── */}
+          {/* Allergies, alerts and preferences open the Guest tab, across the
+              full width and above everything else: it is the tab this page
+              opens on, so this is the first thing read before serving. */}
+          {section === 'guest' && <GuestSafetyBlock customer={customer} />}
 
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-            {/* Second in DOM below lg so the verbs sit above the analytics on a
-                phone; ordered back to the right on a desk. */}
+          {/* ── Dossier ── workbench ──────────────────────────────────────
+              The settings body's grid with its narrow rail. The rail comes
+              first in the DOM so that on a phone the verbs sit above the
+              analytics; on a desk it is placed back on the right. */}
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
             <CustomerWorkbench
               customer={customer}
+              loyaltyProgrammes={loyaltyWallet?.programmes ?? []}
               canEdit={canEdit}
+              showConsent={section !== 'compliance'}
               canAdjustPoints={canAdjustPoints}
               onAction={setModal}
-              className="lg:sticky lg:top-0 lg:col-start-2 lg:row-start-1"
+              className="lg:col-start-2 lg:row-start-1"
             />
 
-            <div className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
+            <div className="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
               {section === 'guest' ? (
                 <>
-                  {/* Allergies, alerts and preferences lead the Guest tab: it is
-                      the tab this page opens on, so this is the first thing read. */}
-                  <GuestSafetyBlock customer={customer} onEdit={canEdit && !erased ? () => setModal('edit') : undefined} />
-
-                  <StatCardGrid columns={4}>
-                    <StatCard
-                      label="Total spent"
-                      value={`£${Number(customer.totalSpent).toFixed(0)}`}
-                      icon={Wallet}
-                      accent="success"
-                      size="sm"
-                    />
-                    <StatCard label="Visits" value={customer.totalVisits.toLocaleString()} icon={Repeat} accent="info" size="sm" />
-                    <StatCard label="Average order" value={`£${avgTicket.toFixed(0)}`} icon={Receipt} accent="warning" size="sm" />
-                    <StatCard label="Points" value={customer.pointsBalance.toLocaleString()} icon={Star} accent="purple" size="sm" />
-                  </StatCardGrid>
+                  <GlanceFacts customer={customer} avgTicket={avgTicket} summary={visitSummary} money={money} />
 
                   {/* The projection and the ledger disagreeing is a data-integrity
                       problem, not a cosmetic one, so it is stated rather than hidden. */}
                   {ledger && !ledger.reconciles && (
-                    <p className="flex items-start gap-2 rounded-sm border border-warning/25 bg-warning/6 px-4 py-2.5 text-xs text-warning">
-                      <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-                      <span>
-                        The points balance ({ledger.pointsBalance.toLocaleString()}) does not match the loyalty ledger (
-                        {ledger.ledgerTotal.toLocaleString()}). Points were changed outside the ledger, or the opening backfill has not been
-                        run.
-                      </span>
-                    </p>
+                    <RecordNotice icon={AlertTriangle} tone="warning" title="The points balance doesn’t match the ledger">
+                      The balance shows {ledger.pointsBalance.toLocaleString()}; the loyalty ledger adds up to{' '}
+                      {ledger.ledgerTotal.toLocaleString()}. Points were changed outside the ledger, or the opening backfill has not been
+                      run.
+                    </RecordNotice>
                   )}
 
-                  {/* Loyalty and the visit heatmap are the same question asked
-                      two ways — how engaged is this guest — so they share a row
-                      once there is width for both to stay legible. */}
-                  <div className={cn('grid gap-4', visits.length > 0 && 'xl:grid-cols-2')}>
-                    <section className="flex flex-col rounded-sm border border-rule bg-card p-4 h-fit">
-                      <div className="mb-4 flex items-center justify-between gap-3">
-                        <h2 className="text-sm font-semibold text-foreground">Loyalty</h2>
-                        <div className="flex items-center gap-2">
-                          {tier && <Badge variant={tier.variant}>{tier.label}</Badge>}
-                          {canAdjustPoints && !erased && (
-                            <Button variant="ghost" size="xs" onClick={() => setModal('points')}>
-                              <Coins data-icon="inline-start" />
-                              Adjust
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      <LoyaltyProgress customer={customer} />
-                    </section>
+                  <SettingsSection title="Points">
+                    <LoyaltyProgress customer={customer} />
+                  </SettingsSection>
 
-                    {visits.length > 0 && (
-                      <section className="flex min-w-0 flex-col rounded-sm border border-rule bg-card p-4">
-                        <h2 className="text-sm font-semibold text-foreground">Visit pattern</h2>
-                        <div className="min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                          <VisitCalendar visits={visits} months={6} />
-                        </div>
-                      </section>
-                    )}
-                  </div>
+                  <CustomerLoyaltyCards
+                    customerId={customer.id}
+                    customerName={`${customer.firstName} ${customer.lastName}`.trim()}
+                    programmes={loyaltyWallet?.programmes ?? []}
+                    canAdjust={canAdjustPoints && !erased}
+                    canOrder={!erased}
+                  />
+
+                  {!visitsForbidden && (
+                    <SettingsSection
+                      title="Visit pattern"
+                      description={
+                        visitsQuery.isSuccess
+                          ? `${visitSummary.visitDays.toLocaleString()} ${visitSummary.visitDays === 1 ? 'visit day' : 'visit days'} in the last ${VISIT_MONTHS} months · ${money(visitSummary.spend)} spent`
+                          : `The last ${VISIT_MONTHS} months, one square a day.`
+                      }
+                      actions={visitsQuery.isSuccess ? <VisitLegend /> : undefined}
+                      footnote={visitsQuery.isSuccess && visits.length >= 200 ? 'Drawn from their most recent 200 orders.' : undefined}
+                    >
+                      {visitsQuery.isPending ? (
+                        <div className="h-40 animate-pulse rounded-lg bg-band/60" aria-label="Loading visits" />
+                      ) : visitsQuery.isError ? (
+                        <ErrorState
+                          className="py-8"
+                          title="Visits couldn’t be loaded"
+                          description="The rest of the record is unaffected."
+                          onRetry={() => void visitsQuery.refetch()}
+                        />
+                      ) : (
+                        <VisitCalendar visits={visits} today={today} months={VISIT_MONTHS} money={money} />
+                      )}
+                    </SettingsSection>
+                  )}
                 </>
               ) : section === 'timeline' ? (
                 <CustomerTimeline customerId={customer.id} />
               ) : (
-                <div className="space-y-4">
+                // Two blocks headed on the page, as the staff record lays them
+                // out: more air between them than between panels.
+                <div className="space-y-8">
                   <MarketingPreferencesPanel customerId={customer.id} email={customer.email} />
                   <PrivacyRequestsPanel customerId={customer.id} tenantId={customer.tenantId} />
                 </div>
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* ── Dialogs ─────────────────────────────────────────────────────── */}
@@ -388,5 +435,94 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
         />
       )}
     </EditorShell>
+  );
+}
+
+// ── At a glance ──────────────────────────────────────────────────────────────
+
+/**
+ * Four facts, straight on the page — the header already says who this is, and
+ * the Contact panel how to reach them, so nothing here repeats either. Lifetime
+ * figures come from the customer's own running totals; the rhythm comes from
+ * the visit pattern below.
+ */
+function GlanceFacts({
+  customer,
+  avgTicket,
+  summary,
+  money,
+}: {
+  customer: Customer;
+  avgTicket: number;
+  summary: VisitSummary;
+  money: (amount: string | number | null | undefined) => string;
+}) {
+  return (
+    <motion.dl variants={SECTION_RISE} className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+      <Fact surface="page" icon={Wallet} label="Lifetime spend" value={money(customer.totalSpent)} />
+      <Fact
+        surface="page"
+        icon={Repeat}
+        label="Visits"
+        value={customer.totalVisits.toLocaleString()}
+        hint={customer.lastVisitAt ? `Last visit ${fmtDate(customer.lastVisitAt)}` : 'No visits yet'}
+      />
+      <Fact surface="page" icon={Receipt} label="Average order" value={customer.totalVisits > 0 ? money(avgTicket) : '—'} />
+      <Fact
+        surface="page"
+        icon={Clock}
+        label="Comes back"
+        value={summary.averageGapDays === null ? '—' : summary.averageGapDays <= 1 ? 'Daily' : `Every ${summary.averageGapDays} days`}
+        hint={
+          summary.busiestWeekday !== null
+            ? `Usually ${WEEKDAYS[summary.busiestWeekday]}`
+            : summary.averageGapDays === null
+              ? 'Needs two visits'
+              : undefined
+        }
+      />
+    </motion.dl>
+  );
+}
+
+// ── Notices ──────────────────────────────────────────────────────────────────
+
+const NOTICE_TILE = {
+  muted: 'bg-band text-muted-foreground',
+  warning: 'bg-measured/10 text-measured',
+} as const;
+
+/** A record-level fact as one row on the page — the staff record's "needs you" strip. */
+function RecordNotice({
+  icon: Icon,
+  tone,
+  title,
+  actions,
+  children,
+}: {
+  icon: typeof AlertTriangle;
+  tone: keyof typeof NOTICE_TILE;
+  title: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.div
+      variants={SECTION_RISE}
+      role={tone === 'warning' ? 'alert' : undefined}
+      className={cn(
+        'flex flex-wrap items-center gap-3 rounded-lg border bg-field px-4 py-3',
+        tone === 'warning' ? 'border-measured/35' : 'border-rule/60',
+      )}
+    >
+      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', NOTICE_TILE[tone])}>
+        <Icon size={18} aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1 basis-60">
+        <span className="block text-sm font-semibold text-foreground">{title}</span>
+        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{children}</span>
+      </span>
+      {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
+    </motion.div>
   );
 }

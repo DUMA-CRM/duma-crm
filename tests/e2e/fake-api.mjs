@@ -17,8 +17,8 @@ const session = {
 const tenantId = '11111111-1111-4111-8111-111111111111';
 const locationId = '22222222-2222-4222-8222-222222222222';
 const moduleIds = [
-  'core', 'identity', 'organization', 'customers', 'catalog', 'ordering', 'payments', 'inventory',
-  'purchasing', 'workforce', 'people', 'communications', 'compliance', 'analytics', 'agent', 'support',
+  'core', 'identity', 'organization', 'customers', 'catalog', 'ordering', 'pos', 'payments', 'inventory',
+  'purchasing', 'workforce', 'people', 'payroll', 'communications', 'compliance', 'audit', 'analytics', 'agent', 'support',
 ];
 const capabilities = ['staff:read', 'scheduling:read', 'scheduling:write', 'shifts:read', 'shifts:write', 'hr.sensitive:read'];
 const staffProfile = {

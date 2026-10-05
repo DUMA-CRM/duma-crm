@@ -13,6 +13,8 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { getScheduledShifts } from '@/lib/modules/workforce/client';
 import { attendanceTotals, mergeAbsenceDays, mergeRosteredDays } from '@/lib/utils/my-hr';
 
+import { RecordBlock } from './shared';
+
 /**
  * The attendance month, for the manager looking at someone else's record.
  *
@@ -67,12 +69,10 @@ export function EmployeeAttendanceCard({ userId, canReadRota }: { userId: string
   };
 
   return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Attendance</h3>
-          <p className="text-sm text-muted-foreground">Hours worked against hours rostered.</p>
-        </div>
+    <RecordBlock
+      id="record-attendance"
+      title="Attendance"
+      action={
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" onClick={() => changeMonth(-1)} aria-label="Previous month">
             <ChevronLeft />
@@ -82,10 +82,10 @@ export function EmployeeAttendanceCard({ userId, canReadRota }: { userId: string
             <ChevronRight />
           </Button>
         </div>
-      </div>
-
+      }
+    >
       {isError ? (
-        <div className="rounded-md border border-rule bg-card">
+        <div className="rounded-lg border border-rule/60 bg-card">
           <ErrorState
             title="Attendance couldn’t be loaded"
             description="No day was read, so this is not a month with nothing in it."
@@ -103,6 +103,6 @@ export function EmployeeAttendanceCard({ userId, canReadRota }: { userId: string
           onSelect={(date) => setSelected(date === selected ? null : date)}
         />
       )}
-    </section>
+    </RecordBlock>
   );
 }

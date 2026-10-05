@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
@@ -8,38 +8,43 @@ import { CustomerBulkBar } from '@/components/customers/CustomerBulkBar';
 import { CustomerCards } from '@/components/customers/CustomerCards';
 import { CustomerFilterBar } from '@/components/customers/CustomerFilterBar';
 import { CreateCustomerDrawer } from '@/components/customers/CustomerForm';
+import { CustomerList, CustomerListSkeleton } from '@/components/customers/CustomerList';
 import { MergeCustomersModal } from '@/components/customers/MergeCustomersModal';
 import { SegmentBar } from '@/components/customers/SegmentBar';
 import { useCustomerFilters } from '@/components/customers/useCustomerFilters';
-import { AlertTriangle, Combine, LayoutGrid, ListView, Plus, ShieldAlert, Users } from '@/components/icons';
+import { Combine, Gift, LayoutGrid, ListView, Mail, Plus, UserMinus, Users } from '@/components/icons';
+import { Fact } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { NeedsAttention } from '@/components/shared/NeedsAttention';
 import type { SegmentedOption } from '@/components/shared/SegmentedControl';
-import { Badge } from '@/components/ui/badge';
+import { useWorkspaceCurrency } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
-import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 
 import { hasCapability } from '@/lib/auth/capabilities';
-import { TIER_CONFIG } from '@/lib/constants/customers';
-import { getCustomers } from '@/lib/modules/customers/client';
+import { getCustomers, getDuplicateCandidates } from '@/lib/modules/customers/client';
 import { getSegment, getSegments } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { cn } from '@/lib/utils/cn';
-import { formatDate } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
 import { type ListView as ListViewMode, useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-import type { Customer, CustomerSort } from '@/types/customers';
+import type { Customer, CustomerFilters } from '@/types/customers';
 
 const VIEW_OPTIONS: SegmentedOption<ListViewMode>[] = [
-  { value: 'table', label: 'Table view', icon: ListView },
+  { value: 'table', label: 'List view', icon: ListView },
   { value: 'cards', label: 'Card view', icon: LayoutGrid },
 ];
 
 const PAGE_SIZE = 20;
 
-const fmtDate = (iso?: string) => formatDate(iso);
+/** The four facts over the list — each one count, from a one-row request. */
+const SUMMARY: { key: string; filters: (month: number) => CustomerFilters }[] = [
+  { key: 'all', filters: () => ({}) },
+  { key: 'emailable', filters: () => ({ marketing: 'opted_in' }) },
+  { key: 'birthdays', filters: (month) => ({ birthdayMonth: month }) },
+  { key: 'lapsed', filters: () => ({ lapsedDays: 60 }) },
+];
 
 /**
  * The customers list.
@@ -90,6 +95,38 @@ export function CustomersWorkspace() {
   });
   const segments = useMemo(() => segmentsData?.data ?? [], [segmentsData]);
 
+  const [month] = useState(() => new Date().getMonth() + 1);
+  // Under 'customers', so creating, merging or editing refreshes these too.
+  const summary = useQueries({
+    queries: SUMMARY.map((item) => ({
+      queryKey: moduleQueryKeys.customers.key('customers', tenantId, 'summary', item.key, month),
+      queryFn: () => getCustomers({ ...item.filters(month), page: 1, limit: 1, tenantId: tenantId ?? undefined }),
+      enabled: !!tenantId,
+      staleTime: 60_000,
+    })),
+  });
+  const count = (index: number) => (summary[index]?.data ? summary[index].data!.total.toLocaleString() : '—');
+
+  const duplicates = useQuery({
+    queryKey: moduleQueryKeys.customers.key('customers', tenantId, 'duplicates'),
+    queryFn: () => getDuplicateCandidates(200),
+    enabled: !!tenantId && canMerge,
+    staleTime: 5 * 60_000,
+  });
+  const duplicateCount = duplicates.data?.data.length ?? 0;
+
+  const currency = useWorkspaceCurrency();
+  // Whole units: a list reads "£412", the record has the pennies.
+  const money = useMemo(() => {
+    const format = new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency,
+      currencyDisplay: 'narrowSymbol',
+      maximumFractionDigits: 0,
+    });
+    return (amount: string | number) => format.format(Number(amount) || 0);
+  }, [currency]);
+
   // Only fetched when a segment is applied — this is what turns a headline count
   // into "and this many can actually be emailed".
   const { data: appliedSegment } = useQuery({
@@ -138,127 +175,12 @@ export function CustomersWorkspace() {
     },
   });
 
-  /** Sort indicator the DataTable understands, for a given column's sort key. */
-  const sortFor = (key: CustomerSort) => (filters.sort === key ? (filters.direction ?? 'desc') : (false as const));
-
-  const columns: DataTableColumn<Customer>[] = [
-    ...(canMerge
-      ? [
-          {
-            id: 'select',
-            width: 'fit' as const,
-            header: (
-              <label className="flex items-center" title="Select all on this page">
-                <input
-                  type="checkbox"
-                  checked={allOnPageSelected}
-                  onChange={toggleAllOnPage}
-                  aria-label="Select all customers on this page"
-                  className="h-4 w-4 rounded accent-primary"
-                />
-              </label>
-            ),
-            cell: ({ row: customer }: { row: Customer }) => (
-              <label
-                className="flex items-center"
-                // The row is a link to the record; a tick must not navigate.
-                onClick={(event) => event.stopPropagation()}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(customer.id)}
-                  onChange={() => toggleRow(customer.id)}
-                  aria-label={`Select ${customer.firstName} ${customer.lastName}`}
-                  className="h-4 w-4 rounded accent-primary"
-                />
-              </label>
-            ),
-          },
-        ]
-      : []),
-    {
-      id: 'customer',
-      header: 'Customer',
-      minWidth: 220,
-      sortDirection: sortFor('name'),
-      onSort: () => toggleSort('name'),
-      cell: ({ row: customer }) => (
-        <div className="flex items-center gap-2.5">
-          <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} email={customer.email} className="size-8 text-xs" />
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-foreground">
-              {customer.firstName} {customer.lastName}
-              {/* Safety first, even in a list: a critical alert or an allergy is
-                  the one thing a manager must not have to open a record to see. */}
-              {customer.alerts?.some((alert) => alert.severity === 'critical') && (
-                <ShieldAlert size={13} className="shrink-0 text-exception" aria-label="Has a critical alert" />
-              )}
-              {(customer.allergies?.length ?? 0) > 0 && (
-                <AlertTriangle size={13} className="shrink-0 text-warning" aria-label={`Allergies: ${customer.allergies!.join(', ')}`} />
-              )}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">{customer.email ?? customer.phone}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'tier',
-      header: 'Tier',
-      width: 'fit',
-      cell: ({ row: customer }) => <Badge variant={TIER_CONFIG[customer.tier].variant}>{TIER_CONFIG[customer.tier].label}</Badge>,
-    },
-    {
-      id: 'points',
-      header: 'Points',
-      width: 'fit',
-      align: 'right',
-      cellClassName: 'tabular-nums font-semibold',
-      sortDirection: sortFor('points'),
-      onSort: () => toggleSort('points'),
-      cell: ({ row: customer }) => customer.pointsBalance.toLocaleString(),
-    },
-    {
-      id: 'spent',
-      header: 'Spent',
-      width: 'fit',
-      align: 'right',
-      visibility: 'sm',
-      cellClassName: 'tabular-nums',
-      sortDirection: sortFor('spend'),
-      onSort: () => toggleSort('spend'),
-      cell: ({ row: customer }) => `£${Number(customer.totalSpent).toFixed(0)}`,
-    },
-    {
-      id: 'visits',
-      header: 'Visits',
-      width: 'fit',
-      align: 'right',
-      visibility: 'md',
-      cellClassName: 'tabular-nums text-muted-foreground',
-      sortDirection: sortFor('visits'),
-      onSort: () => toggleSort('visits'),
-      cell: ({ row: customer }) => customer.totalVisits,
-    },
-    {
-      id: 'last',
-      header: 'Last visit',
-      width: 'fit',
-      visibility: 'lg',
-      wrap: 'nowrap',
-      cellClassName: 'tabular-nums text-muted-foreground text-xs',
-      sortDirection: sortFor('last_visit'),
-      onSort: () => toggleSort('last_visit'),
-      cell: ({ row: customer }) => (customer.lastVisitAt ? fmtDate(customer.lastVisitAt) : 'Never'),
-    },
-  ];
-
   const emptyState = <EmptyState icon={Users} title="No customers found" description="Try adjusting your search or filters." />;
 
   // Paging only. The toolbar owns the total, so the two can never disagree.
   const footer =
     totalPages > 1 ? (
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1 pt-1">
         <p className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
           Page {page} of {totalPages}
         </p>
@@ -291,6 +213,12 @@ export function CustomersWorkspace() {
                 <span className="hidden lg:inline">Find duplicates</span>
               </Button>
             )}
+            {hasCapability(capabilities, 'customers:points') && (
+              <Button variant="outline" onClick={() => router.push('/customers/loyalty')} className="gap-1.5">
+                <Gift size={15} aria-hidden="true" />
+                <span className="hidden lg:inline">Loyalty rules</span>
+              </Button>
+            )}
             {canCreate && (
               <Button className="gap-1.5" onClick={() => setShowCreate(true)} aria-label="New customer">
                 <Plus size={15} aria-hidden="true" />
@@ -304,7 +232,46 @@ export function CustomersWorkspace() {
       {!tenantId ? (
         <EmptyState icon={Users} title="No workspace selected" description="Choose a workspace to view its customers." />
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
+          <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Fact surface="page" icon={Users} label="Customers" value={count(0)} hint="Everyone on your list" />
+            <Fact surface="page" icon={Mail} label="Can be emailed" value={count(1)} hint="Opted in to marketing" />
+            <Fact
+              surface="page"
+              icon={Gift}
+              label="Birthdays this month"
+              value={count(2)}
+              hint={new Date(2000, month - 1, 1).toLocaleDateString('en-GB', { month: 'long' })}
+            />
+            <Fact
+              surface="page"
+              icon={UserMinus}
+              label="Not seen in 60 days"
+              value={count(3)}
+              tone="warning"
+              hint="Worth a win-back email"
+            />
+          </dl>
+
+          {canMerge && (
+            <NeedsAttention
+              items={
+                duplicateCount > 0
+                  ? [
+                      {
+                        key: 'duplicates',
+                        tone: 'measured',
+                        icon: Combine,
+                        title: `${duplicateCount}${duplicateCount === 200 ? '+' : ''} possible duplicate ${duplicateCount === 1 ? 'record' : 'records'}`,
+                        detail: 'The same email, or the same first and last name. Merging keeps their points and history together.',
+                        fix: { label: 'Review', href: '/customers/duplicates' },
+                      },
+                    ]
+                  : []
+              }
+            />
+          )}
+
           <CustomerFilterBar
             filters={filters}
             onChange={setFilters}
@@ -337,34 +304,38 @@ export function CustomersWorkspace() {
           />
 
           {isError ? (
-            <div className="flex min-h-72 flex-col items-center justify-center rounded-sm border border-exception/30 bg-card px-6 text-center">
-              <span className="flex size-12 items-center justify-center rounded-md bg-exception/8 text-exception">
-                <AlertTriangle size={22} aria-hidden="true" />
-              </span>
-              <h2 className="mt-4 text-base font-semibold text-foreground">Customers could not be loaded</h2>
-              <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                Check your connection and try again. Your search and filters will stay in place.
-              </p>
-              <Button variant="outline" className="mt-4" onClick={() => void refetch()}>
-                Try again
-              </Button>
+            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              <ErrorState
+                title="Customers couldn’t be loaded"
+                description="Your search and filters stay in place."
+                onRetry={() => void refetch()}
+              />
             </div>
+          ) : isLoading ? (
+            <CustomerListSkeleton />
+          ) : customers.length === 0 ? (
+            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">{emptyState}</div>
           ) : view === 'cards' ? (
-            <CustomerCards customers={customers} isLoading={isLoading} emptyState={emptyState} footer={footer} fmtDate={fmtDate} />
-          ) : (
-            <DataTable
-              aria-label="Customers"
-              data={customers}
-              columns={columns}
-              getRowKey={(customer) => customer.id}
-              isLoading={isLoading}
-              density="compact"
-              stickyHeader
-              minWidth={720}
+            <CustomerCards
+              customers={customers}
               emptyState={emptyState}
-              onRowClick={({ row }) => router.push(`/customers/${row.id}`)}
-              rowAriaLabel={({ row }) => `Open ${row.firstName} ${row.lastName}`}
-              rowClassName={({ row }) => cn(selectedIds.has(row.id) && 'bg-band/60')}
+              footer={footer}
+              money={money}
+              selectable={canMerge}
+              selectedIds={selectedIds}
+              onToggle={toggleRow}
+            />
+          ) : (
+            <CustomerList
+              customers={customers}
+              money={money}
+              sort={filters.sort}
+              direction={filters.direction}
+              onSort={toggleSort}
+              selectable={canMerge}
+              selectedIds={selectedIds}
+              onToggle={toggleRow}
+              onToggleAll={toggleAllOnPage}
               footer={footer}
             />
           )}

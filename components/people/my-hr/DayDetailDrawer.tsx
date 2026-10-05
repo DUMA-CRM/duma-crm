@@ -1,10 +1,8 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 
-import { CalendarCheck, CalendarDays, Clock, Equal, FileText, Sun, UserRound } from '@/components/icons';
+import { CalendarCheck } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
-import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import type { AttendanceDay } from '@/lib/modules/people/client';
@@ -12,6 +10,7 @@ import { getMyLeaveRequests } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { getMyScheduledShifts } from '@/lib/modules/workforce/client';
 import { getMyShifts } from '@/lib/modules/workforce/client';
+import { cn } from '@/lib/utils/cn';
 
 import { fmt } from './shared';
 
@@ -32,13 +31,14 @@ const hrs = (hours: number) => `${Math.round(hours * 10) / 10}h`;
 const toHours = (minutes: number) => (Number(minutes) || 0) / 60;
 const duration = (from: string, to: string) => hrs((new Date(to).getTime() - new Date(from).getTime()) / 3600000);
 
-const STATUS_LABEL: Record<string, { label: string; variant: 'success' | 'warning' | 'destructive' | 'muted' | 'reference' }> = {
-  full: { label: 'Worked', variant: 'success' },
-  partial: { label: 'Short', variant: 'warning' },
-  missed: { label: 'Missed', variant: 'destructive' },
-  leave: { label: 'Leave', variant: 'reference' },
-  scheduled: { label: 'Rostered', variant: 'muted' },
-  no_shift: { label: 'No shift', variant: 'muted' },
+/** The attendance status as the audit pill and tile tints, so the drawer matches the calendar cell it opened from. */
+const STATUS_LABEL: Record<string, { label: string; pill: string; tile: string }> = {
+  full: { label: 'Worked', pill: 'bg-momentum/8 text-momentum', tile: 'bg-momentum/10 text-momentum' },
+  partial: { label: 'Short', pill: 'bg-measured/10 text-measured', tile: 'bg-measured/10 text-measured' },
+  missed: { label: 'Missed', pill: 'bg-exception/8 text-exception', tile: 'bg-exception/8 text-exception' },
+  leave: { label: 'Leave', pill: 'bg-reference/8 text-reference', tile: 'bg-reference/8 text-reference' },
+  scheduled: { label: 'Rostered', pill: 'bg-band text-muted-foreground', tile: 'bg-band text-muted-foreground' },
+  no_shift: { label: 'No shift', pill: 'bg-band text-muted-foreground', tile: 'bg-band text-muted-foreground' },
 };
 
 export function DayDetailDrawer({ day, onClose, onQuery }: { day: AttendanceDay; onClose: () => void; onQuery: () => void }) {
@@ -73,7 +73,29 @@ export function DayDetailDrawer({ day, onClose, onQuery }: { day: AttendanceDay;
   return (
     <Drawer
       title={dayName}
-      description={planned > 0 || worked > 0 ? `${hrs(worked)} worked of ${hrs(planned)} rostered` : undefined}
+      // The day's figures, said once: status, worked of rostered, and the difference when it matters.
+      description={
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', status.pill)}>{status.label}</span>
+          {(planned > 0 || worked > 0) && (
+            <span className="tabular-nums">
+              {hrs(worked)} worked of {hrs(planned)} rostered
+              {comparable && variance !== 0 && (
+                <span className={cn('font-semibold', variance < 0 ? 'text-measured' : 'text-foreground')}>
+                  {' '}
+                  · {variance > 0 ? '+' : '−'}
+                  {hrs(Math.abs(variance))}
+                </span>
+              )}
+            </span>
+          )}
+        </span>
+      }
+      leading={
+        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', status.tile)}>
+          <CalendarCheck size={18} aria-hidden="true" />
+        </span>
+      }
       onClose={onClose}
       footer={
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -88,38 +110,33 @@ export function DayDetailDrawer({ day, onClose, onQuery }: { day: AttendanceDay;
       }
     >
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge variant={status.variant}>{status.label}</Badge>
-          {comparable && variance !== 0 && (
-            <span className={`font-mono text-sm tabular-nums ${variance < 0 ? 'text-warning' : 'text-muted-foreground'}`}>
-              {variance > 0 ? '+' : '−'}
-              {hrs(Math.abs(variance))} against your roster
-            </span>
-          )}
-        </div>
-
-        <Section title="Rostered">
+        <section>
+          <SectionTitle>Rostered</SectionTitle>
           {rostered.length === 0 ? (
             <Empty>No shift was rostered for this day.</Empty>
           ) : (
-            <InfoGroup className="border-0 bg-transparent px-0 py-0">
+            <Panel>
               {rostered.map((shift) => (
-                <InfoRow
-                  key={shift.id}
-                  icon={Clock}
-                  label={shift.role ? `Shift · ${shift.role}` : 'Shift'}
-                  value={`${time(shift.startsAt)} – ${time(shift.endsAt)}`}
-                  hint={shift.location?.name ?? undefined}
-                />
+                <Row key={shift.id} label={shift.role ? `Shift · ${shift.role}` : 'Shift'}>
+                  <span className="font-mono font-semibold tabular-nums">
+                    {time(shift.startsAt)}–{time(shift.endsAt)}
+                  </span>
+                  {shift.location?.name && <span className="text-muted-foreground">· {shift.location.name}</span>}
+                </Row>
               ))}
-              {rostered[0]?.notes && <InfoRow icon={FileText} label="Note from your manager" value={rostered[0].notes} />}
-            </InfoGroup>
+              {rostered[0]?.notes && (
+                <Row label="Manager’s note">
+                  <span className="whitespace-pre-wrap">{rostered[0].notes}</span>
+                </Row>
+              )}
+            </Panel>
           )}
-        </Section>
+        </section>
 
-        <Section title="What was recorded">
+        <section>
+          <SectionTitle>What was recorded</SectionTitle>
           {clocked.length === 0 ? (
-            <Empty>
+            <Empty tone={day.status === 'missed' ? 'exception' : 'muted'}>
               {day.status === 'missed'
                 ? 'No clock-in was recorded. If you did work this day, query it below.'
                 : day.status === 'scheduled'
@@ -127,43 +144,32 @@ export function DayDetailDrawer({ day, onClose, onQuery }: { day: AttendanceDay;
                   : 'Nothing was clocked on this day.'}
             </Empty>
           ) : (
-            <ClockTimeline shifts={clocked} />
+            <div className="rounded-lg border border-rule/60 bg-field px-4 py-3">
+              <ClockTimeline shifts={clocked} />
+            </div>
           )}
-        </Section>
+        </section>
 
         {(leave || day.leaveName) && (
-          <Section title="Leave">
-            <InfoGroup className="border-0 bg-transparent px-0 py-0">
-              <InfoRow icon={Sun} label="Type" value={leave?.leaveType.name ?? day.leaveName ?? undefined} />
+          <section>
+            <SectionTitle>Leave</SectionTitle>
+            <Panel>
+              <Row label="Type">{leave?.leaveType.name ?? day.leaveName}</Row>
               {leave && (
                 <>
-                  <InfoRow
-                    icon={CalendarDays}
-                    label="Booked"
-                    value={`${fmt(leave.startDate)} – ${fmt(leave.endDate)}`}
-                    hint={`${leave.totalDays} days`}
-                  />
-                  <InfoRow icon={CalendarCheck} label="Approval" value={leave.status} />
-                  {leave.notes && <InfoRow icon={FileText} label="Your note" value={leave.notes} />}
-                  {leave.reviewNotes && <InfoRow icon={UserRound} label="HR note" value={leave.reviewNotes} />}
+                  <Row label="Booked">
+                    {fmt(leave.startDate)} – {fmt(leave.endDate)}
+                    <span className="text-muted-foreground">· {leave.totalDays} days</span>
+                  </Row>
+                  <Row label="Approval">
+                    <span className="capitalize">{leave.status}</span>
+                  </Row>
+                  {leave.notes && <Row label="Your note">{leave.notes}</Row>}
+                  {leave.reviewNotes && <Row label="HR note">{leave.reviewNotes}</Row>}
                 </>
               )}
-            </InfoGroup>
-          </Section>
-        )}
-
-        {planned > 0 && (
-          <Section title="Hours">
-            <InfoGroup className="border-0 bg-transparent px-0 py-0">
-              <InfoRow icon={CalendarCheck} label="Rostered" value={hrs(planned)} />
-              <InfoRow icon={Clock} label="Worked" value={hrs(worked)} />
-              <InfoRow
-                icon={Equal}
-                label="Difference"
-                value={variance === 0 ? 'Matches your roster' : `${variance > 0 ? '+' : '−'}${hrs(Math.abs(variance))}`}
-              />
-            </InfoGroup>
-          </Section>
+            </Panel>
+          </section>
         )}
       </div>
     </Drawer>
@@ -220,8 +226,8 @@ function ClockTimeline({
         {events.map((event) => (
           <li key={event.key} className="relative py-1.5">
             <span
-              className={`absolute -left-[1.3125rem] top-3 size-2 rounded-full ring-2 ring-card ${
-                event.kind === 'gap' ? 'bg-band ring-card' : event.kind === 'in' ? 'bg-momentum' : 'bg-muted-foreground'
+              className={`absolute -left-[1.3125rem] top-3 size-2 rounded-full ring-2 ring-field ${
+                event.kind === 'gap' ? 'bg-band ring-field' : event.kind === 'in' ? 'bg-momentum' : 'bg-muted-foreground'
               }`}
               aria-hidden="true"
             />
@@ -247,15 +253,36 @@ function ClockTimeline({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+// ── Pieces — the audit inspector's ────────────────────────────────────────
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h3 className="mb-2 text-sm font-semibold text-foreground">{children}</h3>;
+}
+
+function Panel({ children }: { children: React.ReactNode }) {
+  return <dl className="overflow-hidden rounded-lg border border-rule/60 bg-field">{children}</dl>;
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <section>
-      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{title}</h3>
-      <div className="mt-2">{children}</div>
-    </section>
+    <div className="flex items-baseline gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+      <dt className="w-24 shrink-0 text-xs text-muted-foreground">{label}</dt>
+      <dd className="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5 text-sm text-foreground">{children}</dd>
+    </div>
   );
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-muted-foreground">{children}</p>;
+function Empty({ children, tone = 'muted' }: { children: React.ReactNode; tone?: 'muted' | 'exception' }) {
+  return (
+    <p
+      className={cn(
+        'rounded-lg px-3.5 py-3 text-sm',
+        tone === 'exception'
+          ? 'border border-exception/30 bg-exception/5 text-foreground'
+          : 'border border-dashed border-rule/60 text-muted-foreground',
+      )}
+    >
+      {children}
+    </p>
+  );
 }

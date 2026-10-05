@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 
-import { ArrowRight, Check, type IconComponent, Loader2, Lock } from '@/components/icons';
+import { ArrowLeft, Check, type IconComponent, Loader2, Lock } from '@/components/icons';
+import { type Choice, ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Button } from '@/components/ui/button';
 
-import { cn } from '@/lib/utils/cn';
+const EASE = [0.16, 1, 0.3, 1] as const;
+/** Long enough to see the card tick, short enough not to feel like waiting. */
+const AUTO_ADVANCE_MS = 280;
 
 export interface WizardStep {
   key: string;
@@ -22,79 +26,53 @@ export interface WizardStep {
   skippable?: boolean;
 }
 
+/** Lets a step's content move the wizard on — a single-choice answer does, like onboarding. */
+const WizardContext = createContext<{ next: () => void } | null>(null);
+
 /**
- * Left rail of the connect wizard: what this connector is for and what you need
- * to hand before you start, so nobody gets three steps in and has to go hunting
- * for a password.
+ * What to have to hand before starting — shown under the first question, so
+ * nobody gets three steps in and has to go hunting for a password.
  */
 export function WizardRail({
-  icon: Icon,
-  name,
-  tagline,
   requirements,
   footnote,
 }: {
-  icon: IconComponent;
-  name: string;
-  tagline: string;
+  icon?: IconComponent;
+  name?: string;
+  tagline?: string;
   requirements: string[];
   footnote?: React.ReactNode;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-sm border border-rule bg-band p-6">
-      {/* Faint graph paper, purely decorative — echoes the rest of the app's cards. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-40 [mask-image:linear-gradient(to_bottom,black,transparent_60%)]"
-        style={{
-          backgroundImage:
-            'linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)',
-          backgroundSize: '36px 36px',
-        }}
-      />
-      <div className="relative">
-        <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-sm bg-primary text-primary-foreground">
-            <Icon size={20} aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">{name}</p>
-            <p className="text-xs text-muted-foreground">Connector setup</p>
-          </div>
-        </div>
-
-        <p className="mt-5 text-sm leading-relaxed text-muted-foreground">{tagline}</p>
-
-        {requirements.length > 0 && (
-          <div className="mt-6 border-t border-rule pt-5">
-            <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Before you start</p>
-            <ul className="mt-3 space-y-2.5">
-              {requirements.map((requirement) => (
-                <li key={requirement} className="flex gap-2.5 text-sm leading-relaxed text-foreground">
-                  <Check size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
-                  {requirement}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="mt-6 flex gap-2.5 border-t border-rule pt-5 text-xs leading-relaxed text-muted-foreground">
-          <Lock size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <p>Credentials are encrypted before they are stored and are never shown again — only replaced.</p>
-        </div>
-
-        {footnote && <div className="mt-5 border-t border-rule pt-5 text-xs text-muted-foreground">{footnote}</div>}
-      </div>
+    <div className="rounded-lg border border-rule/50 bg-background/60 px-4 py-3.5">
+      {requirements.length > 0 && (
+        <>
+          <p className="text-label uppercase text-muted-foreground">Before you start</p>
+          <ul className="mt-2 space-y-1.5">
+            {requirements.map((requirement) => (
+              <li key={requirement} className="flex gap-2 text-sm text-foreground">
+                <Check size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+                {requirement}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p className="mt-3 flex gap-2 text-xs text-muted-foreground">
+        <Lock size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+        Keys are encrypted when saved and never shown again.
+      </p>
+      {footnote && <p className="mt-1.5 text-xs text-muted-foreground">{footnote}</p>}
     </div>
   );
 }
 
 /**
- * A connector's setup, one decision per screen: pick the provider, then fill in
- * only the fields that provider actually needs, then prove it works. Each step
- * owns whether Continue is allowed, and a step can save on the way out so the
- * next screen has something real to test against.
+ * A connector's setup in the onboarding shape: one question per screen, a
+ * progress bar, the step sliding in from the side you are heading, Back and
+ * Continue at the foot, Enter to go on. Each step owns whether Continue is
+ * allowed, and a step can save on the way out so the next screen has something
+ * real to test against.
  */
 export function ConnectWizard({
   eyebrow,
@@ -111,7 +89,8 @@ export function ConnectWizard({
   eyebrow: string;
   title: string;
   icon: React.ReactNode;
-  rail: React.ReactNode;
+  /** Shown under the first question only. */
+  rail?: React.ReactNode;
   steps: WizardStep[];
   onClose: () => void;
   /** Called after the last step's `onContinue` succeeds. */
@@ -125,21 +104,22 @@ export function ConnectWizard({
    */
   lockedFrom?: number;
 }) {
-  const [index, setIndex] = useState(0);
-  // How far you have legitimately reached — the dots above that stay locked, so
-  // you cannot jump ahead of a step that still has to save something.
-  const [furthest, setFurthest] = useState(0);
+  const reduceMotion = useReducedMotion();
+  const [position, setPosition] = useState({ index: 0, direction: 1 });
   const [busy, setBusy] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
-  const clamped = Math.min(index, steps.length - 1);
+  const clamped = Math.min(position.index, steps.length - 1);
   const step = steps[clamped];
   const isLast = clamped === steps.length - 1;
   const locked = lockedFrom !== undefined && clamped >= lockedFrom;
+  const canContinue = !busy && step.ready !== false;
 
-  const goTo = (next: number) => {
-    setIndex(next);
-    setFurthest((current) => Math.max(current, next));
-  };
+  // The heading takes focus on each step, unless the step focused its own field.
+  useEffect(() => {
+    const active = document.activeElement;
+    if (!active || active === document.body) headingRef.current?.focus({ preventScroll: true });
+  }, [clamped]);
 
   async function advance(runStep: boolean) {
     if (runStep && step.onContinue) {
@@ -156,72 +136,118 @@ export function ConnectWizard({
       onFinish();
       return;
     }
-    goTo(clamped + 1);
+    setPosition({ index: clamped + 1, direction: 1 });
   }
+
+  const context = {
+    // Deferred a beat so the chosen card visibly ticks before the step moves.
+    next: () => window.setTimeout(() => void advance(true), reduceMotion ? 0 : AUTO_ADVANCE_MS),
+  };
 
   return (
     <EditorShell eyebrow={eyebrow} title={title} icon={icon} onClose={onClose} dirty={dirty} flush>
-      <div className="flex-1 overflow-auto">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 p-4 md:p-8 lg:flex-row lg:gap-14">
-          <aside className="shrink-0 lg:w-80">{rail}</aside>
-
-          <div className="min-w-0 flex-1 lg:max-w-xl lg:py-6">
-            {/* Progress: a wide pill for where you are, ticks for what is done. */}
-            <ol className="flex items-center gap-2" aria-label={`Step ${clamped + 1} of ${steps.length}`}>
-              {steps.map((item, itemIndex) => {
-                const done = itemIndex < clamped;
-                const active = itemIndex === clamped;
-                return (
-                  <li key={item.key}>
-                    <button
-                      type="button"
-                      disabled={itemIndex > furthest || busy || locked}
-                      aria-current={active ? 'step' : undefined}
-                      aria-label={`Step ${itemIndex + 1}: ${item.title}`}
-                      onClick={() => setIndex(itemIndex)}
-                      className={cn(
-                        'h-2 rounded-full transition-all',
-                        active ? 'w-8 bg-primary' : done ? 'w-2 bg-primary/40' : 'w-2 bg-muted',
-                        !locked && done && 'hover:bg-primary/70',
-                        (itemIndex > furthest || locked) && 'cursor-default',
-                      )}
-                    />
-                  </li>
-                );
-              })}
-            </ol>
-
-            <p className="mt-6 text-micro font-semibold uppercase tracking-micro text-primary">
-              Step {clamped + 1} of {steps.length}
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{step.title}</h2>
-            {step.description && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.description}</p>}
-
-            <div className="mt-7">{step.content}</div>
-
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              {clamped > 0 && !locked && (
-                <Button variant="ghost" disabled={busy} onClick={() => setIndex(clamped - 1)}>
-                  Back
-                </Button>
-              )}
-              {step.skippable && (
-                <Button variant="ghost" disabled={busy} onClick={() => void advance(false)}>
-                  Skip for now
-                </Button>
-              )}
-              <Button
-                className="h-10 gap-2"
-                disabled={busy || step.ready === false}
-                onClick={() => void advance(true)}
-                title={step.ready === false ? 'Fill in the fields above to continue' : undefined}
-              >
-                {busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : null}
-                {step.continueLabel ?? (isLast ? finishLabel : 'Continue')}
-                {!busy && !isLast && <ArrowRight size={15} aria-hidden="true" />}
-              </Button>
+      <div className="flex flex-1 overflow-auto">
+        <div className="mx-auto flex w-full max-w-2xl flex-col px-5 py-10 sm:py-14">
+          {/* Progress: one segment per step, filled up to where you are. */}
+          <div className="flex items-center gap-4">
+            <div
+              className="grid flex-1 gap-1.5"
+              style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
+              role="progressbar"
+              aria-valuemin={1}
+              aria-valuemax={steps.length}
+              aria-valuenow={clamped + 1}
+              aria-label="Setup progress"
+            >
+              {steps.map((item, itemIndex) => (
+                <div key={item.key} className="h-1 overflow-hidden rounded-full bg-band">
+                  <motion.div
+                    className="h-full rounded-full bg-primary"
+                    initial={false}
+                    animate={{ width: itemIndex <= clamped ? '100%' : '0%' }}
+                    transition={reduceMotion ? { duration: 0 } : { duration: 0.45, ease: EASE }}
+                  />
+                </div>
+              ))}
             </div>
+            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+              {clamped + 1} of {steps.length}
+            </span>
           </div>
+
+          <form
+            className="relative mt-10 flex flex-1 flex-col"
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canContinue) void advance(true);
+            }}
+          >
+            <WizardContext.Provider value={context}>
+              <AnimatePresence mode="popLayout" custom={position.direction} initial={false}>
+                <motion.div
+                  key={step.key}
+                  custom={position.direction}
+                  variants={{
+                    enter: (dir: number) => (reduceMotion ? { opacity: 0 } : { opacity: 0, x: dir * 28, filter: 'blur(3px)' }),
+                    center: { opacity: 1, x: 0, filter: 'blur(0px)' },
+                    exit: (dir: number) => (reduceMotion ? { opacity: 0 } : { opacity: 0, x: dir * -28, filter: 'blur(3px)' }),
+                  }}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: reduceMotion ? 0.12 : 0.28, ease: EASE }}
+                >
+                  <h2
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-2xl font-semibold leading-tight tracking-headline text-foreground outline-none sm:text-3xl"
+                  >
+                    {step.title}
+                  </h2>
+                  {step.description && <p className="mt-2 max-w-[56ch] text-sm leading-6 text-muted-foreground">{step.description}</p>}
+                  <div className="mt-8">{step.content}</div>
+                  {clamped === 0 && rail && <div className="mt-6">{rail}</div>}
+                </motion.div>
+              </AnimatePresence>
+            </WizardContext.Provider>
+
+            <div className="mt-12 flex items-center justify-between gap-4">
+              {clamped > 0 && !locked ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="lg"
+                  className="h-11 gap-1.5 px-4 text-muted-foreground"
+                  disabled={busy}
+                  onClick={() => setPosition({ index: clamped - 1, direction: -1 })}
+                >
+                  <ArrowLeft aria-hidden="true" /> Back
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="flex items-center gap-2">
+                {step.skippable && (
+                  <Button type="button" variant="ghost" size="lg" className="h-11 px-4" disabled={busy} onClick={() => void advance(false)}>
+                    Skip for now
+                  </Button>
+                )}
+                <Button type="submit" size="lg" className="h-11 min-w-36 gap-2 px-5" disabled={!canContinue}>
+                  {busy && <Loader2 className="animate-spin" aria-hidden="true" />}
+                  {step.continueLabel ?? (isLast ? finishLabel : 'Continue')}
+                  {!busy && (
+                    <kbd
+                      aria-hidden="true"
+                      className="hidden rounded border border-primary-foreground/30 px-1 font-mono text-micro sm:inline"
+                    >
+                      ↵
+                    </kbd>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </form>
         </div>
       </div>
     </EditorShell>
@@ -229,8 +255,8 @@ export function ConnectWizard({
 }
 
 /**
- * The provider grid used by the first step of every wizard — the same tile grid
- * as the reference design, one tap to pick who you are with.
+ * The provider question on the first step: the onboarding answer cards, and a
+ * pick moves you on — the same feel as setting up the workspace.
  */
 export function ProviderGrid<T extends string>({
   options,
@@ -243,32 +269,22 @@ export function ProviderGrid<T extends string>({
   onChange: (value: T) => void;
   ariaLabel: string;
 }) {
-  const selected = options.find((option) => option.value === value);
+  const wizard = useContext(WizardContext);
+  const choices: Choice<T>[] = options.map((option) => ({
+    value: option.value,
+    label: option.label,
+    detail: option.hint,
+    icon: option.icon,
+  }));
   return (
-    <div>
-      <div role="radiogroup" aria-label={ariaLabel} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {options.map((option) => {
-          const Icon = option.icon;
-          const active = option.value === value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              onClick={() => onChange(option.value)}
-              className={cn(
-                'flex flex-col items-center gap-2.5 rounded-sm border p-4 text-center transition-colors',
-                active ? 'border-primary bg-band text-primary' : 'border-rule text-muted-foreground hover:bg-band',
-              )}
-            >
-              <Icon size={22} aria-hidden="true" />
-              <span className="text-sm font-medium text-foreground">{option.label}</span>
-            </button>
-          );
-        })}
-      </div>
-      {selected?.hint && <p className="mt-3 text-sm text-primary">{selected.hint}</p>}
-    </div>
+    <ChoiceGrid<T>
+      label={ariaLabel}
+      choices={choices}
+      selected={value ? [value] : []}
+      onChange={(next) => {
+        onChange(next);
+        wizard?.next();
+      }}
+    />
   );
 }

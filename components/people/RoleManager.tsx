@@ -3,50 +3,93 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { Plus } from '@/components/icons';
+import {
+  Building2,
+  ChevronDown,
+  ClipboardCheck,
+  KeyRound,
+  Loader2,
+  Megaphone,
+  Plus,
+  ShieldCheck,
+  Store,
+  Trash2,
+  UserRound,
+  UsersRound,
+} from '@/components/icons';
+import { moduleCopy } from '@/components/onboarding/modules';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { type AccessRole, createRole, deleteRole, getRoles, updateRole } from '@/lib/modules/identity/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { capabilityName } from '@/lib/utils/module-impact';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 type Draft = { id: string | null; name: string; description: string; capabilities: string[] };
+
 const emptyDraft = (): Draft => ({ id: null, name: '', description: '', capabilities: [] });
+const sorted = (values: readonly string[]) => [...values].sort();
+
+function draftFor(role: AccessRole): Draft {
+  return { id: role.id, name: role.name, description: role.description ?? '', capabilities: role.capabilities };
+}
+
+function RoleGlyph({ role, className }: { role?: AccessRole; className?: string }) {
+  const identity = `${role?.key ?? ''} ${role?.name ?? ''}`.toLowerCase();
+  if (identity.includes('super')) return <ShieldCheck className={className} />;
+  if (identity.includes('franchise') || identity.includes('owner')) return <Building2 className={className} />;
+  if (identity.includes('hr')) return <UsersRound className={className} />;
+  if (identity.includes('marketing')) return <Megaphone className={className} />;
+  if (identity.includes('store')) return <Store className={className} />;
+  if (identity.includes('auditor')) return <ClipboardCheck className={className} />;
+  if (identity.includes('team') || identity.includes('member')) return <UserRound className={className} />;
+  return <KeyRound className={className} />;
+}
 
 export function RoleManager() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
+  const rolesKey = moduleQueryKeys.identity.key('roles', tenantId);
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: moduleQueryKeys.identity.key('roles', tenantId),
+    queryKey: rolesKey,
     queryFn: () => getRoles(tenantId ?? undefined),
-    enabled: !!tenantId,
+    enabled: Boolean(tenantId),
   });
-  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const editable = useMemo(() => new Set(data?.grantableCapabilities ?? []), [data]);
   const selectedRole = draft.id ? data?.roles.find((role) => role.id === draft.id) : undefined;
+  const isBuiltIn = Boolean(selectedRole?.isBuiltIn);
+  const displayName = isBuiltIn ? selectedRole?.name ?? 'Role' : draft.name.trim() || selectedRole?.name || 'New role';
+  const isDirty = selectedRole
+    ? draft.name.trim() !== selectedRole.name ||
+      draft.description.trim() !== (selectedRole.description ?? '') ||
+      sorted(draft.capabilities).join('|') !== sorted(selectedRole.capabilities).join('|')
+    : Boolean(draft.name.trim() || draft.description.trim() || draft.capabilities.length);
 
   const save = useMutation({
-    mutationFn: () =>
-      draft.id
-        ? updateRole(
-            draft.id,
-            { name: draft.name, description: draft.description || null, capabilities: draft.capabilities },
-            tenantId ?? undefined,
-          )
-        : createRole({
-            name: draft.name,
-            description: draft.description || null,
-            capabilities: draft.capabilities,
-            tenantId: tenantId ?? undefined,
-          }),
+    mutationFn: () => {
+      const payload = {
+        name: draft.name.trim(),
+        description: draft.description.trim() || null,
+        capabilities: draft.capabilities,
+      };
+      return draft.id
+        ? updateRole(draft.id, payload, tenantId ?? undefined)
+        : createRole({ ...payload, tenantId: tenantId ?? undefined });
+    },
     onSuccess: async (role) => {
-      await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('roles', tenantId) });
-      setDraft({ id: role.id, name: role.name, description: role.description ?? '', capabilities: role.capabilities });
+      await queryClient.invalidateQueries({ queryKey: rolesKey });
+      setDraft(draftFor(role));
+      setConfirmDelete(false);
       toast('success', draft.id ? 'Role updated. Assigned staff will sign in again.' : 'Role created.');
     },
     onError: (error) => toast('error', (error as Error).message || 'The role could not be saved.'),
@@ -56,16 +99,23 @@ export function RoleManager() {
     mutationFn: (role: AccessRole) => deleteRole(role.id, tenantId ?? undefined),
     onSuccess: async () => {
       setDraft(emptyDraft());
-      await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('roles', tenantId) });
+      setConfirmDelete(false);
+      await queryClient.invalidateQueries({ queryKey: rolesKey });
       toast('success', 'Role deleted.');
     },
     onError: (error) => toast('error', (error as Error).message || 'Reassign everyone using this role first.'),
   });
 
   const selectRole = (role: AccessRole) => {
-    setDraft({ id: role.id, name: role.name, description: role.description ?? '', capabilities: role.capabilities });
-    setOpen(true);
+    setDraft((current) => (current.id === role.id ? emptyDraft() : draftFor(role)));
+    setConfirmDelete(false);
   };
+
+  const startNewRole = () => {
+    setDraft(emptyDraft());
+    setConfirmDelete(false);
+  };
+
   const toggleCapability = (capability: string) =>
     setDraft((current) => ({
       ...current,
@@ -74,125 +124,204 @@ export function RoleManager() {
         : [...current.capabilities, capability].sort(),
     }));
 
-  return (
-    <section className="rounded-sm border border-rule bg-card">
-      <button
-        type="button"
-        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span>
-          <span className="block text-sm font-semibold text-foreground">Roles & access</span>
-          <span className="block text-xs text-muted-foreground">Built-in bundles plus roles shaped for this workspace.</span>
-        </span>
-        <span className="text-xs font-semibold text-primary">{open ? 'Close' : 'Manage'}</span>
-      </button>
-
-      {open && (
-        <div className="grid border-t border-rule lg:grid-cols-[260px_1fr]">
-          <div className="border-b border-rule p-3 lg:border-b-0 lg:border-r">
-            <Button variant="outline" className="mb-3 w-full gap-1.5" onClick={() => setDraft(emptyDraft())}>
-              <Plus size={14} /> New role
-            </Button>
-            {isPending && <p className="px-2 py-3 text-xs text-muted-foreground">Loading roles…</p>}
-            {isError && (
-              <button type="button" className="px-2 py-3 text-xs text-destructive" onClick={() => void refetch()}>
-                Roles could not load. Try again.
-              </button>
-            )}
-            <div className="space-y-1">
-              {(data?.roles ?? []).map((role) => (
-                <button
-                  key={role.id}
-                  type="button"
-                  onClick={() => selectRole(role)}
-                  className={cn(
-                    'w-full rounded-sm px-3 py-2 text-left transition-colors',
-                    draft.id === role.id ? 'bg-band text-primary' : 'hover:bg-muted',
-                  )}
-                >
-                  <span className="block truncate text-sm font-medium">{role.name}</span>
-                  <span className="block text-micro text-muted-foreground">
-                    {role.isBuiltIn ? 'Built in' : 'Workspace'} · {role.capabilities.length} capabilities
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-4 p-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">Role name</label>
-                <Input
-                  value={draft.name}
-                  onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                  placeholder="Shift lead"
-                  disabled={selectedRole?.isBuiltIn}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">Description</label>
-                <Input
-                  value={draft.description}
-                  onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
-                  placeholder="What this role is responsible for"
-                  disabled={selectedRole?.isBuiltIn}
-                />
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground">Capabilities</p>
-              <p className="mb-3 text-xs text-muted-foreground">A role can only contain access you are allowed to grant.</p>
-              <div className="grid gap-2 xl:grid-cols-2">
-                {Object.entries(data?.capabilityGroups ?? {}).map(([moduleId, capabilities]) => {
-                  const visible = capabilities.filter((capability) => editable.has(capability) || draft.capabilities.includes(capability));
-                  if (visible.length === 0) return null;
-                  return (
-                    <details
-                      key={moduleId}
-                      className="rounded-sm border border-rule p-3"
-                      open={visible.some((capability) => draft.capabilities.includes(capability))}
-                    >
-                      <summary className="cursor-pointer text-xs font-semibold capitalize text-foreground">
-                        {moduleId} · {visible.filter((capability) => draft.capabilities.includes(capability)).length}/{visible.length}
-                      </summary>
-                      <div className="mt-2 space-y-1.5">
-                        {visible.map((capability) => (
-                          <label key={capability} className="flex items-start gap-2 text-xs text-muted-foreground">
-                            <input
-                              type="checkbox"
-                              className="mt-0.5 size-4 accent-primary"
-                              checked={draft.capabilities.includes(capability)}
-                              disabled={selectedRole?.isBuiltIn || !editable.has(capability)}
-                              onChange={() => toggleCapability(capability)}
-                            />
-                            <span>{capability}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </details>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap justify-between gap-2 border-t border-rule pt-4">
-              <div>
-                {selectedRole && !selectedRole.isBuiltIn && (
-                  <Button variant="outline" onClick={() => remove.mutate(selectedRole)} disabled={remove.isPending}>
-                    Delete role
-                  </Button>
-                )}
-              </div>
-              <Button onClick={() => save.mutate()} disabled={!!selectedRole?.isBuiltIn || draft.name.trim().length < 2 || save.isPending}>
-                {save.isPending ? 'Saving…' : draft.id ? 'Save role' : 'Create role'}
-              </Button>
-            </div>
-          </div>
+  const roleDirectory = (
+    <SettingsSection
+      title="Roles"
+      actions={
+        <Button size="sm" variant="outline" onClick={startNewRole} aria-pressed={draft.id === null}>
+          <Plus data-icon="inline-start" /> New
+        </Button>
+      }
+      bodyClassName="pt-3"
+    >
+      {isPending && (
+        <div className="flex items-center gap-2 rounded-md border border-rule/60 bg-page px-3 py-4 text-sm text-muted-foreground">
+          <Loader2 className="animate-spin" /> Loading roles…
         </div>
       )}
-    </section>
+
+      {isError && <ErrorState title="Roles could not load" description="Try loading this list again." onRetry={() => void refetch()} className="py-6" />}
+
+      {!isPending && !isError && (
+        <nav className="space-y-1.5" aria-label="Workspace roles">
+          {(data?.roles ?? []).map((role) => {
+            const selected = role.id === draft.id;
+            return (
+              <button
+                key={role.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => selectRole(role)}
+                className={cn(
+                  'w-full rounded-md border p-3 text-left transition-[background-color,border-color,box-shadow] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                  selected
+                    ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
+                    : 'border-rule/50 bg-page hover:border-primary/35 hover:bg-band/50',
+                )}
+              >
+                <span className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      'flex size-10 shrink-0 items-center justify-center rounded-md border',
+                      selected ? 'border-primary bg-primary text-primary-foreground' : 'border-rule/60 bg-field text-muted-foreground',
+                    )}
+                  >
+                    <RoleGlyph role={role} className="size-4.5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-semibold text-foreground">{role.name}</span>
+                      <Badge variant={role.isBuiltIn ? 'primary' : 'muted'}>{role.isBuiltIn ? 'Built in' : 'Custom'}</Badge>
+                    </span>
+                    <span className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <KeyRound className="size-3" />
+                      {role.capabilities.length} {role.capabilities.length === 1 ? 'permission' : 'permissions'}
+                    </span>
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
+    </SettingsSection>
+  );
+
+  return (
+    <SettingsTabBody aside={roleDirectory} stickyAside narrowAside>
+      <SettingsSection>
+        <div className="space-y-5">
+          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+            <span
+              className={cn(
+                'flex size-20 shrink-0 items-center justify-center rounded-xl border shadow-sm',
+                selectedRole ? 'border-primary/25 bg-primary text-primary-foreground' : 'border-rule/60 bg-band text-primary',
+              )}
+            >
+              <RoleGlyph role={selectedRole} className="size-8" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                <h2 className="truncate text-2xl font-semibold tracking-headline text-foreground">{displayName}</h2>
+                {isBuiltIn ? (
+                  <Badge variant="primary"><ShieldCheck /> Built in</Badge>
+                ) : selectedRole ? (
+                  <Badge variant="muted"><KeyRound /> Custom</Badge>
+                ) : null}
+              </div>
+              <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-muted-foreground sm:justify-start">
+                <KeyRound className="size-3.5" />
+                {draft.capabilities.length} {draft.capabilities.length === 1 ? 'permission' : 'permissions'} selected
+              </p>
+            </div>
+          </div>
+
+          <div className="border-t border-rule/50" />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Role name"
+              value={draft.name}
+              onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+              placeholder="Shift lead"
+              disabled={isBuiltIn}
+            />
+            <Input
+              label="Description"
+              value={draft.description}
+              onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
+              placeholder="What this role is responsible for"
+              disabled={isBuiltIn}
+            />
+          </div>
+
+          <div>
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold text-foreground">Permissions</h3>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Open a section to choose the actions this role can perform.</p>
+            </div>
+
+            <div className="grid gap-2 xl:grid-cols-2">
+              {Object.entries(data?.capabilityGroups ?? {}).map(([moduleId, capabilities]) => {
+                const visible = capabilities.filter((capability) => editable.has(capability) || draft.capabilities.includes(capability));
+                if (visible.length === 0) return null;
+                const selectedCount = visible.filter((capability) => draft.capabilities.includes(capability)).length;
+                const copy = moduleCopy(moduleId);
+                const ModuleIcon = copy.icon;
+                return (
+                  <details
+                    key={`${draft.id ?? 'new'}-${moduleId}`}
+                    className="group rounded-md border border-rule/60 bg-page open:border-rule"
+                  >
+                    <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/60 bg-field text-muted-foreground">
+                        <ModuleIcon className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-foreground">{copy.name}</span>
+                        <span className="block text-xs text-muted-foreground">{selectedCount} of {visible.length} selected</span>
+                      </span>
+                      <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+                    </summary>
+                    <div className="grid gap-2 border-t border-rule/50 px-3 py-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      {visible.map((capability) => {
+                        const checked = draft.capabilities.includes(capability);
+                        const disabled = isBuiltIn || !editable.has(capability);
+                        return (
+                          <label
+                            key={capability}
+                            className={cn(
+                              'flex min-h-10 items-start gap-2.5 rounded-md border px-3 py-2 text-sm transition-colors',
+                              checked ? 'border-primary/35 bg-primary/5 text-foreground' : 'border-rule/50 bg-field text-muted-foreground',
+                              disabled ? 'cursor-default opacity-70' : 'cursor-pointer hover:border-primary/35 hover:text-foreground',
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 size-4 shrink-0 accent-primary"
+                              checked={checked}
+                              disabled={disabled}
+                              onChange={() => toggleCapability(capability)}
+                            />
+                            <span className="leading-5">{capabilityName(capability)}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          </div>
+
+          {!isBuiltIn && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rule/50 pt-4">
+              <div>
+                {selectedRole && !confirmDelete && (
+                  <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)} disabled={remove.isPending}>
+                    <Trash2 data-icon="inline-start" /> Delete role
+                  </Button>
+                )}
+                {selectedRole && confirmDelete && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium text-exception">Delete this role?</span>
+                    <Button variant="destructive" size="sm" onClick={() => remove.mutate(selectedRole)} disabled={remove.isPending}>
+                      {remove.isPending ? 'Deleting…' : 'Yes, delete'}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>Cancel</Button>
+                  </div>
+                )}
+              </div>
+              <Button
+                onClick={() => save.mutate()}
+                disabled={draft.name.trim().length < 2 || save.isPending || (Boolean(selectedRole) && !isDirty)}
+              >
+                {save.isPending ? 'Saving…' : draft.id ? 'Save changes' : 'Create role'}
+              </Button>
+            </div>
+          )}
+        </div>
+      </SettingsSection>
+    </SettingsTabBody>
   );
 }

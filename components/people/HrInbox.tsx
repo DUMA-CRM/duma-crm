@@ -1,122 +1,390 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
 
-import { Check, CircleHelp, Clock3, Loader2, X } from '@/components/icons';
+import {
+  AlertTriangle,
+  CalendarClock,
+  CalendarRange,
+  Check,
+  CheckCircle2,
+  CircleHelp,
+  Clock3,
+  Loader2,
+  Users,
+  X,
+} from '@/components/icons';
+import { Avatar } from '@/components/people/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
 
-import { type LeaveRequest, getManagedLeaveRequests, reviewLeaveRequest } from '@/lib/modules/people/client';
+import { hasCapability } from '@/lib/auth/capabilities';
+import { type LeaveRequest, getEntitlements, getManagedLeaveRequests, reviewLeaveRequest } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { formatDate } from '@/lib/utils/date';
+import { getScheduledShifts } from '@/lib/modules/workforce/client';
+import { cn } from '@/lib/utils/cn';
+import { type LeaveContext, leaveContext } from '@/lib/utils/leave-review';
 import { daysBetween } from '@/lib/utils/staff-overview';
+import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
-const fmtDate = (value: string) => formatDate(value);
+const STATUSES = ['pending', 'approved', 'declined', 'cancelled'] as const;
+const STATUS_LABEL: Record<(typeof STATUSES)[number], string> = {
+  pending: 'Waiting',
+  approved: 'Approved',
+  declined: 'Declined',
+  cancelled: 'Cancelled',
+};
 
-/** How long this has sat undecided — the thing the reviewer cannot see from a date range. */
-function WaitingFor({ request }: { request: LeaveRequest }) {
-  if (request.status !== 'pending') return null;
-  const days = daysBetween(request.createdAt, new Date());
-  if (days < 1) return <Badge variant="muted">Raised today</Badge>;
-  return <Badge variant={days >= 5 ? 'destructive' : 'warning'}>Waiting {days} days</Badge>;
-}
+const DAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+const dayOf = (value: string) => {
+  const [year, month, date] = value.slice(0, 10).split('-').map(Number);
+  return new Date(year, month - 1, date);
+};
 
-/** Leave requests awaiting a decision — a tab of the staff workspace. */
+/**
+ * Leave requests, worked one at a time with what the decision depends on laid
+ * out beside each: the allowance it would leave, who else is off those days,
+ * and the rota shifts it would leave uncovered. No optimistic update — an
+ * approval spends an entitlement.
+ */
 export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (value: string) => void }) {
-  const {
-    data: requests = [],
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
+  const qc = useQueryClient();
+  const capabilities = useAuthStore((s) => s.capabilities);
+  // Balances need the read capability; a reviewer without it still reviews, just without the number.
+  const canSeeBalances = hasCapability(capabilities, 'hr.leave:read');
+  const canSeeRota = hasCapability(capabilities, 'scheduling:read');
+
+  const requests = useQuery({
     queryKey: moduleQueryKeys.people.key('leave-managed', status),
     queryFn: () => getManagedLeaveRequests(status),
   });
+  // The tab badge and the overview read this same key.
+  const pending = useQuery({
+    queryKey: moduleQueryKeys.people.key('leave-managed', 'pending'),
+    queryFn: () => getManagedLeaveRequests('pending'),
+  });
+  const approved = useQuery({
+    queryKey: moduleQueryKeys.people.key('leave-managed', 'approved'),
+    queryFn: () => getManagedLeaveRequests('approved'),
+    enabled: status === 'pending',
+  });
+  const entitlements = useQuery({
+    queryKey: moduleQueryKeys.people.key('entitlements', new Date().getFullYear()),
+    queryFn: () => getEntitlements(),
+    enabled: canSeeBalances,
+    meta: { silentError: true },
+  });
 
-  const qc = useQueryClient();
+  // One rota read spanning every request on screen.
+  const rows = useMemo(() => requests.data ?? [], [requests.data]);
+  const dateSpan = useMemo(() => {
+    if (rows.length === 0) return null;
+    const starts = rows.map((row) => row.startDate.slice(0, 10)).sort();
+    const ends = rows.map((row) => row.endDate.slice(0, 10)).sort();
+    return { from: new Date(`${starts[0]}T00:00:00`).toISOString(), to: new Date(`${ends[ends.length - 1]}T23:59:59`).toISOString() };
+  }, [rows]);
+  const shifts = useQuery({
+    queryKey: moduleQueryKeys.workforce.key('scheduled-shifts', 'leave-review', dateSpan?.from, dateSpan?.to),
+    queryFn: () => getScheduledShifts({ from: dateSpan!.from, to: dateSpan!.to }),
+    enabled: canSeeRota && status === 'pending' && !!dateSpan,
+    meta: { silentError: true },
+  });
+
   const review = useMutation({
-    mutationFn: ({ id, next }: { id: string; next: 'approved' | 'declined' }) => reviewLeaveRequest(id, next),
-    onSuccess: () => {
-      // Both the inbox and the tab badge read these keys; the overview shares
-      // the pending one. No optimistic update — this spends an entitlement.
-      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('leave-managed') });
-      toast('success', 'Leave request updated.');
+    mutationFn: ({ id, next, note }: { id: string; next: 'approved' | 'declined'; note?: string }) => reviewLeaveRequest(id, next, note),
+    onSuccess: (_, variables) => {
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('leave-managed') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('entitlements') });
+      toast('success', variables.next === 'approved' ? 'Leave approved.' : 'Leave declined.');
     },
     onError: (e) => toast('error', (e as Error).message),
   });
-
-  /** Which row is mid-flight, so only its buttons lock. */
   const deciding = review.isPending ? review.variables?.id : null;
 
+  const pendingCount = pending.data?.length ?? 0;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Leave requests</h2>
-          <p className="text-sm text-muted-foreground">Review requests against contracted working days and available balance.</p>
+    <div className="space-y-5">
+      <SegmentedControl
+        options={STATUSES.map((value) => ({
+          value,
+          label: value === 'pending' && pendingCount > 0 ? `${STATUS_LABEL[value]} · ${pendingCount}` : STATUS_LABEL[value],
+        }))}
+        value={status}
+        onChange={setStatus}
+        ariaLabel="Leave status"
+      />
+
+      {requests.isPending ? (
+        <div className="space-y-2" aria-label="Loading leave requests">
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="h-40 animate-pulse rounded-lg bg-band/60" />
+          ))}
         </div>
-        <Select
-          value={status}
-          onValueChange={setStatus}
-          options={['pending', 'approved', 'declined', 'cancelled'].map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }))}
-          ariaLabel="Leave status"
-          className="w-36"
+      ) : requests.isError ? (
+        // Falling through to "clear" would tell a reviewer nobody is waiting when the read failed.
+        <ErrorState
+          icon={CircleHelp}
+          title="Leave requests couldn’t be loaded"
+          description="This is not an empty inbox — nothing could be read, so there may be requests waiting."
+          onRetry={() => void requests.refetch()}
         />
-      </div>
-      <div className="overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
-        {isLoading ? (
-          <div className="flex justify-center p-20">
-            <Loader2 className="animate-spin text-muted-foreground" />
-          </div>
-        ) : isError ? (
-          // Previously this fell through to "Inbox clear", telling a reviewer
-          // that nobody was waiting on them when the read had simply failed.
-          <ErrorState
-            icon={CircleHelp}
-            title="Leave requests couldn’t be loaded"
-            description="This is not an empty inbox — nothing could be read, so there may be requests waiting."
-            onRetry={() => void refetch()}
-          />
-        ) : requests.length === 0 ? (
-          <EmptyState icon={Clock3} title="Inbox clear" description={`No ${status} leave requests.`} />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={status === 'pending' ? CheckCircle2 : Clock3}
+          title={status === 'pending' ? 'Nobody is waiting' : `No ${STATUS_LABEL[status as keyof typeof STATUS_LABEL].toLowerCase()} leave`}
+          description={status === 'pending' ? 'New requests appear here as the team books time off.' : 'Nothing to show for this status.'}
+        />
+      ) : (
+        <ul className="space-y-2.5">
+          {rows.map((request, index) => (
+            <RequestCard
+              key={request.id}
+              index={index}
+              request={request}
+              context={
+                request.status === 'pending'
+                  ? leaveContext(request, {
+                      approved: approved.data ?? [],
+                      shifts: shifts.data ?? [],
+                      entitlements: entitlements.data ?? null,
+                    })
+                  : null
+              }
+              checking={approved.isPending || (canSeeRota && shifts.isPending)}
+              deciding={deciding === request.id}
+              locked={!!deciding}
+              onDecide={(next, note) => review.mutate({ id: request.id, next, note })}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function RequestCard({
+  request,
+  context,
+  checking,
+  deciding,
+  locked,
+  onDecide,
+  index,
+}: {
+  request: LeaveRequest;
+  context: LeaveContext | null;
+  checking: boolean;
+  deciding: boolean;
+  locked: boolean;
+  onDecide: (next: 'approved' | 'declined', note?: string) => void;
+  index: number;
+}) {
+  const reduceMotion = useReducedMotion();
+  const [declining, setDeclining] = useState(false);
+  const [reason, setReason] = useState('');
+  const name = request.employee?.name ?? request.employee?.email ?? 'Employee';
+  const waited = daysBetween(request.createdAt, new Date());
+  const start = dayOf(request.startDate);
+  const end = dayOf(request.endDate);
+  const sameDay = request.startDate.slice(0, 10) === request.endDate.slice(0, 10);
+  const days = Number(request.totalDays);
+  const overAllowance = !!context?.balance && context.balance.after < 0;
+
+  return (
+    <motion.li
+      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: reduceMotion ? 0 : Math.min(index, 8) * 0.04, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      className={cn('rounded-lg border bg-field', overAllowance ? 'border-exception/35' : 'border-rule/60')}
+    >
+      <div className="flex flex-wrap items-start gap-4 px-5 pt-4">
+        <Avatar name={name} email={request.employee?.email} />
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-foreground">{name}</span>
+            <span className="rounded-md bg-band px-2 py-0.5 text-xs font-medium text-foreground">{request.leaveType.name}</span>
+          </p>
+          <p className="mt-1 text-lg font-semibold tracking-title text-foreground">
+            {sameDay ? DAY.format(start) : `${DAY.format(start)} – ${DAY.format(end)}`}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {days} working {days === 1 ? 'day' : 'days'} off · asked{' '}
+            {waited < 1 ? 'today' : `${waited} ${waited === 1 ? 'day' : 'days'} ago`}
+          </p>
+        </div>
+        {request.status === 'pending' ? (
+          waited >= 5 ? (
+            <Badge variant="destructive">Waiting {waited} days</Badge>
+          ) : waited >= 1 ? (
+            <Badge variant="warning">Waiting {waited} days</Badge>
+          ) : (
+            <Badge variant="muted">New today</Badge>
+          )
         ) : (
-          <div className="divide-y divide-border">
-            {requests.map((r) => (
-              <div key={r.id} className="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold">{r.employee?.name ?? r.employee?.email ?? 'Employee'}</p>
-                    <Badge variant="muted">{r.leaveType.name}</Badge>
-                    <WaitingFor request={r} />
-                  </div>
-                  <p className="mt-1 text-sm">
-                    {fmtDate(r.startDate)} – {fmtDate(r.endDate)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {r.totalDays} contracted working days{r.notes ? ` · ${r.notes}` : ''}
-                  </p>
-                </div>
-                {r.status === 'pending' && (
-                  <div className="flex shrink-0 gap-2">
-                    <Button variant="destructive" disabled={!!deciding} onClick={() => review.mutate({ id: r.id, next: 'declined' })}>
-                      {deciding === r.id ? <Loader2 className="animate-spin" /> : <X />}
-                      Decline
-                    </Button>
-                    <Button disabled={!!deciding} onClick={() => review.mutate({ id: r.id, next: 'approved' })}>
-                      {deciding === r.id ? <Loader2 className="animate-spin" /> : <Check />}
-                      Approve
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <Badge variant={request.status === 'approved' ? 'success' : 'muted'}>{STATUS_LABEL[request.status]}</Badge>
         )}
       </div>
-    </div>
+
+      {request.notes && (
+        <blockquote className="mx-5 mt-3 border-l-2 border-rule pl-3 text-sm leading-relaxed text-muted-foreground">
+          “{request.notes}”
+        </blockquote>
+      )}
+
+      {/* What the decision depends on. */}
+      {request.status === 'pending' && (
+        <ul className="mx-5 mt-4 grid gap-2 sm:grid-cols-3">
+          <ContextItem
+            icon={CalendarRange}
+            tone={!context?.balance ? 'muted' : overAllowance ? 'danger' : context.balance.after <= 3 ? 'warning' : 'ok'}
+            title={
+              !context?.balance
+                ? `No allowance for ${request.leaveType.name.toLowerCase()}`
+                : overAllowance
+                  ? `${-context.balance.after} ${-context.balance.after === 1 ? 'day' : 'days'} over allowance`
+                  : `${context.balance.after} of ${context.balance.total} days left after`
+            }
+            detail={context?.balance ? `${context.balance.remaining} left before this request` : 'Nothing to count it against'}
+          />
+          <ContextItem
+            icon={Users}
+            tone={checking ? 'muted' : context && context.alsoOff.length > 0 ? 'warning' : 'ok'}
+            title={
+              checking ? 'Checking…' : context && context.alsoOff.length > 0 ? `${context.alsoOff.length} also off` : 'Nobody else off'
+            }
+            detail={context && context.alsoOff.length > 0 ? context.alsoOff.join(', ') : 'On any of these days'}
+          />
+          <ContextItem
+            icon={CalendarClock}
+            tone={checking ? 'muted' : context && context.shiftsDuring > 0 ? 'warning' : 'ok'}
+            title={
+              checking
+                ? 'Checking…'
+                : context && context.shiftsDuring > 0
+                  ? `${context.shiftsDuring} ${context.shiftsDuring === 1 ? 'shift needs' : 'shifts need'} cover`
+                  : 'No shifts to cover'
+            }
+            detail={context && context.shiftsDuring > 0 ? 'Already on the rota for these days' : 'Nothing rostered for them then'}
+            href={context && context.shiftsDuring > 0 ? '/staff/rota' : undefined}
+          />
+        </ul>
+      )}
+
+      {request.status !== 'pending' && request.reviewNotes && (
+        <p className="mx-5 mt-3 rounded-md bg-band/60 px-3 py-2 text-sm text-foreground">
+          <span className="font-semibold">Note:</span> {request.reviewNotes}
+        </p>
+      )}
+
+      {request.status === 'pending' ? (
+        <div className="mt-4 border-t border-rule/50 px-5 py-3.5">
+          <AnimatePresence initial={false} mode="wait">
+            {declining ? (
+              <motion.div
+                key="decline"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-wrap items-center gap-2"
+              >
+                <input
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  autoFocus
+                  maxLength={500}
+                  placeholder="Reason — optional, they’ll see it"
+                  aria-label="Reason for declining"
+                  className="h-9 min-w-56 flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring"
+                />
+                <Button variant="ghost" onClick={() => setDeclining(false)} disabled={locked}>
+                  Back
+                </Button>
+                <Button variant="destructive" disabled={locked} onClick={() => onDecide('declined', reason.trim() || undefined)}>
+                  {deciding ? <Loader2 className="animate-spin" /> : <X />}
+                  Decline
+                </Button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="choose"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex justify-end gap-2"
+              >
+                <Button variant="outline" disabled={locked} onClick={() => setDeclining(true)}>
+                  <X /> Decline…
+                </Button>
+                <Button disabled={locked} onClick={() => onDecide('approved')}>
+                  {deciding ? <Loader2 className="animate-spin" /> : <Check />}
+                  Approve
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="pb-4" />
+      )}
+    </motion.li>
+  );
+}
+
+function ContextItem({
+  icon: Icon,
+  tone,
+  title,
+  detail,
+  href,
+}: {
+  icon: typeof Users;
+  tone: 'ok' | 'warning' | 'danger' | 'muted';
+  title: string;
+  detail: string;
+  href?: string;
+}) {
+  const body = (
+    <>
+      <span
+        className={cn(
+          'flex size-8 shrink-0 items-center justify-center rounded-md',
+          tone === 'danger'
+            ? 'bg-exception/8 text-exception'
+            : tone === 'warning'
+              ? 'bg-measured/10 text-measured'
+              : tone === 'ok'
+                ? 'bg-momentum/10 text-momentum'
+                : 'bg-band text-muted-foreground',
+        )}
+      >
+        {tone === 'danger' ? <AlertTriangle size={15} aria-hidden="true" /> : <Icon size={15} aria-hidden="true" />}
+      </span>
+      <span className="min-w-0">
+        <span className={cn('block truncate text-sm font-semibold', tone === 'danger' ? 'text-exception' : 'text-foreground')}>
+          {title}
+        </span>
+        <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+      </span>
+    </>
+  );
+  const className = 'flex items-center gap-2.5 rounded-md border border-rule/50 bg-background/60 px-3 py-2.5';
+  return (
+    <li>
+      {href ? (
+        <Link href={href} className={cn(className, 'transition-colors hover:bg-band/50')}>
+          {body}
+        </Link>
+      ) : (
+        <div className={className}>{body}</div>
+      )}
+    </li>
   );
 }

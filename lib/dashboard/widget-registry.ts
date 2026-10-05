@@ -106,7 +106,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDefinition[] = [
   }),
   widget({
     key: 'ordering.pos-launch',
-    moduleId: 'ordering',
+    moduleId: 'pos',
     label: 'Take an order',
     requiredCapabilities: ['orders:create'],
     sensitive: 'none',
@@ -153,7 +153,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDefinition[] = [
   }),
   widget({
     key: 'compliance.audit-launch',
-    moduleId: 'compliance',
+    moduleId: 'audit',
     label: 'Audit trail',
     requiredCapabilities: ['audit:read'],
     sensitive: 'none',

@@ -2,15 +2,14 @@
 
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { Boxes, Building2, ChefHat, ClipboardCheck, ClipboardList, MapPin, Package, Plus, Truck, Users } from '@/components/icons';
+import { Boxes, Building2, ClipboardCheck, ClipboardList, MapPin, Package, Plus, Truck, Users } from '@/components/icons';
 import { RestockApprovals } from '@/components/inventory/RestockApprovals';
 import { RestockRequestForm } from '@/components/inventory/RestockRequestForm';
 import { StockOverview } from '@/components/inventory/StockOverview';
 import { type PurchaseOrderDraft, PurchaseOrdersPanel } from '@/components/purchasing/PurchaseOrdersPanel';
 import { SuppliersPanel } from '@/components/purchasing/SuppliersPanel';
-import { AttentionList } from '@/components/shared/AttentionList';
 import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -18,16 +17,19 @@ import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { StartStocktakeButton, StocktakePanel } from '@/components/stocktakes/StocktakePanel';
 import { Button } from '@/components/ui/button';
 
-import { getRecipeGaps } from '@/lib/modules/inventory/client';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { type RestockRequest, type RestockStatus, getRestockRequests } from '@/lib/modules/inventory/client';
+import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { type PurchaseOrderStatus, getPurchaseOrders, getSuppliers } from '@/lib/modules/purchasing/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /** Everything inventory: what's on the shelf, what's on order, and counting it. */
 type Tab = 'stock' | 'demand' | 'orders' | 'suppliers' | 'stocktakes';
 
 const TAB_VALUES: Tab[] = ['stock', 'demand', 'orders', 'suppliers', 'stocktakes'];
+const INVENTORY_TAB_VALUES: Tab[] = ['stock', 'demand', 'stocktakes'];
 
 /** The header button each tab offers. Stocktakes brings its own (`StartStocktakeButton`). */
 const ACTION_LABEL: Partial<Record<Tab, string>> = {
@@ -48,11 +50,22 @@ export function InventoryWorkspace() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { tenantId, locationId } = useWorkspaceStore();
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const canAddStock = hasCapability(capabilities, 'inventory:write');
 
+  const modules = useQuery({
+    queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
+    queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
+    enabled: Boolean(tenantId),
+    staleTime: 30_000,
+  });
+  const purchasingEnabled =
+    modules.data?.modules.some((module) => module.moduleId === 'purchasing' && module.status === 'enabled') ?? false;
   const requestedTab = searchParams.get('tab');
-  const tab: Tab = TAB_VALUES.includes(requestedTab as Tab) ? (requestedTab as Tab) : 'stock';
+  const availableTabs = purchasingEnabled ? TAB_VALUES : INVENTORY_TAB_VALUES;
+  const tab: Tab = availableTabs.includes(requestedTab as Tab) ? (requestedTab as Tab) : 'stock';
 
-  const [demandStatus, setDemandStatus] = useState<RestockStatus>('pending');
+  const [demandStatus, setDemandStatus] = useState<RestockStatus | 'all'>('all');
   const [poStatus, setPoStatus] = useState<'all' | PurchaseOrderStatus>('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [poDraft, setPoDraft] = useState<PurchaseOrderDraft | null>(null);
@@ -60,13 +73,7 @@ export function InventoryWorkspace() {
   const { data: suppliers = [] } = useQuery({
     queryKey: moduleQueryKeys.purchasing.key('suppliers'),
     queryFn: () => getSuppliers(true),
-    enabled: !!tenantId,
-  });
-
-  const recipeGaps = useQuery({
-    queryKey: moduleQueryKeys.inventory.key('menu-item-recipe-gaps', tenantId),
-    queryFn: () => getRecipeGaps(tenantId!),
-    enabled: !!tenantId,
+    enabled: !!tenantId && purchasingEnabled,
   });
 
   // Live counts for the tab pills — one cheap `limit: 1` call per status.
@@ -80,12 +87,12 @@ export function InventoryWorkspace() {
       {
         queryKey: moduleQueryKeys.purchasing.key('purchase-orders', 'workspace-summary', locationId, 'submitted'),
         queryFn: () => getPurchaseOrders({ locationId: locationId!, status: 'submitted', limit: 1 }),
-        enabled: !!locationId,
+        enabled: !!locationId && purchasingEnabled,
       },
       {
         queryKey: moduleQueryKeys.purchasing.key('purchase-orders', 'workspace-summary', locationId, 'partially_received'),
         queryFn: () => getPurchaseOrders({ locationId: locationId!, status: 'partially_received', limit: 1 }),
-        enabled: !!locationId,
+        enabled: !!locationId && purchasingEnabled,
       },
     ],
   });
@@ -96,8 +103,8 @@ export function InventoryWorkspace() {
   const activeSuppliers = suppliers.filter((supplier) => supplier.isActive).length;
   const purchaseOrderLocationId = locationId ?? poDraft?.locationId ?? null;
 
-  const tabs = useMemo<SectionTab<Tab>[]>(
-    () => [
+  const tabs = useMemo<SectionTab<Tab>[]>(() => {
+    const inventoryTabs: SectionTab<Tab>[] = [
       { value: 'stock', label: 'Stock', icon: Package },
       {
         value: 'demand',
@@ -107,18 +114,30 @@ export function InventoryWorkspace() {
         countTone: 'danger',
         countLabel: `${pendingDemand} awaiting review`,
       },
-      {
-        value: 'orders',
-        label: 'Purchase orders',
-        icon: Truck,
-        count: submittedOrders + partDelivered,
-        countLabel: `${submittedOrders + partDelivered} awaiting delivery`,
-      },
-      { value: 'suppliers', label: 'Suppliers', icon: Users, count: activeSuppliers, countLabel: `${activeSuppliers} active suppliers` },
-      { value: 'stocktakes', label: 'Stocktakes', icon: ClipboardCheck },
-    ],
-    [pendingDemand, submittedOrders, partDelivered, activeSuppliers],
-  );
+    ];
+    if (purchasingEnabled) {
+      inventoryTabs.push(
+        {
+          value: 'orders',
+          label: 'Purchase orders',
+          icon: Truck,
+          count: submittedOrders + partDelivered,
+          countLabel: `${submittedOrders + partDelivered} awaiting delivery`,
+        },
+        { value: 'suppliers', label: 'Suppliers', icon: Users, count: activeSuppliers, countLabel: `${activeSuppliers} active suppliers` },
+      );
+    }
+    inventoryTabs.push({ value: 'stocktakes', label: 'Stocktakes', icon: ClipboardCheck });
+    return inventoryTabs;
+  }, [pendingDemand, purchasingEnabled, submittedOrders, partDelivered, activeSuppliers]);
+
+  useEffect(() => {
+    if (!modules.data || purchasingEnabled || (requestedTab !== 'orders' && requestedTab !== 'suppliers')) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('tab');
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [modules.data, pathname, purchasingEnabled, requestedTab, router, searchParams]);
 
   /** Move to a tab, leaving any in-flight create form alone. */
   function goToTab(next: Tab) {
@@ -168,7 +187,7 @@ export function InventoryWorkspace() {
     setCreateOpen(true);
   }
 
-  const actionLabel = ACTION_LABEL[tab];
+  const actionLabel = tab === 'stock' && !canAddStock ? undefined : ACTION_LABEL[tab];
   // Stock and orders are per-location; the rest only need a workspace.
   const actionBlocked = (tab === 'stock' && !locationId) || (tab === 'orders' && !purchaseOrderLocationId);
 
@@ -205,26 +224,6 @@ export function InventoryWorkspace() {
         <EmptyState icon={Building2} title="No workspace selected" description="Select a workspace to manage inventory." />
       ) : (
         <div className="space-y-5">
-          {tab === 'stock' && (
-            <AttentionList
-              loading={recipeGaps.isPending}
-              error={recipeGaps.isError}
-              onRetry={() => void recipeGaps.refetch()}
-              clearTitle="Every available item has a recipe"
-              clearDescription="Stock use and allergen coverage can be calculated for every sale."
-              errorTitle="Recipe coverage could not be checked"
-              errorDescription="Stock remains usable, but missing recipes may be hidden until this check succeeds."
-              items={(recipeGaps.data ?? []).map((item) => ({
-                key: item.id,
-                icon: ChefHat,
-                label: `${item.name} has no recipe`,
-                detail: 'Its sales cannot deduct stock or produce a complete allergen result.',
-                tone: 'stock',
-                href: `/menu/items/${item.id}`,
-                actionLabel: 'Add recipe',
-              }))}
-            />
-          )}
           {tab === 'stock' ? (
             !locationId ? (
               <EmptyState
@@ -233,14 +232,30 @@ export function InventoryWorkspace() {
                 description="Use the location picker to choose the stock you want to manage."
               />
             ) : (
-              <StockOverview locationId={locationId} addOpen={createOpen} onAddOpenChange={setCreateOpen} />
+              <StockOverview
+                locationId={locationId}
+                addOpen={createOpen}
+                onAddOpenChange={setCreateOpen}
+                purchasingEnabled={purchasingEnabled}
+                onCreatePurchaseOrder={
+                  purchasingEnabled
+                    ? (lines) => {
+                        // The suggested order becomes a purchase-order draft,
+                        // the same way approved restock demand does.
+                        setPoDraft({ locationId, notes: 'From the suggested order', lines });
+                        goToTab('orders');
+                        setCreateOpen(true);
+                      }
+                    : undefined
+                }
+              />
             )
           ) : tab === 'demand' ? (
             <RestockApprovals
               status={demandStatus}
               onStatusChange={setDemandStatus}
-              onCreatePurchaseOrder={(request) => draftFromRequests([request])}
-              onCreatePurchaseOrderBatch={draftFromRequests}
+              onCreatePurchaseOrder={purchasingEnabled ? (request) => draftFromRequests([request]) : undefined}
+              onCreatePurchaseOrderBatch={purchasingEnabled ? draftFromRequests : undefined}
             />
           ) : tab === 'suppliers' ? (
             <SuppliersPanel suppliers={suppliers} createOpen={createOpen} onCreateOpenChange={setCreateOpen} />

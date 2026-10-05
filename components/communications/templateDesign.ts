@@ -41,8 +41,7 @@ export const COLUMN_LAYOUTS: Array<{ value: ColumnsLayout; label: string; widths
   { value: 'three-equal', label: '3 columns', widths: [33.34, 33.33, 33.33] },
 ];
 
-export const layoutWidths = (layout: ColumnsLayout) =>
-  COLUMN_LAYOUTS.find((option) => option.value === layout)?.widths ?? [50, 50];
+export const layoutWidths = (layout: ColumnsLayout) => COLUMN_LAYOUTS.find((option) => option.value === layout)?.widths ?? [50, 50];
 
 export const isColumnsBlock = (block: TemplateBlock): block is TemplateColumnsBlock => block.type === 'columns';
 
@@ -109,6 +108,11 @@ export interface TemplateDesign {
     accentColor: string;
     fontFamily: 'Arial' | 'Georgia' | 'Verdana';
   };
+  /**
+   * The grey line inboxes show after the subject. Optional and additive — a
+   * design saved before it existed simply has none.
+   */
+  preheader?: string;
   blocks: TemplateBlock[];
 }
 
@@ -232,10 +236,13 @@ function renderColumns(block: TemplateColumnsBlock, styles: Styles): string {
 
 export function renderTemplateDesign(design: TemplateDesign): string {
   const { styles } = design;
-  const blocks = design.blocks
-    .map((block) => (isColumnsBlock(block) ? renderColumns(block, styles) : renderLeaf(block, styles)))
-    .join('');
-  return `<div style="margin:0;padding:28px 12px;background:${styles.backgroundColor};font-family:${styles.fontFamily},Arial,sans-serif"><div style="max-width:620px;margin:0 auto;padding:32px;background:${styles.contentColor};border-radius:16px">${blocks}</div></div>`;
+  const blocks = design.blocks.map((block) => (isColumnsBlock(block) ? renderColumns(block, styles) : renderLeaf(block, styles))).join('');
+  // Hidden in the body, read by the inbox as the preview line. The padding of
+  // zero-width spaces stops clients pulling body text in after it.
+  const preheader = design.preheader?.trim()
+    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">${escapeHtml(design.preheader.trim())}${'&#847;&zwnj;&nbsp;'.repeat(40)}</div>`
+    : '';
+  return `<div style="margin:0;padding:28px 12px;background:${styles.backgroundColor};font-family:${styles.fontFamily},Arial,sans-serif">${preheader}<div style="max-width:620px;margin:0 auto;padding:32px;background:${styles.contentColor};border-radius:16px">${blocks}</div></div>`;
 }
 
 function leafToPlainText(block: TemplateLeafBlock): string[] {
@@ -248,7 +255,9 @@ function leafToPlainText(block: TemplateLeafBlock): string[] {
 
 export function templateDesignToPlainText(design: TemplateDesign) {
   return design.blocks
-    .flatMap((block) => (isColumnsBlock(block) ? block.columns.flatMap((column) => column.blocks.flatMap(leafToPlainText)) : leafToPlainText(block)))
+    .flatMap((block) =>
+      isColumnsBlock(block) ? block.columns.flatMap((column) => column.blocks.flatMap(leafToPlainText)) : leafToPlainText(block),
+    )
     .filter(Boolean)
     .join('\n\n');
 }
@@ -293,12 +302,7 @@ export function findTemplateBlock(design: TemplateDesign, blockId: string): Temp
 }
 
 /** Inserts a block at an exact slot. A row can only ever live on the page. */
-export function insertTemplateBlock(
-  design: TemplateDesign,
-  block: TemplateBlock,
-  container: DropContainer,
-  index: number,
-): TemplateDesign {
+export function insertTemplateBlock(design: TemplateDesign, block: TemplateBlock, container: DropContainer, index: number): TemplateDesign {
   if (container.kind === 'root') {
     const blocks = [...design.blocks];
     blocks.splice(Math.max(0, Math.min(index, blocks.length)), 0, block);
@@ -317,12 +321,7 @@ export function insertTemplateBlock(
  * Drag-and-drop reorder. Removing the block first shifts the slots after it, so
  * the target index is corrected when the move stays inside the same container.
  */
-export function moveTemplateBlock(
-  design: TemplateDesign,
-  blockId: string,
-  container: DropContainer,
-  index: number,
-): TemplateDesign {
+export function moveTemplateBlock(design: TemplateDesign, blockId: string, container: DropContainer, index: number): TemplateDesign {
   const block = findTemplateBlock(design, blockId);
   if (!block) return design;
   if (isColumnsBlock(block) && container.kind === 'column') return design;
@@ -362,4 +361,72 @@ export function nudgeTemplateBlock(design: TemplateDesign, blockId: string, dire
   if (target < 0 || target >= found.total) return design;
   // moveTemplateBlock corrects for the removal, so a downward nudge needs +1.
   return moveTemplateBlock(design, blockId, found.container, direction === 1 ? target + 1 : target);
+}
+
+// ── Checks ────────────────────────────────────────────────────────────────────
+
+export type TemplateCheck = { key: string; tone: 'exception' | 'measured'; title: string; detail?: string; blockId?: string };
+
+const allLeaves = (design: TemplateDesign): TemplateLeafBlock[] =>
+  design.blocks.flatMap((block) => (isColumnsBlock(block) ? block.columns.flatMap((column) => column.blocks) : [block]));
+
+const TOKEN = /{{\s*([\w.]+)\s*}}/g;
+const unfinishedUrl = (url: string) => !url.trim() || /^https?:\/\/?$/i.test(url.trim()) || url.trim() === '#';
+
+/**
+ * What would make this email fail or look broken, before it is sent: blocking
+ * problems first (exception), then quality ones (measured). `variables` is the
+ * API's allow-list — an unknown token makes the send throw.
+ */
+export function templateChecks(design: TemplateDesign, subject: string, variables: readonly string[]): TemplateCheck[] {
+  const checks: TemplateCheck[] = [];
+  const known = new Set(variables);
+  if (!subject.trim())
+    checks.push({ key: 'subject', tone: 'exception', title: 'Add a subject line', detail: 'It’s what people see first in their inbox.' });
+
+  const leaves = allLeaves(design);
+  const texts = [subject, design.preheader ?? '', ...leaves.flatMap((leaf) => ('text' in leaf ? [leaf.text] : []))];
+  const unknown = new Set<string>();
+  for (const text of texts) for (const match of text.matchAll(TOKEN)) if (variables.length && !known.has(match[1])) unknown.add(match[1]);
+  for (const token of unknown)
+    checks.push({
+      key: `var-${token}`,
+      tone: 'exception',
+      title: `{{${token}}} isn’t a detail we can fill in`,
+      detail: 'Sending would fail. Pick one from Personalise.',
+    });
+
+  for (const leaf of leaves) {
+    if (leaf.type === 'button' && unfinishedUrl(leaf.url))
+      checks.push({
+        key: `btn-${leaf.id}`,
+        tone: 'exception',
+        title: `The “${leaf.text || 'button'}” button has no link`,
+        blockId: leaf.id,
+      });
+    if (leaf.type === 'image' && !leaf.url)
+      checks.push({
+        key: `img-${leaf.id}`,
+        tone: 'measured',
+        title: 'An image block is empty',
+        detail: 'Upload a picture or remove the block.',
+        blockId: leaf.id,
+      });
+    else if (leaf.type === 'image' && !leaf.alt.trim())
+      checks.push({
+        key: `alt-${leaf.id}`,
+        tone: 'measured',
+        title: 'An image has no description',
+        detail: 'Shown when images are blocked, and read aloud by screen readers.',
+        blockId: leaf.id,
+      });
+  }
+  if (!design.preheader?.trim())
+    checks.push({
+      key: 'preheader',
+      tone: 'measured',
+      title: 'Add preview text',
+      detail: 'Otherwise the inbox shows the first words of the email.',
+    });
+  return checks.sort((a, b) => (a.tone === b.tone ? 0 : a.tone === 'exception' ? -1 : 1));
 }

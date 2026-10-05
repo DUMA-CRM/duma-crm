@@ -1,24 +1,27 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { Eye, EyeOff, Loader2, Scale, SlidersHorizontal, Trash2 } from '@/components/icons';
 import { RecipeIngredientEditor } from '@/components/menu/RecipeIngredientEditor';
 import { RecipeTotals } from '@/components/menu/RecipeTotals';
-import { inputClass, labelClass } from '@/components/menu/shared';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { useRecipeDraft } from '@/components/menu/useRecipeDraft';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ChoiceCards } from '@/components/shared/FormParts';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 import { createModifier, deleteModifier, getModifierGroups, getModifiers, updateModifier } from '@/lib/modules/catalog/client';
 import { getModifierRecipe, setModifierRecipe } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { cn } from '@/lib/utils/cn';
 import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -86,6 +89,10 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
     sizes,
   });
 
+  const [submitted, setSubmitted] = useState(false);
+  const labelError = label.trim().length < 1 ? 'A name is needed.' : null;
+  const priceError = !/^-?\d+(\.\d{1,2})?$/.test(String(priceAdjust).trim()) ? 'A price like 0.50, or -0.20 to take money off.' : null;
+
   const fieldsDirty = draft !== null;
   const dirty = fieldsDirty || recipe.dirty;
 
@@ -97,7 +104,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
           category: category.trim() || null,
           groupId: groupId || null,
           isSize,
-          priceAdjust,
+          priceAdjust: String(priceAdjust).trim(),
           isAvailable,
         };
         const saved = modifier ? await updateModifier(modifier.id, payload) : await createModifier({ tenantId: tenantId!, ...payload });
@@ -167,167 +174,101 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
           {dirty && !save.isPending && <span className="hidden text-label font-semibold text-warning sm:inline">Unsaved changes</span>}
           <Button type="submit" form={FORM_ID} disabled={save.isPending} className="h-9 gap-2 px-5">
             {save.isPending && <Loader2 size={15} className="animate-spin" />}
-            {save.isPending ? 'Saving…' : modifier ? 'Save' : 'Create'}
+            {save.isPending ? 'Saving…' : modifier ? 'Save changes' : 'Create modifier'}
           </Button>
         </>
       }
     >
       <form
         id={FORM_ID}
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          save.mutate();
+          setSubmitted(true);
+          if (!labelError && !priceError) save.mutate();
         }}
-        // Board and workbench: the editing column takes the width, the figures
-        // stay in a stable rail that sticks as the ingredient list grows.
-        className="grid gap-6 lg:items-start"
       >
-        <div className="min-w-0">
-          <section>
-            <div className="mt-4 space-y-4">
-              {/* Name, price and group are the whole identity of an option —
-                  one row, so it reads as a single decision rather than a
-                  vertical form to work down. */}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_8rem_minmax(0,14rem)]">
-                <div className="sm:col-span-2 lg:col-span-1">
-                  <label className={labelClass} htmlFor="modifier-label">
-                    Name
-                  </label>
-                  <input
-                    id="modifier-label"
-                    value={label}
-                    onChange={(e) => patch({ label: e.target.value })}
-                    required
-                    minLength={1}
-                    placeholder="Oat Milk"
-                    className={inputClass}
-                    autoFocus
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClass} htmlFor="modifier-price">
-                    Price change
-                  </label>
-                  <input
-                    id="modifier-price"
-                    value={priceAdjust}
-                    onChange={(e) => patch({ priceAdjust: e.target.value })}
-                    required
-                    pattern="^-?\d+(\.\d{1,2})?$"
-                    placeholder="0.50"
-                    aria-describedby="modifier-price-hint"
-                    className={cn(inputClass, 'tabular-nums')}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClass} htmlFor="modifier-group">
-                    Group
-                  </label>
-                  <Select
+        <SettingsTabBody
+          stickyAside
+          aside={
+            <>
+              <SettingsSection title="Settings">
+                <SettingRows>
+                  {/* The explicit replacement for the old category === 'size'
+                      rule, which silently disabled per-size costing if you typed
+                      "Sizes". */}
+                  <SettingRow icon={Scale} title="This is a size" description="Sizes get their own quantity column in every recipe, so a large can use more milk than a small.">
+                    <Switch label="This is a size" checked={isSize} onChange={(checked) => patch({ isSize: checked })} />
+                  </SettingRow>
+                  <SettingRow icon={isAvailable ? Eye : EyeOff} title="Available at the till" description="Turn off when you run out. It stays set up and keeps its recipe.">
+                    <Switch label="Available at the till" checked={isAvailable} onChange={(checked) => patch({ isAvailable: checked })} />
+                  </SettingRow>
+                </SettingRows>
+              </SettingsSection>
+              {modifier && recipe.hasIngredients && <RecipeTotals summary={recipe.summary} allAllergens={recipe.allAllergens} title="What it adds" />}
+            </>
+          }
+        >
+          <SettingsSection title="Modifier" description="An option offered with an item — a size, a milk, an extra shot.">
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
+                <Input label="Name" value={label} onChange={(e) => patch({ label: e.target.value })} placeholder="e.g. Oat milk" autoFocus={!modifier} error={submitted ? (labelError ?? undefined) : undefined} />
+                <Input
+                  label="Price change"
+                  value={priceAdjust}
+                  onChange={(e) => patch({ priceAdjust: e.target.value })}
+                  inputMode="decimal"
+                  placeholder="0.50"
+                  leftIcon={<span className="text-sm">£</span>}
+                  className="tabular-nums"
+                  error={submitted ? (priceError ?? undefined) : undefined}
+                  hint={!priceError ? (Number(priceAdjust) === 0 ? 'No charge' : Number(priceAdjust) < 0 ? 'Takes money off' : 'Added to the item’s price') : undefined}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-label uppercase text-muted-foreground">Group</span>
+                {groups.length ? (
+                  <ChoiceCards
+                    columns={groups.length >= 4 ? 4 : groups.length === 3 ? 3 : 2}
                     value={groupId}
-                    onValueChange={(value) => {
+                    onChange={(value) => {
                       const selected = groups.find((group) => group.id === value);
                       patch({ groupId: value, category: selected?.name ?? '', isSize: selected?.isSize ?? false });
                     }}
                     options={groups.map((group) => ({ value: group.id, label: group.name }))}
-                    ariaLabel="Modifier group"
                   />
-                  {!groups.length && <p className="mt-1 text-label text-warning">Create a group from the Modifiers list first.</p>}
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                {/* The explicit replacement for the old category === 'size'
-                    rule, which silently disabled per-size costing if you typed
-                    "Sizes". */}
-                <label
-                  className={cn(
-                    'flex cursor-pointer select-none items-start gap-3 rounded-sm border p-3 transition-colors',
-                    isSize ? 'border-primary/40 bg-band' : 'border-rule hover:bg-band',
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isSize}
-                    onChange={(e) => patch({ isSize: e.target.checked })}
-                    className="mt-0.5 size-4 rounded accent-primary"
-                  />
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                      <Scale size={14} aria-hidden="true" />
-                      This is a size option
-                    </span>
-                    <span className="mt-0.5 block text-label leading-relaxed text-muted-foreground">
-                      Sizes get their own quantity column in every recipe, so a large can use more milk than a small.
-                    </span>
-                  </span>
-                </label>
-
-                <label
-                  className={cn(
-                    'flex cursor-pointer select-none items-start gap-3 rounded-sm border p-3 transition-colors',
-                    isAvailable ? 'border-primary/40 bg-band' : 'border-rule hover:bg-band',
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isAvailable}
-                    onChange={(e) => patch({ isAvailable: e.target.checked })}
-                    className="mt-0.5 size-4 rounded accent-primary"
-                  />
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                      {/* The glyph changes with the state, so availability does
-                          not travel on the checkbox alone. */}
-                      {isAvailable ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
-                      Available in the POS
-                    </span>
-                    <span className="mt-0.5 block text-label leading-relaxed text-muted-foreground">
-                      Turn off when you run out. The option stays set up and keeps its recipe, it just stops being offered.
-                    </span>
-                  </span>
-                </label>
-              </div>
-            </div>
-          </section>
-
-          <section className="pt-6">
-            <h2 className="text-sm font-semibold text-foreground">What it uses</h2>
-
-            <div className="mt-4">
-              {!modifier ? (
-                <div className="rounded-sm border border-dashed border-rule px-4 py-6 text-center">
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    Create the modifier first, then set what it adds to a drink.
+                ) : (
+                  <p className="rounded-md bg-measured/10 px-3 py-2 text-xs text-measured">
+                    No groups yet.{' '}
+                    <Link href="/menu/categories" className="font-semibold underline">
+                      Create one on Categories
+                    </Link>{' '}
+                    first — Size, Milk or Extras.
                   </p>
-                </div>
-              ) : recipe.isLoading ? (
-                <div className="h-20 animate-pulse rounded-sm bg-muted" aria-hidden="true" />
-              ) : (
-                <RecipeIngredientEditor
-                  rows={recipe.rows}
-                  onChange={recipe.edit}
-                  columns={recipe.columns}
-                  stockItems={recipe.stockItems}
-                  itemMap={recipe.itemMap}
-                  usedIds={recipe.usedIds}
-                  sizes={sizes}
-                  emptyHint="Nothing yet. Add what this option adds to a drink — Oat Milk uses 200ml of oat milk, an extra shot uses 9g of beans."
-                />
-              )}
+                )}
+              </div>
             </div>
-          </section>
-        </div>
+          </SettingsSection>
 
-        {/* Workbench. Sticky, so the cost stays visible while the ingredient
-            list grows past the fold. */}
-        {modifier && recipe.hasIngredients && (
-          <aside className="lg:sticky lg:top-4">
-            <RecipeTotals summary={recipe.summary} allAllergens={recipe.allAllergens} title="What it adds" />
-          </aside>
-        )}
+          <SettingsSection title="What it uses" description="The stock it adds to a drink — this is what makes stock, cost and allergens right.">
+            {!modifier ? (
+              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">Create the modifier first, then set what it adds to a drink.</p>
+            ) : recipe.isLoading ? (
+              <div className="h-20 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+            ) : (
+              <RecipeIngredientEditor
+                rows={recipe.rows}
+                onChange={recipe.edit}
+                columns={recipe.columns}
+                stockItems={recipe.stockItems}
+                itemMap={recipe.itemMap}
+                usedIds={recipe.usedIds}
+                sizes={sizes}
+                emptyHint="Nothing yet. Add what this option adds to a drink — Oat Milk uses 200ml of oat milk, an extra shot uses 9g of beans."
+              />
+            )}
+          </SettingsSection>
+        </SettingsTabBody>
       </form>
 
       {confirmingDelete && modifier && (

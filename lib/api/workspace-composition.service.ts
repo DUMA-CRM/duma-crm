@@ -1,3 +1,5 @@
+import type { ModuleId } from '@/lib/modules/manifest';
+
 import { apiFetch } from './client';
 
 export interface DashboardWidgetPlacement {
@@ -60,26 +62,12 @@ export interface SetupRequirement {
   evidence?: Record<string, unknown>;
 }
 
-export type WorkspaceModuleId =
-  | 'core'
-  | 'identity'
-  | 'organization'
-  | 'customers'
-  | 'catalog'
-  | 'ordering'
-  | 'payments'
-  | 'inventory'
-  | 'purchasing'
-  | 'workforce'
-  | 'people'
-  | 'communications'
-  | 'compliance'
-  | 'analytics'
-  | 'agent'
-  | 'support';
+export type WorkspaceModuleId = ModuleId;
 
 export interface WorkspaceOnboardingAnswers {
-  businessType?: 'cafe' | 'restaurant' | 'retail' | 'online_retail' | 'services' | 'people_management' | 'other';
+  businessType?:
+    | 'cafe' | 'restaurant' | 'bar' | 'bakery' | 'food_truck'
+    | 'retail' | 'online_retail' | 'services' | 'people_management' | 'other';
   locationCount?: number;
   salesChannels: Array<'counter' | 'online' | 'qr' | 'phone' | 'marketplace'>;
   paymentMethods: Array<'cash' | 'card' | 'invoice'>;
@@ -174,6 +162,13 @@ export const publishDashboardLayout = (tenantId: string, audienceKey: string, na
   });
 
 export const getWorkspaceSetup = (tenantId: string) => apiFetch<WorkspaceSetupSession | null>(`/workspace-setup/${tenantId}`);
+
+// Public and stateless — the sign-up flow calls it before any tenant exists.
+export const previewWorkspaceRecommendation = (answers: WorkspaceOnboardingAnswers) =>
+  apiFetch<WorkspaceRecommendation>('/workspace-setup/preview', {
+    method: 'POST',
+    body: JSON.stringify({ answers }),
+  });
 
 export const startWorkspaceSetup = (tenantId: string) =>
   apiFetch<WorkspaceSetupSession>(`/workspace-setup/${tenantId}/start`, { method: 'POST' });

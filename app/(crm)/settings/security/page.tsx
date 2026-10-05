@@ -1,1 +1,5 @@
-import { SettingsWorkspace } from '@/components/settings/SettingsWorkspace'; export default function Page(){return <SettingsWorkspace tab="security"/>}
+import { SecurityTab } from '@/components/settings/tabs/SecurityTab';
+
+export default function SecuritySettingsPage() {
+  return <SecurityTab />;
+}

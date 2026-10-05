@@ -2,8 +2,8 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 
-import { SettingsWorkspace } from '@/components/settings/SettingsWorkspace';
 
+import { ConnectorsGrid } from './ConnectorsGrid';
 import { EmailConnectWizard, EmailConnectorPage } from './EmailConnector';
 import { PaymentsConnectWizard, PaymentsConnectorPage } from './PaymentsConnector';
 import type { ConnectorId } from './registry';
@@ -14,7 +14,8 @@ const LIST = '/settings/connectors';
  * Connectors is URL-driven: `?connector=email` opens its manage page and
  * `&mode=connect` opens the step-by-step setup. Both replace the settings shell
  * rather than nesting inside it, so the back button closes them, links are
- * shareable, and a refresh keeps you where you were.
+ * shareable, and a refresh keeps you where you were. The settings layout's
+ * shell steps aside while either is open.
  */
 export function ConnectorsRoute() {
   const router = useRouter();
@@ -42,5 +43,5 @@ export function ConnectorsRoute() {
     );
   }
 
-  return <SettingsWorkspace tab="connectors" />;
+  return <ConnectorsGrid />;
 }

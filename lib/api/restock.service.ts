@@ -14,6 +14,11 @@ export interface RestockRequest {
   createdAt: string;
   updatedAt: string;
   stockItem?: StockItem;
+  /** Present after a direct inventory receipt was recorded for this request. */
+  receivedQuantity?: number | null;
+  receivedAt?: string | null;
+  /** Purchase order created from this request, when Purchasing handles fulfilment. */
+  purchaseOrderId?: string | null;
 }
 
 export interface RestockRequestsResponse {
@@ -74,9 +79,19 @@ export const getRestockRequests = (params?: {
 export const createRestockRequest = (data: CreateRestockRequestPayload) =>
   apiFetch<RestockRequest>('/restock-requests', { method: 'POST', body: JSON.stringify(data) });
 
-export const updateRestockRequest = (
+export const updateRestockRequest = (id: string, data: { status?: RestockStatus; requestedQty?: number; notes?: string }) =>
+  apiFetch<RestockRequest>(`/restock-requests/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+
+export const receiveRestockRequest = (
   id: string,
-  data: { status?: RestockStatus; requestedQty?: number; notes?: string },
-) => apiFetch<RestockRequest>(`/restock-requests/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+  data: { quantity: number; expiryDate?: string | null; lotNumber?: string; notes?: string },
+) =>
+  apiFetch<{ requestId: string; receivedQuantity: number; receivedAt: string; createdUnitCount: number }>(
+    `/restock-requests/${id}/receive`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    },
+  );
 
 export const deleteRestockRequest = (id: string) => apiFetch<void>(`/restock-requests/${id}`, { method: 'DELETE' });

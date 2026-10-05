@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
 import { ChefHat, Loader2, UtensilsCrossed } from '@/components/icons';
@@ -38,7 +38,9 @@ const DETAIL_TABS: SectionTab<Tab>[] = [
 export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
   const router = useRouter();
   const { tenantId } = useWorkspaceStore();
-  const [tab, setTab] = useState<Tab>('details');
+  // `?tab=recipe` opens straight on the recipe — the Products page's "Add recipe" links here.
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'recipe' && menuItemId ? 'recipe' : 'details');
   const [pending, setPending] = useState(false);
   const [dirty, setDirty] = useState(false);
 
@@ -88,7 +90,7 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
           {tab === 'details' && (
             <Button type="submit" form={MENU_ITEM_FORM_ID} disabled={pending} className="h-9 gap-2 px-5">
               {pending && <Loader2 size={15} className="animate-spin" />}
-              {pending ? 'Saving…' : item ? 'Update' : 'Create'}
+              {pending ? 'Saving…' : item ? 'Save changes' : 'Create item'}
             </Button>
           )}
         </>
@@ -105,7 +107,6 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
           // and the Back button both stay honest.
           onCreated={(created) => router.replace(`/menu/items/${created.id}`)}
           onSaved={() => undefined}
-          onOpenRecipe={() => setTab('recipe')}
         />
       ) : (
         <RecipeEditor menuItemId={item.id} price={item.price} vatRate={item.vatRate} />

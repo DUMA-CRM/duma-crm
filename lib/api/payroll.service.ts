@@ -1,8 +1,28 @@
-import { apiFetch } from './client';
+import { type LegacyLine, withItems } from '../utils/payroll-legacy';
 
+import { apiFetch } from './client';
 import type { PayType } from './hr.service';
 
-export type PayrollPeriod = 'weekly' | 'monthly';
+/** Every period a run can cover, shortest first. */
+export const PAYROLL_PERIODS = ['weekly', 'fortnightly', 'semi_monthly', 'monthly'] as const;
+export type PayrollPeriod = (typeof PAYROLL_PERIODS)[number];
+
+export type PayItemKind = 'tax' | 'social' | 'pension' | 'other';
+export type PayItemPayer = 'employee' | 'employer';
+
+/**
+ * One named deduction or contribution on a payslip, entered by a person from
+ * whatever actually computes the tax — "PAYE", "Social Security", "ZUS
+ * emerytalne", "Військовий збір". Employer lines are a cost on top of gross and
+ * never reduce net. Nothing in this app computes tax, in any country.
+ */
+export interface PayItem {
+  label: string;
+  kind: PayItemKind;
+  paidBy: PayItemPayer;
+  /** Decimal string, 2dp. Negative is allowed: a tax refund through payroll. */
+  amount: string;
+}
 
 export interface PayrollPreviewLine {
   userId: string;
@@ -30,20 +50,19 @@ export interface PayrollRunLine {
   paidHours: string;
   hourlyRate: string | null;
   grossPay: string;
-  // Entered by a human from whatever actually runs payroll — nothing here
-  // computes PAYE. `null` means "not entered yet"; `'0.00'` means "nothing
-  // deducted". Never conflate the two: a payslip must not assert zero tax
-  // because a field is blank. (UI-ADR-011)
-  taxDeducted: string | null;
-  nationalInsurance: string | null;
-  pensionContribution: string | null;
-  otherDeductions: string | null;
+  /** The payslip's named deduction lines. Empty with a net pay set means "nothing deducted". */
+  items: PayItem[];
+  // Set when someone records the line's figures. `null` means "not entered
+  // yet" — never read it as zero: a payslip must not assert nothing was
+  // deducted because a field is blank. (UI-ADR-011)
   netPay: string | null;
+  /** Legacy UK columns, kept on runs from before named lines. Read `items` instead. */
+  taxDeducted?: string | null;
+  nationalInsurance?: string | null;
 }
 
-/** What a line still needs before its run can be issued. */
-export const lineIsComplete = (line: PayrollRunLine): boolean =>
-  line.taxDeducted !== null && line.nationalInsurance !== null && line.netPay !== null;
+/** What a line still needs before its run can be issued: its figures, marked by net pay. */
+export const lineIsComplete = (line: Pick<PayrollRunLine, 'netPay'>): boolean => line.netPay !== null;
 
 export interface PayrollRun {
   id: string;
@@ -68,20 +87,23 @@ export interface PayrollRun {
 }
 
 export interface DeductionsPayload {
-  taxDeducted: string;
-  nationalInsurance: string;
-  pensionContribution?: string;
-  otherDeductions?: string;
+  /** Replaces the line's items wholesale. */
+  items: PayItem[];
   netPay: string;
 }
 
 export const getPayrollPreview = (period: PayrollPeriod, from: string, to: string) =>
   apiFetch<PayrollPreview>(`/payroll/preview?period=${period}&from=${from}&to=${to}`);
 
-export const createPayrollRun = (data: { period: PayrollPeriod; periodStart: string; periodEnd: string }) =>
-  apiFetch<PayrollRun>('/payroll/runs', { method: 'POST', body: JSON.stringify(data) });
+export const createPayrollRun = async (data: { period: PayrollPeriod; periodStart: string; periodEnd: string }) =>
+  normaliseRun(await apiFetch<PayrollRun>('/payroll/runs', { method: 'POST', body: JSON.stringify(data) }));
 
-export const getPayrollRuns = () => apiFetch<PayrollRun[]>('/payroll/runs');
+const normaliseRun = (run: Omit<PayrollRun, 'lines'> & { lines?: LegacyLine[] }): PayrollRun => ({
+  ...run,
+  lines: (run.lines ?? []).map(withItems),
+});
+
+export const getPayrollRuns = async () => (await apiFetch<PayrollRun[]>('/payroll/runs')).map(normaliseRun);
 
 export const setPayrollLineDeductions = (runId: string, lineId: string, data: DeductionsPayload) =>
   apiFetch<PayrollRunLine>(`/payroll/runs/${runId}/lines/${lineId}`, { method: 'PATCH', body: JSON.stringify(data) });
@@ -100,7 +122,6 @@ export const supersedePayrollRun = (runId: string, replacedBy: string) =>
 export const issuePayrollRun = (runId: string, deductionsSource: string) =>
   apiFetch<PayrollRun>(`/payroll/runs/${runId}/issue`, { method: 'POST', body: JSON.stringify({ deductionsSource }) });
 
-
 /**
  * The payroll schedule.
  *
@@ -117,9 +138,13 @@ export interface PayrollSchedule {
   payrollPayWeekday: number;
   /** Read-only: the job's idempotency key, which the API refuses to accept. */
   payrollLastAutoPeriodEnd: string | null;
+  /** ISO 3166-1 alpha-2, or null. Only suggests deduction line names. */
+  payrollCountry: string | null;
+  /** Read-only here — set in Trading & tax. */
+  currency: string;
 }
 
 export const getPayrollSchedule = () => apiFetch<PayrollSchedule>('/payroll/settings');
 
-export const savePayrollSchedule = (data: Omit<PayrollSchedule, 'payrollLastAutoPeriodEnd'>) =>
+export const savePayrollSchedule = (data: Omit<PayrollSchedule, 'payrollLastAutoPeriodEnd' | 'currency'>) =>
   apiFetch<PayrollSchedule>('/payroll/settings', { method: 'PUT', body: JSON.stringify(data) });

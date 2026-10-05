@@ -1,12 +1,27 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 
-import { AlertTriangle, CalendarClock, Download, Plus, ShieldCheck, UserCircle2 } from '@/components/icons';
+import { RecordPrivacyRequest } from '@/components/compliance/RecordPrivacyRequest';
+import {
+  STATUS,
+  WORKING_STATUSES,
+  channelLabel,
+  requestStatus,
+  requestType,
+  subjectHref,
+  subjectName,
+} from '@/components/compliance/privacyCopy';
+import { AlertTriangle, CalendarClock, CheckCircle2, ChevronDown, ClipboardList, Download, Plus, ShieldCheck, Timer } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
-import { Drawer } from '@/components/shared/Drawer';
+import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { Fact } from '@/components/settings/controls';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { Modal } from '@/components/shared/Modal';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -14,9 +29,8 @@ import { Select } from '@/components/ui/select';
 import { hasCapability } from '@/lib/auth/capabilities';
 import {
   type PrivacyRequest,
-  type PrivacyRequestType,
+  type PrivacyRequestStatus,
   completePrivacyRequest,
-  createPrivacyRequest,
   getPrivacyRequests,
   privacyExportUrl,
   updatePrivacyRequest,
@@ -24,526 +38,697 @@ import {
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
+import { type DeadlineTone, isClosedRequest, requestDeadline, sortQueue, summariseQueue } from '@/lib/utils/privacy-deadline';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
 /**
  * Privacy requests: recording them, working them, and closing them.
  *
- * Serves two surfaces from one component — a single customer's history on their
- * record, and the whole tenant's open queue on the compliance page — because the
- * work is identical and only the scope differs.
- *
- * Recording a new request happens in a drawer rather than an inline form. The
- * form used to unfold above the list and push everything a screen down, so the
- * queue you were checking disappeared the moment you started typing into it.
+ * Serves two surfaces from one component — a single person's history on their
+ * record, and the whole workspace's queue on the Compliance page — because the
+ * work is identical and only the scope differs. On the queue the deadline is
+ * the headline: each request says how many days it has left, in words, with a
+ * bar for how much of the month is used.
  */
 
-const TYPE_OPTIONS = [
-  { value: 'access', label: 'Access request' },
-  { value: 'portability', label: 'Data portability' },
-  { value: 'erasure', label: 'Erasure' },
-  { value: 'rectification', label: 'Rectification' },
-  { value: 'restriction', label: 'Restrict processing' },
-  { value: 'objection', label: 'Objection' },
-];
-
-const CHANNEL_OPTIONS = [
-  { value: 'in_person', label: 'In person' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'web', label: 'Web' },
-  { value: 'staff', label: 'Staff recorded' },
-];
-
-const STATUS_LABEL: Record<PrivacyRequest['status'], string> = {
-  received: 'Received',
-  in_progress: 'In progress',
-  awaiting_identity: 'Awaiting identity',
-  completed: 'Completed',
-  declined: 'Declined',
-};
-
-const isClosed = (request: PrivacyRequest) => request.status === 'completed' || request.status === 'declined';
-
-/** Typed verbatim to confirm an erasure. Deliberately not the customer's name:
- *  that is visible on screen and could be copied without reading anything. */
+/** Typed verbatim to confirm an erasure. Deliberately not the person's name:
+ *  that is on screen and could be copied without reading anything. */
 const ERASE_PHRASE = 'ERASE';
 
 const TEXTAREA =
-  'w-full rounded-sm border border-input bg-field p-3 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground transition-[border-color,outline-color] focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured';
+  'w-full rounded-md border border-input bg-field p-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-ring/30';
 
-const CREATE_FORM_ID = 'privacy-request-form';
+const TONE_TEXT: Record<DeadlineTone, string> = {
+  done: 'text-muted-foreground',
+  calm: 'text-muted-foreground',
+  soon: 'text-measured',
+  today: 'text-exception',
+  overdue: 'text-exception',
+};
+const TONE_BAR: Record<DeadlineTone, string> = {
+  done: 'bg-muted-foreground/40',
+  calm: 'bg-primary',
+  soon: 'bg-measured',
+  today: 'bg-exception',
+  overdue: 'bg-exception',
+};
+
+type View = 'open' | 'closed';
 
 export function PrivacyRequestsPanel({
   customerId,
   employeeUserId,
   tenantId,
+  className,
 }: {
   customerId?: string;
   employeeUserId?: string;
   tenantId?: string;
+  /** For the scoped panel only — e.g. to flow it in a record's columns. */
+  className?: string;
 }) {
   const qc = useQueryClient();
-  const [creating, setCreating] = useState(false);
+  const scoped = Boolean(customerId || employeeUserId);
+  const [view, setView] = useState<View>('open');
+  const [recording, setRecording] = useState(false);
   const [completing, setCompleting] = useState<PrivacyRequest | null>(null);
-  const [type, setType] = useState<PrivacyRequestType>('access');
-  const [channel, setChannel] = useState('in_person');
-  const [details, setDetails] = useState('');
-  const [resolution, setResolution] = useState('');
-  const [confirmPhrase, setConfirmPhrase] = useState('');
-  const [now] = useState(() => Date.now());
+  const [declining, setDeclining] = useState<PrivacyRequest | null>(null);
+  // The one unfolded row on a record, if any.
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  // A minute is fine-grained enough for "due today".
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const capabilities = useAuthStore((state) => state.capabilities);
-  // Completing an erasure destroys data, so the API requires customers:erase on
-  // top of privacy:write. Checked here too, so the button explains itself rather
-  // than failing with a 403 after the notes have been written.
-  const canEraseCustomer = hasCapability(capabilities, 'customers:erase');
-  const canEraseEmployee = hasCapability(capabilities, 'hr.people:delete');
-  const isErasure = completing?.type === 'erasure';
-  const isEmployeeRequest = completing?.subjectType === 'employee';
-  const canErase = isEmployeeRequest ? canEraseEmployee : canEraseCustomer;
+  // The API is the boundary; these only keep an auditor from being offered
+  // buttons that would come back 403.
+  const canWrite = hasCapability(capabilities, 'privacy:write');
+  const canExport = hasCapability(capabilities, 'privacy:export');
 
-  const {
-    data = [],
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
+  const requests = useQuery({
     queryKey: moduleQueryKeys.compliance.key('privacy-requests', tenantId, customerId, employeeUserId),
     queryFn: () => getPrivacyRequests({ tenantId, customerId, employeeUserId }),
     enabled: Boolean(tenantId || customerId || employeeUserId),
   });
 
-  const refresh = () => qc.invalidateQueries({ queryKey: moduleQueryKeys.compliance.key('privacy-requests') });
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: moduleQueryKeys.compliance.key('privacy-requests') });
+    if (customerId) {
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer', customerId) });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-timeline', customerId) });
+    }
+  };
 
-  const create = useMutation({
-    mutationFn: () => {
-      const common = { tenantId, type, requestChannel: channel, details: details.trim() || undefined };
-      return employeeUserId
-        ? createPrivacyRequest({ ...common, subjectType: 'employee', employeeUserId })
-        : createPrivacyRequest({ ...common, subjectType: 'customer', customerId: customerId! });
-    },
-    onSuccess: () => {
-      void refresh();
-      if (customerId) void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-timeline', customerId) });
-      setCreating(false);
-      setDetails('');
-      toast('success', 'Privacy request recorded.');
-    },
-    onError: (error) => toast('error', error.message || 'The privacy request wasn’t recorded. Review the details and try again.'),
+  const move = useMutation({
+    mutationFn: ({ request, status }: { request: PrivacyRequest; status: Exclude<PrivacyRequestStatus, 'completed' | 'declined'> }) =>
+      updatePrivacyRequest(request.id, { status }),
+    onSuccess: refresh,
+    onError: (error) => toast('error', error.message || 'The request wasn’t updated. Try again.'),
   });
 
-  const progress = useMutation({
-    mutationFn: (request: PrivacyRequest) => updatePrivacyRequest(request.id, { status: 'in_progress' }),
-    onSuccess: () => void refresh(),
-    onError: (error) => toast('error', error.message || 'The privacy request wasn’t updated. Try again.'),
-  });
+  const all = useMemo(() => sortQueue(requests.data ?? []), [requests.data]);
+  const summary = useMemo(() => summariseQueue(all, now), [all, now]);
+  const open = all.filter((request) => !isClosedRequest(request));
+  const closed = all.filter(isClosedRequest);
+  const shown = scoped ? all : view === 'open' ? open : closed;
 
-  const complete = useMutation({
-    mutationFn: () => completePrivacyRequest(completing!.id, resolution),
-    onSuccess: () => {
-      void refresh();
-      if (customerId) {
-        void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer', customerId) });
-        void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-timeline', customerId) });
+  const list = requests.isPending ? (
+    <div className="space-y-2" aria-label="Loading privacy requests">
+      {[0, 1, 2].map((item) => (
+        <div key={item} className="h-36 animate-pulse rounded-lg bg-band/60" />
+      ))}
+    </div>
+  ) : requests.isError ? (
+    <ErrorState title="Privacy requests couldn’t be loaded" onRetry={() => void requests.refetch()} />
+  ) : shown.length === 0 ? (
+    <QueueMessage
+      icon={scoped ? ShieldCheck : view === 'open' ? CheckCircle2 : ClipboardList}
+      title={scoped ? 'No privacy requests' : view === 'open' ? 'Nothing waiting' : 'No closed requests yet'}
+      description={
+        scoped
+          ? 'If they ask for their data, or ask to be deleted, record it here so the clock and the trail both start.'
+          : view === 'open'
+            ? 'Every request has been answered. New ones appear here with their deadline.'
+            : 'Completed and declined requests are kept here as your record that each was handled.'
       }
-      setCompleting(null);
-      setResolution('');
-      setConfirmPhrase('');
-      toast(
-        'success',
-        isErasure ? `${isEmployeeRequest ? 'Employee' : 'Customer'} data erased and request completed.` : 'Privacy request completed.',
-      );
-    },
-    onError: (error) => toast('error', error.message || 'The privacy request wasn’t completed. Review it and try again.'),
-  });
-
-  const visibleRequests = useMemo(
-    () =>
-      [...data]
-        .filter((request) => customerId || employeeUserId || !isClosed(request))
-        .sort((a, b) => {
-          if (isClosed(a) !== isClosed(b)) return isClosed(a) ? 1 : -1;
-          return Date.parse(a.dueAt) - Date.parse(b.dueAt);
-        }),
-    [customerId, employeeUserId, data],
+    />
+  ) : (
+    <div className="space-y-2">
+      {shown.map((request, index) => (
+        <RequestCard
+          key={request.id}
+          index={index}
+          request={request}
+          scoped={scoped}
+          now={now}
+          canWrite={canWrite}
+          canExport={canExport}
+          moving={move.isPending && move.variables?.request.id === request.id}
+          onMove={(status) => move.mutate({ request, status })}
+          onComplete={() => setCompleting(request)}
+          onDecline={() => setDeclining(request)}
+        />
+      ))}
+    </div>
   );
 
-  const openCount = data.filter((request) => !isClosed(request)).length;
-  const scoped = Boolean(customerId || employeeUserId);
+  const record = canWrite && (
+    <Button variant={scoped ? 'outline' : 'default'} size={scoped ? 'sm' : 'default'} onClick={() => setRecording(true)}>
+      <Plus data-icon="inline-start" />
+      Record request
+    </Button>
+  );
+
+  const dialogs = (
+    <>
+      {recording && (
+        <RecordPrivacyRequest
+          tenantId={tenantId}
+          fixedSubject={
+            customerId
+              ? { kind: 'customer', id: customerId, name: '' }
+              : employeeUserId
+                ? { kind: 'employee', id: employeeUserId, name: '' }
+                : undefined
+          }
+          onClose={() => setRecording(false)}
+        />
+      )}
+      {completing && <CompleteRequest request={completing} onClose={() => setCompleting(null)} onDone={refresh} />}
+      {declining && <DeclineRequest request={declining} onClose={() => setDeclining(null)} onDone={refresh} />}
+    </>
+  );
+
+  if (scoped) {
+    // On a record: a heading and a list of audit-log rows, like every other
+    // block beside it. A row unfolds to the full request — deadline, actions,
+    // outcome — the way an audit group unfolds to its entries.
+    return (
+      <motion.section variants={SECTION_RISE} className={cn('scroll-mt-6', className)} aria-labelledby="privacy-requests-title">
+        <div className="mb-3 flex min-h-8 items-center gap-3">
+          <h2 id="privacy-requests-title" className="flex-1 text-base font-semibold tracking-title text-foreground">
+            Privacy requests
+          </h2>
+          {summary.open > 0 && <Badge variant="warning">{summary.open} open</Badge>}
+          {record}
+        </div>
+        {requests.isPending ? (
+          <div className="h-32 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+        ) : requests.isError ? (
+          <ErrorState title="Privacy requests couldn’t be loaded" onRetry={() => void requests.refetch()} />
+        ) : (
+          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            {all.length === 0 ? (
+              <li className="flex items-center gap-3 px-3.5 py-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground">
+                  <ShieldCheck size={16} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm text-muted-foreground">None so far</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">Record one here if they ask for their data or to be deleted.</span>
+                </span>
+              </li>
+            ) : (
+              all.map((request, index) => (
+                <ScopedRequestRow
+                  key={request.id}
+                  request={request}
+                  now={now}
+                  open={expanded === request.id}
+                  onToggle={() => setExpanded((current) => (current === request.id ? null : request.id))}
+                >
+                  <RequestCard
+                    embedded
+                    index={index}
+                    request={request}
+                    scoped
+                    now={now}
+                    canWrite={canWrite}
+                    canExport={canExport}
+                    moving={move.isPending && move.variables?.request.id === request.id}
+                    onMove={(status) => move.mutate({ request, status })}
+                    onComplete={() => setCompleting(request)}
+                    onDecline={() => setDeclining(request)}
+                  />
+                </ScopedRequestRow>
+              ))
+            )}
+          </ul>
+        )}
+        <p className="mt-2 px-1 text-xs leading-relaxed text-muted-foreground">
+          Access, correction and erasure requests under data-protection law — each must be answered within a month.
+        </p>
+        {dialogs}
+      </motion.section>
+    );
+  }
 
   return (
-    <section className={cn(scoped && 'rounded-sm border border-rule bg-card')} aria-label="Privacy requests">
-      <div className={cn('flex flex-wrap items-center justify-between gap-3', scoped ? 'border-b border-rule/60 px-4 py-3' : 'px-1')}>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className={cn('font-semibold text-foreground', scoped ? 'text-sm' : 'text-lg tracking-title')}>
-              {scoped ? 'Privacy requests' : 'Open requests'}
+    <motion.div
+      className="space-y-5"
+      initial="hidden"
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
+      aria-label="Privacy requests"
+    >
+      <motion.dl variants={SECTION_RISE} className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <Fact icon={ClipboardList} label="Open" value={summary.open} />
+        <Fact icon={Timer} label="Due this week" value={summary.dueSoon} />
+        <Fact
+          icon={AlertTriangle}
+          label="Overdue"
+          value={<span className={cn(summary.overdue > 0 && 'text-exception')}>{summary.overdue}</span>}
+        />
+        <Fact icon={CheckCircle2} label="Closed in 30 days" value={summary.closedRecently} />
+      </motion.dl>
+
+      {/* No card around the queue: the requests are cards already, and a
+          second border around them only boxes in the page. */}
+      <motion.section variants={SECTION_RISE} className="space-y-4">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold tracking-title text-foreground">
+              {view === 'open' ? 'Open requests' : 'Closed requests'}
             </h2>
-            <Badge variant={openCount ? 'warning' : 'success'}>{openCount} open</Badge>
           </div>
-          {!scoped && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Only requests that still need action are shown here.</p>}
-        </div>
-        {scoped && (
-          <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
-            <Plus data-icon="inline-start" />
-            Record request
-          </Button>
-        )}
-      </div>
-
-      <div className={cn(scoped && 'p-4')}>
-        {isLoading ? (
-          <div className="space-y-2" aria-label="Loading privacy requests">
-            {[0, 1, 2].map((item) => (
-              <div key={item} className="h-24 animate-pulse rounded-sm border border-rule bg-band/40" />
-            ))}
+          <div className="flex items-center gap-2">
+            <SegmentedControl
+              options={[
+                { value: 'open', label: `Open · ${open.length}` },
+                { value: 'closed', label: `Closed · ${closed.length}` },
+              ]}
+              value={view}
+              onChange={setView}
+              ariaLabel="Show open or closed requests"
+            />
+            {record}
           </div>
-        ) : isError ? (
-          <QueueMessage
-            icon={AlertTriangle}
-            title="Privacy requests could not be loaded"
-            description="Check your connection and try again."
-            action={
-              <Button variant="outline" onClick={() => void refetch()}>
-                Try again
-              </Button>
-            }
-            tone="text-exception"
-          />
-        ) : visibleRequests.length === 0 ? (
-          <QueueMessage
-            icon={ShieldCheck}
-            title={scoped ? 'No privacy requests recorded' : 'No open privacy work'}
-            description={
-              scoped
-                ? 'If this guest asks for their data, or asks to be erased, record it here so the clock and the trail both start.'
-                : 'All recorded requests are currently completed or declined.'
-            }
-            tone="text-momentum"
-          />
-        ) : (
-          <div className="space-y-2">
-            {visibleRequests.map((request) => (
-              <RequestRow
-                key={request.id}
-                request={request}
-                subjectScoped={scoped}
-                now={now}
-                progressPending={progress.isPending}
-                onStart={() => progress.mutate(request)}
-                onComplete={() => {
-                  setConfirmPhrase('');
-                  setResolution('');
-                  setCompleting(request);
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Recording a new one ────────────────────────────────────────── */}
-      {creating && (customerId || employeeUserId) && (
-        <Drawer
-          title="Record a privacy request"
-          description="Capture the original channel and wording while it is fresh."
-          onClose={() => setCreating(false)}
-          footer={
-            <div className="flex gap-2">
-              <Button variant="outline" size="lg" onClick={() => setCreating(false)} disabled={create.isPending} className="flex-1">
-                Cancel
-              </Button>
-              <Button size="lg" type="submit" form={CREATE_FORM_ID} disabled={create.isPending} className="flex-1">
-                {create.isPending ? 'Recording…' : 'Record request'}
-              </Button>
-            </div>
-          }
-        >
-          <form
-            id={CREATE_FORM_ID}
-            onSubmit={(event) => {
-              event.preventDefault();
-              create.mutate();
-            }}
-            className="space-y-4"
-          >
-            <div className="space-y-1.5">
-              <label htmlFor="privacy-request-type" className="block text-label uppercase text-muted-foreground">
-                Request type
-              </label>
-              <Select
-                id="privacy-request-type"
-                value={type}
-                onValueChange={(value) => setType(value as PrivacyRequestType)}
-                options={TYPE_OPTIONS}
-                ariaLabel="Request type"
-                className="w-full"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="privacy-request-channel" className="block text-label uppercase text-muted-foreground">
-                How it was received
-              </label>
-              <Select
-                id="privacy-request-channel"
-                value={channel}
-                onValueChange={setChannel}
-                options={CHANNEL_OPTIONS}
-                ariaLabel="Request channel"
-                className="w-full"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="privacy-request-details" className="block text-label uppercase text-muted-foreground">
-                {employeeUserId ? 'Employee’s' : 'Customer’s'} wording (optional)
-              </label>
-              <textarea
-                id="privacy-request-details"
-                value={details}
-                onChange={(event) => setDetails(event.target.value)}
-                maxLength={2000}
-                placeholder={`Record what the ${employeeUserId ? 'employee' : 'customer'} asked for, in their words where you can`}
-                className={cn(TEXTAREA, 'min-h-28')}
-              />
-            </div>
-
-            <p className="rounded-sm border border-rule bg-band/55 px-3 py-2.5 text-xs text-muted-foreground">
-              Recording this starts the statutory clock. The due date is set from the day it was received, and the request appears on the
-              compliance queue until it is closed.
-            </p>
-          </form>
-        </Drawer>
-      )}
-
-      {/* ── Closing one ────────────────────────────────────────────────── */}
-      {completing && (
-        <Modal
-          title="Complete privacy request"
-          description={TYPE_OPTIONS.find((option) => option.value === completing.type)?.label}
-          onClose={() => setCompleting(null)}
-          size={isErasure ? 'lg' : 'md'}
-          footer={
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setCompleting(null)} disabled={complete.isPending} className="flex-1">
-                Cancel
-              </Button>
-              <Button
-                variant={isErasure ? 'destructive' : 'default'}
-                onClick={() => complete.mutate()}
-                disabled={complete.isPending || !resolution.trim() || (isErasure && (!canErase || confirmPhrase.trim() !== ERASE_PHRASE))}
-                className="flex-1"
-              >
-                {complete.isPending ? 'Completing…' : isErasure ? 'Erase and complete' : 'Complete request'}
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-4">
-            {isErasure && (
-              <>
-                <div className="rounded-sm border border-destructive/30 bg-destructive/6 p-3 text-sm text-destructive">
-                  <p className="font-semibold">This permanently removes direct personal data. It cannot be undone.</p>
-                  {isEmployeeRequest ? (
-                    <>
-                      <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs">
-                        <li>The employee must be inactive and their retention review date must have passed</li>
-                        <li>Identity, bank, statutory, leave, absence and communication details are redacted</li>
-                        <li>Uploaded employee documents are permanently deleted</li>
-                      </ul>
-                      <p className="mt-2 text-xs">
-                        Anonymised employment and payroll evidence is retained where DUMA still has a legal obligation to keep it.
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs">
-                        <li>Name, phone, email and date of birth are overwritten</li>
-                        <li>Preferences, alerts and internal notes are cleared</li>
-                        <li>Sent emails are redacted and unsent messages are cancelled</li>
-                      </ul>
-                      <p className="mt-2 text-xs">
-                        Orders and payments stay linked to an anonymised record where there is a separate legal basis for retaining them.
-                      </p>
-                    </>
-                  )}
-                </div>
-
-                {!canErase && (
-                  <p className="rounded-sm border border-warning/25 bg-warning/6 p-3 text-sm text-warning" role="alert">
-                    You can work this request but not complete it: erasing {isEmployeeRequest ? 'employee' : 'customer'} data requires the{' '}
-                    <code className="font-mono text-xs">{isEmployeeRequest ? 'hr.people:delete' : 'customers:erase'}</code> capability. Ask
-                    an authorised owner or HR manager to complete it.
-                  </p>
-                )}
-              </>
-            )}
-
-            <div className="space-y-1.5">
-              <label htmlFor="privacy-request-resolution" className="block text-label uppercase text-muted-foreground">
-                Resolution and checks
-              </label>
-              <textarea
-                id="privacy-request-resolution"
-                value={resolution}
-                onChange={(event) => setResolution(event.target.value)}
-                maxLength={2000}
-                placeholder="Describe the checks performed and the outcome — how identity was confirmed, what was sent or removed"
-                className={cn(TEXTAREA, 'min-h-32')}
-              />
-              <p className="text-xs text-muted-foreground">Required. This is the record that the request was handled properly.</p>
-            </div>
-
-            {/* Typing the phrase is friction on purpose: this is the one action in
-                the app that destroys data with no way back, and a single click is
-                too cheap for it. */}
-            {isErasure && canErase && (
-              <div className="space-y-1.5">
-                <label htmlFor="erasure-confirm" className="block text-label uppercase text-muted-foreground">
-                  Type <span className="font-mono text-destructive">{ERASE_PHRASE}</span> to confirm
-                </label>
-                <input
-                  id="erasure-confirm"
-                  value={confirmPhrase}
-                  onChange={(event) => setConfirmPhrase(event.target.value)}
-                  autoComplete="off"
-                  aria-label={`Type ${ERASE_PHRASE} to confirm erasure`}
-                  className="h-9 w-full rounded-sm border border-input bg-field px-3 text-sm text-foreground shadow-sm outline-none transition-[border-color,outline-color] focus:border-exception focus:outline-2 focus:outline-offset-0 focus:outline-exception"
-                />
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
-    </section>
+        </header>
+        {list}
+      </motion.section>
+      {dialogs}
+    </motion.div>
   );
 }
 
-function QueueMessage({
-  icon: Icon,
-  title,
-  description,
-  action,
-  tone,
+/** One request as an audit-log row: type tile, what was asked, when and how long is left, status. */
+function ScopedRequestRow({
+  request,
+  now,
+  open,
+  onToggle,
+  children,
 }: {
-  icon: IconComponent;
-  title: string;
-  description: string;
-  action?: React.ReactNode;
-  tone: string;
+  request: PrivacyRequest;
+  now: number;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
 }) {
+  const reduceMotion = useReducedMotion();
+  const kind = requestType(request.type);
+  const Icon = kind.icon;
+  const closed = isClosedRequest(request);
+  const deadline = requestDeadline(request, now);
+  const status = requestStatus(request.status);
   return (
-    <div className="flex flex-col items-center justify-center rounded-sm border border-dashed border-rule px-6 py-10 text-center">
-      <span className={cn('flex size-11 items-center justify-center rounded-sm bg-band', tone)}>
+    <li className="border-b border-rule/45 last:border-b-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={cn(
+          'flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+          open ? 'bg-band/50' : 'hover:bg-band/40',
+        )}
+      >
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-md',
+            closed ? 'bg-band text-muted-foreground' : deadline.tone === 'overdue' || request.type === 'erasure' ? 'bg-exception/8 text-exception' : 'bg-reference/8 text-reference',
+          )}
+        >
+          <Icon size={16} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-foreground">{kind.label}</span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+            Received {formatDate(request.receivedAt)}
+            {!closed && (
+              <>
+                {' · '}
+                <span className={cn('font-semibold', TONE_TEXT[deadline.tone])}>{deadline.label}</span>
+              </>
+            )}
+          </span>
+        </span>
+        <Badge variant={status.tone}>{status.label}</Badge>
+        <ChevronDown
+          size={14}
+          aria-hidden="true"
+          className={cn('shrink-0 text-muted-foreground transition-transform duration-200', open && 'rotate-180')}
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden bg-band/25"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </li>
+  );
+}
+
+function QueueMessage({ icon: Icon, title, description }: { icon: IconComponent; title: string; description: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-rule/60 px-6 py-10 text-center">
+      <span className="flex size-11 items-center justify-center rounded-md bg-primary/8 text-primary">
         <Icon size={20} aria-hidden="true" />
       </span>
       <h3 className="mt-3 text-sm font-semibold text-foreground">{title}</h3>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
-      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
 
-function RequestRow({
+function RequestCard({
   request,
-  subjectScoped,
+  index,
+  scoped,
+  embedded = false,
   now,
-  progressPending,
-  onStart,
+  canWrite,
+  canExport,
+  moving,
+  onMove,
   onComplete,
+  onDecline,
 }: {
   request: PrivacyRequest;
-  subjectScoped: boolean;
+  index: number;
+  scoped: boolean;
+  /** Inside an unfolded record row: the row already shows the header, so only the body renders. */
+  embedded?: boolean;
   now: number;
-  progressPending: boolean;
-  onStart: () => void;
+  canWrite: boolean;
+  canExport: boolean;
+  moving: boolean;
+  onMove: (status: Exclude<PrivacyRequestStatus, 'completed' | 'declined'>) => void;
   onComplete: () => void;
+  onDecline: () => void;
 }) {
-  const name = request.customer
-    ? `${request.customer.firstName} ${request.customer.lastName}`
-    : (request.customerSnapshot?.name ?? request.employeeSnapshot?.name);
-  const closed = isClosed(request);
-  const overdue = !closed && Date.parse(request.dueAt) < now;
-  const typeLabel = TYPE_OPTIONS.find((option) => option.value === request.type)?.label ?? request.type;
-  const channelLabel =
-    CHANNEL_OPTIONS.find((option) => option.value === request.requestChannel)?.label ?? request.requestChannel.replaceAll('_', ' ');
-  const badgeVariant =
-    request.status === 'completed'
-      ? 'success'
-      : request.status === 'declined'
-        ? 'muted'
-        : overdue
-          ? 'destructive'
-          : request.status === 'in_progress'
-            ? 'primary'
-            : 'warning';
+  const reduceMotion = useReducedMotion();
+  const kind = requestType(request.type);
+  const Icon = kind.icon;
+  const closed = isClosedRequest(request);
+  const deadline = requestDeadline(request, now);
+  const status = requestStatus(request.status);
+  const name = subjectName(request);
+  const href = subjectHref(request);
+  const exportable = canExport && (request.type === 'access' || request.type === 'portability');
 
   return (
-    <article
+    <motion.article
+      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: reduceMotion ? 0 : Math.min(index, 8) * 0.03, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
-        'rounded-sm border bg-background p-3.5',
-        // Overdue is the one state that earns an edge; everything else stays on
-        // the shared hairline so the queue reads as one list.
-        overdue ? 'border-exception/40' : 'border-rule',
-        closed && 'opacity-75',
+        embedded
+          ? 'px-3.5 pt-1 pb-4 pl-15'
+          : cn('rounded-lg border px-4 py-4 bg-field', deadline.tone === 'overdue' ? 'border-exception/40' : 'border-rule/60'),
       )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold text-foreground">{typeLabel}</h3>
-            {!subjectScoped && name && (
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <UserCircle2 size={13} aria-hidden="true" />
-                {name}
-                {request.subjectType === 'employee' && <Badge variant="muted">Employee</Badge>}
-              </span>
+      {!embedded && (
+      <div className="flex items-start gap-3">
+        <span
+          className={cn(
+            'flex size-10 shrink-0 items-center justify-center rounded-md',
+            closed
+              ? 'bg-band text-muted-foreground'
+              : request.type === 'erasure'
+                ? 'bg-exception/8 text-exception'
+                : 'bg-primary/8 text-primary',
+          )}
+        >
+          <Icon size={18} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-foreground">
+            <span className="font-semibold">{kind.label}</span>
+            {!scoped && name && (
+              <>
+                <span className="text-muted-foreground"> · </span>
+                {href ? (
+                  <Link href={href} className="font-medium underline decoration-rule underline-offset-2 hover:decoration-foreground">
+                    {name}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{name}</span>
+                )}
+                {request.subjectType === 'employee' && <span className="text-muted-foreground"> (staff)</span>}
+              </>
             )}
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className={cn('inline-flex items-center gap-1.5', overdue && 'font-semibold text-exception')}>
-              <CalendarClock size={13} aria-hidden="true" />
-              {overdue ? 'Overdue' : closed ? 'Was due' : 'Due'} {formatDate(request.dueAt)}
-            </span>
-            <span>Received {formatDate(request.receivedAt)}</span>
-            <span className="capitalize">Via {channelLabel}</span>
-          </div>
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {kind.legal} · Received {formatDate(request.receivedAt)} · {channelLabel(request.requestChannel)}
+          </p>
         </div>
-        <Badge variant={badgeVariant}>{STATUS_LABEL[request.status]}</Badge>
+        <Badge variant={status.tone}>{status.label}</Badge>
       </div>
+      )}
 
-      {request.details && <p className="mt-2.5 max-w-3xl text-sm text-muted-foreground">{request.details}</p>}
+      {request.details && (
+        <blockquote className={cn(embedded ? 'mt-0' : 'mt-3', 'border-l-2 border-rule pl-3 text-sm leading-relaxed text-muted-foreground')}>
+          “{request.details}”
+        </blockquote>
+      )}
 
-      {closed && request.resolutionNotes && (
-        <div className="mt-2.5 rounded-sm border border-rule/60 bg-momentum/6 px-3 py-2 text-sm text-foreground">
-          <span className="font-semibold">Outcome:</span> {request.resolutionNotes}
+      {closed ? (
+        request.resolutionNotes && (
+          <div className="mt-3 rounded-md bg-band/60 px-3 py-2.5 text-sm text-foreground">
+            <span className="font-semibold">{request.status === 'declined' ? 'Why it was declined' : 'Outcome'}:</span>{' '}
+            {request.resolutionNotes}
+            {request.completedAt && <span className="text-muted-foreground"> · {formatDate(request.completedAt)}</span>}
+          </div>
+        )
+      ) : (
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className={cn('flex items-center gap-1.5 font-semibold', TONE_TEXT[deadline.tone])}>
+              <CalendarClock size={13} aria-hidden="true" />
+              {deadline.label}
+            </span>
+            <span className="text-muted-foreground">{formatDate(request.dueAt)}</span>
+          </div>
+          <div
+            className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-band"
+            role="progressbar"
+            aria-label="Time used of the one-month deadline"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(deadline.used * 100)}
+          >
+            <motion.div
+              className={cn('h-full rounded-full', TONE_BAR[deadline.tone])}
+              initial={reduceMotion ? false : { width: 0 }}
+              animate={{ width: `${Math.max(4, deadline.used * 100)}%` }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            />
+          </div>
         </div>
       )}
 
-      {!closed && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-rule/50 pt-3">
-          {request.status === 'received' && (
-            <Button variant="outline" size="sm" onClick={onStart} disabled={progressPending}>
-              Start work
-            </Button>
+      {!closed && (canWrite || exportable) && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-rule/45 pt-3.5">
+          {canWrite && (
+            <Select
+              value={request.status}
+              onValueChange={(value) => onMove(value as (typeof WORKING_STATUSES)[number])}
+              options={WORKING_STATUSES.map((value) => ({ value, label: STATUS[value].label }))}
+              ariaLabel="Where this request is up to"
+              disabled={moving}
+              className="w-44"
+            />
           )}
-          {(request.type === 'access' || request.type === 'portability') && (
-            <Button asChild variant="outline" size="sm">
+          {exportable && (
+            <Button asChild variant="outline">
               <a href={privacyExportUrl(request.id)} download>
                 <Download data-icon="inline-start" />
-                Export data
+                Download their data
               </a>
             </Button>
           )}
-          <Button size="sm" onClick={onComplete} className="ml-auto">
-            <ShieldCheck data-icon="inline-start" />
-            Complete request
-          </Button>
+          {canWrite && (
+            <div className="ml-auto flex items-center gap-2">
+              <Button variant="ghost" onClick={onDecline}>
+                Decline
+              </Button>
+              <Button onClick={onComplete}>
+                <ShieldCheck data-icon="inline-start" />
+                {request.type === 'erasure' ? 'Erase and complete' : 'Complete'}
+              </Button>
+            </div>
+          )}
         </div>
       )}
-    </article>
+    </motion.article>
+  );
+}
+
+/** Declining still needs a reason — it's the record of why the request wasn't met. */
+function DeclineRequest({ request, onClose, onDone }: { request: PrivacyRequest; onClose: () => void; onDone: () => void }) {
+  const [reason, setReason] = useState('');
+  const decline = useMutation({
+    mutationFn: () => updatePrivacyRequest(request.id, { status: 'declined', resolutionNotes: reason.trim() }),
+    onSuccess: () => {
+      onDone();
+      toast('success', 'Request declined.');
+      onClose();
+    },
+    onError: (error) => toast('error', error.message || 'The request wasn’t declined. Try again.'),
+  });
+
+  return (
+    <Modal
+      title="Decline this request?"
+      description={`${requestType(request.type).label}${subjectName(request) ? ` · ${subjectName(request)}` : ''}`}
+      onClose={onClose}
+      footer={
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onClose} disabled={decline.isPending} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={() => decline.mutate()} disabled={decline.isPending || !reason.trim()} className="flex-1">
+            {decline.isPending ? 'Declining…' : 'Decline request'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-2">
+        <label htmlFor="privacy-decline-reason" className="block text-sm font-semibold text-foreground">
+          Why are you declining it?
+        </label>
+        <textarea
+          id="privacy-decline-reason"
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          maxLength={2000}
+          rows={4}
+          autoFocus
+          placeholder="e.g. We couldn’t confirm their identity after two requests for ID."
+          className={TEXTAREA}
+        />
+        <p className="text-xs text-muted-foreground">Required. You should also tell them why, and that they can complain to the ICO.</p>
+      </div>
+    </Modal>
+  );
+}
+
+function CompleteRequest({ request, onClose, onDone }: { request: PrivacyRequest; onClose: () => void; onDone: () => void }) {
+  const [resolution, setResolution] = useState('');
+  const [phrase, setPhrase] = useState('');
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const isErasure = request.type === 'erasure';
+  const isEmployee = request.subjectType === 'employee';
+  // Completing an erasure destroys data, so the API requires a second
+  // capability on top of privacy:write. Checked here too, so the dialog
+  // explains itself rather than failing after the notes have been written.
+  const canErase = hasCapability(capabilities, isEmployee ? 'hr.people:delete' : 'customers:erase');
+
+  const complete = useMutation({
+    mutationFn: () => completePrivacyRequest(request.id, resolution),
+    onSuccess: () => {
+      onDone();
+      toast('success', isErasure ? `${isEmployee ? 'Employee' : 'Customer'} data erased and request completed.` : 'Request completed.');
+      onClose();
+    },
+    onError: (error) => toast('error', error.message || 'The request wasn’t completed. Review it and try again.'),
+  });
+
+  const blocked = !resolution.trim() || (isErasure && (!canErase || phrase.trim() !== ERASE_PHRASE));
+
+  return (
+    <Modal
+      title={isErasure ? 'Erase their data and complete?' : 'Complete this request?'}
+      description={`${requestType(request.type).label}${subjectName(request) ? ` · ${subjectName(request)}` : ''}`}
+      onClose={onClose}
+      size={isErasure ? 'lg' : 'md'}
+      footer={
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onClose} disabled={complete.isPending} className="flex-1">
+            Cancel
+          </Button>
+          <Button
+            variant={isErasure ? 'destructive' : 'default'}
+            onClick={() => complete.mutate()}
+            disabled={complete.isPending || blocked}
+            className="flex-1"
+          >
+            {complete.isPending ? 'Completing…' : isErasure ? 'Erase and complete' : 'Complete request'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-5">
+        {isErasure && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/6 p-3.5 text-sm text-destructive">
+            <p className="font-semibold">This permanently removes their personal data. It can’t be undone.</p>
+            <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs">
+              {isEmployee ? (
+                <>
+                  <li>They must be inactive, and their retention review date must have passed</li>
+                  <li>Identity, bank, statutory, leave, absence and contact details are removed</li>
+                  <li>Their uploaded documents are deleted</li>
+                </>
+              ) : (
+                <>
+                  <li>Name, phone, email and date of birth are overwritten</li>
+                  <li>Preferences, alerts and notes are cleared</li>
+                  <li>Sent emails are redacted and unsent ones cancelled</li>
+                </>
+              )}
+            </ul>
+            <p className="mt-2 text-xs">
+              {isEmployee
+                ? 'Anonymised employment and payroll records are kept where the law still requires them.'
+                : 'Orders and payments stay, linked to an anonymous record, because there’s a legal reason to keep them.'}
+            </p>
+          </div>
+        )}
+
+        {isErasure && !canErase && (
+          <p className="rounded-lg border border-warning/25 bg-warning/6 p-3.5 text-sm text-warning" role="alert">
+            You can work on this request but not complete it — erasing {isEmployee ? 'staff' : 'customer'} data needs extra permission. Ask
+            the owner{isEmployee ? ' or an HR manager' : ''} to finish it.
+          </p>
+        )}
+
+        <div className="space-y-2">
+          <label htmlFor="privacy-resolution" className="block text-sm font-semibold text-foreground">
+            What did you do?
+          </label>
+          <textarea
+            id="privacy-resolution"
+            value={resolution}
+            onChange={(event) => setResolution(event.target.value)}
+            maxLength={2000}
+            rows={4}
+            autoFocus
+            placeholder="How you confirmed who they are, and what you sent, changed or removed"
+            className={TEXTAREA}
+          />
+          <p className="text-xs text-muted-foreground">Required. This is your record that the request was handled properly.</p>
+        </div>
+
+        {/* Typing the phrase is friction on purpose: the one action in the app
+            that destroys data with no way back is too important for one click. */}
+        {isErasure && canErase && (
+          <div className="space-y-2">
+            <label htmlFor="erasure-confirm" className="block text-sm font-semibold text-foreground">
+              Type <span className="font-mono text-destructive">{ERASE_PHRASE}</span> to confirm
+            </label>
+            <input
+              id="erasure-confirm"
+              value={phrase}
+              onChange={(event) => setPhrase(event.target.value)}
+              autoComplete="off"
+              className="h-10 w-full rounded-md border border-input bg-field px-3 text-sm text-foreground outline-none focus-visible:border-exception focus-visible:outline-2 focus-visible:outline-exception/30"
+            />
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }

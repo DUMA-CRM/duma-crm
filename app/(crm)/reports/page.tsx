@@ -1,14 +1,15 @@
 import { redirect } from 'next/navigation';
 
-import { ReportsWorkspace } from '@/components/reports/ReportsWorkspace';
+import { ReportsHome } from '@/components/reports/ReportsHome';
 
-import { hasCapability } from '@/lib/auth/capabilities';
+import { hasAnyCapability } from '@/lib/auth/capabilities';
 import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
 
 export default async function ReportsPage() {
   const profile = await getCurrentStaffProfile();
+  // Someone who holds only staff access reaches staff performance from the staff record, not here.
+  if (!profile || !hasAnyCapability(profile, 'analytics:read', 'orders:refund', 'cashups:read', 'loss:read', 'purchasing:read'))
+    redirect('/dashboard');
 
-  if (!profile || !hasCapability(profile, 'analytics:read')) redirect('/dashboard');
-
-  return <ReportsWorkspace />;
+  return <ReportsHome />;
 }

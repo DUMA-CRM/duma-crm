@@ -100,7 +100,8 @@ export function Avatar({ name, email, size = 'md' }: { name?: string; email?: st
 
   const fallback = (
     <div
-      className={`${dim} rounded-sm bg-linear-to-br from-primary to-primary-hover flex items-center justify-center text-white font-bold shrink-0 select-none uppercase`}
+      // Flat, like every other icon tile — DESIGN.md has no gradients.
+      className={`${dim} rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold shrink-0 select-none uppercase`}
     >
       {initials}
     </div>
@@ -111,7 +112,7 @@ export function Avatar({ name, email, size = 'md' }: { name?: string; email?: st
     <GravatarImage
       email={email}
       px={px}
-      className={`${dim} rounded-sm object-cover shrink-0 select-none`}
+      className={`${dim} rounded-md object-cover shrink-0 select-none`}
       alt={name ?? ''}
       fallback={fallback}
     />

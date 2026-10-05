@@ -17,6 +17,7 @@ const {
   payVariesWithHours,
   payslipDeductions,
   payslipReconciles,
+  splitLeaveRequests,
   weekStartOf,
 } = await import('../lib/utils/my-hr.ts');
 
@@ -403,4 +404,74 @@ test('NI numbers follow the HMRC format and reject reserved prefixes', () => {
   // a permitted prefix letter. Never use it as example text in a form.
   assert.equal(isValidNiNumber('QQ123456C'), false);
   assert.equal(formatNiNumber('AB123456C'), 'AB 12 34 56 C');
+});
+
+test('attendance counts put a logged absence under absent, and skip days with no shift', async () => {
+  const { attendanceCounts } = await import('../lib/utils/my-hr.ts');
+  const day = (status: string, absence?: { isHalfDay: boolean }) =>
+    ({ date: '2026-09-01', status, plannedMinutes: 0, workedMinutes: 0, absence }) as never;
+  assert.deepEqual(
+    attendanceCounts([day('full'), day('full'), day('missed', { isHalfDay: false }), day('partial'), day('no_shift'), day('leave')]),
+    {
+      full: 2,
+      partial: 1,
+      missed: 0,
+      leave: 1,
+      scheduled: 0,
+      absent: 1,
+    },
+  );
+});
+
+test('the payslip year sums finalised payslips in the year, named lines split by who pays', async () => {
+  const { payslipEmployerLines, payslipYearSummary } = await import('../lib/utils/my-hr.ts');
+  const slip = (end: string, status: string, gross: string, net: string, deductions?: unknown[], legacy: Record<string, string> = {}) =>
+    ({
+      id: end,
+      userId: 'u',
+      payPeriodStart: end,
+      payPeriodEnd: end,
+      grossPay: gross,
+      netPay: net,
+      deductions,
+      taxDeducted: '0',
+      currency: 'GBP',
+      status,
+      createdAt: end,
+      ...legacy,
+    }) as never;
+  const named = [
+    { label: 'Income tax', kind: 'tax', paidBy: 'employee', amount: '50.10' },
+    { label: 'Pension (employer)', kind: 'pension', paidBy: 'employer', amount: '20.00' },
+  ];
+  const slips = [
+    slip('2026-08-31', 'finalised', '700.10', '650.00', named),
+    slip('2026-07-31', 'finalised', '600.00', '560.00', undefined, { taxDeducted: '30.00', nationalInsurance: '10.00' }),
+    slip('2026-09-30', 'draft', '999.00', '900.00', named),
+    slip('2025-12-31', 'finalised', '500.00', '480.00', named),
+  ];
+  assert.deepEqual(payslipYearSummary(slips, 2026), { count: 2, gross: 1300.1, net: 1210, deductions: 90.1, employer: 20 });
+  assert.deepEqual(payslipEmployerLines(slips[0]), [{ label: 'Pension (employer)', amount: 20 }]);
+  assert.deepEqual(payslipEmployerLines(slips[1]), []);
+});
+
+test('leave splits into upcoming (soonest first) and history (newest first)', () => {
+  const today = '2026-10-04';
+  const requests = [
+    { id: 'past', startDate: '2026-08-01', endDate: '2026-08-03', status: 'approved' as const },
+    { id: 'next', startDate: '2026-10-20', endDate: '2026-10-21', status: 'approved' as const },
+    { id: 'asked', startDate: '2026-10-10', endDate: '2026-10-10', status: 'pending' as const },
+    { id: 'stale-ask', startDate: '2026-09-01', endDate: '2026-09-02', status: 'pending' as const },
+    { id: 'no', startDate: '2026-11-01', endDate: '2026-11-02', status: 'declined' as const },
+    { id: 'today', startDate: '2026-10-03', endDate: '2026-10-04', status: 'approved' as const },
+  ];
+  const { upcoming, history } = splitLeaveRequests(requests, today);
+  assert.deepEqual(
+    upcoming.map((request) => request.id),
+    ['stale-ask', 'today', 'asked', 'next'],
+  );
+  assert.deepEqual(
+    history.map((request) => request.id),
+    ['no', 'past'],
+  );
 });

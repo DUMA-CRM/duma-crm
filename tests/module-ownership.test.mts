@@ -60,4 +60,24 @@ test('every CRM page, frontend capability and navigation item has exactly one mo
   assert.equal(isModuleSurfaceEnabled({ capability: 'stock:read' }, withoutInventory), false);
   assert.equal(isModuleSurfaceEnabled({ capability: 'orders:read' }, withoutInventory), true);
   assert.equal(isModuleSurfaceEnabled({ module: 'inventory' }, withoutInventory), false);
+
+  const withoutCompliance = MODULE_IDS.filter((id) => id !== 'compliance');
+  assert.equal(moduleForPage('/compliance'), 'compliance');
+  assert.equal(moduleForPage('/audit-log'), 'audit');
+  assert.equal(isModuleSurfaceEnabled({ capability: 'privacy:read' }, withoutCompliance), false);
+  assert.equal(isModuleSurfaceEnabled({ capability: 'audit:read' }, withoutCompliance), true);
+
+  const withoutPos = MODULE_IDS.filter((id) => id !== 'pos');
+  assert.equal(moduleForPage('/pos'), 'pos');
+  assert.equal(moduleForPage('/orders'), 'ordering');
+  assert.equal(isModuleSurfaceEnabled({ module: 'pos' }, withoutPos), false);
+  assert.equal(isModuleSurfaceEnabled({ capability: 'orders:read' }, withoutPos), true);
+
+  const withoutWorkforce = MODULE_IDS.filter((id) => id !== 'workforce');
+  assert.equal(isModuleSurfaceEnabled({ capability: 'hr.people:read' }, withoutWorkforce), true);
+
+  const withoutPayroll = MODULE_IDS.filter((id) => id !== 'payroll');
+  assert.equal(moduleForPage('/staff/payroll'), 'payroll');
+  assert.equal(isModuleSurfaceEnabled({ capability: 'hr.payroll:read' }, withoutPayroll), false);
+  assert.equal(isModuleSurfaceEnabled({ capability: 'hr.people:read' }, withoutPayroll), true);
 });

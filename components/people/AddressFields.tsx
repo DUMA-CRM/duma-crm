@@ -7,38 +7,9 @@ import { Select } from '@/components/ui/select';
 
 import { COUNTRIES, DEFAULT_COUNTRY } from '@/lib/constants/countries';
 
-// The DB stores a single `address` line, so we compose "line1, city, postcode,
-// country" and parse it back into the four fields for editing. Parsing pops
-// from the end (country last), which round-trips our own fully-filled
-// addresses; a first line that itself contains commas is preserved because
-// everything before the last three segments becomes line 1.
+import { type AddressParts, combineAddress, parseAddress } from '@/lib/utils/address';
 
-export interface AddressParts {
-  line1: string;
-  city: string;
-  postcode: string;
-  country: string;
-}
-
-export function combineAddress(p: AddressParts): string {
-  return [p.line1, p.city, p.postcode, p.country]
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .join(', ');
-}
-
-export function parseAddress(value: string | null | undefined): AddressParts {
-  const segs = (value ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (segs.length === 0) return { line1: '', city: '', postcode: '', country: '' };
-  if (segs.length === 1) return { line1: segs[0], city: '', postcode: '', country: '' };
-  const country = segs.pop() ?? '';
-  const postcode = segs.length >= 3 ? (segs.pop() ?? '') : '';
-  const city = segs.length >= 2 ? (segs.pop() ?? '') : '';
-  return { line1: segs.join(', '), city, postcode, country };
-}
+export { type AddressParts, combineAddress, parseAddress };
 
 /**
  * Four address inputs (line 1, city, post/zip code, country) that emit a single

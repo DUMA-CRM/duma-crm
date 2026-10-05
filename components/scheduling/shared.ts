@@ -6,9 +6,9 @@ import { formatDate } from '@/lib/utils/date';
 // ── Form styles ───────────────────────────────────────────────────────────────
 
 export const inp =
-  'w-full h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-field border border-input rounded-md px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 export const sel = inp + ' cursor-pointer';
-export const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
+export const lbl = 'block text-sm font-semibold text-foreground mb-1.5';
 
 // ── Status config ─────────────────────────────────────────────────────────────
 

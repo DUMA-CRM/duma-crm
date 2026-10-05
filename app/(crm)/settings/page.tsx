@@ -1,5 +1,5 @@
-import { SettingsWorkspace } from '@/components/settings/SettingsWorkspace';
+import { ProfileTab } from '@/components/settings/tabs/ProfileTab';
 
 export default function SettingsPage() {
-  return <SettingsWorkspace tab="general" />;
+  return <ProfileTab />;
 }

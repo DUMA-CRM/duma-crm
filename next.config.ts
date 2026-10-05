@@ -18,6 +18,13 @@ const nextConfig: NextConfig = {
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
         ],
       },
+      {
+        // The guest QR page, and only it, may be framed — by this app alone — so
+        // QR ordering settings can show the real page in its phone preview. Later
+        // matches override earlier ones for the same key.
+        source: '/order/:path*',
+        headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
+      },
     ];
   },
   // Same-origin proxy for browser API calls. Lets the API's Set-Cookie land on

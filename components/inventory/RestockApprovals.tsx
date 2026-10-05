@@ -1,30 +1,49 @@
 'use client';
 
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useMemo, useState } from 'react';
 
 import {
-  AlertCircle,
   AlertTriangle,
-  CalendarDays,
+  Check,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
-  MapPin,
+  Flame,
+  Loader2,
   Package,
+  PackageOpen,
   Pencil,
   ShoppingCart,
   Trash2,
+  Truck,
   XCircle,
 } from '@/components/icons';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Badge } from '@/components/ui/badge';
+import { fmtQty, normaliseArray } from '@/components/inventory/stock/shared';
+import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { Fact } from '@/components/settings/controls';
+import { Drawer } from '@/components/shared/Drawer';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { ChoiceCards, FormSection, NumberStepper } from '@/components/shared/FormParts';
+import { LoadMore } from '@/components/shared/LoadMore';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
+import { serverCache } from '@/lib/api/cache-policy';
 import { hasCapability } from '@/lib/auth/capabilities';
-import { getStockItems } from '@/lib/modules/inventory/client';
+import {
+  type InventoryForecast,
+  type InventoryOverviewRow,
+  type LocationStock,
+  getInventoryForecast,
+  getInventoryOverview,
+  getLocationStock,
+  getStockItems,
+} from '@/lib/modules/inventory/client';
 import {
   type RestockPriority,
   type RestockRequest,
@@ -33,238 +52,35 @@ import {
   deleteRestockRequest,
   encodeNotes,
   getRestockRequests,
+  receiveRestockRequest,
   updateRestockRequest,
 } from '@/lib/modules/inventory/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { timeAgo } from '@/lib/utils/format';
+import { type RestockJourneyStage, restockJourney } from '@/lib/utils/restock-journey';
+import { type StockContext, dayLabel, orderRequests, requestContext } from '@/lib/utils/restock-queue';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+/*
+ * Restock demand: what the team has asked for, and the decision on each. Read
+ * as a queue — urgent first, then whoever has waited longest — with the stock
+ * behind each request on the row, so approving doesn't mean opening another
+ * tab. The Stock tab's vocabulary: a filter row, audit-log rows, pills.
+ */
 
-const STATUS_ORDER: RestockStatus[] = ['pending', 'approved', 'rejected', 'fulfilled'];
+const STATUS_ORDER: RestockStatus[] = ['pending', 'approved', 'fulfilled', 'rejected'];
 const PAGE_SIZE = 25;
 
-const STATUS_META: Record<
-  RestockStatus,
-  { label: string; variant: 'warning' | 'success' | 'destructive' | 'muted'; iconBg: string; iconFg: string }
-> = {
-  pending: { label: 'Pending', variant: 'warning', iconBg: 'bg-warning/6', iconFg: 'text-warning' },
-  approved: { label: 'Approved', variant: 'success', iconBg: 'bg-success/6', iconFg: 'text-success' },
-  rejected: { label: 'Rejected', variant: 'destructive', iconBg: 'bg-destructive/6', iconFg: 'text-destructive' },
-  fulfilled: { label: 'Ordered', variant: 'muted', iconBg: 'bg-muted', iconFg: 'text-muted-foreground' },
+const STATUS_META: Record<RestockStatus, { label: string; short: string; tint: string; icon: typeof ClipboardList }> = {
+  pending: { label: 'Waiting for review', short: 'To review', tint: 'bg-reference/8 text-reference', icon: ClipboardList },
+  approved: { label: 'Approved', short: 'Approved', tint: 'bg-momentum/8 text-momentum', icon: CheckCircle2 },
+  fulfilled: { label: 'Ordered', short: 'Ordered', tint: 'bg-band text-muted-foreground', icon: Truck },
+  rejected: { label: 'Rejected', short: 'Rejected', tint: 'bg-exception/8 text-exception', icon: XCircle },
 };
-
-const PRIORITY_OPTIONS = [
-  { value: 'standard' as const, label: 'Standard' },
-  { value: 'urgent' as const, label: 'Urgent' },
-] as const;
-
-const textareaClass = cn(
-  'w-full bg-field border border-input rounded-sm px-3 py-2 text-sm text-foreground',
-  'placeholder:text-muted-foreground outline-none resize-none',
-  'focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150',
-);
-
-// ── Row ───────────────────────────────────────────────────────────────────────
-
-function RequestRow({
-  request,
-  locationName,
-  onApprove,
-  onReject,
-  onFulfill,
-  onSave,
-  onDelete,
-  statusPending,
-  savePending,
-  deletePending,
-  canDelete,
-  fulfillLabel,
-}: {
-  request: RestockRequest;
-  locationName: string;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
-  onFulfill: (id: string) => void;
-  onSave: (id: string, data: { requestedQty: number; notes?: string }) => void;
-  onDelete: (id: string) => void;
-  statusPending: boolean;
-  savePending: boolean;
-  deletePending: boolean;
-  canDelete: boolean;
-  fulfillLabel: string;
-}) {
-  const { priority, notes } = decodeNotes(request.notes);
-  const meta = STATUS_META[request.status];
-  const isPending = request.status === 'pending';
-  const unit = request.stockItem?.unit ?? 'units';
-
-  const [mode, setMode] = useState<'view' | 'edit' | 'delete'>('view');
-  const [editQty, setEditQty] = useState(String(request.requestedQty));
-  const [editPriority, setEditPriority] = useState<RestockPriority>(priority);
-  const [editNotes, setEditNotes] = useState(notes);
-
-  function startEdit() {
-    setEditQty(String(request.requestedQty));
-    setEditPriority(priority);
-    setEditNotes(notes);
-    setMode('edit');
-  }
-
-  function save() {
-    const q = parseInt(editQty, 10);
-    if (!q || q < 1) return;
-    onSave(request.id, { requestedQty: q, notes: encodeNotes(editPriority, editNotes) });
-    setMode('view');
-  }
-
-  return (
-    <div
-      className={cn('px-4 py-4 border-b border-rule last:border-0 transition-opacity', statusPending && 'opacity-50 pointer-events-none')}
-    >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
-        {/* Icon */}
-        <div className={cn('w-9 h-9 rounded-sm flex items-center justify-center shrink-0 mt-0.5', meta.iconBg)}>
-          <ClipboardList size={15} className={meta.iconFg} />
-        </div>
-
-        {/* Main info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-foreground">
-              {request.stockItem?.name ?? <span className="font-mono text-xs">{request.id.slice(0, 8)}</span>}
-            </p>
-            {priority === 'urgent' && (
-              <Badge variant="destructive" className="text-micro">
-                Urgent
-              </Badge>
-            )}
-            <Badge variant={meta.variant} className="text-micro">
-              {meta.label}
-            </Badge>
-          </div>
-
-          <div className="flex items-center gap-4 mt-1.5 flex-wrap">
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Package size={11} />
-              {request.requestedQty} {unit} requested
-            </span>
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <MapPin size={11} />
-              {locationName}
-            </span>
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <CalendarDays size={11} />
-              {timeAgo(request.createdAt)}
-            </span>
-          </div>
-
-          {notes && mode === 'view' && <p className="mt-1.5 text-xs text-muted-foreground italic line-clamp-2">{notes}</p>}
-        </div>
-
-        {/* Actions */}
-        {isPending && mode === 'view' && (
-          <div className="flex flex-wrap items-center gap-1.5 self-end shrink-0">
-            <button
-              type="button"
-              onClick={startEdit}
-              aria-label="Edit request"
-              className="w-8 h-8 rounded-sm flex items-center justify-center text-muted-foreground hover:bg-band hover:text-foreground transition-colors"
-            >
-              <Pencil size={13} />
-            </button>
-            {canDelete && (
-              <button
-                type="button"
-                onClick={() => setMode('delete')}
-                aria-label="Delete request"
-                className="w-8 h-8 rounded-sm flex items-center justify-center text-muted-foreground hover:bg-band hover:text-destructive transition-colors"
-              >
-                <Trash2 size={13} />
-              </button>
-            )}
-            <div className="w-px h-5 bg-border mx-0.5" />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onReject(request.id)}
-              className="text-destructive hover:bg-band hover:text-destructive border-destructive/30"
-            >
-              <XCircle size={13} />
-              Reject
-            </Button>
-            <Button size="sm" onClick={() => onApprove(request.id)} className="bg-success text-success-foreground hover:bg-success/90">
-              <CheckCircle2 size={13} />
-              Approve
-            </Button>
-          </div>
-        )}
-        {request.status === 'approved' && mode === 'view' && (
-          <Button size="sm" onClick={() => onFulfill(request.id)} disabled={statusPending} className="shrink-0">
-            <CheckCircle2 size={13} />
-            {fulfillLabel}
-          </Button>
-        )}
-      </div>
-
-      {/* Inline edit */}
-      {mode === 'edit' && (
-        <div className="mt-3 pt-3 border-t border-rule space-y-3">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="w-32">
-              <Input label="QUANTITY" type="number" min={1} value={editQty} onChange={(e) => setEditQty(e.target.value)} placeholder="0" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label uppercase>Priority</Label>
-              <SegmentedControl options={PRIORITY_OPTIONS} value={editPriority} onChange={setEditPriority} />
-            </div>
-          </div>
-          <textarea
-            value={editNotes}
-            onChange={(e) => setEditNotes(e.target.value)}
-            placeholder="Additional notes…"
-            maxLength={900}
-            rows={2}
-            className={textareaClass}
-          />
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setMode('view')}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={save} disabled={savePending}>
-              {savePending ? 'Saving…' : 'Save changes'}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Inline delete confirm */}
-      {mode === 'delete' && (
-        <div className="mt-3 flex items-center gap-3 rounded-sm bg-destructive/5 border border-destructive/10 px-3 py-2.5">
-          <AlertTriangle size={14} className="text-destructive shrink-0" />
-          <p className="text-xs text-destructive flex-1">Delete this request? This can’t be undone.</p>
-          <Button variant="ghost" size="sm" onClick={() => setMode('view')}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            className="bg-destructive/6 text-destructive hover:bg-destructive hover:text-white"
-            disabled={deletePending}
-            onClick={() => onDelete(request.id)}
-          >
-            {deletePending ? 'Deleting…' : 'Delete'}
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── View ──────────────────────────────────────────────────────────────────────
 
 export function RestockApprovals({
   onCreatePurchaseOrder,
@@ -273,32 +89,34 @@ export function RestockApprovals({
   onStatusChange,
 }: {
   onCreatePurchaseOrder?: (request: RestockRequest) => void;
-  /** Offered on the approved list when every visible request shares one location. */
+  /** Offered on the approved list when the requests share one location. */
   onCreatePurchaseOrderBatch?: (requests: RestockRequest[]) => void;
-  /** Controlled status filter — omit and the panel keeps its own. */
-  status?: RestockStatus;
-  onStatusChange?: (status: RestockStatus) => void;
+  /** Controlled status filter (`all` for every request) — omit and the panel keeps its own. */
+  status?: RestockStatus | 'all';
+  onStatusChange?: (status: RestockStatus | 'all') => void;
 } = {}) {
   const { tenantId, locationId } = useWorkspaceStore();
   const capabilities = useAuthStore((state) => state.capabilities);
-  const [ownStatus, setOwnStatus] = useState<RestockStatus>('pending');
-  const activeTab = status ?? ownStatus;
-  // Requests are listed across every location — the row carries its own — so the
-  // only narrowing here is by status and item.
-  const [itemFilter, setItemFilter] = useState('all');
-  const [page, setPage] = useState(1);
-  const queryClient = useQueryClient();
+  const canDecide = hasCapability(capabilities, 'restock:write');
   const canDelete = hasCapability(capabilities, 'restock:delete');
+  const [ownStatus, setOwnStatus] = useState<RestockStatus | 'all'>('all');
+  const activeStatus = status ?? ownStatus;
+  const [itemFilter, setItemFilter] = useState('all');
+  const [receiveRequest, setReceiveRequest] = useState<RestockRequest | null>(null);
+  const [now] = useState(() => new Date());
+  const queryClient = useQueryClient();
 
-  const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: moduleQueryKeys.inventory.key('restock-requests', 'list', activeTab, itemFilter, page),
-    queryFn: () =>
+  const list = useInfiniteQuery({
+    queryKey: moduleQueryKeys.inventory.key('restock-requests', 'list', activeStatus, itemFilter),
+    queryFn: ({ pageParam }) =>
       getRestockRequests({
-        status: activeTab,
+        status: activeStatus === 'all' ? undefined : activeStatus,
         stockItemId: itemFilter === 'all' ? undefined : itemFilter,
-        page,
+        page: pageParam,
         limit: PAGE_SIZE,
       }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
     placeholderData: (previous) => previous,
   });
 
@@ -307,237 +125,677 @@ export function RestockApprovals({
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });
-  const { data: stockItems = [] } = useQuery({
-    queryKey: moduleQueryKeys.inventory.key('stock-items'),
-    queryFn: getStockItems,
-  });
+  const { data: stockItems = [] } = useQuery({ queryKey: moduleQueryKeys.inventory.key('stock-items'), queryFn: getStockItems });
 
+  // The shelf behind each request — for the location picked in the top bar,
+  // on the same keys as the Stock tab, so it's usually already cached.
+  const { data: rawStock } = useQuery({
+    queryKey: moduleQueryKeys.inventory.key('location-stock', locationId),
+    queryFn: () => getLocationStock(locationId!),
+    enabled: !!locationId,
+  });
+  const { data: rawOverview } = useQuery({
+    queryKey: moduleQueryKeys.inventory.key('inventory-overview', locationId),
+    queryFn: () => getInventoryOverview(locationId!),
+    enabled: !!locationId,
+  });
+  const { data: rawForecast } = useQuery({
+    queryKey: moduleQueryKeys.inventory.key('inventory-forecast', locationId),
+    queryFn: () => getInventoryForecast(locationId!),
+    enabled: !!locationId,
+    ...serverCache('inventoryForecast'),
+  });
+  const context = useMemo(() => {
+    const map = new Map<string, StockContext>();
+    const overview = new Map(normaliseArray<InventoryOverviewRow>(rawOverview).map((row) => [row.stockItemId, row]));
+    const forecast = new Map(normaliseArray<InventoryForecast>(rawForecast).map((row) => [row.locationStockId, row]));
+    for (const row of normaliseArray<LocationStock>(rawStock)) {
+      map.set(row.stockItemId, {
+        qty: Number(overview.get(row.stockItemId)?.totalOnHand ?? row.quantity) || 0,
+        threshold: Number(row.lowThreshold) || 0,
+        unit: row.stockItem?.unit ?? '',
+        coverDays: forecast.get(row.id)?.daysOfStockRemaining ?? null,
+      });
+    }
+    return map;
+  }, [rawStock, rawOverview, rawForecast]);
+
+  const FILTERS: (RestockStatus | 'all')[] = ['all', ...STATUS_ORDER];
   const countQueries = useQueries({
-    queries: STATUS_ORDER.map((countStatus) => ({
+    queries: FILTERS.map((countStatus) => ({
       queryKey: moduleQueryKeys.inventory.key('restock-requests', 'count', countStatus, itemFilter),
       queryFn: () =>
         getRestockRequests({
-          status: countStatus,
+          status: countStatus === 'all' ? undefined : countStatus,
           stockItemId: itemFilter === 'all' ? undefined : itemFilter,
           limit: 1,
         }),
     })),
   });
-
-  const locationMap = Object.fromEntries(locations.map((l) => [l.id, l.name]));
-  const counts = Object.fromEntries(STATUS_ORDER.map((status, index) => [status, countQueries[index].data?.total ?? 0])) as Record<
-    RestockStatus,
+  const counts = Object.fromEntries(FILTERS.map((s, index) => [s, countQueries[index].data?.total ?? 0])) as Record<
+    RestockStatus | 'all',
     number
   >;
+  const locationName = (id: string) => locations.find((location) => location.id === id)?.name ?? 'Unknown location';
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('restock-requests') });
-  };
-
-  const {
-    mutate: changeStatus,
-    isPending: statusPending,
-    variables: statusVariables,
-  } = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: RestockStatus }) => updateRestockRequest(id, { status }),
-    onSuccess: (_request, variables) => {
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('restock-requests') });
+  const decide = useMutation({
+    mutationFn: ({ id, next }: { id: string; next: RestockStatus }) => updateRestockRequest(id, { status: next }),
+    onSuccess: (_result, { next }) => {
       invalidate();
-      const message =
-        variables.status === 'fulfilled'
-          ? 'Request marked as fulfilled.'
-          : variables.status === 'approved'
-            ? 'Request approved.'
-            : 'Request rejected.';
-      toast('success', message);
+      toast('success', next === 'fulfilled' ? 'Marked as ordered.' : next === 'approved' ? 'Request approved.' : 'Request rejected.');
     },
-    onError: (error: Error) => toast('error', error.message || 'The restock request wasn’t updated. Try again.'),
+    onError: (error: Error) => toast('error', error.message || 'The request wasn’t updated. Try again.'),
   });
-
-  const {
-    mutate: saveEdit,
-    isPending: savePending,
-    variables: saveVariables,
-  } = useMutation({
+  const save = useMutation({
     mutationFn: ({ id, data }: { id: string; data: { requestedQty: number; notes?: string } }) => updateRestockRequest(id, data),
     onSuccess: () => {
       invalidate();
       toast('success', 'Request updated.');
     },
-    onError: (error: Error) => toast('error', error.message || 'The restock request wasn’t saved. Review it and try again.'),
+    onError: (error: Error) => toast('error', error.message || 'The request wasn’t saved. Try again.'),
   });
-
-  const {
-    mutate: removeRequest,
-    isPending: deletePending,
-    variables: deleteVariables,
-  } = useMutation({
+  const remove = useMutation({
     mutationFn: (id: string) => deleteRestockRequest(id),
     onSuccess: () => {
       invalidate();
       toast('success', 'Request deleted.');
     },
-    onError: (error: Error) => toast('error', error.message || 'The restock request wasn’t deleted. Try again.'),
+    onError: (error: Error) => toast('error', error.message || 'The request wasn’t deleted. Try again.'),
   });
 
-  const requests = data?.data ?? [];
-  const totalPages = data?.pages ?? 1;
-  const urgentCount = requests.filter((r) => decodeNotes(r.notes).priority === 'urgent').length;
-  // A purchase order belongs to one location, so a batch is the approved requests
-  // for the location picked in the top bar — or all of them when they happen to
-  // share one location already.
-  const batchGroup = requests.filter((r) => (locationId ? r.locationId === locationId : r.locationId === requests[0]?.locationId));
-  const canBatch = activeTab === 'approved' && !!onCreatePurchaseOrderBatch && batchGroup.length > 1;
-  const showBatchBar = activeTab === 'approved' && !!onCreatePurchaseOrderBatch && requests.length > 1;
+  const requests = useMemo(() => {
+    const seen = new Set<string>();
+    const all = (list.data?.pages ?? [])
+      .flatMap((page) => page.data)
+      .filter((request) => (seen.has(request.id) ? false : (seen.add(request.id), true)));
+    // "All" is history, newest first; a single status keeps its own order.
+    return activeStatus === 'all'
+      ? all.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      : orderRequests(all, (request) => decodeNotes(request.notes).priority);
+  }, [list.data?.pages, activeStatus]);
+  const total = list.data?.pages[0]?.total ?? 0;
+  const urgent = requests.filter((request) => request.status === 'pending' && decodeNotes(request.notes).priority === 'urgent').length;
 
-  function changeTab(next: RestockStatus) {
-    if (onStatusChange) onStatusChange(next);
-    else setOwnStatus(next);
-    setPage(1);
-  }
+  // Pending reads as one queue; everything else as history under each day.
+  const groups = useMemo(() => {
+    if (activeStatus === 'pending') return [{ key: 'queue', label: null as string | null, items: requests }];
+    const map = new Map<string, RestockRequest[]>();
+    for (const request of requests) {
+      const label = dayLabel(request.createdAt, now);
+      map.set(label, [...(map.get(label) ?? []), request]);
+    }
+    return [...map.entries()].map(([label, items]) => ({ key: label, label, items }));
+  }, [requests, activeStatus, now]);
 
-  function changeItem(value: string) {
-    setItemFilter(value);
-    setPage(1);
-  }
+  // A purchase order is for one location: the approved requests for the
+  // location in the top bar, or all of them if they already share one.
+  const batch = requests.filter((request) =>
+    locationId ? request.locationId === locationId : request.locationId === requests[0]?.locationId,
+  );
+  const showBatch = activeStatus === 'approved' && !!onCreatePurchaseOrderBatch && requests.length > 1;
+  const canBatch = showBatch && batch.length > 1;
+
+  const changeStatus = (next: RestockStatus | 'all') => (onStatusChange ? onStatusChange(next) : setOwnStatus(next));
+
+  const TILES: { value: RestockStatus | 'all'; label: string; icon: typeof ClipboardList }[] = [
+    { value: 'all', label: 'All requests', icon: Package },
+    ...STATUS_ORDER.map((value) => ({
+      value,
+      label: value === 'fulfilled' && !onCreatePurchaseOrder ? 'Completed' : STATUS_META[value].short,
+      icon: STATUS_META[value].icon,
+    })),
+  ];
 
   return (
-    <div className="space-y-6 pb-8">
-      {/* ── Filters ────────────────────────────────────────── */}
-      <div className="grid gap-2 rounded-sm border border-rule bg-card shadow-sm p-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,16rem)_minmax(12rem,20rem)_1fr]">
+    <motion.div className="space-y-4" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+      {/* How many requests sit at each stage — a summary; the status selector below does the switching. */}
+      <motion.dl variants={SECTION_RISE} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {TILES.map((tile) => (
+          <Fact
+            key={tile.value}
+            surface="page"
+            icon={tile.value === 'pending' && urgent > 0 ? Flame : tile.icon}
+            label={tile.label}
+            value={counts[tile.value]}
+            tone={tile.value === 'pending' && urgent > 0 ? 'danger' : 'default'}
+          />
+        ))}
+      </motion.dl>
+
+      <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-2">
         <Select
-          value={activeTab}
-          onValueChange={(value) => changeTab(value as RestockStatus)}
-          ariaLabel="Filter requests by status"
-          icon={<ClipboardList />}
-          options={STATUS_ORDER.map((status) => ({
-            value: status,
-            label: counts[status] > 0 ? `${STATUS_META[status].label} (${counts[status]})` : STATUS_META[status].label,
-          }))}
-          className="w-full"
+          value={activeStatus}
+          onValueChange={(value) => changeStatus(value as RestockStatus | 'all')}
+          ariaLabel="Status"
+          options={TILES.map((tile) => ({ value: tile.value, label: `${tile.label} · ${counts[tile.value]}` }))}
+          className="w-52"
         />
         <Select
           value={itemFilter}
-          onValueChange={changeItem}
-          ariaLabel="Filter requests by stock item"
+          onValueChange={setItemFilter}
+          ariaLabel="Item"
           icon={<Package />}
           options={[
             { value: 'all', label: 'All items' },
             ...stockItems
               .filter((item) => item.isActive)
-              .slice()
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((item) => ({ value: item.id, label: item.name })),
           ]}
-          className="w-full"
+          className="w-56"
         />
-        <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
-          {activeTab === 'pending' && urgentCount > 0 && <Badge variant="destructive">{urgentCount} urgent</Badge>}
-          {isFetching && !isLoading ? 'Updating…' : `${data?.total ?? 0} request${data?.total === 1 ? '' : 's'}`}
-        </div>
-      </div>
+        {urgent > 0 && (
+          <span className="inline-flex h-7 items-center gap-1 rounded-sm bg-exception/8 px-2 text-xs font-semibold text-exception">
+            <Flame size={12} aria-hidden="true" /> {urgent} urgent
+          </span>
+        )}
+        <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
+          {list.isFetching && !list.isPending && <Loader2 size={12} className="animate-spin" aria-label="Updating" />}
+          {total} {total === 1 ? 'request' : 'requests'}
+        </span>
+      </motion.div>
 
-      {/* ── Request list ───────────────────────────────────── */}
-      <div className="bg-card border border-rule rounded-sm overflow-hidden">
-        {isLoading ? (
-          <div className="divide-y divide-border/50">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4 px-4 py-4">
-                <div className="w-9 h-9 rounded-sm bg-band animate-pulse shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3.5 w-40 bg-band rounded animate-pulse" />
-                  <div className="h-3 w-64 bg-band rounded animate-pulse" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : isError ? (
-          <div className="flex flex-col items-center py-16 text-center">
-            <AlertCircle size={32} className="mb-3 text-destructive/60" />
-            <p className="text-sm font-medium text-foreground">Couldn’t load restock requests</p>
-            <p className="mt-1 text-xs text-muted-foreground">Check your connection and try again.</p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={() => void refetch()}>
-              Try again
-            </Button>
-          </div>
-        ) : requests.length === 0 ? (
-          <div className="py-16 text-center">
-            <ClipboardList size={32} className="mx-auto text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground">No {STATUS_META[activeTab].label.toLowerCase()} requests.</p>
-            {itemFilter !== 'all' && <p className="mt-1 text-xs text-muted-foreground/70">Try changing the item filter.</p>}
-            {activeTab === 'pending' && itemFilter === 'all' && (
-              <p className="text-xs text-muted-foreground/70 mt-1">New requests submitted from the form will appear here.</p>
+      {showBatch && (
+        <motion.div
+          variants={SECTION_RISE}
+          className="flex flex-wrap items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3"
+        >
+          <ShoppingCart size={16} className="shrink-0 text-primary" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-sm text-foreground">
+            {canBatch ? (
+              <>
+                Order the <span className="font-semibold">{batch.length} approved requests</span> for {locationName(batch[0].locationId)}{' '}
+                together.
+              </>
+            ) : (
+              <span className="text-muted-foreground">These span several locations — pick one in the top bar to combine them.</span>
             )}
+          </p>
+          {canBatch && (
+            <Button size="sm" onClick={() => onCreatePurchaseOrderBatch?.(batch)}>
+              Create purchase order
+            </Button>
+          )}
+        </motion.div>
+      )}
+
+      <motion.section variants={SECTION_RISE} aria-label="Requests">
+        {list.isError ? (
+          <ErrorState
+            title="Restock requests couldn’t be loaded"
+            description="Nothing was read, so this isn’t an empty list."
+            onRetry={() => void list.refetch()}
+          />
+        ) : list.isPending ? (
+          <div className="h-64 animate-pulse rounded-lg bg-band/60" aria-label="Loading requests" />
+        ) : requests.length === 0 ? (
+          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <EmptyState
+              icon={activeStatus === 'pending' ? CheckCircle2 : ClipboardList}
+              title={
+                activeStatus === 'all'
+                  ? 'No restock requests yet'
+                  : activeStatus === 'pending'
+                    ? 'Nothing to review'
+                    : `No ${STATUS_META[activeStatus].label.toLowerCase()} requests`
+              }
+              description={
+                itemFilter !== 'all'
+                  ? 'Try another item, or all items.'
+                  : 'Requests from the team — or from Request more on the Stock tab — land here.'
+              }
+            />
           </div>
         ) : (
-          <div>
-            {/* One PO for everything approved here — saves raising them one by one */}
-            {showBatchBar && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rule bg-band px-4 py-3">
-                <p className="text-xs text-muted-foreground">
-                  {canBatch
-                    ? `Order the ${batchGroup.length} approved requests for ${locationMap[batchGroup[0].locationId] ?? 'this location'} from one supplier in a single purchase order.`
-                    : 'These requests span several locations. Use the location picker to combine one location’s requests into a purchase order.'}
-                </p>
-                {canBatch && (
-                  <Button size="sm" onClick={() => onCreatePurchaseOrderBatch?.(batchGroup)} className="shrink-0 gap-1.5">
-                    <ShoppingCart size={13} />
-                    Create purchase order
-                  </Button>
-                )}
+          <div className="space-y-5">
+            {groups.map((group) => (
+              <div key={group.key}>
+                {group.label && <h2 className="mb-2 px-1 text-sm font-semibold text-foreground">{group.label}</h2>}
+                <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                  {group.items.map((request) => (
+                    <RequestRow
+                      key={request.id}
+                      request={request}
+                      locationName={locationName(request.locationId)}
+                      stock={request.locationId === locationId ? context.get(request.stockItemId) : undefined}
+                      canDecide={canDecide}
+                      canDelete={canDelete}
+                      busy={
+                        (decide.isPending && decide.variables?.id === request.id) || (remove.isPending && remove.variables === request.id)
+                      }
+                      saving={save.isPending && save.variables?.id === request.id}
+                      orderLabel={onCreatePurchaseOrder ? 'Create purchase order' : 'Receive stock'}
+                      onDecide={(next) => decide.mutate({ id: request.id, next })}
+                      onOrder={() => (onCreatePurchaseOrder ? onCreatePurchaseOrder(request) : setReceiveRequest(request))}
+                      onReceive={() => setReceiveRequest(request)}
+                      directReceive={!onCreatePurchaseOrder}
+                      onSave={(data) => save.mutate({ id: request.id, data })}
+                      onDelete={() => remove.mutate(request.id)}
+                    />
+                  ))}
+                </ul>
               </div>
-            )}
-
-            {/* Table header */}
-            <div className="flex items-center gap-4 px-4 py-2.5 bg-muted/50 border-b border-rule">
-              <div className="w-9 shrink-0" />
-              <p className="flex-1 text-micro font-semibold text-muted-foreground uppercase tracking-micro">Item / Details</p>
-              {activeTab === 'pending' && (
-                <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro shrink-0 pr-1">Actions</p>
-              )}
-            </div>
-
-            {requests.map((r) => (
-              <RequestRow
-                key={r.id}
-                request={r}
-                locationName={locationMap[r.locationId] ?? `${r.locationId.slice(0, 8)}…`}
-                onApprove={(id) => changeStatus({ id, status: 'approved' })}
-                onReject={(id) => changeStatus({ id, status: 'rejected' })}
-                onFulfill={(id) => {
-                  if (onCreatePurchaseOrder) {
-                    onCreatePurchaseOrder(r);
-                    return;
-                  }
-                  changeStatus({ id, status: 'fulfilled' });
-                }}
-                onSave={(id, dataToSave) => saveEdit({ id, data: dataToSave })}
-                onDelete={(id) => removeRequest(id)}
-                statusPending={statusPending && statusVariables?.id === r.id}
-                savePending={savePending && saveVariables?.id === r.id}
-                deletePending={deletePending && deleteVariables === r.id}
-                canDelete={canDelete}
-                fulfillLabel={onCreatePurchaseOrder ? 'Create purchase order' : 'Mark fulfilled'}
-              />
             ))}
+            <LoadMore hasMore={!!list.hasNextPage} loading={list.isFetchingNextPage} onLoadMore={() => void list.fetchNextPage()} />
           </div>
         )}
+      </motion.section>
 
-        {!isLoading && !isError && totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-rule bg-muted/30 px-4 py-3">
-            <p className="text-xs text-muted-foreground">
-              Page {page} of {totalPages}
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1 || isFetching} onClick={() => setPage((value) => value - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages || isFetching} onClick={() => setPage((value) => value + 1)}>
-                Next
-              </Button>
-            </div>
+      {receiveRequest && (
+        <ReceiveRestockDrawer
+          request={receiveRequest}
+          onClose={() => setReceiveRequest(null)}
+          onDone={() => {
+            setReceiveRequest(null);
+            invalidate();
+            void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.all });
+          }}
+        />
+      )}
+    </motion.div>
+  );
+}
+
+function ReceiveRestockDrawer({ request, onClose, onDone }: { request: RestockRequest; onClose: () => void; onDone: () => void }) {
+  const item = request.stockItem;
+  const [quantity, setQuantity] = useState(String(request.requestedQty));
+  const [expiryDate, setExpiryDate] = useState(() => {
+    if (!item?.isPerishable || !item.defaultShelfLifeDays) return '';
+    const date = new Date();
+    date.setDate(date.getDate() + item.defaultShelfLifeDays);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  });
+  const [lotNumber, setLotNumber] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const amount = Number(quantity.replace(',', '.'));
+  const quantityError = Number.isFinite(amount) && amount > 0 ? null : 'Enter the quantity that physically arrived.';
+  const expiryError = item?.isPerishable && !expiryDate ? 'Perishable stock needs a use-by date.' : null;
+  const valid = !quantityError && !expiryError;
+
+  const receive = useMutation({
+    mutationFn: () =>
+      receiveRestockRequest(request.id, {
+        quantity: amount,
+        expiryDate: expiryDate || null,
+        lotNumber: lotNumber.trim() || undefined,
+        notes: notes.trim() || undefined,
+      }),
+    onSuccess: () => {
+      toast('success', `${fmtQty(amount)} ${item?.unit ?? 'units'} received — stock is now up to date.`);
+      onDone();
+    },
+    onError: (error: Error) => toast('error', error.message || 'The delivery wasn’t received. Check the details and try again.'),
+  });
+
+  return (
+    <Drawer
+      title="Receive stock"
+      description={`${item?.name ?? 'Stock item'} · confirm what physically arrived before changing the on-hand balance.`}
+      onClose={onClose}
+      footer={
+        <div className="flex gap-2">
+          <Button variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={receive.isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" form="receive-restock" size="lg" className="flex-1" disabled={receive.isPending}>
+            {receive.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <PackageOpen aria-hidden="true" />}
+            Receive stock
+          </Button>
+        </div>
+      }
+    >
+      <form
+        id="receive-restock"
+        noValidate
+        className="space-y-7"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setSubmitted(true);
+          if (valid) receive.mutate();
+        }}
+      >
+        <FormSection
+          icon={PackageOpen}
+          title="Delivery"
+          note={`Requested ${request.requestedQty} ${item?.unit ?? 'units'}. Change this if less or more arrived.`}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input
+              label="Quantity received"
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+              inputMode="decimal"
+              autoFocus
+              rightIcon={<span className="text-xs">{item?.unit ?? 'units'}</span>}
+              error={submitted ? (quantityError ?? undefined) : undefined}
+            />
+            <DatePicker
+              label={item?.isPerishable ? 'Use by' : 'Use by (optional)'}
+              value={expiryDate}
+              onValueChange={setExpiryDate}
+              required={item?.isPerishable}
+              error={submitted ? (expiryError ?? undefined) : undefined}
+              hint={
+                item?.isPerishable && item.defaultShelfLifeDays
+                  ? `Pre-filled from the ${item.defaultShelfLifeDays}-day shelf life.`
+                  : undefined
+              }
+            />
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input
+              label="Lot number"
+              value={lotNumber}
+              onChange={(event) => setLotNumber(event.target.value)}
+              maxLength={100}
+              placeholder="Optional"
+            />
+            <Input
+              label="Delivery note"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              maxLength={1000}
+              placeholder="Optional"
+            />
+          </div>
+        </FormSection>
+      </form>
+    </Drawer>
+  );
+}
+
+// ── Row ──────────────────────────────────────────────────────────────────────
+
+const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+function RequestJourney({ stages }: { stages: RestockJourneyStage[] }) {
+  const current = stages.find((stage) => stage.state === 'current') ?? stages.at(-1)!;
+  return (
+    <>
+      <ol className="hidden min-w-0 flex-1 items-center lg:flex" aria-label={`Progress: ${stages.map((stage) => stage.label).join(', ')}`}>
+        {stages.map((stage, index) => (
+          <li key={stage.label} className={cn('flex min-w-0 items-center', index < stages.length - 1 && 'flex-1')}>
+            <span
+              className={cn(
+                'flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] transition-colors',
+                stage.state === 'done' && 'border-momentum/25 bg-momentum/10 text-momentum',
+                stage.state === 'current' && 'border-primary bg-primary text-primary-foreground',
+                stage.state === 'next' && 'border-rule/70 bg-field text-muted-foreground',
+              )}
+            >
+              {stage.state === 'done' ? (
+                <Check size={11} strokeWidth={2.5} aria-hidden="true" />
+              ) : (
+                <span className="size-1 rounded-full bg-current" />
+              )}
+            </span>
+            <span
+              className={cn(
+                'ml-1.5 shrink-0 text-micro font-semibold',
+                stage.state === 'current' ? 'text-foreground' : stage.state === 'done' ? 'text-momentum' : 'text-muted-foreground',
+              )}
+            >
+              {stage.label}
+            </span>
+            {index < stages.length - 1 && (
+              <span
+                className={cn('mx-2 h-px min-w-3 flex-1', stages[index + 1]?.state === 'done' ? 'bg-momentum/35' : 'bg-rule/55')}
+                aria-hidden="true"
+              />
+            )}
+          </li>
+        ))}
+      </ol>
+      <span className="truncate text-xs font-semibold text-foreground lg:hidden">{current.label}</span>
+    </>
+  );
+}
+
+/**
+ * One request, drawn as an audit-log row: a status-tinted tile, what was asked
+ * for, where and the stock behind it, a pill only when it says something, the
+ * time, and the decision. Clicking the row unfolds its note, edit and delete,
+ * the way an audit group unfolds to its entries.
+ */
+function RequestRow({
+  request,
+  locationName,
+  stock,
+  canDecide,
+  canDelete,
+  busy,
+  saving,
+  orderLabel,
+  onDecide,
+  onOrder,
+  onReceive,
+  directReceive,
+  onSave,
+  onDelete,
+}: {
+  request: RestockRequest;
+  locationName: string;
+  stock?: StockContext;
+  canDecide: boolean;
+  canDelete: boolean;
+  busy: boolean;
+  saving: boolean;
+  orderLabel: string;
+  onDecide: (next: RestockStatus) => void;
+  onOrder: () => void;
+  onReceive: () => void;
+  directReceive: boolean;
+  onSave: (data: { requestedQty: number; notes?: string }) => void;
+  onDelete: () => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const { priority, notes } = decodeNotes(request.notes);
+  const pending = request.status === 'pending';
+  const urgent = priority === 'urgent' && pending;
+  const meta = STATUS_META[request.status];
+  const Icon = urgent ? Flame : meta.icon;
+  const unit = request.stockItem?.unit ?? 'units';
+  const ctx = pending ? requestContext(request.requestedQty, stock) : null;
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'view' | 'edit' | 'delete'>('view');
+  const [qty, setQty] = useState(request.requestedQty);
+  const [editPriority, setEditPriority] = useState<RestockPriority>(priority);
+  const [editNotes, setEditNotes] = useState(notes);
+  const createdAt = new Date(request.createdAt);
+  const received = !!request.receivedAt;
+  const journey = restockJourney(request, directReceive);
+  // Read once, on mount — the clock can't be read during render.
+  const [mountedAt] = useState(() => Date.now());
+  const expandable = !!notes || (pending && canDecide);
+
+  return (
+    <li className={cn('border-b border-rule/45 last:border-b-0', busy && 'pointer-events-none opacity-50')}>
+      <div
+        role={expandable ? 'button' : undefined}
+        tabIndex={expandable ? 0 : undefined}
+        aria-expanded={expandable ? open : undefined}
+        onClick={() => expandable && setOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if (expandable && (event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget) {
+            event.preventDefault();
+            setOpen((current) => !current);
+          }
+        }}
+        className={cn(
+          'flex min-h-15 items-center gap-3 px-3.5 py-2.5 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+          expandable && 'cursor-pointer',
+          open ? 'bg-band/50' : expandable && 'hover:bg-band/40',
+        )}
+      >
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-md',
+            urgent ? 'bg-exception/8 text-exception' : meta.tint,
+          )}
+        >
+          <Icon size={16} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1 lg:w-48 lg:flex-none">
+          <span className="block truncate text-sm text-foreground">
+            <span className="font-semibold">{request.stockItem?.name ?? 'Unknown item'}</span> · {request.requestedQty} {unit}
+          </span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+            {locationName}
+            {ctx && (
+              <>
+                {' · '}
+                <span className={cn(ctx.tone === 'low' ? 'text-measured' : ctx.tone === 'over' ? 'text-exception' : '')}>{ctx.text}</span>
+              </>
+            )}
+            {!ctx && urgent && <span className="text-exception"> · Urgent</span>}
+          </span>
+        </span>
+        <RequestJourney stages={journey} />
+        <span className="hidden w-14 shrink-0 text-right text-xs text-muted-foreground sm:block" title={createdAt.toLocaleString('en-GB')}>
+          {mountedAt - createdAt.getTime() < 86_400_000 ? TIME.format(createdAt) : timeAgo(request.createdAt)}
+        </span>
+        {pending && canDecide && (
+          <span className="flex shrink-0 items-center gap-1" onClick={(event) => event.stopPropagation()}>
+            <Button variant="ghost" size="sm" onClick={() => onDecide('rejected')}>
+              Reject
+            </Button>
+            <Button size="sm" onClick={() => onDecide('approved')}>
+              Approve
+            </Button>
+          </span>
+        )}
+        {request.status === 'approved' && canDecide && (
+          <span className="shrink-0" onClick={(event) => event.stopPropagation()}>
+            <Button variant="outline" size="sm" onClick={onOrder}>
+              <Truck data-icon="inline-start" />
+              {orderLabel}
+            </Button>
+          </span>
+        )}
+        {request.status === 'fulfilled' && !directReceive && !request.purchaseOrderId && canDecide && (
+          <span className="shrink-0" onClick={(event) => event.stopPropagation()}>
+            <Button variant="outline" size="sm" onClick={onOrder}>
+              <ShoppingCart data-icon="inline-start" />
+              Add to purchase orders
+            </Button>
+          </span>
+        )}
+        {request.status === 'fulfilled' && directReceive && !received && canDecide && (
+          <span className="shrink-0" onClick={(event) => event.stopPropagation()}>
+            <Button variant="outline" size="sm" onClick={onReceive}>
+              <PackageOpen data-icon="inline-start" />
+              Receive stock
+            </Button>
+          </span>
+        )}
+        {expandable && (
+          <ChevronDown
+            size={14}
+            aria-hidden="true"
+            className={cn('shrink-0 text-muted-foreground transition-transform duration-200', open && 'rotate-180')}
+          />
         )}
       </div>
-    </div>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden bg-band/25"
+          >
+            <div className="space-y-3 px-3.5 py-3 pl-15">
+              {mode === 'view' && (
+                <>
+                  {notes ? (
+                    <p className="text-sm italic text-muted-foreground">“{notes}”</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No note.</p>
+                  )}
+                  {pending && canDecide && (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setMode('edit')}>
+                        <Pencil data-icon="inline-start" />
+                        Edit
+                      </Button>
+                      {canDelete && (
+                        <Button variant="ghost" size="sm" className="text-exception hover:text-exception" onClick={() => setMode('delete')}>
+                          <Trash2 data-icon="inline-start" />
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {mode === 'edit' && (
+                <form
+                  className="space-y-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (qty < 1) return;
+                    onSave({ requestedQty: qty, notes: encodeNotes(editPriority, editNotes) });
+                    setMode('view');
+                  }}
+                >
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <p className="mb-1.5 text-label uppercase text-muted-foreground">Quantity ({unit})</p>
+                      <NumberStepper label="Quantity" value={qty} onChange={setQty} min={1} />
+                    </div>
+                    <div>
+                      <p className="mb-1.5 text-label uppercase text-muted-foreground">Priority</p>
+                      <ChoiceCards
+                        value={editPriority}
+                        onChange={setEditPriority}
+                        options={[
+                          { value: 'standard', label: 'Standard' },
+                          { value: 'urgent', label: 'Urgent' },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                  <textarea
+                    value={editNotes}
+                    onChange={(event) => setEditNotes(event.target.value)}
+                    placeholder="A note for whoever orders it (optional)"
+                    maxLength={900}
+                    rows={2}
+                    className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
+                  />
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm" disabled={saving || qty < 1}>
+                      {saving && <Loader2 className="animate-spin" aria-hidden="true" />}
+                      Save changes
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setMode('view')}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              )}
+
+              {mode === 'delete' && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <AlertTriangle size={14} className="shrink-0 text-exception" aria-hidden="true" />
+                  <p className="min-w-0 flex-1 text-sm text-exception">Delete this request? It can’t be undone.</p>
+                  <Button variant="destructive" size="sm" onClick={onDelete}>
+                    Delete
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setMode('view')}>
+                    Keep it
+                  </Button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </li>
   );
 }

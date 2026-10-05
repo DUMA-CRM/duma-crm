@@ -1,9 +1,24 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { BarChart3, CalendarClock, CalendarRange, ChevronLeft, ChevronRight, MapPin, Search, Send, X } from '@/components/icons';
+import {
+  Banknote,
+  CalendarClock,
+  CalendarRange,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  MapPin,
+  Search,
+  Send,
+  Timer,
+  TrendingUp,
+  UserPlus,
+  X,
+} from '@/components/icons';
 import { Avatar, fmtMoney } from '@/components/people/shared';
 import { CoveragePanel } from '@/components/scheduling/CoveragePanel';
 import { type ShiftDrawerTarget, ShiftRecordDrawer, hourlyRateOf, unpaidBreakFor } from '@/components/scheduling/ShiftRecordDrawer';
@@ -12,6 +27,7 @@ import {
   WORK_STATE,
   type WorkState,
   dayKey,
+  fmtDayHeading,
   fmtDuration,
   fmtHours,
   fmtTime,
@@ -23,11 +39,11 @@ import {
   toDateInput,
   workStateOf,
 } from '@/components/scheduling/shared';
+import { Fact } from '@/components/settings/controls';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -36,27 +52,15 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { getStaff } from '@/lib/modules/identity/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { getEmployees } from '@/lib/modules/people/client';
-import { getPayrollRuns } from '@/lib/modules/people/client';
+import { getPayrollRuns } from '@/lib/modules/payroll/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { getScheduledShifts, getVariance, publishScheduledShifts } from '@/lib/modules/workforce/client';
 import { type Shift, getActiveShifts, getShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
-import { formatDate } from '@/lib/utils/date';
+import { groupShiftsByDay } from '@/lib/utils/shift-days';
 import { reconcileClockEntries } from '@/lib/utils/shift-reconciliation';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-
-const PAGE_SIZE = 12;
-
-type SortKey = 'date_desc' | 'date_asc' | 'staff' | 'hours_desc' | 'cost_desc';
-
-const SORTS: { value: SortKey; label: string }[] = [
-  { value: 'date_desc', label: 'Newest first' },
-  { value: 'date_asc', label: 'Oldest first' },
-  { value: 'staff', label: 'Staff A–Z' },
-  { value: 'hours_desc', label: 'Longest hours' },
-  { value: 'cost_desc', label: 'Highest cost' },
-];
 
 const PRESETS = ['this_week', 'last_week', 'next_week', 'this_month', 'last_30'] as const;
 type RangePreset = (typeof PRESETS)[number];
@@ -131,12 +135,9 @@ export function ShiftsWorkspace({
   // Only the row's identity is held — the record itself is re-read from the
   // live rows below, so clocking in or out updates the open drawer in place.
   const [openRow, setOpenRow] = useState<{ mode: 'create' | 'edit'; id: string; date: string } | null>(null);
-  const [showCoverage, setShowCoverage] = useState(false);
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<SortKey>('date_desc');
   const [stateFilter, setStateFilter] = useState<'all' | WorkState>('all');
   const [staffFilter, setStaffFilter] = useState('all');
-  const [page, setPage] = useState(1);
 
   function closeDrawer() {
     setOpenRow(null);
@@ -188,6 +189,8 @@ export function ShiftsWorkspace({
     setTo(range.to);
   }
 
+  const [showCover, setShowCover] = useState(false);
+
   // ── Data ────────────────────────────────────────────────────────────────────
 
   const { data: staff = [] } = useQuery({
@@ -235,7 +238,7 @@ export function ShiftsWorkspace({
   });
   // Which days are already through payroll.
   const { data: payrollRuns = [] } = useQuery({
-    queryKey: moduleQueryKeys.people.key('payroll-runs'),
+    queryKey: moduleQueryKeys.payroll.key('payroll-runs'),
     queryFn: getPayrollRuns,
     enabled: money,
     meta: { silentError: true },
@@ -402,28 +405,29 @@ export function ShiftsWorkspace({
         return false;
       return true;
     });
-    const byName = (a: ShiftRecord, b: ShiftRecord) => a.staffName.localeCompare(b.staffName);
-    return rows.sort((a, b) => {
-      switch (sort) {
-        case 'date_asc':
-          return a.at.localeCompare(b.at) || byName(a, b);
-        case 'staff':
-          return byName(a, b) || a.at.localeCompare(b.at);
-        case 'hours_desc':
-          return b.workedMinutes - a.workedMinutes || byName(a, b);
-        case 'cost_desc':
-          return (b.estimatedCost ?? 0) - (a.estimatedCost ?? 0) || byName(a, b);
-        default:
-          return b.at.localeCompare(a.at) || byName(a, b);
-      }
-    });
-  }, [records, search, sort, stateFilter, staffFilter]);
+    return rows;
+  }, [records, search, stateFilter, staffFilter]);
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  // Narrowing the results can strand you past the last page — clamp rather than
-  // reset, so paging forward through an unchanged list stays put.
-  const currentPage = Math.min(page, pageCount);
-  const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  // Looking back over a finished period reads newest day first; anything that
+  // includes today or the future reads forwards, the way a rota is worked.
+  const days = useMemo(() => groupShiftsByDay(filtered, to < toDateInput(new Date(now)) ? 'desc' : 'asc'), [filtered, to, now]);
+  const todayKey = toDateInput(new Date(now));
+  // The days the cover check offers: the whole period when it's a week or two,
+  // otherwise the week that holds today (or the period's first week).
+  const checkDays = useMemo(() => {
+    const all: string[] = [];
+    const cursor = new Date(`${from}T00:00:00`);
+    const end = new Date(`${to}T00:00:00`);
+    while (cursor <= end && all.length < 62) {
+      all.push(toDateInput(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    if (all.length <= 7) return all;
+    const todayAt = all.indexOf(todayKey);
+    // Back to that week's Monday: getDay() is 0 on Sunday, so shift it to 6.
+    const start = todayAt >= 0 ? Math.max(0, todayAt - ((new Date(`${todayKey}T00:00:00`).getDay() + 6) % 7)) : 0;
+    return all.slice(start, start + 7);
+  }, [from, to, todayKey]);
 
   // ── Actions ─────────────────────────────────────────────────────────────────
 
@@ -438,185 +442,34 @@ export function ShiftsWorkspace({
   const workedTotal = filtered.reduce((sum, r) => sum + r.workedMinutes, 0);
   const costTotal = filtered.reduce((sum, r) => sum + (r.estimatedCost ?? 0), 0);
 
-  // ── Columns ─────────────────────────────────────────────────────────────────
-
-  const columns: DataTableColumn<ShiftRecord>[] = [
-    {
-      id: 'staff',
-      header: 'Staff member',
-      minWidth: 200,
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-          <Avatar name={row.staffName} email={row.staffEmail} />
-          <div className="min-w-0">
-            <p
-              className={cn(
-                'truncate text-sm font-semibold',
-                row.userId ? 'text-primary underline-offset-4' : 'italic text-muted-foreground',
-              )}
-            >
-              {row.staffName}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {row.role ?? row.staffEmail ?? '—'}
-              {!row.shift && ' · unplanned'}
-            </p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'date',
-      header: 'Date',
-      width: 'fit',
-      wrap: 'nowrap',
-      cell: ({ row }) => (
-        <div>
-          <p className="text-sm text-foreground">{formatDate(row.at)}</p>
-          <p className="text-xs text-muted-foreground">{new Date(row.at).toLocaleDateString('en-GB', { weekday: 'long' })}</p>
-        </div>
-      ),
-    },
-    {
-      id: 'location',
-      header: 'Location',
-      visibility: 'xl',
-      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.locationName ?? '—'}</span>,
-    },
-    {
-      id: 'planned',
-      header: 'Shift (time)',
-      visibility: 'md',
-      wrap: 'nowrap',
-      cell: ({ row }) =>
-        row.shift ? (
-          <span className="flex items-center gap-2">
-            <span className="text-sm tabular-nums text-foreground">
-              {fmtTime(row.shift.startsAt)} – {fmtTime(row.shift.endsAt)}
-            </span>
-            <Badge variant="primary" className="tabular-nums">
-              {fmtHours(row.plannedMinutes)}
-            </Badge>
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground/60">Not on the rota</span>
-        ),
-    },
-    {
-      id: 'clocked',
-      header: 'Worked',
-      visibility: 'md',
-      wrap: 'nowrap',
-      cell: ({ row }) => {
-        if (row.clocked.length === 0) return <span className="text-xs text-muted-foreground/60">—</span>;
-        const first = row.clocked[0];
-        const last = row.clocked.at(-1)!;
-        return (
-          <span className="text-sm tabular-nums text-foreground">
-            {fmtTime(first.clockedIn)} –{' '}
-            {last.clockedOut ? fmtTime(last.clockedOut) : <span className="font-semibold text-success">now</span>}
-          </span>
-        );
-      },
-    },
-    {
-      id: 'hours',
-      header: 'Worked total',
-      width: 'fit',
-      wrap: 'nowrap',
-      cell: ({ row }) =>
-        row.workedMinutes > 0 ? (
-          <div>
-            <p className="text-sm tabular-nums text-foreground">{fmtDuration(row.workedMinutes)}</p>
-            {row.startDeltaMinutes != null && row.startDeltaMinutes !== 0 && (
-              <p className={cn('text-xs tabular-nums', row.startDeltaMinutes > 0 ? 'text-destructive' : 'text-success')}>
-                {row.startDeltaMinutes > 0 ? `${row.startDeltaMinutes} min late` : `${-row.startDeltaMinutes} min early`}
-              </p>
-            )}
-          </div>
-        ) : (
-          <span className="text-xs text-muted-foreground/60">—</span>
-        ),
-    },
-    {
-      id: 'state',
-      header: 'Attendance',
-      width: 'fit',
-      cell: ({ row }) => (
-        <span className="flex items-center gap-1.5">
-          <Badge variant={WORK_STATE[row.state].variant}>{WORK_STATE[row.state].label}</Badge>
-          {row.status === 'draft' && <Badge variant="muted">Draft</Badge>}
-        </span>
-      ),
-    },
-    ...(money
-      ? ([
-          {
-            id: 'bill',
-            header: 'Estimated bill',
-            visibility: 'xl' as const,
-            wrap: 'nowrap' as const,
-            cell: ({ row }: { row: ShiftRecord }) =>
-              row.estimatedCost == null ? (
-                <span className="text-xs text-muted-foreground/60">—</span>
-              ) : (
-                <span className="text-sm tabular-nums text-foreground">
-                  {(row.paidMinutes / 60).toFixed(1)} hrs × {fmtMoney(row.hourlyRate)}/h ={' '}
-                  <span className="font-semibold">{fmtMoney(row.estimatedCost)}</span>
-                </span>
-              ),
-          },
-          {
-            id: 'billState',
-            header: 'Bill status',
-            width: 'fit' as const,
-            cell: ({ row }: { row: ShiftRecord }) =>
-              row.billState === 'none' ? (
-                <span className="text-xs text-muted-foreground/60">—</span>
-              ) : (
-                <Badge variant={row.billState === 'paid' ? 'success' : 'warning'}>{row.billState === 'paid' ? 'Paid' : 'Pending'}</Badge>
-              ),
-          },
-        ] satisfies DataTableColumn<ShiftRecord>[])
-      : []),
-    {
-      id: 'open',
-      header: '',
-      width: 'fit',
-      align: 'right',
-      cell: () => <ChevronRight size={15} className="text-muted-foreground/50 transition-colors group-hover:text-foreground" />,
-    },
-  ];
-
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4">
-      {/* Range + page-level actions */}
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="space-y-5">
+      {/* Period + page-level actions */}
+      <div className="flex flex-wrap items-center gap-2">
         {/* Stepper and range read as one control: arrows page by the span. */}
-        <div className="flex h-9 items-stretch overflow-hidden rounded-sm border border-rule bg-background">
+        <div className="flex h-9 items-stretch overflow-hidden rounded-md border border-rule/60 bg-field">
           <button
             type="button"
             onClick={() => stepRange(-1)}
             aria-label="Previous period"
-            className="grid w-9 place-items-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="grid w-9 place-items-center text-muted-foreground transition-colors hover:bg-band hover:text-foreground"
           >
             <ChevronLeft size={15} />
           </button>
-          <span className="grid min-w-44 place-items-center border-x border-rule px-3 text-sm font-semibold tabular-nums text-foreground">
+          <span className="grid min-w-44 place-items-center border-x border-rule/60 px-3 text-sm font-semibold text-foreground">
             {rangeLabel(from, to)}
           </span>
           <button
             type="button"
             onClick={() => stepRange(1)}
             aria-label="Next period"
-            className="grid w-9 place-items-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="grid w-9 place-items-center text-muted-foreground transition-colors hover:bg-band hover:text-foreground"
           >
             <ChevronRight size={15} />
           </button>
         </div>
-
         <Select
           value={activePreset}
           onValueChange={applyPreset}
@@ -625,14 +478,11 @@ export function ShiftsWorkspace({
           icon={<CalendarRange size={14} />}
           className="w-44"
         />
-
-        {/* Only worth showing once you've stepped away from the default view. */}
         {!isThisWeek && (
           <Button variant="ghost" size="sm" onClick={() => applyPreset('this_week')}>
             This week
           </Button>
         )}
-
         {customRange && (
           <div className="flex items-center gap-2">
             <DatePicker value={from} max={to} onValueChange={setFrom} aria-label="Range start" className="w-40" />
@@ -643,182 +493,207 @@ export function ShiftsWorkspace({
 
         <div className="ml-auto flex items-center gap-2">
           {active.length > 0 && (
-            <span className="hidden h-9 items-center gap-1.5 rounded-sm border border-success/30 bg-success/6 px-2.5 text-xs font-semibold text-success sm:inline-flex">
+            <span className="hidden h-9 items-center gap-2 rounded-md bg-primary/8 px-3 text-xs font-semibold text-primary sm:inline-flex">
               <span className="relative flex size-2" aria-hidden="true">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-50" />
-                <span className="relative inline-flex size-2 rounded-full bg-success" />
-              </span>{' '}
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-40" />
+                <span className="relative inline-flex size-2 rounded-full bg-primary" />
+              </span>
               {active.length} clocked in now
             </span>
           )}
-          <Button variant={showCoverage ? 'secondary' : 'outline'} onClick={() => setShowCoverage((v) => !v)} className="gap-1.5">
-            <BarChart3 size={15} /> Coverage
-          </Button>
           <Button
-            variant="outline"
-            onClick={() => publish.mutate()}
-            disabled={publish.isPending || draftCount === 0 || !locationId}
-            title={draftCount === 0 ? 'No draft shifts in this range' : undefined}
+            variant={showCover ? 'secondary' : 'outline'}
+            aria-expanded={showCover}
+            onClick={() => setShowCover((open) => !open)}
+            disabled={!locationId}
+            title={locationId ? 'Rostered staff against what recent orders need' : 'Choose a location to check its cover'}
             className="gap-1.5"
           >
-            <Send size={15} /> {publish.isPending ? 'Publishing…' : `Publish drafts${draftCount > 0 ? ` (${draftCount})` : ''}`}
+            <TrendingUp size={15} /> Cover vs demand
           </Button>
-        </div>
-      </div>
-
-      {showCoverage && locationId && <CoveragePanel />}
-
-      {publish.data && <p className="text-xs text-success">Published {publish.data.published} draft shift(s).</p>}
-
-      {/* Register */}
-      <div className="overflow-hidden rounded-sm border border-rule bg-card">
-        <div className="flex flex-wrap items-center gap-2 border-b border-rule px-4 py-3">
-          <div className="min-w-56 flex-1">
-            <Input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              leftIcon={<Search size={14} />}
-              placeholder="Search staff, role or location…"
-              aria-label="Search shift records"
-              rightAction={
-                search ? (
-                  <button
-                    type="button"
-                    onClick={() => setSearch('')}
-                    aria-label="Clear search"
-                    className="text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <X size={14} />
-                  </button>
-                ) : undefined
-              }
-            />
-          </div>
-          <Select
-            value={stateFilter}
-            onValueChange={(value) => setStateFilter(value as 'all' | WorkState)}
-            options={STATE_FILTERS}
-            ariaLabel="Filter by status"
-            className="w-40"
-          />
-          <Select
-            value={staffFilter}
-            onValueChange={setStaffFilter}
-            options={[
-              { value: 'all', label: 'All staff' },
-              ...staff.map((member) => ({ value: member.userId, label: member.name ?? member.email ?? member.userId })),
-            ]}
-            ariaLabel="Filter by staff member"
-            className="w-44"
-          />
-          <Select
-            value={sort}
-            onValueChange={(value) => setSort(value as SortKey)}
-            options={SORTS}
-            ariaLabel="Sort records"
-            className="w-40"
-          />
-          {filtersActive && (
+          {canPlan && (
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSearch('');
-                setStateFilter('all');
-                setStaffFilter('all');
-              }}
+              variant={draftCount > 0 ? 'default' : 'outline'}
+              onClick={() => publish.mutate()}
+              disabled={publish.isPending || draftCount === 0 || !locationId}
+              title={
+                !locationId
+                  ? 'Choose a location to publish its drafts'
+                  : draftCount === 0
+                    ? 'No draft shifts in this range'
+                    : 'Make the drafts visible to the team'
+              }
               className="gap-1.5"
             >
-              <X size={14} /> Clear
+              <Send size={15} />{' '}
+              {publish.isPending
+                ? 'Publishing…'
+                : draftCount > 0
+                  ? `Publish ${draftCount} ${draftCount === 1 ? 'draft' : 'drafts'}`
+                  : 'All published'}
             </Button>
           )}
         </div>
-
-        <DataTable
-          aria-label="Shift records"
-          data={visible}
-          columns={columns}
-          getRowKey={(row) => row.id}
-          isLoading={isLoading}
-          isError={shiftsError}
-          minWidth={880}
-          className="rounded-none border-0"
-          // Without this the rota reads "No shift records" when the read
-          // failed — an empty rota and an unreadable one look identical, and
-          // only one of them means nobody is working.
-          errorState={
-            <ErrorState
-              icon={CalendarClock}
-              title="The rota couldn’t be loaded"
-              description="No shift has been read, so this is not an empty rota."
-              onRetry={() => void refetchShifts()}
-            />
-          }
-          emptyState={
-            !locationId ? (
-              <EmptyState icon={MapPin} title="Select a location" description="Choose a location to view its shift records." />
-            ) : (
-              <EmptyState
-                icon={filtersActive ? Search : CalendarClock}
-                title={filtersActive ? 'No matches' : 'No shift records'}
-                description={
-                  filtersActive
-                    ? 'Try a different search, filter or date range.'
-                    : 'Create a record to rota someone on — you can repeat it weekly in one go.'
-                }
-              />
-            )
-          }
-          onRowClick={({ row }) => setOpenRow({ mode: 'edit', id: row.id, date: row.dateKey })}
-          rowAriaLabel={({ row }) => `Open ${row.staffName}'s shift on ${row.dateKey}`}
-        />
-
-        {/* Summary + pagination */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rule px-4 py-3">
-          <p className="text-xs text-muted-foreground">
-            {filtered.length} {filtered.length === 1 ? 'record' : 'records'} · {fmtHours(plannedTotal)} planned · {fmtHours(workedTotal)}{' '}
-            worked
-            {money && costTotal > 0 && ` · ${fmtMoney(costTotal)} estimated`}
-          </p>
-          {pageCount > 1 && (
-            <nav className="flex items-center gap-1" aria-label="Pagination">
-              <Button variant="ghost" size="sm" onClick={() => setPage(currentPage - 1)} disabled={currentPage === 1} className="gap-1">
-                <ChevronLeft size={14} /> Previous
-              </Button>
-              {pageNumbers(currentPage, pageCount).map((n, i) =>
-                n === null ? (
-                  <span key={`gap-${i}`} className="px-1 text-xs text-muted-foreground">
-                    …
-                  </span>
-                ) : (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setPage(n)}
-                    aria-current={n === currentPage ? 'page' : undefined}
-                    className={cn(
-                      'size-8 rounded-sm text-sm font-medium tabular-nums transition-colors',
-                      n === currentPage ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-band hover:text-foreground',
-                    )}
-                  >
-                    {n}
-                  </button>
-                ),
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setPage(currentPage + 1)}
-                disabled={currentPage === pageCount}
-                className="gap-1"
-              >
-                Next <ChevronRight size={14} />
-              </Button>
-            </nav>
-          )}
-        </div>
       </div>
+
+      {publish.data && (
+        <p className="text-xs font-medium text-primary">Published {publish.data.published} draft shift(s) — the team can see them now.</p>
+      )}
+
+      {/* The period in four numbers. */}
+      <dl className={cn('grid gap-2 sm:grid-cols-2', money ? 'xl:grid-cols-4' : 'xl:grid-cols-3')}>
+        <Fact
+          surface="page"
+          icon={CalendarClock}
+          label="Shifts"
+          value={filtered.length}
+          hint={draftCount > 0 ? `${draftCount} still in draft` : 'All published'}
+          tone={draftCount > 0 ? 'warning' : 'default'}
+        />
+        <Fact surface="page" icon={Clock} label="Planned" value={fmtHours(plannedTotal)} hint={rangeLabel(from, to)} />
+        <Fact
+          surface="page"
+          icon={Timer}
+          label="Worked"
+          value={fmtHours(workedTotal)}
+          hint={plannedTotal > 0 ? `${Math.round((workedTotal / plannedTotal) * 100)}% of planned` : 'Nothing planned'}
+        />
+        {money && (
+          <Fact surface="page" icon={Banknote} label="Estimated cost" value={fmtMoney(costTotal)} hint="Paid time at each person’s rate" />
+        )}
+      </dl>
+
+      {/* Staffing against demand, for a day of the period — opened from the toolbar. */}
+      <AnimatePresence initial={false}>
+        {showCover && locationId && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <CoveragePanel shifts={shifts} days={checkDays} todayKey={todayKey} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-56 flex-1">
+          <Input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            leftIcon={<Search size={14} />}
+            placeholder="Search staff, role or location…"
+            aria-label="Search shifts"
+            rightAction={
+              search ? (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <X size={14} />
+                </button>
+              ) : undefined
+            }
+          />
+        </div>
+        <Select
+          value={staffFilter}
+          onValueChange={setStaffFilter}
+          options={[
+            { value: 'all', label: 'Everyone' },
+            ...staff.map((member) => ({ value: member.userId, label: member.name ?? member.email ?? member.userId })),
+          ]}
+          ariaLabel="Filter by staff member"
+          className="w-44"
+        />
+        <Select
+          value={stateFilter}
+          onValueChange={(value) => setStateFilter(value as 'all' | WorkState)}
+          options={STATE_FILTERS}
+          ariaLabel="Filter by status"
+          className="w-40"
+        />
+        {filtersActive && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearch('');
+              setStateFilter('all');
+              setStaffFilter('all');
+            }}
+            className="gap-1.5"
+          >
+            <X size={14} /> Clear
+          </Button>
+        )}
+      </div>
+
+      {/* The register, a day at a time */}
+      {isLoading ? (
+        <div className="space-y-2" aria-label="Loading shifts">
+          {[0, 1, 2, 3].map((index) => (
+            <div key={index} className="h-16 animate-pulse rounded-lg bg-band/60" />
+          ))}
+        </div>
+      ) : shiftsError ? (
+        // An empty rota and an unreadable one must not look the same — only one means nobody is working.
+        <ErrorState
+          icon={CalendarClock}
+          title="The rota couldn’t be loaded"
+          description="No shift has been read, so this is not an empty rota."
+          onRetry={() => void refetchShifts()}
+        />
+      ) : days.length === 0 && !locationId && !filtersActive ? (
+        <EmptyState
+          icon={MapPin}
+          title="Nothing on the rota"
+          description="No location has shifts in this period. Pick a location to plan one."
+        />
+      ) : days.length === 0 ? (
+        <EmptyState
+          icon={filtersActive ? Search : CalendarClock}
+          title={filtersActive ? 'No shifts match' : 'Nothing on the rota'}
+          description={
+            filtersActive
+              ? 'Try a different search, person or status.'
+              : 'Plan a shift to rota someone on — you can repeat it weekly in one go.'
+          }
+        />
+      ) : (
+        <div className="space-y-6">
+          {days.map((day) => (
+            <section key={day.dateKey} aria-labelledby={`rota-day-${day.dateKey}`}>
+              <header className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1">
+                <h3 id={`rota-day-${day.dateKey}`} className="text-base font-semibold tracking-title text-foreground">
+                  {day.dateKey === todayKey ? 'Today' : fmtDayHeading(`${day.dateKey}T12:00:00`)}
+                </h3>
+                <span className="text-xs text-muted-foreground">
+                  {day.records.length} {day.records.length === 1 ? 'shift' : 'shifts'} · {fmtHours(day.plannedMinutes)} planned
+                  {day.workedMinutes > 0 && ` · ${fmtHours(day.workedMinutes)} worked`}
+                  {money && day.cost > 0 && ` · ${fmtMoney(day.cost)}`}
+                </span>
+              </header>
+              <ul className="space-y-2">
+                {day.records.map((row) => (
+                  <ShiftRow
+                    key={row.id}
+                    row={row}
+                    money={money}
+                    onOpen={() => setOpenRow({ mode: 'edit', id: row.id, date: row.dateKey })}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
 
       {drawer && (
         // Keyed by the row so switching records re-seeds the form, while a
@@ -840,17 +715,107 @@ export function ShiftsWorkspace({
   );
 }
 
-/** 1 … 4 5 6 … 12 — `null` marks an elision. */
-function pageNumbers(current: number, total: number): (number | null)[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages = new Set([1, total, current, current - 1, current + 1]);
-  const sorted = [...pages].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
-  const out: (number | null)[] = [];
-  let previous = 0;
-  for (const n of sorted) {
-    if (previous && n - previous > 1) out.push(null);
-    out.push(n);
-    previous = n;
-  }
-  return out;
+const STATE_DOT: Record<WorkState, { dot: string; text: string }> = {
+  scheduled: { dot: 'bg-primary/40', text: 'text-muted-foreground' },
+  running: { dot: 'bg-primary', text: 'text-primary' },
+  completed: { dot: 'bg-momentum', text: 'text-momentum' },
+  no_show: { dot: 'bg-exception', text: 'text-exception' },
+  cancelled: { dot: 'bg-muted-foreground/50', text: 'text-muted-foreground' },
+};
+
+/** One shift: who, the planned hours, what was actually worked, and how it went. */
+function ShiftRow({ row, money, onOpen }: { row: ShiftRecord; money: boolean; onOpen: () => void }) {
+  const state = STATE_DOT[row.state];
+  const first = row.clocked[0];
+  const last = row.clocked.at(-1);
+  const late = row.startDeltaMinutes != null && row.startDeltaMinutes > 0;
+  const early = row.startDeltaMinutes != null && row.startDeltaMinutes < 0;
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Open ${row.staffName}'s shift on ${row.dateKey}`}
+        className={cn(
+          'group flex w-full items-center gap-3 rounded-lg border bg-field px-4 py-3 text-left transition-colors hover:border-rule hover:bg-band/40',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+          row.state === 'no_show' ? 'border-exception/35' : row.status === 'draft' ? 'border-dashed border-rule/70' : 'border-rule/60',
+          row.state === 'cancelled' && 'opacity-60',
+        )}
+      >
+        {row.userId ? (
+          <Avatar name={row.staffName} email={row.staffEmail} />
+        ) : (
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-dashed border-rule text-muted-foreground">
+            <UserPlus size={15} aria-hidden="true" />
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className={cn('truncate text-sm font-semibold', row.userId ? 'text-foreground' : 'text-muted-foreground')}>
+              {row.staffName}
+            </span>
+            {row.status === 'draft' && <Badge variant="muted">Draft</Badge>}
+            {!row.shift && <Badge variant="warning">Not on the rota</Badge>}
+          </span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+            {[row.role, row.locationName].filter(Boolean).join(' · ') || row.staffEmail || '—'}
+          </span>
+        </span>
+
+        {/* Planned, then worked — the two times a manager compares. */}
+        <span className="hidden w-32 shrink-0 md:block">
+          <span className="block text-sm text-foreground">
+            {row.shift ? `${fmtTime(row.shift.startsAt)}–${fmtTime(row.shift.endsAt)}` : '—'}
+          </span>
+          <span className="block text-xs text-muted-foreground">
+            {row.shift ? `${fmtHours(row.plannedMinutes)} planned` : 'No planned shift'}
+          </span>
+        </span>
+        <span className="hidden w-32 shrink-0 md:block">
+          <span className="block text-sm text-foreground">
+            {first ? (
+              <>
+                {fmtTime(first.clockedIn)}–
+                {last?.clockedOut ? fmtTime(last.clockedOut) : <span className="font-semibold text-primary">now</span>}
+              </>
+            ) : (
+              '—'
+            )}
+          </span>
+          <span className={cn('block text-xs', late ? 'text-exception' : early ? 'text-momentum' : 'text-muted-foreground')}>
+            {late
+              ? `${row.startDeltaMinutes} min late`
+              : early
+                ? `${-row.startDeltaMinutes!} min early`
+                : row.workedMinutes > 0
+                  ? fmtDuration(row.workedMinutes)
+                  : 'Not clocked'}
+          </span>
+        </span>
+
+        {money && (
+          <span className="hidden w-24 shrink-0 text-right lg:block">
+            <span className="block text-sm text-foreground">{row.estimatedCost != null ? fmtMoney(row.estimatedCost) : '—'}</span>
+            {row.billState !== 'none' && (
+              <span className={cn('block text-xs', row.billState === 'paid' ? 'text-momentum' : 'text-muted-foreground')}>
+                {row.billState === 'paid' ? 'Paid' : 'Not paid yet'}
+              </span>
+            )}
+          </span>
+        )}
+
+        <span className={cn('flex w-24 shrink-0 items-center justify-end gap-1.5 text-xs font-semibold', state.text)}>
+          <span className={cn('size-2 rounded-full', state.dot, row.state === 'running' && 'animate-pulse')} aria-hidden="true" />
+          {WORK_STATE[row.state].label}
+        </span>
+        <ChevronRight
+          size={15}
+          className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
+      </button>
+    </li>
+  );
 }

@@ -7,12 +7,14 @@ import { Drawer } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Badge } from '@/components/ui/badge';
 
-import { getEmployeeHours } from '@/lib/modules/people/client';
-import type { PayrollPeriod, PayrollPreviewLine } from '@/lib/modules/people/client';
+import { getEmployeeHours } from '@/lib/modules/payroll/client';
+import type { PayrollPeriod, PayrollPreviewLine } from '@/lib/modules/payroll/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { explainPay, reconciles } from '@/lib/utils/payroll-explain';
+import { PERIOD_LABEL } from '@/lib/utils/payroll-periods';
 
-import { formatDate, formatRange, hours, money } from './shared';
+import { formatDate, formatRange, hours } from './shared';
+import { useMoney } from './usePayroll';
 
 const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—');
 
@@ -37,6 +39,7 @@ export function PayLineDrawer({
   to: string;
   onClose: () => void;
 }) {
+  const money = useMoney();
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: moduleQueryKeys.people.key('employee-hours', line.userId, from, to),
     queryFn: () => getEmployeeHours(line.userId, from, to),
@@ -53,7 +56,7 @@ export function PayLineDrawer({
           {explanation.basis === 'salaried' ? (
             <>
               <p className="text-sm text-muted-foreground">
-                Salaried — annual pay divided by {explanation.salaryDivisor}, one {period === 'weekly' ? 'week' : 'month'} of it.
+                Salaried — annual pay divided by {explanation.salaryDivisor}, one {PERIOD_LABEL[period].noun} of it.
               </p>
               <p className="mt-2 font-mono text-2xl font-semibold tabular-nums">{money(line.grossPay)}</p>
               <p className="mt-2 text-xs text-muted-foreground">Hours are recorded for attendance and do not change this figure.</p>

@@ -18,6 +18,7 @@ export interface PrivacyRequest {
   dueAt: string;
   assignedTo?: string | null;
   completedAt?: string | null;
+  updatedAt?: string;
   customerSnapshot?: { name: string; email?: string | null; phone?: string | null } | null;
   employeeSnapshot?: { name: string; email?: string | null } | null;
   customer?: { id: string; firstName: string; lastName: string; email?: string | null; phone: string } | null;

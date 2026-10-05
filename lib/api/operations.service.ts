@@ -52,13 +52,30 @@ export interface CashUp {
   expectedCard: string;
   terminalCardTotal?: string;
   cardVariance?: string;
+  tenderSummary?: Record<string, number> | null;
+  notes?: string | null;
+  openedAt?: string;
+  closedAt?: string | null;
+}
+/**
+ * The running expectation for a day — what the drawer and the terminal should
+ * hold so far. An open day's stored `expectedCash`/`expectedCard` stay at their
+ * £0 defaults until it closes, so a count is checked against this instead.
+ */
+export interface CashUpExpectation {
+  openingFloat: string;
+  expectedCash: string;
+  expectedCard: string;
+  /** Net per payment provider after refunds; a refund-only provider is negative. */
+  tenderSummary: Record<string, number>;
+  asOf: string;
 }
 export const getCashUps = (locationId: string) => apiFetch<CashUp[]>(`/cash-ups?locationId=${locationId}`);
+export const getCashUpExpectation = (id: string) => apiFetch<CashUpExpectation>(`/cash-ups/${id}/expected`);
 export const openCashUp = (data: { locationId: string; tradingDate: string; openingFloat: number }) =>
   apiFetch<CashUp>('/cash-ups/open', { method: 'POST', body: JSON.stringify(data) });
 export const closeCashUp = (id: string, data: { countedCash: number; terminalCardTotal: number; notes?: string }) =>
   apiFetch<CashUp>(`/cash-ups/${id}/close`, { method: 'POST', body: JSON.stringify(data) });
-
 
 /**
  * Every reader at a location, disabled ones included.

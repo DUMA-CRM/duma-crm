@@ -1,24 +1,20 @@
 'use client';
 
+import { motion, useReducedMotion } from 'motion/react';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 
 import { ActionCard } from '@/components/ai/ActionCard';
 import { AgentMetrics } from '@/components/ai/AgentMetrics';
+import { ConversationHistory } from '@/components/ai/ConversationHistory';
 import { LiveMarkdown } from '@/components/ai/LiveMarkdown';
 import { Mascot } from '@/components/ai/Mascot';
 import { ModelChoiceList, useAgentProviders } from '@/components/ai/ModelChoice';
+import { PriorityBrief } from '@/components/ai/PriorityBrief';
 import { type AgentMood, type AgentPhase, useAgentMood } from '@/components/ai/useAgentMood';
 import {
+  ArrowLeftRight,
   ArrowUpRight,
   BarChart3,
   BookOpen,
@@ -28,32 +24,37 @@ import {
   ClipboardCheck,
   Copy,
   CreditCard,
+  Eye,
+  History,
   type IconComponent,
   Loader2,
   Mail,
   MapPin,
   Maximize,
-  Minus,
+  MessageSquarePlus,
   Package,
   Plus,
   QrCode,
   Receipt,
+  RefreshCw,
   Search,
   Send,
   Settings,
   ShieldCheck,
   ShoppingCart,
-  Sparkles,
+  TriangleAlert,
   Users,
   X,
   Zap,
 } from '@/components/icons';
+import { Drawer, DrawerHeaderButton } from '@/components/shared/Drawer';
 import { Button } from '@/components/ui/button';
 
 import type { ModelIntent } from '@/lib/ai/agent-model-intent';
-import { answerModelIntent, detectModelIntent, modelChipLabel } from '@/lib/ai/agent-model-intent';
+import { answerModelIntent, detectModelIntent } from '@/lib/ai/agent-model-intent';
 import type {
   AgentActionSubmission,
+  AgentCard,
   AgentChatMessage,
   AgentChatResponse,
   AgentPendingAction,
@@ -61,8 +62,11 @@ import type {
   AgentStreamEvent,
 } from '@/lib/ai/agent-types';
 import type { AgentRefusal } from '@/lib/ai/agent-types';
+import { visibleAnswer } from '@/lib/ai/conversation';
+import { parsePriorityBrief } from '@/lib/ai/priority-brief';
+import { createAgentConversation, getAgentConversation, saveAgentTurn } from '@/lib/api/agent-conversations.service';
+import { flushAgentHistoryOutbox, queueAgentTurn } from '@/lib/ai/history-outbox';
 import { type Capability, hasAllCapabilities } from '@/lib/auth/capabilities';
-import { STATE_BY_ID } from '@/lib/mascot/engine/states';
 import { cn } from '@/lib/utils/cn';
 import { useAgentSettingsStore } from '@/stores/agentSettingsStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -98,8 +102,8 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
     prompts: [
       {
         icon: ClipboardCheck,
-        label: 'Set today’s priorities',
-        prompt: 'Review today’s operations and tell me the three things that need attention first.',
+        label: 'Run today’s briefing',
+        prompt: 'Give me today’s operations briefing. Check every area I can access, rank up to three issues, show the evidence, and give me the next action for each.',
       },
       { icon: BarChart3, label: 'Check trading pace', prompt: 'How is this location performing today compared with its recent pattern?' },
       { icon: Package, label: 'Find stock risks', prompt: 'Which stock items are most at risk at this location?' },
@@ -318,10 +322,13 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
 /** Data-backed starters only appear when the API grants every capability they need. */
 const PROMPT_CAPABILITIES: Partial<Record<string, Capability[]>> = {
   'Review performance': ['analytics:read'],
+  'Review command centre': ['analytics:read'],
+  'Check waiting workflows': ['analytics:read'],
+  'Compare locations': ['analytics:read'],
+  'Review AI quality': ['audit:read'],
   'Check stock risk': ['inventory:read'],
   'Check team cover': ['scheduling:read'],
   'Prepare a stock order': ['purchasing:write'],
-  'Set today’s priorities': ['analytics:read', 'inventory:read', 'scheduling:read'],
   'Check trading pace': ['analytics:read'],
   'Find stock risks': ['inventory:read'],
   'Check who is working': ['scheduling:read'],
@@ -373,21 +380,12 @@ const PROMPT_CAPABILITIES: Partial<Record<string, Capability[]>> = {
 
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 const SHORTCUT_FEEDBACK_MS = 450;
-const MIN_RESPONSE_MS = 1_000;
-const DESKTOP_PANEL_WIDTH = 460;
+/** Docked widths: the working size, and wide for tables and long answers. */
+const DESKTOP_PANEL_WIDTH = 440;
+const EXPANDED_PANEL_WIDTH = 880;
 const WINDOW_MARGIN = 16;
 /** Recent turns sent with each request — the panel keeps the rest for display only. */
 const HISTORY_SENT = 24;
-
-interface FloatingPosition {
-  x: number;
-  y: number;
-}
-
-interface DragState {
-  offsetX: number;
-  offsetY: number;
-}
 
 const PAGE_NAMES: Record<string, string> = {
   'audit-log': 'Audit log',
@@ -417,18 +415,6 @@ function pageName(pathname: string) {
 function pageId(pathname: string) {
   const segment = pathname.split('/').filter(Boolean)[0] ?? 'dashboard';
   return Object.hasOwn(PAGE_NAMES, segment) ? segment : undefined;
-}
-
-async function waitForMinimum(startedAt: number) {
-  const remaining = MIN_RESPONSE_MS - (performance.now() - startedAt);
-  if (remaining > 0) await new Promise((resolve) => window.setTimeout(resolve, remaining));
-}
-
-function clampPosition(position: FloatingPosition, width: number, height: number) {
-  return {
-    x: Math.min(Math.max(WINDOW_MARGIN, position.x), Math.max(WINDOW_MARGIN, window.innerWidth - width - WINDOW_MARGIN)),
-    y: Math.min(Math.max(WINDOW_MARGIN, position.y), Math.max(WINDOW_MARGIN, window.innerHeight - height - WINDOW_MARGIN)),
-  };
 }
 
 function shortcutKey(shortcut: AgentShortcut) {
@@ -532,7 +518,7 @@ function StepsTaken({ steps }: { steps: string[] }) {
     <details className="group mt-2">
       <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-sm py-0.5 text-label font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
         <ChevronRight size={11} aria-hidden="true" className="shrink-0 transition-transform duration-150 group-open:rotate-90" />
-        {steps.length} {steps.length === 1 ? 'step' : 'steps'} taken
+        Sources & activity
       </summary>
       <ol className="mt-1.5 space-y-1 border-l border-rule pl-3">
         {steps.map((step, index) => (
@@ -546,220 +532,63 @@ function StepsTaken({ steps }: { steps: string[] }) {
   );
 }
 
-/**
- * The arrival flourish, shared by both of the panel's mascots.
- *
- * `swirl` is the engine's own interface transition and the reason it exists:
- * three rings sweep in around a mascot that keeps both its body and its resting
- * face, so it is already tracking the cursor on its first frame. Opening a panel
- * is exactly the occasion it was built for.
- *
- * It replaced a spin of the eyes right round the sphere, which was the nicer
- * effect and is not available to us: anything anchored to the outline is refitted
- * to the real radius in its own direction, so on a hexagonal body the eyes step
- * over the flats and corners instead of gliding. See `SPIN` in `lib/mascot/gaze`.
- *
- * Returns whether the entrance is still playing. It yields the moment there is
- * real news to carry — someone who opens the panel and immediately clicks a
- * starter prompt should see the wait, not the greeting finishing — so any pose
- * other than resting wins outright.
- */
-function useEntrance(mood: AgentMood) {
-  const [entering, setEntering] = useState(true);
-
-  useEffect(() => {
-    if (!entering) return;
-    // Held for `swirl`'s own measured length, at the end of which its rings have
-    // already faded — so the handover lands on a frame that is clean anyway.
-    const timer = window.setTimeout(() => setEntering(false), (STATE_BY_ID.get('swirl')?.duration ?? 1.3) * 1_000);
-    return () => window.clearTimeout(timer);
-  }, [entering]);
-
-  return entering && mood.state === 'idle';
+/** Keep the evidence available without making five raw result cards compete with the decision brief. */
+function PriorityEvidence({ cards, steps }: { cards: AgentCard[]; steps: string[] }) {
+  if (cards.length === 0 && steps.length === 0) return null;
+  return (
+    <details className="group mt-3">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-sm py-0.5 text-label font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+        <ChevronRight size={11} aria-hidden="true" className="shrink-0 transition-transform duration-150 group-open:rotate-90" />
+        Evidence checked
+      </summary>
+      <div className="mt-2 border-l border-rule pl-3">
+        {cards.map((card, index) => (
+          <AgentMetrics key={index} card={card} />
+        ))}
+        {steps.length ? (
+          <ol className="mt-3 space-y-1">
+            {steps.map((step, index) => (
+              <li key={`${step}-${index}`} className="flex items-start gap-1.5 text-label leading-4 text-muted-foreground">
+                <Check size={10} className="mt-0.5 shrink-0 text-momentum" aria-hidden="true" />
+                {step}
+              </li>
+            ))}
+          </ol>
+        ) : null}
+      </div>
+    </details>
+  );
 }
 
-/**
- * The mascot at the top of the open panel: who you are talking to, and what it is
- * doing right now.
- *
- * It tracks the pointer, unlike the minimised bar's, and that is the difference
- * between chrome and a presence: this is the thing you opened the panel to talk
- * to, so it looks at you while you type at it. The welcome hero does the same, and
- * the two are only ever on screen together before the first question, where they
- * read as one character large and small rather than two disagreeing: same mood,
- * same cursor.
- *
- * 48 for a 30px ball, against the 21px this header carried before. It has to be a
- * presence rather than a favicon, because it is the whole of the assistant's
- * embodiment here and it has to hold poses that have somewhere to go — the rings
- * of a wait, the pastille of an answer landing, the travelling "!" of a failure.
- * At badge size those were smudges.
- */
 function PanelMark({ mood }: { mood: AgentMood }) {
-  const arriving = useEntrance(mood);
-  return <Mascot size={48} state={arriving ? 'swirl' : mood.state} expression={mood.expression} follow />;
+  // A 32px slot in the header, so the header keeps its height — but drawn at 60px: most of a
+  // mascot's box is headroom for its rings and gestures, and at 32px the hexagon itself was ~18px.
+  return (
+    <span className="relative block size-8">
+      <Mascot size={60} {...mood} gesture={undefined} follow fps={30} className="absolute -top-3.5 -left-3.5 max-w-none" />
+    </span>
+  );
 }
-
-/**
- * The mascot in the minimised bar.
- *
- * The one place it stays a badge, and only because there is no conversation on
- * screen to be present in: collapsed, this strip and its status line are all a
- * reader has. So it plays the arrival and then holds the mood, but it does **not**
- * track the pointer — a strip in the corner of the screen is chrome, and eyes
- * following you out of chrome are a distraction rather than a greeting.
- */
 function MinimizedMark({ mood }: { mood: AgentMood }) {
-  const arriving = useEntrance(mood);
-  return <Mascot size={44} state={arriving ? 'swirl' : mood.state} expression={mood.expression} />;
+  return <Mascot size={44} {...mood} gesture={undefined} fps={20} />;
 }
-
-/**
- * Frame rate for the header mascot at rest.
- *
- * It used to hold a completely still frame, which was the wrong trade: this is the
- * product's mark, on screen on every page, and a motionless character reads as a
- * broken image rather than a calm one. But a full 60fps loop running all shift on a
- * till or kitchen tablet is a real cost for breathing nobody asked to see.
- *
- * So it breathes and blinks at a third of the rate. The engine is a pure function
- * of time, so this is genuinely the same animation with fewer frames drawn, and
- * everything it does at rest is slow: a 0.5% breath over 3.4s, gaze drift on 4–11s
- * periods.
- *
- * The blink is the one brief thing, at 0.18s, and it set this number. Auditing the
- * whole pre-drawn 900s blink schedule against each candidate rate, 20fps is the
- * cheapest that catches **every** blink — 15 drops 6 of 316 and 12 drops 12. A
- * missed blink is not a rough blink, it is a blink that never happened, and a mascot
- * that blinks only most of the time reads as one that stutters.
- */
-const IDLE_FPS = 20;
-
-/**
- * The mascot in the application header: the control that opens the panel.
- *
- * It owns the button rather than sitting inside one, because waking up is a
- * property of the control and not of the drawing. Both halves of that were bugs
- * when the mascot was a child: `display: contents` gives an element no box to
- * hit-test, and `onFocus` on a child never fires for focus that lands on the
- * button above it — so a keyboard user got no reaction at all.
- *
- * **Quiet until it has a reason not to be.** At rest it breathes and blinks at
- * `IDLE_FPS` and looks straight ahead. Reaching for it — pointer or focus ring —
- * brings it to full rate, starts it tracking the cursor and plays a wink; so does a
- * request in flight with the panel shut, which is the one time the header has news
- * of its own.
- *
- * Waking is the reaction, not a decoration on top of one, which is also why the
- * button drops the hover plate its neighbours carry: a grey rectangle sliding in
- * behind a character that is already looking at you is the weaker signal and the
- * redundant one.
- */
-function AgentLauncher({
-  mood,
-  busy,
-  open,
-  onOpen,
-}: {
-  mood: AgentMood;
-  busy: boolean;
-  open: boolean;
-  onOpen: (opener: HTMLElement) => void;
-}) {
-  const [reached, setReached] = useState(false);
-  /** The greeting, which plays once per arrival rather than for as long as you hover. */
-  const [greeting, setGreeting] = useState(false);
-  /**
-   * Whether the greeting is still owed. It is spent on the first arrival and never
-   * refilled while the page lives.
-   *
-   * It used to play on every arrival, and a wink each time the pointer crosses a
-   * header button is a tic rather than a greeting — it fires while somebody is
-   * travelling to the control beside it, several times a minute, and the mascot ends
-   * up winking at an empty room. Once is a greeting; the waking and the gaze that
-   * follow every arrival are the reaction, and they are the part that should repeat.
-   */
-  const owed = useRef(true);
-  const awake = reached || busy;
-
-  // The greeting is *started* by the arrival that causes it and only ended here,
-  // so this effect subscribes to a clock rather than deciding anything. Arriving
-  // again while a wink is still running does not restart it, which keeps a
-  // jittery pointer on the edge of the button from stuttering.
-  useEffect(() => {
-    if (!greeting) return;
-    // Held for `wink`'s own measured duration, so the greeting ends where the
-    // pose does rather than at a number picked to look about right.
-    const timer = window.setTimeout(() => setGreeting(false), (STATE_BY_ID.get('wink')?.duration ?? 1.6) * 1_000);
-    return () => window.clearTimeout(timer);
-  }, [greeting]);
-
-  const arrive = () => {
-    setReached(true);
-    if (owed.current) {
-      owed.current = false;
-      setGreeting(true);
-    }
-  };
-
+function AgentLauncher({ mood, open, onOpen }: { mood: AgentMood; busy: boolean; open: boolean; onOpen: (opener: HTMLElement) => void }) {
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon-touch"
       onClick={(event) => onOpen(event.currentTarget)}
-      // Touch has no hover, so a tap would wake it and never let it sleep again,
-      // leaving a loop running for the session on exactly the devices that can
-      // least afford one. A tap opens the panel anyway, which is a better greeting.
-      onPointerEnter={(event) => event.pointerType !== 'touch' && arrive()}
-      onPointerLeave={() => setReached(false)}
-      onFocus={arrive}
-      onBlur={() => setReached(false)}
       aria-haspopup="dialog"
       aria-expanded={open}
       aria-label="Ask DUMA"
-      className={cn('hover:bg-transparent', open && 'bg-band text-primary')}
+      className={cn(open && 'bg-band text-primary')}
     >
-      <Mascot
-        // Matched to the 44px button — the design system's named touch size — so
-        // the box has no overflow to collide with the controls beside it and the
-        // orbit rings of a wait still land inside it.
-        //
-        // That is a 28px ball against the 22px the logo tile drew here before, and
-        // it sits deliberately past its 36px neighbours: the reload and theme
-        // controls are glyphs, this one is a character and the way into the
-        // assistant, and a taller thing in a row of even ones reads as hierarchy
-        // rather than as misalignment.
-        size={44}
-        // No `eye` override, and that is worth a line because there used to be
-        // one. The eyes were holes through to whatever was behind, and this button
-        // has two grounds — band while the panel is open, porcelain otherwise — so
-        // the open state had to hand the mascot its own plate colour or the eyes
-        // stayed porcelain on a band button. They are an opaque well of their own
-        // now, so the character no longer depends on what it is standing on.
-        //
-        // A greeting only makes sense when there is no news to carry: a request in
-        // flight outranks being winked at.
-        state={!busy && greeting ? 'wink' : mood.state}
-        expression={mood.expression}
-        follow={awake}
-        fps={awake ? undefined : IDLE_FPS}
-      />
+      <Mascot size={44} {...mood} gesture={undefined} fps={20} />
     </Button>
   );
 }
 
-/**
- * Where an answer can be carried on to — the pages that hold the records it
- * was built from.
- *
- * Chips rather than rows, and bordered rather than filled, so they read as
- * destinations at a glance: the follow-up suggestions below an answer are
- * band-filled text, and two stacks of near-identical rows under every reply
- * made it ambiguous which ones navigated. The glyph takes the reference ink the
- * system gives links, which is the affordance the old section heading was
- * carrying on their behalf.
- */
 function ShortcutList({
   shortcuts,
   openingKey,
@@ -770,33 +599,68 @@ function ShortcutList({
   onOpen: (shortcut: AgentShortcut) => void;
 }) {
   return (
-    <section className="mt-4 flex flex-wrap gap-1.5" aria-label="Open in DUMA">
-      {shortcuts.map((shortcut) => {
-        const key = shortcutKey(shortcut);
-        const opening = openingKey === key;
-        const Icon = shortcut.kind === 'support' ? BookOpen : shortcut.locationId ? MapPin : ArrowUpRight;
-        const progressLabel = shortcut.locationId ? 'Switching location…' : shortcut.kind === 'support' ? 'Opening guide…' : 'Opening…';
-        return (
+    <section className="mt-4" aria-label="Open in DUMA">
+      <p className="px-0.5 text-label font-semibold tracking-label text-muted-foreground uppercase">Open in DUMA</p>
+      <div className="mt-1.5 divide-y divide-rule/40 overflow-hidden rounded-lg border border-rule/60 bg-field">
+        {shortcuts.map((shortcut) => {
+          const key = shortcutKey(shortcut);
+          const opening = openingKey === key;
+          const Icon = shortcut.kind === 'support' ? BookOpen : shortcut.locationId ? MapPin : ArrowUpRight;
+          const progressLabel = shortcut.locationId ? 'Switching location…' : shortcut.kind === 'support' ? 'Opening guide…' : 'Opening…';
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onOpen(shortcut)}
+              disabled={Boolean(openingKey)}
+              className="group flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors duration-150 hover:bg-band/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-wait disabled:opacity-60"
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-reference">
+                {opening ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Icon size={14} aria-hidden="true" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-foreground">{opening ? progressLabel : shortcut.label}</span>
+                {!opening && (shortcut.description || shortcut.locationId) ? (
+                  <span className="mt-0.5 block truncate text-label text-muted-foreground">
+                    {shortcut.description ?? 'Switches the active location before opening'}
+                  </span>
+                ) : null}
+              </span>
+              <ChevronRight
+                size={14}
+                className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function FollowUpList({ items, onSelect }: { items: string[]; onSelect: (item: string) => void }) {
+  return (
+    <section aria-label="Suggested follow-ups">
+      <p className="px-0.5 text-label font-semibold tracking-label text-muted-foreground uppercase">Useful next questions</p>
+      <div className="mt-1.5 divide-y divide-rule/40 overflow-hidden rounded-lg border border-rule/60 bg-field">
+        {items.slice(0, 3).map((item) => (
           <button
-            key={key}
+            key={item}
             type="button"
-            onClick={() => onOpen(shortcut)}
-            disabled={Boolean(openingKey)}
-            title={shortcut.description}
-            className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-sm border border-rule bg-field px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors duration-150 hover:border-primary/45 hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-wait disabled:opacity-60"
+            onClick={() => onSelect(item)}
+            className="group flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           >
-            {opening ? (
-              <Loader2 size={12} className="shrink-0 animate-spin text-reference" aria-hidden="true" />
-            ) : (
-              <Icon size={12} className="shrink-0 text-reference" aria-hidden="true" />
-            )}
-            <span className="truncate">{opening ? progressLabel : shortcut.label}</span>
-            {/* Changing the active location changes what every other page shows,
-                so it is stated on the control rather than left to the tooltip. */}
-            {shortcut.locationId && !opening && <span className="shrink-0 text-muted-foreground">· switches location</span>}
+            <MessageSquarePlus size={14} className="shrink-0 text-reference" aria-hidden="true" />
+            <span className="min-w-0 flex-1 text-sm text-foreground">{item}</span>
+            <ArrowUpRight
+              size={13}
+              className="shrink-0 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+              aria-hidden="true"
+            />
           </button>
-        );
-      })}
+        ))}
+      </div>
     </section>
   );
 }
@@ -824,13 +688,28 @@ function CopyAnswer({ content }: { content: string }) {
 }
 
 export function DumaAgent() {
+  const userId = useAuthStore((state) => state.user?.id ?? '');
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const locationId = useWorkspaceStore((state) => state.locationId);
+  return <DumaAgentPanel key={JSON.stringify([userId, tenantId, locationId, capabilities])} />;
+}
+
+function DumaAgentPanel() {
+  const reducedMotion = useReducedMotion();
+  const userId = useAuthStore((state) => state.user?.id ?? '');
+  const [conversationId, setConversationId] = useState<string>();
+  const historyGroupRef = useRef(`chat-${Date.now()}`);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [notice, setNotice] = useState('');
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [position, setPosition] = useState<FloatingPosition>();
-  const [dragging, setDragging] = useState(false);
+  // Docked on the right; wide is for tables and long answers.
+  const [expanded, setExpanded] = useState(false);
   /**
    * How the last turn ended, kept so the mascot can react to it rather than
    * inferring from the transcript. Sniffing the last message's text for "Stopped"
@@ -871,11 +750,11 @@ export function DumaAgent() {
   const firstSuggestionRef = useRef<HTMLButtonElement>(null);
   const restoreRef = useRef<HTMLButtonElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLElement>(null);
+  const followScrollRef = useRef(true);
+  const panelRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const abortRef = useRef<AbortController>(null);
   const navigationTimerRef = useRef<number | undefined>(undefined);
-  const dragRef = useRef<DragState | null>(null);
   const wasOpenRef = useRef(false);
   // Which model answers, chosen per device here or in Settings → General. The
   // route allow-lists it again — this is a preference, not a trusted instruction.
@@ -888,7 +767,21 @@ export function DumaAgent() {
   // Only while the panel is open: this component is mounted on every page, and
   // the model list is worth nothing to a reader who has not asked for it.
   const { data: availableModels } = useAgentProviders({ enabled: open });
-  const modelLabel = modelChipLabel(provider, availableModels);
+  useEffect(() => {
+    if (!open) return;
+    const retry = () => void flushAgentHistoryOutbox().then(({ saved, remaining }) => {
+      if (saved) setNotice(remaining ? `${saved} answer${saved === 1 ? '' : 's'} saved. ${remaining} will retry automatically.` : 'Your pending chat history is saved.');
+    });
+    retry();
+    window.addEventListener('online', retry);
+    return () => window.removeEventListener('online', retry);
+  }, [open]);
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+    },
+    [],
+  );
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -896,8 +789,9 @@ export function DumaAgent() {
   );
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages, pendingAction, busy, steps]);
+    const el = scrollRef.current;
+    if (el && followScrollRef.current) el.scrollTo({ top: el.scrollHeight, behavior: reducedMotion || busy ? 'instant' : 'smooth' });
+  }, [messages, pendingAction, busy, steps, streaming, reducedMotion]);
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 640px)');
@@ -910,7 +804,9 @@ export function DumaAgent() {
   useEffect(() => {
     const syncDrawer = () => {
       const drawer = document.querySelector<HTMLElement>('[data-duma-drawer]');
-      const nextRect = drawer?.getBoundingClientRect();
+      // Layout position, not the painted box: a drawer is still sliding in when
+      // this runs, and its entry transform would leave the two panels overlapping.
+      const nextRect = drawer ? new DOMRect(drawer.offsetLeft, drawer.offsetTop, drawer.offsetWidth, drawer.offsetHeight) : undefined;
       setDrawerRect(nextRect);
       if (nextRect && window.innerWidth - nextRect.width - WINDOW_MARGIN * 2 < DESKTOP_PANEL_WIDTH) setMinimized(true);
     };
@@ -926,27 +822,6 @@ export function DumaAgent() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!open || !isDesktop) return;
-    const constrain = () => {
-      const width = panelRef.current?.offsetWidth ?? (minimized ? 304 : DESKTOP_PANEL_WIDTH);
-      const height = panelRef.current?.offsetHeight ?? (minimized ? 56 : Math.min(720, window.innerHeight - 32));
-      setPosition((current) => {
-        const preferred = current ?? { x: window.innerWidth - width - 20, y: 72 };
-        const availableBesideDrawer = drawerRect ? drawerRect.left - WINDOW_MARGIN * 2 : Infinity;
-        const besideDrawer = drawerRect
-          ? availableBesideDrawer >= width
-            ? { ...preferred, x: Math.min(preferred.x, drawerRect.left - width - 12) }
-            : { x: WINDOW_MARGIN, y: window.innerHeight - height - WINDOW_MARGIN }
-          : preferred;
-        return clampPosition(besideDrawer, width, height);
-      });
-    };
-    constrain();
-    window.addEventListener('resize', constrain);
-    return () => window.removeEventListener('resize', constrain);
-  }, [drawerRect, isDesktop, minimized, open]);
-
   useEffect(
     () => () => {
       if (navigationTimerRef.current) window.clearTimeout(navigationTimerRef.current);
@@ -961,13 +836,16 @@ export function DumaAgent() {
       ? undefined
       : window.setTimeout(() => (messages.length === 0 ? (firstSuggestionRef.current ?? panelRef.current) : inputRef.current)?.focus(), 80);
     const onKeyDown = (event: KeyboardEvent) => {
+      // Only when you're in it: with a drawer open too, Escape closes the one you're in, not both.
       if (event.key === 'Escape') {
-        setMinimized(true);
+        if (panelRef.current?.contains(document.activeElement)) setOpen(false);
         return;
       }
       if (isDesktop) return;
       if (event.key !== 'Tab' || !panelRef.current) return;
-      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (element) => element.getClientRects().length > 0,
+      );
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -1003,7 +881,24 @@ export function DumaAgent() {
     setMinimized(false);
   };
 
-  const applyResponse = useCallback((result: AgentChatResponse, taken: string[] = [], streamed = false) => {
+  // Ctrl/⌘+J opens and closes it from anywhere, as Linear and Microsoft Copilot do.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'j' || event.altKey) return;
+      event.preventDefault();
+      if (open && !minimized) {
+        setOpen(false);
+        return;
+      }
+      if (document.activeElement instanceof HTMLElement) openerRef.current = document.activeElement;
+      setOpen(true);
+      setMinimized(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [minimized, open]);
+
+  const applyResponse = useCallback((result: AgentChatResponse, taken: string[] = []) => {
     setMessages((current) => [
       ...current,
       {
@@ -1017,63 +912,14 @@ export function DumaAgent() {
         cards: result.cards,
         followUps: result.followUps,
         fallbackModel: result.fallbackModel,
-        // The reveal animation exists to make a message that arrived all at
-        // once feel written. A streamed one already was, so replaying it would
-        // show the same text twice at two different speeds.
-        live: !streamed,
+        generatedAt: result.generatedAt,
+        live: false,
       },
     ]);
     setStreaming('');
     setPendingAction(result.pendingAction);
     setOutcome('delivered');
   }, []);
-
-  const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
-    if (!isDesktop || event.button !== 0 || (event.target as HTMLElement).closest('button, a, input, textarea, label')) return;
-    const bounds = panelRef.current?.getBoundingClientRect();
-    if (!bounds) return;
-    dragRef.current = { offsetX: event.clientX - bounds.left, offsetY: event.clientY - bounds.top };
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging(true);
-  };
-
-  const moveDrag = (event: ReactPointerEvent<HTMLElement>) => {
-    if (!dragRef.current || !panelRef.current) return;
-    setPosition(
-      clampPosition(
-        { x: event.clientX - dragRef.current.offsetX, y: event.clientY - dragRef.current.offsetY },
-        panelRef.current.offsetWidth,
-        panelRef.current.offsetHeight,
-      ),
-    );
-  };
-
-  const stopDrag = (event: ReactPointerEvent<HTMLElement>) => {
-    if (!dragRef.current) return;
-    dragRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    setDragging(false);
-  };
-
-  const moveWithKeyboard = (event: ReactKeyboardEvent<HTMLElement>) => {
-    if (!isDesktop || !event.altKey || !position || !panelRef.current) return;
-    const delta = event.shiftKey ? 32 : 12;
-    const movement = {
-      ArrowLeft: { x: -delta, y: 0 },
-      ArrowRight: { x: delta, y: 0 },
-      ArrowUp: { x: 0, y: -delta },
-      ArrowDown: { x: 0, y: delta },
-    }[event.key];
-    if (!movement) return;
-    event.preventDefault();
-    setPosition(
-      clampPosition(
-        { x: position.x + movement.x, y: position.y + movement.y },
-        panelRef.current.offsetWidth,
-        panelRef.current.offsetHeight,
-      ),
-    );
-  };
 
   /**
    * Answer a question about the model without asking a model.
@@ -1103,7 +949,9 @@ export function DumaAgent() {
 
   const send = async (prompt = draft) => {
     const content = prompt.trim();
-    if (!content || busy) return;
+    if (!content || busy || historyLoading || abortRef.current) return;
+    setHistoryOpen(false);
+    setNotice('');
 
     // Before anything else: "which models can you use?" and "switch to
     // OpenRouter" are settled here, deterministically.
@@ -1113,6 +961,7 @@ export function DumaAgent() {
       return;
     }
 
+    followScrollRef.current = true;
     const nextMessages: AgentChatMessage[] = [...messages, { role: 'user', content }];
     setMessages(nextMessages);
     setDraft('');
@@ -1125,12 +974,25 @@ export function DumaAgent() {
     streamedRef.current = '';
     setStreaming('');
     setBusy(true);
-    const startedAt = performance.now();
 
     const controller = new AbortController();
     abortRef.current = controller;
+    let answered = false;
 
+    let activeConversation = conversationId;
+    const requestId = crypto.randomUUID();
     try {
+      if (!activeConversation) {
+        try {
+          const created = await createAgentConversation(content, tenantId, locationId);
+          controller.signal.throwIfAborted();
+          activeConversation = created.id;
+          setConversationId(created.id);
+        } catch {
+          controller.signal.throwIfAborted();
+          setNotice('This chat will save automatically when history is available again.');
+        }
+      }
       const response = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1138,7 +1000,12 @@ export function DumaAgent() {
         // transcript for display, but cards, shortcuts and evidence are already
         // spent — replaying them would only grow the request every turn.
         body: JSON.stringify({
-          messages: nextMessages.slice(-HISTORY_SENT).map(({ role, content }) => ({ role, content })),
+          messages: (activeConversation ? nextMessages.slice(-1) : nextMessages.slice(-HISTORY_SENT)).map(({ role, content }) => ({
+            role,
+            content: content.slice(0, 4000),
+          })),
+          conversationId: activeConversation,
+          requestId,
           context: { locationId, tenantId, page: pageId(pathname), provider },
         }),
         signal: controller.signal,
@@ -1152,7 +1019,6 @@ export function DumaAgent() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let answered = false;
 
       // NDJSON: one event per line, so a partial chunk waits for its newline.
       for (;;) {
@@ -1173,17 +1039,38 @@ export function DumaAgent() {
             });
           else if (event.type === 'delta') {
             streamedRef.current += event.text;
-            setStreaming(streamedRef.current);
+            setStreaming(visibleAnswer(streamedRef.current));
           } else if (event.type === 'delta-reset') {
             streamedRef.current = '';
             setStreaming('');
-          } else if (event.type === 'error') throw new Error(event.message);
+          } else if (event.type === 'notice') setNotice(event.message);
+          else if (event.type === 'error') throw new Error(event.message);
           else if (event.type === 'result') {
-            // A streamed answer has already been on screen for a while, so it
-            // has served the minimum-wait's purpose without imposing it.
-            if (!streamedRef.current) await waitForMinimum(startedAt);
-            applyResponse(event.response, takenRef.current, Boolean(streamedRef.current));
+            applyResponse(event.response, takenRef.current);
             answered = true;
+            const turn = {
+              requestId,
+              question: content,
+              answer: event.response.message + (event.response.pendingAction ? '\n\nThis was an action draft. Ask DUMA to prepare it again if it has not been approved.' : ''),
+              model: event.response.model,
+              evidence: event.response.evidence ?? [],
+              presentation: {
+                cards: event.response.cards,
+                scope: event.response.scope,
+                refused: event.response.refused,
+                followUps: event.response.followUps,
+                fallbackModel: event.response.fallbackModel,
+                generatedAt: event.response.generatedAt,
+              },
+            };
+            try {
+              if (!activeConversation) throw new Error('Conversation is waiting to be created');
+              await saveAgentTurn(activeConversation, turn);
+              setNotice('');
+            } catch {
+              queueAgentTurn({ groupId: historyGroupRef.current, conversationId: activeConversation, title: content.slice(0, 100), tenantId, locationId, turn });
+              setNotice('Saved on this device. Ask DUMA will add it to history automatically.');
+            }
           }
         }
       }
@@ -1193,10 +1080,11 @@ export function DumaAgent() {
       streamedRef.current = '';
       setStreaming('');
       if (caught instanceof DOMException && caught.name === 'AbortError') {
-        setOutcome('stopped');
-        setMessages((current) => [...current, { role: 'assistant', content: 'Stopped. Ask again when you are ready.' }]);
+        if (!answered) {
+          setOutcome('stopped');
+          setMessages((current) => [...current, { role: 'assistant', content: 'Stopped. Ask again when you are ready.' }]);
+        } else setNotice('The answer arrived, but saving it to history was interrupted.');
       } else {
-        await waitForMinimum(startedAt);
         setError(caught instanceof Error ? caught.message : 'Ask DUMA could not complete the request.');
       }
     } finally {
@@ -1216,6 +1104,11 @@ export function DumaAgent() {
    * longer on screen.
    */
   const startFresh = () => {
+    if (busy || historyLoading) return;
+    setConversationId(undefined);
+    historyGroupRef.current = `chat-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setHistoryOpen(false);
+    setNotice('');
     setMessages([]);
     streamedRef.current = '';
     setStreaming('');
@@ -1241,7 +1134,6 @@ export function DumaAgent() {
     setBusy(true);
     setError('');
     setSteps(['Checking your approval', 'Validating the details', 'Writing to DUMA']);
-    const startedAt = performance.now();
     /** Carried out of the try so the catch can tell a refusal from a failure. */
     let refused: AgentRefusal | undefined;
     try {
@@ -1251,7 +1143,6 @@ export function DumaAgent() {
         body: JSON.stringify({ confirmedAction: submission, context: { locationId, tenantId, provider } }),
       });
       const result = (await response.json()) as AgentChatResponse;
-      await waitForMinimum(startedAt);
       if (!response.ok) {
         refused = result.refused;
         throw new Error(result.message || 'The action could not be completed.');
@@ -1259,8 +1150,20 @@ export function DumaAgent() {
       setMessages((current) => [...current, { role: 'assistant', content: result.message, shortcuts: result.shortcuts, live: true }]);
       setPendingAction(undefined);
       setOutcome('completed');
+      if (conversationId) {
+        try {
+          await saveAgentTurn(conversationId, {
+            requestId: crypto.randomUUID(),
+            question: `Approved: ${pendingAction?.title ?? 'the proposed action'}`,
+            answer: result.message,
+            model: result.model,
+            evidence: result.evidence ?? [],
+          });
+        } catch {
+          setNotice('The action completed, but its confirmation could not be saved to chat history.');
+        }
+      }
     } catch (caught) {
-      await waitForMinimum(startedAt);
       setError(caught instanceof Error ? caught.message : 'The action could not be completed.');
       if (refused) setRefusal(refused);
     } finally {
@@ -1271,6 +1174,7 @@ export function DumaAgent() {
 
   const lastMessage = messages[messages.length - 1];
   const followUps = !busy && !pendingAction && lastMessage?.role === 'assistant' ? (lastMessage.followUps ?? []) : [];
+  const retryPrompt = [...messages].reverse().find((message) => message.role === 'user')?.content;
   const currentPage = pageName(pathname);
   const welcome = PAGE_WELCOMES[pageId(pathname) ?? ''] ?? DEFAULT_WELCOME;
   const permittedPrompts = welcome.prompts.filter((prompt) => {
@@ -1278,7 +1182,11 @@ export function DumaAgent() {
     return !required || hasAllCapabilities(capabilities, ...required);
   });
   const visiblePrompts = permittedPrompts.length > 0 ? permittedPrompts : [DEFAULT_WELCOME.prompts[0]];
-  const floatingStyle = isDesktop && position ? { left: position.x, top: position.y } : undefined;
+  // Beside an open drawer rather than over it: the drawer is modal and owns the right edge.
+  const dockRight = drawerRect ? Math.max(0, window.innerWidth - drawerRect.left) : 0;
+  const dockWidth = expanded ? Math.min(EXPANDED_PANEL_WIDTH, window.innerWidth - dockRight - WINDOW_MARGIN * 4) : DESKTOP_PANEL_WIDTH;
+  const dockStyle = isDesktop ? { width: dockWidth, marginRight: dockRight } : undefined;
+  const floatingStyle = isDesktop ? { right: dockRight + WINDOW_MARGIN, bottom: WINDOW_MARGIN } : undefined;
 
   /**
    * What the panel is doing, in the mascot's terms. Ordered by what a person
@@ -1310,9 +1218,11 @@ export function DumaAgent() {
         : pendingAction
           ? 'asking'
           : busy
-            ? steps.length > 1
-              ? 'working'
-              : 'thinking'
+            ? streaming
+              ? 'writing'
+              : steps.length > 1
+                ? 'working'
+                : 'thinking'
             : // A refusal is never `writing`: that pose is eager, and being eager
               // while declining someone is the wrong face on the right words. Both
               // refusals rank below `listening`, so typing a follow-up gets you
@@ -1339,7 +1249,7 @@ export function DumaAgent() {
    * hook instances would run separate timers and could hold different poses, at
    * which point they read as two mascots that disagree.
    */
-  const mood = useAgentMood(phase, { canDoze: open && !minimized });
+  const mood = useAgentMood(phase);
 
   /**
    * The mascot's pose in words.
@@ -1350,15 +1260,7 @@ export function DumaAgent() {
    * the three pulsing dots cannot — so the live step wins over the mood's own
    * caption whenever there is one.
    */
-  const status = busy && steps.length > 0 ? `${steps[steps.length - 1]}…` : mood.caption;
-
-  const dragHandleProps = {
-    onPointerDown: startDrag,
-    onPointerMove: moveDrag,
-    onPointerUp: stopDrag,
-    onPointerCancel: stopDrag,
-    onKeyDown: moveWithKeyboard,
-  };
+  const status = historyLoading ? 'Loading history' : busy ? steps.at(-1) || mood.caption : mood.caption;
 
   return (
     <>
@@ -1367,298 +1269,131 @@ export function DumaAgent() {
       {mounted
         ? createPortal(
             <>
-              {open && (
-                <section
+              {open && minimized && (
+                <motion.div
+                  initial={reducedMotion ? false : { opacity: 1, y: 8, scale: 0.99 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                   ref={panelRef}
                   role="dialog"
-                  aria-modal={isDesktop ? undefined : !minimized}
                   aria-labelledby="duma-agent-title"
                   tabIndex={-1}
-                  data-duma-agent
                   style={floatingStyle}
-                  className={cn(
-                    'fixed z-[70] overflow-hidden bg-card shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none',
-                    minimized
-                      ? 'right-3 bottom-3 flex h-14 w-[calc(100vw-1.5rem)] rounded-lg sm:right-auto sm:bottom-auto sm:w-80'
-                      : 'inset-0 flex flex-col sm:inset-auto sm:h-[min(720px,calc(100vh-32px))] sm:w-115 sm:rounded-lg',
-                    dragging && 'select-none',
-                  )}
+                  className="fixed right-3 bottom-3 z-[70] flex h-14 w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-rule/60 bg-card shadow-2xl sm:w-80"
                 >
-                  {minimized ? (
-                    <header className="flex h-full w-full items-center gap-2 border-b border-divider bg-card px-2.5">
-                      <div
-                        {...dragHandleProps}
-                        role={isDesktop ? 'group' : undefined}
-                        tabIndex={isDesktop ? 0 : -1}
-                        aria-label={isDesktop ? 'Drag Ask DUMA. Hold Alt and use arrow keys to move it.' : undefined}
-                        title={isDesktop ? 'Drag Ask DUMA' : undefined}
-                        className={cn(
-                          'flex min-w-0 flex-1 touch-none items-center gap-2 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring sm:cursor-grab',
-                          dragging && 'sm:cursor-grabbing',
-                        )}
-                      >
-                        <MinimizedMark mood={mood} />
-                        <div className="min-w-0 flex-1">
-                          <h2 id="duma-agent-title" className="truncate text-sm font-semibold">
-                            Ask DUMA
-                          </h2>
-                          {/* Minimised, this line is the only thing left that can
+                  <header className="flex h-full w-full items-center gap-2 bg-card px-2.5">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <MinimizedMark mood={mood} />
+                      <div className="min-w-0 flex-1">
+                        <h2 id="duma-agent-title" className="truncate text-sm font-semibold">
+                          Ask DUMA
+                        </h2>
+                        {/* Minimised, this line is the only thing left that can
                               say what is happening, so it carries the live status
                               rather than the page being followed. */}
-                          <p className="truncate text-label text-muted-foreground" role="status" aria-live="polite">
-                            {status}
-                          </p>
-                        </div>
+                        <p className="truncate text-label text-muted-foreground" role="status" aria-live="polite">
+                          {status}
+                        </p>
                       </div>
-                      <Button
-                        ref={restoreRef}
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => setMinimized(false)}
-                        aria-label="Restore Ask DUMA"
-                      >
-                        <Maximize aria-hidden="true" />
-                      </Button>
-                      <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label="Close Ask DUMA">
-                        <X aria-hidden="true" />
-                      </Button>
-                    </header>
-                  ) : (
+                    </div>
+                    <Button
+                      ref={restoreRef}
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setMinimized(false)}
+                      aria-label="Restore Ask DUMA"
+                    >
+                      <Maximize aria-hidden="true" />
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label="Close Ask DUMA">
+                      <X aria-hidden="true" />
+                    </Button>
+                  </header>
+                </motion.div>
+              )}
+
+              {/* Open, it is the app's own drawer — the same frame as every side panel — just not
+                  modal: the page stays usable behind it, and nothing is locked or dimmed. */}
+              {open && !minimized && (
+                <Drawer
+                  modal={false}
+                  title="Ask DUMA"
+                  description={status}
+                  liveDescription
+                  leading={<PanelMark mood={mood} />}
+                  closeLabel="Close Ask DUMA"
+                  onClose={() => setOpen(false)}
+                  panelRef={panelRef}
+                  bodyRef={scrollRef}
+                  onBodyScroll={(event) => {
+                    const el = event.currentTarget;
+                    followScrollRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+                  }}
+                  bodyClassName="px-5 py-5"
+                  footerClassName="px-3 pt-3 pb-2.5"
+                  style={dockStyle}
+                  className="sm:max-w-none sm:transition-[width] sm:duration-200"
+                  actions={
                     <>
-                      <header className="flex shrink-0 items-center gap-2 border-b border-divider bg-card px-3 py-2">
-                        <div
-                          {...dragHandleProps}
-                          role={isDesktop ? 'group' : undefined}
-                          tabIndex={isDesktop ? 0 : -1}
-                          aria-label={isDesktop ? 'Drag Ask DUMA. Hold Alt and use arrow keys to move it.' : undefined}
-                          title={isDesktop ? 'Drag Ask DUMA' : undefined}
-                          onDoubleClick={() => isDesktop && setMinimized(true)}
-                          className={cn(
-                            'flex min-w-0 flex-1 touch-none items-center gap-2 rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring sm:cursor-grab',
-                            dragging && 'sm:cursor-grabbing',
-                          )}
+                      {messages.length > 0 && (
+                        <DrawerHeaderButton onClick={startFresh} label="Start a new chat" disabled={busy || historyLoading}>
+                          <Plus size={15} aria-hidden="true" />
+                        </DrawerHeaderButton>
+                      )}
+                      <DrawerHeaderButton
+                        onClick={() => setHistoryOpen((value) => !value)}
+                        label={historyOpen ? 'Back to conversation' : 'Conversation history'}
+                        pressed={historyOpen}
+                        disabled={busy || historyLoading}
+                      >
+                        <History size={15} aria-hidden="true" />
+                      </DrawerHeaderButton>
+                      {isDesktop && (
+                        <DrawerHeaderButton
+                          onClick={() => setExpanded((value) => !value)}
+                          label={expanded ? 'Make Ask DUMA narrower' : 'Make Ask DUMA wider'}
+                          pressed={expanded}
                         >
-                          {/*
-                            The panel's face, and the only mascot in it once a
-                            conversation is running.
-
-                            Large enough to be a presence rather than a favicon — a
-                            30px ball, against the 21px this header carried before —
-                            because it is the whole of the assistant's embodiment
-                            here, and it has to hold poses that have somewhere to
-                            go: the orbit rings of a wait, the pastille of an answer
-                            landing, the travelling "!" of a failure. At the old
-                            size those were smudges.
-                          */}
-                          <PanelMark mood={mood} />
-                          <div className="min-w-0 flex-1">
-                            <h2 id="duma-agent-title" className="truncate text-sm font-semibold text-foreground">
-                              Ask DUMA
-                            </h2>
-                            {/* The pose is colour and shape, and the product's
-                                Two-Channel Rule says no state travels on that
-                                alone — so the mood's own words sit under the title,
-                                replaced by the live step once there is one. Held to
-                                one line so a changing status cannot reflow the
-                                header under the reader. */}
-                            <p className="truncate text-label text-muted-foreground" role="status" aria-live="polite">
-                              {status}
-                            </p>
-                          </div>
-                        </div>
-                        {messages.length > 0 && (
-                          <Button variant="ghost" size="icon-sm" onClick={startFresh} aria-label="Start a new chat">
-                            <Plus aria-hidden="true" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon-sm" onClick={() => setMinimized(true)} aria-label="Minimize Ask DUMA">
-                          <Minus aria-hidden="true" />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label="Close Ask DUMA">
-                          <X aria-hidden="true" />
-                        </Button>
-                      </header>
-
-                      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-5" aria-live="polite">
-                        {messages.length === 0 ? (
-                          /* Fills the scroller so the greeting can float in the
-                             free space and the prompts sit against the composer,
-                             where the hand already is. */
-                          <div className="flex min-h-full flex-col duration-200 animate-in fade-in slide-in-from-bottom-1 motion-reduce:animate-none">
-                            <section
-                              className="flex flex-1 flex-col items-center justify-center py-6 text-center"
-                              aria-labelledby="duma-welcome-title"
-                            >
-                              {/*
-                                The greeting, and the one place the mascot is the
-                                character rather than a badge: it spins up on
-                                arrival and then watches the cursor, so an empty
-                                panel is somebody waiting rather than a blank box
-                                with a tip in it.
-
-                                It replaced an icon-in-a-tile that changed per
-                                page — a second, quieter picture of what the page
-                                was, three lines above a heading that already said
-                                so. The mascot says the thing the tile could not,
-                                which is that there is someone here.
-                              */}
-                              <Mascot size={112} state={mood.state} expression={mood.expression} follow label="DUMA's assistant" />
-                              <h3 id="duma-welcome-title" className="mt-2 text-base font-semibold tracking-title text-foreground">
-                                {welcome.title}
-                              </h3>
-                              <p className="mx-auto mt-1 max-w-[40ch] text-sm leading-6 text-muted-foreground">{welcome.description}</p>
-                            </section>
-
-                            <p className="mt-6 shrink-0 text-label font-semibold tracking-label uppercase text-muted-foreground">
-                              Suggested for {currentPage}
-                            </p>
-
-                            <div className="-mx-2 mt-1 shrink-0">
-                              {visiblePrompts.map(({ icon: Icon, label, prompt }, index) => (
-                                <button
-                                  key={label}
-                                  ref={index === 0 ? firstSuggestionRef : undefined}
-                                  type="button"
-                                  onClick={() => void send(prompt)}
-                                  className="group flex w-full items-center gap-3 rounded-sm px-2 py-2.5 text-left transition-colors duration-150 hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
-                                >
-                                  <Icon size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-                                  <span className="min-w-0">
-                                    <span className="block text-sm text-foreground">{label}</span>
-                                    <span className="mt-0.5 block line-clamp-1 text-xs leading-5 text-muted-foreground">{prompt}</span>
-                                  </span>
-                                  <ChevronRight
-                                    size={14}
-                                    className="ml-auto shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-primary motion-reduce:transition-none"
-                                    aria-hidden="true"
-                                  />
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-5">
-                            {messages.map((message, index) =>
-                              message.role === 'user' ? (
-                                /* Only the question is boxed, and quietly. The
-                                   answer is prose hanging off the mascot column, so
-                                   a turn reads as one conversation with two sides
-                                   rather than a stack of matching bubbles. */
-                                <div key={`user-${index}`} className="flex justify-end">
-                                  <p className="max-w-[85%] rounded-md bg-band px-3 py-2 text-sm leading-6 whitespace-pre-wrap text-foreground">
-                                    {message.content}
-                                  </p>
-                                </div>
-                              ) : (
-                                <div key={`assistant-${index}`} className="text-sm leading-7 text-foreground">
-                                  <LiveMarkdown
-                                    content={message.content}
-                                    active={message.live}
-                                    onDone={() =>
-                                      setMessages((current) =>
-                                        current.map((item, itemIndex) => (itemIndex === index ? { ...item, live: false } : item)),
-                                      )
-                                    }
-                                  />
-                                  {message.cards?.map((card, cardIndex) => (
-                                    <AgentMetrics key={cardIndex} card={card} />
-                                  ))}
-                                  {/* Live, not a snapshot: a picker left further
-                                      up the transcript still shows — and sets —
-                                      the model in use. */}
-                                  {message.modelPicker ? (
-                                    <div className="mt-3">
-                                      <ModelChoiceList compact enabled={open} />
-                                    </div>
-                                  ) : null}
-                                  {message.shortcuts?.length ? (
-                                    <ShortcutList shortcuts={message.shortcuts} openingKey={openingShortcut} onOpen={openShortcut} />
-                                  ) : null}
-                                  {message.fallbackModel ? (
-                                    <p className="mt-1.5 flex items-center gap-1.5 text-label text-muted-foreground">
-                                      <Zap size={11} className="shrink-0 text-stock" aria-hidden="true" />
-                                      Primary model was at its limit — answered by {message.fallbackModel}
-                                    </p>
-                                  ) : null}
-                                  <div className="mt-1 flex items-center justify-between gap-3">
-                                    <StepsTaken steps={message.steps ?? []} />
-                                    <CopyAnswer content={message.content} />
-                                  </div>
-                                </div>
-                              ),
-                            )}
-
-                            {/* No spinner beside it: the mascot at the top of the
-                                panel is the indicator, and a second animation down
-                                here would be the same news told twice. What this
-                                row owes the reader is the words — which step, how
-                                long, what is already done. */}
-                            {/* Once words start arriving they are the status:
-                                the trail of steps has done its job and a
-                                spinner beside a sentence being written is
-                                noise. */}
-                            {streaming ? (
-                              <div className="text-sm leading-7 text-foreground">
-                                <LiveMarkdown content={streaming} />
-                              </div>
-                            ) : (
-                              busy && <ThinkingTrail steps={steps} caption={mood.caption} />
-                            )}
-
-                            {error && (
-                              <p className="rounded-sm border border-exception/50 bg-exception/5 p-3 text-sm text-exception" role="alert">
-                                {error}
-                              </p>
-                            )}
-
-                            {pendingAction && (
-                              <ActionCard
-                                action={pendingAction}
-                                busy={busy}
-                                onConfirm={(submission) => void confirmAction(submission)}
-                                onCancel={() => setPendingAction(undefined)}
-                              />
-                            )}
-
-                            {followUps.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5" aria-label="Suggested follow-ups">
-                                {followUps.map((followUp) => (
-                                  <button
-                                    key={followUp}
-                                    type="button"
-                                    onClick={() => void send(followUp)}
-                                    className="rounded-sm bg-band px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                                  >
-                                    {followUp}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
+                          <ArrowLeftRight size={15} aria-hidden="true" />
+                        </DrawerHeaderButton>
+                      )}
+                    </>
+                  }
+                  footer={
+                    historyOpen ? undefined : (
                       <form
-                        className="shrink-0 border-t border-divider bg-card px-3 pt-3 pb-2.5"
                         onSubmit={(event) => {
                           event.preventDefault();
                           void send();
                         }}
                       >
+                        {notice && (
+                          <p
+                            role="status"
+                            className="mb-2 flex items-start gap-2 rounded-md border border-rule/55 bg-band/45 px-3 py-2 text-xs leading-5 text-muted-foreground"
+                          >
+                            <History size={13} className="mt-0.5 shrink-0 text-measured" aria-hidden="true" />
+                            <span>{notice}</span>
+                          </p>
+                        )}
                         <div className="flex items-end gap-2 rounded-md border border-input bg-field py-1.5 pr-1.5 pl-2 shadow-sm focus-within:border-measured focus-within:outline-2 focus-within:outline-measured">
                           <textarea
                             ref={inputRef}
                             value={draft}
-                            onChange={(event) => setDraft(event.target.value)}
+                            onChange={(event) => {
+                              setDraft(event.target.value);
+                              event.target.style.height = 'auto';
+                              event.target.style.height = `${Math.min(event.target.scrollHeight, 160)}px`;
+                            }}
                             onKeyDown={(event) => {
-                              if (event.key === 'Enter' && !event.shiftKey) {
+                              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                                 event.preventDefault();
                                 void send();
                               }
                             }}
                             rows={1}
                             maxLength={4_000}
-                            placeholder="Ask anything…"
+                            placeholder="Ask about your workspace…"
                             aria-label="Message Ask DUMA"
                             className="max-h-40 min-h-9 flex-1 resize-none self-center bg-transparent px-1 py-1.5 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground sm:text-sm"
                             disabled={busy}
@@ -1684,22 +1419,227 @@ export function DumaAgent() {
                             right. The model belongs here rather than in the
                             header — it is a property of the message about to be
                             sent, and the header is already the mascot's. */}
-                        <div className="mt-1.5 flex items-center justify-between gap-2 px-1">
-                          <button
-                            type="button"
-                            onClick={() => answerModelQuestion({ kind: 'list' })}
-                            aria-label={`Answering with ${modelLabel}. Change the model.`}
-                            className="-mx-1 inline-flex min-w-0 items-center gap-1 rounded-sm px-1 py-0.5 text-label text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                          >
-                            <Sparkles size={11} className="shrink-0" aria-hidden="true" />
-                            <span className="truncate">{modelLabel}</span>
-                          </button>
-                          <span className="shrink-0 text-label text-muted-foreground">Writes need your approval</span>
-                        </div>
+                        <p className="mt-1.5 px-1 text-label text-muted-foreground">Ask DUMA can make mistakes</p>
                       </form>
-                    </>
+                    )
+                  }
+                >
+                  {historyOpen ? (
+                    <ConversationHistory
+                      userId={userId}
+                      tenantId={tenantId}
+                      locationId={locationId}
+                      onWorking={setHistoryLoading}
+                      onDeleted={(id) => {
+                        if (id === conversationId) {
+                          setConversationId(undefined);
+                          setMessages([]);
+                          setPendingAction(undefined);
+                          setError('');
+                        }
+                      }}
+                      onSelect={async (id) => {
+                        setHistoryLoading(true);
+                        try {
+                          const saved = await getAgentConversation(id);
+                          setMessages(
+                            saved.turns.flatMap((turn): AgentChatMessage[] => [
+                              { role: 'user', content: turn.question },
+                              { ...turn.presentation, role: 'assistant', content: turn.answer, evidence: turn.evidence,
+                                generatedAt: turn.presentation?.generatedAt ?? turn.createdAt },
+                            ]),
+                          );
+                          setConversationId(id);
+                          setPendingAction(undefined);
+                          setError('');
+                          setNotice('');
+                          setHistoryOpen(false);
+                        } finally {
+                          setHistoryLoading(false);
+                        }
+                      }}
+                    />
+                  ) : messages.length === 0 ? (
+                    /* Fills the scroller so the greeting can float in the
+                             free space and the prompts sit against the composer,
+                             where the hand already is. */
+                    <div className="flex min-h-full flex-col duration-200 animate-in fade-in slide-in-from-bottom-1 motion-reduce:animate-none">
+                      {/* What it can do and where it is looking — no hero: the header mark is the character. */}
+                      <section className="flex flex-1 flex-col justify-end pb-2 text-left" aria-labelledby="duma-welcome-title">
+                        {/* The one place the mascot is the character, not a badge: it waves on
+                                  arrival and then watches the cursor, so an empty panel is someone waiting. */}
+                        <Mascot size={112} {...mood} gesture="wave" follow label="DUMA's assistant" className="-ml-2" />
+                        <h3 id="duma-welcome-title" className="mt-3 max-w-[26ch] text-xl font-semibold tracking-title text-foreground">
+                          {welcome.title}
+                        </h3>
+                        <p className="mt-1.5 max-w-[46ch] text-sm leading-6 text-muted-foreground">{welcome.description}</p>
+                        <p className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-md border border-rule/60 bg-field px-2 py-1 text-xs text-muted-foreground">
+                          <Eye size={12} aria-hidden="true" />
+                          Looking at <span className="font-medium text-foreground">{currentPage}</span>
+                        </p>
+                      </section>
+
+                      <p className="mt-6 shrink-0 px-1 text-label uppercase text-muted-foreground">Suggested for {currentPage}</p>
+
+                      {/* The settings page's row list: one bordered panel, a row per prompt. */}
+                      <div className="mt-2 shrink-0 divide-y divide-rule/40 overflow-hidden rounded-lg border border-rule/60 bg-field">
+                        {visiblePrompts.slice(0, 4).map(({ icon: Icon, label, prompt }, index) => (
+                          <button
+                            key={label}
+                            ref={index === 0 ? firstSuggestionRef : undefined}
+                            type="button"
+                            onClick={() => void send(prompt)}
+                            className="group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors duration-150 hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
+                          >
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
+                              <Icon size={15} aria-hidden="true" />
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium text-foreground">{label}</span>
+                            </span>
+                            <ChevronRight
+                              size={14}
+                              className="ml-auto shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-primary motion-reduce:transition-none"
+                              aria-hidden="true"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-7">
+                      {messages.map((message, index) => {
+                        if (message.role === 'user')
+                          return (
+                            /* Only the question is boxed, and quietly. The
+                                   answer is prose hanging off the mascot column, so
+                                   a turn reads as one conversation with two sides
+                                   rather than a stack of matching bubbles. */
+                            <div key={`user-${index}`} className="flex justify-end">
+                              <p className="max-w-[85%] rounded-lg border border-rule/55 bg-field px-3.5 py-2 text-sm leading-6 whitespace-pre-wrap text-foreground">
+                                {message.content}
+                              </p>
+                            </div>
+                          );
+
+                        const priorityBrief = parsePriorityBrief(message.content);
+                        const evidenceSteps = [...new Set([...(message.evidence ?? []), ...(message.steps ?? [])])];
+                        return (
+                          <div key={`assistant-${index}`} className="text-sm leading-7 text-foreground">
+                            {priorityBrief ? (
+                              <PriorityBrief brief={priorityBrief} />
+                            ) : (
+                              <>
+                                <LiveMarkdown
+                                  content={message.content}
+                                  active={message.live}
+                                  onDone={() =>
+                                    setMessages((current) =>
+                                      current.map((item, itemIndex) => (itemIndex === index ? { ...item, live: false } : item)),
+                                    )
+                                  }
+                                />
+                                {message.cards?.map((card, cardIndex) => (
+                                  <AgentMetrics key={cardIndex} card={card} />
+                                ))}
+                              </>
+                            )}
+                            {/* Live, not a snapshot: a picker left further
+                                      up the transcript still shows — and sets —
+                                      the model in use. */}
+                            {message.modelPicker ? (
+                              <div className="mt-3">
+                                <ModelChoiceList compact enabled={open} />
+                              </div>
+                            ) : null}
+                            {message.shortcuts?.length ? (
+                              <ShortcutList shortcuts={message.shortcuts} openingKey={openingShortcut} onOpen={openShortcut} />
+                            ) : null}
+                            {message.fallbackModel ? (
+                              <p className="mt-1.5 flex items-center gap-1.5 text-label text-muted-foreground">
+                                <Zap size={11} className="shrink-0 text-stock" aria-hidden="true" />
+                                Primary model was at its limit — answered by {message.fallbackModel}
+                              </p>
+                            ) : null}
+                            <div className="mt-1 flex items-center justify-between gap-3">
+                              {priorityBrief ? (
+                                <PriorityEvidence cards={message.cards ?? []} steps={evidenceSteps} />
+                              ) : (
+                                <StepsTaken steps={evidenceSteps} />
+                              )}
+                              {message.content.trim() ? <CopyAnswer content={message.content} /> : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* No spinner beside it: the mascot at the top of the
+                                panel is the indicator, and a second animation down
+                                here would be the same news told twice. What this
+                                row owes the reader is the words — which step, how
+                                long, what is already done. */}
+                      {/* Once words start arriving they are the status:
+                                the trail of steps has done its job and a
+                                spinner beside a sentence being written is
+                                noise. */}
+                      {streaming ? (
+                        <div className="text-sm leading-7 text-foreground">
+                          <LiveMarkdown content={streaming} />
+                        </div>
+                      ) : (
+                        busy && (
+                          // The thinking pose beside the words for it — the same mood as the header mark.
+                          <div className="flex items-start gap-3">
+                            <Mascot size={36} {...mood} gesture={undefined} fps={30} className="-mt-0.5 shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <ThinkingTrail steps={steps} caption={mood.caption} />
+                            </div>
+                          </div>
+                        )
+                      )}
+
+                      {error && (
+                        <section
+                          className="rounded-lg border border-exception/35 bg-exception/6 px-3.5 py-3"
+                          role="alert"
+                          aria-label="Ask DUMA could not finish"
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <TriangleAlert size={16} className="mt-0.5 shrink-0 text-exception" aria-hidden="true" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-foreground">I couldn’t finish that</p>
+                              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{error}</p>
+                            </div>
+                          </div>
+                          {retryPrompt && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="mt-3"
+                              disabled={busy}
+                              onClick={() => void send(retryPrompt)}
+                            >
+                              <RefreshCw size={13} aria-hidden="true" />
+                              Try again
+                            </Button>
+                          )}
+                        </section>
+                      )}
+
+                      {pendingAction && (
+                        <ActionCard
+                          action={pendingAction}
+                          busy={busy}
+                          onConfirm={(submission) => void confirmAction(submission)}
+                          onCancel={() => setPendingAction(undefined)}
+                        />
+                      )}
+
+                      {followUps.length > 0 && <FollowUpList items={followUps} onSelect={(followUp) => void send(followUp)} />}
+                    </div>
                   )}
-                </section>
+                </Drawer>
               )}
             </>,
             document.body,

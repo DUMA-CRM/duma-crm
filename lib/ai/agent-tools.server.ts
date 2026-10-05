@@ -11,8 +11,8 @@ import type {
   StaffHoursAnalytics,
   TopItemAnalytics,
 } from '@/lib/modules/analytics/client';
+import type { AuditLogsResponse } from '@/lib/modules/audit/client';
 import type { EmailAutomation, EmailConnection, EmailDeliveriesResponse, EmailTemplate } from '@/lib/modules/communications/client';
-import type { AuditLogsResponse } from '@/lib/modules/compliance/client';
 import type { PrivacyRequest } from '@/lib/modules/compliance/client';
 import type { InventoryForecast, LowStockAlert } from '@/lib/modules/inventory/client';
 import type { LossLogResponse } from '@/lib/modules/inventory/client';
@@ -22,11 +22,9 @@ import type { StocktakesResponse } from '@/lib/modules/inventory/client';
 import type { StockTransfersResponse } from '@/lib/modules/inventory/client';
 import { MODULE_IDS, type ModuleId, isModuleSurfaceEnabled } from '@/lib/modules/manifest';
 import type { Order, OrderDetail } from '@/lib/modules/ordering/client';
-import type { QrOrderingConfig } from '@/lib/modules/ordering/client';
 import type { Location } from '@/lib/modules/organization/client';
 import type { CashUp } from '@/lib/modules/payments/client';
-import type { HrEmployee } from '@/lib/modules/people/client';
-import type { PayrollPreview, PayrollRun } from '@/lib/modules/people/client';
+import type { PayrollPreview, PayrollRun } from '@/lib/modules/payroll/client';
 import type {
   AbsenceLog,
   AttendanceDay,
@@ -36,6 +34,7 @@ import type {
   LeaveRequest,
 } from '@/lib/modules/people/client';
 import type { PurchaseOrdersResponse } from '@/lib/modules/purchasing/client';
+import type { QrOrderingConfig } from '@/lib/modules/qr-ordering/client';
 import type { ScheduledShift } from '@/lib/modules/workforce/client';
 import type { Shift } from '@/lib/modules/workforce/client';
 import { attendanceTotals, groupAttendanceByWeek, leaveBalance, mergeAbsenceDays, myHrActions } from '@/lib/utils/my-hr';
@@ -476,7 +475,7 @@ function itemRows(rows: TopItemAnalytics[], query: unknown) {
 const getSalesReport: ToolDefinition = {
   name: 'get_sales_report',
   description:
-    'Compare orders, revenue and item sales across two date ranges. Use the calendar anchors in the brief rather than guessing dates.',
+    'Compare orders, revenue, refunds, average order value and item sales across two date ranges. Use the calendar anchors in the brief rather than guessing dates. Set chartMetric to the single measure being compared, even when the operator does not explicitly say chart; use none for a broad summary with no single comparison focus.',
   capability: 'analytics:read',
   step: 'Reading live sales data',
   parameters: schema({
@@ -486,6 +485,11 @@ const getSalesReport: ToolDefinition = {
     previousTo: { type: 'string', description: DATE },
     locationId: nullableString('Restrict to one location, or null for everything accessible.'),
     itemQuery: nullableString('Optional item name such as latte. Null returns the item ranking.'),
+    chartMetric: {
+      type: 'string',
+      enum: ['none', 'net_revenue', 'refunds', 'orders', 'average_order_value'],
+      description: 'Single measure to render as a current-vs-previous comparison chart, or none for a broad multi-measure summary.',
+    },
   }),
   async run(args, runtime) {
     const { currentFrom, currentTo, previousFrom, previousTo } = args;
@@ -511,6 +515,14 @@ const getSalesReport: ToolDefinition = {
     const previousSummary = summarise(previous);
     const currentRows = itemRows(currentItems, args.itemQuery);
     const previousRows = itemRows(previousItems, args.itemQuery);
+    const days = (from: string, to: string) =>
+      Math.floor((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
+    const currentDays = days(currentFrom as string, currentTo as string);
+    const previousDays = days(previousFrom as string, previousTo as string);
+    const comparisonBasis =
+      currentDays === previousDays
+        ? `Like-for-like: ${currentDays} calendar day${currentDays === 1 ? '' : 's'} in each period`
+        : `Caution: ${currentDays} days compared with ${previousDays} days`;
     const changes = {
       orders: percentChange(currentSummary.orders, previousSummary.orders),
       netRevenue: percentChange(currentSummary.netRevenueGbp, previousSummary.netRevenueGbp),
@@ -530,6 +542,66 @@ const getSalesReport: ToolDefinition = {
       return `${change > 0 ? '+' : ''}${change}% vs ${basis}`;
     };
     const comparable = (previousValue: number) => previousValue !== 0;
+    const chartMetric = ['net_revenue', 'refunds', 'orders', 'average_order_value'].includes(String(args.chartMetric))
+      ? String(args.chartMetric)
+      : undefined;
+    const chart = chartMetric
+      ? {
+          kind: 'chart' as const,
+          type: 'column' as const,
+          title:
+            chartMetric === 'orders'
+              ? 'Orders comparison'
+              : chartMetric === 'average_order_value'
+                ? 'Average order comparison'
+                : chartMetric === 'refunds'
+                  ? 'Refunds comparison'
+                  : 'Net revenue comparison',
+          caption: `${basis} vs ${rangeLabel(currentFrom as string, currentTo as string)} · ${comparisonBasis}`,
+          format: chartMetric === 'orders' ? ('number' as const) : ('currency' as const),
+          series: [
+            {
+              key: 'value',
+              label:
+                chartMetric === 'orders'
+                  ? 'Orders'
+                  : chartMetric === 'average_order_value'
+                    ? 'Average order'
+                    : chartMetric === 'refunds'
+                      ? 'Refunds'
+                      : 'Net revenue',
+            },
+          ],
+          points: [
+            {
+              label: basis,
+              values: {
+                value:
+                  chartMetric === 'orders'
+                    ? previousSummary.orders
+                    : chartMetric === 'average_order_value'
+                      ? previousSummary.averageOrderValueGbp
+                      : chartMetric === 'refunds'
+                        ? previousSummary.refundsGbp
+                        : previousSummary.netRevenueGbp,
+              },
+            },
+            {
+              label: rangeLabel(currentFrom as string, currentTo as string),
+              values: {
+                value:
+                  chartMetric === 'orders'
+                    ? currentSummary.orders
+                    : chartMetric === 'average_order_value'
+                      ? currentSummary.averageOrderValueGbp
+                      : chartMetric === 'refunds'
+                        ? currentSummary.refundsGbp
+                        : currentSummary.netRevenueGbp,
+              },
+            },
+          ],
+        }
+      : undefined;
 
     return {
       output: {
@@ -538,6 +610,7 @@ const getSalesReport: ToolDefinition = {
         changesPercent: changes,
         currentItems: currentRows.slice(0, 40),
         previousItems: previousRows.slice(0, 40),
+        comparisonBasis,
         lowestSellingRecordedItems: [...currentRows]
           .filter((row) => row.quantity > 0)
           .sort((a, b) => a.quantity - b.quantity)
@@ -545,37 +618,39 @@ const getSalesReport: ToolDefinition = {
         caveat: 'Lowest-selling only covers items returned by the sales endpoint; products with zero sales may be absent.',
       },
       evidence: `Sales ${String(currentFrom)}–${String(currentTo)} vs ${String(previousFrom)}–${String(previousTo)}`,
-      cards: [
-        {
-          title: rangeLabel(currentFrom as string, currentTo as string),
-          caption: `vs ${basis}`,
-          metrics: [
+      cards: chart
+        ? [chart]
+        : [
             {
-              label: 'Net revenue',
-              value: gbp(currentSummary.netRevenueGbp),
-              hint: delta(changes.netRevenue, previousSummary.netRevenueGbp),
-              trend: comparable(previousSummary.netRevenueGbp) ? trendOf(changes.netRevenue) : undefined,
+              title: rangeLabel(currentFrom as string, currentTo as string),
+              caption: `vs ${basis}`,
+              metrics: [
+                {
+                  label: 'Net revenue',
+                  value: gbp(currentSummary.netRevenueGbp),
+                  hint: delta(changes.netRevenue, previousSummary.netRevenueGbp),
+                  trend: comparable(previousSummary.netRevenueGbp) ? trendOf(changes.netRevenue) : undefined,
+                },
+                {
+                  label: 'Orders',
+                  value: String(currentSummary.orders),
+                  hint: delta(changes.orders, previousSummary.orders),
+                  trend: comparable(previousSummary.orders) ? trendOf(changes.orders) : undefined,
+                },
+                {
+                  label: 'Avg order',
+                  value: gbp(currentSummary.averageOrderValueGbp),
+                  hint: delta(changes.averageOrderValue, previousSummary.averageOrderValueGbp),
+                  trend: comparable(previousSummary.averageOrderValueGbp) ? trendOf(changes.averageOrderValue) : undefined,
+                },
+                ...(currentSummary.refundsGbp > 0
+                  ? [{ label: 'Refunds', value: gbp(currentSummary.refundsGbp), tone: 'warning' as const }]
+                  : []),
+              ],
             },
-            {
-              label: 'Orders',
-              value: String(currentSummary.orders),
-              hint: delta(changes.orders, previousSummary.orders),
-              trend: comparable(previousSummary.orders) ? trendOf(changes.orders) : undefined,
-            },
-            {
-              label: 'Avg order',
-              value: gbp(currentSummary.averageOrderValueGbp),
-              hint: delta(changes.averageOrderValue, previousSummary.averageOrderValueGbp),
-              trend: comparable(previousSummary.averageOrderValueGbp) ? trendOf(changes.averageOrderValue) : undefined,
-            },
-            ...(currentSummary.refundsGbp > 0
-              ? [{ label: 'Refunds', value: gbp(currentSummary.refundsGbp), tone: 'warning' as const }]
-              : []),
           ],
-        },
-      ],
       shortcuts: [
-        page('Open report comparison', '/reports/compare', locationId ? 'Switches the active location' : 'Reports · Compare', locationId),
+        page('Open the sales summary', '/reports/sales-summary', locationId ? 'Switches the active location' : 'Reports · Sales summary', locationId),
       ],
     };
   },
@@ -584,7 +659,7 @@ const getSalesReport: ToolDefinition = {
 const getBusinessAnalytics: ToolDefinition = {
   name: 'get_business_analytics',
   description:
-    'Read one analytics view over a date range: hourly_volume (trade by hour of day), revenue_by_location, customer_retention (new vs returning), or staff_hours (worked hours per person).',
+    'Read one analytics view over a date range: hourly_volume (trade by hour of day), revenue_by_location, customer_retention (new vs returning), or staff_hours (worked hours per person). Set includeChart true when the operator asks for a chart, graph, or visual comparison.',
   capability: 'analytics:read',
   step: 'Reading analytics',
   parameters: schema({
@@ -592,6 +667,7 @@ const getBusinessAnalytics: ToolDefinition = {
     from: { type: 'string', description: DATE },
     to: { type: 'string', description: DATE },
     locationId: nullableString('Restrict to one location, or null.'),
+    includeChart: { type: 'boolean', description: 'Whether to render the result as a chart as well as returning the exact data.' },
   }),
   async run(args, runtime) {
     const query = rangeQuery(args, runtime);
@@ -604,17 +680,32 @@ const getBusinessAnalytics: ToolDefinition = {
         output: rows.map((row) => ({ hour: row.hour, orders: row.orderCount, revenueGbp: toNumber(row.totalRevenue) })),
         evidence: `Hourly volume ${query.get('from')}–${query.get('to')}`,
         cards: busiest
-          ? [
-              {
-                title: 'Trade by hour',
-                caption: rangeLabel(query.get('from') ?? '', query.get('to') ?? ''),
-                metrics: [
-                  { label: 'Busiest hour', value: `${String(busiest.hour).padStart(2, '0')}:00` },
-                  { label: 'Orders then', value: String(busiest.orderCount) },
-                  { label: 'Revenue then', value: gbp(busiest.totalRevenue) },
-                ],
-              },
-            ]
+          ? args.includeChart
+            ? [
+                {
+                  kind: 'chart' as const,
+                  type: 'line' as const,
+                  title: 'Orders by hour',
+                  caption: rangeLabel(query.get('from') ?? '', query.get('to') ?? ''),
+                  format: 'number' as const,
+                  series: [{ key: 'orders', label: 'Orders' }],
+                  points: rows
+                    .slice()
+                    .sort((a, b) => a.hour - b.hour)
+                    .map((row) => ({ label: `${String(row.hour).padStart(2, '0')}:00`, values: { orders: row.orderCount } })),
+                },
+              ]
+            : [
+                {
+                  title: 'Trade by hour',
+                  caption: rangeLabel(query.get('from') ?? '', query.get('to') ?? ''),
+                  metrics: [
+                    { label: 'Busiest hour', value: `${String(busiest.hour).padStart(2, '0')}:00` },
+                    { label: 'Orders then', value: String(busiest.orderCount) },
+                    { label: 'Revenue then', value: gbp(busiest.totalRevenue) },
+                  ],
+                },
+              ]
           : [],
         shortcuts: [page('Open reports', '/reports', 'Reports')],
       };
@@ -632,6 +723,23 @@ const getBusinessAnalytics: ToolDefinition = {
           orders: row.orderCount,
         })),
         evidence: `Revenue by location ${query.get('from')}–${query.get('to')}`,
+        cards: args.includeChart
+          ? [
+              {
+                kind: 'chart',
+                type: 'bar',
+                title: 'Revenue by location',
+                caption: rangeLabel(query.get('from') ?? '', query.get('to') ?? ''),
+                format: 'currency',
+                series: [{ key: 'revenue', label: 'Net revenue' }],
+                points: rows
+                  .slice()
+                  .sort((a, b) => toNumber(b.totalRevenue) - toNumber(a.totalRevenue))
+                  .slice(0, 10)
+                  .map((row) => ({ label: row.locationName || 'Unnamed location', values: { revenue: toNumber(row.totalRevenue) } })),
+              },
+            ]
+          : undefined,
         shortcuts: [page('Open reports', '/reports', 'Reports')],
       };
     }
@@ -641,17 +749,32 @@ const getBusinessAnalytics: ToolDefinition = {
       return {
         output: retention,
         evidence: `Customer retention ${query.get('from')}–${query.get('to')}`,
-        cards: [
-          {
-            title: 'Customers',
-            caption: `${query.get('from')} → ${query.get('to')}`,
-            metrics: [
-              { label: 'New', value: String(retention.newCustomers) },
-              { label: 'Returning', value: String(retention.returningCustomers) },
-              { label: 'Repeat rate', value: `${round(retention.repeatRate, 1)}%` },
+        cards: args.includeChart
+          ? [
+              {
+                kind: 'chart' as const,
+                type: 'bar' as const,
+                title: 'New and returning customers',
+                caption: rangeLabel(query.get('from') ?? '', query.get('to') ?? ''),
+                format: 'number' as const,
+                series: [{ key: 'customers', label: 'Customers' }],
+                points: [
+                  { label: 'New', values: { customers: retention.newCustomers } },
+                  { label: 'Returning', values: { customers: retention.returningCustomers } },
+                ],
+              },
+            ]
+          : [
+              {
+                title: 'Customers',
+                caption: `${query.get('from')} → ${query.get('to')}`,
+                metrics: [
+                  { label: 'New', value: String(retention.newCustomers) },
+                  { label: 'Returning', value: String(retention.returningCustomers) },
+                  { label: 'Repeat rate', value: `${round(retention.repeatRate, 1)}%` },
+                ],
+              },
             ],
-          },
-        ],
         shortcuts: [page('Open customers', '/customers', 'Customers')],
       };
     }
@@ -665,7 +788,110 @@ const getBusinessAnalytics: ToolDefinition = {
         hours: round(row.totalHours, 1),
       })),
       evidence: `Staff hours ${query.get('from')}–${query.get('to')}`,
+      cards: args.includeChart
+        ? [
+            {
+              kind: 'chart',
+              type: 'bar',
+              title: 'Hours worked by person',
+              caption: rangeLabel(query.get('from') ?? '', query.get('to') ?? ''),
+              format: 'number',
+              series: [{ key: 'hours', label: 'Hours' }],
+              points: rows
+                .slice()
+                .sort((a, b) => b.totalHours - a.totalHours)
+                .slice(0, 10)
+                .map((row) => ({
+                  label: row.userName || names.get(row.userId) || row.userId,
+                  values: { hours: round(row.totalHours, 1) },
+                })),
+            },
+          ]
+        : undefined,
       shortcuts: [page('Open the rota', '/staff/rota', 'Team · Rota')],
+    };
+  },
+};
+
+const getOperationsCommandCentre: ToolDefinition = {
+  name: 'get_operations_command_centre',
+  description:
+    'Read DUMA’s persistent operations command centre: prioritised open findings, durable workflows waiting for approval, tracked recommendations, document intake and recent quality evaluations. Use this for an operations briefing, cross-functional priorities, workflow status, or what needs attention first.',
+  capability: 'analytics:read',
+  step: 'Reviewing operational signals',
+  parameters: schema({}),
+  async run(_args, runtime) {
+    // Refreshing only updates the caller's private finding queue; it does not
+    // take an operational action, so the briefing can safely be current.
+    await runtime
+      .send('/agent/operations/refresh', 'POST', runtime.locationId ? { locationId: runtime.locationId } : {})
+      .catch(() => undefined);
+    const data = await runtime.get<{
+      findings: Array<{
+        severity: 'critical' | 'attention' | 'opportunity';
+        area: string;
+        title: string;
+        summary: string;
+        evidence: string[];
+      }>;
+      workflows: Array<{ title: string; status: string; currentStep: number }>;
+      outcomes: Array<{ recommendation: string; status: string }>;
+      documents: Array<{ name: string; status: string }>;
+      evaluations: Array<{ status: string; total: number; passed: number; failed: number }>;
+      generatedAt: string;
+    }>('/agent/operations/overview');
+    const rank = { critical: 0, attention: 1, opportunity: 2 } as const;
+    const findings = data.findings.slice().sort((a, b) => rank[a.severity] - rank[b.severity]);
+    const waiting = data.workflows.filter((workflow) => workflow.status === 'waiting_approval');
+    const latestEvaluation = data.evaluations[0];
+    return {
+      output: {
+        generatedAt: data.generatedAt,
+        priorities: findings.slice(0, 10),
+        workflowsWaitingForApproval: waiting,
+        trackedOutcomes: data.outcomes.slice(0, 10),
+        documentsInReview: data.documents.filter((document) => document.status !== 'completed'),
+        latestQualityEvaluation: latestEvaluation ?? null,
+      },
+      evidence: `${findings.length} open operational finding${findings.length === 1 ? '' : 's'} · ${waiting.length} approval gate${waiting.length === 1 ? '' : 's'}`,
+      cards: [
+        {
+          title: 'Operations command centre',
+          caption: 'Live persistent state',
+          metrics: [
+            {
+              label: 'Urgent',
+              value: String(findings.filter((item) => item.severity === 'critical').length),
+              tone: findings.some((item) => item.severity === 'critical') ? ('negative' as const) : ('positive' as const),
+            },
+            { label: 'Open findings', value: String(findings.length) },
+            {
+              label: 'Awaiting approval',
+              value: String(waiting.length),
+              tone: waiting.length ? ('warning' as const) : ('positive' as const),
+            },
+            { label: 'Outcomes tracked', value: String(data.outcomes.length) },
+          ],
+        },
+        {
+          kind: 'list' as const,
+          title: 'Needs attention',
+          caption: 'Most urgent first',
+          emptyTone: 'clean' as const,
+          emptyLabel: 'No open operational findings.',
+          rows: findings.slice(0, 6).map((finding) => ({
+            label: finding.title,
+            value: sentence(finding.severity),
+            meta: finding.summary,
+            tone:
+              finding.severity === 'critical'
+                ? ('negative' as const)
+                : finding.severity === 'attention'
+                  ? ('warning' as const)
+                  : ('positive' as const),
+          })),
+        },
+      ],
     };
   },
 };
@@ -1654,16 +1880,18 @@ const getMyWorkspace: ToolDefinition = {
     weekEnd.setDate(weekEnd.getDate() + 7);
     const year = now.getFullYear();
 
-    const employee = await runtime.get<HrEmployee>('/hr/employees/me');
-    const optional = await Promise.allSettled([
-      runtime.get<LeaveEntitlement[]>(`/hr/entitlements/me?year=${year}`),
-      runtime.get<LeaveRequest[]>('/hr/leave-requests/my'),
-      runtime.get<HelpdeskTicket[]>('/helpdesk/my'),
-      runtime.get<EmployeeDocument[]>('/hr/documents/me'),
-      runtime.get<Shift[]>('/shifts/my'),
-      runtime.get<ScheduledShift[]>(
-        `/scheduled-shifts/my?${new URLSearchParams({ from: weekStart.toISOString(), to: weekEnd.toISOString() })}`,
-      ),
+    const [employee, optional] = await Promise.all([
+      runtime.myEmployee(),
+      Promise.allSettled([
+        runtime.get<LeaveEntitlement[]>(`/hr/entitlements/me?year=${year}`),
+        runtime.get<LeaveRequest[]>('/hr/leave-requests/my'),
+        runtime.get<HelpdeskTicket[]>('/helpdesk/my'),
+        runtime.get<EmployeeDocument[]>('/hr/documents/me'),
+        runtime.get<Shift[]>('/shifts/my'),
+        runtime.get<ScheduledShift[]>(
+          `/scheduled-shifts/my?${new URLSearchParams({ from: weekStart.toISOString(), to: weekEnd.toISOString() })}`,
+        ),
+      ]),
     ]);
     const value = <T>(index: number): T[] => (optional[index]?.status === 'fulfilled' ? (optional[index].value as T[]) : []);
     const entitlements = value<LeaveEntitlement>(0);
@@ -1676,7 +1904,7 @@ const getMyWorkspace: ToolDefinition = {
       (_, index) => optional[index]?.status === 'rejected',
     );
 
-    const actions = myHrActions({ employee, documents, tickets, now });
+    const actions = employee ? myHrActions({ employee, documents, tickets, now }) : [];
     const balance = leaveBalance(entitlements);
     const activeShift = shifts.find((shift) => !shift.clockedOut) ?? null;
     const upcoming = rota
@@ -1690,13 +1918,16 @@ const getMyWorkspace: ToolDefinition = {
         profile: {
           displayName: runtime.profile.name ?? null,
           email: runtime.profile.email ?? null,
-          jobTitle: employee.jobTitle,
-          department: employee.department ?? null,
-          employmentType: employee.employmentType,
-          startDate: employee.startDate,
-          address: employee.address ?? null,
-          emergencyContactComplete: Boolean(employee.emergencyContactName && employee.emergencyContactPhone),
-          nationalInsuranceNumberHeld: Boolean(employee.hasNiNumber),
+          role: runtime.profile.role,
+          scope: runtime.profile.scope,
+          employeeRecordAvailable: Boolean(employee),
+          jobTitle: employee?.jobTitle ?? null,
+          department: employee?.department ?? null,
+          employmentType: employee?.employmentType ?? null,
+          startDate: employee?.startDate ?? null,
+          address: employee?.address ?? null,
+          emergencyContactComplete: employee ? Boolean(employee.emergencyContactName && employee.emergencyContactPhone) : null,
+          nationalInsuranceNumberHeld: employee ? Boolean(employee.hasNiNumber) : null,
         },
         dashboard: {
           activeShift: activeShift
@@ -1755,8 +1986,10 @@ const getMyWorkspace: ToolDefinition = {
           kind: 'list',
           title: 'My HR notices',
           emptyTone: 'clean' as const,
-          emptyLabel: 'Nothing needs you — your HR record is up to date.',
-          caption: actions.length ? 'Most urgent first' : 'Everything looks up to date',
+          emptyLabel: employee
+            ? 'Nothing needs you — your HR record is up to date.'
+            : 'Your DUMA account is active. Employment details have not been added.',
+          caption: actions.length ? 'Most urgent first' : employee ? 'Everything looks up to date' : 'Account details only',
           rows: actions.slice(0, 6).map((action) => ({
             label: action.title,
             meta: action.detail,
@@ -1769,39 +2002,44 @@ const getMyWorkspace: ToolDefinition = {
           })),
         },
       ],
-      shortcuts: [
-        page('Edit your details', '/my-hr?tab=overview&action=edit-details', 'My HR · Review your name and edit personal details'),
-      ],
+      shortcuts: employee
+        ? [page('Edit your details', '/my-hr?tab=overview&action=edit-details', 'My HR · Review your personal details')]
+        : [page('Open your profile', '/settings', 'Settings · Your signed-in account and workspace')],
     };
   },
 };
 
 const getMyProfile: ToolDefinition = {
-  module: 'people',
+  module: 'identity',
   name: 'get_my_profile',
   description:
-    'Read only the signed-in operator’s basic employment and editable personal-detail status. Always use this for questions about my name, my address, my emergency contact, my National Insurance number, or where to edit my personal details. This intentionally excludes documents and private HR requests.',
+    'Read the signed-in operator’s trusted DUMA account identity plus optional employment and editable personal-detail status. Always use this for questions about who I am, my name, email, role, access scope, assigned locations, address, emergency contact, National Insurance number, or where to edit my details. The account identity remains valid when no optional HR employee record exists. This intentionally excludes documents and private HR requests.',
   step: 'Checking your personal details',
   parameters: schema({}),
   async run(_args, runtime) {
-    const employee = await runtime.get<HrEmployee>('/hr/employees/me');
+    const employee = await runtime.myEmployee();
     return {
       output: {
         displayName: runtime.profile.name ?? null,
         email: runtime.profile.email ?? null,
-        jobTitle: employee.jobTitle,
-        department: employee.department ?? null,
-        employmentType: employee.employmentType,
-        startDate: employee.startDate,
-        addressHeld: Boolean(employee.address),
-        emergencyContactComplete: Boolean(employee.emergencyContactName && employee.emergencyContactPhone),
-        nationalInsuranceNumberHeld: Boolean(employee.hasNiNumber),
-        editableInDetailsDrawer: ['address', 'emergency contact', 'bank details', 'National Insurance number'],
+        role: runtime.profile.role,
+        scope: runtime.profile.scope,
+        tenantId: runtime.profile.tenantId,
+        assignedLocationIds: runtime.profile.locationIds ?? [],
+        employeeRecordAvailable: Boolean(employee),
+        jobTitle: employee?.jobTitle ?? null,
+        department: employee?.department ?? null,
+        employmentType: employee?.employmentType ?? null,
+        startDate: employee?.startDate ?? null,
+        addressHeld: employee ? Boolean(employee.address) : null,
+        emergencyContactComplete: employee ? Boolean(employee.emergencyContactName && employee.emergencyContactPhone) : null,
+        nationalInsuranceNumberHeld: employee ? Boolean(employee.hasNiNumber) : null,
+        editableInDetailsDrawer: employee ? ['address', 'emergency contact', 'bank details', 'National Insurance number'] : [],
       },
-      evidence: 'Your My HR profile',
-      shortcuts: [
-        page('Edit your details', '/my-hr?tab=overview&action=edit-details', 'My HR · Review your name and edit personal details'),
-      ],
+      evidence: employee ? 'Your DUMA account and My HR profile' : 'Your DUMA account',
+      shortcuts: employee
+        ? [page('Edit your details', '/my-hr?tab=overview&action=edit-details', 'My HR · Review your personal details')]
+        : [page('Open your profile', '/settings', 'Settings · Your signed-in account and workspace')],
     };
   },
 };
@@ -1878,6 +2116,7 @@ export const TOOLS: ToolDefinition[] = [
   listStaff,
   getSalesReport,
   getBusinessAnalytics,
+  getOperationsCommandCentre,
   listOrders,
   getOrderDetail,
   getInventoryStatus,

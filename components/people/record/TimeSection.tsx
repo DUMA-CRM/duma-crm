@@ -3,14 +3,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { AlertTriangle, CheckCircle2, Download, HeartPulse, Loader2 } from '@/components/icons';
+import {
+  AlertTriangle,
+  CalendarDays,
+  Clock,
+  Download,
+  FileText,
+  HeartPulse,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+  UploadCloud,
+} from '@/components/icons';
+import { usePayrollLocale } from '@/components/payroll/usePayroll';
 import { fmtDate, fmtHours, inp, lbl } from '@/components/people/shared';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { StatCard } from '@/components/shared/StatCard';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DataTable } from '@/components/ui/data-table';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 
@@ -32,9 +43,24 @@ import {
 } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { workingDaysLabel } from '@/lib/utils/employee-record';
 import { toast } from '@/stores/toastStore';
 
-import { CARD, CARD_PADDED, type Employee, monthRange } from './shared';
+import { ChoiceCards, type Employee, ModalActions, NumberStepper, RecordBlock, RecordList, RecordListRow, monthRange } from './shared';
+
+/*
+ * The Time, leave & documents tab, in the Overview's vocabulary: a heading,
+ * then the audit log's rows — tinted icon tile, the thing in bold, what it is
+ * underneath, a pill only when something is off.
+ *
+ * The UK-specific advice (the 5.6-week holiday baseline, the April 2026
+ * record-keeping rule, the 48-hour week, P45s) shows only where payroll is UK
+ * — or not set, which every workspace was before multi-country payroll.
+ */
+
+const ICON_BUTTON = 'flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground';
+
+// ── Sickness & unplanned absence ─────────────────────────────────────────────
 
 export function AbsenceCard({ userId }: { userId: string }) {
   const qc = useQueryClient();
@@ -43,8 +69,9 @@ export function AbsenceCard({ userId }: { userId: string }) {
   const [form, setForm] = useState({ date: initialDate, leaveTypeId: '', isHalfDay: false, reason: '' });
   const {
     data: absences = [],
-    isLoading,
+    isPending,
     isError,
+    refetch,
   } = useQuery({
     queryKey: moduleQueryKeys.people.key('employee-absences', userId),
     queryFn: () => getEmployeeAbsences(userId),
@@ -81,55 +108,64 @@ export function AbsenceCard({ userId }: { userId: string }) {
   });
 
   return (
-    <section className={`${CARD} overflow-hidden`}>
-      <div className="px-5 py-4 border-b border-rule flex items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <HeartPulse size={16} className="text-primary" aria-hidden="true" />
-            <h2 className="font-semibold">Sickness & unplanned absence</h2>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">Keep the absence history needed for payroll and return-to-work follow-up.</p>
-        </div>
-        <Button size="sm" onClick={() => setAdding(true)}>
-          Record absence
+    <RecordBlock
+      id="record-absence"
+      title="Sickness & absence"
+      action={
+        <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+          <Plus data-icon="inline-start" />
+          Record
         </Button>
-      </div>
-      {isLoading ? (
-        <div className="py-10 flex justify-center">
-          <Loader2 className="animate-spin text-muted-foreground" />
-        </div>
-      ) : isError ? (
-        <p className="p-6 text-sm text-muted-foreground">Absence records are unavailable for your current access level.</p>
-      ) : absences.length === 0 ? (
-        <p className="p-8 text-center text-sm text-muted-foreground">No unplanned absences recorded.</p>
+      }
+    >
+      {isError ? (
+        // Used to guess "unavailable for your access level". Say what happened instead.
+        <ErrorState title="Absences couldn’t be loaded" description="Nothing was read, so this isn’t an empty history." onRetry={() => void refetch()} />
+      ) : isPending ? (
+        <div className="h-16 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
       ) : (
-        <div className="divide-y divide-border">
-          {absences.slice(0, 12).map((absence) => (
-            <div key={absence.id} className="px-5 py-3 flex items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium">{fmtDate(absence.date)}</p>
-                  {absence.isHalfDay && <Badge variant="muted">Half day</Badge>}
-                  {absence.leaveType && <Badge variant="primary">{absence.leaveType.name}</Badge>}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{absence.reason || 'No reason recorded'}</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive"
-                disabled={remove.isPending}
-                onClick={() => remove.mutate(absence.id)}
-              >
-                Remove
-              </Button>
-            </div>
-          ))}
-        </div>
+        <RecordList>
+          {absences.length === 0 ? (
+            <RecordListRow icon={HeartPulse} tone="muted" label="Sickness and unplanned absence" placeholder="None recorded" />
+          ) : (
+            absences.slice(0, 12).map((absence) => (
+              <RecordListRow
+                key={absence.id}
+                icon={HeartPulse}
+                tone="money"
+                value={fmtDate(absence.date)}
+                label={absence.reason || 'No reason recorded'}
+                pill={absence.isHalfDay ? { label: 'Half day', tone: 'warning' } : undefined}
+                trailing={
+                  <span className="flex items-center gap-2">
+                    {absence.leaveType && <span>{absence.leaveType.name}</span>}
+                    <button
+                      type="button"
+                      className={cn(ICON_BUTTON, 'hover:text-exception')}
+                      aria-label={`Remove the absence on ${fmtDate(absence.date)}`}
+                      disabled={remove.isPending}
+                      onClick={() => remove.mutate(absence.id)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </span>
+                }
+              />
+            ))
+          )}
+        </RecordList>
       )}
       {adding && (
-        <Modal title="Record unplanned absence" onClose={() => setAdding(false)}>
+        <Modal
+          title="Record an absence"
+          description="Sickness or other unplanned time off. It shows on their attendance calendar and goes to payroll."
+          onClose={() => setAdding(false)}
+          footer={
+            <ModalActions form="absence-form" submitLabel="Save absence" pending={add.isPending} disabled={!form.date} onCancel={() => setAdding(false)} />
+          }
+        >
           <form
+            id="absence-form"
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
@@ -138,60 +174,58 @@ export function AbsenceCard({ userId }: { userId: string }) {
           >
             <DatePicker label="Date" value={form.date} onValueChange={(date) => setForm({ ...form, date })} />
             <div>
-              <label className={lbl}>Leave category</label>
+              <label className={lbl}>How long</label>
+              <ChoiceCards
+                value={form.isHalfDay ? 'half' : 'full'}
+                onChange={(length) => setForm({ ...form, isHalfDay: length === 'half' })}
+                options={[
+                  { value: 'full', label: 'Full day' },
+                  { value: 'half', label: 'Half day' },
+                ]}
+              />
+            </div>
+            <div>
+              <label className={lbl}>Category</label>
               <Select
                 value={form.leaveTypeId}
                 onValueChange={(value) => setForm({ ...form, leaveTypeId: value })}
                 options={leaveTypes.map((type) => ({ value: type.id, label: type.name }))}
-                placeholder="Optional category"
+                placeholder="None — just an absence"
                 ariaLabel="Absence category"
+                className="w-full"
               />
             </div>
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, isHalfDay: !form.isHalfDay })}
-              className={cn(
-                'w-full rounded-sm border p-3 text-left flex gap-3',
-                form.isHalfDay ? 'border-primary/40 bg-band' : 'border-rule',
-              )}
-            >
-              <span
-                className={cn(
-                  'mt-0.5 size-5 rounded-sm border flex items-center justify-center',
-                  form.isHalfDay ? 'bg-primary border-primary text-primary-foreground' : 'border-rule',
-                )}
-              >
-                {form.isHalfDay && <CheckCircle2 size={13} />}
-              </span>
-              <span>
-                <span className="block text-sm font-medium">Half-day absence</span>
-                <span className="block text-xs text-muted-foreground">Leave unticked for a full scheduled day.</span>
-              </span>
-            </button>
             <div>
-              <label className={lbl}>Reason or payroll note</label>
+              <div className="flex items-baseline justify-between">
+                <label className={lbl} htmlFor="absence-reason">
+                  Reason or payroll note
+                </label>
+                <span className="text-xs text-muted-foreground">{form.reason.length}/500</span>
+              </div>
               <textarea
-                className={cn(inp, 'h-24 py-2 resize-none')}
+                id="absence-reason"
+                className={cn(inp, 'h-24 resize-none py-2')}
                 maxLength={500}
+                placeholder="e.g. Migraine — sent home at 11:00"
                 value={form.reason}
                 onChange={(event) => setForm({ ...form, reason: event.target.value })}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={!form.date || add.isPending}>
-              {add.isPending && <Loader2 className="animate-spin" />}Save absence
-            </Button>
           </form>
         </Modal>
       )}
-    </section>
+    </RecordBlock>
   );
 }
 
-// ── Contracted work pattern ───────────────────────────────────────────────────
+// ── Contracted work pattern ──────────────────────────────────────────────────
+
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function WorkPatternCard({ userId }: { userId: string }) {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: moduleQueryKeys.workforce.key('work-pattern', userId), queryFn: () => getWorkPattern(userId) });
+  const { uk } = usePayrollLocale();
+  const { data, isPending } = useQuery({ queryKey: moduleQueryKeys.workforce.key('work-pattern', userId), queryFn: () => getWorkPattern(userId) });
   const [edit, setEdit] = useState(false);
   const [days, setDays] = useState<number[] | null>(null);
   const [hours, setHours] = useState<number | null>(null);
@@ -206,99 +240,156 @@ export function WorkPatternCard({ userId }: { userId: string }) {
     },
     onError: (error) => toast('error', (error as Error).message),
   });
-  const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const cancel = () => {
+    setDays(null);
+    setHours(null);
+    setEdit(false);
+  };
+
   return (
-    <div className={CARD_PADDED}>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Contracted pattern</p>
-          <p className="text-xs text-muted-foreground mt-1">Used for leave planning; actual time remains the payroll record.</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => setEdit(!edit)}>
-          {edit ? 'Cancel' : 'Edit'}
-        </Button>
-      </div>
-      <div className="flex gap-1.5">
-        {names.map((name, index) => {
-          const value = index + 1;
-          const active = selectedDays.includes(value);
-          return (
-            <button
-              key={name}
-              disabled={!edit}
-              onClick={() => setDays(active ? selectedDays.filter((d) => d !== value) : [...selectedDays, value].sort())}
-              className={cn(
-                'flex-1 h-9 rounded-sm border text-xs font-semibold',
-                active ? 'bg-band border-primary/30 text-primary' : 'bg-muted border-rule text-muted-foreground',
-                edit && 'hover:border-primary',
-              )}
-            >
-              {name}
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex items-end justify-between gap-4 mt-4">
-        <div>
-          <p className="text-xs text-muted-foreground">Contracted weekly hours</p>
-          {edit ? (
-            <input
-              type="number"
-              min="0"
-              max="168"
-              step="0.5"
-              value={weeklyHours}
-              onChange={(e) => setHours(Number(e.target.value))}
-              className={cn(inp, 'mt-1 w-28')}
-            />
-          ) : (
-            <p className="text-xl font-semibold mt-1">{weeklyHours}h</p>
-          )}
-        </div>
-        {edit && (
-          <Button onClick={() => save.mutate()} disabled={selectedDays.length === 0 || save.isPending}>
-            {save.isPending ? 'Saving…' : 'Save pattern'}
+    <RecordBlock
+      id="record-pattern"
+      title="Work pattern"
+      action={
+        !edit && (
+          <Button variant="outline" size="sm" onClick={() => setEdit(true)}>
+            Edit
           </Button>
-        )}
-      </div>
-      {weeklyHours > 48 && (
-        <p className="mt-3 rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
-          More than 48 contracted hours requires a working-time review. Keep any valid opt-out separately and continue to protect daily and
-          weekly rest.
+        )
+      }
+    >
+      {edit ? (
+        // The same frame as the list it replaces, so switching to edit doesn't
+        // move the page: fields inside, a live summary, actions in a footer.
+        <form
+          className="overflow-hidden rounded-lg border border-rule/60 bg-card"
+          onSubmit={(event) => {
+            event.preventDefault();
+            save.mutate();
+          }}
+        >
+          <div className="space-y-4 p-4">
+            <div>
+              <label className={lbl}>Working days</label>
+              <div className="grid grid-cols-7 gap-1.5">
+                {DAY_NAMES.map((name, index) => {
+                  const value = index + 1;
+                  const active = selectedDays.includes(value);
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setDays(active ? selectedDays.filter((d) => d !== value) : [...selectedDays, value].sort())}
+                      className={cn(
+                        'flex h-12 flex-col items-center justify-center gap-0.5 rounded-lg border text-xs font-semibold transition-colors',
+                        active
+                          ? 'border-primary bg-primary/5 text-foreground'
+                          : 'border-rule/60 bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
+                        index >= 5 && !active && 'bg-band/30',
+                      )}
+                    >
+                      {name}
+                      <span className={cn('size-1.5 rounded-full', active ? 'bg-primary' : 'bg-transparent')} aria-hidden="true" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <label className={lbl}>Contracted hours a week</label>
+              <NumberStepper label="Hours a week" value={weeklyHours} onChange={setHours} min={0} max={168} step={0.5} unit="h" />
+            </div>
+            <p className="rounded-md bg-band/50 px-3 py-2 text-xs text-muted-foreground">
+              {selectedDays.length === 0 ? (
+                <span className="font-medium text-measured">Pick at least one working day.</span>
+              ) : (
+                <>
+                  <span className="font-semibold text-foreground">{weeklyHours}h a week</span> across {workingDaysLabel(selectedDays)} — about{' '}
+                  {fmtHours(Math.round((weeklyHours / selectedDays.length) * 10) / 10)} a day.
+                </>
+              )}
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-rule/45 bg-band/20 px-4 py-3">
+            <Button type="button" variant="ghost" onClick={cancel} disabled={save.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={selectedDays.length === 0 || save.isPending}>
+              {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+              Save pattern
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <RecordList>
+          <RecordListRow
+            icon={CalendarDays}
+            value={isPending ? '…' : `${weeklyHours}h a week`}
+            label={workingDaysLabel(selectedDays) ?? 'No working days'}
+            detail={`${selectedDays.length} ${selectedDays.length === 1 ? 'day' : 'days'}`}
+            pill={uk && weeklyHours > 48 ? { label: 'Over 48h', tone: 'warning' } : undefined}
+          />
+        </RecordList>
+      )}
+      {uk && weeklyHours > 48 && (
+        <p className="mt-2 flex gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs leading-relaxed text-measured">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+          Over 48 hours needs a working-time review. Keep any valid opt-out separately and protect daily and weekly rest.
         </p>
       )}
-    </div>
+    </RecordBlock>
   );
 }
 
+// ── Leave allowance ──────────────────────────────────────────────────────────
+
 export function LeaveAllowanceCard({ userId, employmentType }: { userId: string; employmentType: Employee['employmentType'] }) {
   const qc = useQueryClient();
-  const currentYear = new Date().getFullYear();
+  const { uk } = usePayrollLocale();
+  const [currentYear] = useState(() => new Date().getFullYear());
   const [year, setYear] = useState(currentYear);
   const [editing, setEditing] = useState<LeaveEntitlement | 'new' | null>(null);
   const { data: workPattern } = useQuery({
     queryKey: moduleQueryKeys.workforce.key('work-pattern', userId),
     queryFn: () => getWorkPattern(userId),
   });
-  const { data: entitlements = [], isLoading } = useQuery({
+  const {
+    data: entitlements = [],
+    isPending,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: moduleQueryKeys.people.key('employee-entitlements', userId, year),
     queryFn: () => getEmployeeEntitlements(userId, year),
   });
+  // The UK's statutory minimum: 5.6 weeks, capped at 28 days.
   const regularHoursBaseline = Math.min(28, Math.round((workPattern?.workingDays.length ?? 5) * 5.6 * 10) / 10);
   const annualEntitlement = entitlements.find((item) => item.leaveType.name.toLowerCase().includes('annual'));
   const belowRegularBaseline =
+    uk &&
     employmentType !== 'zero_hours' &&
     employmentType !== 'contractor' &&
     !!annualEntitlement &&
     Number(annualEntitlement.totalDays) < regularHoursBaseline;
+
+  // Only the cases where a set day balance is misleading. The general
+  // statutory-minimum line was removed on request; a short allowance still
+  // shows as a "Below minimum" pill on its row.
+  const advice = !uk
+    ? null
+    : employmentType === 'zero_hours'
+      ? 'Irregular-hours holiday accrues from hours worked in each pay period — a set day balance isn’t a complete statutory calculation.'
+      : employmentType === 'contractor'
+        ? 'Check their real employment status: calling someone a contractor doesn’t remove worker holiday rights.'
+        : null;
+
   return (
-    <div className={CARD_PADDED}>
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div>
-          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Annual leave allowance</p>
-          <p className="text-xs text-muted-foreground mt-1">Assigned days, usage, and remaining balance.</p>
-        </div>
-        <div className="flex gap-2">
+    <RecordBlock
+      id="record-leave"
+      title="Leave allowance"
+      action={
+        <>
           <Select
             value={String(year)}
             onValueChange={(value) => setYear(Number(value))}
@@ -306,66 +397,57 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
             ariaLabel="Entitlement year"
             className="w-24"
           />
-          <Button size="sm" onClick={() => setEditing('new')}>
-            Add leave
+          <Button variant="outline" size="sm" onClick={() => setEditing('new')}>
+            <Plus data-icon="inline-start" />
+            Add
           </Button>
-        </div>
-      </div>
-      {employmentType === 'zero_hours' ? (
-        <div className="mb-4 rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
-          Irregular-hours holiday must accrue from hours worked in each pay period. A manually assigned day balance is not a complete
-          statutory calculation.
-        </div>
-      ) : employmentType === 'contractor' ? (
-        <div className="mb-4 rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
-          Confirm the person&apos;s real employment status. Labelling someone a contractor does not remove worker holiday rights if the
-          working relationship says otherwise.
-        </div>
+        </>
+      }
+    >
+      {isError ? (
+        <ErrorState title="Leave couldn’t be loaded" onRetry={() => void refetch()} />
+      ) : isPending ? (
+        <div className="h-16 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
       ) : (
-        <div
-          className={cn(
-            'mb-4 rounded-sm border p-3 text-xs text-muted-foreground',
-            belowRegularBaseline ? 'border-destructive/30 bg-destructive/5' : 'border-rule bg-muted/30',
+        <RecordList>
+          {entitlements.length === 0 ? (
+            <RecordListRow
+              icon={CalendarDays}
+              label={`Add annual leave so they can request time off in ${year}`}
+              missing={`No allowance for ${year}`}
+            />
+          ) : (
+            entitlements.map((item) => {
+              const total = Number(item.totalDays);
+              const used = Number(item.usedDays);
+              const remaining = total - used;
+              const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+              const isAnnual = item.id === annualEntitlement?.id;
+              return (
+                <RecordListRow
+                  key={item.id}
+                  onSelect={() => setEditing(item)}
+                  icon={CalendarDays}
+                  tone={remaining <= 0 ? 'missing' : 'team'}
+                  value={`${remaining} of ${total} days left`}
+                  label={item.leaveType.name}
+                  detail={`${used} used`}
+                  pill={isAnnual && belowRegularBaseline ? { label: 'Below minimum', tone: 'exception' } : undefined}
+                  trailing={
+                    <span className="flex items-center gap-2">
+                      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-band" aria-hidden="true">
+                        <span className="block h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                      </span>
+                      <Pencil size={13} aria-hidden="true" />
+                    </span>
+                  }
+                />
+              );
+            })
           )}
-        >
-          Regular-hours baseline from the current {workPattern?.workingDays.length ?? 5}-day pattern:{' '}
-          <strong className="text-foreground">{regularHoursBaseline} days</strong> for a full leave year, subject to proration and
-          contractual enhancements.
-          {belowRegularBaseline && (
-            <span className="block mt-1 text-destructive">The recorded annual allowance is below this baseline.</span>
-          )}
-        </div>
+        </RecordList>
       )}
-      {isLoading ? (
-        <div className="py-8 flex justify-center">
-          <Loader2 className="animate-spin text-muted-foreground" />
-        </div>
-      ) : entitlements.length === 0 ? (
-        <div className="py-7 rounded-sm border border-dashed border-rule text-center">
-          <p className="text-sm font-medium">No allowance for {year}</p>
-          <p className="text-xs text-muted-foreground mt-1">Add annual leave so the employee can submit requests.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {entitlements.map((item) => {
-            const total = Number(item.totalDays);
-            const used = Number(item.usedDays);
-            const remaining = total - used;
-            return (
-              <StatCard
-                key={item.id}
-                size="sm"
-                label={item.leaveType.name}
-                value={total}
-                unit="days"
-                caption={`${used} used · ${remaining} remaining`}
-                visual={{ type: 'progress', pct: total > 0 ? (used / total) * 100 : 0 }}
-                onSelect={() => setEditing(item)}
-              />
-            );
-          })}
-        </div>
-      )}
+      {advice && <p className="mt-2 rounded-md bg-measured/10 px-3 py-2 text-xs leading-relaxed text-measured">{advice}</p>}
       {editing && (
         <LeaveAllowanceModal
           userId={userId}
@@ -379,11 +461,7 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
           }}
         />
       )}
-      <p className="mt-4 text-label text-muted-foreground">
-        Keep the entitlement, leave taken and holiday-pay calculation history. From 6 April 2026, detailed annual-leave and holiday-pay
-        records must be retained for at least six years.
-      </p>
-    </div>
+    </RecordBlock>
   );
 }
 
@@ -437,9 +515,31 @@ function LeaveAllowanceModal({
     { value: 'annual-default', label: annualType?.name ?? 'Annual Leave' },
     ...leaveTypes.filter((type) => type.id !== annualType?.id).map((type) => ({ value: type.id, label: type.name })),
   ];
+  const total = Number(totalDays) || 0;
+  const used = Number(entitlement?.usedDays ?? 0);
+  const left = total - used;
+  const tooLow = !!entitlement && total < used;
+  const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+
   return (
-    <Modal title={entitlement ? 'Edit leave allowance' : `Add leave allowance · ${year}`} onClose={onClose}>
+    <Modal
+      title={entitlement ? `Edit ${entitlement.leaveType.name.toLowerCase()}` : 'Add a leave allowance'}
+      description={
+        entitlement ? `Their ${year} allowance. Half days are fine.` : `How many days of this leave they get in ${year}. Half days are fine.`
+      }
+      onClose={onClose}
+      footer={
+        <ModalActions
+          form="leave-allowance-form"
+          submitLabel={entitlement ? 'Save allowance' : 'Add allowance'}
+          pending={save.isPending}
+          disabled={total <= 0 || tooLow}
+          onCancel={onClose}
+        />
+      }
+    >
       <form
+        id="leave-allowance-form"
         className="space-y-4"
         onSubmit={(event) => {
           event.preventDefault();
@@ -458,49 +558,38 @@ function LeaveAllowanceModal({
               }}
               options={options}
               ariaLabel="Leave type"
+                className="w-full"
             />
           </div>
         )}
         <div>
-          <label className={lbl}>Total allowance (days)</label>
-          <input
-            type="number"
-            min={entitlement ? Number(entitlement.usedDays) : 0.5}
-            max="366"
-            step="0.5"
-            className={inp}
-            value={totalDays}
-            onChange={(event) => setTotalDays(event.target.value)}
-          />
-          <p className="text-xs text-muted-foreground mt-1.5">
-            Half days are supported. An allowance cannot be lower than days already used.
-          </p>
+          <label className={lbl}>Days a year</label>
+          <NumberStepper label="Days a year" value={total} onChange={(next) => setTotalDays(String(next))} min={0} max={366} step={0.5} unit="days" />
         </div>
-        {entitlement && (
-          <div className="rounded-sm bg-muted p-3 text-sm">
-            <span className="text-muted-foreground">Already used:</span> <strong>{entitlement.usedDays} days</strong>
+
+        {/* What the new figure means for them, before it is saved. */}
+        <div className="rounded-lg border border-rule/60 bg-field px-4 py-3">
+          <div className="flex items-baseline justify-between text-sm">
+            <span className="text-muted-foreground">{entitlement ? `${used} used so far` : 'None used yet'}</span>
+            <span className={cn('font-semibold', tooLow ? 'text-exception' : 'text-foreground')}>
+              {tooLow ? `${Math.abs(left)} days over` : `${left} days left`}
+            </span>
           </div>
-        )}
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={
-            !totalDays ||
-            Number(totalDays) <= 0 ||
-            (entitlement ? Number(totalDays) < Number(entitlement.usedDays) : false) ||
-            save.isPending
-          }
-        >
-          {save.isPending && <Loader2 className="animate-spin" />}
-          {entitlement ? 'Save allowance' : 'Add allowance'}
-        </Button>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-band" aria-hidden="true">
+            <div className={cn('h-full rounded-full', tooLow ? 'bg-exception' : 'bg-primary')} style={{ width: `${tooLow ? 100 : pct}%` }} />
+          </div>
+          {tooLow && <p className="mt-2 text-xs font-medium text-exception">It can’t be lower than the {used} days already used.</p>}
+        </div>
       </form>
     </Modal>
   );
 }
 
+// ── Documents ────────────────────────────────────────────────────────────────
+
 export function EmployeeDocumentsCard({ userId }: { userId: string }) {
   const qc = useQueryClient();
+  const { uk } = usePayrollLocale();
   const [adding, setAdding] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [asOf] = useState(() => new Date());
@@ -512,12 +601,19 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
     expiresAt: '',
     notes: '',
   });
-  const { data: documents = [] } = useQuery({
+  const {
+    data: documents = [],
+    isPending,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: moduleQueryKeys.people.key('employee-documents', userId),
     queryFn: () => getEmployeeDocuments(userId),
   });
+  const title = form.title.trim() || form.documentType;
+  const tooBig = !!file && file.size > MAX_UPLOAD;
   const add = useMutation({
-    mutationFn: () => addEmployeeDocument({ userId, file: file!, ...form }),
+    mutationFn: () => addEmployeeDocument({ userId, file: file!, ...form, title }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('employee-documents', userId) });
       setAdding(false);
@@ -529,167 +625,238 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
   });
   const remove = useMutation({
     mutationFn: deleteEmployeeDocument,
-    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('employee-documents', userId) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('employee-documents', userId) });
+      toast('success', 'Document removed.');
+    },
+    onError: (error) => toast('error', (error as Error).message),
   });
+  const types = [
+    'Right to work',
+    'Employment contract',
+    uk ? 'Starter declaration / P45' : 'Tax or starter form',
+    'Pension notice',
+    uk ? 'Fit note' : 'Medical certificate',
+    'Food safety',
+    'Policy acknowledgement',
+    'Other',
+  ];
+
   return (
-    <div className={CARD_PADDED}>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Documents & certificates</p>
-          <p className="text-xs text-muted-foreground mt-1">Record evidence, check dates and renewal deadlines.</p>
-        </div>
+    <RecordBlock
+      id="record-documents"
+      title="Documents"
+      action={
         <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+          <Plus data-icon="inline-start" />
           Add
         </Button>
-      </div>
-      {documents.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">No document records yet.</p>
+      }
+    >
+      {isError ? (
+        <ErrorState title="Documents couldn’t be loaded" description="Nothing was read, so this isn’t an empty file." onRetry={() => void refetch()} />
+      ) : isPending ? (
+        <div className="h-16 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
       ) : (
-        <div className="divide-y divide-border">
-          {documents.map((document) => {
-            const expiry = document.expiresAt ? new Date(document.expiresAt).getTime() : null;
-            const expired = expiry !== null && expiry < asOf.getTime();
-            const expiring = expiry !== null && !expired && expiry < asOf.getTime() + 60 * 86_400_000;
-            return (
-              <div key={document.id} className="py-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium truncate">{document.title}</p>
-                    {expired && <Badge variant="destructive">Expired</Badge>}
-                    {expiring && <Badge variant="warning">Due soon</Badge>}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {document.documentType}
-                    {document.issuedAt ? ` · checked ${fmtDate(document.issuedAt)}` : ''}
-                    {document.expiresAt ? ` · expires ${fmtDate(document.expiresAt)}` : ''}
-                  </p>
-                  {document.originalFileName && (
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {document.originalFileName}
-                      {document.sizeBytes ? ` · ${Math.ceil(document.sizeBytes / 1024)} KB` : ''}
-                    </p>
-                  )}
-                  {document.reference && <p className="text-xs text-muted-foreground mt-0.5 truncate">{document.reference}</p>}
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  {document.hasFile && (
-                    <Button asChild variant="ghost" size="sm">
-                      <a href={employeeDocumentDownloadUrl(document.id)} download>
-                        <Download data-icon="inline-start" />
-                        Download
-                      </a>
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => remove.mutate(document.id)}>
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <RecordList>
+          {documents.length === 0 ? (
+            <RecordListRow icon={FileText} tone="muted" label="Right to work, contract, certificates" placeholder="No documents yet" />
+          ) : (
+            documents.map((document) => {
+              const expiry = document.expiresAt ? new Date(document.expiresAt).getTime() : null;
+              const expired = expiry !== null && expiry < asOf.getTime();
+              const expiring = expiry !== null && !expired && expiry < asOf.getTime() + 60 * 86_400_000;
+              const detail = [
+                document.issuedAt && `checked ${fmtDate(document.issuedAt)}`,
+                document.expiresAt && `expires ${fmtDate(document.expiresAt)}`,
+                document.originalFileName && `${document.originalFileName}${document.sizeBytes ? ` · ${Math.ceil(document.sizeBytes / 1024)} KB` : ''}`,
+              ]
+                .filter(Boolean)
+                .join(' · ');
+              return (
+                <RecordListRow
+                  key={document.id}
+                  icon={FileText}
+                  tone={expired ? 'missing' : 'reference'}
+                  value={document.title}
+                  label={document.documentType}
+                  detail={detail || undefined}
+                  pill={expired ? { label: 'Expired', tone: 'exception' } : expiring ? { label: 'Due soon', tone: 'warning' } : undefined}
+                  trailing={
+                    <span className="flex items-center gap-0.5">
+                      {document.hasFile && (
+                        <a href={employeeDocumentDownloadUrl(document.id)} download className={ICON_BUTTON} aria-label={`Download ${document.title}`}>
+                          <Download size={14} />
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        className={cn(ICON_BUTTON, 'hover:text-exception')}
+                        aria-label={`Remove ${document.title}`}
+                        disabled={remove.isPending}
+                        onClick={() => remove.mutate(document.id)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </span>
+                  }
+                />
+              );
+            })
+          )}
+        </RecordList>
       )}
       {adding && (
-        <Modal title="Add compliance record" onClose={() => setAdding(false)}>
+        <Modal
+          title="Add a document"
+          description="Evidence, a signed contract or a certificate — with the dates that matter for it."
+          size="lg"
+          onClose={() => setAdding(false)}
+          footer={
+            <ModalActions
+              form="document-form"
+              submitLabel="Upload document"
+              pendingLabel="Uploading…"
+              pending={add.isPending}
+              disabled={!file || tooBig || title.length < 2}
+              onCancel={() => setAdding(false)}
+            />
+          }
+        >
           <form
+            id="document-form"
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
               add.mutate();
             }}
           >
+            <FileDrop file={file} onFile={setFile} tooBig={tooBig} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className={lbl}>Type</label>
+                <Select
+                  value={form.documentType}
+                  onValueChange={(value) => setForm({ ...form, documentType: value })}
+                  options={types.map((value) => ({ value, label: value }))}
+                  ariaLabel="Document type"
+                className="w-full"
+                />
+              </div>
+              <div>
+                <label className={lbl} htmlFor="document-title">
+                  Title
+                </label>
+                <input
+                  id="document-title"
+                  className={inp}
+                  value={form.title}
+                  onChange={(event) => setForm({ ...form, title: event.target.value })}
+                  placeholder={form.documentType}
+                />
+              </div>
+            </div>
             <div>
-              <label htmlFor="employee-document-file" className={lbl}>
-                File
+              <label className={lbl} htmlFor="document-reference">
+                Check method or reference
               </label>
               <input
-                id="employee-document-file"
-                type="file"
-                required
-                accept="application/pdf,image/jpeg,image/png,image/webp"
-                className={cn(
-                  inp,
-                  'h-auto py-2 file:mr-3 file:rounded-sm file:border-0 file:bg-band file:px-3 file:py-1.5 file:text-sm file:font-medium',
-                )}
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">PDF, JPEG, PNG or WebP, up to 10 MB.</p>
-            </div>
-            <div>
-              <label className={lbl}>Title</label>
-              <input
-                className={inp}
-                value={form.title}
-                onChange={(event) => setForm({ ...form, title: event.target.value })}
-                placeholder="e.g. Online right-to-work check"
-              />
-            </div>
-            <div>
-              <label className={lbl}>Type</label>
-              <Select
-                value={form.documentType}
-                onValueChange={(value) => setForm({ ...form, documentType: value })}
-                options={[
-                  'Right to work',
-                  'Employment contract',
-                  'Starter declaration / P45',
-                  'Pension notice',
-                  'Fit note',
-                  'Food safety',
-                  'Policy acknowledgement',
-                  'Other',
-                ].map((value) => ({ value, label: value }))}
-                ariaLabel="Document type"
-              />
-            </div>
-            <div>
-              <label className={lbl}>Check method or reference</label>
-              <input
+                id="document-reference"
                 className={inp}
                 value={form.reference}
                 onChange={(event) => setForm({ ...form, reference: event.target.value })}
-                placeholder="Online service, IDVT, manual or document reference"
+                placeholder="How it was checked, or the document’s own reference"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <DatePicker label="Checked / issued" value={form.issuedAt} onValueChange={(issuedAt) => setForm({ ...form, issuedAt })} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <DatePicker label="Checked or issued" value={form.issuedAt} onValueChange={(issuedAt) => setForm({ ...form, issuedAt })} />
               <DatePicker
-                label="Follow-up / expiry"
+                label="Expires or follow up"
                 value={form.expiresAt}
                 onValueChange={(expiresAt) => setForm({ ...form, expiresAt })}
                 min={form.issuedAt || undefined}
               />
             </div>
             <div>
-              <label className={lbl}>Notes</label>
+              <label className={lbl} htmlFor="document-notes">
+                Notes
+              </label>
               <textarea
-                className={cn(inp, 'h-20 py-2 resize-none')}
+                id="document-notes"
+                className={cn(inp, 'h-20 resize-none py-2')}
                 value={form.notes}
                 maxLength={1000}
                 onChange={(event) => setForm({ ...form, notes: event.target.value })}
               />
             </div>
-            {form.documentType === 'Right to work' && (
-              <p className="rounded-sm border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
-                A record here does not itself establish a statutory excuse. Retain the prescribed evidence, record the actual check date,
-                and complete follow-up checks where permission is time-limited.
+            {form.documentType === 'Right to work' && uk && (
+              <p className="flex gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs leading-relaxed text-measured">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                A record here isn’t itself a statutory excuse. Keep the prescribed evidence, record the actual check date, and do follow-up
+                checks where permission is time-limited.
               </p>
             )}
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={!file || file.size > 10 * 1024 * 1024 || form.title.length < 2 || add.isPending}
-            >
-              {add.isPending ? 'Uploading…' : 'Upload document'}
-            </Button>
           </form>
         </Modal>
       )}
-    </div>
+    </RecordBlock>
   );
 }
 
-// ── Hours & Timesheet (one row per day, detail modal per day) ─────────────────
+const MAX_UPLOAD = 10 * 1024 * 1024;
+
+/** A drop zone rather than the browser's file button: drag a scan in, or click to choose. */
+function FileDrop({ file, onFile, tooBig }: { file: File | null; onFile: (file: File | null) => void; tooBig: boolean }) {
+  const [over, setOver] = useState(false);
+  return (
+    <label
+      htmlFor="employee-document-file"
+      onDragOver={(event) => {
+        event.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setOver(false);
+        onFile(event.dataTransfer.files?.[0] ?? null);
+      }}
+      className={cn(
+        'flex cursor-pointer items-center gap-3 rounded-lg border border-dashed px-4 py-4 transition-colors',
+        over ? 'border-primary bg-primary/5' : tooBig ? 'border-exception/50 bg-exception/4' : 'border-rule/70 bg-field hover:bg-band/40',
+      )}
+    >
+      <span
+        className={cn(
+          'flex size-10 shrink-0 items-center justify-center rounded-md',
+          file ? (tooBig ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary') : 'bg-band text-muted-foreground',
+        )}
+      >
+        {file ? <FileText size={18} aria-hidden="true" /> : <UploadCloud size={18} aria-hidden="true" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-foreground">{file ? file.name : 'Drop a file here, or choose one'}</span>
+        <span className={cn('block text-xs', tooBig ? 'font-medium text-exception' : 'text-muted-foreground')}>
+          {file
+            ? tooBig
+              ? `${(file.size / 1024 / 1024).toFixed(1)} MB — over the 10 MB limit`
+              : `${Math.ceil(file.size / 1024)} KB`
+            : 'PDF, JPEG, PNG or WebP, up to 10 MB'}
+        </span>
+      </span>
+      {file && <span className="shrink-0 text-xs font-semibold text-muted-foreground">Replace</span>}
+      <input
+        id="employee-document-file"
+        type="file"
+        accept="application/pdf,image/jpeg,image/png,image/webp"
+        className="sr-only"
+        onChange={(event) => onFile(event.target.files?.[0] ?? null)}
+      />
+    </label>
+  );
+}
+
+// ── Hours (one row per day, detail modal per day) ────────────────────────────
 
 interface DayGroup {
   key: string; // YYYY-MM-DD
@@ -728,9 +895,6 @@ function groupByDay(shifts: TimesheetShift[]): DayGroup[] {
     .sort((a, b) => b.date.getTime() - a.date.getTime());
 }
 
-const TH = 'px-3 md:px-5 py-3.5 text-micro font-semibold text-muted-foreground uppercase tracking-micro';
-const TD = 'px-3 md:px-5 py-3.5';
-
 export function TimesheetCard({
   hours,
   monthOffset,
@@ -743,132 +907,103 @@ export function TimesheetCard({
   const [openDay, setOpenDay] = useState<DayGroup | null>(null);
   const days = groupByDay(hours?.shifts ?? []);
   const t = hours?.totals;
+  const review = t?.overtimeHours ?? 0;
 
   return (
-    <div className={`${CARD} overflow-hidden`}>
-      <div className="flex items-center justify-between gap-3 px-4 md:px-5 py-3 border-b border-rule flex-wrap">
-        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro">Hours &amp; Timesheet</p>
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {fmtHours(t?.paidHours ?? 0)} marked payable
-            {(t?.overtimeHours ?? 0) > 0 && <span className="text-warning"> · {fmtHours(t!.overtimeHours)} to review</span>} ·{' '}
-            {fmtHours(t?.rawHours ?? 0)} clocked
-          </span>
-          <SegmentedControl
-            options={[
-              { value: '0', label: monthRange(0).label },
-              { value: '1', label: monthRange(1).label },
-              { value: '2', label: monthRange(2).label },
-            ]}
-            value={String(monthOffset)}
-            onChange={(v) => onMonthChange(Number(v))}
-          />
-        </div>
-      </div>
-
-      {(t?.overtimeHours ?? 0) > 0 && (
-        <div className="px-5 py-3 border-b border-warning/30 bg-warning/5 flex gap-2 text-xs text-muted-foreground">
-          <AlertTriangle size={15} className="text-warning shrink-0" aria-hidden="true" />
-          <p>
-            Clocked time exceeds the current payable-hours calculation. Review every exception before payroll; unscheduled or additional
-            work is not automatically unpaid.
-          </p>
-        </div>
+    <RecordBlock
+      id="record-hours"
+      title="Hours"
+      action={
+        <SegmentedControl
+          options={[0, 1, 2].map((offset) => ({ value: String(offset), label: monthRange(offset).label.split(' ')[0] }))}
+          value={String(monthOffset)}
+          onChange={(v) => onMonthChange(Number(v))}
+          ariaLabel="Month"
+        />
+      }
+      note={
+        hours && (
+          <>
+            {fmtHours(t?.paidHours ?? 0)} payable · {fmtHours(t?.rawHours ?? 0)} clocked across {t?.shiftCount ?? 0}{' '}
+            {t?.shiftCount === 1 ? 'shift' : 'shifts'}
+            {review > 0 && <span className="text-measured"> · {fmtHours(review)} to review before payroll</span>}
+          </>
+        )
+      }
+    >
+      {!hours ? (
+        <div className="h-32 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+      ) : (
+        <RecordList>
+          {days.length === 0 ? (
+            <RecordListRow icon={Clock} tone="muted" label={monthRange(monthOffset).label} placeholder="No shifts clocked" />
+          ) : (
+            days.map((d) => (
+              <RecordListRow
+                key={d.key}
+                onSelect={() => setOpenDay(d)}
+                icon={Clock}
+                tone={d.overtimeHours > 0 ? 'money' : 'team'}
+                value={fmtDay(d.date)}
+                label={d.locations.length === 0 ? 'No location' : d.locations.length === 1 ? d.locations[0] : `${d.locations.length} locations`}
+                detail={`${d.segments.length} ${d.segments.length === 1 ? 'shift' : 'shifts'} · ${fmtHours(d.rawHours)} clocked`}
+                pill={d.overtimeHours > 0 ? { label: `+${fmtHours(d.overtimeHours)} review`, tone: 'warning' } : undefined}
+                trailing={<span className="font-semibold text-foreground">{fmtHours(d.paidHours)}</span>}
+              />
+            ))
+          )}
+        </RecordList>
       )}
 
-      <div className="overflow-x-auto">
-        <DataTable className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-rule bg-muted">
-              <th className={cn(TH, 'text-left')}>Date</th>
-              <th className={cn(TH, 'text-left')}>Location</th>
-              <th className={cn(TH, 'text-left hidden sm:table-cell')}>Shifts</th>
-              <th className={cn(TH, 'text-right')}>Clocked</th>
-              <th className={cn(TH, 'text-right')}>Exception</th>
-              <th className={cn(TH, 'text-right')}>Payable</th>
-            </tr>
-          </thead>
-          <tbody>
-            {days.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">
-                  No shifts in this period.
-                </td>
-              </tr>
-            ) : (
-              days.map((d) => (
-                <tr
-                  key={d.key}
-                  onClick={() => setOpenDay(d)}
-                  className="border-b border-rule last:border-0 hover:bg-band transition-colors cursor-pointer"
-                >
-                  <td className={cn(TD, 'font-medium text-foreground whitespace-nowrap')}>{fmtDay(d.date)}</td>
-                  <td className={cn(TD, 'text-muted-foreground')}>
-                    {d.locations.length === 0 ? '—' : d.locations.length === 1 ? d.locations[0] : `${d.locations.length} locations`}
-                  </td>
-                  <td className={cn(TD, 'text-muted-foreground tabular-nums hidden sm:table-cell')}>{d.segments.length}</td>
-                  <td className={cn(TD, 'text-right tabular-nums text-muted-foreground')}>{fmtHours(d.rawHours)}</td>
-                  <td className={cn(TD, 'text-right tabular-nums')}>
-                    {d.overtimeHours > 0 ? (
-                      <Badge variant="warning">+{fmtHours(d.overtimeHours)}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground/60">—</span>
-                    )}
-                  </td>
-                  <td className={cn(TD, 'text-right tabular-nums font-semibold text-foreground')}>{fmtHours(d.paidHours)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </DataTable>
-      </div>
-
       {openDay && (
-        <Modal title={fmtDay(openDay.date)} onClose={() => setOpenDay(null)} className="max-w-xl">
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2 text-xs">
-              <Badge variant="muted">{fmtHours(openDay.rawHours)} clocked</Badge>
-              {openDay.overtimeHours > 0 && <Badge variant="warning">{fmtHours(openDay.overtimeHours)} needs review</Badge>}
-              <Badge variant="success">{fmtHours(openDay.paidHours)} marked payable</Badge>
-            </div>
-            <div className="border border-rule rounded-sm overflow-hidden">
-              <DataTable className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted text-micro font-semibold text-muted-foreground uppercase tracking-micro">
-                    <th className="px-3 py-2 text-left">Clocked</th>
-                    <th className="px-3 py-2 text-left">Scheduled</th>
-                    <th className="px-3 py-2 text-right">Clocked</th>
-                    <th className="px-3 py-2 text-right">Review</th>
-                    <th className="px-3 py-2 text-right">Payable</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {openDay.segments.map((s) => (
-                    <tr key={s.id} className="border-t border-rule">
-                      <td className="px-3 py-2 text-foreground tabular-nums whitespace-nowrap">
-                        {fmtTime(s.clockedIn)} – {s.clockedOut ? fmtTime(s.clockedOut) : <span className="text-warning">open</span>}
-                        {s.locationName && <span className="block text-label text-muted-foreground">{s.locationName}</span>}
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground tabular-nums whitespace-nowrap">
-                        {s.scheduled ? `${fmtTime(s.scheduled.startsAt)} – ${fmtTime(s.scheduled.endsAt)}` : 'Unscheduled'}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{fmtHours(s.rawHours)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {s.overtimeHours > 0 ? <span className="text-warning">+{fmtHours(s.overtimeHours)}</span> : '—'}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">{fmtHours(s.paidHours)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </DataTable>
-            </div>
-            <p className="text-label text-muted-foreground">
-              The rota is evidence of planned work, not a legal cap on pay. Confirm actual working time, breaks and authorised corrections
-              before payroll, including unscheduled work the business required or permitted.
+        <Modal
+          title={fmtDay(openDay.date)}
+          description={`${openDay.segments.length} ${openDay.segments.length === 1 ? 'shift' : 'shifts'}${
+            openDay.locations.length ? ` at ${openDay.locations.join(' and ')}` : ''
+          }`}
+          size="lg"
+          onClose={() => setOpenDay(null)}
+        >
+          <div className="space-y-4">
+            <dl className="grid grid-cols-3 gap-2">
+              <DayFigure label="Clocked" value={fmtHours(openDay.rawHours)} />
+              <DayFigure label="To review" value={openDay.overtimeHours > 0 ? `+${fmtHours(openDay.overtimeHours)}` : '—'} tone={openDay.overtimeHours > 0 ? 'warning' : 'default'} />
+              <DayFigure label="Payable" value={fmtHours(openDay.paidHours)} tone="strong" />
+            </dl>
+            <RecordList>
+              {openDay.segments.map((s) => (
+                <RecordListRow
+                  key={s.id}
+                  icon={Clock}
+                  tone={s.overtimeHours > 0 ? 'money' : s.clockedOut ? 'team' : 'missing'}
+                  value={
+                    <>
+                      {fmtTime(s.clockedIn)} – {s.clockedOut ? fmtTime(s.clockedOut) : <span className="text-measured">still clocked in</span>}
+                    </>
+                  }
+                  label={s.scheduled ? `Rota ${fmtTime(s.scheduled.startsAt)} – ${fmtTime(s.scheduled.endsAt)}` : 'Not on the rota'}
+                  detail={[s.locationName, `${fmtHours(s.rawHours)} clocked`].filter(Boolean).join(' · ')}
+                  pill={s.overtimeHours > 0 ? { label: `+${fmtHours(s.overtimeHours)} review`, tone: 'warning' } : !s.scheduled ? { label: 'Unscheduled', tone: 'warning' } : undefined}
+                  trailing={<span className="font-semibold text-foreground">{fmtHours(s.paidHours)}</span>}
+                />
+              ))}
+            </RecordList>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              The rota is evidence of planned work, not a cap on pay. Confirm actual working time, breaks and corrections before payroll,
+              including unscheduled work the business required or allowed.
             </p>
           </div>
         </Modal>
       )}
+    </RecordBlock>
+  );
+}
+
+function DayFigure({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'warning' | 'strong' }) {
+  return (
+    <div className="rounded-lg border border-rule/60 bg-field px-3.5 py-2.5">
+      <dt className="text-label uppercase text-muted-foreground">{label}</dt>
+      <dd className={cn('mt-0.5 text-base font-semibold', tone === 'warning' ? 'text-measured' : 'text-foreground')}>{value}</dd>
     </div>
   );
 }

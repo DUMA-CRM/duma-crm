@@ -1,4 +1,15 @@
-import { ChevronDown, ChevronUp, ChevronsUp, Equal, type IconComponent } from '@/components/icons';
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUp,
+  CircleDashed,
+  CircleDot,
+  Clock3,
+  Equal,
+  type IconComponent,
+  XCircle,
+} from '@/components/icons';
 
 import type { HelpdeskTicket, TicketCategory, TicketPriority, TicketStatus } from '@/lib/modules/support/client';
 import { cn } from '@/lib/utils/cn';
@@ -21,6 +32,15 @@ export const STATUS_META: Record<TicketStatus, { label: string; group: StatusGro
 };
 
 export const isOpenStatus = (status: TicketStatus) => STATUS_META[status].group !== 'done';
+
+/** One icon and one colour per status, used wherever a status is picked or shown. */
+export const STATUS_ICON: Record<TicketStatus, { icon: IconComponent; className: string }> = {
+  open: { icon: CircleDashed, className: 'text-muted-foreground' },
+  in_progress: { icon: CircleDot, className: 'text-primary' },
+  waiting_employee: { icon: Clock3, className: 'text-measured' },
+  resolved: { icon: CheckCircle2, className: 'text-momentum' },
+  closed: { icon: XCircle, className: 'text-muted-foreground' },
+};
 
 /** Uppercase status chip — the lozenge an issue tracker puts next to a key. */
 export function StatusLozenge({ status, className }: { status: TicketStatus; className?: string }) {
@@ -122,8 +142,9 @@ export function AuthorAvatar({ name, size = 'md' }: { name: string; size?: 'sm' 
     <span
       aria-hidden="true"
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-full font-bold select-none',
-        size === 'sm' ? 'size-6 text-micro' : 'size-8 text-xs',
+        // Square, like every other avatar tile in the app.
+        'flex shrink-0 items-center justify-center rounded-md font-semibold select-none',
+        size === 'sm' ? 'size-6 font-sans text-[10px]' : 'size-8 text-xs',
         tint,
       )}
     >

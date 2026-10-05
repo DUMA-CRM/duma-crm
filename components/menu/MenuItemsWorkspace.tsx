@@ -1,93 +1,53 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { motion } from 'motion/react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { ChefHat, CircleDollarSign, Plus, Search, SlidersHorizontal, UtensilsCrossed } from '@/components/icons';
+import { ChefHat, Plus, Search, UtensilsCrossed, X } from '@/components/icons';
 import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
 import { MenuSetupChecklist } from '@/components/menu/MenuSetupChecklist';
-import { AvailabilityToggle, categoryTone, selectClass } from '@/components/menu/shared';
+import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { Switch } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { NeedsAttention } from '@/components/shared/NeedsAttention';
 import { Button } from '@/components/ui/button';
-import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
+import { hasCapability } from '@/lib/auth/capabilities';
 import { type MenuItemCost, useMenuItemCosts } from '@/lib/hooks/useMenuItemCosts';
 import { getMenuCategories, getMenuItems, updateMenuItem } from '@/lib/modules/catalog/client';
+import { getRecipeGaps } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatMoney } from '@/lib/utils/dashboard';
+import { filterMenuItems, groupByCategory, setupGaps } from '@/lib/utils/menu-list';
+import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { MenuCategory, MenuItem } from '@/types/menu';
 
 /**
- * Three ways of reading the same menu. The screen serves setup, daily ops and
- * margin work, and those want different columns — so the columns follow the
- * task rather than every job sharing one compromise table.
- */
-const VIEWS = [
-  { value: 'build', label: 'Build', icon: ChefHat },
-  { value: 'operate', label: 'Operate', icon: SlidersHorizontal },
-  { value: 'profit', label: 'Profit', icon: CircleDollarSign },
-] as const;
-
-type View = (typeof VIEWS)[number]['value'];
-
-const isView = (value: string | null): value is View => VIEWS.some((v) => v.value === value);
-
-/** What still needs doing to an item, for the Build view. */
-function setupGaps(item: MenuItem, cost: MenuItemCost | undefined): string[] {
-  const gaps: string[] = [];
-  if (!cost?.hasRecipe) gaps.push('no recipe');
-  else if (!cost.costComplete) gaps.push('ingredient costs missing');
-  if (!item.imageUrl) gaps.push('no image');
-  return gaps;
-}
-
-function MarginCell({ cost }: { cost: MenuItemCost | undefined }) {
-  if (!cost || cost.loading) return <span className="text-muted-foreground">…</span>;
-  // An uncosted item shows nothing rather than a flattering 100%.
-  if (!cost.hasRecipe) return <span className="text-label font-medium text-muted-foreground">No recipe</span>;
-  if (!cost.costComplete) return <span className="text-label font-medium text-warning">Cost incomplete</span>;
-
-  const { margin, marginPct } = cost.costing!;
-  return (
-    <span className={cn('font-semibold tabular-nums', margin >= 0 ? 'text-success' : 'text-destructive')}>
-      {formatMoney(margin, 2)} <span className="font-normal text-muted-foreground">({marginPct.toFixed(0)}%)</span>
-    </span>
-  );
-}
-
-/**
- * The menu items list. A full-width list page that navigates to a full-page
- * record — the same shape as Customers and Inventory, which is the only
- * list-to-detail pattern this product uses.
+ * The menu items list in the settings vocabulary: what needs a recipe first,
+ * then a search and category, then items under their category as audit rows —
+ * one row carrying what used to be three views: setup gaps, margin, price and
+ * whether it's on the menu. Each opens the full item record.
  */
 export function MenuItemsWorkspace() {
   const qc = useQueryClient();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { tenantId } = useWorkspaceStore();
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const canReadRecipes = hasCapability(capabilities, 'recipes:read');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | MenuCategory>('all');
 
-  // View lives in the URL so a Profit view can be linked to, and so switching
-  // views is an ordinary Back away.
-  const viewParam = searchParams.get('view');
-  const view: View = isView(viewParam) ? viewParam : 'operate';
-  const setView = (next: View) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (next === 'operate') params.delete('view');
-    else params.set('view', next);
-    router.replace(`/menu/items${params.size ? `?${params}` : ''}`, { scroll: false });
-  };
-
-  const { data: items = [], isLoading } = useQuery({
+  const itemsQuery = useQuery({
     queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId),
     queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: !!tenantId,
@@ -97,129 +57,30 @@ export function MenuItemsWorkspace() {
     queryFn: () => getMenuCategories(tenantId!),
     enabled: Boolean(tenantId),
   });
-  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  // Moved here from the Inventory stock tab: a menu item without a recipe is a
+  // menu problem — its sales take no stock off and its allergen answer is incomplete.
+  const gaps = useQuery({
+    queryKey: moduleQueryKeys.inventory.key('menu-item-recipe-gaps', tenantId),
+    queryFn: () => getRecipeGaps(tenantId!),
+    enabled: !!tenantId && canReadRecipes,
+  });
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return items.filter(
-      (i) =>
-        (categoryFilter === 'all' || i.categoryId === categoryFilter) &&
-        (!q || i.name.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q)),
-    );
-  }, [items, search, categoryFilter]);
+  const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data]);
+  const filtered = useMemo(() => filterMenuItems(items, search, categoryFilter), [items, search, categoryFilter]);
+  const groups = groupByCategory(filtered, categories);
 
-  // Only Build and Profit read costs, and each is a request per item — so the
-  // view that never shows them doesn't pay for them.
-  const costs = useMenuItemCosts(view === 'operate' ? [] : filtered);
+  // A request per item (cached, and shared with the item page) — fine for a café
+  // menu, and the price of showing margin on every row.
+  const costs = useMenuItemCosts(filtered);
 
   const availability = useMutation({
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => updateMenuItem(id, { isAvailable }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-items') }),
+    onSuccess: (_, { isAvailable }) => {
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-items') });
+      toast('success', isAvailable ? 'Back on the menu.' : 'Taken off the menu — it won’t show at the till.');
+    },
     onError: (err) => toast('error', err.message || 'Availability wasn’t updated. Try again.'),
   });
-
-  const columns: DataTableColumn<MenuItem>[] = [
-    {
-      id: 'item',
-      header: 'Item',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-          {row.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={row.imageUrl} alt="" className="size-9 shrink-0 rounded-sm bg-muted object-cover" />
-          ) : (
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-muted">
-              <UtensilsCrossed size={15} className="text-muted-foreground" aria-hidden="true" />
-            </div>
-          )}
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{row.name}</p>
-            {row.description && <p className="truncate text-xs text-muted-foreground">{row.description}</p>}
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'category',
-      header: 'Category',
-      visibility: 'md',
-      cell: ({ row }) => (
-        <span
-          className={cn(
-            'inline-flex items-center rounded-sm px-2.5 py-1 text-label font-semibold uppercase tracking-label',
-            categoryTone(categoryById.get(row.categoryId)?.slug ?? '', categoryById.get(row.categoryId)),
-          )}
-        >
-          {categoryById.get(row.categoryId)?.name ?? 'Unknown category'}
-        </span>
-      ),
-    },
-    {
-      id: 'price',
-      header: 'Price',
-      align: 'right',
-      width: 'fit',
-      cell: ({ row }) => <span className="font-semibold tabular-nums text-foreground">{formatMoney(Number(row.price) || 0, 2)}</span>,
-    },
-    ...(view === 'profit'
-      ? ([
-          {
-            id: 'cost',
-            header: 'Cost',
-            align: 'right',
-            width: 'fit',
-            cell: ({ row }) => {
-              const cost = costs.get(row.id);
-              return (
-                <span className="tabular-nums text-muted-foreground">{cost?.costComplete ? formatMoney(cost.costing!.cogs, 2) : '—'}</span>
-              );
-            },
-          },
-          {
-            id: 'margin',
-            header: 'Margin',
-            align: 'right',
-            width: 'fit',
-            cell: ({ row }) => <MarginCell cost={costs.get(row.id)} />,
-          },
-        ] satisfies DataTableColumn<MenuItem>[])
-      : []),
-    ...(view === 'build'
-      ? ([
-          {
-            id: 'setup',
-            header: 'Setup',
-            cell: ({ row }) => {
-              const gaps = setupGaps(row, costs.get(row.id));
-              return gaps.length === 0 ? (
-                <span className="text-label font-semibold text-success">Ready</span>
-              ) : (
-                <span className="text-label text-warning">{gaps.join(' · ')}</span>
-              );
-            },
-          },
-        ] satisfies DataTableColumn<MenuItem>[])
-      : []),
-    ...(view === 'operate'
-      ? ([
-          {
-            id: 'status',
-            header: 'Status',
-            width: 'fit',
-            cell: ({ row }) => (
-              // Stop the row's navigation: this control acts in place.
-              <span onClick={(e) => e.stopPropagation()} role="presentation">
-                <AvailabilityToggle
-                  on={row.isAvailable}
-                  pending={availability.isPending && availability.variables?.id === row.id}
-                  onToggle={() => availability.mutate({ id: row.id, isAvailable: !row.isAvailable })}
-                />
-              </span>
-            ),
-          },
-        ] satisfies DataTableColumn<MenuItem>[])
-      : []),
-  ];
 
   return (
     <EditorShell
@@ -237,57 +98,245 @@ export function MenuItemsWorkspace() {
     >
       {!tenantId ? (
         <EmptyState icon={UtensilsCrossed} title="No workspace selected" description="Choose a workspace to manage its menu." />
+      ) : itemsQuery.isError ? (
+        <ErrorState title="Couldn’t load the menu" onRetry={() => void itemsQuery.refetch()} />
+      ) : itemsQuery.isPending ? (
+        <div className="space-y-3" aria-label="Loading menu">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div key={i} className="h-16 animate-pulse rounded-lg bg-band/60" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <MenuSetupChecklist />
       ) : (
-        <div className="flex flex-col gap-4">
-          {items.length === 0 && !isLoading && <MenuSetupChecklist />}
+        <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+          {canReadRecipes && (
+            <RecipeGaps
+              gaps={gaps.data}
+              images={new Map(items.map((i) => [i.id, i.imageUrl ?? null]))}
+              error={gaps.isError}
+              onRetry={() => void gaps.refetch()}
+            />
+          )}
 
-          {items.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <SegmentedControl options={VIEWS} value={view} onChange={setView} ariaLabel="What to show for each item" />
-              <div className="max-w-xs flex-1">
-                <Input
-                  type="search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  leftIcon={<Search size={14} />}
-                  placeholder="Search items…"
-                  aria-label="Search menu items"
-                />
-              </div>
-              <Select
-                value={categoryFilter}
-                onValueChange={(value) => setCategoryFilter(value as 'all' | MenuCategory)}
-                options={[
-                  { value: 'all', label: 'All categories' },
-                  ...categories.map((category) => ({ value: category.id, label: category.name })),
-                ]}
-                ariaLabel="Filter by category"
-                className={cn(selectClass, 'w-auto')}
+          <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-2">
+            <div className="min-w-56 flex-1 lg:max-w-xs">
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                leftIcon={<Search size={14} />}
+                placeholder="Find an item"
+                aria-label="Find an item"
+                className="border-rule bg-background"
+                rightAction={
+                  search ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearch('')}
+                      aria-label="Clear search"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X size={14} />
+                    </button>
+                  ) : undefined
+                }
               />
+            </div>
+            <Select
+              value={categoryFilter}
+              onValueChange={(value) => setCategoryFilter(value as 'all' | MenuCategory)}
+              options={[
+                { value: 'all', label: 'All categories' },
+                ...categories.map((category) => ({ value: category.id, label: category.name })),
+              ]}
+              ariaLabel="Category"
+              className="w-48"
+            />
+            <span className="ml-auto text-xs text-muted-foreground">
+              {filtered.length !== items.length && `${filtered.length} of `}
+              {items.length} {items.length === 1 ? 'item' : 'items'} · {items.filter((i) => i.isAvailable).length} on the menu
+            </span>
+          </motion.div>
+
+          {groups.length > 0 && (
+            <div className="-mb-3 hidden items-center gap-3 px-3.5 text-label uppercase text-muted-foreground sm:flex" aria-hidden="true">
+              <span className="flex-1" />
+              <span className="w-32 text-right">Margin</span>
+              <span className="w-20 text-right">Price</span>
+              <span className="w-24 text-right">On the menu</span>
             </div>
           )}
 
-          {(items.length > 0 || isLoading) && (
-            <DataTable
-              data={filtered}
-              columns={columns}
-              getRowKey={(row) => row.id}
-              isLoading={isLoading}
-              onRowClick={({ row }) => router.push(`/menu/items/${row.id}`)}
-              rowAriaLabel={({ row }) => `Open ${row.name}`}
-              stickyHeader
-              aria-label="Menu items"
-              emptyState={<EmptyState icon={Search} title="No matching items" description="Try a different search or category filter." />}
-              footer={
-                <p className="text-xs text-muted-foreground">
-                  {filtered.length !== items.length && `${filtered.length} of `}
-                  {items.length} {items.length === 1 ? 'item' : 'items'} · {items.filter((i) => i.isAvailable).length} available
-                </p>
-              }
-            />
+          {groups.length === 0 ? (
+            <motion.div variants={SECTION_RISE} className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              <EmptyState icon={Search} title="Nothing matches" description="Try another search or category." />
+            </motion.div>
+          ) : (
+            groups.map((group) => {
+              return (
+                <motion.section key={group.id} variants={SECTION_RISE} aria-label={group.name}>
+                  <h2 className="mb-2 flex items-center gap-2 text-label uppercase text-muted-foreground">
+                    {group.name}
+                    <span className="normal-case tabular-nums">
+                      {group.available}/{group.items.length} on the menu
+                    </span>
+                  </h2>
+                  <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                    {group.items.map((item) => (
+                      <ItemRow
+                        key={item.id}
+                        item={item}
+                        cost={costs.get(item.id)}
+                        togglePending={availability.isPending && availability.variables?.id === item.id}
+                        onToggle={(isAvailable) => availability.mutate({ id: item.id, isAvailable })}
+                      />
+                    ))}
+                  </ul>
+                </motion.section>
+              );
+            })
           )}
-        </div>
+        </motion.div>
       )}
     </EditorShell>
+  );
+}
+
+/**
+ * Menu items with no recipe, folded to one line — the same shape as the stock
+ * tab's "Needs attention". Hidden when every item has one.
+ */
+function RecipeGaps({
+  gaps,
+  images,
+  error,
+  onRetry,
+}: {
+  gaps?: { id: string; name: string }[];
+  /** Each item's image, so a row shows the item rather than a generic icon. */
+  images: Map<string, string | null>;
+  error: boolean;
+  onRetry: () => void;
+}) {
+  if (error)
+    return (
+      <motion.div variants={SECTION_RISE} className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3">
+        <span className="min-w-0 flex-1 text-xs text-muted-foreground">Recipe coverage couldn’t be checked.</span>
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Try again
+        </Button>
+      </motion.div>
+    );
+  if (!gaps) return null;
+
+  // The shared card — the same one Communications' overview uses.
+  return (
+    <NeedsAttention
+      label="Items without a recipe"
+      icon={ChefHat}
+      summary={`${gaps.length} ${gaps.length === 1 ? 'item needs' : 'items need'} a recipe`}
+      items={gaps.map((gap) => ({
+        key: gap.id,
+        tone: 'measured',
+        icon: ChefHat,
+        image: images.get(gap.id),
+        title: `${gap.name} has no recipe`,
+        detail: 'Its sales can’t take stock off or give a complete allergen answer.',
+        fix: { label: 'Add recipe', href: `/menu/items/${gap.id}?tab=recipe` },
+      }))}
+    />
+  );
+}
+
+/** One item as an audit row: what it is and what's missing, then margin, price and the on/off switch. */
+function ItemRow({
+  item,
+  cost,
+  togglePending,
+  onToggle,
+}: {
+  item: MenuItem;
+  cost?: MenuItemCost;
+  togglePending: boolean;
+  onToggle: (isAvailable: boolean) => void;
+}) {
+  const gaps = cost && !cost.loading ? setupGaps(item, cost) : [];
+
+  return (
+    <li className="group flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40">
+      <Link
+        href={`/menu/items/${item.id}`}
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
+        aria-label={`Open ${item.name}`}
+      >
+        {item.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.imageUrl}
+            alt=""
+            className={cn('size-10 shrink-0 rounded-md bg-band object-cover', !item.isAvailable && 'opacity-50 grayscale')}
+          />
+        ) : (
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground" aria-hidden="true">
+            <UtensilsCrossed size={16} />
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className={cn('truncate text-sm font-semibold', item.isAvailable ? 'text-foreground' : 'text-muted-foreground')}>
+              {item.name}
+            </span>
+            {/* Only what's missing — a complete item says nothing extra. */}
+            {gaps.map((gap) => (
+              <span
+                key={gap}
+                className={cn(
+                  'hidden shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold md:inline',
+                  gap === 'No image' ? 'bg-band text-muted-foreground' : 'bg-measured/10 text-measured',
+                )}
+              >
+                {gap}
+              </span>
+            ))}
+          </span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {item.description || (item.isAvailable ? 'On the menu' : 'Off the menu')}
+          </span>
+        </span>
+      </Link>
+
+      <Margin cost={cost} />
+      <span className="w-20 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
+        {formatMoney(Number(item.price) || 0, 2)}
+      </span>
+      <span className="flex w-24 shrink-0 items-center justify-end gap-2">
+        <span className={cn('text-micro font-semibold', item.isAvailable ? 'text-momentum' : 'text-muted-foreground')}>
+          {item.isAvailable ? 'On' : 'Off'}
+        </span>
+        <Switch label={`${item.name} on the menu`} checked={item.isAvailable} disabled={togglePending} onChange={onToggle} />
+      </span>
+    </li>
+  );
+}
+
+/** Margin and cost, or why there's none — an uncosted item never shows a flattering 100%. */
+function Margin({ cost }: { cost?: MenuItemCost }) {
+  if (!cost || cost.loading)
+    return <span className="hidden h-8 w-32 shrink-0 animate-pulse rounded-sm bg-band/60 sm:block" aria-hidden="true" />;
+  if (!cost.costComplete)
+    return (
+      <span className="hidden w-32 shrink-0 text-right sm:block">
+        <span className="block text-sm text-muted-foreground">—</span>
+        <span className="block text-xs text-muted-foreground">{cost.hasRecipe ? 'costs missing' : 'not costed'}</span>
+      </span>
+    );
+  const { cogs, margin, marginPct } = cost.costing!;
+  return (
+    <span className="hidden w-32 shrink-0 text-right tabular-nums sm:block">
+      <span className={cn('block text-sm font-semibold', margin >= 0 ? 'text-momentum' : 'text-exception')}>
+        {formatMoney(margin, 2)} <span className="text-xs font-normal text-muted-foreground">{marginPct.toFixed(0)}%</span>
+      </span>
+      <span className="block text-xs text-muted-foreground">cost {formatMoney(cogs, 2)}</span>
+    </span>
   );
 }

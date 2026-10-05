@@ -1,24 +1,27 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
+import { motion } from 'motion/react';
 import { useState } from 'react';
 
-import { ChefHat, Flame, Loader2, Pencil, TriangleAlert } from '@/components/icons';
-import { ModifierRecipeEditor } from '@/components/menu/ModifierRecipeEditor';
+import { Check, ChefHat, Flame, Loader2, Pencil, Plus, RotateCcw, Scale, SlidersHorizontal, TriangleAlert } from '@/components/icons';
+import { ModifierRecipeDrawer } from '@/components/menu/ModifierRecipeEditor';
 import { RecipeIngredientEditor } from '@/components/menu/RecipeIngredientEditor';
+import { Figure } from '@/components/menu/RecipeTotals';
 import { DEFAULT_COL, type SizeColumn, computeRecipeTotals, mergeNutrition, useRecipeDraft } from '@/components/menu/useRecipeDraft';
-import { Modal } from '@/components/shared/Modal';
-import { Badge } from '@/components/ui/badge';
+import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Button } from '@/components/ui/button';
-import { DataTable } from '@/components/ui/data-table';
 
 import { useVatContext } from '@/lib/hooks/useVatContext';
 import { computeCosting } from '@/lib/menu/costing';
-import { getMenuItemModifiers } from '@/lib/modules/catalog/client';
+import { getMenuItemModifierGroups, getMenuItemModifiers } from '@/lib/modules/catalog/client';
 import { NUTRITION_FIELDS, type NutritionFacts } from '@/lib/modules/inventory/client';
 import { getMenuItemRecipe, getModifierRecipe, setMenuItemRecipe } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { type ComboRule, FALLBACK_RULE, ruleLabel, satisfied, toggleOption } from '@/lib/utils/combo';
+import { formatMoney } from '@/lib/utils/dashboard';
 import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import type { AttachedModifier } from '@/types/menu';
 
@@ -27,48 +30,16 @@ function MacroList({ nutrition, missing }: { nutrition: NutritionFacts; missing?
   const rows = NUTRITION_FIELDS.filter((f) => f.key !== 'kcal' && nutrition[f.key] != null);
   if (rows.length === 0) return null;
   return (
-    <div className="space-y-1 text-sm tabular-nums">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-rule/45 pt-1.5 text-xs tabular-nums">
       {rows.map((f) => (
-        <div key={f.key} className="flex justify-between">
+        <div key={f.key} className="flex justify-between gap-2">
           <span className="text-muted-foreground">{f.label}</span>
           <span className="text-foreground">
             {(nutrition[f.key] ?? 0).toFixed(1)} {f.unit}
-            {missing && <span className="text-warning">*</span>}
+            {missing && <span className="text-measured">*</span>}
           </span>
         </div>
       ))}
-    </div>
-  );
-}
-
-/**
- * Compact read-only summary shown on the Recipe & Cost card in the item modal:
- * ingredient count, default cost/margin/energy and allergen count.
- */
-export function RecipeSummaryChips({ menuItemId, price, vatRate }: { menuItemId: string; price: string; vatRate?: string | null }) {
-  const { rows, summary, allAllergens, isLoading, hasIngredients } = useRecipeDraft({
-    queryKey: moduleQueryKeys.inventory.key('menu-item-recipe', menuItemId),
-    fetchLines: () => getMenuItemRecipe(menuItemId),
-    saveLines: () => Promise.resolve(),
-    sizes: [],
-    basePrice: Number(price) || 0,
-    vatRate,
-  });
-
-  if (isLoading) return <div className="h-6 w-2/3 rounded bg-muted animate-pulse" />;
-  if (!hasIngredients) return <p className="text-xs text-muted-foreground">No ingredients linked yet.</p>;
-
-  const s = summary[0];
-  const margin = s.costing?.margin ?? 0;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 text-xs">
-      <Badge variant="muted">{rows.filter((r) => r.stockItemId).length} ingredients</Badge>
-      <Badge variant="muted">cost £{s.cogs.toFixed(2)}</Badge>
-      <Badge variant={margin >= 0 ? 'success' : 'destructive'}>margin £{margin.toFixed(2)}</Badge>
-      {/* Only worth the space when VAT actually changes the number. */}
-      {(s.costing?.vat ?? 0) > 0 && <Badge variant="muted">after £{s.costing?.vat.toFixed(2)} VAT</Badge>}
-      <Badge variant="muted">{Math.round(s.kcal)} kcal</Badge>
-      {allAllergens.length > 0 && <Badge variant="warning">{allAllergens.length} allergens</Badge>}
     </div>
   );
 }
@@ -102,8 +73,12 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
   const sizes: SizeColumn[] = attached
     .filter(isSizeModifier)
     .map((m) => ({ id: m.id, label: modifierLabel(m), priceAdjust: m.priceAdjust }));
+  // A size pre-selected at the till makes the size-less amount an inherited
+  // base rather than something sold — see `defaultIsSize`.
+  const defaultSize = attached.find((m) => isSizeModifier(m) && m.isDefault);
   const { rows, edit, dirty, isLoading, save, stockItems, itemMap, usedIds, columns, summary, allAllergens, hasIngredients } =
     useRecipeDraft({
+      defaultIsSize: Boolean(defaultSize),
       queryKey: moduleQueryKeys.inventory.key('menu-item-recipe', menuItemId),
       fetchLines: () => getMenuItemRecipe(menuItemId),
       saveLines: (lines) => setMenuItemRecipe(menuItemId, lines),
@@ -113,6 +88,9 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
     });
 
   const missingData = summary.some((s) => s.missingCost > 0 || s.missingKcal > 0);
+  const shownSummary = summary;
+  // The columns something is actually sold at — the add-on figures skip the inherited base.
+  const soldColumns = defaultSize && columns.length > 1 ? columns.filter((c) => c.id !== DEFAULT_COL) : columns;
 
   // Every attached modifier's recipe — powers the add-on table and the combo
   // preview. Cache keys match the modifier editor, so edits reflect instantly.
@@ -128,20 +106,23 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
   const [comboSel, setComboSel] = useState<string[] | null>(null);
   const selected = comboSel ?? attached.filter((m) => m.isDefault).map((m) => m.id);
   const selectedSet = new Set(selected);
-  const toggleCombo = (m: AttachedModifier) => {
-    const category = modifierCategory(m);
-    let next: string[];
-    if (selectedSet.has(m.id)) {
-      next = selected.filter((id) => id !== m.id);
-    } else if (category) {
-      // Categorised modifiers (incl. Size) are single-select — replace siblings.
-      const siblings = new Set(attached.filter((x) => modifierCategory(x) === category).map((x) => x.id));
-      next = [...selected.filter((id) => !siblings.has(id)), m.id];
-    } else {
-      next = [...selected, m.id];
-    }
-    setComboSel(next);
+  // The item's group rules (required/optional, choose one/many) — the same
+  // query the Details tab edits — so the preview behaves as the till will.
+  const { data: groupRules = [] } = useQuery({
+    queryKey: moduleQueryKeys.catalog.key('menu-item-modifier-groups', menuItemId),
+    queryFn: () => getMenuItemModifierGroups(menuItemId),
+  });
+  const ruleFor = (m: AttachedModifier): ComboRule => {
+    const rule = m.groupId ? groupRules.find((entry) => entry.id === m.groupId) : undefined;
+    if (rule) return { minSelections: rule.minSelections, maxSelections: rule.maxSelections };
+    // No group rule: categorised options behave as "choose one", loose extras as "choose any".
+    return modifierCategory(m) ? FALLBACK_RULE : { minSelections: 0, maxSelections: null };
   };
+  const groupIdsOf = (m: AttachedModifier) => {
+    const category = modifierCategory(m) ?? 'Extras';
+    return attached.filter((x) => (modifierCategory(x) ?? 'Extras') === category).map((x) => x.id);
+  };
+  const toggleCombo = (m: AttachedModifier) => setComboSel(toggleOption(selected, m.id, groupIdsOf(m), ruleFor(m)));
 
   // Combo totals: base recipe resolved against the selected size + each
   // selected modifier's recipe (with its own size overrides).
@@ -179,15 +160,21 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
     return [...groups.entries()];
   })();
 
+  const money = (n: number) => formatMoney(n, 2);
+
   return (
     <div className="flex flex-col">
       {/* Sticky because the ingredient list is long and unsaved work must never
           scroll out of sight — this tab has no shell-level discard guard. */}
-      <div className="sticky top-0 z-20 -mx-3 mb-4 flex items-center justify-between gap-3 border-b border-rule bg-card px-3 py-2.5 md:-mx-6 md:px-6">
-        <div className="flex min-w-0 items-center gap-2">
-          <ChefHat size={16} className="shrink-0 text-primary" aria-hidden="true" />
+      <div className="sticky top-0 z-20 -mx-3 -mt-4 mb-5 flex items-center justify-between gap-3 border-b border-rule/60 bg-background/95 px-3 py-2.5 backdrop-blur md:-mx-6 md:-mt-6 md:px-6 lg:-mt-8">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary" aria-hidden="true">
+            <ChefHat size={16} />
+          </span>
           <p className="truncate text-sm font-semibold text-foreground">Recipe &amp; cost</p>
-          {dirty && !save.isPending && <span className="shrink-0 text-label font-semibold text-warning">Unsaved changes</span>}
+          {dirty && !save.isPending && (
+            <span className="shrink-0 rounded-sm bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured">Unsaved changes</span>
+          )}
         </div>
         <Button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className="h-9 shrink-0 gap-2 px-5">
           {save.isPending && <Loader2 size={15} className="animate-spin" />}
@@ -195,294 +182,407 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
         </Button>
       </div>
 
-      <>
-        {isLoading ? (
-          <div className="flex items-center justify-center py-24 text-muted-foreground">
-            <Loader2 size={22} className="animate-spin" />
-          </div>
-        ) : (
-          <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start">
-            {/* ── Ingredients ── */}
-            <section className="space-y-3 min-w-0">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Ingredients</h2>
-                {sizes.length > 0 && <p className="text-label text-muted-foreground">Blank size fields inherit the Default amount.</p>}
-              </div>
-
-              <RecipeIngredientEditor
-                rows={rows}
-                onChange={edit}
-                columns={columns}
-                stockItems={stockItems}
-                itemMap={itemMap}
-                usedIds={usedIds}
-                sizes={sizes}
-                emptyHint="Add the ingredients every variant of this item uses — beans, a cup, a lid. Milk and syrups belong on their modifiers instead, so they only cost what was actually chosen."
-              />
-
-              {/* ── Modifier add-ons (read-only + jump link) ── */}
+      {isLoading ? (
+        <div className="space-y-4" aria-label="Loading recipe">
+          <div className="h-48 animate-pulse rounded-lg bg-band/60" />
+          <div className="h-32 animate-pulse rounded-lg bg-band/60" />
+        </div>
+      ) : (
+        <SettingsTabBody
+          stickyAside
+          narrowAside
+          aside={
+            <>
+              {/* Combination preview — build a drink the way the till sells it. */}
               {attached.length > 0 && (
-                <div className="pt-4">
-                  <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Modifier Add-ons</h2>
-                  <div className="bg-card border border-rule rounded-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <DataTable className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-muted text-micro font-semibold text-muted-foreground uppercase tracking-micro">
-                            <th className="px-4 py-2.5 text-left">Modifier</th>
-                            <th className="px-3 py-2.5 text-right">+Price</th>
-                            {columns.map((c) => (
-                              <th key={c.id} className="px-3 py-2.5 text-right whitespace-nowrap">
-                                {c.label}
-                              </th>
-                            ))}
-                            <th className="w-12" />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {attached.map((m) => {
-                            const category = modifierCategory(m);
-                            const label = modifierLabel(m);
-                            const lines = modRecipeMap.get(m.id) ?? [];
-                            return (
-                              <tr key={m.id} className="border-t border-rule">
-                                <td className="px-4 py-2.5">
-                                  <p className="font-medium text-foreground">{label}</p>
-                                  <p className="text-label text-muted-foreground">
-                                    {category ?? 'Extra'}
-                                    {m.isDefault && ' · default'}
-                                  </p>
-                                </td>
-                                <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
-                                  {Number(m.priceAdjust) ? `+£${Number(m.priceAdjust).toFixed(2)}` : '—'}
-                                </td>
-                                {columns.map((c) => {
-                                  if (lines.length === 0) {
-                                    return (
-                                      <td key={c.id} className="px-3 py-2.5 text-right text-muted-foreground">
-                                        —
-                                      </td>
-                                    );
-                                  }
-                                  const t = computeRecipeTotals(lines, c.id === DEFAULT_COL ? new Set() : new Set([c.id]), itemMap);
-                                  return (
-                                    <td key={c.id} className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap">
-                                      <span className="font-semibold text-foreground">£{t.cost.toFixed(2)}</span>
-                                      <span className="text-muted-foreground"> · {Math.round(t.nutrition.kcal ?? 0)} kcal</span>
-                                      {(t.missingCost > 0 || t.missingNutrition > 0) && <span className="text-warning">*</span>}
-                                    </td>
-                                  );
-                                })}
-                                <td className="px-2 py-2.5 text-right">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setEditTarget(m)}
-                                    aria-label={`Edit ${label} recipe`}
-                                    className="text-muted-foreground/60 hover:text-foreground"
-                                  >
-                                    <Pencil size={14} />
-                                  </Button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </DataTable>
-                    </div>
-                    <p className="px-4 py-2.5 border-t border-rule text-label text-muted-foreground">
-                      What each modifier adds on top of the base recipe, per size. “—” means no recipe yet — use the pencil to set one.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* ── Summary sidebar ── */}
-            <aside className="space-y-4 lg:sticky lg:top-4">
-              {/* Combination preview — build a drink like the POS would sell it */}
-              {attached.length > 0 && (
-                <div className="bg-card border border-primary/30 rounded-sm p-4">
-                  <h2 className="text-micro font-semibold text-primary uppercase tracking-micro mb-3">Try a combination</h2>
-                  <div className="space-y-2.5">
-                    {comboGroups.map(([category, mods]) => (
-                      <div key={category}>
-                        <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-1">{category}</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {mods.map((m) => {
-                            const on = selectedSet.has(m.id);
-                            return (
-                              <button
-                                key={m.id}
-                                type="button"
-                                onClick={() => toggleCombo(m)}
-                                aria-pressed={on}
-                                className={cn(
-                                  'px-2.5 h-9 rounded-sm border text-xs font-medium transition-colors',
-                                  on ? 'border-primary bg-band text-primary' : 'border-rule text-muted-foreground hover:text-foreground',
-                                )}
-                              >
-                                {modifierLabel(m)}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-3 pt-3 border-t border-rule space-y-1.5 text-sm tabular-nums">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Price</span>
-                      <span className="font-bold text-primary">£{comboCosting.grossCharged.toFixed(2)}</span>
-                    </div>
-                    {/* Only shown when VAT applies — an unregistered tenant
-                        should not see a line that is always zero. */}
-                    {comboCosting.vat > 0 && (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">VAT ({comboCosting.vatRate}%)</span>
-                          <span className="text-muted-foreground">−£{comboCosting.vat.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">You keep</span>
-                          <span className="font-semibold text-foreground">£{comboCosting.netRevenue.toFixed(2)}</span>
-                        </div>
-                      </>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Ingredient cost</span>
-                      <span className="font-semibold text-foreground">
-                        −£{comboCosting.cogs.toFixed(2)}
-                        {combo.missing > 0 && <span className="text-warning">*</span>}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Margin</span>
-                      <span className={cn('font-semibold', comboCosting.margin >= 0 ? 'text-success' : 'text-destructive')}>
-                        £{comboCosting.margin.toFixed(2)} ({comboCosting.marginPct.toFixed(0)}%)
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Flame size={13} aria-hidden="true" />
-                        Energy
-                      </span>
-                      <span className="text-foreground">{Math.round(combo.nutrition.kcal ?? 0)} kcal</span>
-                    </div>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-rule">
-                    <MacroList nutrition={combo.nutrition} missing={combo.missing > 0} />
-                  </div>
-                  {combo.allergens.length > 0 && (
-                    <div className="mt-2.5 flex flex-wrap gap-1">
-                      {combo.allergens.map((a) => (
-                        <Badge key={a} variant="warning" className="capitalize">
-                          {a}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  {comboSel !== null && (
-                    <button
-                      type="button"
-                      onClick={() => setComboSel(null)}
-                      className="mt-2.5 text-label font-medium text-primary hover:underline"
-                    >
-                      Reset to defaults
-                    </button>
-                  )}
-                </div>
-              )}
-
-              <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Base recipe per size</h2>
-
-              {!hasIngredients ? (
-                <div className="bg-card border border-rule rounded-sm p-4">
-                  <p className="text-xs text-muted-foreground">Cost, margin and nutrition appear here once ingredients are added.</p>
-                </div>
-              ) : (
-                summary.map((s) => {
-                  const c = s.costing;
-                  return (
-                    <div key={s.col.id} className="bg-card border border-rule rounded-sm p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="font-semibold text-foreground">{s.col.label}</p>
-                        <p className="text-sm font-bold text-primary tabular-nums">£{(c?.grossCharged ?? s.price ?? 0).toFixed(2)}</p>
-                      </div>
-                      <div className="space-y-1.5 text-sm tabular-nums">
-                        {(c?.vat ?? 0) > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">VAT ({c?.vatRate}%)</span>
-                            <span className="text-muted-foreground">−£{c?.vat.toFixed(2)}</span>
+                <SettingsSection
+                  title="Try a combination"
+                  description="Build one the way the till sells it — defaults are pre-selected."
+                  actions={
+                    comboSel !== null ? (
+                      <Button variant="ghost" size="sm" onClick={() => setComboSel(null)}>
+                        <RotateCcw aria-hidden="true" /> Reset
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  <div className="space-y-3">
+                    {comboGroups.map(([category, mods]) => {
+                      const rule = ruleFor(mods[0]!);
+                      const ids = mods.map((m) => m.id);
+                      const unmet = !satisfied(selected, ids, rule);
+                      return (
+                        <div key={category}>
+                          <p className="mb-1.5 flex items-center gap-2 text-label uppercase text-muted-foreground">
+                            {category}
+                            <span className={cn('normal-case', unmet ? 'font-semibold text-exception' : 'text-muted-foreground/80')}>
+                              {unmet ? `Choose ${rule.minSelections === 1 ? 'one' : rule.minSelections}` : ruleLabel(rule)}
+                            </span>
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {mods.map((m) => {
+                              const on = selectedSet.has(m.id);
+                              const adjust = Number(m.priceAdjust) || 0;
+                              return (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  onClick={() => toggleCombo(m)}
+                                  aria-pressed={on}
+                                  className={cn(
+                                    'inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition-colors',
+                                    on
+                                      ? 'border-primary bg-primary text-primary-foreground'
+                                      : 'border-rule/60 bg-background/60 text-foreground hover:bg-band/40',
+                                  )}
+                                >
+                                  {on && <Check size={12} aria-hidden="true" />}
+                                  {modifierLabel(m)}
+                                  {adjust !== 0 && (
+                                    <span className={cn('tabular-nums', on ? 'text-primary-foreground/75' : 'text-muted-foreground')}>
+                                      {adjust > 0 ? '+' : '−'}
+                                      {money(Math.abs(adjust))}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
-                        )}
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Ingredient cost</span>
-                          <span className="font-semibold text-foreground">
-                            −£{s.cogs.toFixed(2)}
-                            {s.missingCost > 0 && <span className="text-warning">*</span>}
-                          </span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Margin</span>
-                          <span className={cn('font-semibold', (c?.margin ?? 0) >= 0 ? 'text-success' : 'text-destructive')}>
-                            £{(c?.margin ?? 0).toFixed(2)} ({(c?.marginPct ?? 0).toFixed(0)}%)
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground flex items-center gap-1">
-                            <Flame size={13} aria-hidden="true" />
-                            Energy
-                          </span>
-                          <span className="text-foreground">
-                            {Math.round(s.nutrition.kcal ?? 0)} kcal
-                            {s.missingNutrition > 0 && <span className="text-warning">*</span>}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mt-2 pt-2 border-t border-rule">
-                        <MacroList nutrition={s.nutrition} missing={s.missingNutrition > 0} />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-
-              {allAllergens.length > 0 && (
-                <div className="bg-card border border-rule rounded-sm p-4">
-                  <p className="text-micro font-semibold text-muted-foreground uppercase tracking-micro mb-2">Allergens</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {allAllergens.map((a) => (
-                      <Badge key={a} variant="warning" className="capitalize">
-                        {a}
-                      </Badge>
-                    ))}
+                      );
+                    })}
                   </div>
-                  <p className="mt-2 text-label text-muted-foreground">From base ingredients only — modifiers add their own.</p>
-                </div>
+
+                  <ComboResult
+                    name={
+                      attached
+                        .filter((m) => selectedSet.has(m.id))
+                        .map(modifierLabel)
+                        .join(' · ') || 'No options'
+                    }
+                    costing={comboCosting}
+                    kcal={combo.nutrition.kcal ?? 0}
+                    nutrition={combo.nutrition}
+                    allergens={combo.allergens}
+                    incomplete={combo.missing > 0}
+                    money={money}
+                  />
+                </SettingsSection>
               )}
 
-              {missingData && (
-                <div className="flex items-start gap-2 rounded-sm border border-warning/40 bg-warning/6 p-3.5">
-                  <TriangleAlert size={15} className="text-warning shrink-0 mt-0.5" aria-hidden="true" />
-                  <p className="text-xs text-warning">
-                    Some ingredients are missing cost or nutrition data (*) — set them on the stock item in Inventory.
+              <motion.section variants={SECTION_RISE} aria-labelledby="base-recipe" className="space-y-3">
+                <div>
+                  <h2 id="base-recipe" className="text-base font-semibold tracking-title text-foreground">
+                    Base recipe per size
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Without any modifiers.
+                    {defaultSize &&
+                      ` ${modifierLabel(defaultSize)} is the default size, so the size-less amount isn’t shown — it’s never sold on its own.`}
                   </p>
                 </div>
+                {!hasIngredients ? (
+                  <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">
+                    Cost, margin and nutrition appear here once ingredients are added.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {shownSummary.map((s) => {
+                      const c = s.costing;
+                      return (
+                        <div key={s.col.id} className="rounded-lg border border-rule/60 bg-card px-3.5 py-3">
+                          <div className="mb-2 flex items-baseline justify-between gap-3">
+                            <p className="text-sm font-semibold text-foreground">{s.col.label}</p>
+                            <p className="text-sm font-semibold tabular-nums text-foreground">{money(c?.grossCharged ?? s.price ?? 0)}</p>
+                          </div>
+                          <dl className="space-y-1.5 text-sm tabular-nums">
+                            {(c?.vat ?? 0) > 0 && <Figure label={`VAT (${c?.vatRate}%)`} value={`−${money(c?.vat ?? 0)}`} />}
+                            <Figure label="Ingredient cost" value={`−${money(s.cogs)}`} incomplete={s.missingCost > 0} />
+                            <Figure
+                              label="Margin"
+                              value={
+                                <>
+                                  {money(c?.margin ?? 0)}{' '}
+                                  <span className="font-normal text-muted-foreground">({(c?.marginPct ?? 0).toFixed(0)}%)</span>
+                                </>
+                              }
+                              strong
+                              tone={(c?.margin ?? 0) >= 0 ? 'good' : 'bad'}
+                            />
+                            <Figure
+                              label={
+                                <>
+                                  <Flame size={13} aria-hidden="true" /> Energy
+                                </>
+                              }
+                              value={`${Math.round(s.nutrition.kcal ?? 0)} kcal`}
+                              incomplete={s.missingNutrition > 0}
+                            />
+                            <MacroList nutrition={s.nutrition} missing={s.missingNutrition > 0} />
+                          </dl>
+                        </div>
+                      );
+                    })}
+                    {allAllergens.length > 0 && (
+                      <div>
+                        <p className="mb-1.5 text-label uppercase text-muted-foreground">Allergens</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {allAllergens.map((a) => (
+                            <span key={a} className="rounded-sm bg-measured/10 px-2 py-0.5 text-xs font-semibold capitalize text-measured">
+                              {a}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="mt-1.5 text-xs text-muted-foreground">From base ingredients only — modifiers add their own.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </motion.section>
+
+              {missingData && (
+                <p className="flex items-start gap-2 rounded-lg bg-measured/10 px-3.5 py-3 text-xs leading-relaxed text-measured">
+                  <TriangleAlert size={14} className="mt-px shrink-0" aria-hidden="true" />
+                  Some ingredients are missing cost or nutrition (*) — set them on the stock item in Inventory.
+                </p>
               )}
-            </aside>
+            </>
+          }
+        >
+          <SettingsSection
+            title="Ingredients"
+            description="What every size of this item uses — beans, a cup, a lid. Milk and syrups belong on their modifiers, so they only cost what was chosen."
+          >
+            <RecipeIngredientEditor
+              rows={rows}
+              onChange={edit}
+              columns={columns}
+              stockItems={stockItems}
+              itemMap={itemMap}
+              usedIds={usedIds}
+              sizes={sizes}
+              emptyHint="No ingredients yet. Add the first — for a flat white, 18 g of beans, a cup and a lid."
+            />
+          </SettingsSection>
+
+          {attached.length > 0 && (
+            <motion.section variants={SECTION_RISE} aria-labelledby="modifier-addons" className="space-y-4">
+              <h2 id="modifier-addons" className="text-base font-semibold tracking-title text-foreground">
+                Modifier add-ons
+              </h2>
+              <div className="space-y-4">
+                {comboGroups.map(([category, mods]) => (
+                  <div key={category}>
+                    <p className="mb-2 text-label uppercase text-muted-foreground">{category}</p>
+                    <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                      {mods.map((m) => {
+                        const label = modifierLabel(m);
+                        const lines = modRecipeMap.get(m.id) ?? [];
+                        const adjust = Number(m.priceAdjust) || 0;
+                        const size = isSizeModifier(m);
+                        return (
+                          <li key={m.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+                            <span
+                              className={cn(
+                                'flex size-9 shrink-0 items-center justify-center rounded-md',
+                                size ? 'bg-primary/8 text-primary' : 'bg-reference/8 text-reference',
+                              )}
+                              aria-hidden="true"
+                            >
+                              {size ? <Scale size={16} /> : <SlidersHorizontal size={16} />}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-2">
+                                <span className="truncate text-sm font-semibold text-foreground">{label}</span>
+                                {m.isDefault && (
+                                  <span className="shrink-0 rounded-sm bg-primary/8 px-1.5 py-0.5 text-micro font-semibold text-primary">
+                                    Default
+                                  </span>
+                                )}
+                              </span>
+                              {lines.length === 0 ? (
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  No recipe yet — takes no stock off when chosen
+                                </span>
+                              ) : (
+                                <span className="mt-1 flex flex-wrap gap-1">
+                                  {soldColumns.map((c) => {
+                                    const t = computeRecipeTotals(lines, c.id === DEFAULT_COL ? new Set() : new Set([c.id]), itemMap);
+                                    return (
+                                      <span
+                                        key={c.id}
+                                        className="rounded-sm bg-band/70 px-1.5 py-0.5 text-micro tabular-nums text-muted-foreground"
+                                      >
+                                        {soldColumns.length > 1 && <span className="font-semibold text-foreground/80">{c.label} </span>}
+                                        <span className="font-semibold text-foreground">{money(t.cost)}</span> ·{' '}
+                                        {Math.round(t.nutrition.kcal ?? 0)} kcal
+                                        {(t.missingCost > 0 || t.missingNutrition > 0) && <span className="text-measured">*</span>}
+                                      </span>
+                                    );
+                                  })}
+                                </span>
+                              )}
+                            </span>
+                            <span
+                              className={cn(
+                                'w-20 shrink-0 text-right text-sm tabular-nums',
+                                adjust ? 'font-semibold text-foreground' : 'text-xs text-muted-foreground',
+                              )}
+                            >
+                              {adjust ? `${adjust > 0 ? '+' : '−'}${money(Math.abs(adjust))}` : 'No charge'}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-28 shrink-0"
+                              onClick={() => setEditTarget(m)}
+                              aria-label={`${lines.length ? 'Edit' : 'Add'} ${label} recipe`}
+                            >
+                              {lines.length ? <Pencil aria-hidden="true" /> : <Plus aria-hidden="true" />}
+                              {lines.length ? 'Edit recipe' : 'Add recipe'}
+                            </Button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+          )}
+        </SettingsTabBody>
+      )}
+
+      {editTarget && (
+        <ModifierRecipeDrawer
+          modifier={{
+            id: editTarget.id,
+            label: modifierLabel(editTarget),
+            group: modifierCategory(editTarget),
+            isSize: isSizeModifier(editTarget),
+            priceAdjust: editTarget.priceAdjust,
+            isDefault: editTarget.isDefault,
+          }}
+          sizes={sizes.filter((size) => size.id !== editTarget.id)}
+          defaultIsSize={Boolean(defaultSize)}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * What the combination comes to: the price large, three figures a manager
+ * checks (cost, margin, energy), and the price split into what goes on
+ * ingredients, what goes to VAT and what the café keeps.
+ */
+function ComboResult({
+  name,
+  costing,
+  kcal,
+  nutrition,
+  allergens,
+  incomplete,
+  money,
+}: {
+  name: string;
+  costing: ReturnType<typeof computeCosting>;
+  kcal: number;
+  nutrition: NutritionFacts;
+  allergens: string[];
+  incomplete: boolean;
+  money: (n: number) => string;
+}) {
+  const gross = costing.grossCharged || 0;
+  const share = (n: number) => (gross > 0 ? Math.max(0, Math.min(100, (n / gross) * 100)) : 0);
+  const keep = Math.max(0, costing.margin);
+  const good = costing.margin >= 0;
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-lg border border-rule/60 bg-card">
+      <div className="flex items-baseline justify-between gap-3 px-3.5 pt-3">
+        <p className="min-w-0 truncate text-sm font-semibold text-foreground">{name}</p>
+        <p className="shrink-0 text-xl font-semibold tabular-nums text-foreground">{money(gross)}</p>
+      </div>
+
+      <dl className="grid grid-cols-3 gap-2 px-3.5 pt-3">
+        <MiniFigure label="Cost" value={money(costing.cogs)} incomplete={incomplete} />
+        <MiniFigure label="Margin" value={`${costing.marginPct.toFixed(0)}%`} detail={money(costing.margin)} tone={good ? 'good' : 'bad'} />
+        <MiniFigure label="Energy" value={`${Math.round(kcal)}`} detail="kcal" incomplete={incomplete} />
+      </dl>
+
+      {/* Where the money goes: ingredients, VAT, and what's left. */}
+      <div className="px-3.5 pt-3">
+        <div
+          className="flex h-2 overflow-hidden rounded-full bg-band"
+          role="img"
+          aria-label={`Of ${money(gross)}: ${money(costing.cogs)} ingredients, ${money(costing.vat)} VAT, ${money(keep)} kept`}
+        >
+          <span className="h-full bg-exception/70" style={{ width: `${share(costing.cogs)}%` }} />
+          {costing.vat > 0 && <span className="h-full bg-muted-foreground/35" style={{ width: `${share(costing.vat)}%` }} />}
+          <span className="h-full bg-momentum" style={{ width: `${share(keep)}%` }} />
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-micro text-muted-foreground">
+          <Legend swatch="bg-exception/70" label={`Ingredients ${money(costing.cogs)}`} />
+          {costing.vat > 0 && <Legend swatch="bg-muted-foreground/35" label={`VAT ${money(costing.vat)}`} />}
+          <Legend swatch="bg-momentum" label={`You keep ${money(keep)}`} />
+        </div>
+      </div>
+
+      <div className="px-3.5 pt-3 pb-3.5">
+        <MacroList nutrition={nutrition} missing={incomplete} />
+        {allergens.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <span className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Contains</span>
+            {allergens.map((a) => (
+              <span key={a} className="rounded-sm bg-measured/10 px-2 py-0.5 text-xs font-semibold capitalize text-measured">
+                {a}
+              </span>
+            ))}
           </div>
         )}
-
-        {/* Modifier recipe editor overlay — same grid as the Modifiers tab. */}
-        {editTarget && (
-          <Modal title={`${modifierLabel(editTarget)} — Recipe`} onClose={() => setEditTarget(null)} className="max-w-xl">
-            <ModifierRecipeEditor modifierId={editTarget.id} sizes={sizes.filter((s) => s.id !== editTarget.id)} />
-          </Modal>
-        )}
-      </>
+      </div>
     </div>
+  );
+}
+
+function MiniFigure({
+  label,
+  value,
+  detail,
+  tone,
+  incomplete,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  tone?: 'good' | 'bad';
+  incomplete?: boolean;
+}) {
+  return (
+    <div className="rounded-md bg-band/50 px-2.5 py-2">
+      <dt className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">{label}</dt>
+      <dd
+        className={cn(
+          'mt-0.5 text-base font-semibold tabular-nums',
+          tone === 'good' ? 'text-momentum' : tone === 'bad' ? 'text-exception' : 'text-foreground',
+        )}
+      >
+        {value}
+        {incomplete && <span className="text-measured">*</span>}
+        {detail && <span className="ml-1 text-xs font-normal text-muted-foreground">{detail}</span>}
+      </dd>
+    </div>
+  );
+}
+
+function Legend({ swatch, label }: { swatch: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1 tabular-nums">
+      <span className={cn('size-2 rounded-full', swatch)} aria-hidden="true" />
+      {label}
+    </span>
   );
 }

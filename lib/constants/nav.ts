@@ -50,7 +50,7 @@ export const mainNavItems: NavItem[] = [
   // threshold hid it from the role whose job it is.
   { module: 'customers', label: 'Customers', href: '/customers', icon: Users, capabilities: ['customers:read'] },
   { module: 'communications', label: 'Communications', href: '/communications', icon: Mail, capabilities: ['email:read'] },
-  { module: 'ordering', label: 'POS Terminal', href: '/pos', icon: Monitor, capabilities: ['orders:create'], surface: 'pos' },
+  { module: 'pos', label: 'POS Terminal', href: '/pos', icon: Monitor, capabilities: ['orders:create'] },
   { module: 'ordering', label: 'Fulfilment', href: '/kds', icon: ChefHat, capabilities: ['orders:status'], surface: 'fulfilment' },
   { module: 'catalog', label: 'Products', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'] },
   // One entry: stock, restock demand, purchase orders, suppliers and stocktakes
@@ -59,6 +59,8 @@ export const mainNavItems: NavItem[] = [
   // they can record waste, and gating on it would put Inventory in the POS nav.
   { module: 'inventory', label: 'Inventory', href: '/inventory', icon: Package, capabilities: ['stock:read'] },
   { module: 'ordering', label: 'Orders', href: '/orders', icon: ShoppingBag, capabilities: ['orders:read'] },
+  // No End of day entry: opening and closing the trading day is done in the
+  // till, at the drawer (2026-10-04). Reports keeps the read-only history.
   // One entry: team, rota, shifts, leave, helpdesk and payroll are tabs of the
   // staff workspace, each on its own route.
   { module: 'people', label: 'Staff', href: '/staff', icon: UsersRound, capabilities: ['staff:read', 'hr.people:read'] },
@@ -75,7 +77,7 @@ export const analyticsNavItems: NavItem[] = [
   { module: 'compliance', label: 'Compliance', href: '/compliance', icon: ShieldCheck, capabilities: ['privacy:read'] },
   // `auditor` reaches this for the first time — the role existed to read the
   // audit log and the old franchise_owner rank threshold shut it out.
-  { module: 'compliance', label: 'Audit Log', href: '/audit-log', icon: History, capabilities: ['audit:read'] },
+  { module: 'audit', label: 'Audit Log', href: '/audit-log', icon: History, capabilities: ['audit:read'] },
 ];
 
 export const footerNavItems: NavItem[] = [

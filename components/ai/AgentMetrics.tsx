@@ -1,5 +1,6 @@
 'use client';
 
+import { AgentChart } from '@/components/ai/AgentChart';
 import { CheckCircle2, CircleDashed, Search } from '@/components/icons';
 import { DeltaBadge } from '@/components/shared/StatCard';
 
@@ -33,22 +34,24 @@ const FIGURE = /^[£$€]?\s*[\d][\d.,\s]*%?$/;
  * of them was more chrome than the answer it supported.
  */
 export function AgentMetrics({ card }: { card: AgentCard }) {
+  if (card.kind === 'chart') return <AgentChart card={card} />;
+
   if (card.kind === 'list') {
     return (
       <section className="mt-4" aria-label={card.title}>
         <CardLabel title={card.title} caption={card.caption} />
         {card.rows.length ? (
-          <ul className="mt-1.5 divide-y divide-divider overflow-hidden rounded-sm border border-rule">
+          <ul className="mt-1.5 divide-y divide-rule/40 overflow-hidden rounded-lg border border-rule/60 bg-field">
             {card.rows.map((row, index) => (
-              <li key={`${row.label}-${index}`} className="flex items-baseline justify-between gap-3 px-3 py-2">
+              <li key={`${row.label}-${index}`} className="flex items-start justify-between gap-3 px-3.5 py-2.5">
                 <div className="min-w-0">
-                  <p className="truncate text-sm text-foreground">{row.label}</p>
+                  <p className="line-clamp-2 text-sm leading-5 text-foreground">{row.label}</p>
                   {row.meta ? <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground">{row.meta}</p> : null}
                 </div>
                 {row.value ? (
                   <span
                     className={cn(
-                      'shrink-0 text-xs font-semibold',
+                      'mt-0.5 shrink-0 text-right text-xs font-semibold',
                       // A status word set in the figure face is monospace worn as
                       // a costume; only actual figures earn the column alignment.
                       FIGURE.test(row.value) ? 'font-mono tracking-figure tabular-nums' : 'tracking-normal',
@@ -78,8 +81,8 @@ export function AgentMetrics({ card }: { card: AgentCard }) {
           left an empty cell whenever the count was odd. */}
       <dl className="mt-1.5 grid grid-cols-2 gap-1.5">
         {card.metrics.map((metric, index) => (
-          <div key={`${metric.label}-${index}`} className="min-w-0 rounded-sm border border-rule bg-field px-3 py-2.5">
-            <dt className="truncate text-label text-muted-foreground">{metric.label}</dt>
+          <div key={`${metric.label}-${index}`} className="min-h-24 min-w-0 rounded-lg border border-rule/60 bg-field px-3.5 py-3">
+            <dt className="line-clamp-2 text-label uppercase leading-4 text-muted-foreground">{metric.label}</dt>
             <dd
               className={cn('mt-1 truncate font-mono text-base font-semibold tracking-figure tabular-nums', TONE[metric.tone ?? 'default'])}
             >
@@ -101,7 +104,7 @@ export function AgentMetrics({ card }: { card: AgentCard }) {
 function EmptyResult({ tone, label }: { tone: AgentEmptyTone; label: string }) {
   const { icon: Icon, className } = EMPTY_MARK[tone];
   return (
-    <p className="mt-1.5 flex items-center gap-2 text-sm text-muted-foreground">
+    <p className="mt-1.5 flex items-center gap-2 rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">
       <Icon size={14} className={cn('shrink-0', className)} aria-hidden="true" />
       {label}
     </p>

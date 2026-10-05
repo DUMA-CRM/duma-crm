@@ -1,7 +1,13 @@
 'use client';
 
+import { useState } from 'react';
+
+import { BookMarked } from '@/components/icons';
 import { ModelChoiceList } from '@/components/ai/ModelChoice';
+import { AgentMemoryDrawer } from '@/components/settings/AgentMemoryDrawer';
 import { SettingsSection as Section } from '@/components/settings/SettingsSection';
+import { SettingRow } from '@/components/settings/controls';
+import { Button } from '@/components/ui/button';
 
 /**
  * Which model answers Ask DUMA on this device.
@@ -12,13 +18,14 @@ import { SettingsSection as Section } from '@/components/settings/SettingsSectio
  * reachable from the chat panel — see `components/ai/ModelChoice.tsx`.
  */
 export function AgentModelSettings() {
+  const [memoryOpen, setMemoryOpen] = useState(false);
   return (
-    <Section
-      title="Ask DUMA model"
-      description="Choose which AI model answers Ask DUMA. Whichever you pick, DUMA still falls back to the others when that model is out of capacity. You can also switch it inside the chat — ask “which models are available?”."
-      footnote="Stored on this device only. Model keys live on the server — this setting changes which one is asked first, not which are available."
-    >
+    <Section title="Ask DUMA">
+      <SettingRow icon={BookMarked} title="Ask DUMA memory">
+        <Button variant="outline" size="sm" onClick={() => setMemoryOpen(true)}>Edit</Button>
+      </SettingRow>
       <ModelChoiceList />
+      {memoryOpen && <AgentMemoryDrawer onClose={() => setMemoryOpen(false)} />}
     </Section>
   );
 }

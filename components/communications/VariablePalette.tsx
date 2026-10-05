@@ -1,5 +1,6 @@
 'use client';
 
+import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 
 import { labelClass } from './shared';
@@ -20,7 +21,16 @@ const GROUP_ORDER = ['customer', 'order', 'location', 'brand', 'other'];
  * variable into the field the user was last typing in; if they haven't clicked
  * into a field yet, it copies instead so nothing is lost.
  */
-export function VariablePalette({ variables, onInsert }: { variables: string[]; onInsert: (token: string) => boolean }) {
+export function VariablePalette({
+  variables,
+  onInsert,
+  hideHeading = false,
+}: {
+  variables: string[];
+  onInsert: (token: string) => boolean;
+  /** Inside a titled section that already explains it. */
+  hideHeading?: boolean;
+}) {
   const groups = new Map<string, string[]>();
   for (const variable of variables) {
     const group = variable.includes('.') ? variable.split('.')[0] : 'other';
@@ -41,11 +51,15 @@ export function VariablePalette({ variables, onInsert }: { variables: string[]; 
 
   return (
     <div>
-      <p className={labelClass}>Personalise it</p>
-      <p className="mt-1.5 text-xs text-muted-foreground">
-        Click a chip to drop it where your cursor is. Each one is replaced with real details when the email is sent.
-      </p>
-      <div className="mt-3 space-y-3">
+      {!hideHeading && (
+        <>
+          <p className={labelClass}>Personalise it</p>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Click a chip to drop it where your cursor is. Each one is replaced with real details when the email is sent.
+          </p>
+        </>
+      )}
+      <div className={cn('space-y-3', !hideHeading && 'mt-3')}>
         {ordered.map(([group, items]) => (
           <div key={group}>
             <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground/70">{GROUP_LABELS[group] ?? group}</p>

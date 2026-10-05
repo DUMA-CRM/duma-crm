@@ -74,13 +74,7 @@ function statCards(source: string, file: string) {
  * honestly, and that is its own afternoon rather than a drive-by.
  */
 const UNGUARDED_BY_DESIGN: Record<string, number> = {
-  'components/reports/BusinessReportPage.tsx': 16,
-  'components/reports/TopItemsReportPage.tsx': 6,
   'components/dashboard/TodayKpiRow.tsx': 4,
-  'components/reports/ReportsWorkspace.tsx': 1,
-  'components/reports/RefundReportPage.tsx': 1,
-  'components/reports/MetricReportPage.tsx': 1,
-  'components/people/my-hr/Overview.tsx': 1,
 };
 
 test('a StatCard that can load can also fail', () => {

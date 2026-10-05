@@ -47,6 +47,9 @@ export const updateMenuCategory = (id: string, data: Partial<Pick<MenuCategoryRe
   apiFetch<MenuCategoryRecord>(`/menu-categories/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const reorderMenuCategories = (ids: string[]) =>
   apiFetch<{ success: true }>('/menu-categories/reorder', { method: 'PATCH', body: JSON.stringify({ ids }) });
+/** Refused (409, with `itemCount`) while items use it — pass `reassignTo` to move them to another category first. */
+export const deleteMenuCategory = (id: string, reassignTo?: string) =>
+  apiFetch<{ success: true }>(`/menu-categories/${id}${reassignTo ? `?reassignTo=${encodeURIComponent(reassignTo)}` : ''}`, { method: 'DELETE' });
 
 // ── Modifiers ─────────────────────────────────────────────────────────────────
 // Reusable, flat modifiers (name + priceAdjust). No groups, no per-location pricing.
@@ -69,6 +72,8 @@ export const createModifierGroup = (data: { tenantId?: string; name: string; isS
   apiFetch<ModifierGroup>('/modifier-groups', { method: 'POST', body: JSON.stringify(data) });
 export const updateModifierGroup = (id: string, data: Partial<Pick<ModifierGroup, 'name' | 'isSize' | 'sortOrder'>>) =>
   apiFetch<ModifierGroup>(`/modifier-groups/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+/** Refused (409) while any modifier is in the group. */
+export const deleteModifierGroup = (id: string) => apiFetch<{ success: true }>(`/modifier-groups/${id}`, { method: 'DELETE' });
 export const getMenuItemModifierGroups = (menuItemId: string) =>
   apiFetch<MenuItemModifierGroup[]>(`/modifier-groups/menu-item/${menuItemId}`);
 export const setMenuItemModifierGroupRule = (

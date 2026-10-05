@@ -1,578 +1,655 @@
 'use client';
 
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import {
   AlertTriangle,
-  Bell,
-  CheckCircle2,
   ChefHat,
   CloudOff,
   Coffee,
-  Flame,
+  History,
+  ListChecks,
   MapPin,
-  Monitor,
-  QrCode,
-  Smartphone,
+  Maximize,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+  X,
 } from '@/components/icons';
+import { KdsTicket, LANE_LABEL } from '@/components/kds/KdsTicket';
+import { useMounted } from '@/components/settings/configuration/shared';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { Button } from '@/components/ui/button';
 
-import {
-  type Order,
-  type OrderItem,
-  type OrderStatus,
-  type OrdersResponse,
-  getOrder,
-  getOrders,
-  updateOrderStatus,
-} from '@/lib/modules/ordering/client';
+import { useWakeLock } from '@/lib/hooks/useWakeLock';
+import { type Order, type OrderItem, type OrderStatus, getOrder, getOrders, updateOrderStatus } from '@/lib/modules/ordering/client';
+import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { chime } from '@/lib/utils/chime';
+import { chime, unlockAudio } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
-import { type AgeState, CRASH_MINS, ageState, stageSince } from '@/lib/utils/kitchen-age';
-import { useKdsStore } from '@/stores/kdsStore';
+import { KDS_LANES, type KdsLane, NEXT_STATUS, PREVIOUS_STATUS, allDay, arrivals, isOnScreen, ticketName } from '@/lib/utils/kds';
+import { type KdsTextSize, useKdsStore } from '@/stores/kdsStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const POLL_INTERVAL_MS = 10_000;
-const LIVE_STATUSES: OrderStatus[] = ['pending', 'preparing', 'ready'];
+/** How long Undo stays offered after a bump. Long enough to notice a mis-tap across a busy pass. */
+const UNDO_MS = 10_000;
+const RECENT_LIMIT = 10;
+/** One size setting scales the whole ticket — header, items and button together. */
+const ZOOM: Record<KdsTextSize, number> = { standard: 1, large: 1.15, xlarge: 1.3 };
 
-const COLUMNS: {
-  status: OrderStatus;
-  title: string;
-  emptyLabel: string;
-  accent: string;
-  count: string;
-  action: { label: string; next: OrderStatus; className: string; icon: typeof Flame };
-}[] = [
-  {
-    status: 'pending',
-    title: 'New',
-    emptyLabel: 'No new orders',
-    accent: 'border-t-measured',
-    count: 'border border-measured bg-measured text-success-foreground',
-    action: { label: 'Start', next: 'preparing', className: '', icon: Flame },
-  },
-  {
-    status: 'preparing',
-    title: 'Preparing',
-    emptyLabel: 'Nothing in preparation',
-    accent: 'border-t-reference',
-    count: 'border border-reference bg-reference text-success-foreground',
-    action: { label: 'Ready', next: 'ready', className: '', icon: Bell },
-  },
-  {
-    status: 'ready',
-    title: 'Ready',
-    emptyLabel: 'Nothing waiting for collection',
-    accent: 'border-t-momentum',
-    count: 'border border-momentum bg-momentum text-success-foreground',
-    action: { label: 'Complete', next: 'done', className: '', icon: CheckCircle2 },
-  },
-];
+const LANE_ACCENT: Record<KdsLane, string> = { pending: 'border-t-measured', preparing: 'border-t-reference', ready: 'border-t-momentum' };
+const LANE_EMPTY: Record<KdsLane, string> = { pending: 'No new orders', preparing: 'Nothing being made', ready: 'Nothing waiting' };
 
-function orderQueryKey(locationId: string, status: OrderStatus) {
-  return ['kds-orders', locationId, status] as const;
+const laneKey = (locationId: string, status: KdsLane) => moduleQueryKeys.ordering.key('kds-orders', locationId, status);
+
+/** Every page of a lane, then only what belongs on the screen (paid and released). */
+async function getLaneOrders(locationId: string, status: KdsLane): Promise<Order[]> {
+  const first = await getOrders({ page: 1, limit: 100, locationId, status, paymentStatus: 'paid' });
+  const rest =
+    first.pages > 1
+      ? await Promise.all(
+          Array.from({ length: first.pages - 1 }, (_, index) =>
+            getOrders({ page: index + 2, limit: 100, locationId, status, paymentStatus: 'paid' }),
+          ),
+        )
+      : [];
+  const now = Date.now();
+  const seen = new Set<string>();
+  // Offset pages over a moving list can repeat a row; keep the first.
+  return [first, ...rest]
+    .flatMap((page) => page.data)
+    .filter((order) => isOnScreen(order, now) && !seen.has(order.id) && seen.add(order.id))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-async function getLaneOrders(locationId: string, status: OrderStatus): Promise<OrdersResponse> {
-  const firstPage = await getOrders({ page: 1, limit: 100, locationId, status, paymentStatus: 'paid' });
-  const released = (orders: Order[]) =>
-    orders.filter((order) => !order.kitchenReleaseAt || new Date(order.kitchenReleaseAt).getTime() <= Date.now());
-  if (firstPage.pages <= 1) return { ...firstPage, data: released(firstPage.data), total: released(firstPage.data).length };
-
-  const remainingPages = await Promise.all(
-    Array.from({ length: firstPage.pages - 1 }, (_, index) =>
-      getOrders({ page: index + 2, limit: 100, locationId, status, paymentStatus: 'paid' }),
-    ),
-  );
-
-  return {
-    ...firstPage,
-    data: released([firstPage, ...remainingPages].flatMap((page) => page.data)),
-    page: 1,
-    limit: firstPage.total,
-    pages: 1,
-  };
+/** The ticket moved on another screen between this one's last poll and the tap. */
+class StaleTicket extends Error {
+  constructor(public readonly current: OrderStatus) {
+    super('stale');
+  }
 }
 
-function elapsedLabel(iso: string, now: number): string {
-  const seconds = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1_000));
-  if (seconds < 60) return '<1m';
-  const mins = Math.floor(seconds / 60);
-  if (mins < 60) return `${mins}m`;
-  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+interface RecentBump {
+  id: string;
+  name: string;
+  to: OrderStatus;
+  at: number;
 }
 
-/* A ticket's age, read the way a roast reads temperature: as an approach to a
-   limit rather than three unrelated colour states. `ratio` drives the ageing
-   bar across the head of the card, so how close a ticket is to trouble is
-   legible from across the kitchen before it becomes trouble.
-
-   The thresholds and the clock now live in lib/utils/kitchen-age so the manager
-   dashboard flags exactly the tickets this screen paints red. */
-
-const AGE_TONE: Record<AgeState['tone'], { bar: string; card: string; text: string }> = {
-  ok: { bar: 'bg-momentum', card: 'border-rule bg-card', text: 'text-muted-foreground' },
-  approaching: { bar: 'bg-measured', card: 'border-measured bg-measured/6', text: 'text-measured' },
-  crashed: { bar: 'bg-exception', card: 'border-exception bg-exception/6', text: 'text-exception' },
+const subscribeFullscreen = (notify: () => void) => {
+  document.addEventListener('fullscreenchange', notify);
+  return () => document.removeEventListener('fullscreenchange', notify);
 };
-
-function KdsCard({
-  order,
-  items,
-  itemsError,
-  now,
-  action,
-  onBump,
-  onRetryItems,
-  isBumping,
-}: {
-  order: Order;
-  items: OrderItem[] | undefined;
-  itemsError: boolean;
-  now: number;
-  action: (typeof COLUMNS)[number]['action'];
-  onBump: () => void;
-  onRetryItems: () => void;
-  isBumping: boolean;
-}) {
-  const Icon = action.icon;
-  const orderNumber = order.id.slice(0, 6).toUpperCase();
-  const since = stageSince(order);
-  const age = ageState(order, now);
-  const tone = AGE_TONE[age.tone];
-
-  return (
-    <article
-      aria-labelledby={`order-${order.id}`}
-      className={cn(
-        'flex flex-col gap-3 rounded-sm border p-4 transition-[background-color,border-color,opacity]',
-        tone.card,
-        isBumping && 'opacity-70',
-      )}
-    >
-      {/* The ageing bar: this ticket's approach to its limit. Reading it takes no
-          numeracy and no colour vision alone — the fill length carries it too. */}
-      <div className="-mx-4 -mt-4 h-1 bg-band" aria-hidden="true">
-        <div className={cn('h-full transition-[width] duration-1000', tone.bar)} style={{ width: `${Math.round(age.ratio * 100)}%` }} />
-      </div>
-
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p id={`order-${order.id}`} className="font-mono text-base font-semibold tracking-wide text-foreground">
-            #{orderNumber}
-          </p>
-          <span className="mt-1 flex items-center gap-1.5 text-label font-semibold uppercase tracking-label text-muted-foreground">
-            {order.source === 'pos' ? (
-              <Monitor size={13} aria-hidden="true" />
-            ) : order.source === 'qr_code' ? (
-              <QrCode size={13} aria-hidden="true" />
-            ) : (
-              <Smartphone size={13} aria-hidden="true" />
-            )}
-            {order.source === 'pos' ? 'POS' : order.source === 'qr_code' ? 'QR code' : 'Mobile'}
-          </span>
-        </div>
-
-        <div className="grid gap-1 text-right text-label font-semibold text-muted-foreground">
-          <span data-figure>
-            <span className="sr-only">Total age: </span>
-            Total {elapsedLabel(order.createdAt, now)}
-          </span>
-          <span data-figure className={tone.text}>
-            <span className="sr-only">Time in current stage: </span>
-            Stage {elapsedLabel(since, now)}
-            {age.tone === 'crashed' && <span className="sr-only"> — past the {CRASH_MINS} minute limit</span>}
-            {age.tone === 'approaching' && <span className="sr-only"> — approaching the {CRASH_MINS} minute limit</span>}
-          </span>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        {itemsError ? (
-          <div className="rounded-sm border border-exception/60 bg-exception/6 p-2.5">
-            <p className="text-xs font-semibold text-exception">Item details unavailable</p>
-            <button onClick={onRetryItems} className="mt-1 text-xs font-semibold text-foreground underline underline-offset-2">
-              Retry
-            </button>
-          </div>
-        ) : items === undefined ? (
-          <div className="space-y-2" aria-label="Loading item details">
-            <div className="h-5 w-3/4 animate-pulse bg-band" />
-            <div className="h-4 w-1/2 animate-pulse bg-band" />
-          </div>
-        ) : items.length === 0 ? (
-          <p className="text-sm italic text-muted-foreground">No item details</p>
-        ) : (
-          items.map((item) => (
-            <div key={item.id}>
-              {/* text-lg, not a one-off 17px: this is the most important text on
-                  the card and it is read across a kitchen, so it takes a real
-                  step above body rather than an imperceptible 1px nudge. */}
-              <p className="text-lg font-semibold leading-snug text-foreground">
-                <span data-figure className="font-semibold text-foreground">
-                  {item.quantity}×
-                </span>{' '}
-                {item.name}
-              </p>
-              {item.notes && <p className="mt-1 pl-6 text-xs font-semibold text-measured">Item note: {item.notes}</p>}
-              {item.allergens && item.allergens.length > 0 && (
-                <div className="mt-1.5 ml-6 rounded-sm border border-exception/60 bg-exception/6 px-2 py-1.5 text-xs font-semibold uppercase tracking-label text-exception">
-                  Recipe allergens: {item.allergens.map((allergen) => allergen.replaceAll('_', ' ')).join(', ')}
-                </div>
-              )}
-              {item.allergenCoverage === 'missing_recipe' && (
-                <div
-                  role="alert"
-                  className="mt-1.5 ml-6 flex items-start gap-1.5 rounded-sm border border-warning/60 bg-warning/6 px-2 py-1.5 text-xs font-semibold text-warning"
-                >
-                  <AlertTriangle size={13} className="mt-px shrink-0" aria-hidden="true" />
-                  Allergen check incomplete — this item had no recipe when it was sold.
-                </div>
-              )}
-              {item.modifiers && item.modifiers.length > 0 && (
-                <div className="mt-1.5 flex flex-wrap gap-1.5 pl-6">
-                  {item.modifiers.map((modifier, index) => {
-                    return (
-                      <span
-                        key={`${modifier.modifierId}-${index}`}
-                        className="inline-flex overflow-hidden rounded-sm border border-rule text-xs font-semibold leading-tight"
-                      >
-                        <span className="bg-band px-2 py-1 text-primary">{modifier.name}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-
-      {order.notes && (
-        <div className="rounded-sm border border-measured/60 bg-measured/6 px-3 py-2">
-          <p className="text-micro font-semibold uppercase tracking-micro text-measured">Order note</p>
-          <p className="mt-0.5 text-sm font-medium leading-snug text-foreground">{order.notes}</p>
-        </div>
-      )}
-
-      {/* The bump key is graphite on every lane. Lane hue used to be spent on
-          three different button fills, which left nothing to signal a late
-          ticket; the ageing bar now owns red/amber/green, and the button is
-          simply the biggest, most unmissable target on the card. */}
-      <button
-        onClick={onBump}
-        disabled={isBumping}
-        aria-label={`${action.label} order ${orderNumber}`}
-        className={cn(
-          'flex h-12 items-center justify-center gap-2 rounded-sm bg-primary text-sm font-semibold text-primary-foreground',
-          'transition-colors hover:bg-primary-hover active:translate-y-px disabled:cursor-wait disabled:opacity-60',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-          action.className,
-        )}
-      >
-        <Icon size={17} aria-hidden="true" />
-        {isBumping ? 'Updating…' : action.label}
-      </button>
-    </article>
-  );
-}
+const subscribeOnline = (notify: () => void) => {
+  window.addEventListener('online', notify);
+  window.addEventListener('offline', notify);
+  return () => {
+    window.removeEventListener('online', notify);
+    window.removeEventListener('offline', notify);
+  };
+};
 
 export default function KdsPage() {
   const queryClient = useQueryClient();
-  const { locationId } = useWorkspaceStore();
-  const soundOn = useKdsStore((state) => state.soundOn);
-  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+  const { tenantId, locationId } = useWorkspaceStore();
+  const display = useKdsStore();
+  const mounted = useMounted();
+  const online = useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true,
+  );
+  const fullscreen = useSyncExternalStore(
+    subscribeFullscreen,
+    () => !!document.fullscreenElement,
+    () => false,
+  );
+  const wake = useWakeLock(display.keepAwake);
+  const rootRef = useRef<HTMLDivElement>(null);
+
   const [now, setNow] = useState(() => Date.now());
-  const [online, setOnline] = useState(true);
-  const previousPendingRef = useRef<Set<string> | null>(null);
+  const [filter, setFilter] = useState<KdsLane | 'all'>('all');
+  const [struck, setStruck] = useState<Set<string>>(() => new Set());
+  const [bumping, setBumping] = useState<Set<string>>(() => new Set());
+  const [recent, setRecent] = useState<RecentBump[]>([]);
+  const [undo, setUndo] = useState<RecentBump | null>(null);
+  const [recallOpen, setRecallOpen] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 15_000);
+    // Timer labels and the ok → nearly late → late colour. The ageing bar animates on its own.
+    const timer = setInterval(() => setNow(Date.now()), 5_000);
     return () => clearInterval(timer);
   }, []);
-
   useEffect(() => {
-    const updateOnlineState = () => setOnline(navigator.onLine);
-    updateOnlineState();
-    window.addEventListener('online', updateOnlineState);
-    window.addEventListener('offline', updateOnlineState);
-    return () => {
-      window.removeEventListener('online', updateOnlineState);
-      window.removeEventListener('offline', updateOnlineState);
-    };
+    if (!undo) return;
+    const timer = window.setTimeout(() => setUndo(null), UNDO_MS);
+    return () => window.clearTimeout(timer);
+  }, [undo]);
+  // Browsers only let audio start from a gesture: the first tap anywhere on the board unlocks the chime.
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    return () => window.removeEventListener('pointerdown', unlock);
   }, []);
 
+  const { data: locations = [] } = useQuery({
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
+    queryFn: () => getLocationsByTenant(tenantId!),
+    enabled: !!tenantId,
+  });
+  const locationName = locations.find((location) => location.id === locationId)?.name;
+
   const laneQueries = useQueries({
-    queries: COLUMNS.map((column) => ({
-      queryKey: orderQueryKey(locationId ?? 'none', column.status),
-      queryFn: () => getLaneOrders(locationId!, column.status),
+    queries: KDS_LANES.map((status) => ({
+      queryKey: laneKey(locationId ?? 'none', status),
+      queryFn: () => getLaneOrders(locationId!, status),
       enabled: Boolean(locationId),
       refetchInterval: POLL_INTERVAL_MS,
       refetchIntervalInBackground: true,
       staleTime: 5_000,
-      retry: 2,
     })),
   });
+  const lanes = KDS_LANES.map((status, index) => ({ status, query: laneQueries[index], orders: laneQueries[index].data ?? [] }));
+  const live = lanes
+    .flatMap((lane) => lane.orders.map((order) => ({ order, lane: lane.status })))
+    .sort((a, b) => a.order.createdAt.localeCompare(b.order.createdAt));
+  const lastSync = Math.max(0, ...laneQueries.map((query) => query.dataUpdatedAt));
+  const syncProblem = !online || laneQueries.some((query) => query.isError);
 
-  const live = useMemo(
-    () => laneQueries.flatMap((query) => query.data?.data ?? []).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    [laneQueries],
-  );
-
+  // The list returns rows without items, so each live ticket reads its own detail (N+1 — no bulk endpoint).
   const detailQueries = useQueries({
-    queries: live.map((order) => ({
+    queries: live.map(({ order }) => ({
       queryKey: moduleQueryKeys.ordering.key('order', order.id),
       queryFn: () => getOrder(order.id),
       enabled: !Array.isArray(order.items),
-      staleTime: 10 * 60_000,
-      retry: 2,
+      staleTime: 60_000,
     })),
   });
+  const detail = new Map<string, { items?: OrderItem[]; isError: boolean; refetch: () => void }>();
+  live.forEach(({ order }, index) => {
+    const query = detailQueries[index];
+    detail.set(order.id, {
+      items: Array.isArray(order.items) ? order.items : query?.data ? (query.data.items ?? []) : undefined,
+      isError: !!query?.isError,
+      refetch: () => void query?.refetch(),
+    });
+  });
 
-  const itemsFor = useMemo(() => {
-    const items = new Map<string, OrderItem[]>();
-    for (const order of live) {
-      if (Array.isArray(order.items)) items.set(order.id, order.items);
-    }
-    for (const query of detailQueries) {
-      if (query.data) items.set(query.data.id, query.data.items ?? []);
-    }
-    return items;
-  }, [detailQueries, live]);
-
-  const pendingKey = live
-    .filter((order) => order.status === 'pending')
-    .map((order) => order.id)
-    .join(',');
-
+  // Chime for tickets that weren't there on the last poll — and start over when the location changes,
+  // so switching queues doesn't ring for every order already waiting.
+  const pendingIds = lanes[0].orders.map((order) => order.id).join(',');
+  const seenRef = useRef<{ location: string | null; ids: Set<string> | null }>({ location: null, ids: null });
+  const newLaneLoaded = lanes[0].query.isSuccess;
   useEffect(() => {
-    const ids = new Set(pendingKey ? pendingKey.split(',') : []);
-    const previous = previousPendingRef.current;
-    if (previous && soundOn && [...ids].some((id) => !previous.has(id))) chime();
-    previousPendingRef.current = ids;
-  }, [pendingKey, soundOn]);
+    if (!newLaneLoaded) return;
+    const ids = pendingIds ? pendingIds.split(',') : [];
+    const previous = seenRef.current.location === locationId ? seenRef.current.ids : null;
+    if (display.soundOn && arrivals(previous, ids).length > 0) chime(display.sound);
+    seenRef.current = { location: locationId, ids: new Set(ids) };
+  }, [display.sound, display.soundOn, locationId, newLaneLoaded, pendingIds]);
 
-  const bump = useMutation({
-    mutationKey: ['kds-bump'],
-    mutationFn: ({ id, next }: { id: string; next: OrderStatus }) => updateOrderStatus(id, next),
-    onMutate: async ({ id, next }) => {
-      setPendingIds((current) => new Set(current).add(id));
-      if (!locationId) return {};
+  const invalidate = (id: string) => {
+    for (const queryKey of [
+      moduleQueryKeys.ordering.key('kds-orders'),
+      moduleQueryKeys.ordering.key('order', id),
+      moduleQueryKeys.ordering.key('orders'),
+      moduleQueryKeys.ordering.key('orders-all'),
+      moduleQueryKeys.ordering.key('orders-nav-count'),
+      moduleQueryKeys.inventory.key('inventory-overview'),
+      moduleQueryKeys.inventory.key('location-stock'),
+    ])
+      void queryClient.invalidateQueries({ queryKey });
+  };
 
-      await queryClient.cancelQueries({ queryKey: moduleQueryKeys.ordering.key('kds-orders', locationId) });
-
-      let previous: Order | undefined;
-      for (const status of LIVE_STATUSES) {
-        const data = queryClient.getQueryData<OrdersResponse>(orderQueryKey(locationId, status));
-        previous ??= data?.data.find((order) => order.id === id);
-        queryClient.setQueryData<OrdersResponse>(orderQueryKey(locationId, status), (current) => {
-          if (!current || !current.data.some((order) => order.id === id)) return current;
-          return {
-            ...current,
-            data: current.data.filter((order) => order.id !== id),
-            total: Math.max(0, current.total - 1),
-          };
-        });
-      }
-
-      if (previous && LIVE_STATUSES.includes(next)) {
-        const moved = { ...previous, status: next, updatedAt: new Date().toISOString() };
-        queryClient.setQueryData<OrdersResponse>(orderQueryKey(locationId, next), (current) => {
-          if (!current) return current;
-          return {
-            ...current,
-            data: [...current.data.filter((order) => order.id !== id), moved].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-            total: current.data.some((order) => order.id === id) ? current.total : current.total + 1,
-          };
-        });
-      }
-
-      return { previous };
+  // No optimistic move (the repo keeps them out of anything touching stock — Collected consumes it):
+  // the ticket shows "Updating…" and moves when the API has answered.
+  const move = useMutation({
+    // 'always': an offline tap fails now instead of pausing and replaying a stale move later.
+    networkMode: 'always',
+    mutationFn: async ({ id, from, to }: { id: string; name: string; from: OrderStatus; to: OrderStatus }) => {
+      if (!navigator.onLine) throw new Error('offline');
+      // The API accepts any transition, so check first: a stale card must not move a ticket backwards.
+      const fresh = await getOrder(id);
+      if (fresh.status !== from) throw new StaleTicket(fresh.status);
+      return updateOrderStatus(id, to);
     },
-    onError: (error, variables, context) => {
-      if (locationId && context?.previous) {
-        for (const status of LIVE_STATUSES) {
-          queryClient.setQueryData<OrdersResponse>(orderQueryKey(locationId, status), (current) => {
-            if (!current) return current;
-            const containedOrder = current.data.some((order) => order.id === variables.id);
-            const withoutOrder = current.data.filter((order) => order.id !== variables.id);
-            if (status !== context.previous?.status) {
-              return {
-                ...current,
-                data: withoutOrder,
-                total: containedOrder ? Math.max(0, current.total - 1) : current.total,
-              };
-            }
-            return {
-              ...current,
-              data: [...withoutOrder, context.previous].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-              total: containedOrder ? current.total : current.total + 1,
-            };
-          });
-        }
-      }
-      toast('error', error instanceof Error ? error.message : 'The order wasn’t updated. Try again.');
-    },
-    onSuccess: (updated) => {
+    onMutate: ({ id }) => setBumping((current) => new Set(current).add(id)),
+    onSuccess: (updated, { id, name, to }) => {
       if (updated.inventoryWarnings?.length) {
-        toast('error', `Inventory shortfall: ${updated.inventoryWarnings.map((warning) => warning.name).join(', ')}.`);
+        toast('error', `Stock shortfall: ${updated.inventoryWarnings.map((warning) => warning.name).join(', ')}.`);
+      }
+      const entry = { id, name, to, at: Date.now() };
+      setRecent((current) => [entry, ...current.filter((bump) => bump.id !== id)].slice(0, RECENT_LIMIT));
+      setUndo(entry);
+    },
+    onError: (error, { name }) => {
+      if (error instanceof StaleTicket) {
+        toast(
+          'info',
+          `${name} was already moved on another screen${error.current in LANE_LABEL ? ` — it’s ${LANE_LABEL[error.current as KdsLane]}` : ''}.`,
+        );
+      } else if (error.message === 'offline') {
+        toast('error', 'This screen is offline, so nothing changed. Try again when it reconnects.');
+      } else {
+        toast('error', error.message || 'The ticket didn’t move. Try again.');
       }
     },
-    onSettled: (_data, _error, variables) => {
-      setPendingIds((current) => {
+    onSettled: (_data, _error, { id }) => {
+      setBumping((current) => {
         const next = new Set(current);
-        next.delete(variables.id);
+        next.delete(id);
         return next;
       });
-      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('kds-orders') });
-      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders-all') });
-      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders') });
-      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('inventory-overview') });
-      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('location-stock') });
+      invalidate(id);
     },
   });
 
-  const hasQueryError = laneQueries.some((query) => query.isError);
-  const connectionProblem = !online || hasQueryError;
+  const bump = (order: Order, lane: KdsLane) => move.mutate({ id: order.id, name: ticketName(order), from: lane, to: NEXT_STATUS[lane] });
+  const moveBack = (entry: RecentBump) => {
+    const back = PREVIOUS_STATUS[entry.to];
+    if (!back) return;
+    setUndo(null);
+    setRecent((current) => current.filter((bump) => bump.id !== entry.id));
+    move.mutate({ id: entry.id, name: entry.name, from: entry.to, to: back });
+  };
 
-  async function refreshAll() {
-    await Promise.all(laneQueries.map((query) => query.refetch()));
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void rootRef.current?.requestFullscreen?.().catch(() => toast('error', 'This browser won’t go full screen here.'));
+  };
+
+  const toBeMade = live.filter(({ lane }) => lane !== 'ready').map(({ order }) => ({ items: detail.get(order.id)?.items }));
+  const allDayLines = allDay(toBeMade);
+
+  const ticket = ({ order, lane }: { order: Order; lane: KdsLane }, showStage: boolean) => {
+    const d = detail.get(order.id);
+    return (
+      <KdsTicket
+        key={order.id}
+        order={order}
+        lane={lane}
+        items={d?.items}
+        itemsError={!!d?.isError}
+        now={now}
+        showStage={showStage}
+        struck={struck}
+        bumping={bumping.has(order.id)}
+        onToggleItem={(itemId) =>
+          setStruck((current) => {
+            const next = new Set(current);
+            if (next.has(itemId)) next.delete(itemId);
+            else next.add(itemId);
+            return next;
+          })
+        }
+        onBump={() => bump(order, lane)}
+        onRetryItems={() => d?.refetch()}
+      />
+    );
+  };
+
+  const zoom = { zoom: ZOOM[display.textSize] } as React.CSSProperties;
+
+  // The location and the display settings live in this device's storage, which
+  // the server render can't see — paint the board only once mounted.
+  if (!mounted) {
+    return (
+      <EditorShell eyebrow="Kitchen" title="Kitchen display" icon={<ChefHat size={20} aria-hidden="true" />} flush>
+        <div className="flex-1 animate-pulse bg-band/30" aria-busy="true" />
+      </EditorShell>
+    );
   }
 
   return (
-    <EditorShell
-      eyebrow="Service Mode"
-      title="Barista Display"
-      icon={<ChefHat size={20} aria-hidden="true" />}
-      meta={
-        locationId ? (
-          <span data-figure className="text-xs font-semibold text-muted-foreground tabular-nums">
-            {live.length} live {live.length === 1 ? 'ticket' : 'tickets'}
-          </span>
-        ) : undefined
-      }
-      // The lanes own the whole body and scroll themselves; on a kitchen tablet
-      // every pixel the shell does not spend on chrome is another ticket on screen.
-      flush
-    >
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:p-4">
-        {connectionProblem && locationId && (
-          <div
-            role="alert"
-            className="flex shrink-0 items-center gap-2 rounded-sm border border-exception/60 bg-exception/6 px-4 py-2 text-xs font-semibold text-foreground"
-          >
-            <AlertTriangle size={15} className="shrink-0 text-destructive" aria-hidden="true" />
-            <span className="flex-1">
-              {!online
-                ? 'This display is offline. Existing tickets remain visible and will refresh when the connection returns.'
-                : 'Some lanes could not sync. Existing tickets are retained; retrying automatically.'}
-            </span>
-            <button onClick={() => void refreshAll()} className="font-semibold text-exception underline underline-offset-2">
-              Retry now
-            </button>
+    <EditorShell eyebrow="Kitchen" title={locationName ?? 'Kitchen display'} icon={<ChefHat size={20} aria-hidden="true" />} flush>
+      <div ref={rootRef} className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
+        {/* Toolbar — hideable in Configuration; the offline banner below still shows. */}
+        {display.showToolbar && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-rule/60 bg-card px-3 py-2 md:px-4">
+            {display.layout === 'tiles' ? (
+              <div role="tablist" aria-label="Show tickets" className="flex gap-1.5">
+                {(['all', ...KDS_LANES] as const).map((value) => {
+                  const count = value === 'all' ? live.length : lanes.find((lane) => lane.status === value)!.orders.length;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="tab"
+                      aria-selected={filter === value}
+                      onClick={() => setFilter(value)}
+                      className={cn(
+                        'flex h-12 items-center gap-2 rounded-lg border px-4 text-base font-semibold transition-colors',
+                        filter === value
+                          ? 'border-foreground bg-foreground text-background'
+                          : 'border-rule/70 bg-background text-foreground',
+                      )}
+                    >
+                      {value === 'all' ? 'All' : LANE_LABEL[value]}
+                      <span data-figure className="tabular-nums opacity-70">
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p data-figure className="px-1 text-base font-semibold tabular-nums text-foreground">
+                {live.length} live {live.length === 1 ? 'ticket' : 'tickets'}
+              </p>
+            )}
+
+            <div className="ml-auto flex items-center gap-1.5">
+              <span
+                role="status"
+                className={cn(
+                  'mr-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold',
+                  syncProblem ? 'bg-exception/10 text-exception' : 'text-muted-foreground',
+                )}
+              >
+                <span
+                  className={cn('size-2.5 rounded-full', syncProblem ? 'bg-exception' : 'animate-pulse bg-momentum')}
+                  aria-hidden="true"
+                />
+                {!online ? 'Offline' : syncProblem ? 'Reconnecting' : 'Live'}
+                {lastSync > 0 && (
+                  <span data-figure className="font-medium tabular-nums opacity-80">
+                    · {new Date(lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                )}
+              </span>
+              <ToolbarButton
+                active={display.showAllDay}
+                onClick={() => display.setDisplay({ showAllDay: !display.showAllDay })}
+                label="All day"
+              >
+                <ListChecks size={20} aria-hidden="true" />
+              </ToolbarButton>
+              <ToolbarButton
+                active={recallOpen}
+                onClick={() => setRecallOpen((open) => !open)}
+                label={`Recall${recent.length ? ` (${recent.length})` : ''}`}
+              >
+                <History size={20} aria-hidden="true" />
+              </ToolbarButton>
+              <ToolbarButton
+                active={display.soundOn}
+                onClick={() => {
+                  const next = !display.soundOn;
+                  display.setSoundOn(next);
+                  if (next) chime(display.sound);
+                }}
+                label={display.soundOn ? 'Sound on' : 'Sound off'}
+                iconOnly
+              >
+                {display.soundOn ? <Volume2 size={20} aria-hidden="true" /> : <VolumeX size={20} aria-hidden="true" />}
+              </ToolbarButton>
+              <ToolbarButton
+                active={fullscreen}
+                onClick={toggleFullscreen}
+                label={fullscreen ? 'Exit full screen' : 'Full screen'}
+                iconOnly
+              >
+                <Maximize size={20} aria-hidden="true" />
+              </ToolbarButton>
+            </div>
           </div>
         )}
 
+        {syncProblem && locationId && (
+          <div
+            role="alert"
+            className="flex shrink-0 items-center gap-3 border-b border-exception/40 bg-exception/8 px-4 py-2 text-sm font-semibold text-foreground"
+          >
+            <CloudOff size={18} aria-hidden="true" className="shrink-0 text-exception" />
+            <span className="flex-1">
+              {!online
+                ? 'This screen is offline. Tickets stay on screen and refresh when it reconnects.'
+                : 'Some tickets didn’t refresh. Retrying every 10 seconds.'}
+              {lastSync > 0 && ` Last update ${new Date(lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
+            </span>
+            <Button variant="outline" onClick={() => laneQueries.forEach((query) => void query.refetch())} className="h-11">
+              Retry now
+            </Button>
+          </div>
+        )}
+        {display.keepAwake && !wake.supported && (
+          <p className="shrink-0 border-b border-rule/50 bg-band/50 px-4 py-1.5 text-xs text-muted-foreground">
+            This browser can’t keep the screen awake — set the tablet’s auto-lock to Never.
+          </p>
+        )}
+
         {!locationId ? (
-          <div className="flex flex-1 items-center justify-center p-6">
-            <div className="max-w-sm text-center">
-              <span className="mx-auto flex size-12 items-center justify-center rounded-sm border border-rule text-muted-foreground">
-                <MapPin size={23} aria-hidden="true" />
+          <div className="flex flex-1 items-center justify-center p-6 text-center">
+            <div className="max-w-sm">
+              <span
+                className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-band text-muted-foreground"
+                aria-hidden="true"
+              >
+                <MapPin size={24} />
               </span>
-              <h2 className="mt-4 text-lg font-bold text-foreground">Choose a location</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Use the location picker to choose the order queue you want to monitor.</p>
+              <h2 className="mt-4 text-xl font-semibold">Choose a location</h2>
+              <p className="mt-1 text-base text-muted-foreground">Pick the location whose orders this screen shows.</p>
             </div>
           </div>
         ) : (
-          <div className="min-h-0 flex-1">
-            <div className="kds-scrollbar grid h-full min-h-0 snap-x snap-mandatory grid-flow-col auto-cols-[minmax(18rem,88vw)] gap-3 overflow-x-auto pb-2 lg:grid-flow-row lg:grid-cols-3 lg:auto-cols-auto lg:overflow-x-hidden lg:pb-0">
-              {COLUMNS.map((column, columnIndex) => {
-                const query = laneQueries[columnIndex];
-                const orders = [...(query.data?.data ?? [])].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-
-                return (
-                  <section
-                    key={column.status}
-                    aria-labelledby={`lane-${column.status}`}
-                    className="flex min-h-0 snap-start flex-col overflow-hidden rounded-sm border border-rule bg-band/40"
-                  >
-                    <div
-                      className={cn(
-                        'flex shrink-0 items-center justify-between border-b border-t-4 border-rule bg-card px-4 py-3',
-                        column.accent,
-                      )}
+          <div className="flex min-h-0 flex-1">
+            <div className="min-h-0 min-w-0 flex-1" style={zoom}>
+              {display.layout === 'lanes' ? (
+                <div className="kds-scrollbar grid h-full min-h-0 snap-x snap-mandatory grid-flow-col auto-cols-[minmax(20rem,88vw)] gap-3 overflow-x-auto p-3 lg:grid-flow-row lg:grid-cols-3 lg:auto-cols-auto lg:overflow-x-hidden">
+                  {lanes.map((lane) => (
+                    <section
+                      key={lane.status}
+                      aria-labelledby={`lane-${lane.status}`}
+                      className="flex min-h-0 snap-start flex-col overflow-hidden rounded-xl border border-rule/60 bg-band/40"
                     >
-                      <div className="flex items-center gap-2">
-                        <h2 id={`lane-${column.status}`} className="text-sm font-semibold uppercase tracking-label text-foreground">
-                          {column.title}
-                        </h2>
-                        {query.isError && <AlertTriangle size={14} className="text-destructive" aria-label="Lane sync failed" />}
-                      </div>
-                      <span
+                      <div
                         className={cn(
-                          'flex h-7 min-w-7 items-center justify-center rounded-sm px-2 font-mono text-sm font-semibold tabular-nums',
-                          column.count,
+                          'flex shrink-0 items-center justify-between border-b border-t-4 border-rule/60 bg-card px-4 py-3',
+                          LANE_ACCENT[lane.status],
                         )}
                       >
-                        {orders.length}
-                      </span>
+                        <h2 id={`lane-${lane.status}`} className="flex items-center gap-2 text-lg font-bold">
+                          {LANE_LABEL[lane.status]}
+                          {lane.query.isError && <AlertTriangle size={16} className="text-destructive" aria-label="Didn’t refresh" />}
+                        </h2>
+                        <span
+                          data-figure
+                          className="flex h-9 min-w-9 items-center justify-center rounded-lg bg-foreground px-2 text-lg font-bold tabular-nums text-background"
+                        >
+                          {lane.orders.length}
+                        </span>
+                      </div>
+                      <div className="kds-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+                        <LaneBody lane={lane} empty={LANE_EMPTY[lane.status]}>
+                          {lane.orders.map((order) => ticket({ order, lane: lane.status }, false))}
+                        </LaneBody>
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <div className="kds-scrollbar h-full overflow-y-auto p-3">
+                  {laneQueries.some((query) => query.isLoading) ? (
+                    <div className="columns-[20rem] gap-3">
+                      {[0, 1, 2, 3].map((i) => (
+                        <div key={i} className="mb-3 h-56 animate-pulse rounded-xl bg-band" />
+                      ))}
                     </div>
+                  ) : (
+                    (() => {
+                      const shown = live.filter(({ lane }) => filter === 'all' || lane === filter);
+                      if (shown.length === 0) return <Empty label={filter === 'all' ? 'No live orders' : LANE_EMPTY[filter]} />;
+                      // Top to bottom, then left to right, oldest first — no row gaps under a short ticket.
+                      return <div className="columns-[20rem] gap-3 [&>*]:mb-3">{shown.map((entry) => ticket(entry, true))}</div>;
+                    })()
+                  )}
+                </div>
+              )}
+            </div>
 
-                    <div className="kds-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
-                      {query.isLoading ? (
-                        Array.from({ length: 2 }).map((_, index) => (
-                          <div key={index} className="h-44 shrink-0 animate-pulse rounded-sm bg-band" aria-hidden="true" />
-                        ))
-                      ) : query.isError && !query.data ? (
-                        <div className="flex flex-1 items-center justify-center py-10">
-                          <div className="max-w-48 text-center">
-                            <CloudOff size={23} className="mx-auto text-destructive" aria-hidden="true" />
-                            <p className="mt-2 text-sm font-bold text-foreground">Lane unavailable</p>
-                            <button
-                              onClick={() => void query.refetch()}
-                              className="mt-2 text-xs font-semibold text-exception underline underline-offset-2"
-                            >
-                              Retry
-                            </button>
-                          </div>
-                        </div>
-                      ) : orders.length === 0 ? (
-                        <div className="flex flex-1 items-center justify-center py-10">
-                          <div className="text-center">
-                            <Coffee size={24} className="mx-auto text-muted-foreground/40" aria-hidden="true" />
-                            <p className="mt-2 text-xs font-medium text-muted-foreground">{column.emptyLabel}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        orders.map((order) => {
-                          const detailIndex = live.findIndex((candidate) => candidate.id === order.id);
-                          const detailQuery = detailQueries[detailIndex];
-                          return (
-                            <KdsCard
-                              key={order.id}
-                              order={order}
-                              items={itemsFor.get(order.id)}
-                              itemsError={Boolean(detailQuery?.isError)}
-                              now={now}
-                              action={column.action}
-                              isBumping={pendingIds.has(order.id)}
-                              onRetryItems={() => void detailQuery?.refetch()}
-                              onBump={() => bump.mutate({ id: order.id, next: column.action.next })}
-                            />
-                          );
-                        })
-                      )}
-                    </div>
-                  </section>
-                );
-              })}
+            {display.showAllDay && (
+              <aside aria-label="All day" className="flex w-72 shrink-0 flex-col border-l border-rule/60 bg-card">
+                <div className="flex h-14 shrink-0 items-center justify-between border-b border-rule/60 px-4">
+                  <h2 className="text-lg font-bold">All day</h2>
+                  <span className="text-sm text-muted-foreground">New + preparing</span>
+                </div>
+                {allDayLines.length === 0 ? (
+                  <p className="p-4 text-base text-muted-foreground">Nothing to make.</p>
+                ) : (
+                  <ul className="kds-scrollbar min-h-0 flex-1 divide-y divide-rule/45 overflow-y-auto" style={zoom}>
+                    {allDayLines.map((line) => (
+                      <li key={line.name} className="flex items-baseline gap-3 px-4 py-2.5">
+                        <span data-figure className="w-10 shrink-0 text-2xl font-bold tabular-nums">
+                          {line.quantity}
+                        </span>
+                        <span className="text-lg font-semibold leading-snug">{line.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </aside>
+            )}
+
+            {recallOpen && (
+              <aside aria-label="Recall" className="flex w-80 shrink-0 flex-col border-l border-rule/60 bg-card">
+                <div className="flex h-14 shrink-0 items-center justify-between border-b border-rule/60 pl-4 pr-2">
+                  <h2 className="text-lg font-bold">Recently moved</h2>
+                  <Button variant="ghost" size="icon" onClick={() => setRecallOpen(false)} aria-label="Close recall" className="size-11">
+                    <X size={18} />
+                  </Button>
+                </div>
+                {recent.length === 0 ? (
+                  <p className="p-4 text-base text-muted-foreground">
+                    Tickets you move on this screen appear here, so a mis-tap can be put back.
+                  </p>
+                ) : (
+                  <ul className="min-h-0 flex-1 divide-y divide-rule/45 overflow-y-auto">
+                    {recent.map((entry) => {
+                      const back = PREVIOUS_STATUS[entry.to];
+                      return (
+                        <li key={`${entry.id}-${entry.at}`} className="flex items-center gap-3 px-4 py-3">
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-base font-semibold">{entry.name}</span>
+                            <span className="block text-sm text-muted-foreground">
+                              {entry.to === 'done' ? 'Collected' : `Moved to ${LANE_LABEL[entry.to as KdsLane]}`} ·{' '}
+                              {new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </span>
+                          {back ? (
+                            <Button variant="outline" onClick={() => moveBack(entry)} className="h-11 shrink-0 gap-1.5">
+                              <RotateCcw size={15} aria-hidden="true" /> Back to {LANE_LABEL[back]}
+                            </Button>
+                          ) : (
+                            <span className="shrink-0 text-xs text-muted-foreground">Can’t reopen</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </aside>
+            )}
+          </div>
+        )}
+
+        {undo && (
+          <div role="status" className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">
+            <div className="pointer-events-auto flex items-center gap-4 rounded-xl bg-foreground py-2 pl-5 pr-2 text-background shadow-xl">
+              <span className="text-base font-medium">
+                {undo.name} {undo.to === 'done' ? 'collected' : `moved to ${LANE_LABEL[undo.to as KdsLane]}`}
+              </span>
+              {PREVIOUS_STATUS[undo.to] ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => moveBack(undo)}
+                  className="h-12 gap-2 px-4 text-base text-background hover:bg-background/10 hover:text-background"
+                >
+                  <RotateCcw size={17} aria-hidden="true" /> Undo
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setUndo(null)}
+                  aria-label="Dismiss"
+                  className="size-12 text-background hover:bg-background/10 hover:text-background"
+                >
+                  <X size={18} />
+                </Button>
+              )}
             </div>
           </div>
         )}
       </div>
     </EditorShell>
+  );
+}
+
+function ToolbarButton({
+  active,
+  onClick,
+  label,
+  iconOnly = false,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  iconOnly?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      onClick={onClick}
+      aria-pressed={active}
+      aria-label={iconOnly ? label : undefined}
+      className={cn(
+        'h-12 gap-2 text-base',
+        iconOnly ? 'w-12 px-0' : 'px-3.5',
+        active ? 'bg-band text-foreground' : 'text-muted-foreground',
+      )}
+    >
+      {children}
+      {!iconOnly && label}
+    </Button>
+  );
+}
+
+function LaneBody({
+  lane,
+  empty,
+  children,
+}: {
+  lane: { query: { isLoading: boolean; isError: boolean; data?: unknown; refetch: () => unknown }; orders: Order[] };
+  empty: string;
+  children: React.ReactNode;
+}) {
+  if (lane.query.isLoading)
+    return [0, 1].map((i) => <div key={i} className="h-56 shrink-0 animate-pulse rounded-xl bg-band" aria-hidden="true" />);
+  if (lane.query.isError && !lane.query.data) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+        <CloudOff size={26} className="text-destructive" aria-hidden="true" />
+        <p className="text-base font-semibold">This lane didn’t load</p>
+        <Button variant="outline" onClick={() => void lane.query.refetch()} className="h-12 px-5">
+          Try again
+        </Button>
+      </div>
+    );
+  }
+  if (lane.orders.length === 0) return <Empty label={empty} />;
+  return <>{children}</>;
+}
+
+function Empty({ label }: { label: string }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 py-16 text-center">
+      <Coffee size={30} className="text-muted-foreground/40" aria-hidden="true" />
+      <p className="text-base font-medium text-muted-foreground">{label}</p>
+    </div>
   );
 }

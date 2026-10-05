@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AlertCircle, Building2, CheckCircle2, Clock3, Loader2, Mail, Send, Server, ShieldOff, Sparkles, Zap } from '@/components/icons';
+import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { SaveBar, Switch } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,13 +21,14 @@ import {
   testEmailConnection,
 } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ConnectWizard, ProviderGrid, WizardRail, type WizardStep } from './ConnectWizard';
 import { CONNECTORS_BY_ID, type ConnectorState } from './registry';
-import { eyebrowClass, panelClass, relativeTime } from './shared';
+import { panelClass, relativeTime } from './shared';
 
 const DEFINITION = CONNECTORS_BY_ID.email;
 
@@ -149,6 +153,7 @@ function useEmailConnectionForm() {
     serverReady,
     senderReady,
     dirty: Object.keys(overrides).length > 0,
+    reset: () => setOverrides({}),
   };
 }
 
@@ -251,7 +256,7 @@ function ServerFields({
         />
       </div>
       <div className="space-y-1.5">
-        <label htmlFor={`${idPrefix}-security`} className="block text-xs font-bold tracking-widest text-muted-foreground">
+        <label htmlFor={`${idPrefix}-security`} className="block text-label uppercase text-muted-foreground">
           Encryption
         </label>
         <Select
@@ -321,20 +326,13 @@ function SenderFields({
         onChange={(event) => update('replyTo', event.target.value)}
         hint="Where customer replies should land, if different."
       />
-      <label className="flex items-start gap-2.5 text-sm">
-        <input
-          type="checkbox"
-          checked={form.isEnabled}
-          onChange={(event) => update('isEnabled', event.target.checked)}
-          className="mt-0.5 size-4 rounded accent-primary"
-        />
-        <span>
-          Allow emails to be sent
-          <span className="block text-xs text-muted-foreground">
-            Untick to hold all email — automations keep queueing but nothing goes out.
-          </span>
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-foreground">Send emails</span>
+          <span className="block text-xs text-muted-foreground">Off holds everything — automations wait until you turn it back on.</span>
         </span>
-      </label>
+        <Switch label="Send emails" checked={form.isEnabled} onChange={(value) => update('isEnabled', value)} />
+      </div>
     </div>
   );
 }
@@ -437,8 +435,20 @@ const USES = [
 ];
 
 export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => void; onReconnect: () => void }) {
-  const { connection, isLoading, form, update, save, serverReady, senderReady, dirty } = useEmailConnectionForm();
+  const { connection, isLoading, form, update, save, serverReady, senderReady, dirty, reset } = useEmailConnectionForm();
   const state = emailConnectorState(connection);
+  const [editingServer, setEditingServer] = useState(false);
+  const checked = relativeTime(connection?.lastTestedAt);
+  const security = { starttls: 'STARTTLS', tls: 'TLS/SSL', none: 'No encryption' }[form.security];
+
+  const status =
+    state === 'attention'
+      ? { dot: 'bg-exception', text: 'The last check failed' }
+      : state === 'paused'
+        ? { dot: 'bg-stock', text: 'Paused — nothing is being sent' }
+        : connection?.lastTestSucceeded
+          ? { dot: 'bg-success', text: `Working${checked ? ` · checked ${checked}` : ''}` }
+          : { dot: 'bg-muted-foreground/60', text: 'Not checked yet — send a test to be sure' };
 
   return (
     <EditorShell
@@ -454,71 +464,112 @@ export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => vo
         </Button>
       }
     >
-      <div className="grid items-start gap-5 lg:grid-cols-[1fr_0.8fr]">
-        <section className={panelClass}>
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-sm bg-band text-primary">
-              <Server size={18} aria-hidden="true" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">Your sending account</p>
-              <p className="text-xs text-muted-foreground">
-                Emails go out through your own mail provider, so replies come back to you. Credentials are encrypted and never shown again.
-              </p>
-            </div>
+      <div className="flex flex-col gap-6">
+        {/* Who emails come from, and whether it works — no card, it is the page's headline. */}
+        <div className="flex items-center gap-4">
+          <span
+            className={cn(
+              'flex size-14 shrink-0 items-center justify-center rounded-xl',
+              state === 'attention' ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary',
+            )}
+          >
+            <Mail size={26} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-xl font-semibold tracking-headline text-foreground">
+              {isLoading ? 'Loading…' : connection ? `Sending from ${connection.fromEmail || connection.username}` : 'Email isn’t set up'}
+            </p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <span className={cn('size-1.5 rounded-full', status.dot)} aria-hidden="true" />
+              {status.text}
+            </p>
+            {connection?.lastTestError && state === 'attention' && (
+              <p className="mt-1 text-xs text-exception">{connection.lastTestError}</p>
+            )}
           </div>
-
-          <div className="space-y-4">
-            <ServerFields form={form} update={update} hasPassword={Boolean(connection?.hasPassword)} idPrefix="manage" />
-            <div className="border-t border-rule pt-4">
-              <SenderFields form={form} update={update} idPrefix="manage" />
-            </div>
-            <Button disabled={!serverReady || !senderReady || save.isPending || isLoading} onClick={() => save.mutate()} className="gap-2">
-              {save.isPending && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
-              {save.isPending ? 'Saving…' : 'Save settings'}
-            </Button>
-            {save.error && <p className="text-sm text-destructive">{save.error.message}</p>}
-          </div>
-        </section>
-
-        <div className="space-y-5">
-          <section className={panelClass}>
-            <p className={eyebrowClass}>Is it working?</p>
-            <div className="mt-4">
-              <ConnectionStatus connection={connection} />
-            </div>
-            <div className="mt-5 border-t border-rule pt-5">
-              <TestPanel connection={connection} />
-            </div>
-          </section>
-
-          {state === 'paused' && (
-            <section className="rounded-sm border border-warning/30 bg-warning/5 p-5">
-              <p className="text-sm font-medium text-foreground">Sending is paused</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Automations keep queueing but nothing leaves the building. Tick “Allow emails to be sent” and save to resume.
-              </p>
-            </section>
-          )}
-
-          <section className={panelClass}>
-            <p className={eyebrowClass}>Where this is used</p>
-            <ul className="mt-3 space-y-1">
-              {USES.map(({ href, icon: Icon, title, description }) => (
-                <li key={href}>
-                  <Link href={href} className="flex items-center gap-3 rounded-sm px-2 py-2.5 transition-colors hover:bg-band">
-                    <Icon size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium text-foreground">{title}</span>
-                      <span className="block text-xs text-muted-foreground">{description}</span>
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
         </div>
+
+        <SettingsTabBody
+          aside={
+            <>
+              <SettingsSection title="Send a test">
+                <TestPanel connection={connection} />
+              </SettingsSection>
+              <SettingsSection title="Used for">
+                <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                  {USES.map(({ href, icon: Icon, title, description }) => (
+                    <li key={href}>
+                      <Link
+                        href={href}
+                        className="flex h-full items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3 py-2.5 transition-colors hover:border-rule hover:bg-band/45"
+                      >
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
+                          <Icon size={15} aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-foreground">{title}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{description}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </SettingsSection>
+            </>
+          }
+        >
+          <SettingsSection title="Sender">
+            <SenderFields form={form} update={update} idPrefix="manage" />
+          </SettingsSection>
+
+          <SettingsSection
+            title="Mail server"
+            actions={
+              <Button variant={editingServer ? 'ghost' : 'outline'} size="sm" onClick={() => setEditingServer((open) => !open)}>
+                {editingServer ? 'Close' : 'Change'}
+              </Button>
+            }
+          >
+            {editingServer ? (
+              <ServerFields form={form} update={update} hasPassword={Boolean(connection?.hasPassword)} idPrefix="manage" />
+            ) : (
+              // It rarely changes, so it reads as one line until you ask to edit it.
+              <div className="flex items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
+                  <Server size={18} aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-foreground">{form.host || 'No server set'}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    Port {form.port} · {security}
+                    {form.username ? ` · ${form.username}` : ''}
+                  </span>
+                </span>
+              </div>
+            )}
+          </SettingsSection>
+        </SettingsTabBody>
       </div>
+
+      <SaveBar
+        dirty={dirty}
+        saving={save.isPending}
+        disabled={!serverReady || !senderReady || isLoading}
+        onSave={() =>
+          save.mutate(undefined, {
+            onSuccess: () => {
+              toast('success', 'Email settings saved.');
+              reset();
+              setEditingServer(false);
+            },
+            onError: (error) => toast('error', error.message),
+          })
+        }
+        onDiscard={() => {
+          reset();
+          setEditingServer(false);
+        }}
+      />
     </EditorShell>
   );
 }

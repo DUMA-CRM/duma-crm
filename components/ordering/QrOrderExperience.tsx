@@ -36,7 +36,7 @@ import {
   getPublicQrOrder,
   requestQrCustomerCode,
   verifyQrCustomerCode,
-} from '@/lib/modules/ordering/client';
+} from '@/lib/modules/qr-ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 
@@ -308,7 +308,7 @@ export function QrOrderExperience({
   paymentCancelled?: boolean;
 }) {
   const menu = useQuery({
-    queryKey: moduleQueryKeys.ordering.key('public-qr-menu', token),
+    queryKey: moduleQueryKeys.qrOrdering.key('public-qr-menu', token),
     queryFn: () => getPublicQrMenu(token),
     retry: false,
   });
@@ -331,7 +331,7 @@ export function QrOrderExperience({
   const [checkoutError, setCheckoutError] = useState('');
 
   const trackedOrder = useQuery({
-    queryKey: moduleQueryKeys.ordering.key('public-qr-order', token, trackingToken),
+    queryKey: moduleQueryKeys.qrOrdering.key('public-qr-order', token, trackingToken),
     queryFn: () => getPublicQrOrder(token, trackingToken!),
     enabled: Boolean(trackingToken),
     refetchInterval: (query) => {

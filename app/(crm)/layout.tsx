@@ -51,7 +51,7 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
 
       <Sidebar capabilities={profile?.capabilities ?? []} moduleState={moduleState} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Header />
+        <Header moduleState={moduleState} />
         <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-4 outline-none md:p-8">
           {children}
         </main>

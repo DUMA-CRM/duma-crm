@@ -19,6 +19,7 @@ const line = (over: Partial<Line> = {}): Line =>
     paidHours: '78.00',
     hourlyRate: '13.50',
     grossPay: '1053.00',
+    items: [],
     taxDeducted: null,
     nationalInsurance: null,
     pensionContribution: null,
@@ -110,7 +111,7 @@ test('an issued run always survives — employees have already been given it', (
 test('otherwise the run with deductions entered survives, so that work is not thrown away', () => {
   const group = groupByPeriod([
     run({ id: 'empty', finalisedAt: '2026-09-05T09:00:00Z' }),
-    run({ id: 'keyed', finalisedAt: '2026-09-01T09:00:00Z', lines: [line({ taxDeducted: '105.30' })] }),
+    run({ id: 'keyed', finalisedAt: '2026-09-01T09:00:00Z', lines: [line({ items: [{ label: 'Income tax', kind: 'tax', paidBy: 'employee', amount: '105.30' }] })] }),
   ])[0];
   assert.equal(suggestSurvivor(group)?.id, 'keyed');
 });

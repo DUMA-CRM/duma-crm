@@ -1,5 +1,6 @@
+import type { Payslip } from '@/lib/modules/payroll/client';
 import type { HrEmployee } from '@/lib/modules/people/client';
-import type { AttendanceDay, EmployeeDocument, HelpdeskTicket, LeaveEntitlement, Payslip } from '@/lib/modules/people/client';
+import type { AttendanceDay, AttendanceStatus, EmployeeDocument, HelpdeskTicket, LeaveEntitlement } from '@/lib/modules/people/client';
 
 // Relative, not aliased: `node --experimental-strip-types` erases type-only
 // imports but resolves value ones, and the test runner has no path mapping.
@@ -176,6 +177,15 @@ export interface PayslipLine {
  * Zero-value deductions are dropped — an empty line is not an itemisation.
  */
 export function payslipDeductions(payslip: Payslip): PayslipLine[] {
+  // Named lines, whatever the country: only the employee's own come off pay.
+  // Employer contributions are a cost to the business and belong elsewhere.
+  if (payslip.deductions && payslip.deductions.length > 0) {
+    return payslip.deductions
+      .filter((line) => line.paidBy === 'employee')
+      .map((line) => ({ label: line.label, amount: Number(line.amount) }))
+      .filter((line) => Number.isFinite(line.amount) && line.amount !== 0);
+  }
+  // Payslips from an API that predates named lines.
   const lines: PayslipLine[] = [
     { label: 'Income tax (PAYE)', amount: Number(payslip.taxDeducted ?? 0) },
     { label: 'National Insurance', amount: Number(payslip.nationalInsurance ?? 0) },
@@ -397,4 +407,85 @@ export function isValidNiNumber(value: string): boolean {
   const ni = normaliseNiNumber(value);
   if (!/^[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z]\d{6}[A-D]$/.test(ni)) return false;
   return !RESERVED_NI_PREFIXES.includes(ni.slice(0, 2));
+}
+
+export type AttendanceKey = Exclude<AttendanceStatus, 'no_shift'> | 'absent';
+
+/**
+ * How many days of the month fall in each state — the calendar's legend doubles
+ * as its summary, the way HR calendars put "18 present · 1 absent" above the
+ * grid. A logged absence counts as absent rather than under its clock status,
+ * matching how the cell is drawn. Days with no shift are not counted.
+ */
+export function attendanceCounts(days: AttendanceDayWithAbsence[]): Record<AttendanceKey, number> {
+  const counts: Record<AttendanceKey, number> = { full: 0, partial: 0, missed: 0, leave: 0, scheduled: 0, absent: 0 };
+  for (const day of days) {
+    if (day.absence) counts.absent += 1;
+    else if (day.status !== 'no_shift') counts[day.status] += 1;
+  }
+  return counts;
+}
+
+/** What the employer paid on top of this payslip — named lines only; older payslips never recorded it. */
+export function payslipEmployerLines(payslip: Payslip): PayslipLine[] {
+  return (payslip.deductions ?? [])
+    .filter((line) => line.paidBy === 'employer')
+    .map((line) => ({ label: line.label, amount: Number(line.amount) }))
+    .filter((line) => Number.isFinite(line.amount) && line.amount !== 0);
+}
+
+export interface PayslipYear {
+  /** Finalised payslips whose period ended in the year. */
+  count: number;
+  gross: number;
+  net: number;
+  deductions: number;
+  employer: number;
+}
+
+/**
+ * The tax year so far, as a person reads it on their own payslips: calendar
+ * year of the period end, finalised payslips only (a draft is not pay yet).
+ * Summed in cents so twelve payslips never show a float artefact.
+ */
+export function payslipYearSummary(payslips: Payslip[], year: number): PayslipYear {
+  const cents = (value: number) => Math.round(value * 100);
+  const sum = { count: 0, gross: 0, net: 0, deductions: 0, employer: 0 };
+  for (const payslip of payslips) {
+    if (payslip.status !== 'finalised' || Number(payslip.payPeriodEnd.slice(0, 4)) !== year) continue;
+    sum.count += 1;
+    sum.gross += cents(Number(payslip.grossPay) || 0);
+    sum.net += cents(Number(payslip.netPay) || 0);
+    sum.deductions += payslipDeductions(payslip).reduce((total, line) => total + cents(line.amount), 0);
+    sum.employer += payslipEmployerLines(payslip).reduce((total, line) => total + cents(line.amount), 0);
+  }
+  return { count: sum.count, gross: sum.gross / 100, net: sum.net / 100, deductions: sum.deductions / 100, employer: sum.employer / 100 };
+}
+
+// ── Time off: upcoming and history ────────────────────────────────────────────
+
+export interface LeaveRequestLike {
+  startDate: string;
+  endDate: string;
+  status: 'pending' | 'approved' | 'declined' | 'cancelled';
+}
+
+/**
+ * Requests split the way an employee reads them (BambooHR's "upcoming" and
+ * "history"): what is still ahead or still awaiting a decision, soonest first;
+ * then everything settled — taken, declined, cancelled — newest first.
+ * A pending request stays upcoming even once its dates pass: it still wants an
+ * answer. `today` is `YYYY-MM-DD`.
+ */
+export function splitLeaveRequests<T extends LeaveRequestLike>(requests: T[], today: string): { upcoming: T[]; history: T[] } {
+  const upcoming: T[] = [];
+  const history: T[] = [];
+  for (const request of requests) {
+    const ahead = request.endDate.slice(0, 10) >= today;
+    if (request.status === 'pending' || (request.status === 'approved' && ahead)) upcoming.push(request);
+    else history.push(request);
+  }
+  upcoming.sort((a, b) => a.startDate.localeCompare(b.startDate));
+  history.sort((a, b) => b.startDate.localeCompare(a.startDate));
+  return { upcoming, history };
 }

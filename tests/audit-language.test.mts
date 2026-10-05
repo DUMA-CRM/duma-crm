@@ -1,8 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const { ACTIONS, COMMON_ACTIONS, COMMON_RESOURCES, RESOURCES, actionFilterLabel, actionPhrase, actionResource, resourceMeta, resourcePickerOptions } =
-  await import('../lib/audit/vocabulary.ts');
+const {
+  ACTIONS,
+  COMMON_ACTIONS,
+  COMMON_RESOURCES,
+  RESOURCES,
+  actionFilterLabel,
+  actionPhrase,
+  actionResource,
+  resourceMeta,
+  resourcePickerOptions,
+} = await import('../lib/audit/vocabulary.ts');
 const { auditChangeSet, auditSubject, formatValue, shortId } = await import('../lib/audit/change.ts');
 
 type AuditLogShape = Parameters<typeof auditSubject>[0];
@@ -118,9 +127,7 @@ test('without a prior value the fields are shown as set, with no invented before
 });
 
 test('handler context becomes facts, and query noise is dropped', () => {
-  const { facts } = auditChangeSet(
-    log({ metadata: JSON.stringify({ lineCount: 4, reason: 'soft_delete', query: { page: '2' } }) }),
-  );
+  const { facts } = auditChangeSet(log({ metadata: JSON.stringify({ lineCount: 4, reason: 'soft_delete', query: { page: '2' } }) }));
   assert.deepEqual(facts, [
     { label: 'Line count', value: '4' },
     { label: 'Reason', value: 'soft delete' },
@@ -150,7 +157,10 @@ test('the record picker offers the whole vocabulary with no duplicate labels', (
   const labels = options.map((option) => option.label);
   assert.equal(new Set(labels).size, labels.length, 'aliases must not surface twice');
   // Sorted, so a long list stays scannable.
-  assert.deepEqual(labels, [...labels].sort((a, b) => a.localeCompare(b)));
+  assert.deepEqual(
+    labels,
+    [...labels].sort((a, b) => a.localeCompare(b)),
+  );
 });
 
 test('an action resolves to the record type it was written against', () => {
@@ -167,85 +177,97 @@ test('an action resolves to the record type it was written against', () => {
 });
 
 // ── Grouping ──────────────────────────────────────────────────────────────────
+// Groups come from the API now (GET /audit-logs/groups); what stays in the UI
+// is how they read.
 
-const { groupAuditLogs, summariseActors, summariseVerbs } = await import('../lib/audit/groups.ts');
+const { dayHeading, groupPhrase, groupRecord, groupTimeSpan, groupVerbs, groupsByDay, mergeGroupPages, summariseVerbs } =
+  await import('../lib/audit/groups.ts');
 
-const severityOf = (entry: AuditLogShape) =>
-  entry.statusCode != null && entry.statusCode >= 500
-    ? ('failed' as const)
-    : entry.statusCode != null && entry.statusCode >= 400
-      ? ('refused' as const)
-      : /cancel|delete/.test(entry.action)
-        ? ('destructive' as const)
-        : ('ok' as const);
+type GroupShape = Parameters<typeof groupPhrase>[0];
 
-const entry = (id: string, over: Partial<AuditLogShape> = {}) =>
-  log({ id, resourceId: 'ord-1', userName: 'Sam Reed', ...over });
+const group = (over: Partial<GroupShape> = {}): GroupShape =>
+  ({
+    key: 'k1',
+    day: '2026-09-24',
+    actor: { userId: 'u1', name: 'Sam Reed', email: null, role: 'barista' },
+    resourceType: 'orders',
+    resourceId: '8f3e2a1b-4c9d-4e17-a3f2-77b19c0e5d84',
+    count: 1,
+    firstAt: '2026-09-24T09:12:00.000Z',
+    lastAt: '2026-09-24T09:12:00.000Z',
+    actions: ['orders.cancel'],
+    severity: 'destructive',
+    failedCount: 0,
+    refusedCount: 0,
+    entryIds: ['e1'],
+    latest: log({ id: 'e1', action: 'orders.cancel', resourceId: '8f3e2a1b-4c9d-4e17-a3f2-77b19c0e5d84' }),
+    ...over,
+  }) as GroupShape;
 
-test('many entries on one record collapse into a single row', () => {
-  const groups = groupAuditLogs(
-    [
-      entry('e1', { action: 'orders.cancel' }),
-      entry('e2', { action: 'orders.status_update', userName: 'Ana Ruiz' }),
-      entry('e3', { action: 'orders.create' }),
-    ],
-    severityOf,
-  );
-  assert.equal(groups.length, 1);
-  assert.equal(groups[0].entries.length, 3);
-  assert.equal(groups[0].latest.id, 'e1', 'the newest entry heads the group');
-  assert.deepEqual(groups[0].actors, ['Sam Reed', 'Ana Ruiz']);
-  assert.deepEqual(groups[0].verbs, ['cancelled', 'moved', 'took']);
+test('a single entry reads as itself', () => {
+  assert.equal(groupPhrase(group()), 'cancelled an order');
 });
 
-test('a failure inside a group cannot hide behind a healthy latest entry', () => {
-  const groups = groupAuditLogs(
-    [entry('e1', { statusCode: 200 }), entry('e2', { statusCode: 500 })],
-    severityOf,
-  );
-  assert.equal(groups[0].severity, 'failed');
+test('several entries read as what they add up to, with their verbs', () => {
+  const many = group({ count: 3, actions: ['orders.cancel', 'orders.status_update', 'orders.create'] });
+  assert.equal(groupPhrase(many), 'made 3 changes to an order');
+  assert.equal(groupVerbs(many), 'cancelled, moved and 1 more');
+
+  const named = group({ count: 2, latest: log({ id: 'e1', resourceId: 'x', metadata: JSON.stringify({ reference: 'PO-0912' }) }) });
+  assert.equal(groupPhrase(named), 'made 2 changes to order PO-0912');
 });
 
-test('different records never merge, and entries without an ID stay separate', () => {
-  const groups = groupAuditLogs(
-    [entry('e1'), entry('e2', { resourceId: 'ord-2' }), entry('e3', { resourceId: null }), entry('e4', { resourceId: null })],
-    severityOf,
-  );
-  assert.equal(groups.length, 4);
+test('a group names its record when the payload gave one up, else a short ID', () => {
+  assert.deepEqual(groupRecord(group({ latest: log({ id: 'e1', metadata: JSON.stringify({ reference: 'PO-0912' }) }) })), {
+    label: 'PO-0912',
+    named: true,
+  });
+  assert.deepEqual(groupRecord(group()), { label: '8f3e…5d84', named: false });
+  assert.equal(groupRecord(group({ resourceId: null, latest: log({ id: 'e1', resourceId: null }) })), null);
 });
 
-test('the same ID under a different record type is a different record', () => {
-  const groups = groupAuditLogs([entry('e1'), entry('e2', { resourceType: 'customers' })], severityOf);
-  assert.equal(groups.length, 2);
+test('a span shows both ends, a moment shows one', () => {
+  assert.match(groupTimeSpan(group()), /^\d\d:\d\d$/);
+  assert.match(groupTimeSpan(group({ lastAt: '2026-09-24T11:40:00.000Z' })), /^\d\d:\d\d–\d\d:\d\d$/);
+  // Earliest first, whichever way round the ends arrive.
+  const span = groupTimeSpan(group({ firstAt: '2026-09-24T11:40:00.000Z', lastAt: '2026-09-24T09:12:00.000Z' }));
+  assert.ok(span.split('–')[0] < span.split('–')[1]);
 });
 
-test('grouping off gives one row per entry, order untouched', () => {
-  const input = [entry('e1'), entry('e2'), entry('e3')];
-  const groups = groupAuditLogs(input, severityOf, false);
+test('days read as people say them', () => {
+  const now = new Date(2026, 8, 25, 10).getTime();
+  assert.equal(dayHeading('2026-09-25', now), 'Today');
+  assert.equal(dayHeading('2026-09-24', now), 'Yesterday');
+  assert.equal(dayHeading('2026-09-21', now), 'Monday 21 September');
+  assert.equal(dayHeading('2025-09-22', now), 'Monday 22 September 2025');
+});
+
+test('load-more pages merge without repeating a group the live log pushed down', () => {
+  const merged = mergeGroupPages([
+    { data: [group({ key: 'a' }), group({ key: 'b' })] },
+    { data: [group({ key: 'b' }), group({ key: 'c' })] },
+  ]);
   assert.deepEqual(
-    groups.map((group) => group.latest.id),
-    ['e1', 'e2', 'e3'],
+    merged.map((item) => item.key),
+    ['a', 'b', 'c'],
   );
-  assert.ok(groups.every((group) => group.entries.length === 1));
 });
 
-test('a group names its record when the payload gave one up', () => {
-  const named = groupAuditLogs([entry('e1', { metadata: JSON.stringify({ reference: 'PO-0912' }) })], severityOf)[0];
-  assert.equal(named.record, 'PO-0912');
-  assert.equal(named.named, true);
-
-  const unnamed = groupAuditLogs([entry('e1', { resourceId: '8f3e2a1b-4c9d-4e17-a3f2-77b19c0e5d84' })], severityOf)[0];
-  assert.equal(unnamed.record, '8f3e…5d84');
-  assert.equal(unnamed.named, false);
+test('groups sit under their day, in the order the API sent them', () => {
+  const days = groupsByDay([group({ key: 'a' }), group({ key: 'b' }), group({ key: 'c', day: '2026-09-23' })]);
+  assert.deepEqual(
+    days.map((day) => [day.day, day.groups.map((item) => item.key)]),
+    [
+      ['2026-09-24', ['a', 'b']],
+      ['2026-09-23', ['c']],
+    ],
+  );
 });
 
 test('summaries stay short however many entries a record collects', () => {
   assert.equal(summariseVerbs(['cancelled']), 'cancelled');
   assert.equal(summariseVerbs(['cancelled', 'moved']), 'cancelled and moved');
   assert.equal(summariseVerbs(['cancelled', 'moved', 'took', 'refunded']), 'cancelled, moved and 2 more');
-  assert.equal(summariseActors(['Sam Reed']), 'Sam Reed');
-  assert.equal(summariseActors(['Sam Reed', 'Ana Ruiz']), 'Sam Reed and 1 other');
-  assert.equal(summariseActors(['Sam Reed', 'Ana Ruiz', 'Kai Obi']), 'Sam Reed and 2 others');
 });
 
 // ── Status ────────────────────────────────────────────────────────────────────
@@ -283,4 +305,37 @@ test('severityLabel still reports problems only, for callers that treat silence 
   assert.equal(severityLabel('ok'), null);
   assert.equal(severityLabel('destructive'), null);
   assert.equal(severityLabel('failed', 500), 'Failed');
+});
+
+// ── Fallback grouping ─────────────────────────────────────────────────────────
+
+const { dayIn, entryMatches, groupEntriesLocally } = await import('../lib/audit/groups.ts');
+
+test('without the groups endpoint, a page is grouped the way the server groups', () => {
+  const at = (iso: string, over: Partial<AuditLogShape> = {}) =>
+    log({ createdAt: iso, userId: 'u1', userName: 'Sam', resourceId: 'o1', ...over });
+  const groups = groupEntriesLocally(
+    [
+      at('2026-09-24T09:00:00.000Z', { id: 'a', action: 'orders.create' }),
+      at('2026-09-24T09:05:00.000Z', { id: 'b', action: 'orders.update', statusCode: 500 }),
+      at('2026-09-24T23:30:00.000Z', { id: 'c', action: 'orders.update' }), // 00:30 on the 25th in London
+      at('2026-09-24T09:10:00.000Z', { id: 'd', resourceId: null }),
+    ],
+    'Europe/London',
+    (entry) => (entry.statusCode && entry.statusCode >= 500 ? 'failed' : 'ok'),
+  );
+  assert.deepEqual(
+    groups.map((group) => [group.day, group.count, group.severity, group.entryIds]),
+    [
+      ['2026-09-25', 1, 'ok', ['c']],
+      ['2026-09-24', 1, 'ok', ['d']],
+      ['2026-09-24', 2, 'failed', ['b', 'a']],
+    ],
+  );
+  assert.equal(dayIn('2026-09-24T23:30:00.000Z', 'UTC'), '2026-09-24');
+});
+
+test('the fallback search matches the entry’s own words', () => {
+  assert.equal(entryMatches(log({ metadata: JSON.stringify({ name: 'Whole milk' }) }), 'milk'), true);
+  assert.equal(entryMatches(log({ userName: 'Sam Reed' }), 'ana'), false);
 });

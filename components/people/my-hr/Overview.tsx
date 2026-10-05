@@ -1,5 +1,7 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'motion/react';
+import { useState } from 'react';
 
 import {
   AlertTriangle,
@@ -8,44 +10,46 @@ import {
   CalendarCheck,
   CalendarClock,
   CalendarDays,
-  CircleHelp,
   Clock,
-  HeartHandshake,
   Info,
   Landmark,
-  Loader2,
-  Mail,
-  MapPin,
-  Phone,
   Receipt,
   Shield,
+  Timer,
   UserRound,
   Users,
   Wallet,
 } from '@/components/icons';
-import { AttentionList, type AttentionTone } from '@/components/shared/AttentionList';
-import { InfoGroup, InfoRow } from '@/components/shared/InfoRow';
-import { StatCard } from '@/components/shared/StatCard';
+import { PersonalPanel } from '@/components/people/record/OverviewPanels';
+import { RecordBlock, RecordList, RecordListRow } from '@/components/people/record/shared';
+import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { Fact } from '@/components/settings/controls';
+import { NeedsAttention, type NeedsAttentionTone } from '@/components/shared/NeedsAttention';
+import { Button } from '@/components/ui/button';
 
+import type { Payslip } from '@/lib/modules/payroll/client';
 import type { HrEmployee } from '@/lib/modules/people/client';
-import type { LeaveEntitlement, Payslip } from '@/lib/modules/people/client';
+import type { LeaveEntitlement } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { getMyScheduledShifts } from '@/lib/modules/workforce/client';
+import { lengthOfService } from '@/lib/utils/employee-record';
 import { type ActionSeverity, type MyHrAction, leaveBalance } from '@/lib/utils/my-hr';
 import { useAuthStore } from '@/stores/authStore';
 
 import type { BankVisibility, MyHrTab } from './shared';
 import { fmt, money } from './shared';
+import { useMonthAttendance } from './useMonthAttendance';
 
 /**
- * How consequence maps onto the shared panel's tones and glyphs: something that
- * stops you being paid is an exception, a deadline is measured, a receipt is
- * reference.
+ * How consequence maps onto the shared card's tones and glyphs — the staff
+ * overview's mapping: something that stops you being paid is an exception, a
+ * deadline is measured, the rest is information.
  */
-const SEVERITY_TONE: Record<ActionSeverity, AttentionTone> = {
+const SEVERITY_TONE: Record<ActionSeverity, NeedsAttentionTone> = {
   blocking: 'exception',
   attention: 'measured',
-  info: 'reference',
+  info: 'info',
 };
 const SEVERITY_ICON: Record<ActionSeverity, typeof AlertTriangle> = {
   blocking: AlertTriangle,
@@ -53,201 +57,269 @@ const SEVERITY_ICON: Record<ActionSeverity, typeof AlertTriangle> = {
   info: Info,
 };
 
+const hrs = (hours: number) => `${Math.round(hours * 10) / 10}h`;
+
 /**
- * The employee's home: what needs them, where they stand, what happens next,
- * then the record itself.
+ * The employee's home, laid out as a settings tab and as their manager sees
+ * their record — the same rows, so the two read as one product.
  *
- * Editing lives in the page header rather than on each card — one way in, one
- * drawer, instead of four buttons that all open the same form.
+ * Top to bottom: what needs you; four facts that say where you stand, each a
+ * way into the tab behind it; then the record — employment and pay in the main
+ * column, personal details (the staff record's own panel) beside them.
+ *
+ * Said once each: your name is the page title, so it is not a row; open
+ * requests are the Requests tab's badge and the "needs you" list, so they are
+ * not a tile. Editing is the header's one button and the personal panel's
+ * "Add" for a missing contact — both open the same drawer.
  */
 export function Overview({
   employee,
   loading,
   entitlements,
   latestPayslip,
-  openTickets,
+  payrollEnabled,
   bank,
   actions,
   onAction,
+  onEdit,
   go,
+  canCreateOwnEmployeeRecord,
+  onCreateOwnEmployeeRecord,
 }: {
   employee?: HrEmployee;
   loading: boolean;
   entitlements: LeaveEntitlement[];
   latestPayslip?: Payslip;
-  openTickets: number;
+  payrollEnabled: boolean;
   bank: BankVisibility;
   actions: MyHrAction[];
   onAction: (action: MyHrAction) => void;
+  onEdit: () => void;
   go: (tab: MyHrTab) => void;
+  canCreateOwnEmployeeRecord: boolean;
+  onCreateOwnEmployeeRecord: () => void;
 }) {
   const user = useAuthStore((s) => s.user);
   const leave = leaveBalance(entitlements);
+  const month = useMonthAttendance(0);
+  const [asOf] = useState(() => new Date());
 
   if (loading)
     return (
-      <div className="flex justify-center py-24">
-        <Loader2 className="animate-spin text-muted-foreground" />
+      <div className="space-y-5" aria-busy="true" aria-label="Loading your record">
+        <div className="h-16 animate-pulse rounded-lg bg-band/60" />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[0, 1, 2, 3].map((tile) => (
+            <div key={tile} className="h-16 animate-pulse rounded-lg bg-band/60" />
+          ))}
+        </div>
+        <div className="h-64 animate-pulse rounded-lg bg-band/60" />
       </div>
     );
 
   if (!employee)
     return (
-      <div className="rounded-md border border-rule bg-card p-8 text-center shadow-sm">
-        <p className="text-sm font-semibold text-foreground">No employment record yet</p>
+      <div className="flex flex-col items-center rounded-lg border border-rule/60 bg-field px-6 py-10 text-center">
+        <span className="flex size-12 items-center justify-center rounded-lg bg-primary/8 text-primary">
+          <UserRound size={22} aria-hidden="true" />
+        </span>
+        <p className="mt-3 text-sm font-semibold text-foreground">No employment record yet</p>
         <p className="mx-auto mt-1.5 max-w-[60ch] text-sm leading-6 text-muted-foreground">
-          Your account isn&rsquo;t linked to an employment record, so there are no leave balances, payslips or documents to show. HR can set
-          this up for you.
+          Your account isn&rsquo;t linked to an employment record, so there are no leave balances, payslips or documents to show.
         </p>
+        {canCreateOwnEmployeeRecord ? (
+          <Button className="mt-5" onClick={onCreateOwnEmployeeRecord}>
+            Add employee record
+          </Button>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">Ask your HR team to set this up for you.</p>
+        )}
       </div>
     );
 
+  const service = employee.startDate ? lengthOfService(employee.startDate, asOf) : null;
+  const monthName = month.range.first.toLocaleDateString('en-GB', { month: 'long' });
+
   return (
-    <div className="space-y-4">
-      <AttentionList
+    <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
+      {/* The same folded card as the staff page and every workspace: one line
+          saying how many and what, opening to a row per thing with its fix. */}
+      <NeedsAttention
+        label="Needs you"
         items={actions.map((action) => ({
           key: action.id,
           tone: SEVERITY_TONE[action.severity],
           icon: SEVERITY_ICON[action.severity],
-          label: action.title,
+          title: action.title,
           detail: action.detail,
-          actionLabel: action.actionLabel,
-          onSelect: () => onAction(action),
+          fix: { label: action.actionLabel, run: () => onAction(action) },
         }))}
-        clearDescription="Your record is complete and no requests are waiting on a reply."
+        clear={{ title: 'Nothing needs you', detail: 'Your record is complete and no requests are waiting on a reply.' }}
       />
 
-      {/* Where you stand, then what's next — the standing figures earn the width. */}
-      <div className="grid gap-4 lg:grid-cols-4">
-        <div className="grid gap-4 sm:grid-cols-3 lg:col-span-3">
-          <StatCard
-            label="Holiday left"
-            value={leave.hasEntitlement ? leave.remaining : '—'}
-            unit={leave.hasEntitlement ? 'days' : undefined}
-            caption={leave.hasEntitlement ? `${leave.used} of ${leave.total} used` : 'No allowance set'}
-            icon={CalendarDays}
-            accent="primary"
-            size="sm"
-            onSelect={() => go('time-off')}
-          />
-          <StatCard
-            label="Last payslip"
-            value={latestPayslip ? money(latestPayslip.netPay, latestPayslip.currency) : '—'}
-            caption={latestPayslip ? `${fmt(latestPayslip.payPeriodStart)} – ${fmt(latestPayslip.payPeriodEnd)}` : 'None issued yet'}
+      {/* Where you stand — each tile a way into the tab that explains it. */}
+      <motion.dl variants={SECTION_RISE} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Fact
+          surface="page"
+          icon={CalendarDays}
+          label="Holiday left"
+          value={leave.hasEntitlement ? `${leave.remaining} days` : 'No allowance'}
+          hint={leave.hasEntitlement ? `${leave.used} of ${leave.total} used` : 'Ask HR to set one'}
+          onSelect={() => go('time-off')}
+        />
+        <NextShift />
+        <Fact
+          surface="page"
+          icon={Timer}
+          label={`Worked · ${monthName}`}
+          value={month.isLoading ? '…' : month.isError ? '—' : hrs(month.totals.workedHours)}
+          hint={
+            month.isError
+              ? 'Couldn’t be loaded'
+              : month.totals.plannedHours > 0
+                ? `of ${hrs(month.totals.plannedHours)} rostered so far`
+                : 'Nothing rostered yet'
+          }
+          tone={month.isError ? 'warning' : 'default'}
+          onSelect={() => go('attendance')}
+        />
+        {payrollEnabled ? (
+          <Fact
+            surface="page"
             icon={Wallet}
-            accent="success"
-            size="sm"
+            label="Last payslip"
+            value={latestPayslip ? money(latestPayslip.netPay, latestPayslip.currency) : 'None yet'}
+            hint={latestPayslip ? `${fmt(latestPayslip.payPeriodStart)} – ${fmt(latestPayslip.payPeriodEnd)}` : 'Appears once issued'}
             onSelect={() => go('documents')}
           />
-          <StatCard
-            label="Open requests"
-            value={openTickets}
-            caption={openTickets === 0 ? 'Nothing outstanding' : 'With HR now'}
-            icon={CircleHelp}
-            accent="info"
-            size="sm"
-            onSelect={() => go('requests')}
+        ) : (
+          <Fact
+            surface="page"
+            icon={CalendarCheck}
+            label="With us"
+            value={service ?? (employee.startDate ? `Starts ${fmt(employee.startDate)}` : 'No start date')}
+            hint={service && employee.startDate ? `Since ${fmt(employee.startDate)}` : undefined}
           />
-        </div>
-        <NextShift />
-      </div>
+        )}
+      </motion.dl>
 
-      {/* Columns, not a grid: these cards hold different numbers of fields, and
-          a grid row reserves the height of its tallest card — leaving a hole
-          under the short one. Flowing them fills the column instead.
-          `-mb-4` cancels the trailing margin the last card in each column adds. */}
-      <div className="columns-1 gap-4 lg:columns-2 -mb-4">
-        <DetailCard title="Personal details">
-          <InfoRow icon={UserRound} label="Name" value={user?.name} />
-          <InfoRow icon={Mail} label="Email" value={user?.email} copyable />
-          <InfoRow icon={CalendarCheck} label="Date of birth" value={employee.dateOfBirth ? fmt(employee.dateOfBirth) : undefined} />
-          <InfoRow icon={MapPin} label="Home address" value={employee.address} />
-        </DetailCard>
+      {/* The record in the audit log's rows: a tinted tile, the value in bold,
+          what it is beneath, a pill only when something's off, any action on
+          the right — one hairline list each. Personal details is the staff
+          record's own panel, so you and your manager see one drawing of it. */}
+      <SettingsTabBody aside={<PersonalPanel employee={employee} email={user?.email} onEdit={onEdit} />}>
+        <RecordBlock id="my-employment" label="Employment">
+          <RecordList>
+            <RecordListRow icon={Building2} label="Job title" value={employee.jobTitle} />
+            <RecordListRow icon={Users} label="Department" value={employee.department} placeholder="No department" />
+            <RecordListRow
+              icon={Clock}
+              label="Employment type"
+              value={employee.employmentType ? capitalise(employee.employmentType.replaceAll('_', ' ')) : undefined}
+            />
+            <RecordListRow
+              icon={CalendarCheck}
+              label="Started"
+              // Length of service is the "With us" tile when payroll is off — said once.
+              detail={payrollEnabled && service ? service : undefined}
+              value={employee.startDate && fmt(employee.startDate)}
+            />
+          </RecordList>
+        </RecordBlock>
 
-        <DetailCard title="Emergency contact">
-          <InfoRow icon={HeartHandshake} label="Name" value={employee.emergencyContactName} />
-          <InfoRow icon={Phone} label="Phone" value={employee.emergencyContactPhone} copyable />
-        </DetailCard>
-
-        <DetailCard title="Pay details">
-          <InfoRow
-            icon={Shield}
-            label="National Insurance number"
-            value={employee.hasNiNumber ? 'Held' : undefined}
-            missingLabel="Missing"
-          />
-          <InfoRow icon={Receipt} label="Tax code" value={employee.taxCode ?? undefined} missingLabel="Set by payroll" />
-          <InfoRow
-            icon={Landmark}
-            label="Bank account"
-            // Stored values are never returned to the employee, so the row
-            // reports whether one is on file — never a partial number.
-            value={bank.known ? (bank.hasBankDetails ? `Held${bank.bankName ? ` · ${bank.bankName}` : ''}` : undefined) : 'Not shown here'}
-            missingLabel="None on file"
-            hint={bank.known ? undefined : 'Use Edit details to set or replace them.'}
-          />
-          <InfoRow
-            icon={Banknote}
-            label="Pay basis"
-            value={employee.payType === 'hourly' ? 'Hourly' : employee.payType === 'salaried' ? 'Salary' : undefined}
-          />
-        </DetailCard>
-
-        <DetailCard title="Your employment">
-          <InfoRow icon={Building2} label="Job title" value={employee.jobTitle} />
-          <InfoRow icon={Users} label="Department" value={employee.department} />
-          <InfoRow icon={Clock} label="Employment type" value={employee.employmentType?.replaceAll('_', ' ')} />
-          <InfoRow icon={CalendarCheck} label="Started" value={employee.startDate ? fmt(employee.startDate) : undefined} />
-        </DetailCard>
-      </div>
-    </div>
+        <RecordBlock
+          id="my-pay"
+          label="Pay details"
+          note="Stored values are never shown back to you — these say whether each is on file. Change them with Edit your details."
+        >
+          <RecordList>
+            <RecordListRow
+              icon={Banknote}
+              tone="money"
+              label="Pay basis"
+              value={employee.payType === 'hourly' ? 'Hourly' : employee.payType === 'salaried' ? 'Salary' : undefined}
+            />
+            <RecordListRow
+              icon={Shield}
+              tone="money"
+              label="National Insurance number"
+              value={employee.hasNiNumber ? 'On file' : undefined}
+              missing="Not on file"
+            />
+            <RecordListRow
+              icon={Receipt}
+              tone="money"
+              label="Tax code"
+              value={employee.taxCode ?? undefined}
+              placeholder="Set by payroll"
+            />
+            <RecordListRow
+              icon={Landmark}
+              tone="money"
+              label="Bank account"
+              // A refused read is "can't tell", never "none held".
+              value={
+                bank.known ? (bank.hasBankDetails ? `On file${bank.bankName ? ` · ${bank.bankName}` : ''}` : undefined) : 'Not shown here'
+              }
+              missing={bank.known ? 'Not on file' : undefined}
+            />
+          </RecordList>
+        </RecordBlock>
+      </SettingsTabBody>
+    </motion.div>
   );
 }
 
-function DetailCard({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-4 break-inside-avoid rounded-md border border-rule bg-card p-4 shadow-sm md:p-5">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
-      <InfoGroup className="mt-3 border-0 bg-transparent px-0 py-0">{children}</InfoGroup>
-    </section>
-  );
-}
+const capitalise = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
 /**
- * The fourth tile in the row, and the same component as the other three — the
- * rota already exists at /scheduling, so this states the next shift and links
- * there rather than redrawing it.
+ * Your next shift as a fact. The rota lives at /scheduling, so this states it
+ * and links there rather than redrawing it.
  */
 function NextShift() {
-  const now = new Date();
-  const from = now.toISOString().slice(0, 10);
-  const to = new Date(now.getTime() + 28 * 86400000).toISOString().slice(0, 10);
-  const { data = [], isLoading } = useQuery({
+  const [{ now, from, to }] = useState(() => {
+    const at = new Date();
+    return {
+      now: at.getTime(),
+      from: at.toISOString().slice(0, 10),
+      to: new Date(at.getTime() + 28 * 86400000).toISOString().slice(0, 10),
+    };
+  });
+  const {
+    data = [],
+    isPending,
+    isError,
+  } = useQuery({
     queryKey: moduleQueryKeys.workforce.key('my-scheduled-shifts', from, to),
     queryFn: () => getMyScheduledShifts({ from, to }),
     retry: false,
   });
 
-  const next = [...data]
-    .filter((shift) => new Date(shift.endsAt).getTime() > now.getTime())
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
-
+  const next = [...data].filter((shift) => new Date(shift.endsAt).getTime() > now).sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
   const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  const caption = next
-    ? [`${time(next.startsAt)}–${time(next.endsAt)}`, next.location?.name].filter(Boolean).join(' · ')
-    : 'Nothing in the next four weeks';
 
   return (
-    <StatCard
-      label="Next shift"
-      // The day answers "when am I in?"; the hours and site follow beneath it.
-      value={next ? new Date(next.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}
-      caption={caption}
+    <Fact
+      surface="page"
       icon={CalendarClock}
-      accent="neutral"
-      size="sm"
-      loading={isLoading}
+      label="Next shift"
+      value={
+        isPending
+          ? '…'
+          : isError
+            ? '—'
+            : next
+              ? new Date(next.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+              : 'None planned'
+      }
+      hint={
+        isError
+          ? 'Couldn’t be loaded'
+          : next
+            ? [`${time(next.startsAt)}–${time(next.endsAt)}`, next.location?.name].filter(Boolean).join(' · ')
+            : 'Nothing in the next four weeks'
+      }
+      tone={isError ? 'warning' : 'default'}
       href="/scheduling"
     />
   );
