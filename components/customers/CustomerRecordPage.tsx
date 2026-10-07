@@ -49,6 +49,7 @@ import { getCustomer, getCustomerLedger, getCustomerLoyaltyWallet, unmergeCustom
 import { getOrders } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { customerDisplayName } from '@/lib/utils/customer-card';
 import { formatDate } from '@/lib/utils/date';
 import { type VisitSummary, summariseVisits } from '@/lib/utils/visit-pattern';
 import { useAuthStore } from '@/stores/authStore';
@@ -195,7 +196,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
     void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customers') });
   }
 
-  const name = customer ? `${customer.firstName} ${customer.lastName}` : isLoading ? 'Loading…' : 'Customer';
+  const name = customer ? customerDisplayName(customer) : isLoading ? 'Loading…' : 'Customer';
   const tier = customer ? TIER_CONFIG[customer.tier] : null;
   const erased = Boolean(customer?.anonymisedAt);
   const hasAllergies = (customer?.allergies?.length ?? 0) > 0;

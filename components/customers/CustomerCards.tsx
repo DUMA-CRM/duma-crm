@@ -7,7 +7,7 @@ import { Bone } from '@/components/shared/Skeleton';
 
 import { TIER_CONFIG } from '@/lib/constants/customers';
 import { cn } from '@/lib/utils/cn';
-import { type VisitTone, allergySummary, birthdayThisMonth, visitStatus } from '@/lib/utils/customer-card';
+import { type VisitTone, allergySummary, birthdayThisMonth, customerDisplayName, visitStatus } from '@/lib/utils/customer-card';
 import type { Customer } from '@/types/customers';
 
 /**
@@ -100,7 +100,7 @@ function CustomerCard({
   onToggle: () => void;
 }) {
   const [now] = useState(() => Date.now());
-  const name = `${customer.firstName} ${customer.lastName}`.trim() || 'Unnamed guest';
+  const name = customerDisplayName(customer);
   const visit = visitStatus(customer.lastVisitAt, now);
   const critical = customer.alerts?.find((alert) => alert.severity === 'critical');
   const allergies = allergySummary(customer.allergies);

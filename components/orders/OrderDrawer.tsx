@@ -12,12 +12,14 @@ import {
   CreditCard,
   Download,
   FileText,
+  Globe,
   Loader2,
   Mail,
   MapPin,
   Receipt,
   RotateCcw,
   Timer,
+  Truck,
   User,
   XCircle,
 } from '@/components/icons';
@@ -43,7 +45,9 @@ import {
   nextStep,
   orderActivity,
   orderCode,
+  paymentSourceLabel,
   paymentSummary,
+  shippingAddressLines,
   turnaround,
 } from '@/lib/utils/orders-list';
 import { useAuthStore } from '@/stores/authStore';
@@ -346,6 +350,23 @@ export function OrderDrawer({
               />
               <Detail icon={MapPin} label="Location" value={locationName(data.locationId) ?? 'Unknown location'} />
               {data.collectionTime && <Detail icon={Clock} label="Collect at" value={formatDateTime(data.collectionTime)} />}
+              {/* From the business's own website: its number, who took the money, where it goes. */}
+              {data.externalReference && <Detail icon={Globe} label="Website order" value={data.externalReference} />}
+              {paymentSourceLabel(data.paymentProvider, data.paymentReference) && (
+                <Detail icon={CreditCard} label="Paid via" value={paymentSourceLabel(data.paymentProvider, data.paymentReference)!} />
+              )}
+              {data.fulfilmentType && data.fulfilmentType !== 'collection' && (
+                <Detail
+                  icon={Truck}
+                  label={data.fulfilmentType === 'shipping' ? 'Shipping' : 'Delivery'}
+                  value={[data.deliveryMethod, Number(data.deliveryFee ?? 0) > 0 ? money(data.deliveryFee!) : 'Free']
+                    .filter(Boolean)
+                    .join(' · ')}
+                />
+              )}
+              {data.shippingAddress && (
+                <Detail wide icon={MapPin} label="Send to" value={shippingAddressLines(data.shippingAddress).join(', ')} />
+              )}
               {data.voidReason && (
                 <Detail
                   wide

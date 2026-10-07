@@ -6097,6 +6097,278 @@
         ]
       }
     },
+    "/v1/api-keys": {
+      "get": {
+        "operationId": "getV1ApiKeys",
+        "tags": [
+          "API keys"
+        ],
+        "summary": "List workspace API keys",
+        "description": "Tokens are never returned after creation; `tokenPrefix` identifies them.",
+        "responses": {
+          "200": {
+            "description": "{ data: ApiKey[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1ApiKeys",
+        "tags": [
+          "API keys"
+        ],
+        "summary": "Create a workspace API key",
+        "description": "The response holds the token once, in `token`.",
+        "responses": {
+          "201": {
+            "description": "{ apiKey, token }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/api-keys/{id}": {
+      "patch": {
+        "operationId": "patchV1ApiKeysById",
+        "tags": [
+          "API keys"
+        ],
+        "summary": "Update a workspace API key",
+        "responses": {
+          "200": {
+            "description": "ApiKey"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/api-keys/{id}/revoke": {
+      "post": {
+        "operationId": "postV1ApiKeysByIdRevoke",
+        "tags": [
+          "API keys"
+        ],
+        "summary": "Revoke a workspace API key",
+        "responses": {
+          "200": {
+            "description": "ApiKey"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/store": {
+      "get": {
+        "operationId": "getV1Store",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Describe the storefront key",
+        "responses": {
+          "200": {
+            "description": "Key kind, scopes, currency"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/store/categories": {
+      "get": {
+        "operationId": "getV1StoreCategories",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "List categories",
+        "responses": {
+          "200": {
+            "description": "Categories"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/store/products": {
+      "get": {
+        "operationId": "getV1StoreProducts",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "List products for sale",
+        "description": "Query: `category` (slug or id), `q` (name search), `limit` (1–100, default 24), `page`.",
+        "responses": {
+          "200": {
+            "description": "Products with sizes, prices and availability"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/store/products/{idOrSlug}": {
+      "get": {
+        "operationId": "getV1StoreProductsByIdOrSlug",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Get one product",
+        "responses": {
+          "200": {
+            "description": "Product"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found or not for sale"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "idOrSlug",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/store/newsletter": {
+      "post": {
+        "operationId": "postV1StoreNewsletter",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Subscribe to the newsletter",
+        "description": "Secret key only — call it from your server when someone signs up. The subscriber is a customer (matched by email, or created with just an email) who has opted in to marketing email; signing up again after unsubscribing opts them back in.",
+        "responses": {
+          "200": {
+            "description": "{ data: { status: \"subscribed\", alreadySubscribed } }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/store/newsletter/unsubscribe": {
+      "post": {
+        "operationId": "postV1StoreNewsletterUnsubscribe",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Unsubscribe from the newsletter",
+        "description": "Secret key only. For your site’s own preferences page; emails DUMA sends carry their own unsubscribe link.",
+        "responses": {
+          "200": {
+            "description": "{ data: { status: \"unsubscribed\" } }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/store/orders": {
+      "post": {
+        "operationId": "postV1StoreOrders",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Record a paid storefront order",
+        "description": "Secret key only. Prices come from DUMA; send products and sizes, never amounts. The customer is matched by email (or created), the address kept, and stock taken off now — a size that has run out fails the whole order with 409 `out_of_stock`. Sending the same `externalReference` again returns the original order.",
+        "responses": {
+          "200": {
+            "description": "The order already recorded under this externalReference"
+          },
+          "201": {
+            "description": "Order recorded"
+          },
+          "400": {
+            "description": "Unknown product or size, a size not chosen, or an invalid discount code"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "`out_of_stock`, `total_mismatch`, or `location_not_configured`"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/orders/bulk-status": {
       "patch": {
         "operationId": "patchV1OrdersBulkStatus",
@@ -6553,7 +6825,8 @@
               "enum": [
                 "pos",
                 "mobile",
-                "qr_code"
+                "qr_code",
+                "web"
               ]
             },
             "description": "Filter by order source"

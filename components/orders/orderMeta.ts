@@ -1,4 +1,4 @@
-import { Bell, CheckCircle2, Clock, Flame, Monitor, QrCode, Smartphone, XCircle } from '@/components/icons';
+import { Bell, CheckCircle2, Clock, Flame, Globe, Monitor, QrCode, Smartphone, XCircle } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import type { Tone } from '@/components/shared/tone';
 import type { SelectOption } from '@/components/ui/select';
@@ -63,6 +63,7 @@ export const SOURCE_META: Record<OrderSource, { label: string; short: string; ic
   pos: { label: 'Counter', short: 'Counter', icon: Monitor },
   mobile: { label: 'Mobile', short: 'Mobile', icon: Smartphone },
   qr_code: { label: 'QR table', short: 'QR', icon: QrCode },
+  web: { label: 'Website', short: 'Web', icon: Globe },
 };
 
 export const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {

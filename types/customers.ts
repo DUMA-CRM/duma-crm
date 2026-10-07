@@ -49,7 +49,8 @@ export interface Customer {
   userId?: string;
   firstName: string;
   lastName: string;
-  phone: string;
+  /** Null for a customer known only by email — a storefront buyer or newsletter subscriber. */
+  phone: string | null;
   email?: string;
   dob?: string;
   marketingOptIn: boolean;

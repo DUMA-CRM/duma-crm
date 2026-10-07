@@ -6,15 +6,15 @@ import { type ReactNode, useState } from 'react';
 import { TIER_RUNGS } from '@/components/customers/LoyaltyProgress';
 import { AlertTriangle, ArrowDown, ArrowUp, MailX, ShieldAlert } from '@/components/icons';
 import { Avatar } from '@/components/shared/Avatar';
-import { ListSkeleton } from '@/components/shared/Skeleton';
 import { IconTag } from '@/components/shared/IconTag';
 import { MiniBar } from '@/components/shared/MiniBar';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { StatusDot } from '@/components/shared/StatusDot';
 import type { Tone } from '@/components/shared/tone';
 
 import { TIER_CONFIG } from '@/lib/constants/customers';
 import { cn } from '@/lib/utils/cn';
-import { type VisitTone, visitStatus } from '@/lib/utils/customer-card';
+import { type VisitTone, customerDisplayName, visitStatus } from '@/lib/utils/customer-card';
 import { timeAgo } from '@/lib/utils/format';
 import { tierLadder } from '@/lib/utils/loyalty-tiers';
 import type { Customer, CustomerSort, SortDirection } from '@/types/customers';
@@ -152,7 +152,7 @@ function CustomerRow({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const name = `${customer.firstName} ${customer.lastName}`.trim();
+  const name = customerDisplayName(customer);
   const critical = customer.alerts?.some((alert) => alert.severity === 'critical') ?? false;
   const allergies = customer.allergies ?? [];
   const emailable = Boolean(customer.email) && customer.marketingOptIn && !customer.emailUnsubscribedAt;
@@ -230,7 +230,5 @@ function CustomerRow({
 }
 
 export function CustomerListSkeleton() {
-  return (
-    <ListSkeleton rows={8} avatar label="Loading customers" />
-  );
+  return <ListSkeleton rows={8} avatar label="Loading customers" />;
 }

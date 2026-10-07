@@ -145,7 +145,7 @@ export interface ModuleManifest {
 const pages: Record<ModuleId, readonly string[]> = {
   core: ['/'],
   identity: ['/forgot-password', '/reset-password', '/sign-in', '/sign-up', '/settings/roles', '/settings/security'],
-  organization: ['/settings', '/settings/modules', '/settings/trading', '/settings/workspaces'],
+  organization: ['/settings', '/settings/modules', '/settings/trading', '/settings/workspaces', '/settings/developers'],
   customers: ['/customers', '/customers/[id]', '/customers/duplicates', '/customers/loyalty'],
   catalog: [
     '/menu',

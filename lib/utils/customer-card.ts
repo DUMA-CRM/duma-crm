@@ -2,6 +2,19 @@
 
 const DAY_MS = 86_400_000;
 
+/**
+ * What to call a customer: their name, or — for someone known only by email,
+ * a storefront buyer or a newsletter subscriber — their email, never a blank.
+ */
+export function customerDisplayName(customer: {
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}): string {
+  return `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim() || customer.email || customer.phone || 'Unnamed customer';
+}
+
 export type VisitTone = 'active' | 'lapsed' | 'never' | 'idle';
 
 /**

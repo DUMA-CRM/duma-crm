@@ -84,7 +84,7 @@ const STATUS_TABS: { value: StatusFilter; label: string }[] = [
 
 const SOURCE_FILTERS: SelectOption[] = [
   { value: 'all', label: 'All channels' },
-  ...(['pos', 'qr_code', 'mobile'] as const).map((value) => ({ value, label: SOURCE_META[value].label })),
+  ...(['pos', 'qr_code', 'mobile', 'web'] as const).map((value) => ({ value, label: SOURCE_META[value].label })),
 ];
 
 const PAYMENT_FILTERS: SelectOption[] = [

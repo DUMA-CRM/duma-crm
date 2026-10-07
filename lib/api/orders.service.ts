@@ -1,7 +1,8 @@
 import { apiFetch } from './client';
 
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'done' | 'cancelled' | 'expired';
-export type OrderSource = 'pos' | 'mobile' | 'qr_code';
+/** `web`: placed by the business's own website through a storefront API key. */
+export type OrderSource = 'pos' | 'mobile' | 'qr_code' | 'web';
 
 export interface OrderItemModifier {
   id: string;
@@ -95,7 +96,7 @@ export interface RefundOptions {
   }>;
 }
 
-export interface OrderDetail {
+export interface OrderDetail extends StorefrontOrderFields {
   id: string;
   tenantId?: string;
   locationId: string;
@@ -106,7 +107,16 @@ export interface OrderDetail {
   source: OrderSource;
   totalAmount: string;
   paymentMethod: string | null;
-  paymentStatus?: 'unpaid' | 'processing' | 'awaiting_payment' | 'awaiting_cash_approval' | 'paid' | 'failed' | 'cancelled' | 'expired' | 'refunded';
+  paymentStatus?:
+    | 'unpaid'
+    | 'processing'
+    | 'awaiting_payment'
+    | 'awaiting_cash_approval'
+    | 'paid'
+    | 'failed'
+    | 'cancelled'
+    | 'expired'
+    | 'refunded';
   customerName?: string | null;
   collectionTime?: string | null;
   kitchenReleaseAt?: string | null;
@@ -134,7 +144,7 @@ export interface InventoryWarning {
   shortfallQuantity: number;
 }
 
-export interface Order {
+export interface Order extends StorefrontOrderFields {
   id: string;
   tenantId: string;
   locationId: string;
@@ -142,7 +152,16 @@ export interface Order {
   status: OrderStatus;
   /** `orders.refund_status` — the list returns whole rows, so this is present there too. */
   refundStatus?: RefundStatus;
-  paymentStatus?: 'unpaid' | 'processing' | 'awaiting_payment' | 'awaiting_cash_approval' | 'paid' | 'failed' | 'cancelled' | 'expired' | 'refunded';
+  paymentStatus?:
+    | 'unpaid'
+    | 'processing'
+    | 'awaiting_payment'
+    | 'awaiting_cash_approval'
+    | 'paid'
+    | 'failed'
+    | 'cancelled'
+    | 'expired'
+    | 'refunded';
   paymentMethod?: string | null;
   customerName?: string | null;
   collectionTime?: string | null;
@@ -155,6 +174,32 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
   inventoryWarnings?: InventoryWarning[];
+}
+
+/** What an order placed by the business's own website (source `web`) also carries. */
+export interface StorefrontOrderFields {
+  fulfilmentType?: 'collection' | 'delivery' | 'shipping' | null;
+  shippingAddress?: OrderShippingAddress | null;
+  deliveryMethod?: string | null;
+  deliveryFee?: string | null;
+  /** The website's own order number. */
+  externalReference?: string | null;
+  /** Who took the payment on the website, and their reference for it. */
+  paymentProvider?: string | null;
+  paymentReference?: string | null;
+  customerEmail?: string | null;
+}
+
+/** The address a storefront order was sent to, as it was at the time. */
+export interface OrderShippingAddress {
+  recipientName: string;
+  phone?: string | null;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  region?: string | null;
+  postcode: string;
+  country: string;
 }
 
 export interface OrdersResponse {
@@ -175,7 +220,16 @@ export interface OrdersParams {
   source?: OrderSource;
   createdBy?: string;
   paymentMethod?: 'cash' | 'card';
-  paymentStatus?: 'unpaid' | 'processing' | 'awaiting_payment' | 'awaiting_cash_approval' | 'paid' | 'failed' | 'cancelled' | 'expired' | 'refunded';
+  paymentStatus?:
+    | 'unpaid'
+    | 'processing'
+    | 'awaiting_payment'
+    | 'awaiting_cash_approval'
+    | 'paid'
+    | 'failed'
+    | 'cancelled'
+    | 'expired'
+    | 'refunded';
   from?: string;
   to?: string;
 }
@@ -229,7 +283,11 @@ export const getRefundOptions = (id: string) => apiFetch<RefundOptions>(`/orders
 
 export const createRefund = (
   id: string,
-  data: { lines: Array<{ orderItemId: string; orderItemModifierId?: string; quantity: number; restock?: boolean }>; reason: RefundReason; notes?: string },
+  data: {
+    lines: Array<{ orderItemId: string; orderItemModifierId?: string; quantity: number; restock?: boolean }>;
+    reason: RefundReason;
+    notes?: string;
+  },
 ) => apiFetch<OrderRefund>(`/orders/${id}/refunds`, { method: 'POST', body: JSON.stringify(data) });
 
 export const approveCashOrder = (id: string) => apiFetch<Order>(`/orders/${id}/approve-cash`, { method: 'POST' });

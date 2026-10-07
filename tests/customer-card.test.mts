@@ -41,3 +41,11 @@ test('a birthday hint only when it is close', () => {
   assert.equal(birthdayHint(12), 'Birthday in 12 days');
   assert.equal(birthdayHint(90), null);
 });
+
+test('a customer without a name is called by their email, then phone', async () => {
+  const { customerDisplayName } = await import('../lib/utils/customer-card.ts');
+  assert.equal(customerDisplayName({ firstName: 'Sam', lastName: 'Lee', email: 'sam@example.com' }), 'Sam Lee');
+  assert.equal(customerDisplayName({ firstName: '', lastName: '', email: 'sub@example.com' }), 'sub@example.com');
+  assert.equal(customerDisplayName({ firstName: '', lastName: '', phone: '+447700900001' }), '+447700900001');
+  assert.equal(customerDisplayName({}), 'Unnamed customer');
+});

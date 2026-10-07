@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 
 import {
   Building2,
+  Code,
   type IconComponent,
   KeyRound,
   LayoutGrid,
@@ -88,6 +89,13 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
     label: 'Connectors',
     icon: Plug,
     anyOf: ['email.connections:write', 'payments.connections:write', 'cms.keys:write'],
+  },
+  {
+    // Storefront API keys: the business's own website selling through DUMA.
+    href: '/settings/developers',
+    label: 'Developers',
+    icon: Code,
+    anyOf: ['settings:write'],
   },
   {
     href: '/settings/qr-ordering',

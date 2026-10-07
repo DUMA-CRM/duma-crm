@@ -202,7 +202,7 @@ function SubjectPicker({ tenantId, onPick }: { tenantId?: string; onPick: (subje
           kind: 'customer',
           id: customer.id,
           name: `${customer.firstName} ${customer.lastName}`.trim(),
-          hint: customer.email || customer.phone,
+          hint: customer.email || customer.phone || undefined,
         }))
       : (staff.data ?? [])
           .filter((member) => !term || `${member.name ?? ''} ${member.email ?? ''}`.toLowerCase().includes(term.toLowerCase()))

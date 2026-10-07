@@ -574,8 +574,8 @@ const adjustCustomerPoints: ActionDefinition = {
     const customers = await runtime.get<CustomersResponse>('/customers?limit=100');
     const options = (customers.data ?? []).map((customer) => ({
       value: customer.id,
-      label: `${customer.firstName} ${customer.lastName}`.trim() || customer.phone,
-      hint: `${customer.pointsBalance} pts · ${customer.phone}`,
+      label: `${customer.firstName} ${customer.lastName}`.trim() || customer.email || customer.phone || 'Unnamed customer',
+      hint: [`${customer.pointsBalance} pts`, customer.phone ?? customer.email].filter(Boolean).join(' · '),
     }));
     if (options.length === 0) return { error: 'There are no customers in this workspace yet.' };
     return {

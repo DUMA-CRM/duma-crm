@@ -10,7 +10,8 @@ import type { Order, OrderItem, OrderStatus } from '@/lib/modules/ordering/clien
 /** "#AB12CD34" — the short code staff read out, from the id's first eight characters. */
 export const orderCode = (id: string) => `#${id.slice(0, 8).toUpperCase()}`;
 
-const localKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const localKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 export interface OrderDay<T> {
   /** YYYY-MM-DD, local. */
@@ -51,7 +52,8 @@ export function groupOrdersByDay<T extends Pick<Order, 'createdAt' | 'status' | 
     }
     day.orders.push(order);
     day.count += 1;
-    if (order.status !== 'cancelled' && order.status !== 'expired') day.total = Math.round((day.total + Number(order.totalAmount || 0)) * 100) / 100;
+    if (order.status !== 'cancelled' && order.status !== 'expired')
+      day.total = Math.round((day.total + Number(order.totalAmount || 0)) * 100) / 100;
   }
   return [...days.values()].sort((a, b) => b.key.localeCompare(a.key));
 }
@@ -90,8 +92,19 @@ export function nextStep(order: Pick<Order, 'status' | 'paymentStatus'>): { stat
 export type PaymentTone = 'success' | 'warning' | 'exception' | 'muted';
 
 /** How an order's payment reads in a row: the method, and a state only when it isn't simply paid. */
-export function paymentSummary(order: Pick<Order, 'paymentMethod' | 'paymentStatus'>): { method: string; state: string | null; tone: PaymentTone } {
-  const method = order.paymentMethod === 'cash' ? 'Cash' : order.paymentMethod === 'card' ? 'Card' : order.paymentMethod ? order.paymentMethod : 'No payment';
+export function paymentSummary(order: Pick<Order, 'paymentMethod' | 'paymentStatus'>): {
+  method: string;
+  state: string | null;
+  tone: PaymentTone;
+} {
+  const method =
+    order.paymentMethod === 'cash'
+      ? 'Cash'
+      : order.paymentMethod === 'card'
+        ? 'Card'
+        : order.paymentMethod
+          ? order.paymentMethod
+          : 'No payment';
   switch (order.paymentStatus) {
     case undefined:
     case 'paid':
@@ -169,7 +182,8 @@ export function selectEverything(items: RefundableItem[]): RefundSelection {
   const selection: RefundSelection = {};
   for (const item of items) {
     if (item.base.remainingQuantity > 0) selection[`item:${item.id}`] = item.base.remainingQuantity;
-    for (const modifier of item.modifiers) if (modifier.remainingQuantity > 0) selection[`modifier:${modifier.id}`] = modifier.remainingQuantity;
+    for (const modifier of item.modifiers)
+      if (modifier.remainingQuantity > 0) selection[`modifier:${modifier.id}`] = modifier.remainingQuantity;
   }
   return selection;
 }
@@ -239,4 +253,30 @@ export function turnaround(history: { status: OrderStatus; createdAt: string }[]
   const cancelled = at('cancelled');
   if (cancelled) return `Cancelled after ${formatGap(new Date(cancelled.createdAt).getTime() - from)}`;
   return null;
+}
+
+// ─── Storefront orders ───────────────────────────────────────────────────────
+
+/** A delivery address as lines to print on a packing slip, blanks dropped. */
+export function shippingAddressLines(address: {
+  recipientName: string;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  region?: string | null;
+  postcode: string;
+  country: string;
+}): string[] {
+  const town = [address.city, address.region].filter(Boolean).join(', ');
+  return [address.recipientName, address.line1, address.line2, town, address.postcode.toUpperCase(), address.country.toUpperCase()]
+    .map((line) => line?.trim())
+    .filter((line): line is string => Boolean(line));
+}
+
+/** "Stripe · pi_3Nf…" — who took a website order's payment, and their reference, shortened. */
+export function paymentSourceLabel(provider: string | null | undefined, reference: string | null | undefined): string | null {
+  if (!provider) return null;
+  const name = provider.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  if (!reference) return name;
+  return `${name} · ${reference.length > 18 ? `${reference.slice(0, 16)}…` : reference}`;
 }
