@@ -6,10 +6,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { ChefHat, CircleDollarSign, Plus, Search, UploadCloud, UtensilsCrossed, X } from '@/components/icons';
+import { ChefHat, CircleDollarSign, Plus, Search, Tag, UploadCloud, UtensilsCrossed, X } from '@/components/icons';
 import { CatalogImportDialog } from '@/components/menu/CatalogImportDialog';
 import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
 import { MenuSetupChecklist } from '@/components/menu/MenuSetupChecklist';
+import { ShopSetupChecklist } from '@/components/menu/ShopSetupChecklist';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
@@ -24,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { type MenuItemCost, useMenuItemCosts } from '@/lib/hooks/useMenuItemCosts';
 import { getMenuCategories, getMenuItems, updateMenuItem } from '@/lib/modules/catalog/client';
 import { getRecipeGaps } from '@/lib/modules/inventory/client';
@@ -50,6 +52,7 @@ export function MenuItemsWorkspace() {
   const canReadRecipes = hasCapability(capabilities, 'recipes:read');
   const [search, setSearch] = useState('');
   const [importing, setImporting] = useState(false);
+  const words = useCatalogWords();
   const [categoryFilter, setCategoryFilter] = useState<'all' | MenuCategory>('all');
 
   const itemsQuery = useQuery({
@@ -89,8 +92,8 @@ export function MenuItemsWorkspace() {
 
   return (
     <EditorShell
-      title="Menu"
-      icon={<UtensilsCrossed size={20} aria-hidden="true" />}
+      title={words.section}
+      icon={words.vocabulary === 'retail' ? <Tag size={20} aria-hidden="true" /> : <UtensilsCrossed size={20} aria-hidden="true" />}
       subheader={<MenuSectionTabs />}
       actions={
         tenantId ? (
@@ -100,9 +103,9 @@ export function MenuItemsWorkspace() {
               <UploadCloud size={15} aria-hidden="true" />
               <span className="hidden md:inline">Import</span>
             </Button>
-            <Button className="gap-1.5" onClick={() => router.push('/menu/items/new')} aria-label="New menu item">
+            <Button className="gap-1.5" onClick={() => router.push('/menu/items/new')} aria-label={words.newItem}>
               <Plus size={15} aria-hidden="true" />
-              <span className="hidden md:inline">New item</span>
+              <span className="hidden md:inline">{words.newItem}</span>
             </Button>
           </div>
         ) : undefined
@@ -130,7 +133,11 @@ export function MenuItemsWorkspace() {
           </div>
         </div>
       ) : items.length === 0 ? (
-        <MenuSetupChecklist />
+        words.vocabulary === 'retail' ? (
+          <ShopSetupChecklist onImport={() => setImporting(true)} />
+        ) : (
+          <MenuSetupChecklist />
+        )
       ) : (
         <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
           {canReadRecipes && (

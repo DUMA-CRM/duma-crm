@@ -66,11 +66,20 @@ export type WorkspaceModuleId = ModuleId;
 
 export interface WorkspaceOnboardingAnswers {
   businessType?:
-    | 'cafe' | 'restaurant' | 'bar' | 'bakery' | 'food_truck'
-    | 'retail' | 'online_retail' | 'services' | 'people_management' | 'other';
+    | 'cafe'
+    | 'restaurant'
+    | 'bar'
+    | 'bakery'
+    | 'food_truck'
+    | 'retail'
+    | 'online_retail'
+    | 'services'
+    | 'people_management'
+    | 'other';
   locationCount?: number;
   salesChannels: Array<'counter' | 'online' | 'qr' | 'phone' | 'marketplace'>;
-  paymentMethods: Array<'cash' | 'card' | 'invoice'>;
+  /** `external`: the business's own website takes the payment. */
+  paymentMethods: Array<'cash' | 'card' | 'invoice' | 'external'>;
   fulfilment: Array<'prepare' | 'pick_pack' | 'delivery' | 'collection' | 'table_service'>;
   liveFulfilmentQueue: boolean;
   stockTracking: 'none' | 'simple' | 'batch_expiry' | 'serial' | 'container';
@@ -88,6 +97,8 @@ export interface WorkspaceOnboardingAnswers {
   analytics: boolean;
   support: boolean;
   agent: boolean;
+  /** Website and app content (the CMS). */
+  cms?: boolean;
   declinedModules: WorkspaceModuleId[];
 }
 

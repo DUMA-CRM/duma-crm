@@ -38,8 +38,10 @@ export function toOnboardingAnswers(draft: OnboardingDraft): WorkspaceOnboarding
     businessType: draft.businessType,
     locationCount: hasPremises(draft) ? Math.max(1, Math.round(draft.locationCount)) : 1,
     salesChannels: [...salesChannels].sort(),
-    // Cash needs a counter to take it over.
-    paymentMethods: draft.paymentMethods.filter((method) => method !== 'cash' || hasPremises(draft)).sort(),
+    // Cash needs a counter to take it over; a website checkout needs a website.
+    paymentMethods: draft.paymentMethods
+      .filter((method) => (method !== 'cash' || hasPremises(draft)) && (method !== 'external' || sellsOnline(draft)))
+      .sort(),
     fulfilment: [...fulfilment].sort(),
     liveFulfilmentQueue: shown('kitchen') && draft.kitchenScreen === true,
     stockTracking,
@@ -57,6 +59,7 @@ export function toOnboardingAnswers(draft: OnboardingDraft): WorkspaceOnboarding
     analytics: extras.has('analytics'),
     support: extras.has('support'),
     agent: extras.has('agent'),
+    cms: extras.has('cms'),
     declinedModules: [],
   };
 }
@@ -115,7 +118,15 @@ export function businessProfile(draft: OnboardingDraft): BusinessProfile {
 }
 
 const BUSINESS_TYPES = new Set<BusinessType>([
-  'cafe', 'restaurant', 'bar', 'bakery', 'food_truck', 'retail', 'online_retail', 'services', 'other',
+  'cafe',
+  'restaurant',
+  'bar',
+  'bakery',
+  'food_truck',
+  'retail',
+  'online_retail',
+  'services',
+  'other',
 ]);
 const FOOD_TYPES = new Set<BusinessType>(['cafe', 'restaurant', 'bar', 'bakery', 'food_truck']);
 
@@ -130,13 +141,28 @@ export function draftFromAnswers(answers: Partial<WorkspaceOnboardingAnswers> | 
   const channels = new Set(answers.salesChannels ?? []);
   const fulfilment = new Set(answers.fulfilment ?? []);
   const businessType =
-    answers.businessType && BUSINESS_TYPES.has(answers.businessType as BusinessType) ? (answers.businessType as BusinessType) : answers.businessType ? 'other' : undefined;
-  const presence = channels.has('counter') && channels.has('online') ? 'both' : channels.has('online') ? 'online' : channels.has('counter') ? 'in_person' : undefined;
+    answers.businessType && BUSINESS_TYPES.has(answers.businessType as BusinessType)
+      ? (answers.businessType as BusinessType)
+      : answers.businessType
+        ? 'other'
+        : undefined;
+  const presence =
+    channels.has('counter') && channels.has('online')
+      ? 'both'
+      : channels.has('online')
+        ? 'online'
+        : channels.has('counter')
+          ? 'in_person'
+          : undefined;
   const teamNeeds = (['scheduling', 'attendance', 'leave', 'payroll', 'peopleRecords'] as const).filter((need) => answers[need]);
   const stock = answers.stockTracking === 'container' ? 'simple' : answers.stockTracking;
 
   return {
-    ...(businessType ? { businessType, servesFood: FOOD_TYPES.has(businessType) || fulfilment.has('prepare') } : fulfilment.has('prepare') ? { servesFood: true } : {}),
+    ...(businessType
+      ? { businessType, servesFood: FOOD_TYPES.has(businessType) || fulfilment.has('prepare') }
+      : fulfilment.has('prepare')
+        ? { servesFood: true }
+        : {}),
     ...(presence ? { presence } : {}),
     ...(answers.locationCount ? { locationCount: answers.locationCount } : {}),
     extraChannels: (['phone', 'marketplace'] as const).filter((channel) => channels.has(channel)),
@@ -151,6 +177,6 @@ export function draftFromAnswers(answers: Partial<WorkspaceOnboardingAnswers> | 
     ...(teamNeeds.length > 0 ? { teamSize: 'small' as const } : {}),
     teamNeeds: [...teamNeeds],
     customerNeeds: (['customers', 'loyalty', 'communications'] as const).filter((need) => answers[need]),
-    extras: (['analytics', 'agent', 'support', 'compliance'] as const).filter((extra) => answers[extra]),
+    extras: (['analytics', 'agent', 'support', 'compliance', 'cms'] as const).filter((extra) => answers[extra]),
   };
 }

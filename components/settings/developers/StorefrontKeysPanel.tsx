@@ -9,6 +9,7 @@ import { TEXTAREA_CLASS, copyText } from '@/components/cms/shared';
 import { Code, Globe, KeyRound, Lock, MapPin, Plus, ShoppingBag } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { StorefrontDocs } from '@/components/settings/developers/StorefrontDocs';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -128,6 +129,8 @@ export function StorefrontKeysPanel() {
           </div>
         )}
       </SettingsSection>
+
+      <StorefrontDocs />
 
       {creating && (
         <NewKeyDialog

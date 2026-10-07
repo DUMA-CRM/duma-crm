@@ -6,6 +6,7 @@ import {
   HelpCircle,
   History,
   type IconComponent,
+  Layers,
   LayoutDashboard,
   Mail,
   Monitor,
@@ -13,15 +14,16 @@ import {
   Settings,
   ShieldCheck,
   ShoppingBag,
+  Tag,
   Users,
   UsersRound,
   UtensilsCrossed,
-  Layers,
 } from '@/components/icons';
 
 import { type Capability, hasAnyCapability } from '@/lib/auth/capabilities';
 import { MODULE_IDS, type ModuleId } from '@/lib/modules/manifest';
 import type { TenantModuleState } from '@/lib/modules/organization/client';
+import { catalogVocabulary } from '@/lib/utils/catalog-vocabulary';
 
 export interface NavItem {
   module: ModuleId;
@@ -39,6 +41,8 @@ export interface NavItem {
   capabilities?: Capability[];
   /** Optional surface switch inside a module's `configuration.surfaces`. */
   surface?: string;
+  /** What a shop that sells products calls this — used when its module's `configuration.vocabulary` is `retail`. */
+  retail?: { label: string; icon: IconComponent };
   children?: Omit<NavItem, 'children'>[];
 }
 
@@ -59,7 +63,10 @@ export const mainNavItems: NavItem[] = [
   { module: 'ordering', label: 'Orders', href: '/orders', icon: ShoppingBag, capabilities: ['orders:read'] },
   // No End of day entry: opening and closing the trading day is done in the
   // till, at the drawer (2026-10-04). Reports keeps the read-only history.
-  { module: 'catalog', label: 'Menu', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'] },
+  // A shop reads Products (see `retail`): setup records the catalog's vocabulary.
+  // One line: tests/module-ownership reads nav items with a single-line pattern.
+  // prettier-ignore
+  { module: 'catalog', label: 'Menu', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'], retail: { label: 'Products', icon: Tag } },
   // One entry: stock, restock demand, purchase orders, suppliers and
   // stocktakes are tabs of /inventory. `stock:read` rather than
   // `inventory:read` — till staff hold the latter so they can record waste,
@@ -128,7 +135,13 @@ export function filterNavByCapability(
     return !item.capabilities || item.capabilities.length === 0 || hasAnyCapability(capabilities, ...item.capabilities);
   };
 
+  // A shop sees its own words — Products, not Menu.
+  const retail = catalogVocabulary(moduleState) === 'retail';
+  const worded = <T extends Pick<NavItem, 'label' | 'icon' | 'retail'>>(item: T): T =>
+    retail && item.retail ? { ...item, label: item.retail.label, icon: item.retail.icon } : item;
+
   return items.flatMap((item) => {
+    item = worded(item);
     if (item.children) {
       const children = item.children.filter(canSee);
       const selfOk = canSee(item);

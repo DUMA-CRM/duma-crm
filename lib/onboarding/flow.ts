@@ -7,26 +7,18 @@
  */
 import type { WorkspaceModuleId } from '../api/workspace-composition.service';
 
-export type BusinessType =
-  | 'cafe'
-  | 'restaurant'
-  | 'bar'
-  | 'bakery'
-  | 'food_truck'
-  | 'retail'
-  | 'online_retail'
-  | 'services'
-  | 'other';
+export type BusinessType = 'cafe' | 'restaurant' | 'bar' | 'bakery' | 'food_truck' | 'retail' | 'online_retail' | 'services' | 'other';
 
 export type Presence = 'in_person' | 'online' | 'both';
 export type ExtraChannel = 'phone' | 'marketplace';
 export type Fulfilment = 'table_service' | 'collection' | 'delivery' | 'pick_pack';
-export type PaymentMethod = 'cash' | 'card' | 'invoice';
+/** `external`: the business's own website takes the money; DUMA records the paid order. */
+export type PaymentMethod = 'cash' | 'card' | 'invoice' | 'external';
 export type StockTracking = 'none' | 'simple' | 'batch_expiry' | 'serial';
 export type TeamSize = 'solo' | 'small' | 'medium' | 'large';
 export type TeamNeed = 'scheduling' | 'attendance' | 'leave' | 'payroll' | 'peopleRecords';
 export type CustomerNeed = 'customers' | 'loyalty' | 'communications';
-export type Extra = 'analytics' | 'agent' | 'support' | 'compliance';
+export type Extra = 'analytics' | 'agent' | 'support' | 'compliance' | 'cms';
 
 /** Everything the questionnaire collects. The password is deliberately absent — it is never persisted. */
 export interface OnboardingDraft {
@@ -160,7 +152,12 @@ export const STEPS: readonly StepDefinition[] = [
   {
     id: 'location',
     section: 'account',
-    complete: (d) => d.locationName.trim().length >= 2 && d.locationAddress.trim().length >= 3,
+    // An online-only shop may not have an address to give yet; a place with a door does.
+    complete: (d) =>
+      d.locationName.trim().length >= 2 &&
+      (hasPremises(d)
+        ? d.locationAddress.trim().length >= 3
+        : d.locationAddress.trim().length === 0 || d.locationAddress.trim().length >= 3),
   },
   {
     id: 'review',

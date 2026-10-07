@@ -53,7 +53,10 @@ export interface WorkspaceSignupInput {
   businessName: string;
   workspaceSlug: string;
   locationName: string;
+  /** Blank for an online-only shop with no address yet. */
   locationAddress: string;
+  /** From the questionnaire: decides the starter categories. */
+  businessType?: string;
   timezone: string;
   ownerName: string;
   email: string;
@@ -71,10 +74,7 @@ export interface WorkspaceSignupResult {
   replayed: boolean;
 }
 
-export async function createWorkspace(
-  input: WorkspaceSignupInput,
-  idempotencyKey: string,
-): Promise<WorkspaceSignupResult> {
+export async function createWorkspace(input: WorkspaceSignupInput, idempotencyKey: string): Promise<WorkspaceSignupResult> {
   return apiFetch<WorkspaceSignupResult>('/auth/workspace-sign-up', {
     method: 'POST',
     headers: { 'Idempotency-Key': idempotencyKey },

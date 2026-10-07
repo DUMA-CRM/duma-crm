@@ -121,7 +121,13 @@ function fulfilmentChoices(draft: OnboardingDraft): Choice<Fulfilment>[] {
 
 function paymentChoices(draft: OnboardingDraft): Choice<PaymentMethod>[] {
   return [
-    { value: 'card', label: 'Card', detail: 'Contactless, chip and online.', icon: CreditCard },
+    // Online sellers usually take the money on their own site; DUMA records the paid order.
+    ...(sellsOnline(draft)
+      ? [{ value: 'external' as const, label: 'My website', detail: 'Its own checkout — Stripe, PayPal, Shopify Payments.', icon: Globe }]
+      : []),
+    ...(hasPremises(draft) || !sellsOnline(draft)
+      ? [{ value: 'card' as const, label: 'Card', detail: 'Contactless and chip, taken here.', icon: CreditCard }]
+      : []),
     ...(hasPremises(draft) ? [{ value: 'cash' as const, label: 'Cash', detail: 'Taken at the till, cashed up daily.', icon: Wallet }] : []),
     { value: 'invoice', label: 'Invoice', detail: 'Bill business customers later.', icon: FileText },
   ];
@@ -159,7 +165,10 @@ export function questionFor(step: StepId, ctx: QuestionContext): Question | null
           <ChoiceGrid
             label="Where you sell"
             selected={draft.presence ? [draft.presence] : []}
-            onChange={(presence) => choose({ presence })}
+            onChange={(presence) =>
+              // An online-only shop's one location is where it ships from; name it so they need not.
+              choose({ presence, ...(presence === 'online' && !draft.locationName.trim() ? { locationName: 'Online store' } : {}) })
+            }
             choices={[
               { value: 'in_person', label: 'In person', detail: 'A shop, café, stall or venue.', icon: Store },
               { value: 'online', label: 'Online', detail: 'A website or app only.', icon: Globe },
@@ -429,6 +438,14 @@ export function questionFor(step: StepId, ctx: QuestionContext): Question | null
               { value: 'agent', label: 'Ask DUMA', detail: 'An assistant that knows your numbers.', icon: Sparkles },
               { value: 'support', label: 'Help centre', detail: 'Guides and a helpdesk for staff.', icon: LifeBuoy },
               { value: 'compliance', label: 'Privacy requests', detail: 'Manage GDPR and personal-data requests.', icon: ShieldCheck },
+              {
+                value: 'cms',
+                label: 'Website content',
+                detail: sellsOnline(draft)
+                  ? 'Pages, blog and photos for your site — recommended.'
+                  : 'Pages, blog and photos for a website or app.',
+                icon: FileText,
+              },
             ]}
           />
         ),
@@ -491,21 +508,23 @@ export function questionFor(step: StepId, ctx: QuestionContext): Question | null
 
     case 'location':
       return {
-        title: hasPremises(draft) ? 'Where’s your first location?' : 'Where is the business based?',
-        hint: hasPremises(draft) ? 'You can add the others once you’re in.' : 'Used on receipts and invoices.',
+        title: hasPremises(draft) ? 'Where’s your first location?' : 'Where do you ship from?',
+        hint: hasPremises(draft)
+          ? 'You can add the others once you’re in.'
+          : 'Your stock lives here. The address is optional — add it later for invoices and returns.',
         body: (
           <div className="grid gap-4">
             <Input
               label={hasPremises(draft) ? 'Location name' : 'Name'}
               name="locationName"
               autoComplete="off"
-              placeholder={hasPremises(draft) ? 'North Street' : 'Head office'}
+              placeholder={hasPremises(draft) ? 'North Street' : 'Online store'}
               value={draft.locationName}
               onChange={(event) => update({ locationName: event.target.value })}
               autoFocus
             />
             <Input
-              label="Address"
+              label={hasPremises(draft) ? 'Address' : 'Address (optional)'}
               name="locationAddress"
               autoComplete="street-address"
               placeholder="12 North Street, London"

@@ -16,6 +16,7 @@ import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { getMenuItems } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -52,6 +53,7 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
   const [pending, setPending] = useState(false);
   const [justSaved, flashSaved] = useDoneBeat();
   const [dirty, setDirty] = useState(false);
+  const words = useCatalogWords();
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId),
@@ -82,12 +84,12 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
 
   return (
     <EditorShell
-      eyebrow={item ? 'Menu item' : undefined}
-      title={item ? item.name : 'New menu item'}
+      eyebrow={item ? words.Item : undefined}
+      title={item ? item.name : `New ${words.item}`}
       icon={<UtensilsCrossed size={20} aria-hidden="true" />}
       onClose={() => router.push('/menu/items')}
       dirty={dirty && !pending}
-      discardMessage="This menu item has changes that have not been saved. Leaving now discards them."
+      discardMessage={`This ${words.item} has changes that have not been saved. Leaving now discards them.`}
       // A brand-new item has no id yet, so there is nothing for a recipe to
       // attach to — the tab appears once it has been created.
       subheader={item ? <SectionTabs tabs={DETAIL_TABS} value={tab} onChange={setTab} ariaLabel="Menu item sections" /> : undefined}

@@ -6,15 +6,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ArrowRight, Loader2 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
+
 import { ApiError } from '@/lib/api/client';
-import { createWorkspace, type WorkspaceSignupInput } from '@/lib/modules/identity/client';
-import {
-  applyWorkspaceRecommendation,
-  generateWorkspaceRecommendation,
-  startWorkspaceSetup,
-} from '@/lib/modules/organization/client';
+import { type WorkspaceSignupInput, createWorkspace } from '@/lib/modules/identity/client';
+import { applyWorkspaceRecommendation, generateWorkspaceRecommendation, startWorkspaceSetup } from '@/lib/modules/organization/client';
 import { selectedModulesFor, toOnboardingAnswers } from '@/lib/onboarding/answers';
 import { type OnboardingDraft, slugFrom } from '@/lib/onboarding/flow';
+import { type Landing, landingFor } from '@/lib/onboarding/landing';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useLoginIntroStore } from '@/stores/loginIntroStore';
@@ -81,6 +79,8 @@ export function Provisioning({ onEditDetails }: ProvisioningProps) {
   // welcome screen still needs the names.
   const [draft] = useState<OnboardingDraft>(() => useOnboardingStore.getState().draft);
   const [stage, setStage] = useState<Stage>(() => (useOnboardingStore.getState().provisioned ? 'modules' : 'account'));
+  // Where to go next, from the modules actually switched on.
+  const [landing, setLanding] = useState<Landing | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const running = useRef(false);
 
@@ -100,6 +100,8 @@ export function Provisioning({ onEditDetails }: ProvisioningProps) {
           workspaceSlug: slugFrom(draft.workspaceSlug),
           locationName: draft.locationName.trim(),
           locationAddress: draft.locationAddress.trim(),
+          // Decides the starter categories — a shop does not open to "Coffee" and "Iced".
+          ...(draft.businessType ? { businessType: draft.businessType } : {}),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/London',
           ownerName: draft.ownerName.trim(),
           email: draft.email.trim().toLowerCase(),
@@ -116,13 +118,15 @@ export function Provisioning({ onEditDetails }: ProvisioningProps) {
       current = 'modules';
       setStage('modules');
       const session = await startWorkspaceSetup(workspace.tenantId);
-      const proposed = await generateWorkspaceRecommendation(workspace.tenantId, toOnboardingAnswers(draft), session.recommendationRevision);
-      if (!proposed.recommendation) throw new Error('No proposal was returned.');
-      await applyWorkspaceRecommendation(
+      const proposed = await generateWorkspaceRecommendation(
         workspace.tenantId,
-        selectedModulesFor(proposed.recommendation, draft.addedModules),
-        proposed.recommendationRevision,
+        toOnboardingAnswers(draft),
+        session.recommendationRevision,
       );
+      if (!proposed.recommendation) throw new Error('No proposal was returned.');
+      const modules = selectedModulesFor(proposed.recommendation, draft.addedModules);
+      await applyWorkspaceRecommendation(workspace.tenantId, modules, proposed.recommendationRevision);
+      setLanding(landingFor(modules, draft));
 
       useOnboardingStore.getState().reset();
       setStage('done');
@@ -140,15 +144,17 @@ export function Provisioning({ onEditDetails }: ProvisioningProps) {
   }, [run]);
 
   if (stage === 'done') {
+    const next = landing ?? landingFor([], draft);
+    const go = (href: string) => {
+      useLoginIntroStore.getState().start();
+      router.replace(href);
+    };
     return (
       <Ready
         firstName={draft.ownerName.trim().split(/\s+/)[0] ?? ''}
-        businessName={draft.businessName.trim()}
-        onOpen={() => {
-          useLoginIntroStore.getState().start();
-          router.replace('/dashboard');
-        }}
-        onSetup={() => router.replace('/settings/workspaces')}
+        landing={next}
+        onPrimary={() => go(next.primary.href)}
+        onSecondary={() => go(next.secondary.href)}
       />
     );
   }
@@ -174,10 +180,20 @@ export function Provisioning({ onEditDetails }: ProvisioningProps) {
               <span
                 className={cn(
                   'flex size-6 shrink-0 items-center justify-center rounded-full border',
-                  done ? 'border-success bg-success text-success-foreground' : failed ? 'border-exception text-exception' : active ? 'border-primary text-primary' : 'border-rule text-muted-foreground',
+                  done
+                    ? 'border-success bg-success text-success-foreground'
+                    : failed
+                      ? 'border-exception text-exception'
+                      : active
+                        ? 'border-primary text-primary'
+                        : 'border-rule text-muted-foreground',
                 )}
               >
-                {done ? <DrawnCheck className="size-3.5" /> : active && !failed ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : null}
+                {done ? (
+                  <DrawnCheck className="size-3.5" />
+                ) : active && !failed ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                ) : null}
               </span>
               <span className={cn('text-sm', done || active ? 'text-foreground' : 'text-muted-foreground')}>{entry.label}</span>
             </motion.li>
@@ -190,9 +206,13 @@ export function Provisioning({ onEditDetails }: ProvisioningProps) {
           <p className="text-sm text-foreground">{failure.message}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {failure.rateLimited ? (
-              <Button size="lg" onClick={() => router.push('/sign-in')} className="h-11 px-5">Sign in</Button>
+              <Button size="lg" onClick={() => router.push('/sign-in')} className="h-11 px-5">
+                Sign in
+              </Button>
             ) : (
-              <Button size="lg" onClick={() => void run()} className="h-11 px-5">Try again</Button>
+              <Button size="lg" onClick={() => void run()} className="h-11 px-5">
+                Try again
+              </Button>
             )}
             {failure.stage === 'account' && (
               <Button size="lg" variant="outline" onClick={() => onEditDetails(failure.message)} className="h-11 px-5">
@@ -214,7 +234,16 @@ export function Provisioning({ onEditDetails }: ProvisioningProps) {
 function DrawnCheck({ className }: { className?: string }) {
   const reduceMotion = useReducedMotion();
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
       <motion.path
         d="M5 12.5l4.5 4.5L19 7.5"
         initial={reduceMotion ? false : { pathLength: 0 }}
@@ -227,12 +256,12 @@ function DrawnCheck({ className }: { className?: string }) {
 
 interface ReadyProps {
   firstName: string;
-  businessName: string;
-  onOpen: () => void;
-  onSetup: () => void;
+  landing: Landing;
+  onPrimary: () => void;
+  onSecondary: () => void;
 }
 
-function Ready({ firstName, businessName, onOpen, onSetup }: ReadyProps) {
+function Ready({ firstName, landing, onPrimary, onSecondary }: ReadyProps) {
   const reduceMotion = useReducedMotion();
   const appear = (delay: number) =>
     reduceMotion ? {} : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { delay, duration: 0.5, ease: EASE } };
@@ -251,15 +280,15 @@ function Ready({ firstName, businessName, onOpen, onSetup }: ReadyProps) {
         Welcome to DUMA{firstName ? `, ${firstName}` : ''}.
       </motion.h1>
       <motion.p {...appear(0.3)} className="mt-4 max-w-[44ch] text-sm leading-6 text-muted-foreground">
-        {businessName} is ready. Next, add what you sell and invite your team. The setup checklist walks you through it.
+        {landing.message}
       </motion.p>
       <motion.div {...appear(0.4)} className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Button size="lg" onClick={onSetup} autoFocus className="h-11 gap-2 px-5">
-          Continue setup
+        <Button size="lg" onClick={onPrimary} autoFocus className="h-11 gap-2 px-5">
+          {landing.primary.label}
           <ArrowRight aria-hidden="true" />
         </Button>
-        <Button size="lg" variant="outline" onClick={onOpen} className="h-11 px-5">
-          Go to dashboard
+        <Button size="lg" variant="outline" onClick={onSecondary} className="h-11 px-5">
+          {landing.secondary.label}
         </Button>
       </motion.div>
     </div>
