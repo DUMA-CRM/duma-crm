@@ -114,6 +114,20 @@ createServer((request, response) => {
       },
     ]);
   }
+  // A team member's composed dashboard: just their own workday.
+  if (url.pathname === '/v1/dashboard-layouts/resolved') {
+    const widget = { widgetKey: 'workforce.my-day', gridColumn: 1, gridRow: 1, width: 12, height: 4 };
+    return json(response, 200, {
+      tenantId: user.tenantId ?? null,
+      audienceKey: 'frontline_pos',
+      source: 'system',
+      layoutId: null,
+      version: 1,
+      layers: { system: { version: 1, widgetCount: 1 }, workspace: null, personal: null },
+      availableWidgets: [widget],
+      widgets: [widget],
+    });
+  }
   if (url.pathname === '/v1/scheduled-shifts/variance') return json(response, 200, []);
   if (url.pathname === '/v1/scheduled-shifts') return json(response, 200, []);
   if (url.pathname === '/v1/shifts/active') return json(response, 200, []);

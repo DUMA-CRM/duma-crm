@@ -1,9 +1,13 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
+  // The fake API's clock records are from the week of 14 September 2026; the
+  // rota opens on "this week", so pin the browser to that week or the test
+  // rots as the calendar moves on.
+  await page.clock.setFixedTime(new Date('2026-09-15T12:00:00.000Z'));
   await page.goto('/sign-in');
   await page.getByLabel('Email').fill('sam@example.test');
-  await page.getByLabel('Password').fill('correct-password');
+  await page.getByRole('textbox', { name: 'Password', exact: true }).fill('correct-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.goto('/staff/rota');
@@ -45,7 +49,7 @@ test('a manager can open unplanned work from all locations and correct its date 
 
   await expect(page.getByRole('button', { name: 'Record hours' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Plan shift' })).toBeVisible();
-  await page.getByRole('button', { name: /Open Sam Barista's shift/ }).click();
+  await page.getByRole('button', { name: /^Sam Barista, .*Open shift$/ }).click();
   await expect(page.getByRole('dialog', { name: 'Worked without a rota shift' })).toBeVisible();
   await expect(page.getByLabel('Date worked')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save correction' })).toBeDisabled();
