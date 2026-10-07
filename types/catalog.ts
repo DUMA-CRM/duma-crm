@@ -42,12 +42,46 @@ export interface CatalogVariant {
   values: Array<{ variantId: string; optionValueId: string; optionValue: CatalogOptionValue }>;
   locations: CatalogVariantLocation[];
   stockItem?: { id: string; name: string; unit: string; isPerishable: boolean } | null;
+  /** On hand per location; null when the variant does not track stock. */
+  stock?: Array<{ locationId: string; quantity: number }> | null;
+}
+
+/** A product photo: from Media (`assetId`) or hosted elsewhere; tied to one option value or shown for all. */
+export interface CatalogImage {
+  id: string;
+  assetId: string | null;
+  optionValueId: string | null;
+  url: string | null;
+  altText: string | null;
+  focalPoint: { x: number; y: number } | null;
+  sortOrder: number;
 }
 
 export interface ItemCatalog {
   item: MenuItem;
   options: CatalogOption[];
   variants: CatalogVariant[];
+  images: CatalogImage[];
+}
+
+export interface CatalogImportReport {
+  dryRun: boolean;
+  products: Array<{
+    name: string;
+    action: 'create' | 'update';
+    variantsCreated: number;
+    variantsUpdated: number;
+    stockSet: number;
+    problems: string[];
+  }>;
+  totals: {
+    productsCreated: number;
+    productsUpdated: number;
+    variantsCreated: number;
+    variantsUpdated: number;
+    stockSet: number;
+    problems: number;
+  };
 }
 
 export interface CatalogDiscount {

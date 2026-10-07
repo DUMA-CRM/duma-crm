@@ -5717,6 +5717,38 @@
             "required": true
           }
         ]
+      },
+      "delete": {
+        "operationId": "deleteV1CatalogVariantsById",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Delete a variant",
+        "description": "Past orders keep the size they sold — their lines hold its name and SKU.",
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
       }
     },
     "/v1/catalog/variants/{id}/locations/{locationId}": {
@@ -6095,6 +6127,250 @@
             "required": true
           }
         ]
+      }
+    },
+    "/v1/catalog/items/{menuItemId}/variants/generate": {
+      "post": {
+        "operationId": "postV1CatalogItemsByMenuItemIdVariantsGenerate",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Create a product’s sizes from its options",
+        "description": "Size S M L × Colour Black White → one variant per combination. Existing combinations are kept; only missing ones are created. With `trackStock`, each new variant gets its own stock item.",
+        "responses": {
+          "200": {
+            "description": "{ created, kept }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Product not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "menuItemId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/catalog/variants/{id}/stock": {
+      "put": {
+        "operationId": "putV1CatalogVariantsByIdStock",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Set how many of a variant are on hand at a location",
+        "description": "Starts tracking stock for the variant if it was not. The change is recorded as a stock movement, so the history stays.",
+        "responses": {
+          "200": {
+            "description": "{ before, after, stockItemId }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Variant or location not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/catalog/items/{menuItemId}/images": {
+      "get": {
+        "operationId": "getV1CatalogItemsByMenuItemIdImages",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "List a product’s photos",
+        "responses": {
+          "200": {
+            "description": "{ data }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "menuItemId",
+            "required": true
+          }
+        ]
+      },
+      "post": {
+        "operationId": "postV1CatalogItemsByMenuItemIdImages",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Add a photo to a product",
+        "description": "From Media (`assetId`) or hosted elsewhere (`url`); `optionValueId` ties it to one colour.",
+        "responses": {
+          "201": {
+            "description": "Image"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "menuItemId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/catalog/images/{id}": {
+      "patch": {
+        "operationId": "patchV1CatalogImagesById",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Update a product photo",
+        "responses": {
+          "200": {
+            "description": "Image"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CatalogImagesById",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Remove a product photo",
+        "description": "The file stays in Media.",
+        "responses": {
+          "200": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/catalog/items/{menuItemId}/images/order": {
+      "put": {
+        "operationId": "putV1CatalogItemsByMenuItemIdImagesOrder",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Reorder a product’s photos",
+        "description": "The first is the main photo.",
+        "responses": {
+          "200": {
+            "description": "{ data }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "menuItemId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/catalog/import": {
+      "post": {
+        "operationId": "postV1CatalogImport",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Import products, sizes and stock from a sheet",
+        "description": "Rows are grouped into products by name; each row with options is a size. Existing products (same name) and sizes (same SKU, or the same options) are updated, not duplicated. Send `dryRun: true` first to see what would happen.",
+        "responses": {
+          "200": {
+            "description": "{ products: [...], totals }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
       }
     },
     "/v1/api-keys": {

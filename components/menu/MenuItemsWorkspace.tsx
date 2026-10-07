@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { ChefHat, CircleDollarSign, Plus, Search, UtensilsCrossed, X } from '@/components/icons';
+import { ChefHat, CircleDollarSign, Plus, Search, UploadCloud, UtensilsCrossed, X } from '@/components/icons';
+import { CatalogImportDialog } from '@/components/menu/CatalogImportDialog';
 import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
 import { MenuSetupChecklist } from '@/components/menu/MenuSetupChecklist';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
@@ -48,6 +49,7 @@ export function MenuItemsWorkspace() {
   const capabilities = useAuthStore((state) => state.capabilities);
   const canReadRecipes = hasCapability(capabilities, 'recipes:read');
   const [search, setSearch] = useState('');
+  const [importing, setImporting] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<'all' | MenuCategory>('all');
 
   const itemsQuery = useQuery({
@@ -92,13 +94,21 @@ export function MenuItemsWorkspace() {
       subheader={<MenuSectionTabs />}
       actions={
         tenantId ? (
-          <Button className="gap-1.5" onClick={() => router.push('/menu/items/new')} aria-label="New menu item">
-            <Plus size={15} aria-hidden="true" />
-            <span className="hidden md:inline">New item</span>
-          </Button>
+          <div className="flex items-center gap-1.5 md:gap-2">
+            {/* A whole catalogue — sizes and stock — from a sheet or a Shopify export. */}
+            <Button variant="outline" className="gap-1.5" onClick={() => setImporting(true)} aria-label="Import products">
+              <UploadCloud size={15} aria-hidden="true" />
+              <span className="hidden md:inline">Import</span>
+            </Button>
+            <Button className="gap-1.5" onClick={() => router.push('/menu/items/new')} aria-label="New menu item">
+              <Plus size={15} aria-hidden="true" />
+              <span className="hidden md:inline">New item</span>
+            </Button>
+          </div>
         ) : undefined
       }
     >
+      {importing && tenantId && <CatalogImportDialog tenantId={tenantId} onClose={() => setImporting(false)} />}
       {!tenantId ? (
         <EmptyState icon={UtensilsCrossed} title="No workspace selected" description="Choose a workspace to manage its menu." />
       ) : itemsQuery.isError ? (

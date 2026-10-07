@@ -236,6 +236,8 @@ export function MenuItemForm({
   const [description, setDescription] = useState(item?.description ?? '');
   const [imageUrl, setImageUrl] = useState(item?.imageUrl ?? '');
   const [isAvailable, setIsAvailable] = useState(item?.isAvailable ?? true);
+  // Its address on a storefront. Blank on a new item: the API makes one from the name.
+  const [slug, setSlug] = useState(item?.slug ?? '');
   const [imageBroken, setImageBroken] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { data: categories = [] } = useQuery({
@@ -256,6 +258,7 @@ export function MenuItemForm({
         description: description.trim() || undefined,
         imageUrl: imageUrl.trim() || undefined,
         isAvailable,
+        ...(slug.trim() && slug.trim() !== (item?.slug ?? '') ? { slug: slug.trim() } : {}),
       };
       return item ? updateMenuItem(item.id, payload) : createMenuItem({ tenantId, ...payload });
     },
@@ -281,6 +284,7 @@ export function MenuItemForm({
     vatRate !== (item?.vatRate ?? '') ||
     description !== (item?.description ?? '') ||
     imageUrl !== (item?.imageUrl ?? '') ||
+    slug !== (item?.slug ?? '') ||
     isAvailable !== (item?.isAvailable ?? true);
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
@@ -290,7 +294,11 @@ export function MenuItemForm({
   // The API takes any string; links and inline data images are what's actually used.
   const imageError =
     imageUrl.trim() && !/^(https?:\/\/\S+|data:image\/)/.test(imageUrl.trim()) ? 'A full web address, starting https://' : null;
-  const valid = !nameError && !categoryError && !priceError && !imageError;
+  const slugError =
+    slug.trim() && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.trim())
+      ? 'Lower-case letters, numbers and dashes, like oversized-hoodie.'
+      : null;
+  const valid = !nameError && !categoryError && !priceError && !imageError && !slugError;
   const show = (error: string | null) => (submitted ? (error ?? undefined) : undefined);
   const priceText = /^\d+(\.\d{1,2})?$/.test(price.trim()) ? `£${Number(price).toFixed(2)}` : '£—';
 
@@ -385,6 +393,16 @@ export function MenuItemForm({
                 placeholder="e.g. Flat white"
                 autoFocus={!item}
                 error={show(nameError)}
+              />
+              <Input
+                label="Web address"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                maxLength={160}
+                placeholder={item ? 'Made from the name when you save' : 'Made from the name'}
+                hint="Its address in your online shop, like /products/oversized-hoodie"
+                error={slugError ?? undefined}
+                className="font-mono"
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">

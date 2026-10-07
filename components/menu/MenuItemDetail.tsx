@@ -4,10 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
-import { ChefHat, UtensilsCrossed } from '@/components/icons';
+import { ChefHat, ImageIcon, Layers, UtensilsCrossed } from '@/components/icons';
 import { DeleteMenuItemButton } from '@/components/menu/DeleteMenuItemButton';
 import { MenuItemForm } from '@/components/menu/MenuItemForm';
+import { ProductPhotos } from '@/components/menu/ProductPhotos';
 import { RecipeEditor } from '@/components/menu/RecipeEditorPage';
+import { VariantsEditor } from '@/components/menu/VariantsEditor';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
@@ -20,12 +22,16 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const MENU_ITEM_FORM_ID = 'menu-item-detail-form';
 
-type Tab = 'details' | 'recipe';
+type Tab = 'details' | 'sizes' | 'photos' | 'recipe';
 
 const DETAIL_TABS: SectionTab<Tab>[] = [
   { value: 'details', label: 'Details', icon: UtensilsCrossed },
+  // Retail: sizes and colours, each with its own SKU, price and stock; and the photos a shop shows.
+  { value: 'sizes', label: 'Sizes & stock', icon: Layers },
+  { value: 'photos', label: 'Photos', icon: ImageIcon },
   { value: 'recipe', label: 'Recipe & cost', icon: ChefHat },
 ];
+const TAB_VALUES = DETAIL_TABS.map((entry) => entry.value);
 
 /**
  * A menu item's record: a full page reached from the list, with a back button —
@@ -41,7 +47,8 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
   const { tenantId } = useWorkspaceStore();
   // `?tab=recipe` opens straight on the recipe — the Products page's "Add recipe" links here.
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'recipe' && menuItemId ? 'recipe' : 'details');
+  const requested = searchParams.get('tab') as Tab | null;
+  const [tab, setTab] = useState<Tab>(requested && TAB_VALUES.includes(requested) && menuItemId ? requested : 'details');
   const [pending, setPending] = useState(false);
   const [justSaved, flashSaved] = useDoneBeat();
   const [dirty, setDirty] = useState(false);
@@ -108,6 +115,10 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
           onCreated={(created) => router.replace(`/menu/items/${created.id}`)}
           onSaved={flashSaved}
         />
+      ) : tab === 'sizes' ? (
+        <VariantsEditor menuItemId={item.id} productName={item.name} productPrice={item.price} tenantId={tenantId} />
+      ) : tab === 'photos' ? (
+        <ProductPhotos menuItemId={item.id} productName={item.name} tenantId={tenantId} />
       ) : (
         <RecipeEditor menuItemId={item.id} price={item.price} vatRate={item.vatRate} />
       )}

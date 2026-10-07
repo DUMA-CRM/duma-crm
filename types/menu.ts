@@ -29,6 +29,8 @@ export interface MenuItem {
   vatRate?: string | null;
   isAvailable: boolean;
   imageUrl?: string;
+  /** Its address on a storefront, like `oversized-hoodie`. */
+  slug?: string | null;
   createdAt: string;
 }
 
@@ -42,6 +44,8 @@ export interface MenuItemPayload {
   description?: string;
   isAvailable?: boolean;
   imageUrl?: string;
+  /** Storefront address; the API makes one from the name when omitted. */
+  slug?: string;
 }
 
 // Reusable modifier (e.g. "Oat Milk" +0.50, "Large" +0.60). Flat — no groups.
