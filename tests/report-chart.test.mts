@@ -57,4 +57,5 @@ test('axis money is compact and in the workspace currency', () => {
   assert.equal(compactMoney(1500, 'GBP'), '£1.5K');
   assert.equal(compactMoney(2000000, 'EUR'), '€2M');
   assert.equal(compactMoney(-1500, 'GBP'), '-£1.5K');
+  assert.equal(compactMoney(3_000_000_000, 'GBP'), '£3B');
 });

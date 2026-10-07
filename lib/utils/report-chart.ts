@@ -93,6 +93,8 @@ export function nearestIndex(offset: number, count: number, width: number, centr
   return Math.min(count - 1, Math.max(0, Math.round(raw)));
 }
 
+const COMPACT_SUFFIX: Record<string, string> = { k: 'K', m: 'M', bn: 'B', tn: 'T' };
+
 /** "£1.2K" — money short enough for an axis, in the workspace's currency. */
 export function compactMoney(value: number, currency: string): string {
   try {
@@ -104,9 +106,9 @@ export function compactMoney(value: number, currency: string): string {
       maximumFractionDigits: Math.abs(value) < 1000 ? 0 : 1,
     })
       .format(value)
-      // Newer locale data (CLDR 47+, e.g. Node 22.23) writes en-GB thousands as
-      // "k"; older data and most browsers write "K". One spelling everywhere.
-      .replace(/(\d)k\b/, '$1K');
+      // Newer locale data (e.g. Node 22.23's) writes en-GB compact as k, m, bn,
+      // tn; older data and most browsers write K, M, B, T. One spelling everywhere.
+      .replace(/(\d)(k|m|bn|tn)\b/, (_, digit: string, suffix: string) => digit + COMPACT_SUFFIX[suffix]!);
   } catch {
     return String(Math.round(value));
   }
