@@ -102,7 +102,11 @@ export function compactMoney(value: number, currency: string): string {
       notation: 'compact',
       minimumFractionDigits: 0,
       maximumFractionDigits: Math.abs(value) < 1000 ? 0 : 1,
-    }).format(value);
+    })
+      .format(value)
+      // Newer locale data (CLDR 47+, e.g. Node 22.23) writes en-GB thousands as
+      // "k"; older data and most browsers write "K". One spelling everywhere.
+      .replace(/(\d)k\b/, '$1K');
   } catch {
     return String(Math.round(value));
   }
