@@ -4,11 +4,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { Copy, Eye, Mail, Plus, Trash2 } from '@/components/icons';
+import { Copy, Eye, Mail, Plus, Trash2, Zap } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -105,11 +106,17 @@ export function TemplatesPanel({
 
   if (templatesQuery.isPending)
     return (
-      <div className="space-y-2" aria-label="Loading templates">
-        <div className="h-4 w-32 animate-pulse rounded bg-band/60" />
+      <div role="status" aria-busy="true" aria-label="Loading templates">
+        <Bone className="mb-2 h-3 w-40" />
         <TemplateGrid>
           {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="aspect-4/3 animate-pulse rounded-lg bg-band/60" />
+            <div key={index} className="flex flex-col overflow-hidden rounded-lg border border-rule/60 bg-card" aria-hidden="true">
+              <Bone className="aspect-16/10 w-full rounded-none border-b border-rule/45" />
+              <span className="space-y-1.5 px-3.5 py-3">
+                <Bone className={cn('h-3.5', index % 2 ? 'w-28' : 'w-36')} />
+                <Bone className="h-3 w-44 max-w-full" />
+              </span>
+            </div>
           ))}
         </TemplateGrid>
       </div>
@@ -117,20 +124,12 @@ export function TemplatesPanel({
 
   if (groups.length === 0)
     return (
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-        <EmptyState
-          icon={Mail}
-          title={canWrite ? 'Create your first email template' : 'No email templates yet'}
-          description="A reusable email with your own content, brand styles, images and customer details. Automations send these."
-        />
-        {canWrite && (
-          <div className="-mt-6 flex justify-center pb-8">
-            <Button className="gap-2" onClick={() => onEdit({})}>
-              <Plus size={15} aria-hidden="true" /> Create template
-            </Button>
-          </div>
-        )}
-      </div>
+      <EmptyState
+        icon={Mail}
+        title={canWrite ? 'Create your first email template' : 'No email templates yet'}
+        description="A reusable email with your own content, brand styles, images and customer details. Automations send these."
+        action={canWrite ? { label: 'Create template', onClick: () => onEdit({}), icon: Plus } : undefined}
+      />
     );
 
   return (
@@ -245,8 +244,15 @@ function TemplateCard({
           <span className="block truncate text-xs text-muted-foreground" title={template.subject}>
             {template.subject}
           </span>
-          <span className={cn('mt-1 block text-micro font-semibold', uses > 0 ? 'text-momentum' : 'text-muted-foreground')}>
-            {uses > 0 ? `In ${uses} automation${uses === 1 ? '' : 's'}` : 'Not in an automation'}
+          <span
+            className={cn(
+              'mt-1 inline-flex items-center gap-1 text-micro font-semibold tabular-nums',
+              uses > 0 ? 'text-momentum' : 'text-muted-foreground/60',
+            )}
+            title={uses > 0 ? `In ${uses} automation${uses === 1 ? '' : 's'}` : 'Not in an automation'}
+          >
+            <Zap size={11} aria-hidden="true" />
+            {uses}
           </span>
         </button>
         {canWrite && (

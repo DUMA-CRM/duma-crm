@@ -4,10 +4,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Popover } from 'radix-ui';
 import { useState } from 'react';
 
-import { ChevronDown, Loader2 } from '@/components/icons';
+import { ChevronDown, Loader2, XCircle } from '@/components/icons';
+import { MascotGlyph } from '@/components/shared/EmptyState';
+import { ChoiceCards } from '@/components/shared/FormParts';
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
 
 import { type Order, type OrderStatus, type VoidReason, updateOrderStatus } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -68,11 +69,12 @@ export function StatusMenu({ order }: { order: Order }) {
   // A finished order doesn't move — a refunded "done" order used to offer
   // "cancel" because its payment no longer read as paid. Otherwise an unpaid
   // order can only be cancelled.
-  const nexts = NEXT_STATUSES[order.status].length === 0
-    ? []
-    : order.paymentStatus && order.paymentStatus !== 'paid'
-      ? (['cancelled'] as OrderStatus[])
-      : NEXT_STATUSES[order.status];
+  const nexts =
+    NEXT_STATUSES[order.status].length === 0
+      ? []
+      : order.paymentStatus && order.paymentStatus !== 'paid'
+        ? (['cancelled'] as OrderStatus[])
+        : NEXT_STATUSES[order.status];
 
   if (nexts.length === 0) return <StatusPill status={order.status} />;
 
@@ -90,7 +92,11 @@ export function StatusMenu({ order }: { order: Order }) {
               STATUS_META[order.status].tint,
             )}
           >
-            {change.isPending ? <Loader2 size={11} className="animate-spin" /> : <span className={cn('size-1.5 rounded-full', STATUS_META[order.status].dot)} aria-hidden="true" />}
+            {change.isPending ? (
+              <Loader2 size={11} className="animate-spin" />
+            ) : (
+              <span className={cn('size-1.5 rounded-full', STATUS_META[order.status].dot)} aria-hidden="true" />
+            )}
             {STATUS_META[order.status].label}
             <ChevronDown size={11} aria-hidden="true" />
           </button>
@@ -141,6 +147,7 @@ export function VoidModal({ order, onClose }: { order: Pick<Order, 'id'>; onClos
     <Modal
       title={`Cancel order ${orderCode(order.id)}?`}
       description="It leaves the kitchen queue, and the reason is kept in the audit trail."
+      illustration={<MascotGlyph icon={XCircle} size={88} expression="triste" tint="text-exception" />}
       onClose={onClose}
       footer={
         <div className="flex gap-2">
@@ -163,7 +170,7 @@ export function VoidModal({ order, onClose }: { order: Pick<Order, 'id'>; onClos
       <div className="space-y-4">
         <div>
           <p className="mb-1.5 text-label uppercase text-muted-foreground">Reason</p>
-          <Select value={reason} onValueChange={(value) => setReason(value as VoidReason)} options={VOID_REASON_OPTIONS} ariaLabel="Reason" className="w-full" />
+          <ChoiceCards value={reason} onChange={setReason} options={VOID_REASON_OPTIONS as { value: VoidReason; label: string }[]} />
         </div>
         <label className="block">
           <span className="mb-1.5 block text-label uppercase text-muted-foreground">Notes</span>

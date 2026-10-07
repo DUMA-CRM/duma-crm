@@ -7,9 +7,14 @@ import { Plug, Settings, Zap } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 
+import { hasCapability } from '@/lib/auth/capabilities';
+import { getCmsStorage } from '@/lib/modules/cms/client';
 import { getEmailConnection } from '@/lib/modules/communications/client';
+import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { getPaymentConnections } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { formatBytes } from '@/lib/utils/cms';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { type ConnectorAccount, type ConnectorAction, ConnectorCard } from './ConnectorCard';
@@ -17,6 +22,7 @@ import { emailConnectorState } from './EmailConnector';
 import { PROVIDER_LABELS, paymentsConnectorState } from './PaymentsConnector';
 import { CONNECTORS, type ConnectorId, type ConnectorState } from './registry';
 import { relativeTime } from './shared';
+import { storageConnectorState, storageProviderLabel } from './StorageConnector';
 
 /**
  * The Connectors tab: every integration on one screen with its live status, the
@@ -43,12 +49,30 @@ export function ConnectorsGrid() {
     enabled: !!locationId,
   });
 
+  const capabilities = useAuthStore((state) => state.capabilities);
+  // Same key as the settings shell, so this is the shell's cached answer.
+  const modules = useQuery({
+    queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
+    queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
+    staleTime: 30_000,
+  });
+  const visible = (definition: (typeof CONNECTORS)[number]) =>
+    (!definition.capability || hasCapability(capabilities, definition.capability)) &&
+    (!definition.moduleId ||
+      (modules.data?.modules.some((module) => module.moduleId === definition.moduleId && module.status === 'enabled') ?? false));
+  const storageVisible = visible(CONNECTORS.find((definition) => definition.id === 'media-storage')!);
+  const { data: storage } = useQuery({
+    queryKey: moduleQueryKeys.cms.key('storage', tenantId),
+    queryFn: () => getCmsStorage(tenantId ?? undefined),
+    enabled: !!tenantId && storageVisible,
+  });
+
   const open = (id: ConnectorId, mode?: 'connect') => router.push(`/settings/connectors?connector=${id}${mode ? `&mode=${mode}` : ''}`);
 
   const emailState = emailConnectorState(emailConnection);
   const paymentsState = paymentsConnectorState(paymentMethods);
 
-  const cards = CONNECTORS.map((definition) => {
+  const cards = CONNECTORS.filter(visible).map((definition) => {
     if (definition.id === 'email') {
       const checked = relativeTime(emailConnection?.lastTestedAt);
       const accounts: ConnectorAccount[] = emailConnection
@@ -88,6 +112,30 @@ export function ConnectorsGrid() {
         ? { label: 'Manage', icon: Settings, onClick: () => open('card-payments'), variant: 'outline' }
         : { label: 'Connect', icon: Plug, onClick: () => open('card-payments', 'connect'), disabled: !locationId };
       return { definition, state: paymentsState, accounts, extraAccountCount: rest.length, action };
+    }
+
+    if (definition.id === 'media-storage') {
+      const state = storageConnectorState(storage);
+      const active = storage?.connections.find((connection) => connection.isActive);
+      const accounts: ConnectorAccount[] = !storage
+        ? []
+        : active
+          ? [{ label: active.displayName, meta: storageProviderLabel(active) }]
+          : [{ label: 'DUMA storage', meta: `${formatBytes(storage.builtIn.usedBytes)} of ${formatBytes(storage.builtIn.quotaBytes)} free tier used` }];
+      const action: ConnectorAction =
+        state === 'attention'
+          ? { label: 'Fix', icon: Zap, onClick: () => open('media-storage') }
+          : (storage?.connections.length ?? 0) > 0
+            ? { label: 'Manage', icon: Settings, onClick: () => open('media-storage'), variant: 'outline' }
+            : { label: 'Connect', icon: Plug, onClick: () => open('media-storage', 'connect') };
+      return {
+        definition,
+        state,
+        accounts,
+        extraAccountCount: Math.max(0, (storage?.connections.length ?? 0) - 1),
+        action,
+        alert: state === 'attention' ? { title: 'The last check failed', detail: active?.lastError ?? undefined } : undefined,
+      };
     }
 
     return { definition, state: 'unavailable' as ConnectorState, accounts: [] };

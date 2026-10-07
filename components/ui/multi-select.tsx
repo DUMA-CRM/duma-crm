@@ -66,7 +66,7 @@ function MultiSelect({
         className={cn(
           // Matches the Select trigger exactly: same fill, same border token, so
           // a select and a multi-select side by side are the same control.
-          'inline-flex h-9 min-w-0 items-center gap-2 rounded-sm border border-input bg-field px-3 text-base text-foreground outline-none sm:text-sm',
+          'inline-flex h-9 min-w-0 items-center gap-2 rounded-sm border border-input bg-control px-3 text-base text-foreground outline-none sm:text-sm',
           'transition-[border-color,outline-color,background-color] duration-100 hover:bg-band aria-expanded:bg-band',
           'focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured',
           'disabled:cursor-not-allowed disabled:opacity-50',

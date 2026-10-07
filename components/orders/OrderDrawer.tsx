@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react';
 import { SendEmailModal } from '@/components/email/SendEmailModal';
 import {
   Banknote,
-  CalendarDays,
   ChevronDown,
   ChevronUp,
   Clock,
@@ -25,6 +24,9 @@ import {
 import { Drawer } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Modal } from '@/components/shared/Modal';
+import { LoadingState } from '@/components/shared/Skeleton';
+import { TONE_INK } from '@/components/shared/tone';
+import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -46,20 +48,22 @@ import {
 } from '@/lib/utils/orders-list';
 import { useAuthStore } from '@/stores/authStore';
 
-import { REFUND_REASON_OPTIONS, SOURCE_META, STATUS_META, VOID_REASON_OPTIONS, optionLabel } from './orderMeta';
 import { RefundBody, RefundFooter, useRefundDraft } from './RefundPanel';
 import { StatusMenu, useStatusChange } from './StatusMenu';
-import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
+import { REFUND_REASON_OPTIONS, SOURCE_META, STATUS_META, VOID_REASON_OPTIONS, optionLabel } from './orderMeta';
 
 /** Stands in for the order while it loads, so the refund hook can run unconditionally. */
-const PLACEHOLDER_ORDER = { id: '', locationId: '', createdBy: null, status: 'pending', source: 'pos', totalAmount: '0', paymentMethod: null, items: [], createdAt: '' } as OrderDetail;
-
-const PILL_TONE = {
-  success: 'bg-momentum/8 text-momentum',
-  warning: 'bg-measured/10 text-measured',
-  exception: 'bg-exception/8 text-exception',
-  muted: 'bg-band text-muted-foreground',
-} as const;
+const PLACEHOLDER_ORDER = {
+  id: '',
+  locationId: '',
+  createdBy: null,
+  status: 'pending',
+  source: 'pos',
+  totalAmount: '0',
+  paymentMethod: null,
+  items: [],
+  createdAt: '',
+} as OrderDetail;
 
 /**
  * One order, beside the list it came from. Read top to bottom: what was
@@ -138,11 +142,7 @@ export function OrderDrawer({
         {isError ? (
           <ErrorState title="This order couldn’t be loaded" onRetry={() => void refetch()} />
         ) : (
-          <div className="space-y-3" aria-hidden="true">
-            <div className="h-16 animate-pulse rounded-lg bg-band/60" />
-            <div className="h-48 animate-pulse rounded-lg bg-band/60" />
-            <div className="h-32 animate-pulse rounded-lg bg-band/60" />
-          </div>
+          <LoadingState label="Loading the order" />
         )}
       </Drawer>
     );
@@ -156,7 +156,12 @@ export function OrderDrawer({
   // Refund mode: the same drawer, its body and footer swapped for the refund.
   const refunding = canRefund && showRefund && data.status === 'done' && refundable > 0;
   const discount = Number(data.discountAmount ?? 0);
-  const listOrder = { ...data, totalAmount: Number(data.totalAmount), updatedAt: data.updatedAt ?? data.createdAt, tenantId: data.tenantId ?? '' };
+  const listOrder = {
+    ...data,
+    totalAmount: Number(data.totalAmount),
+    updatedAt: data.updatedAt ?? data.createdAt,
+    tenantId: data.tenantId ?? '',
+  };
 
   // Status changes and refunds, in the order they happened, with the gap between each.
   const activity = orderActivity(data.statusHistory, data.refunds);
@@ -165,212 +170,227 @@ export function OrderDrawer({
   return (
     <Drawer
       title={refunding ? `Refund order ${orderCode(data.id)}` : `Order ${orderCode(data.id)}`}
-      description={
-        refunding ? `Up to ${money(refundable)} can still be refunded.` : `${source.label} · ${formatDateTime(data.createdAt)}`
-      }
+      description={refunding ? undefined : `${source.label} · ${formatDateTime(data.createdAt)}`}
       onClose={onClose}
       actions={refunding ? undefined : nav}
       footer={
         refunding ? (
           <RefundFooter draft={draft} money={money} onCancel={() => setShowRefund(false)} />
         ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => setShowReceipt(true)}>
-            <Receipt data-icon="inline-start" />
-            Receipt
-          </Button>
-          {data.customerId && (
-            <Button variant="outline" onClick={() => setShowEmail(true)}>
-              <Mail data-icon="inline-start" />
-              Email
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" onClick={() => setShowReceipt(true)}>
+              <Receipt data-icon="inline-start" />
+              Receipt
             </Button>
-          )}
-          {canRefund && data.status === 'done' && refundable > 0 && (
-            <Button variant="destructive" onClick={() => setShowRefund(true)}>
-              <RotateCcw data-icon="inline-start" />
-              Refund
-            </Button>
-          )}
-          {step && (
-            <Button className="ml-auto" disabled={advance.isPending} onClick={() => advance.mutate({ status: step.status })}>
-              {advance.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
-              {step.label}
-            </Button>
-          )}
-        </div>
+            {data.customerId && (
+              <Button type="button" variant="outline" onClick={() => setShowEmail(true)}>
+                <Mail data-icon="inline-start" />
+                Email
+              </Button>
+            )}
+            {canRefund && data.status === 'done' && refundable > 0 && (
+              <Button type="button" variant="destructive" onClick={() => setShowRefund(true)}>
+                <RotateCcw data-icon="inline-start" />
+                Refund
+              </Button>
+            )}
+            {step && (
+              <Button
+                type="button"
+                className="ml-auto"
+                disabled={advance.isPending}
+                onClick={() => advance.mutate({ status: step.status })}
+              >
+                {advance.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+                {step.label}
+              </Button>
+            )}
+          </div>
         )
       }
     >
       {refunding ? (
         <RefundBody draft={draft} order={data} refundable={refundable} money={money} />
       ) : (
-      <div className="space-y-6">
-        {/* The headline: what it came to, how it was paid, where it's up to. */}
-        <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-          <div className="flex items-start gap-3.5 px-4 pt-4 pb-3.5">
-            <span className={cn('flex size-12 shrink-0 items-center justify-center rounded-lg', STATUS_META[data.status].tint)}>
-              <source.icon size={22} aria-hidden="true" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className={cn('text-2xl font-semibold tracking-headline', refunded > 0 ? 'text-muted-foreground' : 'text-foreground')}>
-                {money(data.totalAmount)}
-                {refunded > 0 && <span className="ml-2 text-sm font-medium text-exception">− {money(refunded)} refunded</span>}
-              </p>
-              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-                <span>
-                  {itemCount(data.items) ?? 0} {itemCount(data.items) === 1 ? 'item' : 'items'}
-                </span>
-                <span aria-hidden="true">·</span>
-                <span className={cn('inline-flex items-center gap-1 font-medium', payment.tone === 'success' ? 'text-foreground' : PILL_TONE[payment.tone].split(' ')[1])}>
-                  {data.paymentMethod === 'cash' ? <Banknote size={13} aria-hidden="true" /> : <CreditCard size={13} aria-hidden="true" />}
-                  {payment.state ? `${payment.method} · ${payment.state}` : payment.method}
-                </span>
-                {data.customerName && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span className="truncate">For {data.customerName}</span>
-                  </>
-                )}
-              </p>
+        <div className="space-y-6">
+          {/* The headline: what it came to, how it was paid, where it's up to. */}
+          <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+            <div className="flex items-start gap-3.5 px-4 pt-4 pb-3.5">
+              <span className={cn('flex size-12 shrink-0 items-center justify-center rounded-lg', STATUS_META[data.status].tint)}>
+                <source.icon size={22} aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className={cn('text-2xl font-semibold tracking-headline', refunded > 0 ? 'text-muted-foreground' : 'text-foreground')}>
+                  {money(data.totalAmount)}
+                  {refunded > 0 && <span className="ml-2 text-sm font-medium text-exception">− {money(refunded)} refunded</span>}
+                </p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                  <span>
+                    {itemCount(data.items) ?? 0} {itemCount(data.items) === 1 ? 'item' : 'items'}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 font-medium',
+                      payment.tone === 'success' ? 'text-foreground' : TONE_INK[payment.tone],
+                    )}
+                  >
+                    {data.paymentMethod === 'cash' ? (
+                      <Banknote size={13} aria-hidden="true" />
+                    ) : (
+                      <CreditCard size={13} aria-hidden="true" />
+                    )}
+                    {payment.state ? `${payment.method} · ${payment.state}` : payment.method}
+                  </span>
+                  {data.customerName && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span className="truncate">For {data.customerName}</span>
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className="shrink-0">
+                <StatusMenu order={listOrder} />
+              </div>
             </div>
-            <div className="shrink-0">
-              <StatusMenu order={listOrder} />
-            </div>
+            <OrderProgress status={data.status} history={data.statusHistory ?? []} />
           </div>
-          <OrderProgress status={data.status} history={data.statusHistory ?? []} />
-        </div>
 
-        <section aria-labelledby="order-items">
-          <div className="mb-2 flex items-baseline justify-between">
-            <h3 id="order-items" className="text-sm font-semibold text-foreground">
+          <section aria-labelledby="order-items">
+            <h3 id="order-items" className="mb-2 text-sm font-semibold text-foreground">
               Items
             </h3>
-            <span className="text-xs text-muted-foreground">
-              {data.items.length} {data.items.length === 1 ? 'line' : 'lines'}
-            </span>
-          </div>
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-            <ul>
-              {data.items.map((item) => {
-                const refundedLine = item.refundStatus && item.refundStatus !== 'none';
-                const extras = (item.modifiers ?? []).map((modifier) =>
-                  Number(modifier.priceAdjust) !== 0 ? `${modifier.name} +${money(modifier.priceAdjust)}` : modifier.name,
-                );
-                return (
-                  <li key={item.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
-                    <span
-                      className={cn(
-                        'flex size-9 shrink-0 items-center justify-center rounded-md text-sm font-semibold',
-                        refundedLine ? 'bg-exception/8 text-exception' : 'bg-band text-foreground',
-                      )}
-                    >
-                      {item.quantity}×
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={cn('block text-sm font-semibold', item.refundStatus === 'refunded' ? 'text-muted-foreground line-through' : 'text-foreground')}>
-                        {item.name}
-                        {item.variantName && <span className="font-normal text-muted-foreground"> · {item.variantName}</span>}
+            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              <ul>
+                {data.items.map((item) => {
+                  const refundedLine = item.refundStatus && item.refundStatus !== 'none';
+                  const extras = (item.modifiers ?? []).map((modifier) =>
+                    Number(modifier.priceAdjust) !== 0 ? `${modifier.name} +${money(modifier.priceAdjust)}` : modifier.name,
+                  );
+                  return (
+                    <li key={item.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+                      <span
+                        className={cn(
+                          'flex size-9 shrink-0 items-center justify-center rounded-md text-sm font-semibold',
+                          refundedLine ? 'bg-exception/8 text-exception' : 'bg-band text-foreground',
+                        )}
+                      >
+                        {item.quantity}×
                       </span>
-                      {extras.length > 0 && <span className="mt-0.5 block text-xs text-muted-foreground">{extras.join(' · ')}</span>}
-                      {item.notes && <span className="mt-0.5 block text-xs italic text-muted-foreground">“{item.notes}”</span>}
-                      {(item.quantity > 1 || refundedLine) && (
-                        <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                          {item.quantity > 1 && <span className="text-xs text-muted-foreground">{money(item.unitPrice)} each</span>}
-                          {refundedLine && (
-                            <span className="rounded-sm bg-exception/8 px-1.5 py-0.5 text-micro font-semibold text-exception">
-                              {item.refundStatus === 'refunded' ? 'Refunded' : 'Part refunded'}
-                            </span>
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={cn(
+                            'block text-sm font-semibold',
+                            item.refundStatus === 'refunded' ? 'text-muted-foreground line-through' : 'text-foreground',
                           )}
+                        >
+                          {item.name}
+                          {item.variantName && <span className="font-normal text-muted-foreground"> · {item.variantName}</span>}
                         </span>
-                      )}
-                    </span>
-                    <span className="shrink-0 text-sm font-semibold text-foreground">{money(item.subtotal)}</span>
-                  </li>
-                );
-              })}
-            </ul>
-            {/* Totals: the lines that adjust it muted, the figure that matters largest. */}
-            <dl className="space-y-1 border-t border-rule/60 bg-band/25 px-3.5 py-3 text-sm">
-              {discount !== 0 && (
-                <div className="flex justify-between text-muted-foreground">
-                  <dt>Discount</dt>
-                  <dd className="text-momentum">− {money(discount)}</dd>
-                </div>
-              )}
-              <div className="flex items-baseline justify-between">
-                <dt className="font-semibold text-foreground">Total</dt>
-                <dd className="text-base font-semibold text-foreground">{money(data.totalAmount)}</dd>
-              </div>
-              {refunded > 0 && (
-                <>
+                        {extras.length > 0 && <span className="mt-0.5 block text-xs text-muted-foreground">{extras.join(' · ')}</span>}
+                        {item.notes && <span className="mt-0.5 block text-xs italic text-muted-foreground">“{item.notes}”</span>}
+                        {(item.quantity > 1 || refundedLine) && (
+                          <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                            {item.quantity > 1 && <span className="text-xs text-muted-foreground">{money(item.unitPrice)} each</span>}
+                            {refundedLine && (
+                              <span className="rounded-sm bg-exception/8 px-1.5 py-0.5 text-micro font-semibold text-exception">
+                                {item.refundStatus === 'refunded' ? 'Refunded' : 'Part refunded'}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-sm font-semibold text-foreground">{money(item.subtotal)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+              {/* Totals: the lines that adjust it muted, the figure that matters largest. */}
+              <dl className="space-y-1 border-t border-rule/60 bg-band/25 px-3.5 py-3 text-sm">
+                {discount !== 0 && (
                   <div className="flex justify-between text-muted-foreground">
-                    <dt>Refunded</dt>
-                    <dd className="text-exception">− {money(refunded)}</dd>
+                    <dt>Discount</dt>
+                    <dd className="text-momentum">− {money(discount)}</dd>
                   </div>
-                  <div className="flex justify-between border-t border-rule/45 pt-1 font-semibold text-foreground">
-                    <dt>Kept</dt>
-                    <dd>{money(refundable)}</dd>
-                  </div>
-                </>
-              )}
-            </dl>
-          </div>
-        </section>
+                )}
+                <div className="flex items-baseline justify-between">
+                  <dt className="font-semibold text-foreground">Total</dt>
+                  <dd className="text-base font-semibold text-foreground">{money(data.totalAmount)}</dd>
+                </div>
+                {refunded > 0 && (
+                  <>
+                    <div className="flex justify-between text-muted-foreground">
+                      <dt>Refunded</dt>
+                      <dd className="text-exception">− {money(refunded)}</dd>
+                    </div>
+                    <div className="flex justify-between border-t border-rule/45 pt-1 font-semibold text-foreground">
+                      <dt>Kept</dt>
+                      <dd>{money(refundable)}</dd>
+                    </div>
+                  </>
+                )}
+              </dl>
+            </div>
+          </section>
 
-        <section aria-labelledby="order-details">
-          <h3 id="order-details" className="mb-2 text-sm font-semibold text-foreground">
-            Details
-          </h3>
-          <dl className="grid grid-cols-2 gap-2">
-            <Detail icon={source.icon} label="Channel" value={source.label} />
-            <Detail icon={User} label="Taken by" value={staffName(data.createdBy) ?? (data.createdBy ? 'A former team member' : 'Self-service')} />
-            <Detail icon={MapPin} label="Location" value={locationName(data.locationId) ?? 'Unknown location'} />
-            <Detail icon={CalendarDays} label="Placed" value={formatDateTime(data.createdAt)} />
-            {data.customerName && <Detail icon={User} label="For" value={data.customerName} />}
-            {data.collectionTime && <Detail icon={Clock} label="Collect at" value={formatDateTime(data.collectionTime)} />}
-            {data.voidReason && (
-              <Detail
-                wide
-                tone="exception"
-                icon={XCircle}
-                label="Cancelled because"
-                value={`${optionLabel(VOID_REASON_OPTIONS, data.voidReason)}${data.voidNotes ? ` — ${data.voidNotes}` : ''}`}
-              />
-            )}
-            {data.notes && <Detail wide icon={FileText} label="Note" value={data.notes} />}
-          </dl>
-        </section>
-
-        <section aria-labelledby="order-activity">
-          <div className="mb-2 flex items-baseline justify-between gap-3">
-            <h3 id="order-activity" className="text-sm font-semibold text-foreground">
-              Activity
+          <section aria-labelledby="order-details">
+            <h3 id="order-details" className="mb-2 text-sm font-semibold text-foreground">
+              Details
             </h3>
-            {summary && (
-              <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                <Timer size={12} aria-hidden="true" />
-                {summary}
-              </span>
-            )}
-          </div>
-          {activity.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-rule/70 px-4 py-5 text-center text-sm text-muted-foreground">No history recorded.</p>
-          ) : (
-            <ol className="rounded-lg border border-rule/60 bg-card px-4 py-3">
-              {activity.map((event, index) => (
-                <ActivityItem
-                  key={event.kind === 'status' ? `s-${event.entry.id}` : `r-${event.refund.id}`}
-                  event={event}
-                  first={index === 0}
-                  last={index === activity.length - 1}
-                  staffName={staffName}
-                  money={money}
+            <dl className="grid grid-cols-2 gap-2">
+              <Detail
+                icon={User}
+                label="Taken by"
+                value={staffName(data.createdBy) ?? (data.createdBy ? 'A former team member' : 'Self-service')}
+              />
+              <Detail icon={MapPin} label="Location" value={locationName(data.locationId) ?? 'Unknown location'} />
+              {data.collectionTime && <Detail icon={Clock} label="Collect at" value={formatDateTime(data.collectionTime)} />}
+              {data.voidReason && (
+                <Detail
+                  wide
+                  tone="exception"
+                  icon={XCircle}
+                  label="Cancelled because"
+                  value={`${optionLabel(VOID_REASON_OPTIONS, data.voidReason)}${data.voidNotes ? ` — ${data.voidNotes}` : ''}`}
                 />
-              ))}
-            </ol>
-          )}
-        </section>
-      </div>
+              )}
+              {data.notes && <Detail wide icon={FileText} label="Note" value={data.notes} />}
+            </dl>
+          </section>
+
+          <section aria-labelledby="order-activity">
+            <div className="mb-2 flex items-baseline justify-between gap-3">
+              <h3 id="order-activity" className="text-sm font-semibold text-foreground">
+                Activity
+              </h3>
+              {summary && (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <Timer size={12} aria-hidden="true" />
+                  {summary}
+                </span>
+              )}
+            </div>
+            {activity.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-5 text-center text-sm text-muted-foreground">
+                No history recorded.
+              </p>
+            ) : (
+              <ol className="rounded-lg border border-rule/60 bg-card px-4 py-3">
+                {activity.map((event, index) => (
+                  <ActivityItem
+                    key={event.kind === 'status' ? `s-${event.entry.id}` : `r-${event.refund.id}`}
+                    event={event}
+                    first={index === 0}
+                    last={index === activity.length - 1}
+                    staffName={staffName}
+                    money={money}
+                  />
+                ))}
+              </ol>
+            )}
+          </section>
+        </div>
       )}
 
       {showReceipt && <ReceiptModal orderId={data.id} onClose={() => setShowReceipt(false)} />}
@@ -443,7 +463,9 @@ function ActivityItem({
         )}
         <div className="flex items-baseline justify-between gap-3">
           <p className={cn('text-sm font-medium', refund ? 'text-exception' : 'text-foreground')}>
-            {refund ? `${refund.kind === 'full' ? 'Refunded in full' : 'Part refunded'} · ${money(refund.amount)}` : STATUS_EVENT[event.kind === 'status' ? event.entry.status : 'done']}
+            {refund
+              ? `${refund.kind === 'full' ? 'Refunded in full' : 'Part refunded'} · ${money(refund.amount)}`
+              : STATUS_EVENT[event.kind === 'status' ? event.entry.status : 'done']}
           </p>
           <time dateTime={event.at} title={formatDateTime(event.at)} className="shrink-0 text-xs text-muted-foreground">
             {sameDayAsNow ? ACTIVITY_TIME.format(at) : `${ACTIVITY_DAY.format(at)}, ${ACTIVITY_TIME.format(at)}`}
@@ -457,7 +479,11 @@ function ActivityItem({
             <p className="text-foreground">
               {optionLabel(REFUND_REASON_OPTIONS, refund.reason)} ·{' '}
               <span className="text-muted-foreground">
-                {refund.processingMode === 'stripe' ? 'back to the card' : refund.processingMode === 'cash_manual' ? 'cash handed back' : 'recorded'}
+                {refund.processingMode === 'stripe'
+                  ? 'back to the card'
+                  : refund.processingMode === 'cash_manual'
+                    ? 'cash handed back'
+                    : 'recorded'}
               </span>
             </p>
             {refund.lines && refund.lines.length > 0 && (
@@ -505,8 +531,15 @@ function OrderProgress({ status, history }: { status: OrderDetail['status']; his
         const at = history.find((entry) => entry.status === step)?.createdAt;
         return (
           <li key={step} aria-current={index === reached ? 'step' : undefined}>
-            <span className={cn('block h-1.5 rounded-full', done ? (index === reached ? STATUS_META[step].dot : 'bg-momentum/50') : 'bg-band')} />
-            <span className={cn('mt-1.5 block text-xs', index === reached ? 'font-semibold text-foreground' : done ? 'text-foreground' : 'text-muted-foreground')}>
+            <span
+              className={cn('block h-1.5 rounded-full', done ? (index === reached ? STATUS_META[step].dot : 'bg-momentum/50') : 'bg-band')}
+            />
+            <span
+              className={cn(
+                'mt-1.5 block text-xs',
+                index === reached ? 'font-semibold text-foreground' : done ? 'text-foreground' : 'text-muted-foreground',
+              )}
+            >
               {PROGRESS_LABEL[step]}
             </span>
             <span className="block text-xs text-muted-foreground">{at ? ACTIVITY_TIME.format(new Date(at)) : '—'}</span>
@@ -607,9 +640,7 @@ function ReceiptModal({ orderId, onClose }: { orderId: string; onClose: () => vo
         ) : url ? (
           <iframe src={url} title="Receipt" className="h-full w-full" />
         ) : (
-          <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Loader2 size={16} className="animate-spin" aria-hidden="true" /> Loading the receipt…
-          </div>
+          <LoadingState label="Loading the receipt" className="h-full" />
         )}
       </div>
     </Modal>

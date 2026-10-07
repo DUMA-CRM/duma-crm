@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 import { ArrowUpRight, type IconComponent } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
@@ -89,19 +90,53 @@ export function DrawerFacts({ facts }: { facts: { label: string; value: React.Re
   );
 }
 
-/** Label and value pairs as a hairline list — the record's details. */
-export function DrawerList({ rows }: { rows: { label: string; value: React.ReactNode }[] }) {
+/** Label and value pairs as a hairline list — the record's details. A row's
+    `icon` sits before its label; a timestamp's value reads best as `RelativeTime`. */
+export function DrawerList({ rows }: { rows: { label: string; value: React.ReactNode; icon?: IconComponent }[] }) {
   const shown = rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== '');
   if (shown.length === 0) return null;
   return (
     <dl className="overflow-hidden rounded-lg border border-rule/60 bg-card text-sm">
       {shown.map((row) => (
         <div key={row.label} className="flex items-baseline justify-between gap-4 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
-          <dt className="shrink-0 text-muted-foreground">{row.label}</dt>
+          <dt className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
+            {row.icon && <row.icon size={13} aria-hidden="true" />}
+            {row.label}
+          </dt>
           <dd className="min-w-0 text-right text-foreground">{row.value}</dd>
         </div>
       ))}
     </dl>
+  );
+}
+
+const LABEL_W = ['w-24', 'w-32', 'w-20', 'w-28', 'w-36'];
+
+/**
+ * A `DrawerList` (or a drawer's ranked list) loading: the same card, a row per
+ * line, label on the left and value on the right. `lines={2}` for rows that
+ * carry a second, quieter line under each side.
+ */
+export function DrawerListSkeleton({ rows = 3, lines = 1, label = 'Loading' }: { rows?: number; lines?: 1 | 2; label?: string }) {
+  return (
+    <div role="status" aria-busy="true" aria-label={label} className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+      {Array.from({ length: rows }, (_, index) => (
+        <div
+          key={index}
+          className="flex items-center justify-between gap-4 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0"
+          aria-hidden="true"
+        >
+          <span className="min-w-0 space-y-1.5">
+            <Bone className={cn('h-3.5', LABEL_W[index % LABEL_W.length])} />
+            {lines === 2 && <Bone className="h-3 w-16" />}
+          </span>
+          <span className="flex flex-col items-end space-y-1.5">
+            <Bone className="h-3.5 w-16" />
+            {lines === 2 && <Bone className="h-3 w-20" />}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 

@@ -12,6 +12,8 @@ import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { FormSection, NumberStepper } from '@/components/shared/FormParts';
+import { Pill } from '@/components/shared/Pill';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
@@ -19,7 +21,16 @@ import { Select } from '@/components/ui/select';
 
 import { type StockItem, type StockUnit, combineStockUnits, receiveStockUnits, splitStockUnit } from '@/lib/modules/inventory/client';
 import { cn } from '@/lib/utils/cn';
-import { type ContainerStatus, type ContainerView, inContainerView, isActive, nextToUse, splitParts, totalRemaining, byUseFirst } from '@/lib/utils/containers';
+import {
+  type ContainerStatus,
+  type ContainerView,
+  byUseFirst,
+  inContainerView,
+  isActive,
+  nextToUse,
+  splitParts,
+  totalRemaining,
+} from '@/lib/utils/containers';
 import { daysUntil, expiryLabel } from '@/lib/utils/stock-item';
 import { toast } from '@/stores/toastStore';
 
@@ -33,12 +44,12 @@ import { toast } from '@/stores/toastStore';
 /** Split parts are exact to the thousandth; one decimal would show 0.334 as 0.3. */
 const preciseQty = (n: number) => String(Math.round(n * 1000) / 1000);
 
-const STATUS: Record<ContainerStatus, { label: string; tile: string; pill: string; icon: IconComponent }> = {
-  IN_USE: { label: 'Open', tile: 'bg-measured/10 text-measured', pill: 'bg-measured/10 text-measured', icon: PackageOpen },
-  AVAILABLE: { label: 'Sealed', tile: 'bg-primary/8 text-primary', pill: 'bg-momentum/8 text-momentum', icon: Box },
-  EXPIRED: { label: 'Expired', tile: 'bg-exception/8 text-exception', pill: 'bg-exception/8 text-exception', icon: Box },
-  EMPTY: { label: 'Empty', tile: 'bg-band text-muted-foreground', pill: 'bg-band text-muted-foreground', icon: Box },
-  DISCARDED: { label: 'Discarded', tile: 'bg-band text-muted-foreground', pill: 'bg-band text-muted-foreground', icon: X },
+const STATUS: Record<ContainerStatus, { label: string; tile: string; icon: IconComponent }> = {
+  IN_USE: { label: 'Open', tile: 'bg-measured/10 text-measured', icon: PackageOpen },
+  AVAILABLE: { label: 'Sealed', tile: 'bg-primary/8 text-primary', icon: Box },
+  EXPIRED: { label: 'Expired', tile: 'bg-exception/8 text-exception', icon: Box },
+  EMPTY: { label: 'Empty', tile: 'bg-band text-muted-foreground', icon: Box },
+  DISCARDED: { label: 'Discarded', tile: 'bg-band text-muted-foreground', icon: X },
 };
 
 export function ContainersSection({
@@ -145,23 +156,32 @@ export function ContainersSection({
         {error ? (
           <ErrorState title="Couldn’t load containers" onRetry={onRetry} />
         ) : loading ? (
-          <div className="space-y-2" aria-label="Loading containers">
-            {Array.from({ length: 3 }, (_, i) => (
-              <div key={i} className="h-16 animate-pulse rounded-lg bg-band/60" />
-            ))}
-          </div>
+          <ListSkeleton rows={3} label="Loading containers" />
         ) : shown.length === 0 ? (
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-            <EmptyState
-              icon={Box}
-              title={view === 'active' ? 'Nothing in stock' : view === 'expired' ? 'Nothing expired' : view === 'finished' ? 'Nothing finished yet' : 'No containers yet'}
-              description={
-                view === 'active'
-                  ? 'Receive a delivery to start tracking containers — each gets its own balance and expiry.'
-                  : 'Containers move here as they’re used up, expire or are thrown away.'
-              }
-            />
-          </div>
+          <EmptyState
+            icon={Box}
+            compact
+            kind={view === 'expired' ? 'done' : 'start'}
+            title={
+              view === 'active'
+                ? 'Nothing in stock'
+                : view === 'expired'
+                  ? 'Nothing expired'
+                  : view === 'finished'
+                    ? 'Nothing finished yet'
+                    : 'No containers yet'
+            }
+            description={
+              view === 'active' || view === 'all'
+                ? 'Receive a delivery to start tracking containers — each gets its own balance and expiry.'
+                : 'Containers move here as they’re used up, expire or are thrown away.'
+            }
+            action={
+              canWrite && (view === 'active' || view === 'all')
+                ? { label: 'Receive containers', icon: Plus, onClick: () => setDrawer('receive') }
+                : undefined
+            }
+          />
         ) : (
           <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
             {shown.map((unit) => (
@@ -191,18 +211,35 @@ export function ContainersSection({
           <Button variant="ghost" onClick={clear}>
             Clear
           </Button>
-          <Button variant="outline" disabled={selectedUnits.length !== 1} onClick={() => setDrawer('split')} title={selectedUnits.length !== 1 ? 'Select one container to split' : undefined}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={selectedUnits.length !== 1}
+            onClick={() => setDrawer('split')}
+            title={selectedUnits.length !== 1 ? 'Select one container to split' : undefined}
+          >
             <Scissors aria-hidden="true" /> Split
           </Button>
-          <Button disabled={selectedUnits.length < 2} onClick={() => setDrawer('combine')} title={selectedUnits.length < 2 ? 'Select two or more to combine' : undefined}>
+          <Button
+            type="button"
+            disabled={selectedUnits.length < 2}
+            onClick={() => setDrawer('combine')}
+            title={selectedUnits.length < 2 ? 'Select two or more to combine' : undefined}
+          >
             <Combine aria-hidden="true" /> Combine
           </Button>
         </div>
       )}
 
-      {drawer === 'receive' && <ReceiveContainersDrawer item={item} locationId={locationId} onClose={() => setDrawer(null)} onDone={done} />}
-      {drawer === 'split' && selectedUnits.length === 1 && <SplitContainerDrawer unit={selectedUnits[0]!} onClose={() => setDrawer(null)} onDone={done} />}
-      {drawer === 'combine' && selectedUnits.length >= 2 && <CombineContainersDrawer units={selectedUnits} onClose={() => setDrawer(null)} onDone={done} />}
+      {drawer === 'receive' && (
+        <ReceiveContainersDrawer item={item} locationId={locationId} onClose={() => setDrawer(null)} onDone={done} />
+      )}
+      {drawer === 'split' && selectedUnits.length === 1 && (
+        <SplitContainerDrawer unit={selectedUnits[0]!} onClose={() => setDrawer(null)} onDone={done} />
+      )}
+      {drawer === 'combine' && selectedUnits.length >= 2 && (
+        <CombineContainersDrawer units={selectedUnits} onClose={() => setDrawer(null)} onDone={done} />
+      )}
     </motion.div>
   );
 }
@@ -229,32 +266,67 @@ function ContainerRow({
   const expiry = expiryLabel(unit.expiryDate ?? null, now);
   const days = unit.expiryDate ? daysUntil(unit.expiryDate, now) : null;
   const finished = unit.status === 'EMPTY' || unit.status === 'DISCARDED';
-  const detail = [unit.lotNumber ? `Lot ${unit.lotNumber}` : null, unit.status === 'IN_USE' && unit.openedAt ? `opened ${formatDate(unit.openedAt)}` : null]
+  const detail = [
+    unit.lotNumber ? `Lot ${unit.lotNumber}` : null,
+    unit.status === 'IN_USE' && unit.openedAt ? `opened ${formatDate(unit.openedAt)}` : null,
+  ]
     .filter(Boolean)
     .join(' · ');
 
   return (
     <li className={cn('flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0', selected && 'bg-primary/5')}>
       {selectable ? (
-        <input type="checkbox" checked={selected} onChange={onToggle} aria-label={`Select ${unit.label}`} className="size-4 shrink-0 accent-primary" />
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggle}
+          aria-label={`Select ${unit.label}`}
+          className="size-4 shrink-0 accent-primary"
+        />
       ) : (
         <span className="size-4 shrink-0" aria-hidden="true" />
       )}
-      <Link href={`/inventory/units/${unit.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring">
-        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', meta.tile)} aria-hidden="true">
-          <meta.icon size={16} />
+      <Link
+        href={`/inventory/units/${unit.id}`}
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        <span
+          className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', meta.tile)}
+          role="img"
+          aria-label={meta.label}
+          title={meta.label}
+        >
+          <meta.icon size={16} aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <span className="truncate text-sm font-semibold text-foreground">{unit.label}</span>
-            {isNext && <span className="shrink-0 rounded-sm bg-primary px-1.5 py-0.5 text-micro font-semibold text-primary-foreground">Use next</span>}
+            {isNext && (
+              <span className="shrink-0 rounded-sm bg-primary px-1.5 py-0.5 text-micro font-semibold text-primary-foreground">
+                Use next
+              </span>
+            )}
           </span>
           <span className="block truncate text-xs text-muted-foreground">
             {finished ? (
-              unit.status === 'DISCARDED' ? 'Thrown away' : 'Used up'
+              unit.status === 'DISCARDED' ? (
+                'Thrown away'
+              ) : (
+                'Used up'
+              )
             ) : expiry ? (
-              <span className={cn(days !== null && days < 0 ? 'font-semibold text-exception' : days !== null && days <= 2 ? 'font-semibold text-measured' : undefined)}>
-                {days !== null && days < 0 ? 'Expired' : `Use by ${expiry.toLowerCase().startsWith('in ') ? expiry.toLowerCase() : expiry}`}
+              <span
+                className={cn(
+                  days !== null && days < 0
+                    ? 'font-semibold text-exception'
+                    : days !== null && days <= 2
+                      ? 'font-semibold text-measured'
+                      : undefined,
+                )}
+              >
+                {days !== null && days < 0
+                  ? `Use by ${formatDate(unit.expiryDate!)}`
+                  : `Use by ${expiry.toLowerCase().startsWith('in ') ? expiry.toLowerCase() : expiry}`}
               </span>
             ) : (
               'No use-by date'
@@ -264,13 +336,19 @@ function ContainerRow({
         </span>
         <span className="hidden w-32 shrink-0 sm:block">
           <span className="block text-right text-sm font-semibold tabular-nums text-foreground">
-            {fmtQty(remaining)} <span className="font-normal text-muted-foreground">/ {fmtQty(initial)} {unit.unitOfMeasure}</span>
+            {fmtQty(remaining)}{' '}
+            <span className="font-normal text-muted-foreground">
+              / {fmtQty(initial)} {unit.unitOfMeasure}
+            </span>
           </span>
           <span className="mt-1 block h-1 overflow-hidden rounded-full bg-band">
-            <span className={cn('block h-full rounded-full', isActive(unit) ? 'bg-primary' : 'bg-muted-foreground/40')} style={{ width: `${share * 100}%` }} />
+            <span
+              className={cn('block h-full rounded-full', isActive(unit) ? 'bg-primary' : 'bg-muted-foreground/40')}
+              style={{ width: `${share * 100}%` }}
+            />
           </span>
         </span>
-        <span className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', meta.pill)}>{meta.label}</span>
+        {(unit.status === 'EXPIRED' || (days !== null && days < 0 && !finished)) && <Pill tone="exception">Expired</Pill>}
         <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
       </Link>
     </li>
@@ -279,7 +357,23 @@ function ContainerRow({
 
 // ── Drawers ──────────────────────────────────────────────────────────────────
 
-function DrawerFooter({ pending, disabled, label, icon: Icon, onCancel, onSubmit, form }: { pending: boolean; disabled?: boolean; label: string; icon: IconComponent; onCancel: () => void; onSubmit?: () => void; form?: string }) {
+function DrawerFooter({
+  pending,
+  disabled,
+  label,
+  icon: Icon,
+  onCancel,
+  onSubmit,
+  form,
+}: {
+  pending: boolean;
+  disabled?: boolean;
+  label: string;
+  icon: IconComponent;
+  onCancel: () => void;
+  onSubmit?: () => void;
+  form?: string;
+}) {
   return (
     <div className="flex gap-2">
       <Button variant="outline" size="lg" className="flex-1" onClick={onCancel} disabled={pending}>
@@ -294,7 +388,17 @@ function DrawerFooter({ pending, disabled, label, icon: Icon, onCancel, onSubmit
 }
 
 /** A delivery as containers: how many, how much each holds, and when they go off. */
-function ReceiveContainersDrawer({ item, locationId, onClose, onDone }: { item: StockItem; locationId: string; onClose: () => void; onDone: () => void }) {
+function ReceiveContainersDrawer({
+  item,
+  locationId,
+  onClose,
+  onDone,
+}: {
+  item: StockItem;
+  locationId: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const [perContainer, setPerContainer] = useState(item.defaultContainerQuantity ? String(Number(item.defaultContainerQuantity)) : '');
   const [count, setCount] = useState(1);
   // A perishable item with a shelf life gets its use-by pre-filled from today.
@@ -318,7 +422,11 @@ function ReceiveContainersDrawer({ item, locationId, onClose, onDone }: { item: 
       receiveStockUnits({
         locationId,
         stockItemId: item.id,
-        units: Array.from({ length: count }, () => ({ initialQuantity: quantity, expiryDate: expiryDate || null, lotNumber: lotNumber.trim() || undefined })),
+        units: Array.from({ length: count }, () => ({
+          initialQuantity: quantity,
+          expiryDate: expiryDate || null,
+          lotNumber: lotNumber.trim() || undefined,
+        })),
       }),
     onSuccess: () => {
       toast('success', `${count} ${count === 1 ? 'container' : 'containers'} received — ${fmtQty(quantity * count)} ${item.unit} added.`);
@@ -332,7 +440,15 @@ function ReceiveContainersDrawer({ item, locationId, onClose, onDone }: { item: 
       title="Receive containers"
       description={`${item.name} — each container gets its own balance, use-by date and history.`}
       onClose={onClose}
-      footer={<DrawerFooter form="receive-containers" pending={receive.isPending} label={valid ? `Receive ${fmtQty(quantity * count)} ${item.unit}` : 'Receive'} icon={Plus} onCancel={onClose} />}
+      footer={
+        <DrawerFooter
+          form="receive-containers"
+          pending={receive.isPending}
+          label={valid ? `Receive ${fmtQty(quantity * count)} ${item.unit}` : 'Receive'}
+          icon={Plus}
+          onCancel={onClose}
+        />
+      }
     >
       <form
         id="receive-containers"
@@ -363,12 +479,19 @@ function ReceiveContainersDrawer({ item, locationId, onClose, onDone }: { item: 
           </div>
           {valid && (
             <p className="rounded-md bg-band/60 px-3 py-2 text-xs tabular-nums text-muted-foreground">
-              {count} × {fmtQty(quantity)} {item.unit} = <span className="font-semibold text-foreground">{fmtQty(quantity * count)} {item.unit}</span>
+              {count} × {fmtQty(quantity)} {item.unit} ={' '}
+              <span className="font-semibold text-foreground">
+                {fmtQty(quantity * count)} {item.unit}
+              </span>
             </p>
           )}
         </FormSection>
 
-        <FormSection icon={PackageOpen} title="Batch" note={item.isPerishable ? 'Perishable — the use-by date drives expiry alerts and use-first order.' : undefined}>
+        <FormSection
+          icon={PackageOpen}
+          title="Batch"
+          note={item.isPerishable ? 'Perishable — the use-by date drives expiry alerts and use-first order.' : undefined}
+        >
           <div className="grid gap-3 sm:grid-cols-2">
             <DatePicker
               label={item.isPerishable ? 'Use by' : 'Use by (optional)'}
@@ -376,9 +499,19 @@ function ReceiveContainersDrawer({ item, locationId, onClose, onDone }: { item: 
               onValueChange={setExpiryDate}
               required={item.isPerishable}
               error={submitted ? (expiryError ?? undefined) : undefined}
-              hint={item.isPerishable && item.defaultShelfLifeDays ? `Pre-filled from the ${item.defaultShelfLifeDays}-day shelf life.` : undefined}
+              hint={
+                item.isPerishable && item.defaultShelfLifeDays
+                  ? `Pre-filled from the ${item.defaultShelfLifeDays}-day shelf life.`
+                  : undefined
+              }
             />
-            <Input label="Lot number" value={lotNumber} onChange={(event) => setLotNumber(event.target.value)} maxLength={100} placeholder="Optional" />
+            <Input
+              label="Lot number"
+              value={lotNumber}
+              onChange={(event) => setLotNumber(event.target.value)}
+              maxLength={100}
+              placeholder="Optional"
+            />
           </div>
         </FormSection>
       </form>
@@ -406,7 +539,16 @@ function SplitContainerDrawer({ unit, onClose, onDone }: { unit: StockUnit; onCl
       title="Split container"
       description="Divide one container into smaller ones — for decanting or sending part to another location."
       onClose={onClose}
-      footer={<DrawerFooter pending={split.isPending} disabled={!parts} label={`Split into ${count}`} icon={Scissors} onCancel={onClose} onSubmit={() => split.mutate()} />}
+      footer={
+        <DrawerFooter
+          pending={split.isPending}
+          disabled={!parts}
+          label={`Split into ${count}`}
+          icon={Scissors}
+          onCancel={onClose}
+          onSubmit={() => split.mutate()}
+        />
+      }
     >
       <div className="space-y-7">
         <SourceCard units={[unit]} />
@@ -417,12 +559,17 @@ function SplitContainerDrawer({ unit, onClose, onDone }: { unit: StockUnit; onCl
               <p className="mb-2 text-xs text-muted-foreground">Each new container holds</p>
               <div className="flex flex-wrap gap-1.5">
                 {parts.map((quantity, index) => (
-                  <span key={index} className="rounded-md border border-rule/60 bg-card px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground">
+                  <span
+                    key={index}
+                    className="rounded-md border border-rule/60 bg-card px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground"
+                  >
                     {preciseQty(quantity)} {unit.unitOfMeasure}
                   </span>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Use-by date and lot are copied to every part; the original is marked empty.</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Use-by date and lot are copied to every part; the original is marked empty.
+              </p>
             </div>
           ) : (
             <p className="text-xs text-destructive">This balance is too small to split that many ways.</p>
@@ -457,15 +604,33 @@ function CombineContainersDrawer({ units, onClose, onDone }: { units: StockUnit[
       title="Combine containers"
       description="Pour part-used containers into one, so the shelf holds fewer, fuller ones."
       onClose={onClose}
-      footer={<DrawerFooter pending={combine.isPending} label={`Combine into ${fmtQty(total)} ${unitOfMeasure}`} icon={Combine} onCancel={onClose} onSubmit={() => combine.mutate()} />}
+      footer={
+        <DrawerFooter
+          pending={combine.isPending}
+          label={`Combine into ${fmtQty(total)} ${unitOfMeasure}`}
+          icon={Combine}
+          onCancel={onClose}
+          onSubmit={() => combine.mutate()}
+        />
+      }
     >
       <div className="space-y-7">
         <SourceCard units={units} />
         <FormSection icon={Combine} title="New container">
-          <Input label="Label" value={label} onChange={(event) => setLabel(event.target.value)} maxLength={100} placeholder="Generated if blank" />
+          <Input
+            label="Label"
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+            maxLength={100}
+            placeholder="Generated if blank"
+          />
           <ul className="space-y-1 text-xs text-muted-foreground">
             <li>
-              Holds <span className="font-semibold text-foreground">{fmtQty(total)} {unitOfMeasure}</span>; the {units.length} originals are marked empty.
+              Holds{' '}
+              <span className="font-semibold text-foreground">
+                {fmtQty(total)} {unitOfMeasure}
+              </span>
+              ; the {units.length} originals are marked empty.
             </li>
             <li>{earliest ? `Keeps the earliest use-by — ${expiryLabel(earliest, new Date())}.` : 'None of these has a use-by date.'}</li>
             <li>{lots.size === 1 && [...lots][0] ? `Keeps lot ${[...lots][0]}.` : 'Lots differ, so the new container has none.'}</li>

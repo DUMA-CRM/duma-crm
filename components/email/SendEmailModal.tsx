@@ -4,7 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { AlertTriangle, Ban, CheckCircle2, Mail, Send, ShieldAlert } from '@/components/icons';
+import { Avatar } from '@/components/shared/Avatar';
+import { IconTag } from '@/components/shared/IconTag';
 import { Modal } from '@/components/shared/Modal';
+import type { Tone } from '@/components/shared/tone';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
@@ -27,20 +30,23 @@ interface SendEmailModalProps {
 
 type Consent = 'opted_in' | 'opted_out' | 'suppressed' | 'unknown';
 
-const CONSENT_COPY: Record<Exclude<Consent, 'unknown'>, { icon: typeof Mail; label: string; className: string }> = {
+const CONSENT_COPY: Record<Exclude<Consent, 'unknown'>, { icon: typeof Mail; label: string; tone: Tone; className: string }> = {
   opted_in: {
     icon: CheckCircle2,
     label: 'Opted in to marketing',
+    tone: 'success',
     className: 'border-momentum/30 bg-momentum/6 text-momentum',
   },
   opted_out: {
     icon: Ban,
     label: 'Opted out of marketing',
+    tone: 'warning',
     className: 'border-warning/30 bg-warning/6 text-warning',
   },
   suppressed: {
     icon: ShieldAlert,
     label: 'Suppressed — do not contact',
+    tone: 'exception',
     className: 'border-exception/30 bg-exception/8 text-exception',
   },
 };
@@ -112,7 +118,6 @@ export function SendEmailModal({ customerId, orderId, recipientName, recipientEm
   return (
     <Modal
       title="Send email"
-      description={`To ${recipientName}`}
       size="lg"
       onClose={onClose}
       footer={
@@ -133,13 +138,19 @@ export function SendEmailModal({ customerId, orderId, recipientName, recipientEm
     >
       <div className="space-y-4">
         {/* ── Who, and whether you may ─────────────────────────────────── */}
-        <div className="rounded-sm border border-rule bg-band/55 px-3 py-2.5">
-          <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Recipient</p>
-          <p className="mt-1 text-sm font-medium text-foreground">{recipientName}</p>
-          {recipientEmail && <p className="truncate text-xs text-muted-foreground">{recipientEmail}</p>}
+        <div className="flex items-center gap-3 rounded-sm border border-rule bg-band/55 px-3 py-2.5" aria-label="Recipient">
+          <Avatar name={recipientName} email={recipientEmail} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground">{recipientName}</p>
+            {recipientEmail && <p className="truncate text-xs text-muted-foreground">{recipientEmail}</p>}
+          </div>
+          {consent !== 'unknown' && (
+            <IconTag icon={CONSENT_COPY[consent].icon} label={CONSENT_COPY[consent].label} tone={CONSENT_COPY[consent].tone} tile />
+          )}
         </div>
 
-        {consent !== 'unknown' && <ConsentNotice consent={consent} />}
+        {/* Opted in needs no more than the tag; the other two change what you may send. */}
+        {(consent === 'opted_out' || consent === 'suppressed') && <ConsentNotice consent={consent} />}
 
         {consent === 'opted_out' && (
           <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-sm border border-warning/30 bg-warning/6 p-3 text-sm transition-colors hover:bg-warning/10">
@@ -203,8 +214,9 @@ export function SendEmailModal({ customerId, orderId, recipientName, recipientEm
   );
 }
 
-function ConsentNotice({ consent }: { consent: Exclude<Consent, 'unknown'> }) {
-  const { icon: Icon, label, className } = CONSENT_COPY[consent];
+function ConsentNotice({ consent }: { consent: 'opted_out' | 'suppressed' }) {
+  // The state itself is the recipient's tag above; this says what it means for this send.
+  const { icon: Icon, className } = CONSENT_COPY[consent];
 
   return (
     <div
@@ -213,15 +225,12 @@ function ConsentNotice({ consent }: { consent: Exclude<Consent, 'unknown'> }) {
     >
       <Icon size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
       <div className="min-w-0">
-        <p className="font-semibold">{label}</p>
         {consent === 'suppressed' && (
-          <p className="mt-0.5 text-xs">
+          <p className="text-xs">
             This address was suppressed — usually by a GDPR erasure or a hard bounce. Nothing can be sent to it, and that is deliberate.
           </p>
         )}
-        {consent === 'opted_out' && (
-          <p className="mt-0.5 text-xs">Marketing must not be sent. Tick below if this message is transactional.</p>
-        )}
+        {consent === 'opted_out' && <p className="text-xs">Marketing must not be sent. Tick below if this message is transactional.</p>}
       </div>
       {consent === 'suppressed' && <AlertTriangle size={15} className="ml-auto mt-0.5 shrink-0" aria-hidden="true" />}
     </div>

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 
 import { ArrowUpRight, ChefHat, Loader2, Scale, SlidersHorizontal } from '@/components/icons';
-import { RecipeIngredientEditor } from '@/components/menu/RecipeIngredientEditor';
+import { RecipeIngredientEditor, RecipeIngredientSkeleton } from '@/components/menu/RecipeIngredientEditor';
 import { RecipeTotals } from '@/components/menu/RecipeTotals';
 import { type SizeColumn, useRecipeDraft } from '@/components/menu/useRecipeDraft';
 import { Drawer } from '@/components/shared/Drawer';
@@ -58,7 +58,12 @@ export function ModifierRecipeDrawer({
           <Button variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={recipe.save.isPending}>
             {recipe.dirty ? 'Discard' : 'Close'}
           </Button>
-          <Button size="lg" className="flex-1" onClick={() => recipe.save.mutate(undefined, { onSuccess: onClose })} disabled={!recipe.dirty || recipe.save.isPending}>
+          <Button
+            size="lg"
+            className="flex-1"
+            onClick={() => recipe.save.mutate(undefined, { onSuccess: onClose })}
+            disabled={!recipe.dirty || recipe.save.isPending}
+          >
             {recipe.save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
             {recipe.dirty ? 'Save recipe' : 'Saved'}
           </Button>
@@ -67,24 +72,38 @@ export function ModifierRecipeDrawer({
     >
       <div className="space-y-7">
         <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3.5">
-          <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', modifier.isSize ? 'bg-primary/8 text-primary' : 'bg-reference/8 text-reference')} aria-hidden="true">
+          <span
+            className={cn(
+              'flex size-10 shrink-0 items-center justify-center rounded-lg',
+              modifier.isSize ? 'bg-primary/8 text-primary' : 'bg-reference/8 text-reference',
+            )}
+            aria-hidden="true"
+          >
             {modifier.isSize ? <Scale size={18} /> : <SlidersHorizontal size={18} />}
           </span>
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
               {modifier.label}
-              {modifier.isDefault && <span className="shrink-0 rounded-sm bg-primary/8 px-1.5 py-0.5 text-micro font-semibold text-primary">Default</span>}
+              {modifier.isDefault && (
+                <span className="shrink-0 rounded-sm bg-primary/8 px-1.5 py-0.5 text-micro font-semibold text-primary">Default</span>
+              )}
             </p>
             <p className="truncate text-xs text-muted-foreground">
               {modifier.group ?? 'Extra'} · {adjust ? `${adjust > 0 ? '+' : '−'}${formatMoney(Math.abs(adjust), 2)}` : 'no charge'}
             </p>
           </div>
-          {recipe.dirty && <span className="shrink-0 rounded-sm bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured">Unsaved</span>}
+          {recipe.dirty && (
+            <span className="shrink-0 rounded-sm bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured">Unsaved</span>
+          )}
         </div>
 
-        <FormSection icon={ChefHat} title="Ingredients" note={sizes.length ? `Leave a size blank to use the ${defaultIsSize ? 'All sizes' : 'Default'} amount.` : undefined}>
+        <FormSection
+          icon={ChefHat}
+          title="Ingredients"
+          note={sizes.length ? `Leave a size blank to use the ${defaultIsSize ? 'All sizes' : 'Default'} amount.` : undefined}
+        >
           {recipe.isLoading ? (
-            <div className="h-24 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+            <RecipeIngredientSkeleton />
           ) : (
             <RecipeIngredientEditor
               rows={recipe.rows}
@@ -94,7 +113,11 @@ export function ModifierRecipeDrawer({
               itemMap={recipe.itemMap}
               usedIds={recipe.usedIds}
               sizes={[]}
-              emptyHint={modifier.isSize ? 'Sizes usually add nothing themselves — their effect is the per-size amounts on the item’s recipe. Add something only if the size brings its own cup or lid.' : `Nothing yet. Add what ${modifier.label} adds to a drink — e.g. 200 ml of oat milk.`}
+              emptyHint={
+                modifier.isSize
+                  ? 'Sizes usually add nothing themselves — their effect is the per-size amounts on the item’s recipe. Add something only if the size brings its own cup or lid.'
+                  : `Nothing yet. Add what ${modifier.label} adds to a drink — e.g. 200 ml of oat milk.`
+              }
             />
           )}
         </FormSection>

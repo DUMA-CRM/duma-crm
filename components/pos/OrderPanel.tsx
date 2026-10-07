@@ -3,17 +3,32 @@
 import { AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
 
-import { ArrowLeft, FileText, Gift, History, Minus, Pause, Plus, RotateCcw, ShoppingCart, Trash2, UserPlus, X } from '@/components/icons';
+import {
+  ArrowLeft,
+  ChevronRight,
+  FileText,
+  Gift,
+  History,
+  Minus,
+  Pause,
+  Plus,
+  RotateCcw,
+  ShoppingCart,
+  Trash2,
+  UserPlus,
+  X,
+} from '@/components/icons';
 import { CartRow } from '@/components/pos/CartRow';
 import { CustomerAttach, type CustomerView } from '@/components/pos/CustomerAttach';
 import { ItemCustomiser } from '@/components/pos/ItemCustomiser';
-import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
+import { Avatar } from '@/components/shared/Avatar';
+import { RelativeTime } from '@/components/shared/RelativeTime';
+import { Bone } from '@/components/shared/Skeleton';
 import { SwipeRoot } from '@/components/swipe-actions';
 import { Button } from '@/components/ui/button';
 
 import type { CustomerLoyaltyProgram } from '@/lib/api/loyalty.service';
 import { cn } from '@/lib/utils/cn';
-import { formatDateTime } from '@/lib/utils/date';
 import { type OptionGroupRule, cartCount, cartTotal, formatPrice } from '@/lib/utils/pos';
 import type { HeldTicket } from '@/stores/heldTicketsStore';
 import { usePosSettingsStore } from '@/stores/posSettingsStore';
@@ -148,16 +163,21 @@ export function OrderPanel(props: OrderPanelProps) {
                       setView('ticket');
                     }}
                     disabled={!empty}
-                    className="flex min-h-16 min-w-0 flex-1 flex-col justify-center rounded-lg px-1 text-left disabled:opacity-50"
+                    className="flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-lg px-1 text-left disabled:opacity-50"
                   >
-                    <span className="flex items-baseline justify-between gap-3">
-                      <span className="truncate text-base font-semibold text-foreground">{ticket.name}</span>
-                      <span data-figure className="shrink-0 text-base font-semibold tabular-nums">
-                        {formatPrice(cartTotal(ticket.cart), currency)}
+                    {ticket.customer && (
+                      <Avatar name={`${ticket.customer.firstName} ${ticket.customer.lastName}`} email={ticket.customer.email} size="md" />
+                    )}
+                    <span className="flex min-w-0 flex-1 flex-col justify-center">
+                      <span className="flex items-baseline justify-between gap-3">
+                        <span className="truncate text-base font-semibold text-foreground">{ticket.name}</span>
+                        <span data-figure className="shrink-0 text-base font-semibold tabular-nums">
+                          {formatPrice(cartTotal(ticket.cart), currency)}
+                        </span>
                       </span>
-                    </span>
-                    <span className="truncate text-sm text-muted-foreground">
-                      {cartCount(ticket.cart)} item{cartCount(ticket.cart) === 1 ? '' : 's'} · held {formatDateTime(ticket.heldAt)}
+                      <span className="truncate text-sm text-muted-foreground">
+                        {cartCount(ticket.cart)} item{cartCount(ticket.cart) === 1 ? '' : 's'} · held <RelativeTime iso={ticket.heldAt} />
+                      </span>
                     </span>
                   </button>
                   <Button
@@ -187,9 +207,19 @@ export function OrderPanel(props: OrderPanelProps) {
         <PanelHeader title="Customer rewards" onBack={() => setView('ticket')} />
         <div className="min-h-0 flex-1 overflow-auto">
           {loyaltyLoading ? (
-            <div className="space-y-3 p-4" aria-label="Loading customer rewards">
-              <div className="h-24 animate-pulse rounded-lg bg-band" />
-              <div className="h-24 animate-pulse rounded-lg bg-band" />
+            <div className="divide-y divide-rule/50" role="status" aria-busy="true" aria-label="Loading customer rewards">
+              {[0, 1].map((row) => (
+                <div key={row} className="space-y-3 px-4 py-4" aria-hidden="true">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="min-w-0 flex-1 space-y-1.5">
+                      <Bone className={row === 0 ? 'h-4 w-36' : 'h-4 w-28'} />
+                      <Bone className="h-3 w-48 max-w-full" />
+                    </span>
+                    <Bone className="h-6 w-14 shrink-0 rounded-full" />
+                  </div>
+                  <Bone className="h-1.5 w-full rounded-full" />
+                </div>
+              ))}
             </div>
           ) : loyaltyProgrammes.length === 0 ? (
             <PanelEmpty
@@ -221,7 +251,15 @@ export function OrderPanel(props: OrderPanelProps) {
                           const allowed = Boolean(modifier.groupId && programme.rewardRule.modifierGroupIds.includes(modifier.groupId));
                           const discount = Math.min(modifier.price, programme.rewardRule.maxDiscountCents ?? Number.MAX_SAFE_INTEGER);
                           return allowed && discount > 0
-                            ? [{ cartId: line.cartId, modifierId: modifier.id, name: `${modifier.label} on ${line.item.name}`, discount, maxQuantity: line.quantity }]
+                            ? [
+                                {
+                                  cartId: line.cartId,
+                                  modifierId: modifier.id,
+                                  name: `${modifier.label} on ${line.item.name}`,
+                                  discount,
+                                  maxQuantity: line.quantity,
+                                },
+                              ]
                             : [];
                         }),
                       );
@@ -238,7 +276,8 @@ export function OrderPanel(props: OrderPanelProps) {
                         </p>
                         {programme.nextRewardExpiresAt && (
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            Earliest reward expires {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(new Date(programme.nextRewardExpiresAt))}
+                            Earliest reward expires{' '}
+                            {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(new Date(programme.nextRewardExpiresAt))}
                           </p>
                         )}
                       </div>
@@ -256,7 +295,10 @@ export function OrderPanel(props: OrderPanelProps) {
                       <div className="mt-3 space-y-2">
                         {targets.map((target) => {
                           const rewardIndex = loyaltyRewards.findIndex(
-                            (reward) => reward.programId === programme.id && reward.cartId === target.cartId && reward.modifierId === target.modifierId,
+                            (reward) =>
+                              reward.programId === programme.id &&
+                              reward.cartId === target.cartId &&
+                              reward.modifierId === target.modifierId,
                           );
                           const selected = rewardIndex >= 0 ? loyaltyRewards[rewardIndex] : null;
                           const usedByProgramme = loyaltyRewards
@@ -293,9 +335,14 @@ export function OrderPanel(props: OrderPanelProps) {
                             >
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate font-medium text-foreground">{target.name}</span>
-                                <span className="block text-xs text-muted-foreground">Save {formatPrice(target.discount, currency)} each</span>
+                                <span className="block text-xs text-muted-foreground">
+                                  Save {formatPrice(target.discount, currency)} each
+                                </span>
                               </span>
-                              <div className="flex shrink-0 items-center rounded-md border border-rule/60 bg-field" aria-label={`Rewards applied to ${target.name}`}>
+                              <div
+                                className="flex shrink-0 items-center rounded-md border border-rule/60 bg-field"
+                                aria-label={`Rewards applied to ${target.name}`}
+                              >
                                 <button
                                   type="button"
                                   onClick={() => changeQuantity(-1)}
@@ -305,7 +352,11 @@ export function OrderPanel(props: OrderPanelProps) {
                                 >
                                   <Minus size={16} aria-hidden="true" />
                                 </button>
-                                <span data-figure className="min-w-7 text-center font-semibold tabular-nums text-foreground" aria-live="polite">
+                                <span
+                                  data-figure
+                                  className="min-w-7 text-center font-semibold tabular-nums text-foreground"
+                                  aria-live="polite"
+                                >
                                   {selected?.quantity ?? 0}
                                 </span>
                                 <button
@@ -377,12 +428,7 @@ export function OrderPanel(props: OrderPanelProps) {
               className="size-12 text-muted-foreground"
             >
               {selectedCustomer ? (
-                <InitialsAvatar
-                  firstName={selectedCustomer.firstName}
-                  lastName={selectedCustomer.lastName}
-                  email={selectedCustomer.email}
-                  size="sm"
-                />
+                <Avatar name={`${selectedCustomer.firstName} ${selectedCustomer.lastName}`} email={selectedCustomer.email} size="sm" />
               ) : (
                 <UserPlus size={20} />
               )}
@@ -509,7 +555,8 @@ export function OrderPanel(props: OrderPanelProps) {
                       : 'View balances and progress'}
                 </span>
               </span>
-              <span className="text-sm text-muted-foreground">{loyaltyRewards.length > 0 ? 'Change' : 'View'}</span>
+              <ChevronRight size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="sr-only">{loyaltyRewards.length > 0 ? 'Change rewards' : 'View rewards'}</span>
             </button>
           )}
           {noteOpen || notes ? (
@@ -522,7 +569,7 @@ export function OrderPanel(props: OrderPanelProps) {
                 onChange={(event) => onNotesChange(event.target.value)}
                 placeholder="Order note, e.g. name for the cup"
                 aria-label="Order note"
-                className="h-12 w-full rounded-lg border border-input bg-field pl-10 pr-12 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
+                className="h-12 w-full rounded-lg border border-input bg-control pl-10 pr-12 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
               />
               <Button
                 variant="ghost"
@@ -555,12 +602,6 @@ export function OrderPanel(props: OrderPanelProps) {
               {formatPrice(total, currency)}
             </span>
           </div>
-          {loyaltyRewards.length > 0 && (
-            <div className="-mt-1 flex items-center justify-between text-sm text-primary">
-              <span>{loyaltyRewards.reduce((sum, reward) => sum + reward.quantity, 0)} loyalty reward{loyaltyRewards.reduce((sum, reward) => sum + reward.quantity, 0) === 1 ? '' : 's'}</span>
-              <span className="tabular-nums">−{formatPrice(loyaltyDiscount, currency)}</span>
-            </div>
-          )}
 
           <div className="flex gap-2">
             <Button

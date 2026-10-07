@@ -9,6 +9,7 @@ import { AlertTriangle, ChevronRight, Coffee, Gift, Minus, Plus, ShoppingBag, Sp
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Drawer } from '@/components/shared/Drawer';
 import { Modal } from '@/components/shared/Modal';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -295,7 +296,11 @@ function RewardDrawer({
         <section>
           <h3 className="text-sm font-semibold text-foreground">What it covers</h3>
           {scopeLoading ? (
-            <div className="mt-2 h-10 animate-pulse rounded-lg bg-band/60" aria-label="Loading what it covers" />
+            <div className="mt-2 flex flex-wrap gap-1.5" role="status" aria-busy="true" aria-label="Loading what it covers">
+              {['w-24', 'w-32', 'w-20'].map((width) => (
+                <Bone key={width} className={cn('h-7.5', width)} />
+              ))}
+            </div>
           ) : (
             <ul className="mt-2 flex flex-wrap gap-1.5">
               {scope.map((line) => (
@@ -549,12 +554,7 @@ export function CustomerLoyaltyCards({
   if (stampProgrammes.length === 0 && available.length === 0) return null;
 
   return (
-    <SettingsSection
-      title="Loyalty cards"
-      description="Rewards ready to spend, then each stamp card as the guest carries it."
-      actions={<span className="text-xs text-muted-foreground">{stampProgrammes.length} active</span>}
-      bodyClassName="space-y-4"
-    >
+    <SettingsSection title="Loyalty cards" bodyClassName="space-y-4">
       {available.length > 0 && (
         <div className="grid gap-2.5 xl:grid-cols-2">
           {available.map((programme) => (

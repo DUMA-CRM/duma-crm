@@ -6,14 +6,17 @@ import { useState } from 'react';
 
 import { MergeCustomersModal } from '@/components/customers/MergeCustomersModal';
 import { AlertTriangle, Check, Combine, Mail, Users } from '@/components/icons';
+import { Avatar } from '@/components/shared/Avatar';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { RelativeTime } from '@/components/shared/RelativeTime';
+import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import { getDuplicateCandidates, mergeCustomers } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { formatDate } from '@/lib/utils/date';
+import { cn } from '@/lib/utils/cn';
 import type { Customer, DuplicatePair } from '@/types/customers';
 
 /**
@@ -95,9 +98,31 @@ export function DuplicatesReview() {
             </Button>
           </div>
         ) : isLoading ? (
-          <div className="space-y-3" aria-busy="true">
+          <div className="space-y-3" role="status" aria-busy="true" aria-label="Checking for duplicates">
             {[0, 1, 2].map((row) => (
-              <div key={row} className="h-28 animate-pulse rounded-lg border border-rule/65 bg-card" />
+              <div key={row} className="rounded-lg border border-rule/65 bg-card p-4" aria-hidden="true">
+                <div className="mb-3 flex items-center gap-2">
+                  <Bone className="h-5 w-24 rounded-sm" />
+                  <Bone className="h-3 w-44" />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[0, 1].map((side) => (
+                    <div key={side} className="flex gap-3 rounded-md border border-rule/45 bg-background p-3">
+                      <Bone className="size-9 shrink-0" />
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <Bone className="h-3.5 w-32" />
+                        <Bone className="h-3 w-24" />
+                        <Bone className="h-3 w-40" />
+                        <Bone className="mt-2 h-3 w-48 max-w-full" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 flex justify-end gap-2">
+                  <Bone className="h-8 w-36" />
+                  <Bone className="h-8 w-32" />
+                </div>
+              </div>
             ))}
           </div>
         ) : pairs.length === 0 ? (
@@ -105,6 +130,7 @@ export function DuplicatesReview() {
             icon={Check}
             title="No likely duplicates"
             description="Nothing shares an email address or a full name right now. Worth checking again after a busy period."
+            kind="done"
           />
         ) : (
           <ul className="space-y-3">
@@ -128,16 +154,34 @@ export function DuplicatesReview() {
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     {[a, b].map((customer) => (
-                      <div key={customer.id} className="rounded-md border border-rule/45 bg-background p-3">
-                        <p className="truncate text-sm font-semibold text-foreground">
-                          {customer.firstName} {customer.lastName}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">{customer.phone}</p>
-                        {customer.email && <p className="truncate text-xs text-muted-foreground">{customer.email}</p>}
-                        <p className="mt-2 text-xs tabular-nums text-muted-foreground">
-                          {money(String(customer.totalSpent))} · {customer.totalVisits} visits ·{' '}
-                          {customer.lastVisitAt ? formatDate(customer.lastVisitAt) : 'never visited'}
-                        </p>
+                      <div key={customer.id} className="flex gap-3 rounded-md border border-rule/45 bg-background p-3">
+                        <Avatar name={`${customer.firstName} ${customer.lastName}`} email={customer.email} />
+                        <div className="min-w-0 flex-1">
+                          {/* The field the two share is tinted, so the reason for the match is where you look. */}
+                          <p
+                            className={cn(
+                              'truncate text-sm font-semibold text-foreground',
+                              row.signal === 'name' && 'w-fit max-w-full rounded-sm bg-primary/8 px-1 -mx-1',
+                            )}
+                          >
+                            {customer.firstName} {customer.lastName}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">{customer.phone}</p>
+                          {customer.email && (
+                            <p
+                              className={cn(
+                                'truncate text-xs text-muted-foreground',
+                                row.signal === 'email' && 'w-fit max-w-full rounded-sm bg-primary/8 px-1 -mx-1 text-foreground',
+                              )}
+                            >
+                              {customer.email}
+                            </p>
+                          )}
+                          <p className="mt-2 text-xs tabular-nums text-muted-foreground">
+                            {money(String(customer.totalSpent))} · {customer.totalVisits} visits ·{' '}
+                            {customer.lastVisitAt ? <RelativeTime iso={customer.lastVisitAt} /> : 'never visited'}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>

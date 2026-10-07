@@ -10,13 +10,14 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Copy,
   ExternalLink,
   type IconComponent,
   Layers3,
   User,
   X,
 } from '@/components/icons';
+import { Avatar } from '@/components/shared/Avatar';
+import { CopyGlyph } from '@/components/ui/action-button';
 
 import { auditChangeSet } from '@/lib/audit/change';
 import {
@@ -163,22 +164,33 @@ export function AuditInspector({
       <section>
         <SectionTitle>Who and when</SectionTitle>
         <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-          <div className="flex items-center gap-3 px-3.5 py-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-sm font-semibold text-primary">
-              {initials(auditActor(log))}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-foreground">{auditActor(log)}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {[role ?? 'Role not recorded', log.userEmail].filter(Boolean).join(' · ')}
-              </p>
+          {/* In the drawer the title already names who and the description says
+              when, so the person shrinks to their email and the When row goes. */}
+          {chrome === 'drawer' ? (
+            log.userEmail && (
+              <div className="flex items-center gap-3 border-b border-rule/50 px-3.5 py-2.5">
+                <p className="min-w-0 flex-1 truncate text-sm text-foreground">{log.userEmail}</p>
+                <AuditCopyButton value={log.userEmail} label="email" />
+              </div>
+            )
+          ) : (
+            <div className="flex items-center gap-3 border-b border-rule/50 px-3.5 py-3">
+              <Avatar name={auditActor(log)} email={log.userEmail} size="md" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-foreground">{auditActor(log)}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {[role ?? 'Role not recorded', log.userEmail].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+              {log.userEmail && <AuditCopyButton value={log.userEmail} label="email" />}
             </div>
-            {log.userEmail && <AuditCopyButton value={log.userEmail} label="email" />}
-          </div>
-          <dl className="border-t border-rule/50">
-            <Row label="When">
-              <span>{fullTimestamp(log.createdAt)}</span>
-            </Row>
+          )}
+          <dl>
+            {chrome !== 'drawer' && (
+              <Row label="When">
+                <span>{fullTimestamp(log.createdAt)}</span>
+              </Row>
+            )}
             <Row label="Record">
               <span>{resourceLabel(log.resourceType)}</span>
             </Row>
@@ -297,11 +309,6 @@ function Row({ label, children, mono = false }: { label: string; children: React
   );
 }
 
-function initials(name: string) {
-  const parts = name.split(/[\s@.]+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
-}
-
 /** How the change reached the server — for support, not for the owner, so it starts folded. */
 function TechnicalDetails({ log }: { log: AuditLog }) {
   const reduceMotion = useReducedMotion();
@@ -403,7 +410,7 @@ function CopyTextButton({ value, children }: { value: string; children: React.Re
       onClick={() => void copy()}
       className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
     >
-      {copied ? <Check size={13} className="text-momentum" aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+      <CopyGlyph copied={copied} size={13} className="size-3.25 text-momentum" />
       {copied ? 'Copied' : children}
     </button>
   );
@@ -418,7 +425,7 @@ export function AuditCopyButton({ value, label }: { value: string; label: string
       aria-label={copied ? 'Copied' : `Copy ${label}`}
       className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
-      {copied ? <Check size={13} className="text-momentum" aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+      <CopyGlyph copied={copied} size={13} className="size-3.25 text-momentum" />
     </button>
   );
 }

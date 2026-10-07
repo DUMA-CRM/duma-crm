@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { requestPasswordReset } from '@/lib/modules/identity/client';
@@ -43,9 +44,9 @@ export default function Page() {
           </p>
         )}
         <Input label="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <button disabled={loading} className="h-10 w-full rounded-sm bg-primary text-sm font-semibold text-white">
+        <Button type="submit" size="touch" disabled={loading} className="w-full">
           {loading ? 'Sending…' : 'Send reset link'}
-        </button>
+        </Button>
       </form>
       <p className="mt-6 text-center text-xs">
         <Link href="/sign-in" className="font-semibold text-primary">

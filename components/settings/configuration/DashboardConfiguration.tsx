@@ -4,10 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { PersonalDashboardControls, visibleDashboardKeys } from '@/components/dashboard/PersonalDashboardControls';
-import { Loader2 } from '@/components/icons';
-import { ErrorState } from '@/components/shared/ErrorState';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { FramedRows, SectionSkeleton, TileSkeleton } from '@/components/shared/TileSkeleton';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
 
 import { type ResolvedDashboardLayout, getResolvedDashboardLayout } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -37,11 +38,21 @@ export function DashboardConfiguration() {
         </SettingsSection>
       )}
       {tenantId && dashboard.isLoading && (
-        <SettingsSection>
-          <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-            <Loader2 className="animate-spin" /> Loading dashboard settings…
-          </div>
-        </SettingsSection>
+        // The editor's shape: the panel list on the left, the preview beside it.
+        <div
+          role="status"
+          aria-busy="true"
+          aria-label="Loading dashboard settings"
+          className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]"
+        >
+          <SectionSkeleton>
+            <TileSkeleton tile="size-10" className="rounded-md border-rule/60 bg-page px-3" />
+            <FramedRows rows={6} />
+          </SectionSkeleton>
+          <SectionSkeleton>
+            <Bone className="aspect-[16/10] w-full rounded-lg" />
+          </SectionSkeleton>
+        </div>
       )}
       {tenantId && dashboard.isError && (
         <SettingsSection>
@@ -53,7 +64,12 @@ export function DashboardConfiguration() {
           />
         </SettingsSection>
       )}
-      {dashboard.data && <DashboardEditor key={`${dashboard.data.source}:${dashboard.data.layoutId ?? 'system'}:${dashboard.data.version}`} layout={dashboard.data} />}
+      {dashboard.data && (
+        <DashboardEditor
+          key={`${dashboard.data.source}:${dashboard.data.layoutId ?? 'system'}:${dashboard.data.version}`}
+          layout={dashboard.data}
+        />
+      )}
     </div>
   );
 }
@@ -90,9 +106,24 @@ function DashboardPreview({ panelKeys }: { panelKeys: string[] }) {
                   </div>
                 );
               }
-              if (key === 'analytics.trading') return <div key={key} className={panelKeys.includes('analytics.live') ? 'col-span-3' : 'col-span-4'}><TradingPreview /></div>;
-              if (key === 'analytics.live') return <div key={key} className={panelKeys.includes('analytics.trading') ? 'col-span-1' : 'col-span-4'}><LivePreview /></div>;
-              if (key === 'analytics.kpis') return <div key={key} className="col-span-4"><KpiPreview /></div>;
+              if (key === 'analytics.trading')
+                return (
+                  <div key={key} className={panelKeys.includes('analytics.live') ? 'col-span-3' : 'col-span-4'}>
+                    <TradingPreview />
+                  </div>
+                );
+              if (key === 'analytics.live')
+                return (
+                  <div key={key} className={panelKeys.includes('analytics.trading') ? 'col-span-1' : 'col-span-4'}>
+                    <LivePreview />
+                  </div>
+                );
+              if (key === 'analytics.kpis')
+                return (
+                  <div key={key} className="col-span-4">
+                    <KpiPreview />
+                  </div>
+                );
               if (key === 'analytics.orders-hourly' || key === 'analytics.top-items') {
                 return (
                   <div key={key} className={lowerPanelCount === 2 ? 'col-span-2' : 'col-span-4'}>
@@ -132,7 +163,9 @@ function TradingPreview() {
         <span className="block border-t border-dashed border-rule/45" />
       </div>
       <div className="mt-3 flex justify-between">
-        {[8, 10, 9, 8].map((width, index) => <span key={index} className="h-1 rounded-full bg-foreground/10" style={{ width }} />)}
+        {[8, 10, 9, 8].map((width, index) => (
+          <span key={index} className="h-1 rounded-full bg-foreground/10" style={{ width }} />
+        ))}
       </div>
     </div>
   );
@@ -183,14 +216,16 @@ function LowerPanelPreview({ kind }: { kind: 'chart' | 'list' }) {
     <div className="rounded-md border border-rule/55 bg-card p-2.5">
       <div className="h-1.5 w-16 rounded-full bg-foreground/20" />
       <div className="mt-1.5 h-1 w-10 rounded-full bg-foreground/10" />
-      <div className={kind === 'chart' ? 'mt-3 flex min-h-12 items-end justify-center gap-1.5' : 'mt-3 flex min-h-12 flex-col justify-center gap-2'}>
+      <div
+        className={
+          kind === 'chart' ? 'mt-3 flex min-h-12 items-end justify-center gap-1.5' : 'mt-3 flex min-h-12 flex-col justify-center gap-2'
+        }
+      >
         {kind === 'chart'
           ? [30, 55, 42, 68, 48, 74].map((height, index) => (
               <span key={index} className="w-2 rounded-sm bg-reference/25" style={{ height: `${height}%` }} />
             ))
-          : [72, 54, 64].map((width) => (
-              <span key={width} className="h-1 rounded-full bg-foreground/10" style={{ width: `${width}%` }} />
-            ))}
+          : [72, 54, 64].map((width) => <span key={width} className="h-1 rounded-full bg-foreground/10" style={{ width: `${width}%` }} />)}
       </div>
     </div>
   );

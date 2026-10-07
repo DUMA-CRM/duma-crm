@@ -96,25 +96,88 @@ export function chime(sound: ChimeSound = 'chime') {
 
 // Feedback for controls rather than alerts: shorter and quieter than any chime,
 // because they answer something the person just did and they are looking at it.
-export type UiSound = 'unlock' | 'success' | 'error';
+export type UiSound = 'unlock' | 'lock' | 'success' | 'error';
 
-export const UI_SOUNDS: Record<UiSound, Note[]> = {
-  // A latch: two very short knocks, the second higher.
-  unlock: [
-    { freq: 1200, at: 0, dur: 0.06, gain: 0.12, attack: 0.002 },
-    { freq: 1800, at: 0.05, dur: 0.08, gain: 0.1, attack: 0.002 },
-  ],
+/**
+ * A mechanical click: a few milliseconds of noise through a band-pass, so it
+ * reads as a latch rather than a tone. `freq` sets how bright it sounds.
+ */
+interface Click {
+  freq: number;
+  at: number;
+  dur: number;
+  gain?: number;
+}
+
+interface UiSoundSpec {
+  notes?: Note[];
+  clicks?: Click[];
+}
+
+export const UI_SOUNDS: Record<UiSound, UiSoundSpec> = {
+  // The phone's unlock: a light, bright two-part click, the second higher —
+  // a latch springing open. Clocking in.
+  unlock: {
+    clicks: [
+      { freq: 2600, at: 0, dur: 0.018, gain: 0.5 },
+      { freq: 4200, at: 0.042, dur: 0.014, gain: 0.35 },
+    ],
+    notes: [{ freq: 1900, at: 0, dur: 0.035, gain: 0.04, attack: 0.001 }],
+  },
+  // The phone's lock: a deeper "thock" with a little body under it, then a
+  // softer catch — a latch closing. Clocking out.
+  lock: {
+    clicks: [
+      { freq: 1500, at: 0, dur: 0.024, gain: 0.55 },
+      { freq: 2400, at: 0.036, dur: 0.016, gain: 0.25 },
+    ],
+    notes: [{ freq: 180, glideTo: 90, at: 0, dur: 0.09, gain: 0.18, attack: 0.002 }],
+  },
   // Rising fifth — done.
-  success: [
-    { freq: 659, at: 0, dur: 0.32, gain: 0.14, attack: 0.01 },
-    { freq: 988, at: 0.11, dur: 0.45, gain: 0.12, attack: 0.01 },
-  ],
+  success: {
+    notes: [
+      { freq: 659, at: 0, dur: 0.32, gain: 0.14, attack: 0.01 },
+      { freq: 988, at: 0.11, dur: 0.45, gain: 0.12, attack: 0.01 },
+    ],
+  },
   // One low tone falling away — not done, without sounding like an alarm.
-  error: [{ freq: 330, glideTo: 220, at: 0, dur: 0.4, gain: 0.16, attack: 0.01 }],
+  error: { notes: [{ freq: 330, glideTo: 220, at: 0, dur: 0.4, gain: 0.16, attack: 0.01 }] },
 };
 
 export function uiSound(sound: UiSound) {
-  playNotes(UI_SOUNDS[sound]);
+  const { notes, clicks } = UI_SOUNDS[sound];
+  if (notes) playNotes(notes);
+  if (clicks) playClicks(clicks);
+}
+
+let noise: AudioBuffer | null = null;
+
+function playClicks(clicks: Click[]) {
+  const ctx = unlockAudio();
+  if (!ctx) return;
+  // One short buffer of white noise, reused — every click is a slice of it.
+  if (!noise || noise.sampleRate !== ctx.sampleRate) {
+    noise = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.1), ctx.sampleRate);
+    const data = noise.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  }
+  for (const { freq, at, dur, gain: peak = 0.4 } of clicks) {
+    const src = ctx.createBufferSource();
+    src.buffer = noise;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = freq;
+    filter.Q.value = 1.4;
+    const gain = ctx.createGain();
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    const start = ctx.currentTime + at;
+    gain.gain.setValueAtTime(peak, start);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    src.start(start);
+    src.stop(start + dur + 0.02);
+  }
 }
 
 function playNotes(notes: Note[]) {

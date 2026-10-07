@@ -14,6 +14,8 @@ import { TillMenu } from '@/components/pos/TillMenu';
 import { MENU_STALE_MS, pence, useTillMenuData } from '@/components/pos/useTillMenuData';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { RelativeTime } from '@/components/shared/RelativeTime';
+import { StatusDot } from '@/components/shared/StatusDot';
 import { SlideToClockIn } from '@/components/shifts/SlideToClockIn';
 import { Button } from '@/components/ui/button';
 
@@ -26,10 +28,17 @@ import { type PaymentAttempt, type PaymentMethod, confirmPayment, getPaymentMeth
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
-import { formatDateTime } from '@/lib/utils/date';
 import {
-  type OptionGroupRule, buildOptionGroups, cartSignature, cartTotal, changeDue, countByItem, isUnreachable, lineKey,
+  type OptionGroupRule,
+  buildOptionGroups,
+  cartSignature,
+  cartTotal,
+  changeDue,
+  countByItem,
+  isUnreachable,
+  lineKey,
 } from '@/lib/utils/pos';
+import { validLoyaltyRewards } from '@/lib/utils/pos-loyalty';
 import { useAuthStore } from '@/stores/authStore';
 import { MAX_HELD, useHeldTicketsStore } from '@/stores/heldTicketsStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
@@ -78,7 +87,11 @@ export default function POSPage() {
   // Hold the till behind one neutral frame until React has attached so a hard
   // refresh cannot compare the server defaults with already-restored browser
   // state and discard the server-rendered POS tree during hydration.
-  const clientReady = useSyncExternalStore(subscribeToClientReady, () => true, () => false);
+  const clientReady = useSyncExternalStore(
+    subscribeToClientReady,
+    () => true,
+    () => false,
+  );
   const { tenantId, locationId } = useWorkspaceStore();
   const userId = useAuthStore((state) => state.user?.id);
 
@@ -86,19 +99,28 @@ export default function POSPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customising, setCustomising] = useState<{ item: MenuItem; groups: OptionGroupRule[] | null } | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [loyaltyRewards, setLoyaltyRewards] = useState<AppliedLoyaltyReward[]>([]);
+  const [chosenRewards, setChosenRewards] = useState<AppliedLoyaltyReward[]>([]);
   const [notes, setNotes] = useState('');
   const [flashId, setFlashId] = useState<string | null>(null);
   const [removed, setRemoved] = useState<{ line: CartItem; index: number } | null>(null);
 
   // Checkout. The ticket is snapshotted when it opens — the live cart clears as soon as the sale is recorded.
   const [checkout, setCheckout] = useState<CheckoutStep | 'closed'>('closed');
-  const [snapshot, setSnapshot] = useState<{ lines: CartItem[]; total: number; customerName?: string; loyaltyReward?: { label: string; discountCents: number } }>({ lines: [], total: 0 });
+  const [snapshot, setSnapshot] = useState<{
+    lines: CartItem[];
+    total: number;
+    customerName?: string;
+    loyaltyReward?: { label: string; discountCents: number };
+  }>({ lines: [], total: 0 });
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [paymentAttempt, setPaymentAttempt] = useState<PaymentAttempt | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [offlinePayment, setOfflinePayment] = useState<PaymentMethod | null>(null);
-  const [done, setDone] = useState<{ orderId: string | null; queued: boolean; change: number }>({ orderId: null, queued: false, change: 0 });
+  const [done, setDone] = useState<{ orderId: string | null; queued: boolean; change: number }>({
+    orderId: null,
+    queued: false,
+    change: 0,
+  });
   const session = useRef<ChargeSession | null>(null);
 
   // Deep link: /pos?customer=<id> (e.g. from a customer's profile) opens the
@@ -130,7 +152,7 @@ export default function POSPage() {
     setTicketOwner(userId);
     setCart([]);
     setSelectedCustomer(null);
-    setLoyaltyRewards([]);
+    setChosenRewards([]);
     setNotes('');
     setCustomising(null);
   }
@@ -165,7 +187,14 @@ export default function POSPage() {
   });
 
   // ── Menu ──
-  const { menu, items: posItems, categories, favourites, favouritesLabel, stockStatus } = useTillMenuData({
+  const {
+    menu,
+    items: posItems,
+    categories,
+    favourites,
+    favouritesLabel,
+    stockStatus,
+  } = useTillMenuData({
     tenantId,
     locationId,
     layout,
@@ -181,7 +210,9 @@ export default function POSPage() {
   // Opening and closing the trading day lives here, at the drawer it counts.
   // `/cash-up` lands with `?cashup` to open it straight away.
   const cashUpDay = useCashUpDay(locationId, location?.timezone ?? 'Europe/London');
-  const [cashUpOpen, setCashUpOpen] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('cashup'));
+  const [cashUpOpen, setCashUpOpen] = useState(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('cashup'),
+  );
   const closeCashUp = () => {
     setCashUpOpen(false);
     if (window.location.search.includes('cashup')) window.history.replaceState(null, '', window.location.pathname);
@@ -191,36 +222,12 @@ export default function POSPage() {
     queryFn: () => getCustomerLoyaltyWallet(selectedCustomer!.id, locationId ?? undefined),
     enabled: Boolean(selectedCustomer && locationId),
   });
-  useEffect(() => {
-    if (loyaltyRewards.length === 0) return;
-    const programmeUsage = new Map<string, number>();
-    const valid: AppliedLoyaltyReward[] = [];
-    for (const reward of loyaltyRewards) {
-      const programme = loyaltyWallet.data?.programmes.find((row) => row.id === reward.programId);
-      const line = cart.find((row) => row.cartId === reward.cartId);
-      if (!programme?.canRedeem || !line) continue;
-      const available = programme.rewards?.length ?? Math.floor(programme.balance / programme.rewardRule.cost);
-      const used = programmeUsage.get(programme.id) ?? 0;
-      const quantity = Math.min(reward.quantity, line.quantity, Math.max(0, available - used));
-      if (quantity < 1) continue;
-      if (programme.rewardRule.kind === 'free_modifier') {
-        const modifier = line.selected.find((row) => row.id === reward.modifierId);
-        if (!modifier?.groupId || !programme.rewardRule.modifierGroupIds.includes(modifier.groupId)) continue;
-      } else {
-        const itemAllowed = programme.rewardRule.menuItemIds.length === 0 || programme.rewardRule.menuItemIds.includes(line.item.id);
-        const categoryAllowed = programme.rewardRule.categoryIds.length === 0 || programme.rewardRule.categoryIds.includes(line.item.category);
-        if (!itemAllowed || !categoryAllowed) continue;
-      }
-      programmeUsage.set(programme.id, used + quantity);
-      valid.push({ ...reward, quantity, discountCents: reward.unitDiscountCents * quantity });
-    }
-    const unchanged = valid.length === loyaltyRewards.length && valid.every((reward, index) => {
-      const current = loyaltyRewards[index];
-      return current && reward.programId === current.programId && reward.cartId === current.cartId
-        && reward.modifierId === current.modifierId && reward.quantity === current.quantity && reward.discountCents === current.discountCents;
-    });
-    if (!unchanged) setLoyaltyRewards(valid);
-  }, [cart, loyaltyRewards, loyaltyWallet.data]);
+  // What the cashier picked, trimmed to what the cart and wallet still allow —
+  // derived, so the discount shown and the discount sent are the same render.
+  const loyaltyRewards = useMemo(
+    () => validLoyaltyRewards(chosenRewards, cart, loyaltyWallet.data?.programmes),
+    [chosenRewards, cart, loyaltyWallet.data],
+  );
   const counts = useMemo(() => countByItem(cart), [cart]);
 
   const { data: configuredPaymentMethods = [] } = useQuery({
@@ -334,14 +341,17 @@ export default function POSPage() {
     setCart([]);
     setSelectedCustomer(null);
     setNotes('');
-    setLoyaltyRewards([]);
+    setChosenRewards([]);
     setRemoved(null);
     handleCancelItem();
   }
 
   // ── Held tickets ──
   const allHeld = useHeldTicketsStore((state) => state.tickets);
-  const held = useMemo(() => allHeld.filter((t) => t.tenantId === tenantId && t.locationId === locationId), [allHeld, locationId, tenantId]);
+  const held = useMemo(
+    () => allHeld.filter((t) => t.tenantId === tenantId && t.locationId === locationId),
+    [allHeld, locationId, tenantId],
+  );
 
   function handleHold() {
     if (!tenantId || !locationId || cart.length === 0) return;
@@ -350,7 +360,9 @@ export default function POSPage() {
       return;
     }
     const time = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    const name = selectedCustomer ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}`.trim() : notes.trim().slice(0, 40) || `Ticket · ${time}`;
+    const name = selectedCustomer
+      ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}`.trim()
+      : notes.trim().slice(0, 40) || `Ticket · ${time}`;
     useHeldTicketsStore.getState().hold({ name, cart, customer: selectedCustomer, notes, heldBy: userId ?? null, tenantId, locationId });
     resetTicket();
     toast('success', `Held as “${name}”. Pick it up from Held.`);
@@ -396,19 +408,25 @@ export default function POSPage() {
     if (!previous || previous.signature !== signature) {
       // The basket changed since an order was created for it: that order will never be paid, so void it.
       // Best effort — it needs `orders:status`, and an unpaid order left behind is visible on /orders.
-      if (previous?.orderId) void updateOrderStatus(previous.orderId, 'cancelled', { voidReason: 'staff_error', voidNotes: 'Basket changed at the till before payment' }).catch(() => undefined);
+      if (previous?.orderId)
+        void updateOrderStatus(previous.orderId, 'cancelled', {
+          voidReason: 'staff_error',
+          voidNotes: 'Basket changed at the till before payment',
+        }).catch(() => undefined);
       session.current = { signature, key: crypto.randomUUID(), orderId: null, cashAttempt: null };
     }
     setSnapshot({
       lines: cart,
       total: Math.max(0, cartTotal(cart) - loyaltyRewards.reduce((sum, reward) => sum + reward.discountCents, 0)),
       customerName: selectedCustomer ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}` : undefined,
-      ...(loyaltyRewards.length > 0 ? {
-        loyaltyReward: {
-          label: `${loyaltyRewards.reduce((sum, reward) => sum + reward.quantity, 0)} loyalty reward${loyaltyRewards.reduce((sum, reward) => sum + reward.quantity, 0) === 1 ? '' : 's'}`,
-          discountCents: loyaltyRewards.reduce((sum, reward) => sum + reward.discountCents, 0),
-        },
-      } : {}),
+      ...(loyaltyRewards.length > 0
+        ? {
+            loyaltyReward: {
+              label: `${loyaltyRewards.reduce((sum, reward) => sum + reward.quantity, 0)} loyalty reward${loyaltyRewards.reduce((sum, reward) => sum + reward.quantity, 0) === 1 ? '' : 's'}`,
+              discountCents: loyaltyRewards.reduce((sum, reward) => sum + reward.discountCents, 0),
+            },
+          }
+        : {}),
     });
     setCheckoutError(null);
     setOfflinePayment(null);
@@ -479,7 +497,8 @@ export default function POSPage() {
   });
 
   const { mutate: recordOutcome, isPending: isConfirming } = useMutation({
-    mutationFn: ({ outcome }: { outcome: 'succeeded' | 'failed' | 'cancelled'; tendered?: number }) => confirmPayment(paymentAttempt!.id, outcome),
+    mutationFn: ({ outcome }: { outcome: 'succeeded' | 'failed' | 'cancelled'; tendered?: number }) =>
+      confirmPayment(paymentAttempt!.id, outcome),
     onSuccess: (payment, { outcome, tendered }) => {
       if (payment.status === 'succeeded') {
         finishSale(false, tendered);
@@ -502,7 +521,8 @@ export default function POSPage() {
       moduleQueryKeys.inventory.key('low-stock-alerts'),
       moduleQueryKeys.customers.key('customers'),
       moduleQueryKeys.customers.key('loyalty-wallet'),
-    ]) void qc.invalidateQueries({ queryKey });
+    ])
+      void qc.invalidateQueries({ queryKey });
     if (selectedCustomer) void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-visits', selectedCustomer.id) });
   }
 
@@ -587,10 +607,9 @@ export default function POSPage() {
     [offlineHistory, tenantId, userId],
   );
 
-  const shellTitle = locationName ?? 'Till';
   if (!clientReady) {
     return (
-      <EditorShell eyebrow="Till" title="Till" icon={<Monitor size={20} aria-hidden="true" />} flush>
+      <EditorShell title="Till" icon={<Monitor size={20} aria-hidden="true" />} flush>
         <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-16" aria-live="polite">
           <p className="text-sm font-medium text-muted-foreground">Preparing the till…</p>
         </div>
@@ -601,9 +620,23 @@ export default function POSPage() {
   const ready = !!tenantId && !!locationId && onShift;
   let body: React.ReactNode;
   if (!tenantId) {
-    body = <EmptyState icon={Building2} title="No workspace selected" description="Select a workspace before taking orders." />;
+    body = (
+      <EmptyState
+        icon={Building2}
+        title="No workspace selected"
+        description="Select a workspace before taking orders."
+        className="flex-1"
+      />
+    );
   } else if (!locationId) {
-    body = <EmptyState icon={MapPin} title="No location selected" description="Use the location picker to choose where you’re taking orders." />;
+    body = (
+      <EmptyState
+        icon={MapPin}
+        title="No location selected"
+        description="Use the location picker to choose where you’re taking orders."
+        className="flex-1"
+      />
+    );
   } else if (shifts.isLoading) {
     body = <MenuGrid items={[]} counts={{}} selectedId={null} onSelectItem={() => undefined} isLoading />;
   } else if (shifts.isError && !shifts.data) {
@@ -624,63 +657,80 @@ export default function POSPage() {
 
   const banners = (
     <>
-              <CashUpNudge status={cashUpDay.status} open={cashUpDay.open} onOpen={() => setCashUpOpen(true)} />
-              {(!online || queuedOrders.length > 0) && (
-                <div
-                  role="status"
-                  className={cn(
-                    'mb-4 rounded-xl border px-4 py-3 text-sm',
-                    needsAttention.length > 0 ? 'border-exception/35 bg-destructive/6' : online ? 'border-primary/25 bg-primary/5' : 'border-warning/35 bg-warning/8',
-                  )}
-                >
-                  <p className="flex items-center gap-2.5 font-medium text-foreground">
-                    {online ? <CloudUpload size={17} aria-hidden="true" className="shrink-0 text-primary" /> : <WifiOff size={17} aria-hidden="true" className="shrink-0 text-warning" />}
-                    {needsAttention.length > 0
-                      ? `${needsAttention.length} saved ${needsAttention.length === 1 ? 'sale was' : 'sales were'} refused by the server and need${needsAttention.length === 1 ? 's' : ''} a manager.`
-                      : !online
-                        ? `Offline — cash and card-machine sales save on this till${queuedOrders.length ? ` (${queuedOrders.length} waiting)` : ''} and send when the connection returns.`
-                        : `Sending ${queuedOrders.length} saved ${queuedOrders.length === 1 ? 'sale' : 'sales'}…`}
-                  </p>
-                  {needsAttention.length > 0 && (
-                    <ul className="mt-3 divide-y divide-rule/40 border-t border-rule/40">
-                      {needsAttention.map((order) => (
-                        <li key={order.id} className="flex items-center justify-between gap-3 py-2">
-                          <span className="min-w-0 text-muted-foreground">
-                            {formatDateTime(order.queuedAt)} · {order.lastError ?? 'Refused by the server'}
-                          </span>
-                          <Button variant="outline" onClick={() => useOfflineOrdersStore.getState().retry(order.id)} className="h-11 shrink-0 px-4">
-                            Retry
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
+      <CashUpNudge status={cashUpDay.status} open={cashUpDay.open} onOpen={() => setCashUpOpen(true)} />
+      {(!online || queuedOrders.length > 0) && (
+        <div
+          role="status"
+          className={cn(
+            'mb-4 rounded-xl border px-4 py-3 text-sm',
+            needsAttention.length > 0
+              ? 'border-exception/35 bg-destructive/6'
+              : online
+                ? 'border-primary/25 bg-primary/5'
+                : 'border-warning/35 bg-warning/8',
+          )}
+        >
+          <p className="flex items-center gap-2.5 font-medium text-foreground">
+            {online ? (
+              <CloudUpload size={17} aria-hidden="true" className="shrink-0 text-primary" />
+            ) : (
+              <WifiOff size={17} aria-hidden="true" className="shrink-0 text-warning" />
+            )}
+            {needsAttention.length > 0
+              ? `${needsAttention.length} saved ${needsAttention.length === 1 ? 'sale was' : 'sales were'} refused by the server and need${needsAttention.length === 1 ? 's' : ''} a manager.`
+              : !online
+                ? `Offline — cash and card-machine sales save on this till${queuedOrders.length ? ` (${queuedOrders.length} waiting)` : ''} and send when the connection returns.`
+                : `Sending ${queuedOrders.length} saved ${queuedOrders.length === 1 ? 'sale' : 'sales'}…`}
+          </p>
+          {needsAttention.length > 0 && (
+            <ul className="mt-3 divide-y divide-rule/40 border-t border-rule/40">
+              {needsAttention.map((order) => (
+                <li key={order.id} className="flex items-center justify-between gap-3 py-2">
+                  <span className="flex min-w-0 items-center gap-2.5 text-muted-foreground">
+                    <StatusDot tone="exception" label="Refused" />
+                    <span className="min-w-0">
+                      Taken <RelativeTime iso={order.queuedAt} /> · {order.lastError ?? 'Refused by the server'}
+                    </span>
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => useOfflineOrdersStore.getState().retry(order.id)}
+                    className="h-11 shrink-0 px-4"
+                  >
+                    Retry
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
-              {ready && recentSyncs.length > 0 && online && queuedOrders.length === 0 && (
-                <details className="mb-4 rounded-xl border border-rule/60 bg-card px-4 py-3 text-sm text-muted-foreground">
-                  <summary className="cursor-pointer font-medium text-foreground">Recently sent from this till · {recentSyncs.length}</summary>
-                  <ul className="mt-2 space-y-1 border-t border-rule/50 pt-2">
-                    {recentSyncs.map((record) => (
-                      <li key={record.queueId}>
-                        Order {record.orderId.slice(0, 8)} · taken {formatDateTime(record.queuedAt)} · sent {formatDateTime(record.syncedAt)}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-
+      {ready && recentSyncs.length > 0 && online && queuedOrders.length === 0 && (
+        <details className="mb-4 rounded-xl border border-rule/60 bg-card px-4 py-3 text-sm text-muted-foreground">
+          <summary className="cursor-pointer font-medium text-foreground">Recently sent from this till · {recentSyncs.length}</summary>
+          <ul className="mt-2 space-y-1 border-t border-rule/50 pt-2">
+            {recentSyncs.map((record) => (
+              <li key={record.queueId} className="flex items-center gap-2.5">
+                <StatusDot tone="success" label="Sent" />
+                <span className="min-w-0">
+                  Order {record.orderId.slice(0, 8)} · taken <RelativeTime iso={record.queuedAt} /> · sent{' '}
+                  <RelativeTime iso={record.syncedAt} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </>
   );
 
   return (
     <>
       <EditorShell
-        eyebrow="Till"
-        title={shellTitle}
+        title="Till"
         icon={<Monitor size={20} aria-hidden="true" />}
-        meta={!online ? <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warning"><WifiOff size={13} aria-hidden="true" /> Offline</span> : undefined}
         actions={<CashUpButton status={cashUpDay.status} onOpen={() => setCashUpOpen(true)} />}
         flush
       >
@@ -706,9 +756,9 @@ export default function POSPage() {
               <CartBar cart={cart} onOpen={() => usePageSidebarStore.getState().setOpen(true)} currency={currency} />
             </>
           ) : (
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background px-4 py-4 md:px-6">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain bg-background px-4 py-4 md:px-6">
               {banners}
-              {body}
+              <div className="flex flex-1 flex-col">{body}</div>
             </div>
           )}
 
@@ -720,19 +770,26 @@ export default function POSPage() {
                 groups={customising?.groups ?? null}
                 onAddToCart={handleAddToCart}
                 onCancelItem={handleCancelItem}
-                onQty={(cartId, delta) => setCart((prev) => prev.map((c) => (c.cartId === cartId ? { ...c, quantity: Math.max(1, c.quantity + delta) } : c)))}
-                onLineNote={(cartId, note) => setCart((prev) => prev.map((c) => (c.cartId === cartId ? { ...c, note: note || undefined } : c)))}
+                onQty={(cartId, delta) =>
+                  setCart((prev) => prev.map((c) => (c.cartId === cartId ? { ...c, quantity: Math.max(1, c.quantity + delta) } : c)))
+                }
+                onLineNote={(cartId, note) =>
+                  setCart((prev) => prev.map((c) => (c.cartId === cartId ? { ...c, note: note || undefined } : c)))
+                }
                 onRemove={handleRemove}
                 removed={removed?.line ?? null}
                 onUndoRemove={handleUndoRemove}
                 flashId={flashId}
                 onClearCart={resetTicket}
                 selectedCustomer={selectedCustomer}
-                onCustomerSelect={(customer) => { setSelectedCustomer(customer); setLoyaltyRewards([]); }}
+                onCustomerSelect={(customer) => {
+                  setSelectedCustomer(customer);
+                  setChosenRewards([]);
+                }}
                 loyaltyProgrammes={loyaltyWallet.data?.programmes ?? []}
                 loyaltyLoading={loyaltyWallet.isLoading}
                 loyaltyRewards={loyaltyRewards}
-                onLoyaltyRewards={setLoyaltyRewards}
+                onLoyaltyRewards={setChosenRewards}
                 notes={notes}
                 onNotesChange={setNotes}
                 held={held}
@@ -792,9 +849,19 @@ export default function POSPage() {
   );
 }
 
-function Gate({ icon: Icon, title, description, children }: { icon: typeof Clock; title: string; description: string; children?: React.ReactNode }) {
+function Gate({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: typeof Clock;
+  title: string;
+  description: string;
+  children?: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
       <span className="flex size-16 items-center justify-center rounded-2xl bg-band text-muted-foreground" aria-hidden="true">
         <Icon size={28} />
       </span>
@@ -815,5 +882,9 @@ const subscribeOnline = (notify: () => void) => {
 };
 
 function useOnline() {
-  return useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
+  return useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true,
+  );
 }

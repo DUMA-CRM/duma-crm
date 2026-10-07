@@ -64,7 +64,7 @@ export function OffboardModal({
       <p className="mb-2 text-label uppercase text-muted-foreground">Before you confirm</p>
       <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
         <Step icon={CalendarCheck} title="Record the last working day and why" detail="Add it to their documents so the reason is on file." />
-        <Step icon={Clock} title="Approve their final hours and expenses" detail="Anything unapproved won’t reach their last pay." />
+        <Step icon={Clock} title="Approve their final hours" detail="Anything unapproved won’t reach their last pay." />
         <Step icon={CalendarDays} title="Settle unused holiday" detail={holiday} />
         <Step icon={Banknote} title="Run their final pay and leaver paperwork" detail="In payroll, as your country requires." />
         <Step icon={Package} title="Collect keys, uniform and equipment" detail="And decide when their access should end, if not now." />

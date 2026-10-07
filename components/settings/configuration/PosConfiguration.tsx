@@ -3,12 +3,27 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { ArrowDown, ArrowUp, Camera, LayoutGrid, Package, RotateCcw, ScanLine, Search, Star, Tags, Trash2, TrendingUp, X } from '@/components/icons';
+import {
+  ArrowDown,
+  ArrowUp,
+  Camera,
+  LayoutGrid,
+  Package,
+  RotateCcw,
+  ScanLine,
+  Search,
+  Star,
+  Tags,
+  Trash2,
+  TrendingUp,
+  X,
+} from '@/components/icons';
 import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { NumberStepper } from '@/components/shared/FormParts';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
@@ -18,11 +33,17 @@ import { cn } from '@/lib/utils/cn';
 import { formatPrice, movePinned, togglePinned } from '@/lib/utils/pos';
 import { useAuthStore } from '@/stores/authStore';
 import {
-  DEFAULT_POS_LAYOUT, type FavouritesMode, type MenuLayout, type PosLayout, type ScannerMode, type TileStyle, usePosSettingsStore,
+  DEFAULT_POS_LAYOUT,
+  type FavouritesMode,
+  type MenuLayout,
+  type PosLayout,
+  type ScannerMode,
+  type TileStyle,
+  usePosSettingsStore,
 } from '@/stores/posSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { ConfigurationHeader, useMounted } from './shared';
+import { ConfigurationBodySkeleton, ConfigurationHeader, useMounted } from './shared';
 
 const LAYOUTS = [
   { value: 'items', label: 'Items first', detail: 'The menu opens on items, with category tabs above.', icon: LayoutGrid },
@@ -50,17 +71,31 @@ export function PosConfiguration() {
   const settings = usePosSettingsStore();
   const { tenantId } = useWorkspaceStore();
   const capabilities = useAuthStore((state) => state.capabilities);
-  const canReadStock = hasAnyCapability(capabilities, 'stock.locations:read', 'inventory:read') && hasCapability(capabilities, 'recipes:read');
+  const canReadStock =
+    hasAnyCapability(capabilities, 'stock.locations:read', 'inventory:read') && hasCapability(capabilities, 'recipes:read');
   const canReadSales = hasCapability(capabilities, 'analytics:read');
   const set = (patch: Partial<PosLayout>) => settings.setLayout(patch);
   const pinned = (tenantId && settings.pinned[tenantId]) || [];
   const isDefault = (Object.keys(DEFAULT_POS_LAYOUT) as (keyof PosLayout)[]).every((key) => settings[key] === DEFAULT_POS_LAYOUT[key]);
 
-  if (!mounted) return <div className="h-96 animate-pulse rounded-lg bg-band/50" aria-busy="true" />;
+  // The header is static; only the device-stored settings wait for mount.
+  if (!mounted)
+    return (
+      <div className="space-y-5">
+        <ConfigurationHeader
+          title="Till"
+          description="How the sell screen looks on this till. Changes apply straight away — no save needed."
+        />
+        <ConfigurationBodySkeleton label="Loading till settings" />
+      </div>
+    );
 
   return (
     <div className="space-y-5">
-      <ConfigurationHeader title="Till" description="How the sell screen looks on this till. Changes apply straight away — no save needed." />
+      <ConfigurationHeader
+        title="Till"
+        description="How the sell screen looks on this till. Changes apply straight away — no save needed."
+      />
       <SettingsTabBody stickyAside aside={<TillPreview layout={settings} pinnedCount={pinned.length} />}>
         <SettingsSection title="Menu layout" description="How the cashier finds an item.">
           <ChoiceGrid<MenuLayout>
@@ -80,7 +115,11 @@ export function PosConfiguration() {
             <SettingRow
               icon={Tags}
               title="Category tabs"
-              description={settings.menuLayout === 'categories' ? 'Not used with Categories first — the tiles take their place.' : 'A row of tabs above the items.'}
+              description={
+                settings.menuLayout === 'categories'
+                  ? 'Not used with Categories first — the tiles take their place.'
+                  : 'A row of tabs above the items.'
+              }
             >
               <Switch
                 label="Show category tabs"
@@ -91,13 +130,23 @@ export function PosConfiguration() {
             </SettingRow>
           </SettingRows>
           <p className="mb-2 mt-5 text-label uppercase text-muted-foreground">Item tiles</p>
-          <ChoiceGrid<TileStyle> label="Item tiles" shortcuts={false} selected={[settings.tileStyle]} onChange={(tileStyle) => set({ tileStyle })} choices={TILE_STYLES} />
+          <ChoiceGrid<TileStyle>
+            label="Item tiles"
+            shortcuts={false}
+            selected={[settings.tileStyle]}
+            onChange={(tileStyle) => set({ tileStyle })}
+            choices={TILE_STYLES}
+          />
         </SettingsSection>
 
         <SettingsSection
           title="Favourites"
           description="A first tab (or tile) with the items sold most, so the busiest orders are one tap away."
-          footnote={settings.favourites === 'top' && !canReadSales ? 'Best sellers need sales reporting access (analytics:read). Without it the till shows no favourites tab.' : undefined}
+          footnote={
+            settings.favourites === 'top' && !canReadSales
+              ? 'Best sellers need sales reporting access (analytics:read). Without it the till shows no favourites tab.'
+              : undefined
+          }
         >
           <ChoiceGrid<FavouritesMode>
             label="Favourites"
@@ -114,7 +163,14 @@ export function PosConfiguration() {
                 <p className="text-sm text-muted-foreground">Ranked by quantity sold here in the last 30 days.</p>
               </div>
               <div className="w-44">
-                <NumberStepper label="Best sellers shown" value={settings.topCount} onChange={(topCount) => set({ topCount })} min={4} max={16} step={2} />
+                <NumberStepper
+                  label="Best sellers shown"
+                  value={settings.topCount}
+                  onChange={(topCount) => set({ topCount })}
+                  min={4}
+                  max={16}
+                  step={2}
+                />
               </div>
             </div>
           )}
@@ -131,9 +187,17 @@ export function PosConfiguration() {
             <SettingRow
               icon={Package}
               title="Highlight low and out-of-stock items"
-              description={canReadStock ? 'A yellow edge when an ingredient is low, red when one has run out.' : 'Needs stock and recipe read access on this account — without it nothing is highlighted.'}
+              description={
+                canReadStock
+                  ? 'A yellow edge when an ingredient is low, red when one has run out.'
+                  : 'Needs stock and recipe read access on this account — without it nothing is highlighted.'
+              }
             >
-              <Switch label="Highlight low and out-of-stock items" checked={settings.stockHighlight} onChange={(stockHighlight) => set({ stockHighlight })} />
+              <Switch
+                label="Highlight low and out-of-stock items"
+                checked={settings.stockHighlight}
+                onChange={(stockHighlight) => set({ stockHighlight })}
+              />
             </SettingRow>
           </SettingRows>
         </SettingsSection>
@@ -145,7 +209,11 @@ export function PosConfiguration() {
               title="Swipe to remove"
               description="Swipe a line left to show Remove, or all the way to remove it. Undo stays on screen for five seconds."
             >
-              <Switch label="Swipe to remove ticket lines" checked={settings.swipeToRemove} onChange={(swipeToRemove) => set({ swipeToRemove })} />
+              <Switch
+                label="Swipe to remove ticket lines"
+                checked={settings.swipeToRemove}
+                onChange={(swipeToRemove) => set({ swipeToRemove })}
+              />
             </SettingRow>
           </SettingRows>
         </SettingsSection>
@@ -206,13 +274,33 @@ function PinnedPicker({ pinned, onChange }: { pinned: string[]; onChange: (ids: 
               <li key={item.id} className="flex items-center gap-3 py-1.5 pl-4 pr-1.5">
                 <span className="w-5 text-sm tabular-nums text-muted-foreground">{index + 1}</span>
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{item.name}</span>
-                <Button variant="ghost" size="icon" onClick={() => onChange(movePinned(pinned, item.id, -1))} disabled={index === 0} aria-label={`Move ${item.name} up`} className="size-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onChange(movePinned(pinned, item.id, -1))}
+                  disabled={index === 0}
+                  aria-label={`Move ${item.name} up`}
+                  className="size-10"
+                >
                   <ArrowUp size={16} />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => onChange(movePinned(pinned, item.id, 1))} disabled={index === pinnedItems.length - 1} aria-label={`Move ${item.name} down`} className="size-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onChange(movePinned(pinned, item.id, 1))}
+                  disabled={index === pinnedItems.length - 1}
+                  aria-label={`Move ${item.name} down`}
+                  className="size-10"
+                >
                   <ArrowDown size={16} />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => onChange(togglePinned(pinned, item.id))} aria-label={`Unpin ${item.name}`} className="size-10 text-muted-foreground">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onChange(togglePinned(pinned, item.id))}
+                  aria-label={`Unpin ${item.name}`}
+                  className="size-10 text-muted-foreground"
+                >
                   <X size={16} />
                 </Button>
               </li>
@@ -223,25 +311,36 @@ function PinnedPicker({ pinned, onChange }: { pinned: string[]; onChange: (ids: 
 
       <div>
         <div className="relative mb-2">
-          <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={16}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Find an item to pin"
             aria-label="Find an item to pin"
-            className="h-10 w-full rounded-md border border-input bg-field pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
+            className="h-10 w-full rounded-md border border-input bg-control pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
           />
         </div>
         {items.isLoading ? (
-          <div className="h-40 animate-pulse rounded-lg bg-band/50" aria-busy="true" />
+          <ListSkeleton rows={4} label="Loading the menu" />
         ) : items.isError ? (
-          <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-exception/35 bg-destructive/6 px-4 py-3 text-sm">
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-lg border border-exception/35 bg-destructive/6 px-4 py-3 text-sm"
+          >
             The menu didn’t load.
-            <Button variant="outline" size="sm" onClick={() => void items.refetch()}>Try again</Button>
+            <Button variant="outline" size="sm" onClick={() => void items.refetch()}>
+              Try again
+            </Button>
           </div>
         ) : candidates.length === 0 ? (
-          <p className="px-1 py-3 text-sm text-muted-foreground">{q ? `Nothing matches “${query.trim()}”.` : 'Every item on sale is pinned.'}</p>
+          <p className="px-1 py-3 text-sm text-muted-foreground">
+            {q ? `Nothing matches “${query.trim()}”.` : 'Every item on sale is pinned.'}
+          </p>
         ) : (
           <ul className="max-h-72 divide-y divide-rule/45 overflow-y-auto rounded-lg border border-rule/60 bg-card">
             {candidates.map((item) => (
@@ -254,9 +353,13 @@ function PinnedPicker({ pinned, onChange }: { pinned: string[]; onChange: (ids: 
                   <Star size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-foreground">{item.name}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{categoryName.get(item.categoryId) ?? 'Uncategorised'}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {categoryName.get(item.categoryId) ?? 'Uncategorised'}
+                    </span>
                   </span>
-                  <span data-figure className="text-sm tabular-nums text-muted-foreground">{formatPrice(Math.round(Number(item.price) * 100))}</span>
+                  <span data-figure className="text-sm tabular-nums text-muted-foreground">
+                    {formatPrice(Math.round(Number(item.price) * 100))}
+                  </span>
                   <span className="text-xs font-semibold text-primary">Pin</span>
                 </button>
               </li>
@@ -303,7 +406,11 @@ function TillPreview({ layout, pinnedCount }: { layout: PosLayout; pinnedCount: 
                   key={index}
                   className={cn(
                     'overflow-hidden rounded border bg-card',
-                    layout.stockHighlight && index === 2 ? 'border-warning' : layout.stockHighlight && index === 5 ? 'border-exception' : 'border-rule/70',
+                    layout.stockHighlight && index === 2
+                      ? 'border-warning'
+                      : layout.stockHighlight && index === 5
+                        ? 'border-exception'
+                        : 'border-rule/70',
                   )}
                 >
                   {!compact && <div className="aspect-[16/10] bg-band" />}
@@ -324,8 +431,20 @@ function TillPreview({ layout, pinnedCount }: { layout: PosLayout; pinnedCount: 
         </div>
       </div>
       <ul className="mt-4 space-y-1 text-sm text-muted-foreground">
-        <li>{categoriesFirst ? 'Opens on category tiles.' : layout.showCategories ? 'Opens on items with category tabs.' : 'Opens on every item, no tabs.'}</li>
-        {favourites && <li>{layout.favourites === 'top' ? `Best sellers (${layout.topCount}) come first.` : `${pinnedCount} pinned item${pinnedCount === 1 ? '' : 's'} come first.`}</li>}
+        <li>
+          {categoriesFirst
+            ? 'Opens on category tiles.'
+            : layout.showCategories
+              ? 'Opens on items with category tabs.'
+              : 'Opens on every item, no tabs.'}
+        </li>
+        {favourites && (
+          <li>
+            {layout.favourites === 'top'
+              ? `Best sellers (${layout.topCount}) come first.`
+              : `${pinnedCount} pinned item${pinnedCount === 1 ? '' : 's'} come first.`}
+          </li>
+        )}
         {!layout.showSearch && <li>No search bar.</li>}
         {layout.swipeToRemove && <li>Swipe a ticket line left to remove it.</li>}
       </ul>

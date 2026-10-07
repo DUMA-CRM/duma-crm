@@ -4,8 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
+import { NumberWheelPicker } from '@/components/ui/number-wheel-picker';
 import { AlertTriangle, CheckCircle2, SlidersHorizontal, TrendingUp } from '@/components/icons';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -119,7 +121,22 @@ export function CoveragePanel({ shifts, days, todayKey }: { shifts: ScheduledShi
             max={200}
             onChange={setOrdersPerStaff}
           />
-          <NumberSetting label="At least" unit="on while open" value={minStaff} min={0} max={20} onChange={setMinStaff} />
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-foreground">At least</span>
+            <span className="flex items-center gap-2">
+              <div className="w-32">
+                <NumberWheelPicker
+                  aria-label="At least this many on while open"
+                  value={minStaff}
+                  onValueChange={setMinStaff}
+                  min={0}
+                  max={20}
+                  unit={(count) => (count === 1 ? 'person' : 'people')}
+                />
+              </div>
+              <span className="text-xs text-muted-foreground">on while open</span>
+            </span>
+          </div>
           <button
             type="button"
             className="h-9 text-xs font-semibold text-muted-foreground hover:text-foreground"
@@ -136,7 +153,19 @@ export function CoveragePanel({ shifts, days, todayKey }: { shifts: ScheduledShi
 
       <div className="border-t border-rule/50 px-5 pt-4 pb-3">
         {demand.isPending ? (
-          <div className="h-40 animate-pulse rounded-md bg-band/60" />
+          // The chart's own frame: a column per hour (count above, hour below), then the legend.
+          <div role="status" aria-busy="true" aria-label="Checking coverage">
+            <div className="flex items-end gap-1" aria-hidden="true">
+              {Array.from({ length: 12 }, (_, index) => (
+                <div key={index} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+                  <Bone className="h-3 w-6 max-w-full" />
+                  <Bone className="h-32 w-full rounded-sm" />
+                  <Bone className="h-2.5 w-4 max-w-full" />
+                </div>
+              ))}
+            </div>
+            <Bone className="mt-3 h-3 w-64 max-w-full" />
+          </div>
         ) : !result || result.hours.length === 0 ? (
           <div className="flex h-32 flex-col items-center justify-center gap-1 text-center">
             <TrendingUp size={20} className="text-muted-foreground" aria-hidden="true" />
@@ -232,7 +261,7 @@ function NumberSetting({
             const next = Number(event.target.value);
             if (Number.isFinite(next)) onChange(Math.min(max, Math.max(min, Math.round(next))));
           }}
-          className="h-9 w-20 rounded-md border border-input bg-field px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+          className="h-9 w-20 rounded-md border border-input bg-control px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
         />
         <span className="text-xs text-muted-foreground">{unit}</span>
       </span>

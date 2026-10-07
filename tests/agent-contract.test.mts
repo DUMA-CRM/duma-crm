@@ -50,8 +50,12 @@ function agentPaths(source: string): string[] {
  * This is a ratchet that may only ever shrink. If duma-api brings one of these
  * back, delete the line — do not add to it. Anything new belongs in duma-api
  * first.
+ *
+ * `/hr/payslips` left the list on 2026-10-05: payslips came back as issued pay
+ * run lines (duma-api `src/routes/payslips.ts`, mounted at `/v1/hr/payslips`;
+ * `GET /my` is session-subject), which My HR → Documents already reads.
  */
-const DEAD_PREFIXES = ['/hr/payslips', '/hr/expense-claims'] as const;
+const DEAD_PREFIXES = ['/hr/expense-claims'] as const;
 
 test('the agent calls no endpoint that duma-api has deleted', () => {
   const dead = agentPaths(AGENT_SOURCE).filter((path) => DEAD_PREFIXES.some((prefix) => path.startsWith(prefix)));
@@ -125,16 +129,17 @@ test('every write action names the capability it needs, or is self-service by de
 test('no tool description promises data DUMA does not hold', () => {
   // The agent used to advertise payslips and expenses in two tool descriptions
   // while the endpoints 404'd, so the model confidently offered to fetch them.
+  // Payslips are real again (issued pay runs); expense claims are not.
   for (const [label, source] of [
     ['tools', TOOLS_SOURCE],
     ['actions', ACTIONS_SOURCE],
   ] as const) {
     const offers = [...source.matchAll(/description:\s*\n?\s*'([^']{0,4000})'/g)]
       .map((match) => match[1])
-      .filter((description) => /\b(?:payslip|expense claim)s?\b/i.test(description))
+      .filter((description) => /\bexpense claims?\b/i.test(description))
       // One description names them to tell the model they are *not* held.
       .filter((description) => !/does not hold/i.test(description));
-    assert.deepEqual(offers, [], `an agent ${label} description still offers payslips or expense claims`);
+    assert.deepEqual(offers, [], `an agent ${label} description still offers expense claims`);
   }
 });
 
@@ -163,4 +168,43 @@ test('a missing optional HR record does not erase the signed-in account identity
     /absence never means the account is unlinked/,
     'the model must be told not to describe an authenticated account as unlinked',
   );
+});
+
+test('a read tool gates on the capability its endpoint actually enforces', () => {
+  // Each pair was checked against duma-api's requireCapability on 2026-10-05.
+  // A broader capability offers the tool to a role the API then refuses —
+  // till staff hold inventory:read, but not stock.locations:read.
+  const gateOf = (name: string) => {
+    const start = TOOLS_SOURCE.indexOf(`  name: '${name}',`);
+    assert.ok(start >= 0, `tool ${name} not found`);
+    const block = TOOLS_SOURCE.slice(TOOLS_SOURCE.lastIndexOf(': ToolDefinition = {', start), TOOLS_SOURCE.indexOf('async run', start));
+    return block.match(/^\s*capability: '([^']+)'/m)?.[1] ?? null;
+  };
+  assert.equal(gateOf('get_inventory_status'), 'stock.locations:read'); // GET /location-stock/alerts
+  assert.equal(gateOf('get_stock_operations'), 'stock.transfers:read'); // GET /stock-transfers
+  assert.equal(gateOf('get_cash_up_status'), 'cashups:read'); // GET /cash-ups, /cash-ups/:id/expected
+  assert.equal(gateOf('get_rota_variance'), 'scheduling:read'); // GET /scheduled-shifts/variance
+  assert.equal(gateOf('list_recipe_gaps'), 'recipes:read'); // GET /menu-item-recipes/gaps
+  assert.equal(gateOf('get_customer'), 'customers:read'); // GET /customers/:id
+  assert.equal(gateOf('get_my_payslips'), null); // GET /hr/payslips/my is session-subject
+});
+
+test('optional reads behind a second capability do not fail the whole tool', () => {
+  // GET /email/connection needs email.connections:read, which store and
+  // marketing managers lack; fetching it unconditionally failed the tool for
+  // the roles that run email.
+  assert.match(TOOLS_SOURCE, /canSeeConnection = hasCapability\(runtime\.profile, 'email\.connections:read'\)/);
+  assert.match(TOOLS_SOURCE, /canReadStocktakes = hasCapability\(runtime\.profile, 'stocktakes:read'\)/);
+});
+
+test('the app map in the brief names every sidebar entry as the app labels it', () => {
+  const nav = read('lib/constants/nav.ts');
+  const labels = [...nav.matchAll(/label: '([^']+)', href: '\/[a-z-]*'/g)].map((match) => match[1]);
+  assert.ok(labels.length >= 14, `only ${labels.length} nav labels parsed — the shape of nav.ts changed`);
+  const start = DUMA_AGENT_SOURCE.indexOf('export const APP_MAP');
+  const brief = DUMA_AGENT_SOURCE.slice(start, DUMA_AGENT_SOURCE.indexOf('function agentInstructions', start));
+  const missing = labels.filter((label) => !brief.includes(label));
+  assert.deepEqual(missing, [], `the agent's app map does not mention: ${missing.join(', ')}`);
+  // Retired names the brief must not send anyone to.
+  assert.doesNotMatch(brief, /POS terminal|Settings → Locations|End of day page/);
 });

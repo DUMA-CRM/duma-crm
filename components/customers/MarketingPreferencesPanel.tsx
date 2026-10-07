@@ -10,6 +10,7 @@ import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards } from '@/components/shared/FormParts';
 import { Modal } from '@/components/shared/Modal';
+import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -70,8 +71,6 @@ const STATE: Record<MarketingPreferenceStatus, { icon: IconComponent; label: str
     tile: 'bg-exception/8 text-exception',
   },
 };
-
-const PILL = 'shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold';
 
 export function MarketingPreferencesPanel({ customerId, email }: { customerId: string; email?: string }) {
   const qc = useQueryClient();
@@ -160,7 +159,16 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
           />
         </ul>
       ) : isPending ? (
-        <div className="h-32 animate-pulse rounded-lg bg-band/60" aria-label="Loading marketing consent" />
+        <div role="status" aria-busy="true" aria-label="Loading marketing consent">
+          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <RowSkeleton />
+          </div>
+          <Bone className="mt-5 mb-2 ml-1 h-4 w-16" />
+          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <RowSkeleton index={1} />
+            <RowSkeleton index={2} />
+          </div>
+        </div>
       ) : isError ? (
         // Not the opted-out default: a preference that has not loaded is not a
         // preference, and showing one would be a consent claim.
@@ -179,9 +187,9 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
               icon={StateIcon}
               tile={state.tile}
               lead={state.label}
-              phrase={current === 'suppressed' ? '— do not contact' : 'to marketing'}
-              detail={`${state.detail} ${email}`}
-              pill={current === 'suppressed' ? { label: 'Blocked', className: 'bg-exception/8 text-exception' } : undefined}
+              // Said once: the address is the record's own, and "suppressed" needs no second word for it.
+              phrase={current === 'suppressed' ? undefined : 'to marketing'}
+              detail={state.detail}
               trailing={!suppression && lastChange ? `Since ${formatDate(lastChange.occurredAt)}` : undefined}
             >
               {/* The suppression's own facts, unfolded under it the way an
@@ -293,14 +301,13 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
   );
 }
 
-/** One fact as an audit-log row: tinted tile, bold lead and phrase, a muted line, a pill only when it matters. */
+/** One fact as an audit-log row: tinted tile, bold lead and phrase, a muted line. */
 function Row({
   icon: Icon,
   tile,
   lead,
   phrase,
   detail,
-  pill,
   trailing,
   children,
 }: {
@@ -309,7 +316,6 @@ function Row({
   lead: string;
   phrase?: string;
   detail?: string;
-  pill?: { label: string; className: string };
   trailing?: string;
   children?: React.ReactNode;
 }) {
@@ -326,7 +332,6 @@ function Row({
           </span>
           {detail && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{detail}</span>}
         </span>
-        {pill && <span className={cn(PILL, pill.className)}>{pill.label}</span>}
         {trailing && <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{trailing}</span>}
       </div>
       {children}

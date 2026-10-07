@@ -17,6 +17,8 @@ import {
   Wallet,
 } from '@/components/icons';
 import { REASON_LABELS } from '@/components/inventory/stock/shared';
+import { StatusDot } from '@/components/shared/StatusDot';
+import type { Tone } from '@/components/shared/tone';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 
 import type { LossRecord } from '@/lib/api/loss.service';
@@ -32,7 +34,7 @@ import { exportFileName, toCsv, toDateKey } from '@/lib/utils/report-filters';
 
 import { DrawerFacts, DrawerList, DrawerMark, DrawerNote, DrawerSection, ReportDrawer } from '../kit/DetailDrawer';
 import { ReportFrame, downloadFile } from '../kit/ReportFrame';
-import { BarList, KpiGrid, ReportBlock, ReportError, ReportLoading, ReportTable } from '../kit/parts';
+import { BarList, KpiGrid, ReportBlock, ReportError, ReportLoading, ReportTable, tenderIcon } from '../kit/parts';
 import { useRangeQuery } from '../kit/useRangeQuery';
 import type { ReportFilterState } from '../kit/useReportFilters';
 
@@ -203,7 +205,6 @@ export function StockUsageReport({ filters }: { filters: ReportFilterState }) {
                   align: 'right',
                   render: (row) => (row.usageCost === null ? <span className="text-muted-foreground">No cost</span> : money(row.usageCost)),
                   sort: (row) => row.usageCost ?? -1,
-                  total: money(usageCost),
                 },
               ]}
             />
@@ -323,7 +324,6 @@ export function WasteReport({ filters }: { filters: ReportFilterState }) {
                   align: 'right',
                   render: (row) => (row.cost === null ? '—' : money(row.cost)),
                   sort: (row) => row.cost ?? -1,
-                  total: money(total),
                 },
               ]}
             />
@@ -350,6 +350,24 @@ const PO_STATUS: Record<string, string> = {
   received: 'Received',
   cancelled: 'Cancelled',
 };
+const PO_TONE: Record<string, Tone> = {
+  draft: 'muted',
+  submitted: 'info',
+  partially_received: 'warning',
+  received: 'success',
+  cancelled: 'muted',
+};
+
+/** A purchase order's state as a dot, its word beside it. */
+function PoStatus({ status }: { status: string }) {
+  const label = PO_STATUS[status] ?? status;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <StatusDot tone={PO_TONE[status] ?? 'muted'} label={label} dashed={status === 'draft'} />
+      <span aria-hidden="true">{label}</span>
+    </span>
+  );
+}
 
 export function PurchasingReport({ filters }: { filters: ReportFilterState }) {
   const money = useWorkspaceMoney();
@@ -467,7 +485,7 @@ export function PurchasingReport({ filters }: { filters: ReportFilterState }) {
                 {
                   key: 'status',
                   header: 'Status',
-                  render: (order) => <span className="text-muted-foreground">{PO_STATUS[order.status] ?? order.status}</span>,
+                  render: (order) => <PoStatus status={order.status} />,
                   sort: (order) => order.status,
                 },
                 {
@@ -476,7 +494,6 @@ export function PurchasingReport({ filters }: { filters: ReportFilterState }) {
                   align: 'right',
                   render: (order) => money(value(order)),
                   sort: (order) => value(order),
-                  total: money(committed),
                 },
               ]}
             />
@@ -600,18 +617,26 @@ export function EndOfDayReport({ filters }: { filters: ReportFilterState }) {
               limit={31}
               empty="No days were opened in this period."
               columns={[
-                { key: 'date', header: 'Day', render: (row) => day(row.tradingDate), sort: (row) => row.tradingDate },
+                {
+                  key: 'date',
+                  header: 'Day',
+                  // Closed is the norm, so it is only a dot; an open day says so.
+                  leading: (row) =>
+                    row.status === 'closed' ? <StatusDot tone="success" label="Closed" /> : <StatusDot tone="warning" label="Open" />,
+                  render: (row) => day(row.tradingDate),
+                  sub: (row) =>
+                    row.status === 'closed' ? undefined : (
+                      <span className="font-semibold text-measured" aria-hidden="true">
+                        Open
+                      </span>
+                    ),
+                  sort: (row) => row.tradingDate,
+                },
                 {
                   key: 'location',
                   header: 'Location',
                   render: (row) => <span className="text-muted-foreground">{row.locationName}</span>,
                   sort: (row) => row.locationName,
-                },
-                {
-                  key: 'status',
-                  header: 'Status',
-                  render: (row) => (row.status === 'closed' ? 'Closed' : <span className="font-semibold text-measured">Open</span>),
-                  sort: (row) => row.status,
                 },
                 { key: 'expected', header: 'Expected cash', align: 'right', render: (row) => money(row.expectedCash) },
                 {
@@ -790,7 +815,7 @@ function PurchaseOrderDrawer({ order, onClose }: { order: PurchaseOrder; onClose
       />
       <DrawerList
         rows={[
-          { label: 'Status', value: PO_STATUS[order.status] ?? order.status },
+          { label: 'Status', value: <PoStatus status={order.status} /> },
           { label: 'Raised', value: day(order.createdAt) },
           { label: 'Expected', value: order.expectedAt ? day(order.expectedAt) : undefined },
           {
@@ -905,6 +930,7 @@ function CashUpDayDrawer({ day: cashUp, onClose }: { day: CashUp & { locationNam
           <DrawerList
             rows={tenders.map(([provider, total]) => ({
               label: TENDER_LABEL[provider] ?? provider.replace(/_/g, ' ').replace(/^\w/, (letter) => letter.toUpperCase()),
+              icon: tenderIcon(provider === 'unknown' ? 'unrecorded' : provider),
               value: <span className={cn('tabular-nums', total < 0 && 'text-exception')}>{money(total)}</span>,
             }))}
           />

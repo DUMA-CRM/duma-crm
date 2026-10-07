@@ -11,7 +11,12 @@ export interface SectionTab<T extends string> {
   value: T;
   label: string;
   icon?: IconComponent;
-  /** Count pill after the label — hidden when 0 or undefined. */
+  /**
+   * Count pill after the label — hidden when 0 or undefined. Policy: a count is
+   * only for things WAITING on someone (pending approvals, failed sends, open
+   * requests). A tab is not a total of what it lists — that number belongs in the
+   * page, once, if anywhere.
+   */
   count?: number;
   /** Tint for the count pill. Use `danger` for counts that need attention (failures). */
   countTone?: 'default' | 'danger';

@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import { ThemeProvider } from 'next-themes';
-import { headers } from 'next/headers';
 import { Archivo, Chivo_Mono } from 'next/font/google';
+import { headers } from 'next/headers';
 import Script from 'next/script';
 
+import { BrandSync } from '@/components/providers/BrandSync';
 import { QueryProvider } from '@/components/providers/QueryProvider';
+
+import { brandPrePaintScript } from '@/lib/utils/brand';
 
 import './globals.css';
 
@@ -95,7 +98,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Script id="pwa-prompt-capture" strategy="beforeInteractive" nonce={nonce}>
           {`window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaPrompt=e;window.dispatchEvent(new Event('pwa:prompt-captured'))});window.addEventListener('appinstalled',function(){window.__pwaPrompt=null;window.__pwaInstalled=true;window.dispatchEvent(new Event('pwa:installed'))});`}
         </Script>
+        {/* The chosen brand colour, applied before first paint for the same reason
+            next-themes does it for light/dark: otherwise every load flashes green.
+            A plain synchronous <script>, as next-themes uses — `beforeInteractive`
+            does not block, so it would paint first and correct after. */}
+        <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: brandPrePaintScript }} />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem nonce={nonce}>
+          <BrandSync />
           <QueryProvider>{children}</QueryProvider>
         </ThemeProvider>
       </body>

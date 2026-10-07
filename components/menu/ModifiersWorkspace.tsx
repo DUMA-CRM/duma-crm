@@ -14,6 +14,7 @@ import { Switch } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -53,7 +54,9 @@ export function ModifiersWorkspace() {
   const [groupFilter, setGroupFilter] = useState('all');
   // `?new=1` (what /menu/modifiers/new redirects to) opens the drawer on arrival.
   const searchParams = useSearchParams();
-  const [newFor, setNewFor] = useState<{ groupId?: string } | null>(() => (searchParams.get('new') ? { groupId: searchParams.get('group') ?? undefined } : null));
+  const [newFor, setNewFor] = useState<{ groupId?: string } | null>(() =>
+    searchParams.get('new') ? { groupId: searchParams.get('group') ?? undefined } : null,
+  );
   const openNew = (groupId?: string) => setNewFor({ groupId });
   const closeNew = () => {
     setNewFor(null);
@@ -107,13 +110,27 @@ export function ModifiersWorkspace() {
       ) : modifiersQuery.isError ? (
         <ErrorState title="Couldn’t load modifiers" onRetry={() => void modifiersQuery.refetch()} />
       ) : modifiersQuery.isPending ? (
-        <div className="space-y-3" aria-label="Loading modifiers">
-          {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="h-14 animate-pulse rounded-lg bg-band/60" />
-          ))}
+        // The search row, then a group: its label and the card of modifiers.
+        <div role="status" aria-busy="true" aria-label="Loading modifiers" className="space-y-5">
+          <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
+            <Bone className="h-9 min-w-56 flex-1 lg:max-w-xs" />
+          </div>
+          <div>
+            <Bone className="mb-2 h-3 w-24" />
+            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              {Array.from({ length: 4 }, (_, index) => (
+                <RowSkeleton key={index} index={index} />
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
-        <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+        <motion.div
+          className="flex flex-1 flex-col gap-5"
+          initial="hidden"
+          animate="shown"
+          variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
+        >
           <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-2">
             <div className="min-w-56 flex-1 lg:max-w-xs">
               <Input
@@ -122,10 +139,15 @@ export function ModifiersWorkspace() {
                 leftIcon={<Search size={14} />}
                 placeholder="Find a modifier"
                 aria-label="Find a modifier"
-                className="border-rule bg-background"
+                className="border-rule"
                 rightAction={
                   search ? (
-                    <button type="button" onClick={() => setSearch('')} aria-label="Clear search" className="text-muted-foreground hover:text-foreground">
+                    <button
+                      type="button"
+                      onClick={() => setSearch('')}
+                      aria-label="Clear search"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
                       <X size={14} />
                     </button>
                   ) : undefined
@@ -149,25 +171,38 @@ export function ModifiersWorkspace() {
           </motion.div>
 
           {modifiers.length === 0 ? (
-            <motion.div variants={SECTION_RISE} className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-4">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary" aria-hidden="true">
-                <SlidersHorizontal size={18} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-foreground">No modifiers yet</span>
-                <span className="block text-xs leading-relaxed text-muted-foreground">
-                  Sizes, milks and syrups. Build one once and attach it to as many items as you like{groups.length ? '.' : ' — create its group on Categories first.'}
-                </span>
-              </span>
-              {canWrite && (
-                <Button size="sm" onClick={() => (groups.length ? openNew() : router.push('/menu/categories'))}>
-                  {groups.length ? 'New modifier' : 'Create a group'}
-                </Button>
-              )}
+            <motion.div variants={SECTION_RISE} className="flex flex-1 flex-col">
+              <EmptyState
+                icon={SlidersHorizontal}
+                className="flex-1"
+                title="No modifiers yet"
+                description={`Sizes, milks and syrups. Build one once and attach it to as many items as you like${groups.length ? '.' : ' — create its group on Categories first.'}`}
+                action={
+                  canWrite
+                    ? {
+                        label: groups.length ? 'New modifier' : 'Create a group',
+                        icon: Plus,
+                        onClick: () => (groups.length ? openNew() : router.push('/menu/categories')),
+                      }
+                    : undefined
+                }
+              />
             </motion.div>
           ) : sections.every((section) => section.modifiers.length === 0) ? (
-            <motion.div variants={SECTION_RISE} className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-              <EmptyState icon={Search} title="Nothing matches" description="Try another search or group." />
+            <motion.div variants={SECTION_RISE}>
+              <EmptyState
+                icon={Search}
+                kind="search"
+                title="Nothing matches"
+                description="Try another search or group."
+                action={{
+                  label: 'Clear filters',
+                  onClick: () => {
+                    setSearch('');
+                    setGroupFilter('all');
+                  },
+                }}
+              />
             </motion.div>
           ) : (
             sections.map((section) => (
@@ -178,6 +213,8 @@ export function ModifiersWorkspace() {
                   <span className="normal-case tabular-nums">
                     {section.modifiers.filter((m) => m.isAvailable).length}/{section.modifiers.length} available
                   </span>
+                  {/* Said once for the group rather than under every size. */}
+                  {section.isSize && <span className="normal-case">· recipes cost each size separately</span>}
                 </h2>
                 {section.modifiers.length === 0 ? (
                   <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-xs text-muted-foreground">
@@ -230,22 +267,43 @@ function ModifierRow({
 
   return (
     <li className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40">
-      <Link href={`/menu/modifiers/${modifier.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring" aria-label={`Open ${modifier.label}`}>
+      <Link
+        href={`/menu/modifiers/${modifier.id}`}
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
+        aria-label={`Open ${modifier.label}`}
+      >
         <span
-          className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', isSize ? 'bg-primary/8 text-primary' : 'bg-reference/8 text-reference', !modifier.isAvailable && 'opacity-50')}
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-md',
+            isSize ? 'bg-primary/8 text-primary' : 'bg-reference/8 text-reference',
+            !modifier.isAvailable && 'opacity-50',
+          )}
           aria-hidden="true"
         >
           {isSize ? <Scale size={16} /> : <SlidersHorizontal size={16} />}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className={cn('block truncate text-sm font-semibold', modifier.isAvailable ? 'text-foreground' : 'text-muted-foreground')}>{modifier.label}</span>
-          <span className="block truncate text-xs text-muted-foreground">{modifier.isAvailable ? (isSize ? 'Size — recipes cost it separately' : 'Offered at the till') : 'Unavailable'}</span>
+        {/* Whether it's offered is the switch and the greyed tile — no line restating it. */}
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate text-sm font-semibold',
+            modifier.isAvailable ? 'text-foreground' : 'text-muted-foreground',
+          )}
+        >
+          {modifier.label}
         </span>
       </Link>
-      <span className={cn('w-24 shrink-0 text-right text-sm tabular-nums', adjust ? 'font-semibold text-foreground' : 'text-muted-foreground')}>{formatAdjust(modifier.priceAdjust)}</span>
-      <span className="flex w-24 shrink-0 items-center justify-end gap-2">
-        <span className={cn('text-micro font-semibold', modifier.isAvailable ? 'text-momentum' : 'text-muted-foreground')}>{modifier.isAvailable ? 'On' : 'Off'}</span>
-        <Switch label={`${modifier.label} available`} checked={modifier.isAvailable} disabled={!canWrite || togglePending} onChange={onToggle} />
+      <span
+        className={cn('w-24 shrink-0 text-right text-sm tabular-nums', adjust ? 'font-semibold text-foreground' : 'text-muted-foreground')}
+      >
+        {formatAdjust(modifier.priceAdjust)}
+      </span>
+      <span className="flex w-24 shrink-0 items-center justify-end">
+        <Switch
+          label={`${modifier.label} available`}
+          checked={modifier.isAvailable}
+          disabled={!canWrite || togglePending}
+          onChange={onToggle}
+        />
       </span>
     </li>
   );

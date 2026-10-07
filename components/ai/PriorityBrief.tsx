@@ -5,9 +5,9 @@ import type { PriorityBrief as PriorityBriefData } from '@/lib/ai/priority-brief
 import { cn } from '@/lib/utils/cn';
 
 const PRIORITY_STYLE = [
-  { border: 'border-l-exception', rank: 'bg-exception/10 text-exception', label: 'Act first' },
-  { border: 'border-l-stock', rank: 'bg-stock/12 text-stock-foreground', label: 'Next' },
-  { border: 'border-l-reference', rank: 'bg-reference/10 text-reference', label: 'Then' },
+  { border: 'border-l-exception', rank: 'bg-exception/10 text-exception' },
+  { border: 'border-l-stock', rank: 'bg-stock/12 text-stock-foreground' },
+  { border: 'border-l-reference', rank: 'bg-reference/10 text-reference' },
 ] as const;
 
 /** A decision brief for ranked operational findings, separate from raw data cards. */
@@ -22,16 +22,21 @@ export function PriorityBrief({ brief }: { brief: PriorityBriefData }) {
             {brief.items.length} things need attention
           </h3>
         </div>
-        <span className="mb-0.5 text-label text-muted-foreground">In priority order</span>
       </div>
       <ol className="space-y-2">
         {brief.items.map((item, index) => {
           const style = PRIORITY_STYLE[Math.min(index, PRIORITY_STYLE.length - 1)];
           return (
-            <li key={`${item.rank}-${item.title}`} className={cn('rounded-lg border border-rule/60 border-l-2 bg-field px-3.5 py-3', style.border)}>
+            <li
+              key={`${item.rank}-${item.title}`}
+              className={cn('rounded-lg border border-rule/60 border-l-2 bg-field px-3.5 py-3', style.border)}
+            >
               <div className="flex items-start gap-3">
                 <span
-                  className={cn('flex size-7 shrink-0 items-center justify-center rounded-md font-mono text-xs font-semibold tabular-nums', style.rank)}
+                  className={cn(
+                    'flex size-7 shrink-0 items-center justify-center rounded-md font-mono text-xs font-semibold tabular-nums',
+                    style.rank,
+                  )}
                   aria-hidden="true"
                 >
                   {item.rank}
@@ -39,7 +44,6 @@ export function PriorityBrief({ brief }: { brief: PriorityBriefData }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <p className="font-semibold leading-5 text-foreground">{item.title}</p>
-                    <span className="text-label font-semibold text-muted-foreground">{style.label}</span>
                   </div>
                   <Markdown
                     content={item.evidence}
@@ -57,7 +61,11 @@ export function PriorityBrief({ brief }: { brief: PriorityBriefData }) {
                       )}
                       <div>
                         <span className="text-muted-foreground">Next: </span>
-                        <Markdown content={item.next} variant="compact" className="inline-block [&>p]:inline [&>p]:text-xs [&>p]:leading-5" />
+                        <Markdown
+                          content={item.next}
+                          variant="compact"
+                          className="inline-block [&>p]:inline [&>p]:text-xs [&>p]:leading-5"
+                        />
                       </div>
                     </div>
                   ) : null}

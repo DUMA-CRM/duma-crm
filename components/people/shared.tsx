@@ -1,8 +1,9 @@
-import { GravatarImage } from '@/components/shared/GravatarImage';
+import { CalendarDays, HeartPulse, type IconComponent, Sun } from '@/components/icons';
 
 import { type StaffRole, type StaffScope } from '@/lib/modules/identity/client';
 import type { EmploymentType, PayType } from '@/lib/modules/people/client';
 import { formatDate } from '@/lib/utils/date';
+import { type LeaveKind, leaveKind } from '@/lib/utils/my-hr';
 
 // ── Role / scope config ───────────────────────────────────────────────────────
 
@@ -81,7 +82,7 @@ export const fmtHours = (h: number): string => `${Math.round(h * 100) / 100}h`;
 // ── Shared form styles ────────────────────────────────────────────────────────
 
 export const inp =
-  'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-control border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 export const sel = inp + ' cursor-pointer';
 export const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
@@ -90,31 +91,21 @@ export const lbl = 'block text-xs font-bold text-muted-foreground uppercase trac
 export const fmtDate = (x: string) => formatDate(x);
 export const toDateInput = (x?: string) => (x ? new Date(x).toISOString().slice(0, 10) : '');
 
-// ── Initials avatar ───────────────────────────────────────────────────────────
+// ── Avatar ────────────────────────────────────────────────────────────────────
 
-export function Avatar({ name, email, size = 'md' }: { name?: string; email?: string | null; size?: 'md' | 'lg' }) {
-  const parts = (name ?? '?').trim().split(' ');
-  const initials = parts.length >= 2 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : parts[0].slice(0, 2);
-  const dim = size === 'lg' ? 'w-12 h-12 text-sm' : 'w-9 h-9 text-xs';
-  const px = size === 'lg' ? 96 : 72;
+/** Moved to `components/shared/Avatar` so every screen draws people the same way. */
+export { Avatar } from '@/components/shared/Avatar';
 
-  const fallback = (
-    <div
-      // Flat, like every other icon tile — DESIGN.md has no gradients.
-      className={`${dim} rounded-md bg-primary/10 flex items-center justify-center text-primary font-semibold shrink-0 select-none uppercase`}
-    >
-      {initials}
-    </div>
-  );
+// ── Leave type glyph ──────────────────────────────────────────────────────────
 
-  if (!email) return fallback;
-  return (
-    <GravatarImage
-      email={email}
-      px={px}
-      className={`${dim} rounded-md object-cover shrink-0 select-none`}
-      alt={name ?? ''}
-      fallback={fallback}
-    />
-  );
+const LEAVE_ICON: Record<LeaveKind, IconComponent> = { annual: Sun, sick: HeartPulse, other: CalendarDays };
+
+/** The glyph a leave row leads with: a sun for holiday, a pulse for sickness, a calendar for the rest. */
+export const leaveIcon = (name: string | null | undefined): IconComponent => LEAVE_ICON[leaveKind(name)];
+
+/** `leaveIcon` as an element, for inline use where a component can't be picked during render. */
+export function LeaveTypeIcon({ name, size = 14, className }: { name: string | null | undefined; size?: number; className?: string }) {
+  const kind = leaveKind(name);
+  const props = { size, className, 'aria-hidden': true as const };
+  return kind === 'annual' ? <Sun {...props} /> : kind === 'sick' ? <HeartPulse {...props} /> : <CalendarDays {...props} />;
 }

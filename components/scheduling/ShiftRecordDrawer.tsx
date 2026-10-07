@@ -39,10 +39,13 @@ import {
 } from '@/components/scheduling/shared';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
+import { IconTag } from '@/components/shared/IconTag';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { StatusDot } from '@/components/shared/StatusDot';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import { TimePicker } from '@/components/ui/time-picker';
 import { Select } from '@/components/ui/select';
 
 import type { StaffProfile } from '@/lib/modules/identity/client';
@@ -180,7 +183,7 @@ function ClockEntryRow({
         {minutes != null ? (
           <span className="text-xs tabular-nums text-muted-foreground">{fmtDuration(minutes)}</span>
         ) : (
-          <Badge variant="primary">Running</Badge>
+          <StatusDot tone="primary" label="Running" pulse className="mr-1" />
         )}
       </div>
     );
@@ -195,11 +198,11 @@ function ClockEntryRow({
         </div>
         <label className="space-y-1 text-xs font-medium text-muted-foreground">
           <span>Started</span>
-          <input type="time" value={inTime} onChange={(e) => setInTime(e.target.value)} aria-label="Clocked in" className={inp} />
+          <TimePicker value={inTime} onValueChange={setInTime} aria-label="Clocked in" />
         </label>
         <label className="space-y-1 text-xs font-medium text-muted-foreground">
           <span>Finished</span>
-          <input type="time" value={outTime} onChange={(e) => setOutTime(e.target.value)} aria-label="Clocked out" className={inp} />
+          <TimePicker value={outTime} onValueChange={setOutTime} aria-label="Clocked out" />
         </label>
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -207,7 +210,7 @@ function ClockEntryRow({
           {minutes != null ? (
             <span className="tabular-nums text-muted-foreground">{fmtDuration(minutes)} worked</span>
           ) : (
-            <Badge variant="primary">Running</Badge>
+            <StatusDot tone="primary" label="Running" pulse />
           )}
           {dirty && !missingFinish && <span className="text-primary">Unsaved correction</span>}
         </div>
@@ -301,11 +304,11 @@ function AddWorkedPeriod({ record, onSaved }: { record: ShiftRecord; onSaved: (s
         </div>
         <label className="space-y-1 text-xs font-medium text-muted-foreground">
           <span>Started</span>
-          <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} className={inp} />
+          <TimePicker value={startTime} onValueChange={setStartTime} aria-label="Started" />
         </label>
         <label className="space-y-1 text-xs font-medium text-muted-foreground">
           <span>Finished</span>
-          <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} className={inp} />
+          <TimePicker value={endTime} onValueChange={setEndTime} aria-label="Finished" />
         </label>
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -659,11 +662,11 @@ function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm text-muted-foreground">
               <span>Started</span>
-              <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} required className={inp} />
+              <TimePicker value={startTime} onValueChange={setStartTime} required aria-label="Started" />
             </label>
             <label className="space-y-1.5 text-sm text-muted-foreground">
               <span>Finished</span>
-              <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} required className={inp} />
+              <TimePicker value={endTime} onValueChange={setEndTime} required aria-label="Finished" />
             </label>
           </div>
           <Hint tone="success">
@@ -876,9 +879,12 @@ function PlannedShiftDrawer({
                   <p className="text-xs font-medium text-muted-foreground">Total bill</p>
                   <p className="flex items-center gap-2 text-lg font-semibold tabular-nums text-foreground">
                     {fmtMoney(estimatedCost)}
-                    <Badge variant={editing?.billState === 'paid' ? 'success' : 'warning'} className="capitalize">
-                      {editing?.billState === 'paid' ? 'Paid' : 'Pending'}
-                    </Badge>
+                    <IconTag
+                      icon={Banknote}
+                      label={editing?.billState === 'paid' ? 'Paid' : 'Not paid yet'}
+                      tone={editing?.billState === 'paid' ? 'success' : 'warning'}
+                      tile
+                    />
                   </p>
                 </>
               ) : (
@@ -987,25 +993,13 @@ function PlannedShiftDrawer({
                   Shift <span className="font-normal text-muted-foreground">(From – To)</span>
                 </span>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    required
-                    aria-label="Shift start"
-                    className={cn(inp, 'w-32')}
-                    disabled={!canPlan}
-                  />
+                  <div className="w-32">
+                    <TimePicker value={startTime} onValueChange={setStartTime} required aria-label="Shift start" disabled={!canPlan} />
+                  </div>
                   <span className="text-muted-foreground">–</span>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    required
-                    aria-label="Shift end"
-                    className={cn(inp, 'w-32')}
-                    disabled={!canPlan}
-                  />
+                  <div className="w-32">
+                    <TimePicker value={endTime} onValueChange={setEndTime} required aria-label="Shift end" disabled={!canPlan} />
+                  </div>
                 </div>
               </div>
               <Hint tone="success">{fmtDuration(plannedMinutes)} will be planned on the rota.</Hint>

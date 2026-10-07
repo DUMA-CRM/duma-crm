@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { clockOut } from '@/lib/modules/workforce/client';
+import { uiSound } from '@/lib/utils/chime';
 import { toast } from '@/stores/toastStore';
 
 interface ClockOutDialogProps {
@@ -38,7 +39,10 @@ export function ClockOutDialog({ locationId, onClose, onClockedOut }: ClockOutDi
       onClockedOut();
       onClose();
     },
-    onError: (error) => toast('error', (error as Error).message || 'You weren’t clocked out. Try again before leaving.'),
+    onError: (error) => {
+      uiSound('error');
+      toast('error', (error as Error).message || 'You weren’t clocked out. Try again before leaving.');
+    },
   });
 
   return (
@@ -51,7 +55,15 @@ export function ClockOutDialog({ locationId, onClose, onClockedOut }: ClockOutDi
           <Button variant="outline" onClick={onClose} disabled={finish.isPending} className="flex-1 h-11">
             Cancel
           </Button>
-          <Button onClick={() => finish.mutate()} disabled={finish.isPending} className="flex-1 h-11 gap-2">
+          <Button
+            onClick={() => {
+              // The phone's lock click, inside the tap so the audio is allowed to play.
+              uiSound('lock');
+              finish.mutate();
+            }}
+            disabled={finish.isPending}
+            className="flex-1 h-11 gap-2"
+          >
             {finish.isPending ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={15} />}
             Clock Out
           </Button>

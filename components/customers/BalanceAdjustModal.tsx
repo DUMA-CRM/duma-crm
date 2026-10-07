@@ -135,7 +135,7 @@ export function BalanceAdjustModal({
           <p className="text-label uppercase text-muted-foreground" id="adjust-amount-label">
             How many {unit.plural}
           </p>
-          <div className="mt-2 flex items-stretch overflow-hidden rounded-lg border border-input bg-background focus-within:border-ring">
+          <div className="mt-2 flex items-stretch overflow-hidden rounded-lg border border-input bg-control focus-within:border-ring">
             <button
               type="button"
               aria-label={`One fewer ${unit.singular}`}

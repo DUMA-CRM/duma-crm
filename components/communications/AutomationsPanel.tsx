@@ -4,13 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { FileText, Trash2, TriangleAlert, Zap } from '@/components/icons';
+import { FileText, Plus, Trash2, TriangleAlert, Zap } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
+import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -89,9 +90,8 @@ export function AutomationsPanel({
 
   const groups = useMemo(() => groupAutomations(automations), [automations]);
 
-  // Only the automation problems — delivery failures and the connection belong to the Overview.
+  // What blocks creating one — delivery failures and the connection belong to the Overview.
   const attention = useMemo<NeedsAttentionItem[]>(() => {
-    const open = (id: string) => () => onEdit({ automation: automations.find((item) => item.id === id) });
     const items: NeedsAttentionItem[] = [];
     if (templatesQuery.isSuccess && !canCreate && access.canWrite)
       items.push({
@@ -102,37 +102,17 @@ export function AutomationsPanel({
         detail: 'An automation sends a template — create one first.',
         fix: { label: 'Go to templates', run: onOpenTemplates },
       });
-    for (const issue of attentionIssues({ connection: 'unknown', deliveries: [], automations, templates, now })) {
-      if (issue.kind === 'missing_template')
-        items.push({
-          key: `missing-${issue.automationId}`,
-          tone: 'exception',
-          icon: TriangleAlert,
-          title: `“${issue.name}” sends a deleted template`,
-          detail: `${issue.count === 1 ? 'That step' : `${issue.count} steps`} won’t send until another template is chosen.`,
-          fix: { label: 'Fix', run: open(issue.automationId) },
-        });
-      if (issue.kind === 'failed_runs')
-        items.push({
-          key: `runs-${issue.automationId}`,
-          tone: 'measured',
-          icon: Zap,
-          title: `“${issue.name}” has ${issue.count} failed run${issue.count === 1 ? '' : 's'}`,
-          detail: 'Open it to see which step failed and why.',
-          fix: { label: 'Open', run: open(issue.automationId) },
-        });
-      if (issue.kind === 'unpublished')
-        items.push({
-          key: `unpublished-${issue.automationId}`,
-          tone: 'measured',
-          icon: Zap,
-          title: `“${issue.name}” has changes that aren’t live`,
-          detail: 'The published version is still the one sending.',
-          fix: { label: 'Review', run: open(issue.automationId) },
-        });
-    }
     return items;
-  }, [access.canWrite, automations, canCreate, now, onEdit, onOpenTemplates, templates, templatesQuery.isSuccess]);
+  }, [access.canWrite, canCreate, onOpenTemplates, templatesQuery.isSuccess]);
+
+  // The automation problems are flagged on their own rows, so up here they are
+  // only counted — the fix is one glance down.
+  const flagged = useMemo(() => {
+    const ids = new Set<string>();
+    for (const issue of attentionIssues({ connection: 'unknown', deliveries: [], automations, templates, now }))
+      if (issue.kind === 'missing_template' || issue.kind === 'failed_runs' || issue.kind === 'unpublished') ids.add(issue.automationId);
+    return ids.size;
+  }, [automations, now, templates]);
 
   if (automationsQuery.isError)
     return (
@@ -143,10 +123,13 @@ export function AutomationsPanel({
 
   if (automationsQuery.isPending)
     return (
-      <div className="space-y-3" aria-label="Loading automations">
-        {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="h-16 animate-pulse rounded-lg bg-band/60" />
-        ))}
+      <div role="status" aria-busy="true" aria-label="Loading automations">
+        <Bone className="mb-2 h-3 w-28" />
+        <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          {Array.from({ length: 4 }, (_, index) => (
+            <RowSkeleton key={index} index={index} />
+          ))}
+        </div>
       </div>
     );
 
@@ -154,23 +137,33 @@ export function AutomationsPanel({
     return (
       <div className="space-y-5">
         <NeedsAttention items={attention} />
-        <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-          <EmptyState
-            icon={Zap}
-            title="No automations yet"
-            description={
-              access.canWrite
-                ? 'Send the right email when something happens — an order is ready, a birthday, a first visit.'
-                : 'Nobody has set one up yet.'
-            }
-          />
-        </div>
+        <EmptyState
+          icon={Zap}
+          title="No automations yet"
+          description={
+            access.canWrite
+              ? 'Automations you set up appear here, each sending an email when something happens — an order is ready, a birthday, a first visit.'
+              : 'Automations appear here once someone sets one up.'
+          }
+          action={access.canWrite && canCreate ? { label: 'New automation', onClick: () => onEdit({}), icon: Plus } : undefined}
+        />
       </div>
     );
 
   return (
     <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
       <NeedsAttention items={attention} />
+      {flagged > 0 && (
+        <motion.p
+          variants={SECTION_RISE}
+          className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3 text-sm font-semibold text-foreground"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-measured/10 text-measured">
+            <TriangleAlert size={18} aria-hidden="true" />
+          </span>
+          {flagged} {flagged === 1 ? 'automation needs' : 'automations need'} a look — flagged below
+        </motion.p>
+      )}
 
       {groups.length > 0 && (
         <div className="-mb-3 hidden items-center gap-3 px-3.5 text-label uppercase text-muted-foreground sm:flex" aria-hidden="true">
@@ -287,7 +280,7 @@ function AutomationRow({
               <span
                 key={flag.label}
                 className={cn(
-                  'hidden shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold md:inline',
+                  'inline shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold',
                   flag.tone === 'exception' ? 'bg-exception/8 text-exception' : 'bg-measured/10 text-measured',
                 )}
               >
@@ -296,7 +289,9 @@ function AutomationRow({
             ))}
           </span>
           <span className="block truncate text-xs text-muted-foreground">
-            When: {TRIGGER_LABELS[automation.trigger]}
+            <Zap size={11} className="mr-1 inline-block -translate-y-px text-primary" aria-hidden="true" />
+            <span className="sr-only">When: </span>
+            {TRIGGER_LABELS[automation.trigger]}
             {automation.location && ` at ${automation.location.name}`} · {workflowSummary(definition, templateName)}
           </span>
         </span>
@@ -310,9 +305,6 @@ function AutomationRow({
         {automation.lastEvaluatedAt ? timeAgo(automation.lastEvaluatedAt, now) : '—'}
       </span>
       <span className="flex w-24 shrink-0 items-center justify-end gap-2">
-        <span className={cn('text-micro font-semibold', automation.isEnabled ? 'text-momentum' : 'text-muted-foreground')}>
-          {automation.isEnabled ? 'On' : 'Off'}
-        </span>
         <Switch label={`${automation.name} sending`} checked={automation.isEnabled} disabled={toggling || !canToggle} onChange={onToggle} />
       </span>
       {access.canWrite && (

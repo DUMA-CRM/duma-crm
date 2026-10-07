@@ -3,7 +3,7 @@ import { formatDate as formatAppDate } from '@/lib/utils/date';
 // Shared constants and small helpers for the payroll components.
 
 export const inputClass =
-  'h-9 bg-field border border-input rounded-lg px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'h-9 bg-control border border-input rounded-lg px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
 export const labelClass = 'mb-1.5 block text-micro uppercase text-muted-foreground';
 

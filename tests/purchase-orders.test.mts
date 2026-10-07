@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const { dueLabel, invoiceDifference, isOverdue, orderTotal, receivedShare } = await import('../lib/utils/purchase-orders.ts');
+const { dueLabel, invoiceDifference, isOverdue, orderTotal, receivedShare, summaryReceivedShare } =
+  await import('../lib/utils/purchase-orders.ts');
 
 const now = new Date(2026, 8, 27, 15);
 
@@ -29,4 +30,11 @@ test('totals, received share and invoice difference', () => {
   assert.equal(receivedShare([{ quantityOrdered: '2', quantityReceived: '5', unitCost: '1' }]), 1);
   assert.equal(invoiceDifference('7.00', 6.63), 0.37);
   assert.equal(invoiceDifference('', 6.63), null);
+});
+
+test('a list row reads received progress from the API summary', () => {
+  assert.equal(summaryReceivedShare({ quantityOrdered: '10', quantityReceived: '4' }), 0.4);
+  assert.equal(summaryReceivedShare({ quantityOrdered: '10', quantityReceived: '12' }), 1);
+  assert.equal(summaryReceivedShare({ quantityOrdered: '0', quantityReceived: '0' }), null);
+  assert.equal(summaryReceivedShare(undefined), null);
 });

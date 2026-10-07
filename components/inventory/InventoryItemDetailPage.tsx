@@ -4,30 +4,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import {
-  ArrowLeftRight,
-  Box,
-  History,
-  LayoutDashboard,
-  MapPin,
-  Package,
-  PackageMinus,
-  PackagePlus,
-} from '@/components/icons';
-import { EditStockItemDrawer, EditThresholdDrawer, LogLossDrawer, RestockDrawer } from '@/components/inventory/stock/StockDrawers';
-import {
-  getStatus,
-  normaliseArray,
-} from '@/components/inventory/stock/shared';
-import { ItemTransfersSection, TransferStockDrawer } from '@/components/inventory/transfers/TransferStock';
+import { ArrowLeftRight, Box, History, LayoutDashboard, MapPin, Package, PackageMinus, PackagePlus } from '@/components/icons';
 import { ContainersSection } from '@/components/inventory/item/ContainersSection';
 import { ItemOverview } from '@/components/inventory/item/ItemOverview';
 import { LedgerSection } from '@/components/inventory/item/LedgerSection';
 import { LossesSection } from '@/components/inventory/item/LossesSection';
 import { RemoveItemDrawer } from '@/components/inventory/item/RemoveItemDrawer';
+import { EditStockItemDrawer, EditThresholdDrawer, LogLossDrawer, RestockDrawer } from '@/components/inventory/stock/StockDrawers';
+import { getStatus, normaliseArray } from '@/components/inventory/stock/shared';
+import { ItemTransfersSection, TransferStockDrawer } from '@/components/inventory/transfers/TransferStock';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
+import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { serverCache } from '@/lib/api/cache-policy';
@@ -49,7 +38,6 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-
 
 type ItemSection = 'overview' | 'containers' | 'ledger' | 'losses' | 'transfers';
 
@@ -180,7 +168,8 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
       invalidateStock();
       toast('success', `Removed from ${currentLocation?.name ?? 'this location'} — marked unavailable.`);
     },
-    onError: (error) => toast('error', error instanceof Error && error.message ? error.message : 'The item wasn’t removed from this location. Try again.'),
+    onError: (error) =>
+      toast('error', error instanceof Error && error.message ? error.message : 'The item wasn’t removed from this location. Try again.'),
   });
 
   return (
@@ -223,7 +212,9 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
             </span>
             <div>
               <p className="text-sm font-semibold text-foreground">Choose a location</p>
-              <p className="text-xs text-muted-foreground">Stock level, containers and actions are per location — pick one in the sidebar.</p>
+              <p className="text-xs text-muted-foreground">
+                Stock level, containers and actions are per location — pick one in the sidebar.
+              </p>
             </div>
           </div>
         )}
@@ -252,10 +243,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
           ) : itemError ? (
             <ErrorState title="Couldn’t load this item" onRetry={() => void refetchItem()} />
           ) : (
-            <div className="space-y-4" aria-label="Loading item">
-              <div className="h-56 animate-pulse rounded-lg bg-band/60" />
-              <div className="h-40 animate-pulse rounded-lg bg-band/60" />
-            </div>
+            <LoadingState label="Loading the item" />
           ))}
 
         {section === 'containers' && item && (
@@ -297,15 +285,14 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
       </div>
 
       {/* Drawers */}
-      {editThreshold && stock && (
-        <EditThresholdDrawer
-          item={stock}
-          onClose={() => setEditThreshold(false)}
-          onSuccess={invalidateStock}
-        />
-      )}
+      {editThreshold && stock && <EditThresholdDrawer item={stock} onClose={() => setEditThreshold(false)} onSuccess={invalidateStock} />}
       {restockOpen && stock && (
-        <RestockDrawer item={stock} suggested={forecast?.recommendedReorderQuantity} onClose={() => setRestockOpen(false)} onSuccess={() => undefined} />
+        <RestockDrawer
+          item={stock}
+          suggested={forecast?.recommendedReorderQuantity}
+          onClose={() => setRestockOpen(false)}
+          onSuccess={() => undefined}
+        />
       )}
       {lossOpen && stock && (
         <LogLossDrawer
@@ -360,4 +347,3 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
 }
 
 // ── Rows ──────────────────────────────────────────────────────────────────────
-

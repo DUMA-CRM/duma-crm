@@ -217,7 +217,6 @@ export function StaffHoursReport({ filters }: { filters: ReportFilterState }) {
                   align: 'right',
                   render: (row) => count(row.totalShifts),
                   sort: (row) => row.totalShifts,
-                  total: count(shifts),
                 },
                 {
                   key: 'average',
@@ -231,7 +230,6 @@ export function StaffHoursReport({ filters }: { filters: ReportFilterState }) {
                   align: 'right',
                   render: (row) => <span className="font-semibold">{hours(num(row.totalHours))}</span>,
                   sort: (row) => num(row.totalHours),
-                  total: hours(total),
                 },
                 {
                   key: 'share',

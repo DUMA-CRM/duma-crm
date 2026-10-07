@@ -3,6 +3,8 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent, ReactNode } from 'react';
 
+import { Bone } from '@/components/shared/Skeleton';
+
 import { cn } from '@/lib/utils/cn';
 
 /* ════════════════════════════════════════════════════════════════
@@ -164,13 +166,17 @@ export function TraceChart({
 
   if (loading) {
     return (
-      <section className={cn('border border-rule bg-card', className)} aria-busy="true">
+      <section className={cn('border border-rule bg-card', className)} role="status" aria-busy="true" aria-label={`Loading ${title}`}>
         <div className="flex items-start justify-between gap-4 border-b border-rule px-4 py-3 md:px-5">
-          <div className="h-9 w-40 animate-pulse bg-band" data-motion="progress" />
-          <div className="h-8 w-32 animate-pulse bg-band" data-motion="progress" />
+          <div className="min-w-0 space-y-2">
+            <Bone className="h-3 w-24" />
+            <Bone className="h-8 w-36" />
+          </div>
+          <Bone className="h-8 w-32 shrink-0" />
         </div>
-        <div className="h-[220px] animate-pulse bg-band/40" data-motion="progress" />
-        <span className="sr-only">Loading {title}</span>
+        <div className="h-[220px] p-4 md:px-5">
+          <Bone className="h-full w-full" />
+        </div>
       </section>
     );
   }
@@ -180,10 +186,7 @@ export function TraceChart({
       {/* ── Readout head: the label, the figure, what it is read against ── */}
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 border-b border-rule px-4 py-3 md:px-5">
         <div className="min-w-0">
-          <h2
-            id={`${tableId}-title`}
-            className="text-label font-semibold uppercase tracking-label text-muted-foreground"
-          >
+          <h2 id={`${tableId}-title`} className="text-label font-semibold uppercase tracking-label text-muted-foreground">
             {readoutLabel}
             {cursor !== null && <span className="ml-2 normal-case tracking-normal text-measured">at {point.label}</span>}
           </h2>
@@ -374,9 +377,7 @@ export function TraceChart({
               className={cn('min-w-0 px-2 py-1.5', i > 0 && 'border-l border-rule')}
               style={{ width: `${(phase.weight / totalWeight) * 100}%` }}
             >
-              <span className="block truncate text-micro font-semibold uppercase tracking-micro text-muted-foreground">
-                {phase.label}
-              </span>
+              <span className="block truncate text-micro font-semibold uppercase tracking-micro text-muted-foreground">{phase.label}</span>
               <span data-figure className="text-label text-foreground">
                 {Math.round((phase.weight / totalWeight) * 100)}%
               </span>

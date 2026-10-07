@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   CalendarDays,
   Clock,
+  Clock3,
   Download,
   FileText,
   HeartPulse,
@@ -17,10 +18,14 @@ import {
   UploadCloud,
 } from '@/components/icons';
 import { usePayrollLocale } from '@/components/payroll/usePayroll';
-import { fmtDate, fmtHours, inp, lbl } from '@/components/people/shared';
+import { fmtDate, fmtHours, inp, lbl, leaveIcon } from '@/components/people/shared';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { IconTag } from '@/components/shared/IconTag';
+import { MiniBar } from '@/components/shared/MiniBar';
 import { Modal } from '@/components/shared/Modal';
+import { RelativeTime } from '@/components/shared/RelativeTime';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
@@ -57,8 +62,6 @@ import { ChoiceCards, type Employee, ModalActions, NumberStepper, RecordBlock, R
  * record-keeping rule, the 48-hour week, P45s) shows only where payroll is UK
  * — or not set, which every workspace was before multi-country payroll.
  */
-
-const ICON_BUTTON = 'flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground';
 
 // ── Sickness & unplanned absence ─────────────────────────────────────────────
 
@@ -120,9 +123,13 @@ export function AbsenceCard({ userId }: { userId: string }) {
     >
       {isError ? (
         // Used to guess "unavailable for your access level". Say what happened instead.
-        <ErrorState title="Absences couldn’t be loaded" description="Nothing was read, so this isn’t an empty history." onRetry={() => void refetch()} />
+        <ErrorState
+          title="Absences couldn’t be loaded"
+          description="Nothing was read, so this isn’t an empty history."
+          onRetry={() => void refetch()}
+        />
       ) : isPending ? (
-        <div className="h-16 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+        <ListSkeleton rows={2} label="Loading absences" />
       ) : (
         <RecordList>
           {absences.length === 0 ? (
@@ -131,24 +138,25 @@ export function AbsenceCard({ userId }: { userId: string }) {
             absences.slice(0, 12).map((absence) => (
               <RecordListRow
                 key={absence.id}
-                icon={HeartPulse}
+                icon={absence.leaveType ? leaveIcon(absence.leaveType.name) : HeartPulse}
                 tone="money"
                 value={fmtDate(absence.date)}
                 label={absence.reason || 'No reason recorded'}
-                pill={absence.isHalfDay ? { label: 'Half day', tone: 'warning' } : undefined}
-                trailing={
-                  <span className="flex items-center gap-2">
-                    {absence.leaveType && <span>{absence.leaveType.name}</span>}
-                    <button
-                      type="button"
-                      className={cn(ICON_BUTTON, 'hover:text-exception')}
-                      aria-label={`Remove the absence on ${fmtDate(absence.date)}`}
-                      disabled={remove.isPending}
-                      onClick={() => remove.mutate(absence.id)}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </span>
+                detail={absence.leaveType?.name}
+                trailing={absence.isHalfDay ? <IconTag icon={Clock3} label="Half day" tone="warning" /> : undefined}
+                actions={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="hover:text-exception"
+                    title="Remove"
+                    aria-label={`Remove the absence on ${fmtDate(absence.date)}`}
+                    disabled={remove.isPending}
+                    onClick={() => remove.mutate(absence.id)}
+                  >
+                    <Trash2 aria-hidden="true" />
+                  </Button>
                 }
               />
             ))
@@ -161,7 +169,13 @@ export function AbsenceCard({ userId }: { userId: string }) {
           description="Sickness or other unplanned time off. It shows on their attendance calendar and goes to payroll."
           onClose={() => setAdding(false)}
           footer={
-            <ModalActions form="absence-form" submitLabel="Save absence" pending={add.isPending} disabled={!form.date} onCancel={() => setAdding(false)} />
+            <ModalActions
+              form="absence-form"
+              submitLabel="Save absence"
+              pending={add.isPending}
+              disabled={!form.date}
+              onCancel={() => setAdding(false)}
+            />
           }
         >
           <form
@@ -225,7 +239,10 @@ const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export function WorkPatternCard({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const { uk } = usePayrollLocale();
-  const { data, isPending } = useQuery({ queryKey: moduleQueryKeys.workforce.key('work-pattern', userId), queryFn: () => getWorkPattern(userId) });
+  const { data, isPending } = useQuery({
+    queryKey: moduleQueryKeys.workforce.key('work-pattern', userId),
+    queryFn: () => getWorkPattern(userId),
+  });
   const [edit, setEdit] = useState(false);
   const [days, setDays] = useState<number[] | null>(null);
   const [hours, setHours] = useState<number | null>(null);
@@ -252,8 +269,15 @@ export function WorkPatternCard({ userId }: { userId: string }) {
       title="Work pattern"
       action={
         !edit && (
-          <Button variant="outline" size="sm" onClick={() => setEdit(true)}>
-            Edit
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            title="Edit work pattern"
+            aria-label="Edit work pattern"
+            onClick={() => setEdit(true)}
+          >
+            <Pencil aria-hidden="true" />
           </Button>
         )
       }
@@ -305,8 +329,8 @@ export function WorkPatternCard({ userId }: { userId: string }) {
                 <span className="font-medium text-measured">Pick at least one working day.</span>
               ) : (
                 <>
-                  <span className="font-semibold text-foreground">{weeklyHours}h a week</span> across {workingDaysLabel(selectedDays)} — about{' '}
-                  {fmtHours(Math.round((weeklyHours / selectedDays.length) * 10) / 10)} a day.
+                  <span className="font-semibold text-foreground">{weeklyHours}h a week</span> across {workingDaysLabel(selectedDays)} —
+                  about {fmtHours(Math.round((weeklyHours / selectedDays.length) * 10) / 10)} a day.
                 </>
               )}
             </p>
@@ -407,7 +431,7 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
       {isError ? (
         <ErrorState title="Leave couldn’t be loaded" onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="h-16 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+        <ListSkeleton rows={2} label="Loading leave" />
       ) : (
         <RecordList>
           {entitlements.length === 0 ? (
@@ -421,13 +445,12 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
               const total = Number(item.totalDays);
               const used = Number(item.usedDays);
               const remaining = total - used;
-              const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
               const isAnnual = item.id === annualEntitlement?.id;
               return (
                 <RecordListRow
                   key={item.id}
                   onSelect={() => setEditing(item)}
-                  icon={CalendarDays}
+                  icon={leaveIcon(item.leaveType.name)}
                   tone={remaining <= 0 ? 'missing' : 'team'}
                   value={`${remaining} of ${total} days left`}
                   label={item.leaveType.name}
@@ -435,9 +458,7 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
                   pill={isAnnual && belowRegularBaseline ? { label: 'Below minimum', tone: 'exception' } : undefined}
                   trailing={
                     <span className="flex items-center gap-2">
-                      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-band" aria-hidden="true">
-                        <span className="block h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-                      </span>
+                      <MiniBar value={used} max={total} label={`${used} of ${total} days used`} className="w-16" />
                       <Pencil size={13} aria-hidden="true" />
                     </span>
                   }
@@ -525,7 +546,9 @@ function LeaveAllowanceModal({
     <Modal
       title={entitlement ? `Edit ${entitlement.leaveType.name.toLowerCase()}` : 'Add a leave allowance'}
       description={
-        entitlement ? `Their ${year} allowance. Half days are fine.` : `How many days of this leave they get in ${year}. Half days are fine.`
+        entitlement
+          ? `Their ${year} allowance. Half days are fine.`
+          : `How many days of this leave they get in ${year}. Half days are fine.`
       }
       onClose={onClose}
       footer={
@@ -558,13 +581,21 @@ function LeaveAllowanceModal({
               }}
               options={options}
               ariaLabel="Leave type"
-                className="w-full"
+              className="w-full"
             />
           </div>
         )}
         <div>
           <label className={lbl}>Days a year</label>
-          <NumberStepper label="Days a year" value={total} onChange={(next) => setTotalDays(String(next))} min={0} max={366} step={0.5} unit="days" />
+          <NumberStepper
+            label="Days a year"
+            value={total}
+            onChange={(next) => setTotalDays(String(next))}
+            min={0}
+            max={366}
+            step={0.5}
+            unit="days"
+          />
         </div>
 
         {/* What the new figure means for them, before it is saved. */}
@@ -576,7 +607,10 @@ function LeaveAllowanceModal({
             </span>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-band" aria-hidden="true">
-            <div className={cn('h-full rounded-full', tooLow ? 'bg-exception' : 'bg-primary')} style={{ width: `${tooLow ? 100 : pct}%` }} />
+            <div
+              className={cn('h-full rounded-full', tooLow ? 'bg-exception' : 'bg-primary')}
+              style={{ width: `${tooLow ? 100 : pct}%` }}
+            />
           </div>
           {tooLow && <p className="mt-2 text-xs font-medium text-exception">It can’t be lower than the {used} days already used.</p>}
         </div>
@@ -654,9 +688,13 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
       }
     >
       {isError ? (
-        <ErrorState title="Documents couldn’t be loaded" description="Nothing was read, so this isn’t an empty file." onRetry={() => void refetch()} />
+        <ErrorState
+          title="Documents couldn’t be loaded"
+          description="Nothing was read, so this isn’t an empty file."
+          onRetry={() => void refetch()}
+        />
       ) : isPending ? (
-        <div className="h-16 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+        <ListSkeleton rows={2} label="Loading documents" />
       ) : (
         <RecordList>
           {documents.length === 0 ? (
@@ -668,8 +706,8 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
               const expiring = expiry !== null && !expired && expiry < asOf.getTime() + 60 * 86_400_000;
               const detail = [
                 document.issuedAt && `checked ${fmtDate(document.issuedAt)}`,
-                document.expiresAt && `expires ${fmtDate(document.expiresAt)}`,
-                document.originalFileName && `${document.originalFileName}${document.sizeBytes ? ` · ${Math.ceil(document.sizeBytes / 1024)} KB` : ''}`,
+                document.originalFileName &&
+                  `${document.originalFileName}${document.sizeBytes ? ` · ${Math.ceil(document.sizeBytes / 1024)} KB` : ''}`,
               ]
                 .filter(Boolean)
                 .join(' · ');
@@ -681,24 +719,39 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
                   value={document.title}
                   label={document.documentType}
                   detail={detail || undefined}
-                  pill={expired ? { label: 'Expired', tone: 'exception' } : expiring ? { label: 'Due soon', tone: 'warning' } : undefined}
+                  pill={expired ? { label: 'Expired', tone: 'exception' } : undefined}
                   trailing={
-                    <span className="flex items-center gap-0.5">
+                    document.expiresAt &&
+                    (expired ? (
+                      <RelativeTime iso={document.expiresAt} />
+                    ) : (
+                      <span className={cn(expiring && 'font-semibold text-measured')}>
+                        expires <RelativeTime iso={document.expiresAt} />
+                      </span>
+                    ))
+                  }
+                  actions={
+                    <>
                       {document.hasFile && (
-                        <a href={employeeDocumentDownloadUrl(document.id)} download className={ICON_BUTTON} aria-label={`Download ${document.title}`}>
-                          <Download size={14} />
-                        </a>
+                        <Button asChild variant="ghost" size="icon-sm" title="Download">
+                          <a href={employeeDocumentDownloadUrl(document.id)} download aria-label={`Download ${document.title}`}>
+                            <Download aria-hidden="true" />
+                          </a>
+                        </Button>
                       )}
-                      <button
+                      <Button
                         type="button"
-                        className={cn(ICON_BUTTON, 'hover:text-exception')}
+                        variant="ghost"
+                        size="icon-sm"
+                        className="hover:text-exception"
+                        title="Remove"
                         aria-label={`Remove ${document.title}`}
                         disabled={remove.isPending}
                         onClick={() => remove.mutate(document.id)}
                       >
-                        <Trash2 size={14} />
-                      </button>
-                    </span>
+                        <Trash2 aria-hidden="true" />
+                      </Button>
+                    </>
                   }
                 />
               );
@@ -740,7 +793,7 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
                   onValueChange={(value) => setForm({ ...form, documentType: value })}
                   options={types.map((value) => ({ value, label: value }))}
                   ariaLabel="Document type"
-                className="w-full"
+                  className="w-full"
                 />
               </div>
               <div>
@@ -791,9 +844,8 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
             </div>
             {form.documentType === 'Right to work' && uk && (
               <p className="flex gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs leading-relaxed text-measured">
-                <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-                A record here isn’t itself a statutory excuse. Keep the prescribed evidence, record the actual check date, and do follow-up
-                checks where permission is time-limited.
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />A record here isn’t itself a statutory excuse.
+                Keep the prescribed evidence, record the actual check date, and do follow-up checks where permission is time-limited.
               </p>
             )}
           </form>
@@ -932,7 +984,7 @@ export function TimesheetCard({
       }
     >
       {!hours ? (
-        <div className="h-32 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+        <ListSkeleton rows={4} label="Loading hours" />
       ) : (
         <RecordList>
           {days.length === 0 ? (
@@ -945,10 +997,17 @@ export function TimesheetCard({
                 icon={Clock}
                 tone={d.overtimeHours > 0 ? 'money' : 'team'}
                 value={fmtDay(d.date)}
-                label={d.locations.length === 0 ? 'No location' : d.locations.length === 1 ? d.locations[0] : `${d.locations.length} locations`}
+                label={
+                  d.locations.length === 0 ? 'No location' : d.locations.length === 1 ? d.locations[0] : `${d.locations.length} locations`
+                }
                 detail={`${d.segments.length} ${d.segments.length === 1 ? 'shift' : 'shifts'} · ${fmtHours(d.rawHours)} clocked`}
                 pill={d.overtimeHours > 0 ? { label: `+${fmtHours(d.overtimeHours)} review`, tone: 'warning' } : undefined}
-                trailing={<span className="font-semibold text-foreground">{fmtHours(d.paidHours)}</span>}
+                trailing={
+                  <span className="flex items-center gap-3">
+                    <DaySpan segments={d.segments} />
+                    <span className="font-semibold text-foreground">{fmtHours(d.paidHours)}</span>
+                  </span>
+                }
               />
             ))
           )}
@@ -967,7 +1026,11 @@ export function TimesheetCard({
           <div className="space-y-4">
             <dl className="grid grid-cols-3 gap-2">
               <DayFigure label="Clocked" value={fmtHours(openDay.rawHours)} />
-              <DayFigure label="To review" value={openDay.overtimeHours > 0 ? `+${fmtHours(openDay.overtimeHours)}` : '—'} tone={openDay.overtimeHours > 0 ? 'warning' : 'default'} />
+              <DayFigure
+                label="To review"
+                value={openDay.overtimeHours > 0 ? `+${fmtHours(openDay.overtimeHours)}` : '—'}
+                tone={openDay.overtimeHours > 0 ? 'warning' : 'default'}
+              />
               <DayFigure label="Payable" value={fmtHours(openDay.paidHours)} tone="strong" />
             </dl>
             <RecordList>
@@ -978,12 +1041,13 @@ export function TimesheetCard({
                   tone={s.overtimeHours > 0 ? 'money' : s.clockedOut ? 'team' : 'missing'}
                   value={
                     <>
-                      {fmtTime(s.clockedIn)} – {s.clockedOut ? fmtTime(s.clockedOut) : <span className="text-measured">still clocked in</span>}
+                      {fmtTime(s.clockedIn)} –{' '}
+                      {s.clockedOut ? fmtTime(s.clockedOut) : <span className="text-measured">still clocked in</span>}
                     </>
                   }
                   label={s.scheduled ? `Rota ${fmtTime(s.scheduled.startsAt)} – ${fmtTime(s.scheduled.endsAt)}` : 'Not on the rota'}
                   detail={[s.locationName, `${fmtHours(s.rawHours)} clocked`].filter(Boolean).join(' · ')}
-                  pill={s.overtimeHours > 0 ? { label: `+${fmtHours(s.overtimeHours)} review`, tone: 'warning' } : !s.scheduled ? { label: 'Unscheduled', tone: 'warning' } : undefined}
+                  pill={s.overtimeHours > 0 ? { label: `+${fmtHours(s.overtimeHours)} review`, tone: 'warning' } : undefined}
                   trailing={<span className="font-semibold text-foreground">{fmtHours(s.paidHours)}</span>}
                 />
               ))}
@@ -996,6 +1060,36 @@ export function TimesheetCard({
         </Modal>
       )}
     </RecordBlock>
+  );
+}
+
+/** The day as a 24-hour track with each clocked stretch filled in — so a
+    split shift or a late close reads at a glance instead of a Clock per row. */
+function DaySpan({ segments }: { segments: TimesheetShift[] }) {
+  const hourOf = (iso: string) => {
+    const at = new Date(iso);
+    return at.getHours() + at.getMinutes() / 60;
+  };
+  const label = segments.map((s) => `${fmtTime(s.clockedIn)} – ${s.clockedOut ? fmtTime(s.clockedOut) : 'still clocked in'}`).join(', ');
+  return (
+    <span role="img" aria-label={label} title={label} className="relative hidden h-1.5 w-20 overflow-hidden rounded-full bg-band sm:block">
+      {segments.map((s) => {
+        const start = hourOf(s.clockedIn);
+        const out = s.clockedOut ? hourOf(s.clockedOut) : null;
+        // Still clocked in: a stub. Past midnight: runs off the end of the day's track.
+        const end = out === null ? Math.min(start + 0.5, 24) : out < start ? 24 : out;
+        return (
+          <span
+            key={s.id}
+            className={cn(
+              'absolute inset-y-0 rounded-full',
+              s.overtimeHours > 0 ? 'bg-measured' : s.clockedOut ? 'bg-momentum' : 'bg-exception',
+            )}
+            style={{ left: `${(start / 24) * 100}%`, width: `${Math.max(((end - start) / 24) * 100, 2)}%` }}
+          />
+        );
+      })}
+    </span>
   );
 }
 

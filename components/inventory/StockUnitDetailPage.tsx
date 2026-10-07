@@ -27,18 +27,26 @@ import {
 import { LedgerRow } from '@/components/inventory/item/LedgerSection';
 import { fmtQty } from '@/components/inventory/stock/shared';
 import { CopyButton, RecordBlock, RecordList, RecordListRow } from '@/components/people/record/shared';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact, SettingRow, SettingRows } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards, FormSection } from '@/components/shared/FormParts';
+import { Bone, LoadingState, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { hasCapability } from '@/lib/auth/capabilities';
-import { type StockUnit, adjustStockUnit, discardStockUnit, getStockUnit, getStockUnitLedger, wasteStockUnit } from '@/lib/modules/inventory/client';
+import {
+  type StockUnit,
+  adjustStockUnit,
+  discardStockUnit,
+  getStockUnit,
+  getStockUnitLedger,
+  wasteStockUnit,
+} from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { type ContainerStatus, isActive } from '@/lib/utils/containers';
@@ -111,10 +119,7 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
       {unitQuery.isError ? (
         <ErrorState title="Couldn’t load this container" onRetry={() => void unitQuery.refetch()} />
       ) : !unit ? (
-        <div className="space-y-4" aria-label="Loading container">
-          <div className="h-56 animate-pulse rounded-lg bg-band/60" />
-          <div className="h-40 animate-pulse rounded-lg bg-band/60" />
-        </div>
+        <LoadingState label="Loading the container" />
       ) : (
         <UnitBody
           unit={unit}
@@ -168,7 +173,10 @@ function UnitBody({
   return (
     <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
       {unit.status === 'EXPIRED' && remaining > 0 && (
-        <motion.div variants={SECTION_RISE} className="flex items-center gap-3 rounded-lg border border-exception/30 bg-exception/5 px-3.5 py-3">
+        <motion.div
+          variants={SECTION_RISE}
+          className="flex items-center gap-3 rounded-lg border border-exception/30 bg-exception/5 px-3.5 py-3"
+        >
           <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-exception/8 text-exception" aria-hidden="true">
             <CalendarClock size={16} />
           </span>
@@ -191,12 +199,26 @@ function UnitBody({
           <>
             <RecordBlock id="unit-details" label="Details">
               <RecordList>
-                {itemName && <RecordListRow icon={Package} tone="reference" label="Item" value={itemName} href={`/inventory/items/${unit.stockItemId}`} />}
+                {itemName && (
+                  <RecordListRow
+                    icon={Package}
+                    tone="reference"
+                    label="Item"
+                    value={itemName}
+                    href={`/inventory/items/${unit.stockItemId}`}
+                  />
+                )}
                 {unit.location?.name && <RecordListRow icon={MapPin} tone="reference" label="Location" value={unit.location.name} />}
                 <RecordListRow icon={Tag} tone="reference" label="Lot" value={unit.lotNumber} placeholder="No lot number" />
                 <RecordListRow icon={Barcode} tone="reference" label="Barcode" value={unit.barcode} placeholder="No barcode" />
                 {unit.notes && <RecordListRow icon={FileText} tone="muted" label="Note" value={unit.notes} />}
-                <RecordListRow icon={Tag} tone="muted" label="Container ID" value={`#${unit.id.slice(0, 8).toUpperCase()}`} trailing={<CopyButton value={unit.id} label="container ID" />} />
+                <RecordListRow
+                  icon={Tag}
+                  tone="muted"
+                  label="Container ID"
+                  value={`#${unit.id.slice(0, 8).toUpperCase()}`}
+                  trailing={<CopyButton value={unit.id} label="container ID" />}
+                />
               </RecordList>
             </RecordBlock>
 
@@ -204,21 +226,33 @@ function UnitBody({
               <SettingsSection title="Actions">
                 <SettingRows>
                   {canAdjust && (
-                    <SettingRow icon={Scale} title="Correct the balance" description="After a count — set what’s really in it. The difference goes in the history.">
+                    <SettingRow
+                      icon={Scale}
+                      title="Correct the balance"
+                      description="After a count — set what’s really in it. The difference goes in the history."
+                    >
                       <Button variant="outline" size="sm" onClick={() => onAction('adjust')}>
                         Correct
                       </Button>
                     </SettingRow>
                   )}
                   {canWaste && (
-                    <SettingRow icon={PackageMinus} title="Log waste" description="Some was spilt, damaged or went off. The rest stays in use.">
+                    <SettingRow
+                      icon={PackageMinus}
+                      title="Log waste"
+                      description="Some was spilt, damaged or went off. The rest stays in use."
+                    >
                       <Button variant="outline" size="sm" onClick={() => onAction('waste')}>
                         Log waste
                       </Button>
                     </SettingRow>
                   )}
                   {canWaste && (
-                    <SettingRow icon={Trash2} title="Discard container" description="Throw the rest away. The container is closed and what’s left is written off.">
+                    <SettingRow
+                      icon={Trash2}
+                      title="Discard container"
+                      description="Throw the rest away. The container is closed and what’s left is written off."
+                    >
                       <Button variant="destructive" size="sm" onClick={() => onAction('discard')}>
                         Discard
                       </Button>
@@ -244,7 +278,6 @@ function UnitBody({
             </span>
             <div className="min-w-0">
               <p className="truncate text-2xl font-semibold tracking-headline text-foreground">{unit.label}</p>
-              <p className="mt-1 truncate text-sm text-muted-foreground">{[itemName, unit.location?.name].filter(Boolean).join(' · ') || 'Physical container'}</p>
               <p className="mt-2 flex justify-center sm:justify-start">
                 <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', meta.pill)}>{meta.label}</span>
               </p>
@@ -266,14 +299,33 @@ function UnitBody({
               tone={days === null || !active ? 'default' : days < 0 ? 'danger' : days <= 2 ? 'warning' : 'default'}
               hint={unit.expiryDate ? `${day(unit.expiryDate)} · ${EXPIRY_SOURCE[unit.expirySource]}` : 'Doesn’t expire'}
             />
-            <Fact icon={PackageOpen} label="Opened" value={unit.openedAt ? day(unit.openedAt) : 'Sealed'} hint={unit.openedAt ? undefined : 'Not opened yet'} />
-            <Fact icon={CalendarDays} label="Received" value={day(unit.createdAt)} hint={unit.createdByUser?.name ? `by ${unit.createdByUser.name}` : undefined} />
+            <Fact
+              icon={PackageOpen}
+              label="Opened"
+              value={unit.openedAt ? day(unit.openedAt) : 'Sealed'}
+              hint={unit.openedAt ? undefined : 'Not opened yet'}
+            />
+            <Fact
+              icon={CalendarDays}
+              label="Received"
+              value={day(unit.createdAt)}
+              hint={unit.createdByUser?.name ? `by ${unit.createdByUser.name}` : undefined}
+            />
           </dl>
 
           <div className="mt-5">
             <div className="h-2 overflow-hidden rounded-full bg-band">
               <motion.div
-                className={cn('h-full rounded-full', !active ? 'bg-muted-foreground/40' : unit.status === 'EXPIRED' ? 'bg-exception/70' : share <= 0.2 ? 'bg-measured' : 'bg-primary')}
+                className={cn(
+                  'h-full rounded-full',
+                  !active
+                    ? 'bg-muted-foreground/40'
+                    : unit.status === 'EXPIRED'
+                      ? 'bg-exception/70'
+                      : share <= 0.2
+                        ? 'bg-measured'
+                        : 'bg-primary',
+                )}
                 initial={{ width: 0 }}
                 animate={{ width: `${share * 100}%` }}
                 transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -289,7 +341,15 @@ function UnitBody({
           {ledgerError ? (
             <ErrorState title="Couldn’t load the history" onRetry={onRetryLedger} />
           ) : !ledger ? (
-            <div className="h-24 animate-pulse rounded-lg bg-band/60" />
+            // A day: its label, then the card of movements.
+            <div role="status" aria-busy="true" aria-label="Loading the history">
+              <Bone className="mb-2 h-3 w-24" />
+              <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                {Array.from({ length: 2 }, (_, index) => (
+                  <RowSkeleton key={index} index={index} />
+                ))}
+              </div>
+            </div>
           ) : history.length === 0 ? (
             <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-4">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary" aria-hidden="true">
@@ -330,7 +390,21 @@ function useRefresh(unit: StockUnit) {
   };
 }
 
-function Footer({ pending, label, icon: Icon, destructive, form, onCancel }: { pending: boolean; label: string; icon: IconComponent; destructive?: boolean; form: string; onCancel: () => void }) {
+function Footer({
+  pending,
+  label,
+  icon: Icon,
+  destructive,
+  form,
+  onCancel,
+}: {
+  pending: boolean;
+  label: string;
+  icon: IconComponent;
+  destructive?: boolean;
+  form: string;
+  onCancel: () => void;
+}) {
   return (
     <div className="flex gap-2">
       <Button variant="outline" size="lg" className="flex-1" onClick={onCancel} disabled={pending}>
@@ -385,7 +459,12 @@ function AdjustDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void 
   });
 
   return (
-    <Drawer title="Correct the balance" description="Set what’s really in the container after a count." onClose={onClose} footer={<Footer form="unit-adjust" pending={adjust.isPending} label="Save balance" icon={Scale} onCancel={onClose} />}>
+    <Drawer
+      title="Correct the balance"
+      description="Set what’s really in the container after a count."
+      onClose={onClose}
+      footer={<Footer form="unit-adjust" pending={adjust.isPending} label="Save balance" icon={Scale} onCancel={onClose} />}
+    >
       <form
         id="unit-adjust"
         noValidate
@@ -399,15 +478,31 @@ function AdjustDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void 
       >
         <UnitCard unit={unit} />
         <FormSection icon={Gauge} title="Counted">
-          <Input label="What’s in it now" value={value} onChange={(event) => setValue(event.target.value)} inputMode="decimal" autoFocus rightIcon={<span className="text-xs">{unit.unitOfMeasure}</span>} error={submitted ? (error ?? undefined) : undefined} />
+          <Input
+            label="What’s in it now"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            inputMode="decimal"
+            autoFocus
+            rightIcon={<span className="text-xs">{unit.unitOfMeasure}</span>}
+            error={submitted ? (error ?? undefined) : undefined}
+          />
           {!error && (
             <p className={cn('text-xs', delta === 0 ? 'text-muted-foreground' : delta < 0 ? 'text-exception' : 'text-primary')}>
-              {delta === 0 ? 'No change from the recorded balance.' : `${delta > 0 ? '+' : '−'}${precise(Math.abs(delta))} ${unit.unitOfMeasure} against the recorded ${precise(current)}.`}
+              {delta === 0
+                ? 'No change from the recorded balance.'
+                : `${delta > 0 ? '+' : '−'}${precise(Math.abs(delta))} ${unit.unitOfMeasure} against the recorded ${precise(current)}.`}
             </p>
           )}
         </FormSection>
         <FormSection icon={FileText} title="Note">
-          <Input value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} placeholder="Optional — e.g. weekly count" aria-label="Note" />
+          <Input
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={1000}
+            placeholder="Optional — e.g. weekly count"
+            aria-label="Note"
+          />
         </FormSection>
       </form>
     </Drawer>
@@ -422,7 +517,12 @@ function WasteDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void }
   const [notes, setNotes] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const n = readQty(value);
-  const error = value.trim() === '' || !Number.isFinite(n) || n <= 0 ? 'Enter how much was wasted.' : n > remaining ? `Only ${precise(remaining)} ${unit.unitOfMeasure} left in it.` : null;
+  const error =
+    value.trim() === '' || !Number.isFinite(n) || n <= 0
+      ? 'Enter how much was wasted.'
+      : n > remaining
+        ? `Only ${precise(remaining)} ${unit.unitOfMeasure} left in it.`
+        : null;
 
   const waste = useMutation({
     mutationFn: () => wasteStockUnit(unit.id, { quantity: n, reason, notes: notes.trim() || undefined }),
@@ -435,7 +535,21 @@ function WasteDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void }
   });
 
   return (
-    <Drawer title="Log waste" description="Write off part of this container. The rest stays in use." onClose={onClose} footer={<Footer form="unit-waste" pending={waste.isPending} label={error ? 'Write off' : `Write off ${precise(n)} ${unit.unitOfMeasure}`} icon={PackageMinus} destructive onCancel={onClose} />}>
+    <Drawer
+      title="Log waste"
+      description="Write off part of this container. The rest stays in use."
+      onClose={onClose}
+      footer={
+        <Footer
+          form="unit-waste"
+          pending={waste.isPending}
+          label={error ? 'Write off' : `Write off ${precise(n)} ${unit.unitOfMeasure}`}
+          icon={PackageMinus}
+          destructive
+          onCancel={onClose}
+        />
+      }
+    >
       <form
         id="unit-waste"
         noValidate
@@ -448,9 +562,20 @@ function WasteDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void }
       >
         <UnitCard unit={unit} />
         <FormSection icon={PackageMinus} title="How much">
-          <Input label="Wasted" value={value} onChange={(event) => setValue(event.target.value)} inputMode="decimal" autoFocus placeholder="0" rightIcon={<span className="text-xs">{unit.unitOfMeasure}</span>} error={submitted ? (error ?? undefined) : undefined} />
+          <Input
+            label="Wasted"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            inputMode="decimal"
+            autoFocus
+            placeholder="0"
+            rightIcon={<span className="text-xs">{unit.unitOfMeasure}</span>}
+            error={submitted ? (error ?? undefined) : undefined}
+          />
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{!error ? `Leaves ${precise(remaining - n)} ${unit.unitOfMeasure} in it` : `${precise(remaining)} ${unit.unitOfMeasure} left`}</span>
+            <span>
+              {!error ? `Leaves ${precise(remaining - n)} ${unit.unitOfMeasure} in it` : `${precise(remaining)} ${unit.unitOfMeasure} left`}
+            </span>
             <button type="button" className="font-semibold text-primary hover:underline" onClick={() => setValue(precise(remaining))}>
               All of it
             </button>
@@ -458,7 +583,13 @@ function WasteDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void }
         </FormSection>
         <FormSection icon={FileText} title="Why">
           <ChoiceCards columns={3} value={reason} onChange={setReason} options={WASTE_REASONS} />
-          <Input value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} placeholder="Optional — what happened" aria-label="Note" />
+          <Input
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={1000}
+            placeholder="Optional — what happened"
+            aria-label="Note"
+          />
         </FormSection>
       </form>
     </Drawer>
@@ -486,7 +617,16 @@ function DiscardDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void
       title="Discard container"
       description="Throw away what’s left. This can’t be undone."
       onClose={onClose}
-      footer={<Footer form="unit-discard" pending={discard.isPending} label={`Discard ${precise(remaining)} ${unit.unitOfMeasure}`} icon={Trash2} destructive onCancel={onClose} />}
+      footer={
+        <Footer
+          form="unit-discard"
+          pending={discard.isPending}
+          label={`Discard ${precise(remaining)} ${unit.unitOfMeasure}`}
+          icon={Trash2}
+          destructive
+          onCancel={onClose}
+        />
+      }
     >
       <form
         id="unit-discard"
@@ -503,7 +643,13 @@ function DiscardDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void
         </p>
         <FormSection icon={FileText} title="Why">
           <ChoiceCards columns={3} value={reason} onChange={setReason} options={WASTE_REASONS} />
-          <Input value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} placeholder="Optional — what happened" aria-label="Note" />
+          <Input
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={1000}
+            placeholder="Optional — what happened"
+            aria-label="Note"
+          />
         </FormSection>
       </form>
     </Drawer>

@@ -25,8 +25,10 @@ import { RecordBlock, RecordList, RecordListRow } from '@/components/people/reco
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact } from '@/components/settings/controls';
+import { FramedRows, TileSkeleton } from '@/components/shared/TileSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { NeedsAttention, type NeedsAttentionTone } from '@/components/shared/NeedsAttention';
-import { Button } from '@/components/ui/button';
+import { Bone, FactSkeleton } from '@/components/shared/Skeleton';
 
 import type { Payslip } from '@/lib/modules/payroll/client';
 import type { HrEmployee } from '@/lib/modules/people/client';
@@ -106,35 +108,40 @@ export function Overview({
 
   if (loading)
     return (
-      <div className="space-y-5" aria-busy="true" aria-label="Loading your record">
-        <div className="h-16 animate-pulse rounded-lg bg-band/60" />
+      // The page as it lands: the folded "needs you" card, four facts, then
+      // employment beside personal details.
+      <div role="status" aria-busy="true" aria-label="Loading your record" className="space-y-5">
+        <TileSkeleton className="border-rule/60 bg-field px-4 py-3.5" />
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[0, 1, 2, 3].map((tile) => (
-            <div key={tile} className="h-16 animate-pulse rounded-lg bg-band/60" />
+            <FactSkeleton key={tile} surface="page" />
           ))}
         </div>
-        <div className="h-64 animate-pulse rounded-lg bg-band/60" />
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
+          {[4, 4].map((rows, index) => (
+            <div key={index} className="min-w-0" aria-hidden="true">
+              <div className="mb-3 flex min-h-8 items-center">
+                <Bone className="h-3.5 w-28" />
+              </div>
+              <FramedRows rows={rows} trailing={false} />
+            </div>
+          ))}
+        </div>
       </div>
     );
 
   if (!employee)
     return (
-      <div className="flex flex-col items-center rounded-lg border border-rule/60 bg-field px-6 py-10 text-center">
-        <span className="flex size-12 items-center justify-center rounded-lg bg-primary/8 text-primary">
-          <UserRound size={22} aria-hidden="true" />
-        </span>
-        <p className="mt-3 text-sm font-semibold text-foreground">No employment record yet</p>
-        <p className="mx-auto mt-1.5 max-w-[60ch] text-sm leading-6 text-muted-foreground">
-          Your account isn&rsquo;t linked to an employment record, so there are no leave balances, payslips or documents to show.
-        </p>
-        {canCreateOwnEmployeeRecord ? (
-          <Button className="mt-5" onClick={onCreateOwnEmployeeRecord}>
-            Add employee record
-          </Button>
-        ) : (
-          <p className="mt-4 text-sm text-muted-foreground">Ask your HR team to set this up for you.</p>
-        )}
-      </div>
+      <EmptyState
+        icon={UserRound}
+        title="No employment record yet"
+        description={
+          canCreateOwnEmployeeRecord
+            ? 'Your leave balances, payslips and documents appear here once your account is linked to an employment record.'
+            : 'Your leave balances, payslips and documents appear here once your account is linked to an employment record. Ask your HR team to set it up.'
+        }
+        action={canCreateOwnEmployeeRecord ? { label: 'Add employee record', onClick: onCreateOwnEmployeeRecord } : undefined}
+      />
     );
 
   const service = employee.startDate ? lengthOfService(employee.startDate, asOf) : null;

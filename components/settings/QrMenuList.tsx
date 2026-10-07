@@ -80,7 +80,7 @@ export function QrMenuList({
                   </h3>
                   {!group.reachesGuests && (
                     <span className="inline-flex items-center gap-1 rounded-sm bg-band px-1.5 py-0.5 text-micro font-medium text-muted-foreground">
-                      <EyeOff size={11} aria-hidden="true" /> Off in Products
+                      <EyeOff size={11} aria-hidden="true" /> Off in Menu
                     </span>
                   )}
                   <label className="ml-auto flex cursor-pointer items-center gap-3">

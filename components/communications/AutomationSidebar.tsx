@@ -2,8 +2,10 @@
 
 import { CheckCircle2, Copy, Eye, Loader2, Trash2, TriangleAlert } from '@/components/icons';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { StatusDot } from '@/components/shared/StatusDot';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
 import { Button } from '@/components/ui/button';
+import { AmountUnitPicker } from '@/components/ui/amount-unit-picker';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
@@ -39,11 +41,6 @@ const CONDITION_OPERATORS = [
   { value: 'less_than', label: 'is less than' },
   { value: 'less_than_or_equal', label: 'is at most' },
   { value: 'contains', label: 'contains' },
-];
-const DELAY_UNITS = [
-  { value: 'minutes', label: 'minutes' },
-  { value: 'hours', label: 'hours' },
-  { value: 'days', label: 'days' },
 ];
 
 const RUN_LABEL: Record<EmailAutomationRun['status'], string> = { running: 'Running', completed: 'Completed', failed: 'Failed' };
@@ -144,30 +141,30 @@ export function AutomationSidebar({
             <fieldset disabled={readOnly} className="min-w-0">
               <Input label="Name" value={name} onChange={(event) => onName(event.target.value)} required hint="Only your team sees this." />
             </fieldset>
-            <dl className="divide-y divide-rule/45 overflow-hidden rounded-lg border border-rule/60">
-              <Fact label="Status">
-                {automation?.isEnabled ? (
-                  <span className="font-semibold text-momentum">Sending</span>
-                ) : automation?.publishedVersion ? (
-                  'Switched off'
-                ) : automation ? (
-                  'Draft — never published'
-                ) : (
-                  'Not saved yet'
-                )}
-              </Fact>
-              {Boolean(automation?.publishedVersion) && <Fact label="Live version">v{automation?.publishedVersion}</Fact>}
-              <Fact label="Sends to">{staffAudience ? 'Employees' : 'Customers'}</Fact>
+            {/* Whether it's live, and which version, is the canvas header's pill — here only what it isn't. */}
+            <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-1 text-xs text-muted-foreground tabular-nums">
+              <span>Sends to {staffAudience ? 'employees' : 'customers'}</span>
               {automation && (
-                <Fact label="Runs">
-                  {(automation.runCount ?? 0).toLocaleString()}
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>
+                    {(automation.runCount ?? 0).toLocaleString()} {automation.runCount === 1 ? 'run' : 'runs'}
+                  </span>
                   {Boolean(automation.failedRunCount) && (
-                    <span className="ml-1.5 font-semibold text-exception">{automation.failedRunCount} failed</span>
+                    <span className="inline-flex items-center gap-1 font-semibold text-exception">
+                      <StatusDot tone="exception" label="Failed runs" />
+                      {automation.failedRunCount} failed
+                    </span>
                   )}
-                </Fact>
+                </>
               )}
-              {automation?.lastEvaluatedAt && <Fact label="Last checked">{timeAgo(automation.lastEvaluatedAt, now)}</Fact>}
-            </dl>
+              {automation?.lastEvaluatedAt && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>checked {timeAgo(automation.lastEvaluatedAt, now)}</span>
+                </>
+              )}
+            </p>
           </div>
         )}
 
@@ -223,15 +220,6 @@ export function AutomationSidebar({
         )}
       </div>
     </aside>
-  );
-}
-
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right tabular-nums text-foreground">{children}</dd>
-    </div>
   );
 }
 
@@ -433,22 +421,12 @@ function StepPanel({
         {node.type === 'delay' && (
           // Reads as the sentence it sets: "Wait [3] [days]".
           <Field label="Wait for">
-            <div className="grid grid-cols-[6rem_1fr] gap-2">
-              <Input
-                type="number"
-                min={1}
-                aria-label="How long"
-                value={node.config.amount}
-                onChange={(event) => onChange({ ...node, config: { ...node.config, amount: Math.max(1, Number(event.target.value)) } })}
-              />
-              <Select
-                value={node.config.unit}
-                onValueChange={(unit) => onChange({ ...node, config: { ...node.config, unit: unit as typeof node.config.unit } })}
-                options={DELAY_UNITS}
-                ariaLabel="Unit"
-                className="w-full"
-              />
-            </div>
+            <AmountUnitPicker
+              aria-label="How long to wait"
+              amount={node.config.amount}
+              unit={node.config.unit}
+              onValueChange={({ amount, unit }) => onChange({ ...node, config: { ...node.config, amount, unit } })}
+            />
           </Field>
         )}
 

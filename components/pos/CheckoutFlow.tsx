@@ -3,7 +3,19 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
-import { AlertTriangle, ArrowLeft, Banknote, Check, ChevronLeft, ChevronRight, CloudUpload, CreditCard, Loader2, Printer, X } from '@/components/icons';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Banknote,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CloudUpload,
+  CreditCard,
+  Loader2,
+  Printer,
+  X,
+} from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
 import type { PaymentMethod } from '@/lib/modules/payments/client';
@@ -74,102 +86,128 @@ export function CheckoutFlow(props: Props) {
         transition={{ duration: 0.22, ease: EASE }}
         className="flex h-full w-full flex-col overflow-hidden bg-background md:h-[min(46rem,100%)] md:max-w-5xl md:rounded-2xl md:border md:border-rule/60 md:shadow-2xl"
       >
-      <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-rule/60 bg-card px-3 md:px-5">
-        {step === 'done' ? (
-          <span className="w-28" />
-        ) : step === 'method' ? (
-          <Button variant="ghost" onClick={onCancel} disabled={busy} className="h-12 w-28 justify-start gap-2 px-3 text-base">
-            <X size={20} aria-hidden="true" /> Cancel
-          </Button>
-        ) : (
-          <Button variant="ghost" onClick={onBack} disabled={busy} className="h-12 w-28 justify-start gap-2 px-3 text-base">
-            <ArrowLeft size={20} aria-hidden="true" /> Back
-          </Button>
-        )}
-        <p className="text-base font-semibold text-foreground">{title}</p>
-        <p data-figure className="w-28 text-right text-lg font-semibold tabular-nums text-foreground">{step === 'done' ? '' : amount}</p>
-      </header>
-
-      <div className="relative flex min-h-0 flex-1">
-        {step !== 'done' && (
-          <motion.aside
-            id="checkout-order-summary"
-            aria-label="Order summary"
-            aria-hidden={!summaryOpen}
-            initial={false}
-            animate={{ width: summaryOpen ? '20rem' : 0 }}
-            transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: EASE }}
-            className={cn('shrink-0 overflow-hidden bg-card', summaryOpen && 'border-r border-rule/60')}
-          >
-            <div className="flex h-full w-80 flex-col">
-            {customerName && <p className="shrink-0 border-b border-rule/60 px-5 py-3 text-sm text-muted-foreground">For <span className="font-medium text-foreground">{customerName}</span></p>}
-            <ul className="min-h-0 flex-1 divide-y divide-rule/45 overflow-y-auto">
-              {lines.map((line) => (
-                <li key={line.cartId} className="flex items-start gap-3 px-5 py-3 text-sm">
-                  <span data-figure className="w-6 shrink-0 font-semibold tabular-nums">{line.quantity}×</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-medium text-foreground">{line.item.name}</span>
-                    {line.selected.length > 0 && <span className="block text-muted-foreground">{line.selected.map((o) => o.label).join(' · ')}</span>}
-                    {line.note && <span className="block italic text-muted-foreground">{line.note}</span>}
-                  </span>
-                  <span data-figure className="shrink-0 font-medium tabular-nums">{formatPrice(cartItemTotal(line), currency)}</span>
-                </li>
-              ))}
-            </ul>
-            {props.loyaltyReward && (
-              <div className="flex shrink-0 items-center justify-between gap-3 border-t border-rule/60 px-5 py-3 text-sm text-primary">
-                <span className="truncate">{props.loyaltyReward.label}</span>
-                <span data-figure className="shrink-0 font-semibold tabular-nums">−{formatPrice(props.loyaltyReward.discountCents, currency)}</span>
-              </div>
-            )}
-            <div className="flex shrink-0 items-baseline justify-between border-t border-rule/60 px-5 py-4">
-              <span className="text-base font-medium text-muted-foreground">Total</span>
-              <span data-figure className="text-2xl font-semibold tabular-nums">{amount}</span>
-            </div>
-            </div>
-          </motion.aside>
-        )}
-
-        {step !== 'done' && (
-          // The order is there when it's wanted and out of the way when it isn't:
-          // a tab on the left edge slides it in.
-          <button
-            type="button"
-            onClick={() => setSummaryOpen((open) => !open)}
-            aria-expanded={summaryOpen}
-            aria-controls="checkout-order-summary"
-            aria-label={summaryOpen ? 'Hide the order' : `Show the order, ${itemCount} item${itemCount === 1 ? '' : 's'}`}
-            className="z-10 -ml-px flex h-20 w-10 shrink-0 touch-manipulation flex-col items-center justify-center gap-1 self-center rounded-r-xl border border-l-0 border-rule/60 bg-card text-muted-foreground transition-colors active:bg-band"
-          >
-            {summaryOpen ? <ChevronLeft size={20} aria-hidden="true" /> : <ChevronRight size={20} aria-hidden="true" />}
-            {!summaryOpen && <span className="text-xs font-semibold tabular-nums">{itemCount}</span>}
-          </button>
-        )}
-
-        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={step}
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2, ease: EASE }}
-              className="mx-auto flex min-h-full w-full max-w-xl flex-col justify-center px-5 py-6 md:px-8"
+        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-rule/60 bg-card px-3 md:px-5">
+          {step === 'done' ? (
+            <span className="w-28" />
+          ) : step === 'method' ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onCancel}
+              disabled={busy}
+              className="h-12 w-28 justify-start gap-2 px-3 text-base"
             >
-              {error && (
-                <p role="alert" className="mb-6 flex gap-2.5 rounded-lg border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-foreground">
-                  <AlertTriangle size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-destructive" />
-                  {error}
-                </p>
-              )}
-              {step === 'method' && <MethodStep {...props} amount={amount} />}
-              {step === 'cash' && <CashStep {...props} />}
-              {step === 'verify' && <VerifyStep {...props} amount={amount} />}
-              {step === 'done' && <DoneStep {...props} />}
-            </motion.div>
-          </AnimatePresence>
-        </main>
-      </div>
+              <X size={20} aria-hidden="true" /> Cancel
+            </Button>
+          ) : (
+            <Button type="button" variant="ghost" onClick={onBack} disabled={busy} className="h-12 w-28 justify-start gap-2 px-3 text-base">
+              <ArrowLeft size={20} aria-hidden="true" /> Back
+            </Button>
+          )}
+          <p className="text-base font-semibold text-foreground">{title}</p>
+          {/* Method and verify show the amount large in the body; only the cash step needs it up here. */}
+          <p data-figure className="w-28 text-right text-lg font-semibold tabular-nums text-foreground">
+            {step === 'cash' ? amount : ''}
+          </p>
+        </header>
+
+        <div className="relative flex min-h-0 flex-1">
+          {step !== 'done' && (
+            <motion.aside
+              id="checkout-order-summary"
+              aria-label="Order summary"
+              aria-hidden={!summaryOpen}
+              initial={false}
+              animate={{ width: summaryOpen ? '20rem' : 0 }}
+              transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: EASE }}
+              className={cn('shrink-0 overflow-hidden bg-card', summaryOpen && 'border-r border-rule/60')}
+            >
+              <div className="flex h-full w-80 flex-col">
+                {customerName && (
+                  <p className="shrink-0 border-b border-rule/60 px-5 py-3 text-sm text-muted-foreground">
+                    For <span className="font-medium text-foreground">{customerName}</span>
+                  </p>
+                )}
+                <ul className="min-h-0 flex-1 divide-y divide-rule/45 overflow-y-auto">
+                  {lines.map((line) => (
+                    <li key={line.cartId} className="flex items-start gap-3 px-5 py-3 text-sm">
+                      <span data-figure className="w-6 shrink-0 font-semibold tabular-nums">
+                        {line.quantity}×
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium text-foreground">{line.item.name}</span>
+                        {line.selected.length > 0 && (
+                          <span className="block text-muted-foreground">{line.selected.map((o) => o.label).join(' · ')}</span>
+                        )}
+                        {line.note && <span className="block italic text-muted-foreground">{line.note}</span>}
+                      </span>
+                      <span data-figure className="shrink-0 font-medium tabular-nums">
+                        {formatPrice(cartItemTotal(line), currency)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {props.loyaltyReward && (
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-t border-rule/60 px-5 py-3 text-sm text-primary">
+                    <span className="truncate">{props.loyaltyReward.label}</span>
+                    <span data-figure className="shrink-0 font-semibold tabular-nums">
+                      −{formatPrice(props.loyaltyReward.discountCents, currency)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex shrink-0 items-baseline justify-between border-t border-rule/60 px-5 py-4">
+                  <span className="text-base font-medium text-muted-foreground">Total</span>
+                  <span data-figure className="text-2xl font-semibold tabular-nums">
+                    {amount}
+                  </span>
+                </div>
+              </div>
+            </motion.aside>
+          )}
+
+          {step !== 'done' && (
+            // The order is there when it's wanted and out of the way when it isn't:
+            // a tab on the left edge slides it in.
+            <button
+              type="button"
+              onClick={() => setSummaryOpen((open) => !open)}
+              aria-expanded={summaryOpen}
+              aria-controls="checkout-order-summary"
+              aria-label={summaryOpen ? 'Hide the order' : `Show the order, ${itemCount} item${itemCount === 1 ? '' : 's'}`}
+              className="z-10 -ml-px flex h-20 w-10 shrink-0 touch-manipulation flex-col items-center justify-center gap-1 self-center rounded-r-xl border border-l-0 border-rule/60 bg-card text-muted-foreground transition-colors active:bg-band"
+            >
+              {summaryOpen ? <ChevronLeft size={20} aria-hidden="true" /> : <ChevronRight size={20} aria-hidden="true" />}
+              {!summaryOpen && <span className="text-xs font-semibold tabular-nums">{itemCount}</span>}
+            </button>
+          )}
+
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={step}
+                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2, ease: EASE }}
+                className="mx-auto flex min-h-full w-full max-w-xl flex-col justify-center px-5 py-6 md:px-8"
+              >
+                {error && (
+                  <p
+                    role="alert"
+                    className="mb-6 flex gap-2.5 rounded-lg border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-foreground"
+                  >
+                    <AlertTriangle size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-destructive" />
+                    {error}
+                  </p>
+                )}
+                {step === 'method' && <MethodStep {...props} amount={amount} />}
+                {step === 'cash' && <CashStep {...props} />}
+                {step === 'verify' && <VerifyStep {...props} amount={amount} />}
+                {step === 'done' && <DoneStep {...props} />}
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </div>
       </motion.div>
     </div>
   );
@@ -180,7 +218,9 @@ function MethodStep({ methods, busy, offline, onSelectMethod, amount }: Props & 
   return (
     <>
       <p className="text-center text-sm font-medium text-muted-foreground">Amount due</p>
-      <p data-figure className="mt-1 text-center text-5xl font-semibold tabular-nums tracking-tight text-foreground">{amount}</p>
+      <p data-figure className="mt-1 text-center text-5xl font-semibold tabular-nums tracking-tight text-foreground">
+        {amount}
+      </p>
       {offline && (
         <p className="mx-auto mt-4 flex items-center gap-2 rounded-full bg-warning/10 px-3 py-1.5 text-sm font-medium text-warning">
           <CloudUpload size={15} aria-hidden="true" /> Offline — cash and manual terminal sales save on this till
@@ -206,12 +246,24 @@ function MethodStep({ methods, busy, offline, onSelectMethod, amount }: Props & 
               )}
             >
               <span className={cn('flex size-11 items-center justify-center rounded-lg', cash ? 'bg-primary-foreground/15' : 'bg-band')}>
-                {spinning ? <Loader2 size={22} className="animate-spin" aria-hidden="true" /> : cash ? <Banknote size={22} aria-hidden="true" /> : <CreditCard size={22} aria-hidden="true" />}
+                {spinning ? (
+                  <Loader2 size={22} className="animate-spin" aria-hidden="true" />
+                ) : cash ? (
+                  <Banknote size={22} aria-hidden="true" />
+                ) : (
+                  <CreditCard size={22} aria-hidden="true" />
+                )}
               </span>
               <span>
                 <span className="block text-lg font-semibold">{method.displayName}</span>
                 <span className={cn('block text-sm', cash ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
-                  {unavailable ? 'Needs a connection' : cash ? 'Count it in, give change' : method.provider === 'manual_terminal' ? 'Key it into the card machine' : 'Sent to the reader'}
+                  {unavailable
+                    ? 'Needs a connection'
+                    : cash
+                      ? 'Count it in, give change'
+                      : method.provider === 'manual_terminal'
+                        ? 'Key it into the card machine'
+                        : 'Sent to the reader'}
                 </span>
               </span>
             </button>
@@ -250,13 +302,26 @@ function CashStep({ total, currency = 'GBP', busy, onTender }: Props) {
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-muted-foreground">Cash received</p>
-          <p data-figure aria-live="polite" className={cn('mt-1 text-5xl font-semibold tabular-nums tracking-tight', entry ? 'text-foreground' : 'text-muted-foreground/50')}>
+          <p
+            data-figure
+            aria-live="polite"
+            className={cn(
+              'mt-1 text-5xl font-semibold tabular-nums tracking-tight',
+              entry ? 'text-foreground' : 'text-muted-foreground/50',
+            )}
+          >
             {formatPrice(tendered, currency)}
           </p>
         </div>
         <div className="text-right">
           <p className="text-sm font-medium text-muted-foreground">{short > 0 ? 'Still due' : 'Change'}</p>
-          <p data-figure className={cn('mt-1 text-3xl font-semibold tabular-nums', short > 0 ? 'text-exception' : change > 0 ? 'text-success' : 'text-muted-foreground')}>
+          <p
+            data-figure
+            className={cn(
+              'mt-1 text-3xl font-semibold tabular-nums',
+              short > 0 ? 'text-exception' : change > 0 ? 'text-success' : 'text-muted-foreground',
+            )}
+          >
             {formatPrice(short > 0 ? short : change, currency)}
           </p>
         </div>
@@ -271,7 +336,14 @@ function CashStep({ total, currency = 'GBP', busy, onTender }: Props) {
             disabled={busy}
             className="h-14 flex-col gap-0 text-base font-semibold tabular-nums"
           >
-            {index === 0 ? <><span className="text-xs font-medium opacity-80">Exact</span>{formatPrice(value, currency)}</> : formatPrice(value, currency)}
+            {index === 0 ? (
+              <>
+                <span className="text-xs font-medium opacity-80">Exact</span>
+                {formatPrice(value, currency)}
+              </>
+            ) : (
+              formatPrice(value, currency)
+            )}
           </Button>
         ))}
       </div>
@@ -299,11 +371,17 @@ function CashStep({ total, currency = 'GBP', busy, onTender }: Props) {
 
       <Button onClick={() => onTender(tendered)} disabled={busy || short > 0} className="mt-5 h-16 w-full justify-between px-5 text-lg">
         {busy ? (
-          <span className="flex items-center gap-2"><Loader2 className="animate-spin" aria-hidden="true" /> Recording the sale…</span>
+          <span className="flex items-center gap-2">
+            <Loader2 className="animate-spin" aria-hidden="true" /> Recording the sale…
+          </span>
         ) : (
           <>
             <span>{short > 0 ? `${formatPrice(short, currency)} short` : 'Take cash'}</span>
-            {short === 0 && <span data-figure className="tabular-nums">{change > 0 ? `Change ${formatPrice(change, currency)}` : 'No change'}</span>}
+            {short === 0 && (
+              <span data-figure className="tabular-nums">
+                {change > 0 ? `Change ${formatPrice(change, currency)}` : 'No change'}
+              </span>
+            )}
           </>
         )}
       </Button>
@@ -323,22 +401,36 @@ function VerifyStep({ paymentLabel, queued, offline, busy, onPaymentOutcome, amo
       >
         <CreditCard size={36} />
       </motion.span>
-      <h2 className="mt-6 text-3xl font-semibold tracking-tight text-foreground">
-        Take <span data-figure className="tabular-nums">{amount}</span> on {paymentLabel ?? 'the terminal'}
-      </h2>
+      <h2 className="mt-6 text-sm font-medium text-muted-foreground">Take it on {paymentLabel ?? 'the terminal'}</h2>
+      <p data-figure className="mt-1 text-5xl font-semibold tabular-nums tracking-tight text-foreground">
+        {amount}
+      </p>
       <p className="mx-auto mt-3 max-w-md text-base text-muted-foreground">
-        Wait for the machine to say <span className="font-medium text-foreground">approved</span>. Never confirm a declined, cancelled or uncertain payment.
+        Wait for the machine to say <span className="font-medium text-foreground">approved</span>. Never confirm a declined, cancelled or
+        uncertain payment.
         {(offline || queued) && ' The sale saves on this till and sends when the connection returns.'}
       </p>
       <div className="mt-10 grid grid-cols-2 gap-3">
-        <Button variant="outline" onClick={() => onPaymentOutcome('failed')} disabled={busy} className="h-16 gap-2 text-lg text-destructive hover:text-destructive">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onPaymentOutcome('failed')}
+          disabled={busy}
+          className="h-16 gap-2 text-lg text-destructive hover:text-destructive"
+        >
           <X size={20} aria-hidden="true" /> Declined
         </Button>
         <Button onClick={() => onPaymentOutcome('succeeded')} disabled={busy} className="h-16 gap-2 text-lg">
           {busy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Check size={20} aria-hidden="true" />} Approved
         </Button>
       </div>
-      <Button variant="ghost" onClick={() => onPaymentOutcome('cancelled')} disabled={busy} className="mt-4 h-12 text-base text-muted-foreground">
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => onPaymentOutcome('cancelled')}
+        disabled={busy}
+        className="mt-4 h-12 text-base text-muted-foreground"
+      >
         Use another method
       </Button>
     </div>
@@ -353,7 +445,10 @@ function DoneStep({ total, currency = 'GBP', queued, change, canPrint, onPrint, 
         initial={reduceMotion ? false : { scale: 0.6, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-        className={cn('mx-auto flex size-20 items-center justify-center rounded-full', queued ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success')}
+        className={cn(
+          'mx-auto flex size-20 items-center justify-center rounded-full',
+          queued ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success',
+        )}
         aria-hidden="true"
       >
         {queued ? <CloudUpload size={38} /> : <Check size={40} strokeWidth={2.5} />}
@@ -362,18 +457,28 @@ function DoneStep({ total, currency = 'GBP', queued, change, canPrint, onPrint, 
       {change > 0 ? (
         <>
           <p className="mt-6 text-base font-medium text-muted-foreground">Change to give</p>
-          <p data-figure className="mt-1 text-7xl font-semibold tabular-nums tracking-tight text-foreground">{formatPrice(change, currency)}</p>
+          <p data-figure className="mt-1 text-7xl font-semibold tabular-nums tracking-tight text-foreground">
+            {formatPrice(change, currency)}
+          </p>
           <p className="mt-3 text-base text-muted-foreground">
             {formatPrice(total, currency)} paid · {queued ? 'saved on this till' : 'payment complete'}
           </p>
         </>
       ) : (
         <>
-          <h2 className="mt-6 text-3xl font-semibold tracking-tight text-foreground">{queued ? 'Saved on this till' : 'Payment complete'}</h2>
-          <p data-figure className="mt-2 text-base tabular-nums text-muted-foreground">{formatPrice(total, currency)} paid</p>
+          <h2 className="mt-6 text-3xl font-semibold tracking-tight text-foreground">
+            {queued ? 'Saved on this till' : 'Payment complete'}
+          </h2>
+          <p data-figure className="mt-2 text-base tabular-nums text-muted-foreground">
+            {formatPrice(total, currency)} paid
+          </p>
         </>
       )}
-      {queued && <p className="mx-auto mt-3 max-w-sm text-sm text-muted-foreground">It sends automatically when the connection returns. The receipt is available once it has.</p>}
+      {queued && (
+        <p className="mx-auto mt-3 max-w-sm text-sm text-muted-foreground">
+          It sends automatically when the connection returns. The receipt is available once it has.
+        </p>
+      )}
 
       <div className="mt-10 grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
         <Button variant="outline" onClick={onPrint} disabled={!canPrint} className="h-16 gap-2 px-6 text-base">

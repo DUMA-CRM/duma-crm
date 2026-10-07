@@ -3,24 +3,26 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
-import { Ban, CalendarDays, History, Sun } from '@/components/icons';
+import { Ban, Banknote, CalendarDays, Check, Clock, History, Sun } from '@/components/icons';
 import { RecordBlock, RecordList, RecordListRow } from '@/components/people/record/shared';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { IconTag } from '@/components/shared/IconTag';
+import { MiniBar } from '@/components/shared/MiniBar';
 import { Button } from '@/components/ui/button';
 
 import { type LeaveEntitlement, type LeaveRequest, cancelLeaveRequest } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { cn } from '@/lib/utils/cn';
 import { splitLeaveRequests } from '@/lib/utils/my-hr';
 import { toast } from '@/stores/toastStore';
 
 import { fmt } from './shared';
 
-const STATUS_PILL = {
-  approved: { label: 'Approved', tone: 'success' },
-  pending: { label: 'Awaiting approval', tone: 'warning' },
-  declined: { label: 'Declined', tone: 'exception' },
+/** The answer, as a mark. Declined keeps its word as a pill: a "no" must be
+    read, not inferred from the Ban tile — which is shared with "cancelled". */
+const STATUS_TAG = {
+  approved: { label: 'Approved', tone: 'success', icon: Check },
+  pending: { label: 'Awaiting approval', tone: 'warning', icon: Clock },
 } as const;
 
 const days = (value: string | number) => {
@@ -54,7 +56,10 @@ export function TimeOffPanel({ requests, entitlements }: { requests: LeaveReques
   const { upcoming, history } = splitLeaveRequests(requests, today);
 
   const row = (request: LeaveRequest, past: boolean) => {
-    const pill = request.status === 'cancelled' ? undefined : STATUS_PILL[request.status];
+    const status = request.status === 'approved' || request.status === 'pending' ? STATUS_TAG[request.status] : undefined;
+    // Settled history says nothing extra for "approved" — it happened.
+    const tag =
+      status && !(past && request.status === 'approved') ? <IconTag icon={status.icon} label={status.label} tone={status.tone} /> : null;
     const single = request.startDate.slice(0, 10) === request.endDate.slice(0, 10);
     return (
       <RecordListRow
@@ -63,14 +68,25 @@ export function TimeOffPanel({ requests, entitlements }: { requests: LeaveReques
         tone={past || request.status === 'cancelled' ? 'muted' : 'reference'}
         value={single ? fmt(request.startDate) : `${fmt(request.startDate)} – ${fmt(request.endDate)}`}
         label={`${request.leaveType.name} · ${days(request.totalDays)}`}
-        detail={request.status === 'cancelled' ? 'Cancelled' : request.reviewNotes ? `HR: ${request.reviewNotes}` : undefined}
-        // Settled history says nothing extra for "approved" — it happened.
-        pill={pill && !(past && request.status === 'approved') ? pill : undefined}
+        detail={
+          request.status === 'cancelled'
+            ? 'Cancelled'
+            : request.status === 'declined'
+              ? `Declined${request.reviewNotes ? ` · HR: ${request.reviewNotes}` : ''}`
+              : request.reviewNotes
+                ? `HR: ${request.reviewNotes}`
+                : undefined
+        }
         trailing={
-          request.status === 'pending' ? (
-            <Button variant="ghost" size="sm" onClick={() => cancel.mutate(request.id)} disabled={cancel.isPending}>
-              Cancel
-            </Button>
+          tag || request.status === 'pending' ? (
+            <span className="flex items-center gap-2">
+              {tag}
+              {request.status === 'pending' && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => cancel.mutate(request.id)} disabled={cancel.isPending}>
+                  Cancel
+                </Button>
+              )}
+            </span>
           ) : undefined
         }
       />
@@ -122,25 +138,25 @@ function Balances({ entitlements }: { entitlements: LeaveEntitlement[] }) {
             const total = Number(item.totalDays);
             const used = Number(item.usedDays);
             const remaining = Math.round((total - used) * 100) / 100;
-            const pct = total > 0 ? Math.min(100, Math.max(0, (used / total) * 100)) : 0;
             return (
               <li key={item.id} className="rounded-lg border border-rule/60 bg-card px-3.5 py-3">
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="min-w-0 truncate text-sm font-semibold text-foreground">
                     {item.leaveType.name}
-                    {!item.leaveType.isPaid && <span className="ml-1.5 text-xs font-normal text-muted-foreground">Unpaid</span>}
+                    {!item.leaveType.isPaid && <IconTag icon={Banknote} label="Unpaid" className="ml-1.5 align-middle" />}
                   </p>
                   <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
                     <span className="text-base font-semibold text-foreground">{remaining}</span> of {total} left
                   </p>
                 </div>
                 {total > 0 && (
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-band" role="presentation">
-                    <div
-                      className={cn('h-full rounded-full', remaining <= 0 ? 'bg-exception' : 'bg-primary')}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
+                  <MiniBar
+                    value={used}
+                    max={total}
+                    tone={remaining <= 0 ? 'exception' : 'primary'}
+                    label={`${used} of ${total} days used`}
+                    className="mt-2"
+                  />
                 )}
                 <p className="mt-1.5 text-xs tabular-nums text-muted-foreground">{days(used)} used</p>
               </li>

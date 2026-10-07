@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 
 import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed, ClipboardList, Loader2, RefreshCw } from '@/components/icons';
+import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { completeWorkspaceSetup, getWorkspaceSetup, startWorkspaceSetup } from '@/lib/modules/organization/client';
@@ -14,7 +15,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 const MODULE_NAMES: Record<string, string> = {
   organization: 'Organisation',
   identity: 'Access',
-  catalog: 'Products',
+  catalog: 'Menu',
   payments: 'Payments',
   inventory: 'Inventory',
   purchasing: 'Purchasing',
@@ -37,13 +38,8 @@ export function WorkspaceReadinessChecklist({ compact = false }: { compact?: boo
   const error = setup.error ?? start.error ?? finish.error;
 
   if (!tenantId) return <p className="text-sm text-muted-foreground">Select a workspace to read its readiness.</p>;
-  if (setup.isLoading) {
-    return (
-      <div className="flex min-h-24 items-center justify-center gap-2 text-sm text-muted-foreground">
-        <Loader2 size={16} className="animate-spin" aria-hidden="true" /> Checking this workspace…
-      </div>
-    );
-  }
+  // Either a checklist or a "start checking" prompt comes back — the shape isn't known yet.
+  if (setup.isLoading) return <LoadingState compact label="Checking this workspace" />;
   if (setup.isError) {
     return (
       <div className="flex items-start gap-3 border-y border-exception/35 py-3" role="alert">

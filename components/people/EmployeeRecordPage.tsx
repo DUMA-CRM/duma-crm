@@ -10,7 +10,7 @@ import { Avatar } from '@/components/people/shared';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SectionTabs } from '@/components/shared/SectionTabs';
-import { Badge } from '@/components/ui/badge';
+import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
@@ -128,12 +128,7 @@ export function EmployeeRecordPage({
       title={name}
       onClose={onClose}
       leading={<Avatar name={name} email={member?.email} />}
-      meta={
-        <>
-          {emp?.jobTitle && member?.name && <span className="truncate text-sm text-muted-foreground">{emp.jobTitle}</span>}
-          {member && !member.isActive && <Badge variant="muted">Can’t sign in</Badge>}
-        </>
-      }
+      meta={<>{emp?.jobTitle && member?.name && <span className="truncate text-sm text-muted-foreground">{emp.jobTitle}</span>}</>}
       actions={
         member && (
           <>
@@ -157,11 +152,11 @@ export function EmployeeRecordPage({
                   </Button>
                 )
               : canChangeAccess && (
-                <Button onClick={() => reactivate.mutate()} disabled={reactivate.isPending} className="h-9 gap-2">
-                  {reactivate.isPending && <Loader2 size={15} className="animate-spin" />}
-                  Reactivate account
-                </Button>
-              )}
+                  <Button type="button" onClick={() => reactivate.mutate()} disabled={reactivate.isPending} className="h-9 gap-2">
+                    {reactivate.isPending && <Loader2 size={15} className="animate-spin" />}
+                    Reactivate account
+                  </Button>
+                )}
           </>
         )
       }
@@ -180,9 +175,7 @@ export function EmployeeRecordPage({
     >
       <div className="space-y-4">
         {isLoading ? (
-          <div className="flex items-center justify-center py-24 text-muted-foreground">
-            <Loader2 size={22} className="animate-spin" />
-          </div>
+          <LoadingState label="Loading the employee record" />
         ) : isError && !member ? (
           <div className="rounded-lg border border-rule/60 bg-field p-8 text-center">
             <span className="mx-auto flex size-10 items-center justify-center rounded-md bg-exception/8 text-exception">
@@ -220,7 +213,12 @@ export function EmployeeRecordPage({
               // The Overview's frame: the calendar across the page (a month
               // doesn't reflow into a column), then what they worked and the
               // paperwork in the main column, the standing terms beside it.
-              <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
+              <motion.div
+                className="space-y-5"
+                initial="hidden"
+                animate="shown"
+                variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
+              >
                 {canReadAttendance && <EmployeeAttendanceCard userId={userId} canReadRota={canReadRota} />}
                 <SettingsTabBody
                   aside={

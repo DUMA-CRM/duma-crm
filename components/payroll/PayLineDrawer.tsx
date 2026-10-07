@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CircleAlert, Clock } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 
 import { getEmployeeHours } from '@/lib/modules/payroll/client';
@@ -147,7 +148,23 @@ export function PayLineDrawer({
               />
             </div>
           ) : isPending ? (
-            <div className="h-24 animate-pulse rounded-md bg-band" aria-hidden="true" />
+            // The shift list's own card, a row per shift, waiting for the clock times.
+            <div
+              role="status"
+              aria-busy="true"
+              aria-label="Loading the timesheet"
+              className="divide-y divide-rule overflow-hidden rounded-md border border-rule bg-card"
+            >
+              {[0, 1, 2].map((index) => (
+                <div key={index} className="flex items-center gap-3 px-4 py-3" aria-hidden="true">
+                  <span className="min-w-0 flex-1 space-y-1.5">
+                    <Bone className={index % 2 ? 'h-3.5 w-40' : 'h-3.5 w-48'} />
+                    <Bone className="h-3 w-28" />
+                  </span>
+                  <Bone className="h-4 w-14 shrink-0" />
+                </div>
+              ))}
+            </div>
           ) : explanation.shifts.length === 0 ? (
             <p className="rounded-md border border-rule bg-card p-4 text-sm text-muted-foreground">No shifts clocked in this period.</p>
           ) : (

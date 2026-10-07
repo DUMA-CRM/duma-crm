@@ -4,13 +4,16 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
-import { Check, ChefHat, Flame, Loader2, Pencil, Plus, RotateCcw, Scale, SlidersHorizontal, TriangleAlert } from '@/components/icons';
+import { Check, ChefHat, Flame, Pencil, Plus, RotateCcw, Scale, SlidersHorizontal, TriangleAlert } from '@/components/icons';
 import { ModifierRecipeDrawer } from '@/components/menu/ModifierRecipeEditor';
 import { RecipeIngredientEditor } from '@/components/menu/RecipeIngredientEditor';
 import { Figure } from '@/components/menu/RecipeTotals';
+import { AllergenChip } from '@/components/menu/shared';
 import { DEFAULT_COL, type SizeColumn, computeRecipeTotals, mergeNutrition, useRecipeDraft } from '@/components/menu/useRecipeDraft';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { LoadingState } from '@/components/shared/Skeleton';
+import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 
 import { useVatContext } from '@/lib/hooks/useVatContext';
@@ -76,6 +79,7 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
   // A size pre-selected at the till makes the size-less amount an inherited
   // base rather than something sold — see `defaultIsSize`.
   const defaultSize = attached.find((m) => isSizeModifier(m) && m.isDefault);
+  const [justSaved, flashSaved] = useDoneBeat();
   const { rows, edit, dirty, isLoading, save, stockItems, itemMap, usedIds, columns, summary, allAllergens, hasIngredients } =
     useRecipeDraft({
       defaultIsSize: Boolean(defaultSize),
@@ -171,22 +175,23 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
           <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary" aria-hidden="true">
             <ChefHat size={16} />
           </span>
-          <p className="truncate text-sm font-semibold text-foreground">Recipe &amp; cost</p>
-          {dirty && !save.isPending && (
-            <span className="shrink-0 rounded-sm bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured">Unsaved changes</span>
-          )}
+          {/* The tab already says "Recipe & cost" and the button says Saved/Saving —
+              the bar only speaks up when there is unsaved work. */}
+          {dirty && !save.isPending && <p className="truncate text-sm font-semibold text-measured">Unsaved changes</p>}
         </div>
-        <Button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className="h-9 shrink-0 gap-2 px-5">
-          {save.isPending && <Loader2 size={15} className="animate-spin" />}
-          {save.isPending ? 'Saving…' : dirty ? 'Save recipe' : 'Saved'}
-        </Button>
+        <ActionButton
+          onClick={() => save.mutate(undefined, { onSuccess: flashSaved })}
+          disabled={!dirty}
+          pending={save.isPending}
+          done={justSaved}
+          className="h-9 min-w-32 shrink-0 px-5"
+        >
+          {dirty ? 'Save recipe' : 'Saved'}
+        </ActionButton>
       </div>
 
       {isLoading ? (
-        <div className="space-y-4" aria-label="Loading recipe">
-          <div className="h-48 animate-pulse rounded-lg bg-band/60" />
-          <div className="h-32 animate-pulse rounded-lg bg-band/60" />
-        </div>
+        <LoadingState label="Loading the recipe" />
       ) : (
         <SettingsTabBody
           stickyAside
@@ -328,9 +333,7 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
                         <p className="mb-1.5 text-label uppercase text-muted-foreground">Allergens</p>
                         <div className="flex flex-wrap gap-1.5">
                           {allAllergens.map((a) => (
-                            <span key={a} className="rounded-sm bg-measured/10 px-2 py-0.5 text-xs font-semibold capitalize text-measured">
-                              {a}
-                            </span>
+                            <AllergenChip key={a} allergen={a} />
                           ))}
                         </div>
                         <p className="mt-1.5 text-xs text-muted-foreground">From base ingredients only — modifiers add their own.</p>
@@ -433,14 +436,13 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
                             </span>
                             <Button
                               type="button"
-                              variant="outline"
-                              size="sm"
-                              className="w-28 shrink-0"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="shrink-0 text-muted-foreground"
                               onClick={() => setEditTarget(m)}
                               aria-label={`${lines.length ? 'Edit' : 'Add'} ${label} recipe`}
                             >
-                              {lines.length ? <Pencil aria-hidden="true" /> : <Plus aria-hidden="true" />}
-                              {lines.length ? 'Edit recipe' : 'Add recipe'}
+                              {lines.length ? <Pencil size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
                             </Button>
                           </li>
                         );
@@ -474,8 +476,8 @@ export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) 
 }
 
 /**
- * What the combination comes to: the price large, three figures a manager
- * checks (cost, margin, energy), and the price split into what goes on
+ * What the combination comes to: the price large, two figures a manager
+ * checks (margin, energy), and the price split into what goes on
  * ingredients, what goes to VAT and what the café keeps.
  */
 function ComboResult({
@@ -507,8 +509,8 @@ function ComboResult({
         <p className="shrink-0 text-xl font-semibold tabular-nums text-foreground">{money(gross)}</p>
       </div>
 
-      <dl className="grid grid-cols-3 gap-2 px-3.5 pt-3">
-        <MiniFigure label="Cost" value={money(costing.cogs)} incomplete={incomplete} />
+      {/* Cost isn't a figure here: the split bar's legend below already says it. */}
+      <dl className="grid grid-cols-2 gap-2 px-3.5 pt-3">
         <MiniFigure label="Margin" value={`${costing.marginPct.toFixed(0)}%`} detail={money(costing.margin)} tone={good ? 'good' : 'bad'} />
         <MiniFigure label="Energy" value={`${Math.round(kcal)}`} detail="kcal" incomplete={incomplete} />
       </dl>
@@ -525,9 +527,10 @@ function ComboResult({
           <span className="h-full bg-momentum" style={{ width: `${share(keep)}%` }} />
         </div>
         <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-micro text-muted-foreground">
-          <Legend swatch="bg-exception/70" label={`Ingredients ${money(costing.cogs)}`} />
+          <Legend swatch="bg-exception/70" label={`Ingredients ${money(costing.cogs)}${incomplete ? '*' : ''}`} />
           {costing.vat > 0 && <Legend swatch="bg-muted-foreground/35" label={`VAT ${money(costing.vat)}`} />}
-          <Legend swatch="bg-momentum" label={`You keep ${money(keep)}`} />
+          {/* What's kept is the Margin figure above — the swatch only names the segment. */}
+          <Legend swatch="bg-momentum" label="You keep" />
         </div>
       </div>
 
@@ -537,9 +540,7 @@ function ComboResult({
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             <span className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Contains</span>
             {allergens.map((a) => (
-              <span key={a} className="rounded-sm bg-measured/10 px-2 py-0.5 text-xs font-semibold capitalize text-measured">
-                {a}
-              </span>
+              <AllergenChip key={a} allergen={a} />
             ))}
           </div>
         )}

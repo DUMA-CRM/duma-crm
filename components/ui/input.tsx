@@ -3,6 +3,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 import { DatePicker } from './date-picker';
+import { TimePicker } from './time-picker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,24 @@ function Input({ className, type, label, hint, error, leftIcon, rightIcon, right
         required={props.required}
         disabled={props.disabled}
         autoFocus={props.autoFocus}
+        aria-label={props['aria-label']}
+        className={className}
+      />
+    );
+  }
+
+  // Times too: one picker for every time in the app.
+  if (type === 'time') {
+    return (
+      <TimePicker
+        id={inputId}
+        label={label}
+        hint={hint}
+        error={error}
+        value={String(props.value ?? '')}
+        onValueChange={(value) => props.onChange?.({ target: { value }, currentTarget: { value } } as React.ChangeEvent<HTMLInputElement>)}
+        required={props.required}
+        disabled={props.disabled}
         aria-label={props['aria-label']}
         className={className}
       />
@@ -88,7 +107,7 @@ function Input({ className, type, label, hint, error, leftIcon, rightIcon, right
             // reads as a mistake, and every control in this product lines up on
             // the one height. Touch-first surfaces reach for the named touch
             // sizes rather than lifting this default.
-            'w-full h-9 bg-field border border-input rounded-md text-base sm:text-sm text-foreground shadow-sm',
+            'w-full h-9 bg-control border border-input rounded-md text-base sm:text-sm text-foreground shadow-sm',
             'placeholder:text-muted-foreground outline-none',
             'transition-[border-color,outline-color,box-shadow] duration-150',
             // Focus is the crosshair marker: a hard amber outline, no soft glow.

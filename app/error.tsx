@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from 'react';
 
 import { AlertTriangle, Clock, CloudOff, Lock, LogIn, RefreshCw, RotateCcw, Search, Server, Timer, WifiOff } from '@/components/icons';
 import { describeError, type ErrorKind } from '@/lib/utils/error-message';
@@ -34,6 +34,11 @@ const FAULT_KINDS: ErrorKind[] = ['server', 'unknown', 'network', 'timeout'];
 // `navigator.onLine` read the way React wants a browser value read: no state
 // in an effect, a server snapshot that can't desync hydration, and a live
 // update if the connection comes back while this screen is open.
+// `animate-spin` turns once a second; see the retry handler for why this is
+// outside the component.
+const SPIN_MS = 1000;
+let retryStartedAt = -Infinity;
+
 const subscribeToConnection = (onChange: () => void) => {
   window.addEventListener('online', onChange);
   window.addEventListener('offline', onChange);
@@ -59,6 +64,34 @@ export default function ErrorPage({ error, unstable_retry }: { error: Error & { 
   const description = describeError(error, { online });
   const Icon = KIND_ICONS[description.kind];
   const isFault = FAULT_KINDS.includes(description.kind);
+
+  // The spin is held for one full turn so the icon comes to rest upright —
+  // long enough to read as "tried again" even when the retry fails at once.
+  //
+  // A retry that throws again remounts this screen for the new error, which
+  // would wipe component state mid-spin. The start time therefore lives at
+  // module scope, and a fresh mount picks the spin up at the same angle.
+  const [isPending, startTransition] = useTransition();
+  const [spin, setSpin] = useState<{ start: number; delay: number } | null>(() => {
+    const elapsed = Date.now() - retryStartedAt;
+    return elapsed < SPIN_MS ? { start: retryStartedAt, delay: elapsed } : null;
+  });
+  const retrying = isPending || spin !== null;
+
+  useEffect(() => {
+    if (!spin) return;
+    const timer = window.setTimeout(() => setSpin(null), Math.max(0, SPIN_MS - (Date.now() - spin.start)));
+    return () => window.clearTimeout(timer);
+  }, [spin]);
+
+  const retry = () => {
+    if (retrying) return;
+    retryStartedAt = Date.now();
+    setSpin({ start: retryStartedAt, delay: 0 });
+    // The page is about to unload; the spin runs until it does.
+    if (description.action === 'reload') window.location.reload();
+    else startTransition(() => unstable_retry());
+  };
 
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center gap-4 px-6 text-center bg-background">
@@ -87,10 +120,16 @@ export default function ErrorPage({ error, unstable_retry }: { error: Error & { 
       ) : (
         <button
           type="button"
-          onClick={description.action === 'reload' ? () => window.location.reload() : unstable_retry}
-          className="h-11 px-4 bg-primary hover:bg-primary-hover text-primary-foreground text-base sm:text-sm font-semibold rounded-sm flex items-center gap-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          onClick={retry}
+          aria-busy={retrying}
+          className="h-11 px-4 bg-primary hover:bg-primary-hover text-primary-foreground text-base sm:text-sm font-semibold rounded-sm flex items-center gap-1.5 transition-[colors,transform] active:scale-[0.97] aria-busy:cursor-progress aria-busy:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <RotateCcw size={15} aria-hidden="true" />
+          <RotateCcw
+            size={15}
+            aria-hidden="true"
+            className={retrying ? 'animate-spin [animation-direction:reverse]' : undefined}
+            style={spin ? { animationDelay: `-${spin.delay}ms` } : undefined}
+          />
           {description.actionLabel}
         </button>
       )}

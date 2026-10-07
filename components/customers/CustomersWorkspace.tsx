@@ -23,7 +23,7 @@ import { useWorkspaceCurrency } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
 import { hasCapability } from '@/lib/auth/capabilities';
-import { getCustomers, getDuplicateCandidates } from '@/lib/modules/customers/client';
+import { getCustomers, getDuplicateCandidates, hasActiveFilters } from '@/lib/modules/customers/client';
 import { getSegment, getSegments } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useAuthStore } from '@/stores/authStore';
@@ -175,7 +175,23 @@ export function CustomersWorkspace() {
     },
   });
 
-  const emptyState = <EmptyState icon={Users} title="No customers found" description="Try adjusting your search or filters." />;
+  const filtered = hasActiveFilters(filters);
+  const emptyState = filtered ? (
+    <EmptyState
+      icon={Users}
+      title="No customers found"
+      description="Try adjusting your search or filters."
+      kind="search"
+      action={{ label: 'Clear filters', onClick: clearFilters }}
+    />
+  ) : (
+    <EmptyState
+      icon={Users}
+      title="No customers yet"
+      description="Everyone who orders, signs up for loyalty or is added by hand appears here."
+      action={canCreate ? { label: 'New customer', icon: Plus, onClick: () => setShowCreate(true) } : undefined}
+    />
+  );
 
   // Paging only. The toolbar owns the total, so the two can never disagree.
   const footer =

@@ -1,18 +1,13 @@
 import { formatDateTime as formatAppDateTime, formatDate } from './date';
+import { relativeTime } from './relative-time';
 
 // Central formatting helpers. Locale/currency live here so a future locale
 // switch touches one file instead of every component.
 
 const LOCALE = 'en-GB';
 
-/** "3m ago" / "2h ago" / "5d ago" relative timestamp. */
-export function timeAgo(iso: string): string {
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
+/** "3m ago" / "2h ago" / "5d ago" — see `relative-time.ts`, the one spelling. */
+export const timeAgo = (iso: string): string => relativeTime(iso);
 
 /** Whole-pound currency, e.g. "£1,204". */
 export const fmtGbp = (n: number) => `£${n.toLocaleString(LOCALE, { maximumFractionDigits: 0 })}`;

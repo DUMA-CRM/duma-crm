@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
 import { ArrowRight, Check, CheckCircle2, type IconComponent, Loader2, Route, Sparkles, Zap } from '@/components/icons';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import type { AgentProviderInfo, AgentProviderPreference } from '@/lib/ai/provider-chain';
@@ -228,9 +229,15 @@ export function ModelChoiceList({ compact = false, enabled = true }: { compact?:
 
   if (isLoading && !compact) {
     return (
-      <div className="flex flex-col gap-2" aria-label="Loading available models">
-        {Array.from({ length: 3 }, (_, index) => (
-          <div key={index} className="h-[4.5rem] animate-pulse rounded-lg bg-band/60" style={{ animationDelay: `${index * 90}ms` }} />
+      <div className="flex flex-col gap-2" role="status" aria-busy="true" aria-label="Loading available models">
+        {['w-24', 'w-36', 'w-28'].map((width) => (
+          <div key={width} className="flex items-start gap-3.5 rounded-lg border border-rule/70 bg-field px-4 py-3.5" aria-hidden="true">
+            <Bone className="mt-0.5 size-9 shrink-0" />
+            <span className="min-w-0 flex-1 space-y-2 pt-0.5">
+              <Bone className={cn('h-4', width)} />
+              <Bone className="h-3.5 w-72 max-w-full" />
+            </span>
+          </div>
         ))}
       </div>
     );

@@ -106,7 +106,8 @@ export function EditorShell({
           <ArrowLeft size={19} />
         </Button>
       )}
-      {leading ?? (icon && <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/80 text-white">{icon}</div>)}
+      {leading ??
+        (icon && <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/80 text-white">{icon}</div>)}
 
       <div className="flex min-w-0 items-center gap-2.5">
         <h1
@@ -148,8 +149,10 @@ export function EditorShell({
         <div className="flex-1 min-h-0 flex flex-col">{children}</div>
       ) : (
         <div className="flex-1 min-h-0 overflow-auto">
-          {/* x tracks the header (px-3 md:px-6); y keeps its own looser rhythm. */}
-          <div className="max-w-8xl mx-auto px-3 py-4 md:px-6 md:py-6 lg:py-8">{children}</div>
+          {/* x tracks the header (px-3 md:px-6); y keeps its own looser rhythm.
+              At least the body's height, as a column, so a page can let an empty
+              state take `flex-1` and sit in the middle of the screen. */}
+          <div className="max-w-8xl mx-auto flex min-h-full flex-col px-3 py-4 md:px-6 md:py-6 lg:py-8">{children}</div>
         </div>
       )}
 

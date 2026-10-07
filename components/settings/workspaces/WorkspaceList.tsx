@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { Building2, Check, Loader2, MoreHorizontal, Pencil, Plus, Search } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { TileSkeleton } from '@/components/shared/TileSkeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
@@ -138,7 +139,7 @@ function WorkspaceLifecycleForm({ tenant, onClose }: { tenant: Tenant; onClose: 
           maxLength={500}
           value={reason}
           onChange={(event) => setReason(event.target.value)}
-          className="mt-2 w-full resize-y rounded-md border border-input bg-field px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:outline-2 focus:outline-primary/25"
+          className="mt-2 w-full resize-y rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:outline-2 focus:outline-primary/25"
           placeholder="For example: final trading day completed"
         />
         <span className="mt-1 block text-xs text-muted-foreground">The reason and actor are recorded in the audit history.</span>
@@ -221,14 +222,26 @@ export function WorkspaceList() {
         </div>
       )}
 
-      <div className="flex max-h-128 flex-col gap-2 overflow-y-auto" role="radiogroup" aria-label="Active workspace">
+      <div
+        className="flex max-h-128 flex-col gap-2 overflow-y-auto"
+        role="radiogroup"
+        aria-label={isLoading ? 'Loading workspaces' : 'Active workspace'}
+        aria-busy={isLoading || undefined}
+      >
         {isLoading ? (
-          Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-16 animate-pulse rounded-md bg-muted" />)
+          Array.from({ length: 3 }, (_, index) => <TileSkeleton key={index} index={index} />)
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={Building2}
             title={query ? 'No workspaces match that search' : 'No workspaces yet'}
             description={query ? 'Try a different name or slug.' : 'Create the first workspace to start setting the business up.'}
+            kind={query ? 'search' : 'start'}
+            action={
+              query
+                ? { label: 'Clear search', onClick: () => setQuery('') }
+                : { label: 'New workspace', icon: Plus, onClick: () => setModal({ mode: 'create' }) }
+            }
+            compact
           />
         ) : (
           filtered.map((tenant) => {
@@ -275,11 +288,7 @@ export function WorkspaceList() {
                       ` · ${tenant.locationCount} ${tenant.locationCount === 1 ? 'location' : 'locations'}`}
                   </p>
                 </div>
-                {isSelected && (
-                  <Badge variant="success" className="shrink-0">
-                    Current
-                  </Badge>
-                )}
+                {/* The tint and the tick mark the current one; aria-checked says it. */}
                 <div className="flex shrink-0 gap-1">
                   {role === 'super_admin' && (
                     <Button

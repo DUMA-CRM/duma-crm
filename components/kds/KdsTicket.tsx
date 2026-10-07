@@ -2,7 +2,9 @@
 
 import { useLayoutEffect, useRef } from 'react';
 
-import { AlertTriangle, Bell, CheckCircle2, Clock, Flame, Loader2, Monitor, QrCode, Smartphone } from '@/components/icons';
+import { AlertTriangle, Bell, CheckCircle2, Clock, Flame, Loader2, Smartphone } from '@/components/icons';
+import { SOURCE_META, STATUS_META } from '@/components/orders/orderMeta';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import type { Order, OrderItem } from '@/lib/modules/ordering/client';
@@ -17,11 +19,11 @@ export const LANE_ACTION: Record<KdsLane, { label: string; icon: typeof Flame }>
   ready: { label: 'Collected', icon: CheckCircle2 },
 };
 
-export const LANE_LABEL: Record<KdsLane, string> = { pending: 'New', preparing: 'Preparing', ready: 'Ready' };
-
-const SOURCE: Record<string, { label: string; icon: typeof Monitor }> = {
-  pos: { label: 'Till', icon: Monitor },
-  qr_code: { label: 'QR', icon: QrCode },
+/** The kitchen's lanes say the same word the orders screens do. */
+export const LANE_LABEL: Record<KdsLane, string> = {
+  pending: STATUS_META.pending.label,
+  preparing: STATUS_META.preparing.label,
+  ready: STATUS_META.ready.label,
 };
 
 /*
@@ -89,7 +91,8 @@ export function KdsTicket({
   const age = ageState(order, now);
   const tone = TONE[age.tone];
   const name = ticketName(order);
-  const source = SOURCE[order.source] ?? { label: 'Online', icon: Smartphone };
+  const channel = SOURCE_META[order.source] as (typeof SOURCE_META)[keyof typeof SOURCE_META] | undefined;
+  const source = channel ? { label: channel.short, icon: channel.icon } : { label: 'Online', icon: Smartphone };
   const action = LANE_ACTION[lane];
   const allergens = [...new Set((items ?? []).flatMap((item) => item.allergens ?? []))];
   const collectAt = order.collectionTime ? new Date(order.collectionTime) : null;
@@ -171,10 +174,7 @@ export function KdsTicket({
             </Button>
           </div>
         ) : items === undefined ? (
-          <div className="space-y-2.5 px-4 py-3" aria-label="Loading items">
-            <div className="h-6 w-3/4 animate-pulse rounded bg-band" />
-            <div className="h-5 w-1/2 animate-pulse rounded bg-band" />
-          </div>
+          <ItemRowsSkeleton compact={compact} label={`Loading the items for ${name}`} />
         ) : items.length === 0 ? (
           <p className="px-4 py-3 text-base italic text-muted-foreground">No items</p>
         ) : (
@@ -281,5 +281,57 @@ export function KdsTicket({
         </Button>
       </div>
     </article>
+  );
+}
+
+const ITEM_W = ['w-3/4', 'w-1/2', 'w-2/3'];
+
+/** A ticket's item lines loading — quantity and name, the rows they become. */
+function ItemRowsSkeleton({ compact, rows = 2, label }: { compact: boolean; rows?: number; label?: string }) {
+  return (
+    <div role={label ? 'status' : undefined} aria-busy={label ? true : undefined} aria-label={label}>
+      {Array.from({ length: rows }, (_, index) => (
+        <div key={index} className={cn('flex gap-3', compact ? 'px-3 py-1.5' : 'px-4 py-2')} aria-hidden="true">
+          <Bone className={cn('shrink-0', compact ? 'h-6 w-7' : 'h-7 w-9')} />
+          <Bone className={cn(compact ? 'h-5' : 'h-6', ITEM_W[index % ITEM_W.length])} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** A whole `KdsTicket` loading: header band, age bar, item lines and the bump key, same size. */
+export function KdsTicketSkeleton({
+  index = 0,
+  compact: forced,
+}: {
+  index?: number;
+  /** Before mount, when the device's setting can't be read yet. */ compact?: boolean;
+}) {
+  const stored = useKdsStore((state) => state.cardSize === 'compact');
+  const compact = forced ?? stored;
+  return (
+    <div
+      className="flex shrink-0 break-inside-avoid flex-col overflow-hidden rounded-xl border-2 border-rule/60 bg-card"
+      aria-hidden="true"
+    >
+      <div className={compact ? 'px-3 pt-2' : 'px-4 pt-3'}>
+        <div className="flex items-start justify-between gap-3">
+          <Bone className={cn(compact ? 'h-6' : 'h-7', index % 2 === 0 ? 'w-32' : 'w-24')} />
+          <Bone className={cn('shrink-0', compact ? 'h-6 w-12' : 'h-7 w-14')} />
+        </div>
+        <div className={cn('mt-1 flex gap-3', compact ? 'pb-1.5' : 'pb-2.5')}>
+          <Bone className="h-4 w-16" />
+          {!compact && <Bone className="h-4 w-24" />}
+        </div>
+        <div className={cn('h-1.5 bg-band', compact ? '-mx-3' : '-mx-4')} />
+      </div>
+      <div className="flex flex-1 flex-col py-1">
+        <ItemRowsSkeleton compact={compact} rows={2 + (index % 2)} />
+      </div>
+      <div className={compact ? 'p-2 pt-1' : 'p-3 pt-1'}>
+        <Bone className={cn('w-full rounded-lg', compact ? 'h-12' : 'h-16')} />
+      </div>
+    </div>
   );
 }

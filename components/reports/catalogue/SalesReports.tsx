@@ -3,20 +3,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import {
-  CalendarDays,
-  Clock,
-  LineChart,
-  QrCode,
-  Receipt,
-  RotateCcw,
-  ShoppingBag,
-  Smartphone,
-  Store,
-  TrendingUp,
-  Wallet,
-} from '@/components/icons';
+import { CalendarDays, Clock, LineChart, Receipt, RotateCcw, ShoppingBag, TrendingUp, Wallet } from '@/components/icons';
+import type { IconComponent } from '@/components/icons';
+import { SOURCE_META } from '@/components/orders/orderMeta';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Bone } from '@/components/shared/Skeleton';
 import { useWorkspaceCurrency, useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 
 import { getHourlyVolume, getOrderAnalytics, getRevenueByLocation, getTopItems } from '@/lib/modules/analytics/client';
@@ -41,15 +32,17 @@ import {
   weekdayPattern,
 } from '@/lib/utils/report-filters';
 
-import { DrawerFacts, DrawerMark, DrawerSection, ReportDrawer } from '../kit/DetailDrawer';
+import { DrawerFacts, DrawerListSkeleton, DrawerMark, DrawerSection, ReportDrawer } from '../kit/DetailDrawer';
 import { ReportFrame, downloadFile } from '../kit/ReportFrame';
-import { BarList, ChangePill, ColumnChart, KpiGrid, ReportBlock, ReportError, ReportLoading, ReportTable, TrendChart } from '../kit/parts';
+import { ChangePill, ColumnChart, KpiGrid, ReportBlock, ReportError, ReportLoading, ReportTable, TrendChart } from '../kit/parts';
 import { useRangeQuery } from '../kit/useRangeQuery';
 import type { ReportFilterState } from '../kit/useReportFilters';
 
 const def = (id: string) => REPORTS.find((report) => report.id === id)!;
 const num = (value: string | number | null | undefined) => Number(value ?? 0) || 0;
 const count = (value: number) => value.toLocaleString('en-GB');
+/** Bar heights for the by-hour skeleton: a trading day's rough shape, quiet morning to a lunch peak. */
+const HOUR_BARS = ['h-1/5', 'h-2/5', 'h-3/5', 'h-4/5', 'h-full', 'h-3/4', 'h-1/2', 'h-2/5', 'h-3/5', 'h-1/3'];
 
 /** The order analytics, shared by the overview and every sales report — one cache entry per window. */
 export function useOrderAnalytics(filters: ReportFilterState, compare = true) {
@@ -109,15 +102,8 @@ export function SalesSummaryReport({ filters }: { filters: ReportFilterState }) 
     ...bucket,
     previous: previousBuckets?.[index]?.net ?? null,
   }));
-  const totals = days.reduce(
-    (sum, row) => ({
-      orders: sum.orders + row.orders,
-      gross: sum.gross + row.gross,
-      refunded: sum.refunded + row.refunded,
-      net: sum.net + row.net,
-    }),
-    { orders: 0, gross: 0, refunded: 0, net: 0 },
-  );
+  // Orders, refunds and net are the KPI tiles above; only gross needs a total row.
+  const grossTotal = days.reduce((sum, row) => sum + row.gross, 0);
   const pattern = weekdayPattern(days.map((day) => ({ date: day.date, value: day.net })));
   const bestWeekday = pattern.reduce((best, slot, index) => (slot.average > pattern[best].average ? index : best), 0);
   const firstDay = toDateKey(filters.range.from);
@@ -257,7 +243,6 @@ export function SalesSummaryReport({ filters }: { filters: ReportFilterState }) 
                   align: 'right',
                   render: (row) => count(row.orders),
                   sort: (row) => row.orders,
-                  total: count(totals.orders),
                 },
                 {
                   key: 'gross',
@@ -265,7 +250,7 @@ export function SalesSummaryReport({ filters }: { filters: ReportFilterState }) 
                   align: 'right',
                   render: (row) => money(row.gross),
                   sort: (row) => row.gross,
-                  total: money(totals.gross),
+                  total: money(grossTotal),
                 },
                 {
                   key: 'refunded',
@@ -273,7 +258,6 @@ export function SalesSummaryReport({ filters }: { filters: ReportFilterState }) 
                   align: 'right',
                   render: (row) => (row.refunded ? money(row.refunded) : '—'),
                   sort: (row) => row.refunded,
-                  total: money(totals.refunded),
                 },
                 {
                   key: 'net',
@@ -281,7 +265,6 @@ export function SalesSummaryReport({ filters }: { filters: ReportFilterState }) 
                   align: 'right',
                   render: (row) => <span className="font-semibold">{money(row.net)}</span>,
                   sort: (row) => row.net,
-                  total: money(totals.net),
                 },
                 ...(previousBuckets
                   ? [
@@ -421,7 +404,22 @@ function PeriodDrawer({
               </button>
             </p>
           ) : hourly.isPending ? (
-            <div className="h-52 animate-pulse rounded-lg bg-band/60" />
+            // The column chart's card: bars rising from the baseline, an hour label under each.
+            <div
+              role="status"
+              aria-busy="true"
+              aria-label="Loading sales by hour"
+              className="rounded-lg border border-rule/60 bg-card px-3 pt-3 pb-2"
+            >
+              <div className="flex h-52 items-end gap-1" aria-hidden="true">
+                {HOUR_BARS.map((height, index) => (
+                  <span key={index} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
+                    <Bone className={cn('w-full rounded-sm rounded-b-none', height)} />
+                    <Bone className="h-2.5 w-4" />
+                  </span>
+                ))}
+              </div>
+            </div>
           ) : span.length === 0 ? (
             <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">No trade this day.</p>
           ) : (
@@ -474,7 +472,7 @@ function PeriodDrawer({
             </button>
           </p>
         ) : items.isPending ? (
-          <div className="h-32 animate-pulse rounded-lg bg-band/60" />
+          <DrawerListSkeleton rows={4} label="Loading best sellers" />
         ) : !items.data?.length ? (
           <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">Nothing sold.</p>
         ) : (
@@ -597,7 +595,6 @@ export function SalesByHourReport({ filters }: { filters: ReportFilterState }) {
                   align: 'right',
                   render: (row) => count(row.orders),
                   sort: (row) => row.orders,
-                  total: count(orders),
                 },
                 {
                   key: 'revenue',
@@ -626,12 +623,11 @@ export function SalesByHourReport({ filters }: { filters: ReportFilterState }) {
 
 // ── Sales by channel ─────────────────────────────────────────────────────────
 
-const CHANNEL: Record<string, { label: string; icon: typeof Store }> = {
-  pos: { label: 'Till', icon: Store },
-  qr_code: { label: 'QR code', icon: QrCode },
-  mobile: { label: 'Mobile', icon: Smartphone },
+// The orders screens' names for a channel, so a report and the orders list agree.
+const channel = (source?: string): { label: string; icon: IconComponent } => {
+  const meta = (SOURCE_META as Partial<Record<string, { label: string; icon: IconComponent }>>)[source ?? ''];
+  return meta ? { label: meta.label, icon: meta.icon } : { label: (source ?? 'Other').replaceAll('_', ' '), icon: LineChart };
 };
-const channel = (source?: string) => CHANNEL[source ?? ''] ?? { label: (source ?? 'Other').replaceAll('_', ' '), icon: LineChart };
 
 export function SalesByChannelReport({ filters }: { filters: ReportFilterState }) {
   const money = useWorkspaceMoney();
@@ -675,21 +671,6 @@ export function SalesByChannelReport({ filters }: { filters: ReportFilterState }
         <ReportLoading />
       ) : (
         <>
-          <ReportBlock title="Share of net sales">
-            <BarList
-              rows={rows
-                .sort((a, b) => b.revenue - a.revenue)
-                .map((row) => ({
-                  key: row.source,
-                  label: channel(row.source).label,
-                  icon: channel(row.source).icon,
-                  value: row.revenue,
-                  previous: row.previous,
-                  detail: `${count(row.orders)} orders`,
-                }))}
-              format={(value) => money(value)}
-            />
-          </ReportBlock>
           <ReportBlock title="By channel" flush>
             <ReportTable
               rows={rows}
@@ -700,7 +681,12 @@ export function SalesByChannelReport({ filters }: { filters: ReportFilterState }
                 {
                   key: 'channel',
                   header: 'Channel',
+                  leading: (row) => {
+                    const Icon = channel(row.source).icon;
+                    return <Icon size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />;
+                  },
                   render: (row) => channel(row.source).label,
+                  sort: (row) => channel(row.source).label,
                 },
                 {
                   key: 'orders',
@@ -716,6 +702,7 @@ export function SalesByChannelReport({ filters }: { filters: ReportFilterState }
                   header: 'Net sales',
                   align: 'right',
                   render: (row) => money(row.revenue),
+                  sub: (row) => (row.previous === null ? undefined : <ChangePill change={delta(row.revenue, row.previous)} />),
                   sort: (row) => row.revenue,
                   total: money(total),
                 },
@@ -725,6 +712,7 @@ export function SalesByChannelReport({ filters }: { filters: ReportFilterState }
                   align: 'right',
                   render: (row) => `${Math.round(share(row.revenue, total) * 100)}%`,
                   meter: (row) => share(row.revenue, total),
+                  sort: (row) => row.revenue,
                 },
               ]}
             />
@@ -782,21 +770,6 @@ export function SalesByLocationReport({ filters }: { filters: ReportFilterState 
         <ReportLoading />
       ) : (
         <>
-          <ReportBlock title="Net sales by location">
-            <BarList
-              rows={[...rows]
-                .sort((a, b) => b.net - a.net)
-                .map((row) => ({
-                  key: row.id,
-                  label: row.name,
-                  icon: Store,
-                  value: row.net,
-                  previous: row.previous,
-                  detail: `${count(row.orders)} orders`,
-                }))}
-              format={(value) => money(value)}
-            />
-          </ReportBlock>
           <ReportBlock title="By location" flush>
             <ReportTable
               rows={rows}
@@ -831,8 +804,17 @@ export function SalesByLocationReport({ filters }: { filters: ReportFilterState 
                   header: 'Net',
                   align: 'right',
                   render: (row) => <span className="font-semibold">{money(row.net)}</span>,
+                  sub: (row) => (row.previous === null ? undefined : <ChangePill change={delta(row.net, row.previous)} />),
                   sort: (row) => row.net,
                   total: money(total),
+                },
+                {
+                  key: 'share',
+                  header: 'Share',
+                  align: 'right',
+                  render: (row) => `${Math.round(share(row.net, total) * 100)}%`,
+                  meter: (row) => share(Math.max(0, row.net), total),
+                  sort: (row) => row.net,
                 },
               ]}
             />

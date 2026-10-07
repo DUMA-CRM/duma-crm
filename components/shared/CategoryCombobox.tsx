@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils/cn';
 
 const inputClass =
-  'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-control border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
 /**
  * Free-text input with a suggestions dropdown: focusing shows every existing

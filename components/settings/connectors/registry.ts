@@ -1,6 +1,8 @@
-import { Banknote, Calculator, CreditCard, type IconComponent, Mail, Printer, Tags } from '@/components/icons';
+import { Banknote, Calculator, CreditCard, Database, type IconComponent, Mail, Printer, Tags } from '@/components/icons';
+import type { Capability } from '@/lib/auth/capabilities';
+import type { WorkspaceModuleId } from '@/lib/modules/organization/client';
 
-export type ConnectorId = 'email' | 'card-payments' | 'payroll' | 'accounting' | 'receipt-printer' | 'label-printer';
+export type ConnectorId = 'email' | 'card-payments' | 'media-storage' | 'payroll' | 'accounting' | 'receipt-printer' | 'label-printer';
 
 /**
  * What the business sees on the card. `attention` covers anything that used to
@@ -23,6 +25,10 @@ export interface ConnectorDefinition {
   requirements: string[];
   /** false → nothing to connect to yet; the card renders as Coming soon. */
   available: boolean;
+  /** Shown only to someone holding this — the capability the API checks for it. */
+  capability?: Capability;
+  /** Shown only while this module is enabled for the workspace. */
+  moduleId?: WorkspaceModuleId;
 }
 
 export const CONNECTORS: ConnectorDefinition[] = [
@@ -53,6 +59,22 @@ export const CONNECTORS: ConnectorDefinition[] = [
       'About two minutes',
     ],
     available: true,
+  },
+  {
+    id: 'media-storage',
+    name: 'Media storage',
+    icon: Database,
+    description: 'Keep website images, video and documents in your own bucket instead of the free 50 MB.',
+    tags: ['Cloudflare R2', 'AWS S3', 'S3-compatible', 'Vercel Blob'],
+    tagline: 'Content’s media stored in a bucket you own, served from your own CDN.',
+    requirements: [
+      'A bucket on Cloudflare R2, AWS S3, another S3 service, or a Vercel Blob store',
+      'A key that can read and write that bucket (or the Blob read-write token)',
+      'Optional: the bucket’s public URL, so your website loads files from your CDN',
+    ],
+    available: true,
+    capability: 'cms.keys:write',
+    moduleId: 'cms',
   },
   {
     id: 'payroll',

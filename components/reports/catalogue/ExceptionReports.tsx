@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 
-import { Ban, Receipt, RotateCcw, Tag } from '@/components/icons';
+import { Ban, Receipt, RotateCcw, Scissors, Tag } from '@/components/icons';
 import { REFUND_REASON_OPTIONS, VOID_REASON_OPTIONS, optionLabel } from '@/components/orders/orderMeta';
+import { RelativeTime } from '@/components/shared/RelativeTime';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 
@@ -15,7 +16,7 @@ import { exportFileName, toCsv } from '@/lib/utils/report-filters';
 
 import { DrawerFacts, DrawerList, DrawerMark, DrawerNote, ReportDrawer } from '../kit/DetailDrawer';
 import { ReportFrame, downloadFile } from '../kit/ReportFrame';
-import { BarList, KpiGrid, ReportBlock, ReportError, ReportLoading, ReportTable } from '../kit/parts';
+import { BarList, KpiGrid, ReportBlock, ReportError, ReportLoading, ReportTable, TenderIcon, tenderLabel } from '../kit/parts';
 import { useRangeQuery } from '../kit/useRangeQuery';
 import type { ReportFilterState } from '../kit/useReportFilters';
 
@@ -23,7 +24,6 @@ const def = (id: string) => REPORTS.find((report) => report.id === id)!;
 const num = (value: string | number | null | undefined) => Number(value ?? 0) || 0;
 const count = (value: number) => value.toLocaleString('en-GB');
 const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-const METHOD: Record<string, string> = { card: 'Card', cash: 'Cash' };
 
 // ── Refunds ──────────────────────────────────────────────────────────────────
 
@@ -120,7 +120,13 @@ export function RefundsReport({ filters }: { filters: ReportFilterState }) {
               limit={25}
               empty="No refunds in this period."
               columns={[
-                { key: 'at', header: 'Refunded', render: (row) => when(row.createdAt), sort: (row) => row.createdAt },
+                {
+                  key: 'at',
+                  header: 'Refunded',
+                  leading: (row) => <RefundKind kind={row.kind} />,
+                  render: (row) => when(row.createdAt),
+                  sort: (row) => row.createdAt,
+                },
                 {
                   key: 'order',
                   header: 'Order',
@@ -140,7 +146,8 @@ export function RefundsReport({ filters }: { filters: ReportFilterState }) {
                 {
                   key: 'method',
                   header: 'Method',
-                  render: (row) => (row.paymentMethod ? (METHOD[row.paymentMethod] ?? row.paymentMethod) : '—'),
+                  leading: (row) => (row.paymentMethod ? <TenderIcon method={row.paymentMethod} /> : null),
+                  render: (row) => (row.paymentMethod ? tenderLabel(row.paymentMethod) : '—'),
                 },
                 {
                   key: 'amount',
@@ -148,7 +155,6 @@ export function RefundsReport({ filters }: { filters: ReportFilterState }) {
                   align: 'right',
                   render: (row) => <span className="font-semibold">{money(row.amount)}</span>,
                   sort: (row) => num(row.amount),
-                  total: money(total),
                 },
               ]}
             />
@@ -166,14 +172,25 @@ const PROCESSING: Record<string, string> = {
   stripe: 'Back to the card, through Stripe',
   cash_manual: 'Cash handed back from the till',
 };
+/** Full or part, as a glyph before the row. Not focusable: it sits inside the
+    row's own button, and its word is the accessible name and the tooltip. */
+function RefundKind({ kind }: { kind: string }) {
+  const full = kind === 'full';
+  const Icon = full ? RotateCcw : Scissors;
+  const label = full ? 'Full refund' : 'Part refund';
+  return (
+    <span role="img" aria-label={label} title={label} className={full ? 'text-exception' : 'text-measured'}>
+      <Icon size={14} aria-hidden="true" />
+    </span>
+  );
+}
+
 const STATUS: Record<string, string> = { succeeded: 'Done', recorded: 'Recorded', failed: 'Failed' };
 
 /** One refund in full, and the way to the order it came off. */
 function RefundDrawer({ refund, onClose }: { refund: RefundReportRow; onClose: () => void }) {
   const money = useWorkspaceMoney();
   const order = refund.order.id.slice(0, 8).toUpperCase();
-  const at = (iso: string) =>
-    new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const lag = Math.round((new Date(refund.createdAt).getTime() - new Date(refund.order.createdAt).getTime()) / 86_400_000);
 
   return (
@@ -186,7 +203,7 @@ function RefundDrawer({ refund, onClose }: { refund: RefundReportRow; onClose: (
     >
       <DrawerFacts
         facts={[
-          { label: 'Amount', value: money(refund.amount), hint: refund.kind === 'full' ? 'The whole order' : 'Part of the order' },
+          { label: 'Refund', value: refund.kind === 'full' ? 'Full' : 'Part' },
           {
             label: 'Reason',
             value: optionLabel(REFUND_REASON_OPTIONS, refund.reason),
@@ -196,12 +213,31 @@ function RefundDrawer({ refund, onClose }: { refund: RefundReportRow; onClose: (
       />
       <DrawerList
         rows={[
-          { label: 'Refunded', value: at(refund.createdAt) },
+          { label: 'Refunded', icon: RotateCcw, value: <RelativeTime iso={refund.createdAt} /> },
           {
             label: 'Ordered',
-            value: `${at(refund.order.createdAt)}${lag > 0 ? ` · ${lag} ${lag === 1 ? 'day' : 'days'} before` : ''}`,
+            icon: Receipt,
+            value: (
+              <span>
+                <RelativeTime iso={refund.order.createdAt} />
+                {lag > 0 && (
+                  <span className="text-muted-foreground">
+                    {' '}
+                    · {lag} {lag === 1 ? 'day' : 'days'} before the refund
+                  </span>
+                )}
+              </span>
+            ),
           },
-          { label: 'Method', value: refund.paymentMethod ? (METHOD[refund.paymentMethod] ?? refund.paymentMethod) : 'Not recorded' },
+          {
+            label: 'Method',
+            value: (
+              <span className="inline-flex items-center gap-1.5">
+                <TenderIcon method={refund.paymentMethod} />
+                {refund.paymentMethod ? tenderLabel(refund.paymentMethod) : 'Not recorded'}
+              </span>
+            ),
+          },
           { label: 'How', value: PROCESSING[refund.processingMode] ?? refund.processingMode },
           {
             label: 'Status',
@@ -320,7 +356,6 @@ export function DiscountsVoidsReport({ filters }: { filters: ReportFilterState }
                     align: 'right',
                     render: (row) => money(row.amount),
                     sort: (row) => row.amount,
-                    total: money(discounted),
                   },
                 ]}
               />
@@ -344,7 +379,6 @@ export function DiscountsVoidsReport({ filters }: { filters: ReportFilterState }
                     align: 'right',
                     render: (row) => count(row.orders),
                     sort: (row) => row.orders,
-                    total: count(voidCount),
                   },
                   {
                     key: 'amount',
@@ -352,7 +386,6 @@ export function DiscountsVoidsReport({ filters }: { filters: ReportFilterState }
                     align: 'right',
                     render: (row) => money(row.amount),
                     sort: (row) => row.amount,
-                    total: money(voided),
                   },
                 ]}
               />

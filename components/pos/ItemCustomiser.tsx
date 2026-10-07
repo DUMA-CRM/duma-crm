@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useRef, useState } from 'react';
 
 import { Check, Minus, Plus, X } from '@/components/icons';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
@@ -67,7 +68,9 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-lg font-semibold text-foreground">{item.name}</p>
-          <p data-figure className="text-sm tabular-nums text-muted-foreground">{formatPrice(item.price, currency)}</p>
+          <p data-figure className="text-sm tabular-nums text-muted-foreground">
+            {formatPrice(item.price, currency)}
+          </p>
         </div>
         <Button variant="ghost" size="icon" onClick={onCancel} aria-label={`Close ${item.name}`} className="size-12 text-muted-foreground">
           <X size={22} />
@@ -77,12 +80,24 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="space-y-6 p-5">
           {!groups ? (
-            <div className="space-y-6" aria-busy="true" aria-label="Loading options">
+            <div className="space-y-6" role="status" aria-busy="true" aria-label="Loading options">
               {[0, 1].map((group) => (
-                <div key={group} className="space-y-2.5">
-                  <div className="h-4 w-24 animate-pulse rounded bg-band/70" />
+                <div key={group}>
+                  <div className="mb-2.5 flex items-baseline justify-between gap-3">
+                    <Bone className={group === 0 ? 'h-4 w-24' : 'h-4 w-32'} />
+                    <Bone className="h-3 w-20" />
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {[0, 1, 2, 3].map((i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-band/70" />)}
+                    {[0, 1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="flex min-h-14 flex-col justify-center gap-1.5 rounded-lg border border-rule/70 bg-card px-3.5 py-2"
+                        aria-hidden="true"
+                      >
+                        <Bone className={i % 2 === 0 ? 'h-3.5 w-20' : 'h-3.5 w-16'} />
+                        {i % 3 === 0 && <Bone className="h-3 w-10" />}
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -103,7 +118,9 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
                   className={cn('scroll-mt-4 rounded-xl outline-offset-[6px]', nudged === group.id && 'outline-2 outline-exception')}
                 >
                   <div className="mb-2.5 flex items-baseline justify-between gap-3">
-                    <h3 id={`group-${group.id}`} className="text-base font-semibold text-foreground">{group.name}</h3>
+                    <h3 id={`group-${group.id}`} className="text-base font-semibold text-foreground">
+                      {group.name}
+                    </h3>
                     <span
                       className={cn(
                         'flex items-center gap-1 text-xs font-medium',
@@ -169,11 +186,16 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
                     rows={2}
                     onChange={(event) => setNote(event.target.value)}
                     placeholder="e.g. Extra hot, no foam"
-                    className="w-full resize-none rounded-lg border border-input bg-field px-3.5 py-3 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
+                    className="w-full resize-none rounded-lg border border-input bg-control px-3.5 py-3 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
                   />
                 </label>
               ) : (
-                <Button variant="outline" size="touch" onClick={() => setNoteOpen(true)} className="w-full justify-start text-muted-foreground">
+                <Button
+                  variant="outline"
+                  size="touch"
+                  onClick={() => setNoteOpen(true)}
+                  className="w-full justify-start text-muted-foreground"
+                >
                   <Plus aria-hidden="true" /> Add a note
                 </Button>
               )}
@@ -186,18 +208,39 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-medium text-muted-foreground">Quantity</span>
           <div className="flex items-center rounded-lg border border-rule/70 bg-card">
-            <Button variant="ghost" size="icon" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1} aria-label="One fewer" className="size-12 rounded-r-none active:not-aria-[haspopup]:translate-y-0 active:bg-band">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              disabled={quantity <= 1}
+              aria-label="One fewer"
+              className="size-12 rounded-r-none active:not-aria-[haspopup]:translate-y-0 active:bg-band"
+            >
               <Minus size={18} />
             </Button>
-            <span data-figure className="w-10 text-center text-lg font-semibold tabular-nums" aria-live="polite">{quantity}</span>
-            <Button variant="ghost" size="icon" onClick={() => setQuantity((q) => Math.min(99, q + 1))} aria-label="One more" className="size-12 rounded-l-none active:not-aria-[haspopup]:translate-y-0 active:bg-band">
+            <span data-figure className="w-10 text-center text-lg font-semibold tabular-nums" aria-live="polite">
+              {quantity}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setQuantity((q) => Math.min(99, q + 1))}
+              aria-label="One more"
+              className="size-12 rounded-l-none active:not-aria-[haspopup]:translate-y-0 active:bg-band"
+            >
               <Plus size={18} />
             </Button>
           </div>
         </div>
-        <Button onClick={add} disabled={!groups} className={cn('h-16 w-full justify-between px-5 text-lg', missing.length > 0 && 'opacity-60')}>
+        <Button
+          onClick={add}
+          disabled={!groups}
+          className={cn('h-16 w-full justify-between px-5 text-lg', missing.length > 0 && 'opacity-60')}
+        >
           <span>{missing.length > 0 ? `Choose ${missing[0].name.toLowerCase()}` : quantity > 1 ? `Add ${quantity}` : 'Add to ticket'}</span>
-          <span data-figure className="tabular-nums">{formatPrice(unit * quantity, currency)}</span>
+          <span data-figure className="tabular-nums">
+            {formatPrice(unit * quantity, currency)}
+          </span>
         </Button>
       </div>
     </div>

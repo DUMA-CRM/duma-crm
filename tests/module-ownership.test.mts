@@ -32,7 +32,7 @@ test('every CRM page, frontend capability and navigation item has exactly one mo
 
   const navSource = readFileSync(join(process.cwd(), 'lib/constants/nav.ts'), 'utf8');
   const navItems = [...navSource.matchAll(/\{ module: '([^']+)', label: '[^']+', href: '([^']+)'/g)];
-  assert.equal(navItems.length, 16, 'every primary navigation item must declare its module');
+  assert.equal(navItems.length, 17, 'every primary navigation item must declare its module');
   for (const [, moduleId, href] of navItems) {
     assert.equal(moduleForPage(href!), moduleId, `${href} navigation owner must match its page owner`);
   }

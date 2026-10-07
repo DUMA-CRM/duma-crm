@@ -76,7 +76,7 @@ function Select({
         className={cn(
           // Matches Input: same fill, same border token, so a select and a text
           // field sitting side by side read as one control family.
-          'inline-flex h-9 min-w-0 items-center gap-2 rounded-sm border border-input bg-field px-3 text-base text-foreground outline-none sm:text-sm',
+          'inline-flex h-9 min-w-0 items-center gap-2 rounded-sm border border-input bg-control px-3 text-base text-foreground outline-none sm:text-sm',
           'transition-[border-color,outline-color,background-color] duration-100 hover:bg-band',
           'focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured',
           'aria-invalid:border-exception aria-invalid:text-exception',

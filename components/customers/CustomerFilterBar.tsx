@@ -12,9 +12,9 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { Select } from '@/components/ui/select';
 
 import { TIER_FILTERS } from '@/lib/constants/customers';
+import type { ListView as ListViewMode } from '@/stores/uiSettingsStore';
 import { DIETARY_PREFERENCES, FSA_ALLERGENS } from '@/types/customers';
 import type { Allergen, CustomerFilters, DietaryPreference } from '@/types/customers';
-import type { ListView as ListViewMode } from '@/stores/uiSettingsStore';
 
 /**
  * The customer list's controls, in one row.
@@ -28,8 +28,18 @@ import type { ListView as ListViewMode } from '@/stores/uiSettingsStore';
  */
 
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ] as const;
 
 /** Presets rather than a free number field: nobody segments on "lapsed 47 days". */
@@ -121,8 +131,7 @@ export function CustomerFilterBar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  const set = <K extends keyof CustomerFilters>(key: K, value: CustomerFilters[K]) =>
-    onChange((current) => ({ ...current, [key]: value }));
+  const set = <K extends keyof CustomerFilters>(key: K, value: CustomerFilters[K]) => onChange((current) => ({ ...current, [key]: value }));
 
   const lastVisit = filters.neverVisited ? NEVER : filters.lapsedDays ? String(filters.lapsedDays) : 'off';
 
@@ -162,11 +171,7 @@ export function CustomerFilterBar({
   ].filter((value) => value !== undefined && value !== 0).length;
 
   const hasChips =
-    Boolean(filters.search) ||
-    Boolean(filters.tier) ||
-    lastVisit !== 'off' ||
-    advancedCount > 0 ||
-    Boolean(staleFilters?.length);
+    Boolean(filters.search) || Boolean(filters.tier) || lastVisit !== 'off' || advancedCount > 0 || Boolean(staleFilters?.length);
 
   return (
     <div className="space-y-2.5">
@@ -179,7 +184,7 @@ export function CustomerFilterBar({
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Name, email or phone…"
             aria-label="Search customers by name, email or phone"
-            className="bg-background border-rule"
+            className="border-rule"
             rightAction={
               search ? (
                 <button
@@ -287,7 +292,7 @@ export function CustomerFilterBar({
                       onChange={(event) => set('minTotalSpent', event.target.value === '' ? undefined : Number(event.target.value))}
                       placeholder="Min"
                       aria-label="Minimum lifetime spend"
-                      className="bg-background border-rule"
+                      className="border-rule"
                     />
                     <span className="text-xs text-muted-foreground">to</span>
                     <Input
@@ -297,7 +302,7 @@ export function CustomerFilterBar({
                       onChange={(event) => set('maxTotalSpent', event.target.value === '' ? undefined : Number(event.target.value))}
                       placeholder="Max"
                       aria-label="Maximum lifetime spend"
-                      className="bg-background border-rule"
+                      className="border-rule"
                     />
                   </div>
                 </fieldset>
@@ -312,7 +317,7 @@ export function CustomerFilterBar({
                       onChange={(event) => set('minTotalVisits', event.target.value === '' ? undefined : Number(event.target.value))}
                       placeholder="Min"
                       aria-label="Minimum visits"
-                      className="bg-background border-rule"
+                      className="border-rule"
                     />
                     <span className="text-xs text-muted-foreground">to</span>
                     <Input
@@ -322,7 +327,7 @@ export function CustomerFilterBar({
                       onChange={(event) => set('maxTotalVisits', event.target.value === '' ? undefined : Number(event.target.value))}
                       placeholder="Max"
                       aria-label="Maximum visits"
-                      className="bg-background border-rule"
+                      className="border-rule"
                     />
                   </div>
                 </fieldset>
@@ -354,8 +359,8 @@ export function CustomerFilterBar({
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  Allergies and dietary needs match <strong className="font-semibold text-foreground">any</strong> of the options you
-                  pick, not all of them.
+                  Allergies and dietary needs match <strong className="font-semibold text-foreground">any</strong> of the options you pick,
+                  not all of them.
                 </p>
               </div>
             </Popover.Content>
@@ -364,14 +369,16 @@ export function CustomerFilterBar({
 
         <SegmentedControl options={viewOptions} value={view} onChange={onViewChange} iconOnly ariaLabel="Customer list layout" />
 
-        {/* The one canonical count on this page. The table footer carries paging
-            only, so a manager never has two numbers to reconcile. */}
+        {/* The count of what the filters matched. Unfiltered it is the Customers
+            tile above, so it only appears once something narrows the list — a
+            manager never has two equal numbers to reconcile. */}
         <span
           className="ml-auto flex min-w-28 items-center justify-end gap-1.5 text-xs tabular-nums text-muted-foreground"
           aria-live="polite"
         >
           {isFetching && !isLoading && <Loader2 size={12} className="animate-spin" aria-label="Updating customers" />}
-          {isLoading ? 'Loading…' : `${total.toLocaleString()} customer${total === 1 ? '' : 's'}`}
+          {(hasChips || emailReachable !== undefined) &&
+            (isLoading ? 'Loading…' : `${total.toLocaleString()} customer${total === 1 ? '' : 's'}`)}
           {emailReachable !== undefined && !isLoading && (
             <span className="hidden sm:inline">· {emailReachable.toLocaleString()} emailable</span>
           )}
@@ -384,14 +391,9 @@ export function CustomerFilterBar({
           {filters.tier && (
             <FilterChip label={`Tier: ${optionLabel([...TIER_FILTERS], filters.tier)}`} onRemove={() => set('tier', undefined)} />
           )}
-          {lastVisit !== 'off' && (
-            <FilterChip label={optionLabel(LAST_VISIT_OPTIONS, lastVisit)} onRemove={clearLastVisit} />
-          )}
+          {lastVisit !== 'off' && <FilterChip label={optionLabel(LAST_VISIT_OPTIONS, lastVisit)} onRemove={clearLastVisit} />}
           {filters.birthdayMonth !== undefined && (
-            <FilterChip
-              label={`Birthday in ${MONTHS[filters.birthdayMonth - 1]}`}
-              onRemove={() => set('birthdayMonth', undefined)}
-            />
+            <FilterChip label={`Birthday in ${MONTHS[filters.birthdayMonth - 1]}`} onRemove={() => set('birthdayMonth', undefined)} />
           )}
           {filters.marketing && (
             <FilterChip label={optionLabel(MARKETING_OPTIONS, filters.marketing)} onRemove={() => set('marketing', undefined)} />
@@ -409,10 +411,7 @@ export function CustomerFilterBar({
             />
           )}
           {Boolean(filters.allergies?.length) && (
-            <FilterChip
-              label={`Allergies: ${filters.allergies!.map(labelFor).join(', ')}`}
-              onRemove={() => set('allergies', undefined)}
-            />
+            <FilterChip label={`Allergies: ${filters.allergies!.map(labelFor).join(', ')}`} onRemove={() => set('allergies', undefined)} />
           )}
           {Boolean(filters.dietary?.length) && (
             <FilterChip label={`Dietary: ${filters.dietary!.map(labelFor).join(', ')}`} onRemove={() => set('dietary', undefined)} />
@@ -439,11 +438,7 @@ export function CustomerFilterBar({
             </span>
           )}
 
-          <button
-            type="button"
-            onClick={onClear}
-            className="ml-1 h-7 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
+          <button type="button" onClick={onClear} className="ml-1 h-7 px-2 text-xs font-medium text-muted-foreground hover:text-foreground">
             Clear all
           </button>
         </div>

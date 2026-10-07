@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import { AlertTriangle, CheckCircle2, ChevronDown } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
@@ -58,6 +58,7 @@ export function NeedsAttention({
 }) {
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
+  const listId = useId();
 
   if (items.length === 0) {
     if (!clear) return null;
@@ -91,6 +92,7 @@ export function NeedsAttention({
       <button
         type="button"
         aria-expanded={open}
+        aria-controls={listId}
         onClick={() => setOpen((current) => !current)}
         className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-band/40"
       >
@@ -101,9 +103,13 @@ export function NeedsAttention({
           <span className="block text-sm font-semibold text-foreground">
             {summary ?? `${items.length} ${items.length === 1 ? 'thing needs' : 'things need'} you`}
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{items.map((item) => item.title).join(' · ')}</span>
+          {/* The preview of titles is for the folded card only — open, the rows say it. */}
+          {!open && (
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{items.map((item) => item.title).join(' · ')}</span>
+          )}
         </span>
-        <span className="shrink-0 text-xs font-semibold text-muted-foreground">{open ? 'Hide' : 'Show'}</span>
+        {/* The chevron is the affordance; the word stays for screen readers. */}
+        <span className="sr-only">{open ? 'Hide details' : 'Show details'}</span>
         <ChevronDown
           size={15}
           aria-hidden="true"
@@ -117,6 +123,7 @@ export function NeedsAttention({
             animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
             exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
             transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+            id={listId}
             className="overflow-hidden border-t border-rule/50"
           >
             <ul className="space-y-2 p-2">

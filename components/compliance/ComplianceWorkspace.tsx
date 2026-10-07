@@ -20,12 +20,23 @@ export function ComplianceWorkspace() {
   const { tenantId } = useWorkspaceStore();
 
   return (
-    <EditorShell title="Compliance" icon={<ShieldCheck size={20} aria-hidden="true" />}>
-      {tenantId ? (
-        <PrivacyRequestsPanel tenantId={tenantId} />
-      ) : (
-        <EmptyState icon={ShieldCheck} title="No workspace selected" description="Choose a workspace to review privacy requests." />
-      )}
+    <EditorShell title="Compliance" icon={<ShieldCheck size={20} aria-hidden="true" />} flush>
+      {/* Flush so the body has a height: an empty queue centres in the space
+          left under the tiles instead of sitting just below them. */}
+      <div className="min-h-0 flex-1 overflow-auto">
+        <div className="mx-auto flex min-h-full max-w-8xl flex-col px-3 py-4 md:px-6 md:py-6 lg:py-8">
+          {tenantId ? (
+            <PrivacyRequestsPanel tenantId={tenantId} />
+          ) : (
+            <EmptyState
+              icon={ShieldCheck}
+              title="No workspace selected"
+              description="Choose a workspace to review privacy requests."
+              className="flex-1"
+            />
+          )}
+        </div>
+      </div>
     </EditorShell>
   );
 }

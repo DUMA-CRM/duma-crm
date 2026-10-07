@@ -7,6 +7,7 @@ import { ChevronDown, Download, FileText, Wallet } from '@/components/icons';
 import { RecordBlock, RecordList, RecordListRow } from '@/components/people/record/shared';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { type Payslip, getMyPayslips } from '@/lib/modules/payroll/client';
@@ -85,7 +86,7 @@ function PayslipsSection({ employee }: { employee?: HrEmployee }) {
   return (
     <RecordBlock id="my-payslips" title="Payslips">
       {isLoading ? (
-        <div className="h-40 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+        <ListSkeleton rows={3} label="Loading your payslips" />
       ) : isError ? (
         // A failed read is not "you have none" — that would be a claim about
         // someone's pay that nothing has checked. Say what is true instead.

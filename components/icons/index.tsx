@@ -11,6 +11,19 @@
  */
 import {
   ActivityIcon,
+  CodeIcon,
+  HashtagIcon,
+  PaintBoardIcon,
+  ParagraphIcon,
+  TextAlignLeftIcon,
+  TextFontIcon,
+  ToggleOnIcon,
+  Database01Icon,
+  Image01Icon,
+  LanguageSkillIcon,
+  Layers01Icon,
+  SourceCodeIcon,
+  WebhookIcon,
   Alert02Icon,
   AlertCircleIcon,
   ArchiveIcon,
@@ -71,6 +84,7 @@ import {
   ComputerIcon,
   CopyIcon,
   CreditCardIcon,
+  CropIcon,
   CursorMove01Icon,
   DashboardSquare01Icon,
   Delete02Icon,
@@ -191,6 +205,16 @@ import {
   WifiOffIcon,
   WrenchIcon,
   ZapIcon,
+  TextBoldIcon,
+  TextItalicIcon,
+  HeadingIcon,
+  QuoteDownIcon,
+  LeftToRightListBulletIcon,
+  LeftToRightListNumberIcon,
+  Attachment01Icon,
+  LayoutTwoColumnIcon,
+  Folder01Icon,
+  Share01Icon,
 } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
 import type { IconSvgElement } from '@hugeicons/react';
@@ -265,6 +289,17 @@ export const Coins = /*#__PURE__*/ glyph(CoinsIcon, 'Coins');
 export const Combine = /*#__PURE__*/ glyph(CombineIcon, 'Combine');
 export const Copy = /*#__PURE__*/ glyph(CopyIcon, 'Copy');
 export const CreditCard = /*#__PURE__*/ glyph(CreditCardIcon, 'CreditCard');
+export const Crop = /*#__PURE__*/ glyph(CropIcon, 'Crop');
+export const Share2 = /*#__PURE__*/ glyph(Share01Icon, 'Share2');
+export const FolderIcon = /*#__PURE__*/ glyph(Folder01Icon, 'FolderIcon');
+export const Columns2 = /*#__PURE__*/ glyph(LayoutTwoColumnIcon, 'Columns2');
+export const Bold = /*#__PURE__*/ glyph(TextBoldIcon, 'Bold');
+export const Italic = /*#__PURE__*/ glyph(TextItalicIcon, 'Italic');
+export const Heading = /*#__PURE__*/ glyph(HeadingIcon, 'Heading');
+export const Quote = /*#__PURE__*/ glyph(QuoteDownIcon, 'Quote');
+export const ListBullet = /*#__PURE__*/ glyph(LeftToRightListBulletIcon, 'ListBullet');
+export const ListOrdered = /*#__PURE__*/ glyph(LeftToRightListNumberIcon, 'ListOrdered');
+export const Paperclip = /*#__PURE__*/ glyph(Attachment01Icon, 'Paperclip');
 export const CursorMove = /*#__PURE__*/ glyph(CursorMove01Icon, 'CursorMove');
 export const Download = /*#__PURE__*/ glyph(DownloadIcon, 'Download');
 export const Droplet = /*#__PURE__*/ glyph(DropletIcon, 'Droplet');
@@ -396,3 +431,18 @@ export const Wrench = /*#__PURE__*/ glyph(WrenchIcon, 'Wrench');
 export const X = /*#__PURE__*/ glyph(Cancel01Icon, 'X');
 export const XCircle = /*#__PURE__*/ glyph(CircleXIcon, 'XCircle');
 export const Zap = /*#__PURE__*/ glyph(ZapIcon, 'Zap');
+// CMS
+export const Code = /*#__PURE__*/ glyph(SourceCodeIcon, 'Code');
+export const Database = /*#__PURE__*/ glyph(Database01Icon, 'Database');
+export const ImageIcon = /*#__PURE__*/ glyph(Image01Icon, 'ImageIcon');
+export const Languages = /*#__PURE__*/ glyph(LanguageSkillIcon, 'Languages');
+export const Layers = /*#__PURE__*/ glyph(Layers01Icon, 'Layers');
+export const Webhook = /*#__PURE__*/ glyph(WebhookIcon, 'Webhook');
+// CMS field types
+export const AlignLeft = /*#__PURE__*/ glyph(TextAlignLeftIcon, 'AlignLeft');
+export const Braces = /*#__PURE__*/ glyph(CodeIcon, 'Braces');
+export const Hash = /*#__PURE__*/ glyph(HashtagIcon, 'Hash');
+export const Palette = /*#__PURE__*/ glyph(PaintBoardIcon, 'Palette');
+export const Pilcrow = /*#__PURE__*/ glyph(ParagraphIcon, 'Pilcrow');
+export const ToggleRight = /*#__PURE__*/ glyph(ToggleOnIcon, 'ToggleRight');
+export const Type = /*#__PURE__*/ glyph(TextFontIcon, 'Type');

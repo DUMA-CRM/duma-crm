@@ -2,14 +2,17 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
+import { Slider } from '@/components/ui/slider';
 import { Award, Check, Gift, MapPin, Plus, Sparkles } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SaveBar, SettingRow, SettingRows } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
+import { StatusDot } from '@/components/shared/StatusDot';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 
@@ -232,12 +235,14 @@ export function LoyaltyProgramWorkspace() {
 
   const programmes = useMemo(() => programmesQuery.data?.data ?? [], [programmesQuery.data]);
 
-  useEffect(() => {
-    if (draft || !programmes.length) return;
+  // Open on the first programme once the list arrives. Set during render, not
+  // in an effect: an effect painted one empty frame first, then re-rendered.
+  // Guarded by `!draft`, so it runs once per time there is nothing open.
+  if (!draft && programmes.length) {
     const next = toDraft(programmes[0]);
     setDraft(next);
     setSavedDraft(next);
-  }, [draft, programmes]);
+  }
 
   const patch = (value: Partial<Draft>) => setDraft((current) => (current ? { ...current, ...value } : current));
   const dirty = Boolean(draft && JSON.stringify(draft) !== JSON.stringify(savedDraft));
@@ -328,8 +333,7 @@ export function LoyaltyProgramWorkspace() {
       <div className="grid min-h-0 flex-1 md:grid-cols-[20rem_minmax(0,1fr)]">
         <aside className="min-h-0 overflow-auto border-b border-rule/60 bg-field md:border-b-0 md:border-r" aria-label="Loyalty programmes">
           <div className="border-b border-rule/50 px-4 py-4">
-            <p className="text-sm font-semibold text-foreground">Your programmes</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               Each programme keeps its own earning rule and customer benefits.
             </p>
           </div>
@@ -338,9 +342,16 @@ export function LoyaltyProgramWorkspace() {
               <ErrorState title="Loyalty programmes unavailable" onRetry={() => void programmesQuery.refetch()} />
             </div>
           ) : programmesQuery.isLoading ? (
-            <div className="divide-y divide-rule/40" aria-label="Loading loyalty programmes">
-              {[1, 2, 3].map((row) => (
-                <div key={row} className="h-24 animate-pulse bg-band/30" />
+            <div className="divide-y divide-rule/40" role="status" aria-busy="true" aria-label="Loading loyalty programmes">
+              {['w-32', 'w-40', 'w-28'].map((width) => (
+                <div key={width} className="border-l-2 border-l-transparent px-4 py-4" aria-hidden="true">
+                  <div className="flex items-center gap-2">
+                    <Bone className="size-2 shrink-0 rounded-full" />
+                    <Bone className={cn('h-4', width)} />
+                  </div>
+                  <Bone className="mt-2 h-3 w-full" />
+                  <Bone className="mt-1.5 h-3 w-3/5" />
+                </div>
               ))}
             </div>
           ) : programmes.length ? (
@@ -358,13 +369,13 @@ export function LoyaltyProgramWorkspace() {
                       selected ? 'border-l-primary bg-primary/5' : 'border-l-transparent',
                     )}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="font-semibold text-foreground">{programme.name}</span>
-                      <span
-                        className={cn('text-label uppercase', programme.status === 'active' ? 'text-primary' : 'text-muted-foreground')}
-                      >
-                        {programme.status}
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <StatusDot
+                        tone={programme.status === 'active' ? 'success' : programme.status === 'paused' ? 'warning' : 'muted'}
+                        dashed={programme.status === 'draft'}
+                        label={programme.status === 'active' ? 'Active' : programme.status === 'paused' ? 'Paused' : 'Draft'}
+                      />
+                      <span className="min-w-0 truncate font-semibold text-foreground">{programme.name}</span>
                     </div>
                     <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{programmeSummary(programme)}</p>
                   </button>
@@ -375,12 +386,11 @@ export function LoyaltyProgramWorkspace() {
             <div className="p-4">
               <EmptyState
                 icon={Award}
-                title="No loyalty programmes"
-                description="Create rewards, points, or both across products, categories and modifiers."
+                title="No loyalty programmes yet"
+                description="Programmes you create appear here — points, rewards or both, across products, categories and modifiers."
+                action={tenantId ? { label: 'Create programme', onClick: startNew } : undefined}
+                compact
               />
-              <div className="-mt-9 flex justify-center pb-8">
-                <Button onClick={startNew}>Create programme</Button>
-              </div>
             </div>
           )}
         </aside>
@@ -632,27 +642,20 @@ export function LoyaltyProgramWorkspace() {
                         />
                       </label>
                       {draft.rewardRule.kind === 'percentage_off' && (
-                        <label className="grid gap-1.5">
+                        <div className="grid gap-1.5">
                           <span className="text-sm font-medium">Discount percentage</span>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              min={1}
-                              max={100}
-                              className={cn(fieldClass, 'pr-8')}
-                              value={draft.rewardRule.discountPercent ?? 25}
-                              onChange={(event) =>
-                                patch({
-                                  rewardRule: {
-                                    ...draft.rewardRule,
-                                    discountPercent: Math.max(1, Math.min(100, Number(event.target.value) || 1)),
-                                  },
-                                })
-                              }
-                            />
-                            <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">%</span>
-                          </div>
-                        </label>
+                          {/* A share off is judged by feel; the slider snaps to whole percents. */}
+                          <Slider
+                            label="Off"
+                            aria-label="Discount percentage"
+                            min={1}
+                            max={100}
+                            step={1}
+                            value={draft.rewardRule.discountPercent ?? 25}
+                            onValueChange={(discountPercent) => patch({ rewardRule: { ...draft.rewardRule, discountPercent } })}
+                            formatValue={(percent) => `${percent}%`}
+                          />
+                        </div>
                       )}
                       <label className="grid gap-1.5">
                         <span className="text-sm font-medium">
@@ -811,11 +814,9 @@ export function LoyaltyProgramWorkspace() {
               <EmptyState
                 icon={Gift}
                 title="Build a loyalty programme"
-                description="Create flexible earning and reward rules for your menu."
+                description="Pick a programme to edit its earning and reward rules, or create a new one for your menu."
+                action={tenantId ? { label: 'Create programme', onClick: startNew } : undefined}
               />
-              <Button className="-mt-9" onClick={startNew}>
-                Create programme
-              </Button>
             </div>
           )}
         </main>

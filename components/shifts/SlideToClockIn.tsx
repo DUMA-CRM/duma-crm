@@ -34,13 +34,14 @@ export function SlideToClockIn({
   const [attempt, setAttempt] = useState(0);
 
   const handleUnlock = () => {
-    // Played inside the gesture, which also unlocks audio for the result sound.
+    // The phone's unlock click, as the handle lands — inside the gesture, which
+    // also unlocks audio for the error sound should the clock-in fail.
     uiSound('unlock');
     // Wrapped so a synchronous throw lands in the same failure path.
     Promise.resolve()
       .then(onClockIn)
       .then(
-        () => uiSound('success'),
+        () => undefined,
         () => {
           // The caller's onError owns the message; this only resets and sounds.
           uiSound('error');

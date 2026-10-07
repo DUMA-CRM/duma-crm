@@ -34,4 +34,5 @@ export const moduleQueryKeys = {
   analytics: createModuleQueryKeys('analytics'),
   agent: createModuleQueryKeys('agent'),
   support: createModuleQueryKeys('support'),
+  cms: createModuleQueryKeys('cms'),
 } as const;

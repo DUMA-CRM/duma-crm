@@ -40,8 +40,12 @@ import {
   workStateOf,
 } from '@/components/scheduling/shared';
 import { Fact } from '@/components/settings/controls';
+import { TileSkeleton } from '@/components/shared/TileSkeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { IconTag } from '@/components/shared/IconTag';
+import { Bone } from '@/components/shared/Skeleton';
+import { StatusDot } from '@/components/shared/StatusDot';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -51,12 +55,13 @@ import { Select } from '@/components/ui/select';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { getStaff } from '@/lib/modules/identity/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
-import { getEmployees } from '@/lib/modules/people/client';
 import { getPayrollRuns } from '@/lib/modules/payroll/client';
+import { getEmployees } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { getScheduledShifts, getVariance, publishScheduledShifts } from '@/lib/modules/workforce/client';
 import { type Shift, getActiveShifts, getShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
+import { shiftBarGeometry } from '@/lib/utils/shift-bar';
 import { groupShiftsByDay } from '@/lib/utils/shift-days';
 import { reconcileClockEntries } from '@/lib/utils/shift-reconciliation';
 import { useAuthStore } from '@/stores/authStore';
@@ -432,6 +437,7 @@ export function ShiftsWorkspace({
   // ── Actions ─────────────────────────────────────────────────────────────────
 
   const draftCount = shifts.filter((s) => s.status === 'draft').length;
+  const peopleCount = new Set(filtered.map((row) => row.userId).filter(Boolean)).size;
   const publish = useMutation({
     mutationFn: () => publishScheduledShifts({ locationId: locationId!, from: fromISO, to: toISO }),
     onSuccess: () => qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('scheduled-shifts') }),
@@ -547,10 +553,9 @@ export function ShiftsWorkspace({
           icon={CalendarClock}
           label="Shifts"
           value={filtered.length}
-          hint={draftCount > 0 ? `${draftCount} still in draft` : 'All published'}
-          tone={draftCount > 0 ? 'warning' : 'default'}
+          hint={`${peopleCount} ${peopleCount === 1 ? 'person' : 'people'}`}
         />
-        <Fact surface="page" icon={Clock} label="Planned" value={fmtHours(plannedTotal)} hint={rangeLabel(from, to)} />
+        <Fact surface="page" icon={Clock} label="Planned" value={fmtHours(plannedTotal)} />
         <Fact
           surface="page"
           icon={Timer}
@@ -637,11 +642,24 @@ export function ShiftsWorkspace({
 
       {/* The register, a day at a time */}
       {isLoading ? (
-        <div className="space-y-2" aria-label="Loading shifts">
-          {[0, 1, 2, 3].map((index) => (
-            <div key={index} className="h-16 animate-pulse rounded-lg bg-band/60" />
-          ))}
-        </div>
+        // The register's shape: a day heading, then that day's shift rows.
+        <section role="status" aria-busy="true" aria-label="Loading shifts">
+          <div className="mb-2 flex items-baseline gap-3 px-1" aria-hidden="true">
+            <Bone className="h-4 w-32" />
+            <Bone className="h-3 w-24" />
+          </div>
+          <div className="space-y-2" aria-hidden="true">
+            {[0, 1, 2, 3].map((index) => (
+              <TileSkeleton
+                key={index}
+                index={index}
+                tile="size-9"
+                trailing={['hidden h-2.5 w-36 rounded-full md:block', 'hidden h-4 w-24 lg:block', 'h-3 w-20']}
+                className="border-rule/60 bg-field px-4"
+              />
+            ))}
+          </div>
+        </section>
       ) : shiftsError ? (
         // An empty rota and an unreadable one must not look the same — only one means nobody is working.
         <ErrorState
@@ -665,6 +683,21 @@ export function ShiftsWorkspace({
               ? 'Try a different search, person or status.'
               : 'Plan a shift to rota someone on — you can repeat it weekly in one go.'
           }
+          kind={filtersActive ? 'search' : 'start'}
+          action={
+            filtersActive
+              ? {
+                  label: 'Clear filters',
+                  onClick: () => {
+                    setSearch('');
+                    setStateFilter('all');
+                    setStaffFilter('all');
+                  },
+                }
+              : canPlan && onCreatingChange
+                ? { label: 'Plan shift', onClick: () => onCreatingChange('planned') }
+                : undefined
+          }
         />
       ) : (
         <div className="space-y-6">
@@ -686,6 +719,7 @@ export function ShiftsWorkspace({
                     key={row.id}
                     row={row}
                     money={money}
+                    now={now}
                     onOpen={() => setOpenRow({ mode: 'edit', id: row.id, date: row.dateKey })}
                   />
                 ))}
@@ -715,6 +749,61 @@ export function ShiftsWorkspace({
   );
 }
 
+/** The planned band and the worked fill on one track; red fill when they started late. */
+function ShiftBar({ row, late, now }: { row: ShiftRecord; late: boolean; now: number }) {
+  const first = row.clocked[0];
+  const last = row.clocked.at(-1);
+  const bar = shiftBarGeometry({
+    plannedStart: row.shift?.startsAt,
+    plannedEnd: row.shift?.endsAt,
+    workedStart: first?.clockedIn,
+    workedEnd: first ? (last?.clockedOut ?? null) : null,
+    now,
+  });
+  const planned = row.shift ? `Planned ${fmtTime(row.shift.startsAt)}–${fmtTime(row.shift.endsAt)}` : 'Not on the rota';
+  const worked = first ? `worked ${fmtTime(first.clockedIn)}–${last?.clockedOut ? fmtTime(last.clockedOut) : 'now'}` : 'not clocked';
+  const label = `${planned}, ${worked}`;
+  const times = `${row.shift ? `${fmtTime(row.shift.startsAt)}–${fmtTime(row.shift.endsAt)}` : '—'} · ${
+    first ? `${fmtTime(first.clockedIn)}–${last?.clockedOut ? fmtTime(last.clockedOut) : 'now'}` : 'not in'
+  }`;
+  return (
+    // The times stay visible under the bar: comparing rota against clock-in is
+    // the reason a manager opens this list, and touch has no hover.
+    <span className="hidden w-36 shrink-0 md:block" title={label}>
+      <span className="relative block h-2.5 rounded-full bg-band/60" aria-hidden="true">
+        {bar?.planned && (
+          <span
+            className="absolute inset-y-0 rounded-full border border-primary/40"
+            style={{ left: `${bar.planned.left}%`, width: `${bar.planned.width}%` }}
+          />
+        )}
+        {bar?.worked && (
+          <span
+            className={cn(
+              'absolute inset-y-0.5 rounded-full',
+              late ? 'bg-exception' : row.state === 'running' ? 'bg-primary' : 'bg-momentum',
+            )}
+            style={{ left: `${bar.worked.left}%`, width: `${bar.worked.width}%` }}
+          />
+        )}
+      </span>
+      <span className="mt-1 block truncate text-[11px] text-muted-foreground tabular-nums" aria-hidden="true">
+        {times}
+      </span>
+    </span>
+  );
+}
+
+/** What the row says, for the button's accessible name — its visual parts are hidden from it. */
+function shiftRowLabel(row: ShiftRecord, money: boolean): string {
+  const first = row.clocked[0];
+  const last = row.clocked.at(-1);
+  const planned = row.shift ? `planned ${fmtTime(row.shift.startsAt)} to ${fmtTime(row.shift.endsAt)}` : 'not on the rota';
+  const worked = first ? `worked ${fmtTime(first.clockedIn)} to ${last?.clockedOut ? fmtTime(last.clockedOut) : 'now'}` : 'not clocked in';
+  const paid = money && row.billState !== 'none' ? (row.billState === 'paid' ? ', paid' : ', not paid yet') : '';
+  return `${row.staffName}, ${row.dateKey}: ${planned}, ${worked}, ${WORK_STATE[row.state].label}${paid}. Open shift`;
+}
+
 const STATE_DOT: Record<WorkState, { dot: string; text: string }> = {
   scheduled: { dot: 'bg-primary/40', text: 'text-muted-foreground' },
   running: { dot: 'bg-primary', text: 'text-primary' },
@@ -724,10 +813,8 @@ const STATE_DOT: Record<WorkState, { dot: string; text: string }> = {
 };
 
 /** One shift: who, the planned hours, what was actually worked, and how it went. */
-function ShiftRow({ row, money, onOpen }: { row: ShiftRecord; money: boolean; onOpen: () => void }) {
+function ShiftRow({ row, money, now, onOpen }: { row: ShiftRecord; money: boolean; now: number; onOpen: () => void }) {
   const state = STATE_DOT[row.state];
-  const first = row.clocked[0];
-  const last = row.clocked.at(-1);
   const late = row.startDeltaMinutes != null && row.startDeltaMinutes > 0;
   const early = row.startDeltaMinutes != null && row.startDeltaMinutes < 0;
 
@@ -736,7 +823,7 @@ function ShiftRow({ row, money, onOpen }: { row: ShiftRecord; money: boolean; on
       <button
         type="button"
         onClick={onOpen}
-        aria-label={`Open ${row.staffName}'s shift on ${row.dateKey}`}
+        aria-label={shiftRowLabel(row, money)}
         className={cn(
           'group flex w-full items-center gap-3 rounded-lg border bg-field px-4 py-3 text-left transition-colors hover:border-rule hover:bg-band/40',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
@@ -756,7 +843,7 @@ function ShiftRow({ row, money, onOpen }: { row: ShiftRecord; money: boolean; on
             <span className={cn('truncate text-sm font-semibold', row.userId ? 'text-foreground' : 'text-muted-foreground')}>
               {row.staffName}
             </span>
-            {row.status === 'draft' && <Badge variant="muted">Draft</Badge>}
+            {row.status === 'draft' && <StatusDot tone="muted" label="Draft" dashed />}
             {!row.shift && <Badge variant="warning">Not on the rota</Badge>}
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground">
@@ -764,44 +851,36 @@ function ShiftRow({ row, money, onOpen }: { row: ShiftRecord; money: boolean; on
           </span>
         </span>
 
-        {/* Planned, then worked — the two times a manager compares. */}
-        <span className="hidden w-32 shrink-0 md:block">
-          <span className="block text-sm text-foreground">
-            {row.shift ? `${fmtTime(row.shift.startsAt)}–${fmtTime(row.shift.endsAt)}` : '—'}
-          </span>
-          <span className="block text-xs text-muted-foreground">
-            {row.shift ? `${fmtHours(row.plannedMinutes)} planned` : 'No planned shift'}
-          </span>
-        </span>
-        <span className="hidden w-32 shrink-0 md:block">
-          <span className="block text-sm text-foreground">
-            {first ? (
-              <>
-                {fmtTime(first.clockedIn)}–
-                {last?.clockedOut ? fmtTime(last.clockedOut) : <span className="font-semibold text-primary">now</span>}
-              </>
-            ) : (
-              '—'
-            )}
-          </span>
-          <span className={cn('block text-xs', late ? 'text-exception' : early ? 'text-momentum' : 'text-muted-foreground')}>
-            {late
-              ? `${row.startDeltaMinutes} min late`
-              : early
-                ? `${-row.startDeltaMinutes!} min early`
-                : row.workedMinutes > 0
-                  ? fmtDuration(row.workedMinutes)
+        {/* Planned, then worked — the two times a manager compares — as one bar:
+            the outline is the rota, the fill is the clock. Times on hover. */}
+        <ShiftBar row={row} late={late} now={now} />
+        <span
+          className={cn(
+            'hidden w-20 shrink-0 text-right text-xs md:block',
+            late ? 'text-exception' : early ? 'text-momentum' : 'text-muted-foreground',
+          )}
+        >
+          {late
+            ? `${row.startDeltaMinutes} min late`
+            : early
+              ? `${-row.startDeltaMinutes!} min early`
+              : row.workedMinutes > 0
+                ? fmtDuration(row.workedMinutes)
+                : row.shift
+                  ? `${fmtHours(row.plannedMinutes)} planned`
                   : 'Not clocked'}
-          </span>
         </span>
 
         {money && (
           <span className="hidden w-24 shrink-0 text-right lg:block">
             <span className="block text-sm text-foreground">{row.estimatedCost != null ? fmtMoney(row.estimatedCost) : '—'}</span>
             {row.billState !== 'none' && (
-              <span className={cn('block text-xs', row.billState === 'paid' ? 'text-momentum' : 'text-muted-foreground')}>
-                {row.billState === 'paid' ? 'Paid' : 'Not paid yet'}
-              </span>
+              <IconTag
+                icon={Banknote}
+                label={row.billState === 'paid' ? 'Paid' : 'Not paid yet'}
+                tone={row.billState === 'paid' ? 'success' : 'muted'}
+                size={13}
+              />
             )}
           </span>
         )}

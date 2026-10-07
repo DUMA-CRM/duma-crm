@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import {
@@ -17,14 +17,14 @@ import {
   VolumeX,
   X,
 } from '@/components/icons';
-import { KdsTicket, LANE_LABEL } from '@/components/kds/KdsTicket';
+import { KdsTicket, KdsTicketSkeleton, LANE_LABEL } from '@/components/kds/KdsTicket';
 import { useMounted } from '@/components/settings/configuration/shared';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { useWakeLock } from '@/lib/hooks/useWakeLock';
 import { type Order, type OrderItem, type OrderStatus, getOrder, getOrders, updateOrderStatus } from '@/lib/modules/ordering/client';
-import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { chime, unlockAudio } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
@@ -94,7 +94,7 @@ const subscribeOnline = (notify: () => void) => {
 
 export default function KdsPage() {
   const queryClient = useQueryClient();
-  const { tenantId, locationId } = useWorkspaceStore();
+  const { locationId } = useWorkspaceStore();
   const display = useKdsStore();
   const mounted = useMounted();
   const online = useSyncExternalStore(
@@ -134,13 +134,6 @@ export default function KdsPage() {
     window.addEventListener('pointerdown', unlock, { once: true });
     return () => window.removeEventListener('pointerdown', unlock);
   }, []);
-
-  const { data: locations = [] } = useQuery({
-    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
-    queryFn: () => getLocationsByTenant(tenantId!),
-    enabled: !!tenantId,
-  });
-  const locationName = locations.find((location) => location.id === locationId)?.name;
 
   const laneQueries = useQueries({
     queries: KDS_LANES.map((status) => ({
@@ -297,14 +290,43 @@ export default function KdsPage() {
   // the server render can't see — paint the board only once mounted.
   if (!mounted) {
     return (
-      <EditorShell eyebrow="Kitchen" title="Kitchen display" icon={<ChefHat size={20} aria-hidden="true" />} flush>
-        <div className="flex-1 animate-pulse bg-band/30" aria-busy="true" />
+      <EditorShell title="Kitchen" icon={<ChefHat size={20} aria-hidden="true" />} flush>
+        <div className="flex min-h-0 flex-1 flex-col bg-background" role="status" aria-busy="true" aria-label="Loading the kitchen board">
+          <div className="flex shrink-0 items-center gap-2 border-b border-rule/60 bg-card px-3 py-2 md:px-4" aria-hidden="true">
+            <Bone className="h-12 w-40 rounded-lg" />
+            <Bone className="ml-auto h-9 w-28 rounded-lg" />
+          </div>
+          <div className="grid min-h-0 flex-1 grid-flow-col auto-cols-[minmax(20rem,88vw)] gap-3 overflow-hidden p-3 lg:grid-flow-row lg:grid-cols-3 lg:auto-cols-auto">
+            {KDS_LANES.map((status) => (
+              <div
+                key={status}
+                className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-rule/60 bg-band/40"
+                aria-hidden="true"
+              >
+                <div
+                  className={cn(
+                    'flex shrink-0 items-center justify-between border-b border-t-4 border-rule/60 bg-card px-4 py-3',
+                    LANE_ACCENT[status],
+                  )}
+                >
+                  <Bone className="h-5 w-24" />
+                  <Bone className="size-9 rounded-lg" />
+                </div>
+                <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
+                  {[0, 1].map((i) => (
+                    <KdsTicketSkeleton key={i} index={i} compact={false} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </EditorShell>
     );
   }
 
   return (
-    <EditorShell eyebrow="Kitchen" title={locationName ?? 'Kitchen display'} icon={<ChefHat size={20} aria-hidden="true" />} flush>
+    <EditorShell title="Kitchen" icon={<ChefHat size={20} aria-hidden="true" />} flush>
       <div ref={rootRef} className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
         {/* Toolbar — hideable in Configuration; the offline banner below still shows. */}
         {display.showToolbar && (
@@ -473,9 +495,9 @@ export default function KdsPage() {
               ) : (
                 <div className="kds-scrollbar h-full overflow-y-auto p-3">
                   {laneQueries.some((query) => query.isLoading) ? (
-                    <div className="columns-[20rem] gap-3">
+                    <div className="columns-[20rem] gap-3 [&>*]:mb-3" role="status" aria-busy="true" aria-label="Loading the kitchen board">
                       {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className="mb-3 h-56 animate-pulse rounded-xl bg-band" />
+                        <KdsTicketSkeleton key={i} index={i} />
                       ))}
                     </div>
                   ) : (
@@ -624,12 +646,23 @@ function LaneBody({
   empty,
   children,
 }: {
-  lane: { query: { isLoading: boolean; isError: boolean; data?: unknown; refetch: () => unknown }; orders: Order[] };
+  lane: { status: KdsLane; query: { isLoading: boolean; isError: boolean; data?: unknown; refetch: () => unknown }; orders: Order[] };
   empty: string;
   children: React.ReactNode;
 }) {
   if (lane.query.isLoading)
-    return [0, 1].map((i) => <div key={i} className="h-56 shrink-0 animate-pulse rounded-xl bg-band" aria-hidden="true" />);
+    return (
+      <div
+        className="flex flex-col gap-3"
+        role="status"
+        aria-busy="true"
+        aria-label={`Loading ${LANE_LABEL[lane.status].toLowerCase()} orders`}
+      >
+        {[0, 1].map((i) => (
+          <KdsTicketSkeleton key={i} index={i} />
+        ))}
+      </div>
+    );
   if (lane.query.isError && !lane.query.data) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">

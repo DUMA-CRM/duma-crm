@@ -17,9 +17,11 @@ import {
   Target,
   X,
 } from '@/components/icons';
+import { SOURCE_META } from '@/components/orders/orderMeta';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Bone, LoadingState } from '@/components/shared/Skeleton';
 import { useWorkspaceCurrency, useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Input } from '@/components/ui/input';
 
@@ -298,9 +300,9 @@ function SalesPanel({
             Net sales
           </h2>
           {loading ? (
-            <div className="mt-2 space-y-2" aria-label="Loading sales">
-              <div className="h-8 w-40 animate-pulse rounded-md bg-band/70" />
-              <div className="h-3.5 w-56 animate-pulse rounded-sm bg-band/60" />
+            <div role="status" aria-busy="true" aria-label="Loading sales" className="mt-1 space-y-2">
+              <Bone className="h-9 w-40" />
+              <Bone className="h-3 w-56" />
             </div>
           ) : (
             <>
@@ -309,7 +311,7 @@ function SalesPanel({
                 <ChangePill change={delta(net, previousNet)} />
               </p>
               <p className="mt-1 text-xs tabular-nums text-muted-foreground">
-                {money(gross)} gross{refunds > 0 ? ` − ${money(refunds)} refunds` : ''}
+                {money(gross)} gross
                 {previousNet !== null && (
                   <>
                     <span aria-hidden="true"> · </span>
@@ -345,7 +347,8 @@ function SalesPanel({
 
       <div className="px-3 pt-4 pb-2 sm:px-4">
         {loading ? (
-          <div className="mx-2 h-64 animate-pulse rounded-md bg-band/50" />
+          // The chart's own height, so the panel doesn't jump when the line draws.
+          <LoadingState label="Drawing the sales trend" className="h-64 py-0" />
         ) : (
           <TrendChart
             points={buckets.map((row) => ({ label: row.label, axis: bucketAxisLabel(row.key, by), value: row.value }))}
@@ -374,7 +377,11 @@ function SalesPanel({
           >
             <dt className="text-xs text-muted-foreground">{stat.label}</dt>
             <dd className="mt-0.5 flex flex-wrap items-center gap-2">
-              <span className="text-base font-semibold tabular-nums text-foreground">{loading ? '…' : stat.value}</span>
+              {loading ? (
+                <Bone className="my-0.5 h-5 w-16" />
+              ) : (
+                <span className="text-base font-semibold tabular-nums text-foreground">{stat.value}</span>
+              )}
               {!loading && stat.change}
             </dd>
           </div>
@@ -388,7 +395,6 @@ function SalesPanel({
           previousLabel={comparisonLabel}
           target={!!target}
         />
-        <span className="text-xs tabular-nums text-muted-foreground">{rangeDates(filters.range)}</span>
       </footer>
     </motion.section>
   );
@@ -418,7 +424,10 @@ function TargetBar({ net, goal, target }: { net: number; goal: number; target: P
 
 // ── Worth knowing ────────────────────────────────────────────────────────────
 
-const CHANNEL_LABEL: Record<string, string> = { pos: 'Till', qr_code: 'QR code', mobile: 'Mobile' };
+// The orders screens' channel names, so the overview and the orders list agree.
+const CHANNEL_LABEL: Partial<Record<string, string>> = Object.fromEntries(
+  Object.entries(SOURCE_META).map(([source, meta]) => [source, meta.label]),
+);
 
 /**
  * The period in a few sentences — the strongest day, the target days, the
@@ -503,7 +512,7 @@ function WorthKnowing({
       pending: items.isPending,
     },
     {
-      icon: Store,
+      icon: (SOURCE_META as Partial<Record<string, { icon: IconComponent }>>)[leading?.source ?? '']?.icon ?? Store,
       label: 'Leading channel',
       value: leading ? (CHANNEL_LABEL[leading.source ?? ''] ?? leading.source ?? '—') : '—',
       detail: leading ? `${share(num(leading.revenue), channelTotal)} of net sales` : undefined,
@@ -534,7 +543,11 @@ function WorthKnowing({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-xs text-muted-foreground">{row.label}</span>
-                  <span className="block truncate text-sm font-semibold text-foreground">{row.pending ? '…' : row.value}</span>
+                  {row.pending ? (
+                    <Bone className="my-0.5 h-4 w-24" />
+                  ) : (
+                    <span className="block truncate text-sm font-semibold text-foreground">{row.value}</span>
+                  )}
                 </span>
                 {row.detail && !row.pending && (
                   <span className="hidden max-w-[45%] truncate text-right text-xs tabular-nums text-muted-foreground sm:block">
@@ -579,10 +592,19 @@ function ProfitPanel({ filters }: { filters: ReportFilterState }) {
         {isError ? (
           <ReportError what="Profit" onRetry={refetch} />
         ) : loading ? (
-          <div className="space-y-3" aria-label="Loading profit">
-            <div className="h-8 w-32 animate-pulse rounded-md bg-band/70" />
-            <div className="h-3 animate-pulse rounded-full bg-band/60" />
-            <div className="h-20 animate-pulse rounded-md bg-band/50" />
+          // The figure, its caption, the split bar, then the three shares.
+          <div role="status" aria-busy="true" aria-label="Loading profit">
+            <Bone className="h-9 w-24" />
+            <Bone className="mt-1.5 h-3 w-64 max-w-full" />
+            <Bone className="mt-4 h-3 w-full rounded-full" />
+            <div className="mt-4 grid grid-cols-3 divide-x divide-rule/50 border-t border-rule/50 pt-3">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div key={index} className="flex flex-col items-center gap-1.5">
+                  <Bone className="h-3 w-14" />
+                  <Bone className="h-4 w-10" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : !current ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
@@ -604,6 +626,8 @@ function ProfitPanel({ filters }: { filters: ReportFilterState }) {
             <div className="mt-4">
               <ProfitBar summary={current} />
             </div>
+            {/* The exact shares stay here: the bar clamps labour to what is left
+                after food and rounds, so its legend can understate a bad week. */}
             <dl className="mt-4 grid grid-cols-3 divide-x divide-rule/50 border-t border-rule/50 pt-3 text-center">
               <div>
                 <dt className="text-xs text-muted-foreground">Food cost</dt>

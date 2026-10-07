@@ -1,9 +1,9 @@
 import { ApprovalError } from '@/lib/ai/action-seal';
+import { learnAgentMemory } from '@/lib/ai/agent-memory';
 import type { AgentActionSubmission, AgentChatMessage, AgentStreamEvent } from '@/lib/ai/agent-types';
 import type { AgentContext } from '@/lib/ai/duma-agent.server';
 import { CapabilityError, executeConfirmedAction, runDumaAgent } from '@/lib/ai/duma-agent.server';
 import { isAgentProviderPreference } from '@/lib/ai/provider-chain';
-import { learnAgentMemory } from '@/lib/ai/agent-memory';
 import { getAgentConversation, getAgentMemory, saveAgentMemory, saveAgentTurn } from '@/lib/api/agent-conversations.service';
 import { consumeAgentBudget, recordAgentTurn } from '@/lib/modules/agent/client';
 import type { StaffProfile } from '@/lib/modules/identity/client';
@@ -15,6 +15,10 @@ export const runtime = 'nodejs';
 const MAX_HISTORY = 40;
 /** Above this the payload is malformed or hostile rather than merely chatty. */
 const MAX_HISTORY_PAYLOAD = 500;
+/**
+ * Every top-level (crm) route. `cash-up` is only a redirect now (to the till's
+ * cash-up or the End of day report) but stays so an old tab still names itself.
+ */
 const APP_PAGES = new Set([
   'audit-log',
   'cash-up',
@@ -33,7 +37,24 @@ const APP_PAGES = new Set([
   'settings',
   'staff',
   'support',
+  'content',
 ]);
+
+/**
+ * A page id is a known top-level route, optionally with one sub-page such as
+ * `reports/end-of-day` or `settings/configuration`. The value is written into
+ * the system prompt, so it is clamped to lowercase words and hyphens — never
+ * free text, never an id.
+ */
+const SUB_PAGE = /^[a-z][a-z-]{0,39}$/;
+
+function safePage(page: unknown): string | undefined {
+  if (typeof page !== 'string' || page.length > 80) return undefined;
+  const [top, sub, ...rest] = page.split('/');
+  if (rest.length > 0 || !APP_PAGES.has(top)) return undefined;
+  if (sub === undefined) return top;
+  return SUB_PAGE.test(sub) ? `${top}/${sub}` : top;
+}
 
 interface AgentRequestBody {
   messages?: AgentChatMessage[];
@@ -48,7 +69,7 @@ function safeContext(context: AgentContext | undefined): AgentContext {
   return {
     locationId: typeof context.locationId === 'string' ? context.locationId.slice(0, 100) : null,
     tenantId: typeof context.tenantId === 'string' ? context.tenantId.slice(0, 100) : null,
-    page: typeof context.page === 'string' && APP_PAGES.has(context.page) ? context.page : undefined,
+    page: safePage(context.page),
     // A model preference set on the client, so it is allow-listed like `page`:
     // anything else falls back to the server's own order.
     provider: isAgentProviderPreference(context.provider) ? context.provider : undefined,
@@ -226,7 +247,9 @@ export async function POST(request: Request) {
     const safe = safeContext(body.context);
     const memoryTenantId = safe.tenantId ?? profile.tenantId ?? null;
     const storedMemory = memoryTenantId
-      ? await getAgentMemory(memoryTenantId, cookieHeader).then((value) => value.content).catch(() => '')
+      ? await getAgentMemory(memoryTenantId, cookieHeader)
+          .then((value) => value.content)
+          .catch(() => '')
       : '';
     const latestRequest = body.messages.at(-1)!.content;
     const learnedMemory = learnAgentMemory(storedMemory, latestRequest);

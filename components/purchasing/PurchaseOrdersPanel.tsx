@@ -8,12 +8,12 @@ import {
   AlertTriangle,
   Check,
   CheckCircle2,
-  ChevronRight,
   FileText,
   Loader2,
   Package,
   PackageCheck,
   Plus,
+  ReceiptText,
   Send,
   Trash2,
   Truck,
@@ -27,7 +27,13 @@ import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ModalActions } from '@/components/shared/FormParts';
+import { IconTag } from '@/components/shared/IconTag';
+import { ListRow } from '@/components/shared/ListRow';
 import { LoadMore } from '@/components/shared/LoadMore';
+import { MiniBar } from '@/components/shared/MiniBar';
+import { Pill } from '@/components/shared/Pill';
+import { Bone, LoadingState, RowSkeleton } from '@/components/shared/Skeleton';
+import { TONE_TINT, type Tone } from '@/components/shared/tone';
 import { useWorkspaceCurrency, useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -48,7 +54,7 @@ import {
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
-import { dueLabel, invoiceDifference, isOverdue, orderTotal, receivedShare } from '@/lib/utils/purchase-orders';
+import { dueLabel, invoiceDifference, isOverdue, orderTotal, receivedShare, summaryReceivedShare } from '@/lib/utils/purchase-orders';
 import { dayLabel } from '@/lib/utils/restock-queue';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
@@ -62,12 +68,12 @@ import { toast } from '@/stores/toastStore';
 
 const STATUSES: PurchaseOrderStatus[] = ['draft', 'submitted', 'partially_received', 'received', 'cancelled'];
 
-const STATUS: Record<PurchaseOrderStatus, { label: string; tint: string; icon: typeof Truck }> = {
-  draft: { label: 'Draft', tint: 'bg-band text-muted-foreground', icon: FileText },
-  submitted: { label: 'Awaiting delivery', tint: 'bg-reference/8 text-reference', icon: Send },
-  partially_received: { label: 'Part delivered', tint: 'bg-measured/10 text-measured', icon: Truck },
-  received: { label: 'Received', tint: 'bg-momentum/8 text-momentum', icon: PackageCheck },
-  cancelled: { label: 'Cancelled', tint: 'bg-band text-muted-foreground', icon: XCircle },
+const STATUS: Record<PurchaseOrderStatus, { label: string; tone: Tone; icon: typeof Truck }> = {
+  draft: { label: 'Draft', tone: 'muted', icon: FileText },
+  submitted: { label: 'Awaiting delivery', tone: 'info', icon: Send },
+  partially_received: { label: 'Part delivered', tone: 'warning', icon: Truck },
+  received: { label: 'Received', tone: 'success', icon: PackageCheck },
+  cancelled: { label: 'Cancelled', tone: 'muted', icon: XCircle },
 };
 
 const defaultExpiry = (shelfLifeDays?: number | null) => {
@@ -323,8 +329,6 @@ function CreatePoDrawer({
 
 // ── Detail ───────────────────────────────────────────────────────────────────
 
-const PROGRESS: PurchaseOrderStatus[] = ['draft', 'submitted', 'received'];
-
 function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; onClose: () => void }) {
   const qc = useQueryClient();
   const money = useWorkspaceMoney();
@@ -412,10 +416,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
         {isError ? (
           <ErrorState title="This purchase order couldn’t be loaded" onRetry={() => void refetch()} />
         ) : (
-          <div className="space-y-3" aria-hidden="true">
-            <div className="h-24 animate-pulse rounded-lg bg-band/60" />
-            <div className="h-48 animate-pulse rounded-lg bg-band/60" />
-          </div>
+          <LoadingState label="Loading the purchase order" />
         )}
       </Drawer>
     );
@@ -432,7 +433,6 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
     Math.max(0, Number(l.quantityOrdered) - Number(l.quantityReceived));
   const open = po.status === 'submitted' || po.status === 'partially_received';
   const complete = (po.lines ?? []).filter((l) => outstanding(l) === 0).length;
-  const reached = po.status === 'cancelled' ? -1 : po.status === 'partially_received' ? 1 : PROGRESS.indexOf(po.status);
 
   return (
     <Drawer
@@ -547,58 +547,33 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
           <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
             <div className="flex items-start gap-3.5 px-4 pt-4 pb-3.5">
               <span
-                className={cn(
-                  'flex size-12 shrink-0 items-center justify-center rounded-lg',
-                  late ? 'bg-exception/8 text-exception' : meta.tint,
-                )}
+                className={cn('flex size-12 shrink-0 items-center justify-center rounded-lg', TONE_TINT[late ? 'exception' : meta.tone])}
+                role="img"
+                aria-label={meta.label}
+                title={meta.label}
               >
                 <meta.icon size={22} aria-hidden="true" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-2xl font-semibold tracking-headline text-foreground">{money(total)}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {(po.lines ?? []).length} {(po.lines ?? []).length === 1 ? 'line' : 'lines'}
+                  {meta.label} · {(po.lines ?? []).length} {(po.lines ?? []).length === 1 ? 'line' : 'lines'}
                   {due && <span className={cn(late && 'font-medium text-exception')}> · {due}</span>}
                   {!due && po.expectedAt && ` · expected ${formatDate(po.expectedAt)}`}
                 </p>
               </div>
-              <span
-                className={cn(
-                  'shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold',
-                  late ? 'bg-exception/8 text-exception' : meta.tint,
-                )}
-              >
-                {late ? 'Overdue' : meta.label}
-              </span>
+              {late && <Pill tone="exception">Overdue</Pill>}
             </div>
             {po.status === 'cancelled' ? (
               <p className="border-t border-rule/45 px-4 py-2.5 text-xs font-medium text-muted-foreground">
                 Cancelled — nothing more will arrive.
               </p>
-            ) : (
-              <ol className="grid grid-cols-3 gap-1.5 border-t border-rule/45 px-4 pt-3 pb-3.5">
-                {['Draft', 'Sent to supplier', 'Received'].map((label, index) => (
-                  <li key={label}>
-                    <span className="block h-1.5 overflow-hidden rounded-full bg-band">
-                      <span
-                        className={cn(
-                          'block h-full rounded-full',
-                          index <= reached ? (index === reached ? 'bg-primary' : 'bg-momentum/50') : '',
-                        )}
-                        style={{
-                          width: index === 2 && po.status === 'partially_received' ? `${share * 100}%` : index <= reached ? '100%' : '0%',
-                        }}
-                      />
-                    </span>
-                    <span
-                      className={cn('mt-1.5 block text-xs', index === reached ? 'font-semibold text-foreground' : 'text-muted-foreground')}
-                    >
-                      {index === 2 && po.status === 'partially_received' ? `${Math.round(share * 100)}% received` : label}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            )}
+            ) : po.status === 'partially_received' ? (
+              <div className="flex items-center gap-3 border-t border-rule/45 px-4 py-3">
+                <MiniBar value={share} max={1} tone="warning" label={`${Math.round(share * 100)}% received`} className="flex-1" />
+                <span className="shrink-0 text-xs font-semibold text-foreground">{Math.round(share * 100)}% received</span>
+              </div>
+            ) : null}
           </div>
 
           <section>
@@ -629,10 +604,6 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
                   </li>
                 );
               })}
-              <li className="flex items-baseline justify-between bg-band/25 px-3.5 py-3">
-                <span className="text-sm font-semibold text-foreground">Total</span>
-                <span className="text-base font-semibold text-foreground">{money(total)}</span>
-              </li>
             </ul>
             {po.notes && <p className="mt-2 px-1 text-xs italic text-muted-foreground">“{po.notes}”</p>}
           </section>
@@ -793,14 +764,22 @@ export function PurchaseOrdersPanel({
   }, [orders, now]);
 
   const changeStatus = (next: 'all' | PurchaseOrderStatus) => (onStatusChange ? onStatusChange(next) : setOwnStatus(next));
+  const toggleStatus = (next: PurchaseOrderStatus) => changeStatus(statusFilter === next ? 'all' : next);
   const statusLabel = (value: 'all' | PurchaseOrderStatus) => (value === 'all' ? 'All orders' : STATUS[value].label);
 
   return (
     <motion.div className="space-y-4" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
-      {/* A summary of where orders stand — the selector below does the filtering. */}
-      <motion.dl variants={SECTION_RISE} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Fact surface="page" icon={Truck} label="All orders" value={counts.all} />
-        <Fact surface="page" icon={FileText} label="Drafts" value={counts.draft} hint={counts.draft > 0 ? 'Not sent yet' : undefined} />
+      {/* Where orders stand — and the way in: a tile filters to its status, again to show all. */}
+      <motion.dl variants={SECTION_RISE} className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Fact
+          surface="page"
+          icon={FileText}
+          label="Drafts"
+          value={counts.draft}
+          hint={counts.draft > 0 ? 'Not sent yet' : undefined}
+          onSelect={() => toggleStatus('draft')}
+          selected={statusFilter === 'draft'}
+        />
         <Fact
           surface="page"
           icon={Send}
@@ -808,16 +787,36 @@ export function PurchaseOrdersPanel({
           value={counts.submitted}
           tone={overdue > 0 ? 'danger' : 'default'}
           hint={overdue > 0 ? `${overdue} overdue` : undefined}
+          onSelect={() => toggleStatus('submitted')}
+          selected={statusFilter === 'submitted'}
         />
-        <Fact surface="page" icon={Truck} label="Part delivered" value={counts.partially_received} />
-        <Fact surface="page" icon={PackageCheck} label="Received" value={counts.received} />
+        <Fact
+          surface="page"
+          icon={Truck}
+          label="Part delivered"
+          value={counts.partially_received}
+          onSelect={() => toggleStatus('partially_received')}
+          selected={statusFilter === 'partially_received'}
+        />
+        <Fact
+          surface="page"
+          icon={PackageCheck}
+          label="Received"
+          value={counts.received}
+          onSelect={() => toggleStatus('received')}
+          selected={statusFilter === 'received'}
+        />
       </motion.dl>
 
       <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-2">
         <Select
           value={statusFilter}
           onValueChange={(value) => changeStatus(value as 'all' | PurchaseOrderStatus)}
-          options={FILTERS.map((value) => ({ value, label: `${statusLabel(value)} · ${counts[value]}` }))}
+          // Every status but Cancelled has a tile above; its count lives here.
+          options={FILTERS.map((value) => ({
+            value,
+            label: value === 'cancelled' && counts.cancelled ? `${statusLabel(value)} · ${counts.cancelled}` : statusLabel(value),
+          }))}
           ariaLabel="Status"
           className="w-56"
         />
@@ -833,7 +832,8 @@ export function PurchaseOrdersPanel({
         />
         <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
           {list.isFetching && !list.isPending && <Loader2 size={12} className="animate-spin" aria-label="Updating" />}
-          {total} {total === 1 ? 'order' : 'orders'}
+          {/* A single status's count is on its tile already. */}
+          {statusFilter === 'all' && `${total} ${total === 1 ? 'order' : 'orders'}`}
         </span>
       </motion.div>
 
@@ -845,19 +845,37 @@ export function PurchaseOrdersPanel({
             onRetry={() => void list.refetch()}
           />
         ) : list.isPending ? (
-          <div className="h-64 animate-pulse rounded-lg bg-band/60" aria-label="Loading purchase orders" />
-        ) : orders.length === 0 ? (
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-            <EmptyState
-              icon={Truck}
-              title={statusFilter === 'all' && supplierFilter === 'all' ? 'No purchase orders yet' : 'Nothing matches'}
-              description={
-                statusFilter === 'all' && supplierFilter === 'all'
-                  ? 'Create one with the button above, or from the suggested order on the Stock tab.'
-                  : 'Try another status or supplier.'
-              }
-            />
+          // A day: its heading, then the card of orders.
+          <div role="status" aria-busy="true" aria-label="Loading purchase orders">
+            <Bone className="mx-1 mb-2 h-4 w-28" />
+            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              {Array.from({ length: 5 }, (_, index) => (
+                <RowSkeleton key={index} index={index} />
+              ))}
+            </div>
           </div>
+        ) : orders.length === 0 ? (
+          <EmptyState
+            icon={Truck}
+            title={statusFilter === 'all' && supplierFilter === 'all' ? 'No purchase orders yet' : 'Nothing matches'}
+            description={
+              statusFilter === 'all' && supplierFilter === 'all'
+                ? 'Create one with the button above, or from the suggested order on the Stock tab.'
+                : 'Try another status or supplier.'
+            }
+            kind={statusFilter === 'all' && supplierFilter === 'all' ? 'start' : 'search'}
+            action={
+              statusFilter === 'all' && supplierFilter === 'all'
+                ? undefined
+                : {
+                    label: 'Clear filters',
+                    onClick: () => {
+                      changeStatus('all');
+                      setSupplierFilter('all');
+                    },
+                  }
+            }
+          />
         ) : (
           <div className="space-y-5">
             {groups.map(([label, dayOrders]) => (
@@ -911,9 +929,13 @@ function OrderRow({
   canWrite: boolean;
   onOpen: () => void;
 }) {
+  const money = useWorkspaceMoney();
   const meta = STATUS[po.status];
   const late = isOverdue(po, now);
   const due = dueLabel(po, now);
+  // The list carries a per-order summary, not lines; absent until the API ships it.
+  const summary = po.summary && po.summary.lineCount > 0 ? po.summary : null;
+  const received = po.status === 'partially_received' ? summaryReceivedShare(summary ?? undefined) : null;
   const step = !canWrite
     ? null
     : po.status === 'draft'
@@ -921,52 +943,58 @@ function OrderRow({
       : po.status === 'submitted' || po.status === 'partially_received'
         ? 'Receive'
         : null;
-  const invoice = po.invoiceMatched ? 'Invoice matched' : po.invoiceNumber ? `Invoice ${po.invoiceNumber} not matched` : null;
 
   return (
-    <li className="border-b border-rule/45 last:border-b-0">
-      <button
-        type="button"
-        onClick={onOpen}
-        className={cn(
-          'flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-          selected ? 'bg-band' : 'hover:bg-band/40',
-        )}
-      >
-        <span
-          className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', late ? 'bg-exception/8 text-exception' : meta.tint)}
-        >
-          <meta.icon size={16} aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm text-foreground">
-            <span className="font-semibold">{po.reference}</span> · {po.supplier?.name ?? 'Supplier'}
-          </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            {due ? (
-              <span className={cn(late && 'font-medium text-exception')}>{due}</span>
-            ) : po.expectedAt ? (
-              `Expected ${formatDate(po.expectedAt)}`
-            ) : (
-              'No delivery date'
-            )}
-            {invoice && <span className={cn(!po.invoiceMatched && 'text-measured')}> · {invoice}</span>}
-          </span>
-        </span>
-        <span
-          className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', late ? 'bg-exception/8 text-exception' : meta.tint)}
-        >
-          {late ? 'Overdue' : meta.label}
-        </span>
-        {step ? (
-          <span className="hidden h-8 shrink-0 items-center gap-1 rounded-md border border-rule/60 bg-background px-2.5 text-xs font-semibold text-foreground sm:inline-flex">
-            {step === 'Send' ? <Send size={12} aria-hidden="true" /> : <Truck size={12} aria-hidden="true" />}
-            {step}
-          </span>
+    <ListRow
+      onClick={onOpen}
+      selected={selected}
+      icon={meta.icon}
+      tone={late ? 'exception' : meta.tone}
+      iconLabel={meta.label}
+      muted={po.status === 'cancelled'}
+      title={
+        <>
+          {po.reference} <span className="font-normal">· {po.supplier?.name ?? 'Supplier'}</span>
+        </>
+      }
+      meta={
+        due ? (
+          <span className={cn(late && 'font-medium text-exception')}>{due}</span>
+        ) : po.expectedAt ? (
+          `Expected ${formatDate(po.expectedAt)}`
         ) : (
-          <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-        )}
-      </button>
-    </li>
+          'No delivery date'
+        )
+      }
+      trailing={
+        <>
+          {po.invoiceMatched ? (
+            <IconTag icon={ReceiptText} tone="success" label="Invoice matched" />
+          ) : po.invoiceNumber ? (
+            <IconTag icon={ReceiptText} tone="warning" label={`Invoice ${po.invoiceNumber} not matched`} />
+          ) : null}
+          {late && <Pill tone="exception">Overdue</Pill>}
+          {summary && (
+            <span className="hidden w-24 text-right sm:block">
+              <span className="block text-sm font-semibold text-foreground tabular-nums">{money(Number(summary.totalCost))}</span>
+              {received !== null ? (
+                <MiniBar value={received} max={1} tone="warning" label={`${Math.round(received * 100)}% received`} className="mt-1.5" />
+              ) : (
+                <span className="block text-xs text-muted-foreground">
+                  {summary.lineCount} {summary.lineCount === 1 ? 'line' : 'lines'}
+                </span>
+              )}
+            </span>
+          )}
+          {step && (
+            <span className="hidden h-8 items-center gap-1 rounded-md border border-rule/60 bg-background px-2.5 text-xs font-semibold text-foreground sm:inline-flex">
+              {step === 'Send' ? <Send size={12} aria-hidden="true" /> : <Truck size={12} aria-hidden="true" />}
+              {step}
+            </span>
+          )}
+        </>
+      }
+      chevron={!step}
+    />
   );
 }

@@ -6,25 +6,11 @@ import QRCode from 'react-qr-code';
 
 import { GrantRewardModal, rewardLabel } from '@/components/customers/CustomerLoyaltyCards';
 import { CustomerNotesPanel } from '@/components/customers/CustomerNotesPanel';
-import {
-  Ban,
-  Calendar,
-  Check,
-  CheckCircle2,
-  Coffee,
-  Coins,
-  Copy,
-  Gift,
-  Mail,
-  Pencil,
-  Phone,
-  QrCode,
-  Send,
-  ShieldAlert,
-} from '@/components/icons';
+import { Ban, Calendar, CheckCircle2, Coffee, Coins, Gift, Mail, Pencil, Phone, QrCode, Send, ShieldAlert } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Modal } from '@/components/shared/Modal';
+import { CopyGlyph } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 
 import type { CustomerLoyaltyProgram } from '@/lib/api/loyalty.service';
@@ -280,8 +266,8 @@ function MembershipCard({ customer }: { customer: Customer }) {
 
         <div className="relative mt-4 flex items-end justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-lg font-semibold">{name || 'Guest'}</p>
-            <p className="mt-3 text-micro font-semibold uppercase tracking-micro text-primary-foreground/60">Member no.</p>
+            {/* The name is the masthead's — the card carries only what the till reads. */}
+            <p className="text-micro font-semibold uppercase tracking-micro text-primary-foreground/60">Member no.</p>
             <p className="flex items-center gap-1">
               <span className="font-mono text-sm font-semibold tracking-wider">{memberNumber}</span>
               <CopyValue value={customer.id} label="full customer ID" onDark />
@@ -332,11 +318,7 @@ function CopyValue({ value, label, onDark = false }: { value: string; label: str
           : 'text-muted-foreground hover:bg-band hover:text-foreground',
       )}
     >
-      {copied ? (
-        <Check size={14} className={onDark ? 'text-primary-foreground' : 'text-momentum'} aria-hidden="true" />
-      ) : (
-        <Copy size={14} aria-hidden="true" />
-      )}
+      <CopyGlyph copied={copied} className={cn('size-3.5', onDark ? 'text-primary-foreground' : 'text-momentum')} />
     </button>
   );
 }

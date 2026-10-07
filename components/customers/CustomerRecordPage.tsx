@@ -21,7 +21,6 @@ import {
   AlertTriangle,
   Clock,
   Combine,
-  Loader2,
   Receipt,
   Repeat,
   RotateCcw,
@@ -37,6 +36,7 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
+import { Bone, LoadingState } from '@/components/shared/Skeleton';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -258,9 +258,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
       }
     >
       {isLoading ? (
-        <div className="flex items-center justify-center py-24 text-muted-foreground">
-          <Loader2 size={22} className="animate-spin" aria-label="Loading customer" />
-        </div>
+        <LoadingState label="Loading the customer" className="py-24" />
       ) : isError || !customer ? (
         <div className="mx-auto max-w-md rounded-lg border border-rule/60 bg-field">
           {isError ? (
@@ -379,7 +377,9 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                       footnote={visitsQuery.isSuccess && visits.length >= 200 ? 'Drawn from their most recent 200 orders.' : undefined}
                     >
                       {visitsQuery.isPending ? (
-                        <div className="h-40 animate-pulse rounded-lg bg-band/60" aria-label="Loading visits" />
+                        <div role="status" aria-busy="true" aria-label="Loading visits">
+                          <Bone className="h-40 rounded-lg" />
+                        </div>
                       ) : visitsQuery.isError ? (
                         <ErrorState
                           className="py-8"

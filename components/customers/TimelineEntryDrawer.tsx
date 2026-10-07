@@ -21,6 +21,7 @@ import {
 import { Fact } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { LoadingState } from '@/components/shared/Skeleton';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -159,7 +160,7 @@ function OrderDetailBody({
     refetch,
   } = useQuery({ queryKey: moduleQueryKeys.ordering.key('order', orderId), queryFn: () => getOrder(orderId) });
 
-  if (isPending) return <Loading />;
+  if (isPending) return <LoadingState label="Loading the order" />;
   if (isError || !order) return <ErrorState title="This order couldn’t be loaded" onRetry={() => void refetch()} />;
 
   const discount = Number(order.discountAmount ?? 0);
@@ -318,7 +319,7 @@ function EmailDetailBody({ entry, customerId, tenantId }: { entry: TimelineEntry
 
   const delivery = data?.data.find((item) => item.id === entry.id);
 
-  if (isPending) return <Loading />;
+  if (isPending) return <LoadingState label="Loading the message" />;
   if (isError) return <ErrorState title="This message couldn’t be loaded" onRetry={() => void refetch()} />;
 
   return (
@@ -522,15 +523,5 @@ function IconRow({
         {figure}
       </span>
     </li>
-  );
-}
-
-function Loading() {
-  return (
-    <div className="space-y-3" aria-label="Loading">
-      <div className="h-4 w-24 animate-pulse rounded-sm bg-band" />
-      <div className="h-40 animate-pulse rounded-lg bg-band/60" />
-      <div className="h-24 animate-pulse rounded-lg bg-band/60" />
-    </div>
   );
 }

@@ -7,6 +7,7 @@ import type { ComponentProps, MouseEvent, ReactNode } from 'react';
 import { ArrowDownRight, ArrowUpRight, TrendingDown, TrendingUp } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 
+import { Bone } from './Skeleton';
 import { cn } from '@/lib/utils/cn';
 import { percentageChange } from '@/lib/utils/dashboard';
 
@@ -592,11 +593,11 @@ export function StatCardSkeleton({ size = 'md', className }: { size?: 'sm' | 'md
   return (
     <div className={cn(CARD_BASE, sm ? 'p-4' : 'p-5', className)} aria-hidden="true">
       <div className="flex items-center gap-3">
-        <div className={cn('animate-pulse rounded-sm bg-band', sm ? 'size-8' : 'size-10')} />
-        <div className="h-3.5 w-28 animate-pulse bg-band" />
+        <Bone className={cn('rounded-sm', sm ? 'size-8' : 'size-10')} />
+        <Bone className="h-3.5 w-28" />
       </div>
-      <div className={cn('animate-pulse bg-band', sm ? 'mt-3 h-7 w-24' : 'mt-4 h-9 w-32')} />
-      <div className="mt-3 h-3 w-20 animate-pulse bg-band" />
+      <Bone className={sm ? 'mt-3 h-7 w-24' : 'mt-4 h-9 w-32'} />
+      <Bone className="mt-3 h-3 w-20" />
     </div>
   );
 }

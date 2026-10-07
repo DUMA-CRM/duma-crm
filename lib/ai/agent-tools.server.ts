@@ -4,17 +4,23 @@ import { auditChangeSet, auditSubject } from '@/lib/audit/change';
 import { auditActor, auditPhrase, auditRole, auditSeverity, resourceLabel, severityLabel } from '@/lib/audit/narrative';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
 import type {
+  CategorySales,
   CustomerRetention,
+  ExceptionsAnalytics,
   HourlyVolume,
+  LabourAnalytics,
   OrderAnalytics,
+  PaymentMethodSales,
   RevenueByLocation,
   StaffHoursAnalytics,
+  TaxAnalytics,
   TopItemAnalytics,
 } from '@/lib/modules/analytics/client';
 import type { AuditLogsResponse } from '@/lib/modules/audit/client';
 import type { EmailAutomation, EmailConnection, EmailDeliveriesResponse, EmailTemplate } from '@/lib/modules/communications/client';
 import type { PrivacyRequest } from '@/lib/modules/compliance/client';
-import type { InventoryForecast, LowStockAlert } from '@/lib/modules/inventory/client';
+import type { CustomerLoyaltyProgram } from '@/lib/modules/customers/client';
+import type { InventoryForecast, LowStockAlert, RecipeGap } from '@/lib/modules/inventory/client';
 import type { LossLogResponse } from '@/lib/modules/inventory/client';
 import type { RestockRequestsResponse } from '@/lib/modules/inventory/client';
 import { decodeNotes } from '@/lib/modules/inventory/client';
@@ -22,9 +28,9 @@ import type { StocktakesResponse } from '@/lib/modules/inventory/client';
 import type { StockTransfersResponse } from '@/lib/modules/inventory/client';
 import { MODULE_IDS, type ModuleId, isModuleSurfaceEnabled } from '@/lib/modules/manifest';
 import type { Order, OrderDetail } from '@/lib/modules/ordering/client';
-import type { Location } from '@/lib/modules/organization/client';
-import type { CashUp } from '@/lib/modules/payments/client';
-import type { PayrollPreview, PayrollRun } from '@/lib/modules/payroll/client';
+import type { CurrentTenantModules, Location } from '@/lib/modules/organization/client';
+import type { CashUp, CashUpExpectation } from '@/lib/modules/payments/client';
+import type { PayrollPreview, PayrollRun, Payslip } from '@/lib/modules/payroll/client';
 import type {
   AbsenceLog,
   AttendanceDay,
@@ -35,10 +41,10 @@ import type {
 } from '@/lib/modules/people/client';
 import type { PurchaseOrdersResponse } from '@/lib/modules/purchasing/client';
 import type { QrOrderingConfig } from '@/lib/modules/qr-ordering/client';
-import type { ScheduledShift } from '@/lib/modules/workforce/client';
+import type { ScheduledShift, VarianceRow } from '@/lib/modules/workforce/client';
 import type { Shift } from '@/lib/modules/workforce/client';
 import { attendanceTotals, groupAttendanceByWeek, leaveBalance, mergeAbsenceDays, myHrActions } from '@/lib/utils/my-hr';
-import type { CustomerSegment, CustomersResponse } from '@/types/customers';
+import type { Customer, CustomerSegment, CustomersResponse } from '@/types/customers';
 
 import {
   addDays,
@@ -161,7 +167,7 @@ function tradingHours(location: Location) {
   if (!hours) {
     return {
       today: { date, weekday, localTimeNow: time, hoursSet: false as const },
-      note: 'No opening hours have been set for this location in Settings → Locations.',
+      note: 'No opening hours have been set for this location. They are edited in Settings → Workspace, on the location.',
     };
   }
 
@@ -187,8 +193,9 @@ const listLocations: ToolDefinition = {
   module: 'organization',
   name: 'list_locations',
   description:
-    'List the locations the operator can access, with their address, phone, timezone and trading hours — today’s opening and closing time, whether the site is open right now, and the full weekly pattern. Use this for any question about when a site opens or closes.',
-  // No capability — GET /locations is authenticated but ungated on the API.
+    'List the locations the operator can access, with their address, phone, timezone, trading hours — today’s opening and closing time, whether the site is open right now, and the full weekly pattern — the order workflow (kitchen: paid tickets stay on the kitchen screen until made; counter: a sale completes when paid) and the daily net takings target. Use this for any question about when a site opens or closes, how orders flow, or what the daily target is.',
+  // The API gates GET /locations on `locations:read`, which every built-in role
+  // holds and the frontend deliberately does not name, so the module gates it.
   step: 'Checking locations and trading hours',
   parameters: schema({}),
   async run(_args, runtime) {
@@ -205,13 +212,78 @@ const listLocations: ToolDefinition = {
         address: location.address,
         phone: location.phone ?? null,
         timezone: location.timezone,
+        orderWorkflow: location.orderFulfilmentMode === 'counter' ? 'counter service' : 'kitchen',
+        dailyTakingsTargetGbp: location.dailyRevenueTarget == null ? null : toNumber(location.dailyRevenueTarget),
         ...tradingHours(location),
       })),
       evidence: `${locations.length} accessible location${locations.length === 1 ? '' : 's'}, ${open} open now`,
       shortcuts: [
         ...locations.slice(0, 5).map(({ id, name }) => page(`Open ${name}`, '/dashboard', 'Switches the active location', id)),
-        page('Edit trading hours', '/settings/workspaces', 'Settings · Locations'),
+        page('Edit trading hours', '/settings/workspaces', 'Settings · Workspace'),
       ],
+    };
+  },
+};
+
+/** What each module is called on screen, for answers about what is switched on. */
+const MODULE_NAMES: Record<ModuleId, string> = {
+  core: 'Core',
+  identity: 'Accounts & sign-in',
+  organization: 'Workspace & locations',
+  customers: 'Customers & loyalty',
+  catalog: 'Menu',
+  ordering: 'Orders & kitchen screen',
+  pos: 'Till',
+  'qr-ordering': 'QR ordering',
+  payments: 'Payments & cash-up',
+  inventory: 'Inventory',
+  purchasing: 'Purchasing & suppliers',
+  workforce: 'Rota & time',
+  people: 'Staff & HR',
+  payroll: 'Payroll',
+  communications: 'Customer email',
+  compliance: 'Compliance',
+  audit: 'Audit log',
+  analytics: 'Dashboard & reports',
+  agent: 'Ask DUMA',
+  support: 'Support & helpdesk',
+  cms: 'Content (CMS)',
+};
+
+const getWorkspaceModules: ToolDefinition = {
+  module: 'organization',
+  name: 'get_workspace_modules',
+  description:
+    'Read which product modules are switched on for this workspace (till, kitchen screen, QR ordering, inventory, purchasing, rota, HR, payroll, customer email, compliance and so on). Use when someone asks why a page, menu entry or feature is missing, or what the workspace has turned on. A disabled module hides its pages and the API refuses its data; turning one on or off is done in Settings → Modules by someone who can change workspace settings.',
+  // Authenticated, ungated: GET /modules/current is how every page decides what to show.
+  step: 'Checking workspace modules',
+  parameters: schema({}),
+  async run(_args, runtime) {
+    const tenant = runtime.tenantId ? `?${new URLSearchParams({ tenantId: runtime.tenantId })}` : '';
+    const state = await runtime.get<CurrentTenantModules>(`/modules/current${tenant}`);
+    const known = state.modules.filter((row) => (MODULE_IDS as readonly string[]).includes(row.moduleId));
+    const enabled = known.filter((row) => row.status === 'enabled');
+    const disabled = known.filter((row) => row.status !== 'enabled');
+    return {
+      output: {
+        enabled: enabled.map((row) => ({ id: row.moduleId, name: MODULE_NAMES[row.moduleId] })),
+        disabled: disabled.map((row) => ({ id: row.moduleId, name: MODULE_NAMES[row.moduleId] })),
+        note: 'A feature can also be hidden because this operator lacks the capability for it, even when its module is on.',
+      },
+      evidence: `${enabled.length} module${enabled.length === 1 ? '' : 's'} enabled, ${disabled.length} disabled`,
+      cards: [
+        {
+          kind: 'list',
+          title: 'Switched off',
+          caption: `${enabled.length} of ${known.length} modules on`,
+          emptyTone: 'clean' as const,
+          emptyLabel: 'Every module is switched on.',
+          rows: disabled.slice(0, 8).map((row) => ({ label: MODULE_NAMES[row.moduleId], value: 'Off', tone: 'warning' as const })),
+        },
+      ],
+      shortcuts: hasCapability(runtime.profile, 'settings:write')
+        ? [page('Open modules', '/settings/modules', 'Settings · Modules')]
+        : undefined,
     };
   },
 };
@@ -325,21 +397,28 @@ const listSuppliers: ToolDefinition = {
 };
 
 const listStockItems: ToolDefinition = {
-  module: 'inventory',
   name: 'list_stock_items',
-  description: 'Find active stock items with their units, last known costs and default reorder quantities.',
-  // No capability — GET /stock-items is authenticated but ungated on the API.
+  description:
+    'Find active stock items with their units, barcodes, last known costs and default reorder quantities. The query matches the item name or an exact barcode.',
+  // The API accepts `stock:read` or `inventory:read`; every role holding the
+  // first also holds the second, and till staff hold only the second.
+  capability: 'inventory:read',
   step: 'Checking stock items',
-  parameters: schema({ query: { type: 'string', description: 'Case-insensitive item name search; use an empty string to list all.' } }),
+  parameters: schema({
+    query: { type: 'string', description: 'Case-insensitive item name, or a scanned barcode; use an empty string to list all.' },
+  }),
   async run(args, runtime) {
     const query = optionalText(args.query, 60).toLocaleLowerCase('en-GB');
     const items = (await runtime.stockItems())
-      .filter((item) => !query || item.name.toLocaleLowerCase('en-GB').includes(query))
+      .filter(
+        (item) => !query || item.name.toLocaleLowerCase('en-GB').includes(query) || item.barcode?.toLocaleLowerCase('en-GB') === query,
+      )
       .slice(0, 100);
     return {
-      output: items.map(({ id, name, unit, category, costPerUnit, defaultReorderQuantity }) => ({
+      output: items.map(({ id, name, barcode, unit, category, costPerUnit, defaultReorderQuantity }) => ({
         id,
         name,
+        barcode: barcode ?? null,
         unit,
         category,
         lastKnownUnitCostGbp: costPerUnit == null ? null : toNumber(costPerUnit),
@@ -371,7 +450,8 @@ const listMenuItems: ToolDefinition = {
   module: 'catalog',
   name: 'list_menu_items',
   description: 'List menu items with their brand-wide price, category and availability.',
-  // No capability — the menu is readable by every signed-in user.
+  // The API gates GET /menu-items on `menu:read`, which every built-in role
+  // holds and the frontend deliberately does not name, so the module gates it.
   step: 'Reading the menu',
   parameters: schema({ query: { type: 'string', description: 'Case-insensitive name search; empty string lists all.' } }),
   async run(args, runtime) {
@@ -443,7 +523,7 @@ const listStaff: ToolDefinition = {
           })),
         },
       ],
-      shortcuts: [page('Open team', '/staff/team', 'Team')],
+      shortcuts: [page('Open team', '/staff/team', 'Staff · Team')],
     };
   },
 };
@@ -650,7 +730,12 @@ const getSalesReport: ToolDefinition = {
             },
           ],
       shortcuts: [
-        page('Open the sales summary', '/reports/sales-summary', locationId ? 'Switches the active location' : 'Reports · Sales summary', locationId),
+        page(
+          'Open the sales summary',
+          '/reports/sales-summary',
+          locationId ? 'Switches the active location' : 'Reports · Sales summary',
+          locationId,
+        ),
       ],
     };
   },
@@ -659,11 +744,24 @@ const getSalesReport: ToolDefinition = {
 const getBusinessAnalytics: ToolDefinition = {
   name: 'get_business_analytics',
   description:
-    'Read one analytics view over a date range: hourly_volume (trade by hour of day), revenue_by_location, customer_retention (new vs returning), or staff_hours (worked hours per person). Set includeChart true when the operator asks for a chart, graph, or visual comparison.',
+    'Read one analytics view over a date range — the same figures as the matching report in Reports: hourly_volume (Sales by hour), revenue_by_location (Sales by location), customer_retention (new vs returning), staff_hours (worked hours per person), labour (Labour vs sales: paid hours, estimated cost, and labour as a share of net sales), payment_methods (sales by how customers paid), vat (VAT collected, by rate), discounts_voids (discounts given and voided orders, with reasons), or category_sales (sales by menu category). Set includeChart true when the operator asks for a chart, graph, or visual comparison.',
   capability: 'analytics:read',
   step: 'Reading analytics',
   parameters: schema({
-    metric: { type: 'string', enum: ['hourly_volume', 'revenue_by_location', 'customer_retention', 'staff_hours'] },
+    metric: {
+      type: 'string',
+      enum: [
+        'hourly_volume',
+        'revenue_by_location',
+        'customer_retention',
+        'staff_hours',
+        'labour',
+        'payment_methods',
+        'vat',
+        'discounts_voids',
+        'category_sales',
+      ],
+    },
     from: { type: 'string', description: DATE },
     to: { type: 'string', description: DATE },
     locationId: nullableString('Restrict to one location, or null.'),
@@ -707,7 +805,7 @@ const getBusinessAnalytics: ToolDefinition = {
                 },
               ]
           : [],
-        shortcuts: [page('Open reports', '/reports', 'Reports')],
+        shortcuts: [page('Open sales by hour', '/reports/sales-by-hour', 'Reports · Sales by hour')],
       };
     }
 
@@ -740,7 +838,7 @@ const getBusinessAnalytics: ToolDefinition = {
               },
             ]
           : undefined,
-        shortcuts: [page('Open reports', '/reports', 'Reports')],
+        shortcuts: [page('Open sales by location', '/reports/sales-by-location', 'Reports · Sales by location')],
       };
     }
 
@@ -775,7 +873,193 @@ const getBusinessAnalytics: ToolDefinition = {
                 ],
               },
             ],
-        shortcuts: [page('Open customers', '/customers', 'Customers')],
+        shortcuts: [page('Open customer retention', '/reports/customer-retention', 'Reports · Customer retention')],
+      };
+    }
+
+    const range = rangeLabel(query.get('from') ?? '', query.get('to') ?? '');
+
+    if (metric === 'labour') {
+      const [labour, sales] = await Promise.all([
+        runtime.get<LabourAnalytics>(`/analytics/labour?${query}`),
+        runtime.get<OrderAnalytics>(`/analytics/orders?${query}`),
+      ]);
+      const netSales = toNumber(sales.summary.totalRevenue);
+      const labourPercent = netSales > 0 ? round((labour.estimatedCost / netSales) * 100, 1) : null;
+      return {
+        output: {
+          ...labour,
+          netSalesGbp: netSales,
+          labourPercentOfNetSales: labourPercent,
+          notes: [
+            'estimatedCost covers paid hours only: time clocked outside a rota slot (uncostedHours) is not costed.',
+            labour.costComplete
+              ? 'Every person in the window has usable pay data.'
+              : `${labour.staffMissingPayData} person(s) have no usable pay record, so the cost is understated — say so.`,
+            'labourPercentOfNetSales matches the Labour vs sales report: net sales as taken, VAT included where charged. The Profit panel on the Reports home measures against sales without VAT, so its labour % reads higher.',
+          ],
+        },
+        evidence: `Labour ${query.get('from')}–${query.get('to')}`,
+        cards: [
+          {
+            title: 'Labour vs sales',
+            caption: range,
+            metrics: [
+              { label: 'Paid hours', value: String(round(labour.paidHours, 1)) },
+              {
+                label: 'Est. cost',
+                value: gbp(labour.estimatedCost),
+                ...(labour.costComplete ? {} : { hint: 'Incomplete pay data', tone: 'warning' as const }),
+              },
+              { label: 'Labour %', value: labourPercent == null ? 'No sales' : `${labourPercent}%` },
+              { label: 'Headcount', value: String(labour.headcount) },
+            ],
+          },
+        ],
+        shortcuts: [page('Open labour vs sales', '/reports/labour-vs-sales', 'Reports · Labour vs sales')],
+      };
+    }
+
+    if (metric === 'payment_methods') {
+      const rows = await runtime.get<PaymentMethodSales[]>(`/analytics/payments?${query}`);
+      return {
+        output: rows.map((row) => ({
+          method: row.method,
+          orders: row.orders,
+          grossGbp: round(row.gross, 2),
+          refundedGbp: round(row.refunded, 2),
+          netGbp: round(row.revenue, 2),
+        })),
+        evidence: `Payment methods ${query.get('from')}–${query.get('to')}`,
+        cards: args.includeChart
+          ? [
+              {
+                kind: 'chart' as const,
+                type: 'bar' as const,
+                title: 'Sales by payment method',
+                caption: range,
+                format: 'currency' as const,
+                series: [{ key: 'net', label: 'Net sales' }],
+                points: rows.map((row) => ({ label: sentence(row.method), values: { net: round(row.revenue, 2) } })),
+              },
+            ]
+          : [
+              {
+                kind: 'list' as const,
+                title: 'Sales by payment method',
+                caption: range,
+                emptyLabel: 'No sales in this range.',
+                rows: rows.slice(0, 6).map((row) => ({
+                  label: sentence(row.method),
+                  value: gbp(row.revenue),
+                  meta: `${row.orders} order${row.orders === 1 ? '' : 's'}${row.refunded ? ` · ${gbp(row.refunded)} refunded` : ''}`,
+                })),
+              },
+            ],
+        shortcuts: [page('Open payment methods', '/reports/payment-methods', 'Reports · Payment methods')],
+      };
+    }
+
+    if (metric === 'vat') {
+      const tax = await runtime.get<TaxAnalytics>(`/analytics/tax?${query}`);
+      return {
+        output: {
+          vatRegistered: tax.vatRegistered,
+          pricesIncludeVat: tax.pricesIncludeTax,
+          recordedGrossGbp: round(tax.recorded.gross, 2),
+          recordedVatGbp: round(tax.recorded.vat, 2),
+          byRate: tax.byRate.map((bucket) => ({
+            ratePercent: bucket.rate,
+            grossGbp: round(bucket.gross, 2),
+            vatGbp: round(bucket.vat, 2),
+            netGbp: round(bucket.net, 2),
+          })),
+          notes: [
+            'recordedVatGbp is exact: the VAT stored on each order when it was taken.',
+            'The by-rate split uses each item’s current VAT rate, because order lines do not store their rate — treat it as an estimate.',
+            ...(tax.vatRegistered ? [] : ['The workspace is not VAT registered, so no VAT is due on these sales.']),
+          ],
+        },
+        evidence: `VAT ${query.get('from')}–${query.get('to')}`,
+        cards: [
+          {
+            title: 'VAT',
+            caption: range,
+            metrics: [
+              { label: 'Gross sales', value: gbp(tax.recorded.gross) },
+              { label: 'VAT recorded', value: gbp(tax.recorded.vat) },
+              { label: 'Registered', value: tax.vatRegistered ? 'Yes' : 'No' },
+            ],
+          },
+        ],
+        shortcuts: [page('Open VAT', '/reports/vat', 'Reports · VAT')],
+      };
+    }
+
+    if (metric === 'discounts_voids') {
+      const exceptions = await runtime.get<ExceptionsAnalytics>(`/analytics/exceptions?${query}`);
+      const discountTotal = round(
+        exceptions.discounts.reduce((sum, row) => sum + row.amount, 0),
+        2,
+      );
+      const voidTotal = round(
+        exceptions.voids.reduce((sum, row) => sum + row.amount, 0),
+        2,
+      );
+      return {
+        output: {
+          discounts: exceptions.discounts.map((row) => ({ ...row, amountGbp: round(row.amount, 2) })),
+          voids: exceptions.voids.map((row) => ({ ...row, amountGbp: round(row.amount, 2) })),
+          discountTotalGbp: discountTotal,
+          voidTotalGbp: voidTotal,
+          note: 'Refunds are separate — use get_sales_report for refunds.',
+        },
+        evidence: `Discounts and voids ${query.get('from')}–${query.get('to')}`,
+        cards: [
+          {
+            title: 'Discounts & voids',
+            caption: range,
+            metrics: [
+              { label: 'Discounts', value: gbp(discountTotal) },
+              {
+                label: 'Voided',
+                value: gbp(voidTotal),
+                hint: `${exceptions.voids.reduce((sum, row) => sum + row.orders, 0)} orders`,
+                ...(voidTotal > 0 ? { tone: 'warning' as const } : {}),
+              },
+            ],
+          },
+        ],
+        shortcuts: [page('Open discounts & voids', '/reports/discounts-voids', 'Reports · Discounts & voids')],
+      };
+    }
+
+    if (metric === 'category_sales') {
+      const rows = await runtime.get<CategorySales[]>(`/analytics/category-sales?${query}`);
+      const ranked = rows.slice().sort((a, b) => b.revenue - a.revenue);
+      return {
+        output: ranked.map((row) => ({
+          categoryId: row.categoryId,
+          name: row.name,
+          quantity: row.quantity,
+          revenueGbp: round(row.revenue, 2),
+          orders: row.orders,
+        })),
+        evidence: `Category sales ${query.get('from')}–${query.get('to')}`,
+        cards: args.includeChart
+          ? [
+              {
+                kind: 'chart' as const,
+                type: 'bar' as const,
+                title: 'Sales by category',
+                caption: range,
+                format: 'currency' as const,
+                series: [{ key: 'revenue', label: 'Revenue' }],
+                points: ranked.slice(0, 10).map((row) => ({ label: row.name, values: { revenue: round(row.revenue, 2) } })),
+              },
+            ]
+          : undefined,
+        shortcuts: [page('Open item & category sales', '/reports/item-sales', 'Reports · Item & category sales')],
       };
     }
 
@@ -808,7 +1092,7 @@ const getBusinessAnalytics: ToolDefinition = {
             },
           ]
         : undefined,
-      shortcuts: [page('Open the rota', '/staff/rota', 'Team · Rota')],
+      shortcuts: [page('Open staff hours', '/reports/staff-hours', 'Reports · Staff hours')],
     };
   },
 };
@@ -1008,7 +1292,10 @@ const getInventoryStatus: ToolDefinition = {
   name: 'get_inventory_status',
   description:
     'Read stock health for a location: what is below its low threshold, days of cover remaining and the recommended reorder quantity. Returns the locationStockId needed to change thresholds.',
-  capability: 'inventory:read',
+  // GET /location-stock/alerts is gated on `stock.locations:read`. Till staff
+  // hold `inventory:read` (to record waste) but not this, so gating on the
+  // broader one offered them a tool that always 403'd.
+  capability: 'stock.locations:read',
   step: 'Checking stock levels',
   parameters: schema({
     locationId: nullableString('Restrict to one location, or null for the active one.'),
@@ -1195,18 +1482,23 @@ const listRestockRequests: ToolDefinition = {
 const getStockOperations: ToolDefinition = {
   name: 'get_stock_operations',
   description: 'Read open stock work: pending transfers between locations and stocktakes in progress.',
-  capability: 'stock:read',
+  // The two halves are gated separately on the API: `stock.transfers:read` and
+  // `stocktakes:read`. The tool needs the first; the second is read only when held.
+  capability: 'stock.transfers:read',
   step: 'Checking stock operations',
   parameters: schema({ locationId: nullableString('Restrict to one location, or null for the active one.') }),
   async run(args, runtime) {
     const locationId = typeof args.locationId === 'string' && args.locationId ? args.locationId : runtime.locationId;
     const query = new URLSearchParams({ limit: '20', ...(locationId ? { locationId } : {}) });
+    const canReadStocktakes = hasCapability(runtime.profile, 'stocktakes:read');
     const [transfers, stocktakes] = await Promise.all([
       runtime.get<StockTransfersResponse>(`/stock-transfers?${new URLSearchParams({ ...Object.fromEntries(query), status: 'pending' })}`),
-      runtime.get<StocktakesResponse>(`/stocktakes?${new URLSearchParams({ ...Object.fromEntries(query), status: 'in_progress' })}`),
+      canReadStocktakes
+        ? runtime.get<StocktakesResponse>(`/stocktakes?${new URLSearchParams({ ...Object.fromEntries(query), status: 'in_progress' })}`)
+        : null,
     ]);
     const pendingTransfers = transfers.data ?? [];
-    const openStocktakes = stocktakes.data ?? [];
+    const openStocktakes = stocktakes?.data ?? [];
     return {
       output: {
         pendingTransfers: pendingTransfers.map((transfer) => ({
@@ -1222,6 +1514,7 @@ const getStockOperations: ToolDefinition = {
           startedAt: stocktake.createdAt,
           lines: (stocktake.lines ?? []).length,
         })),
+        ...(canReadStocktakes ? {} : { stocktakesNote: 'This operator cannot read stocktakes, so none are listed.' }),
       },
       evidence: `${pendingTransfers.length} pending transfer${pendingTransfers.length === 1 ? '' : 's'}, ${openStocktakes.length} open stocktake${openStocktakes.length === 1 ? '' : 's'}`,
       shortcuts: [page('Open stock', '/inventory', 'Inventory · Stock')],
@@ -1262,7 +1555,35 @@ const getLossLog: ToolDefinition = {
         })),
       },
       evidence: `${records.length} write-off${records.length === 1 ? '' : 's'} ${query.get('from')}–${query.get('to')}`,
-      shortcuts: [page('Open stock', '/inventory', 'Inventory · Stock')],
+      shortcuts: [page('Open waste & loss', '/reports/waste', 'Reports · Waste & loss')],
+    };
+  },
+};
+
+const listRecipeGaps: ToolDefinition = {
+  name: 'list_recipe_gaps',
+  description:
+    'List menu items that have no recipe. Without a recipe a sale cannot deduct stock and the item has no food cost, so its margin is unknown in Menu engineering and Prime cost. Use for "which items are missing recipes" or when a margin or stock figure looks wrong.',
+  capability: 'recipes:read',
+  step: 'Checking menu recipes',
+  parameters: schema({}),
+  async run(_args, runtime) {
+    const tenant = runtime.tenantId ? `?${new URLSearchParams({ tenantId: runtime.tenantId })}` : '';
+    const gaps = await runtime.get<RecipeGap[]>(`/menu-item-recipes/gaps${tenant}`);
+    return {
+      output: { total: gaps.length, items: gaps.slice(0, 60).map(({ id, name, category }) => ({ id, name, category })) },
+      evidence: `${gaps.length} menu item${gaps.length === 1 ? '' : 's'} without a recipe`,
+      cards: [
+        {
+          kind: 'list',
+          title: 'Missing recipes',
+          caption: gaps.length > 6 ? `Showing 6 of ${gaps.length}` : undefined,
+          emptyTone: 'clean' as const,
+          emptyLabel: 'Every menu item has a recipe.',
+          rows: gaps.slice(0, 6).map((gap) => ({ label: gap.name, meta: gap.category, tone: 'warning' as const })),
+        },
+      ],
+      shortcuts: [page('Open the menu', '/menu/items', 'Menu · Items')],
     };
   },
 };
@@ -1309,6 +1630,84 @@ const searchCustomers: ToolDefinition = {
         },
       ],
       shortcuts: [page('Open customers', '/customers', 'Customers')],
+    };
+  },
+};
+
+/**
+ * One customer as the record page shows them: tier, points, visits and spend,
+ * the guest-safety facts staff must see (allergies, dietary needs, alerts), and
+ * the loyalty wallet — stamp-card balances and the reward vouchers ready to
+ * redeem. Reading the wallet also lets the API issue any birthday reward that is
+ * due, exactly as opening the record does.
+ */
+const getCustomer: ToolDefinition = {
+  name: 'get_customer',
+  description:
+    'Read one customer’s record: loyalty tier, points balance, visits, spend, last visit, marketing consent, allergies, dietary needs and staff alerts, plus their loyalty wallet — stamp or punch-card balance per programme, rewards (vouchers) ready to redeem and when they expire. Resolve the id with search_customers first.',
+  capability: 'customers:read',
+  step: 'Opening the customer record',
+  parameters: schema({ customerId: { type: 'string', description: 'Customer id from search_customers.' } }),
+  async run(args, runtime) {
+    const customerId = optionalText(args.customerId, 60);
+    if (!customerId) return { output: { error: 'A customer id is required — find it with search_customers.' } };
+    const [customer, wallet] = await Promise.all([
+      runtime.get<Customer>(`/customers/${encodeURIComponent(customerId)}`),
+      runtime
+        .get<{ programmes: CustomerLoyaltyProgram[] }>(`/loyalty-programs/customers/${encodeURIComponent(customerId)}`)
+        .catch(() => null),
+    ]);
+    const name = `${customer.firstName} ${customer.lastName}`.trim();
+    const programmes = (wallet?.programmes ?? []).map((programme) => ({
+      name: programme.name,
+      balance: programme.balance,
+      unit: programme.balance === 1 ? programme.unitSingular : programme.unitPlural,
+      stampsPerReward: programme.rewardRule.cost,
+      rewardsReady: programme.rewards.length,
+      nextRewardExpiresAt: programme.nextRewardExpiresAt,
+      lifetimeEarned: programme.lifetimeEarned,
+      lifetimeRedeemed: programme.lifetimeRedeemed,
+    }));
+    return {
+      output: {
+        id: customer.id,
+        name,
+        phone: customer.phone,
+        email: customer.email ?? null,
+        tier: customer.tier,
+        pointsBalance: customer.pointsBalance,
+        totalVisits: customer.totalVisits,
+        totalSpentGbp: toNumber(customer.totalSpent),
+        lastVisitAt: customer.lastVisitAt ?? null,
+        customerSince: customer.createdAt,
+        marketingOptIn: customer.marketingOptIn,
+        allergies: customer.allergies ?? [],
+        dietary: customer.dietary ?? [],
+        alerts: customer.alerts ?? [],
+        loyaltyProgrammes: programmes,
+        ...(wallet ? {} : { loyaltyNote: 'The loyalty wallet could not be read, so stamp balances and vouchers are unknown — not zero.' }),
+      },
+      evidence: `Customer record · ${name || customer.id.slice(0, 8)}`,
+      cards: [
+        {
+          title: name || 'Customer',
+          caption: sentence(customer.tier),
+          metrics: [
+            { label: 'Points', value: String(customer.pointsBalance) },
+            { label: 'Visits', value: String(customer.totalVisits) },
+            { label: 'Spent', value: gbp(customer.totalSpent) },
+            ...(programmes.length
+              ? [
+                  {
+                    label: 'Rewards ready',
+                    value: String(programmes.reduce((sum, programme) => sum + programme.rewardsReady, 0)),
+                  },
+                ]
+              : []),
+          ],
+        },
+      ],
+      shortcuts: [page('Open customer', `/customers/${customer.id}`, 'Customer record')],
     };
   },
 };
@@ -1406,7 +1805,76 @@ const getSchedule: ToolDefinition = {
           shifts.length === 0 ? 'No shifts are on the rota for this range. Anyone clocked in is working an unrostered shift.' : undefined,
       },
       evidence: `${shifts.length} scheduled shift${shifts.length === 1 ? '' : 's'} ${from}${to === from ? '' : `–${to}`}, ${clockedInNow.length} clocked in`,
-      shortcuts: [page('Open the rota', '/staff/rota', 'Switches the active location', locationId ?? undefined)],
+      shortcuts: [page('Open the rota', '/staff/rota', 'Staff · Rota & shifts', locationId ?? undefined)],
+    };
+  },
+};
+
+const getRotaVariance: ToolDefinition = {
+  name: 'get_rota_variance',
+  description:
+    'Compare the published rota with what was actually worked over a date range: for each rostered shift, whether the person worked it, is still on shift, or did not show, how many minutes late or early they clocked in, and minutes worked against minutes planned. Use for lateness, no-shows, "did everyone turn up", or planned versus worked hours. Clock-ins with no rota slot are not included — get_schedule shows who is clocked in now.',
+  capability: 'scheduling:read',
+  step: 'Comparing the rota with worked time',
+  parameters: schema({
+    from: nullableString(`${DATE} Defaults to the start of this week.`),
+    to: nullableString(`${DATE} Defaults to today.`),
+    locationId: nullableString('Restrict to one location, or null for the active one.'),
+  }),
+  async run(args, runtime) {
+    const locationId = typeof args.locationId === 'string' && args.locationId ? args.locationId : runtime.locationId;
+    const timeZone = await runtime.timezone(locationId);
+    const anchors = calendarAnchors();
+    const from = isIsoDate(args.from) ? args.from : anchors.weekStart;
+    const to = isIsoDate(args.to) ? args.to : zonedNow(timeZone).date;
+    const query = new URLSearchParams({ from: zonedIso(from, '00:00', timeZone), to: zonedIso(addDays(to, 1), '00:00', timeZone) });
+    if (locationId) query.set('locationId', locationId);
+
+    const rows = await runtime.get<VarianceRow[]>(`/scheduled-shifts/variance?${query}`);
+    const late = rows.filter((row) => (row.startDeltaMinutes ?? 0) > 5);
+    const noShows = rows.filter((row) => row.status === 'no_show' && Date.parse(row.endsAt) < Date.now());
+    const plannedMinutes = rows.reduce((sum, row) => sum + row.plannedMinutes, 0);
+    const workedMinutes = rows.reduce((sum, row) => sum + row.workedMinutes, 0);
+    const label = (row: VarianceRow) => row.staff?.name || row.staff?.email || 'Unassigned shift';
+
+    return {
+      output: {
+        range: { from, to, timeZone },
+        totals: {
+          shifts: rows.length,
+          plannedHours: round(plannedMinutes / 60, 1),
+          workedHours: round(workedMinutes / 60, 1),
+          lateStarts: late.length,
+          noShows: noShows.length,
+        },
+        shifts: rows.slice(0, 80).map((row) => ({
+          staff: label(row),
+          local: `${formatDateTime(row.startsAt, timeZone)} → ${formatDateTime(row.endsAt, timeZone)}`,
+          status: Date.parse(row.startsAt) > Date.now() && row.status === 'no_show' ? 'not started yet' : row.status.replaceAll('_', ' '),
+          clockInMinutesLate: row.startDeltaMinutes,
+          plannedHours: round(row.plannedMinutes / 60, 2),
+          workedHours: round(row.workedMinutes / 60, 2),
+        })),
+        notes: [
+          'Only published shifts are compared. clockInMinutesLate is positive when late, negative when early.',
+          'A shift that has not started yet has no clock-in; it is not a no-show.',
+          'Worked time can be corrected on Staff → Rota & shifts by someone who can edit the rota.',
+        ],
+      },
+      evidence: `Rota vs worked ${from}${to === from ? '' : `–${to}`}: ${noShows.length} no-show${noShows.length === 1 ? '' : 's'}, ${late.length} late`,
+      cards: [
+        {
+          title: 'Rota vs worked',
+          caption: rangeLabel(from, to),
+          metrics: [
+            { label: 'Planned', value: `${round(plannedMinutes / 60, 1)} h` },
+            { label: 'Worked', value: `${round(workedMinutes / 60, 1)} h` },
+            { label: 'Late starts', value: String(late.length), tone: late.length ? ('warning' as const) : ('positive' as const) },
+            { label: 'No-shows', value: String(noShows.length), tone: noShows.length ? ('negative' as const) : ('positive' as const) },
+          ],
+        },
+      ],
+      shortcuts: [page('Open the rota', '/staff/rota', 'Staff · Rota & shifts', locationId ?? undefined)],
     };
   },
 };
@@ -1455,7 +1923,7 @@ const listLeaveRequests: ToolDefinition = {
           })),
         },
       ],
-      shortcuts: [page('Open leave requests', '/staff/requests', 'Team · Requests')],
+      shortcuts: [page('Open leave requests', '/staff/requests', 'Staff · Leave')],
     };
   },
 };
@@ -1501,46 +1969,109 @@ const listHelpdeskTickets: ToolDefinition = {
           })),
         },
       ],
-      shortcuts: [page('Open helpdesk', '/staff/helpdesk', 'Team · Helpdesk')],
+      shortcuts: [page('Open helpdesk', '/staff/helpdesk', 'Staff · Helpdesk')],
     };
   },
 };
 
 // ── Governance, finance and communications ──────────────────────────────────
 
+/**
+ * Cash-up is done in the till now (2026-10-04): the till header opens a drawer
+ * to open the day with a float and close it with a blind count. The history is
+ * the End of day report. An open day's stored expected figures stay at £0 until
+ * it closes, so the running expectation is read from `/expected` instead —
+ * quoting the stored row would tell a manager the drawer should be empty.
+ */
 const getCashUpStatus: ToolDefinition = {
   name: 'get_cash_up_status',
-  description: 'Read cash-up records for a location, including expected cash/card totals, counted totals, status and variance.',
+  description:
+    'Read the trading-day cash-ups for a location: whether today is open or closed, the opening float, what the drawer and card terminal should hold so far, and for closed days the counted totals and the cash and card variance. Use for "is the day open", "did the till balance", "what was the variance", or the End of day report.',
   capability: 'cashups:read',
-  step: 'Checking cash-up records',
+  step: 'Checking cash-ups',
   parameters: schema({ locationId: nullableString('Location to inspect, or null for the active location.') }),
   async run(args, runtime) {
-    const locationId = typeof args.locationId === 'string' && args.locationId ? args.locationId : runtime.locationId;
-    if (!locationId) return { output: { error: 'Select a location before checking cash-up records.' } };
+    const locationId = await runtime.resolveLocationId(args.locationId);
+    if (!locationId) return { output: { error: 'Select a location before checking cash-ups.' } };
     const records = await runtime.get<CashUp[]>(`/cash-ups?${new URLSearchParams({ locationId })}`);
+    const timeZone = await runtime.timezone(locationId);
+    const today = zonedNow(timeZone).date;
+    const open = records.find((record) => record.status === 'open') ?? null;
+    const expectation = open ? await runtime.get<CashUpExpectation>(`/cash-ups/${open.id}/expected`).catch(() => null) : null;
+    const todayRecord = records.find((record) => record.tradingDate === today) ?? null;
+    const variance = (value?: string | null) => (value == null ? null : toNumber(value));
+    const closed = records.filter((record) => record.status !== 'open').slice(0, 14);
+    const canRunCashUp = hasCapability(runtime.profile, 'cashups:write') && hasCapability(runtime.profile, 'orders:create');
+
     return {
-      output: records.slice(0, 30),
-      evidence: `${records.length} cash-up record${records.length === 1 ? '' : 's'}`,
+      output: {
+        today: {
+          date: today,
+          state: todayRecord ? (todayRecord.status === 'open' ? 'open' : 'closed') : 'not opened',
+        },
+        openDay: open
+          ? {
+              tradingDate: open.tradingDate,
+              leftOpenFromEarlierDay: open.tradingDate < today,
+              openedAt: open.openedAt ?? null,
+              openingFloatGbp: toNumber(open.openingFloat),
+              expectedSoFar: expectation
+                ? {
+                    cashInDrawerGbp: toNumber(expectation.expectedCash),
+                    cardGbp: toNumber(expectation.expectedCard),
+                    byPaymentProvider: expectation.tenderSummary,
+                    asOf: expectation.asOf,
+                  }
+                : null,
+            }
+          : null,
+        closedDays: closed.map((record) => ({
+          tradingDate: record.tradingDate,
+          status: record.status,
+          openingFloatGbp: toNumber(record.openingFloat),
+          expectedCashGbp: toNumber(record.expectedCash),
+          countedCashGbp: variance(record.countedCash),
+          cashVarianceGbp: variance(record.cashVariance),
+          expectedCardGbp: toNumber(record.expectedCard),
+          terminalCardTotalGbp: variance(record.terminalCardTotal),
+          cardVarianceGbp: variance(record.cardVariance),
+          notes: record.notes ?? null,
+          closedAt: record.closedAt ?? null,
+        })),
+        notes: [
+          'A negative variance means less was counted than expected.',
+          'The day is opened and closed from the till (the cash-up button in the till header); history is in Reports → End of day.',
+          ...(open && open.tradingDate < today ? [`The day for ${open.tradingDate} was never closed — flag it.`] : []),
+        ],
+      },
+      evidence: `${records.length} cash-up record${records.length === 1 ? '' : 's'}${open ? ', one day open' : ''}`,
       cards: [
         {
           kind: 'list',
-          title: 'Cash-up status',
+          title: 'Cash-ups',
           caption: (await runtime.locationName(locationId)) || undefined,
           rows: records.slice(0, 6).map((record) => ({
             label: record.tradingDate,
-            value: record.cashVariance == null ? record.status : gbp(record.cashVariance),
-            meta: `${record.status} · cash variance ${record.cashVariance == null ? 'pending' : gbp(record.cashVariance)} · card variance ${record.cardVariance == null ? 'pending' : gbp(record.cardVariance)}`,
+            value: record.status === 'open' ? 'Open' : record.cashVariance == null ? sentence(record.status) : gbp(record.cashVariance),
+            meta:
+              record.status === 'open'
+                ? `Opened with a ${gbp(record.openingFloat)} float`
+                : `cash variance ${record.cashVariance == null ? 'not counted' : gbp(record.cashVariance)} · card variance ${record.cardVariance == null ? 'not entered' : gbp(record.cardVariance)}`,
             tone:
-              record.status !== 'closed'
+              record.status === 'open'
                 ? ('warning' as const)
                 : Math.abs(toNumber(record.cashVariance)) > 0.01 || Math.abs(toNumber(record.cardVariance)) > 0.01
                   ? ('warning' as const)
                   : ('positive' as const),
           })),
-          emptyLabel: 'No cash-up records for this location.',
+          emptyLabel: 'No cash-ups for this location yet.',
         },
       ],
-      shortcuts: [page('Open cash-up', '/cash-up', 'Cash-up', locationId)],
+      shortcuts: [
+        canRunCashUp
+          ? page('Open the till cash-up', '/pos?cashup=open', 'Till · Cash-up', locationId)
+          : page('Open the End of day report', '/reports/end-of-day', 'Reports · End of day', locationId),
+      ],
     };
   },
 };
@@ -1781,32 +2312,44 @@ const getAuditActivity: ToolDefinition = {
 
 const getCommunicationsStatus: ToolDefinition = {
   name: 'get_communications_status',
-  description: 'Read email connection health, templates, automations and recent delivery results.',
+  description:
+    'Read customer email: the sending connection (when this operator may see it), templates, automations (which are live) and recent delivery results, including failures.',
   capability: 'email:read',
   step: 'Checking customer communications',
   parameters: schema({}),
   async run(_args, runtime) {
     const tenant = runtime.tenantId ? `?tenantId=${encodeURIComponent(runtime.tenantId)}` : '';
     const deliveriesQuery = new URLSearchParams({ page: '1', limit: '20', ...(runtime.tenantId ? { tenantId: runtime.tenantId } : {}) });
+    // GET /email/connection is gated on `email.connections:read`, which store
+    // and marketing managers do not hold. Fetching it unconditionally failed
+    // the whole tool for the very roles that run email.
+    const canSeeConnection = hasCapability(runtime.profile, 'email.connections:read');
     const [connection, templates, automations, deliveries] = await Promise.all([
-      runtime.get<EmailConnection | null>(`/email/connection${tenant}`),
+      canSeeConnection ? runtime.get<EmailConnection | null>(`/email/connection${tenant}`) : Promise.resolve(undefined),
       runtime.get<EmailTemplate[]>(`/email/templates${tenant}`),
       runtime.get<EmailAutomation[]>(`/email/automations${tenant}`),
       runtime.get<EmailDeliveriesResponse>(`/email/deliveries?${deliveriesQuery}`),
     ]);
     const failed = deliveries.data.filter((delivery) => delivery.status === 'failed').length;
     return {
-      output: { connection, templates, automations, deliveries: deliveries.data },
+      output: {
+        connection: canSeeConnection
+          ? connection
+          : 'Not visible to this role (needs email.connections:read). Do not describe email as not set up.',
+        templates,
+        automations,
+        deliveries: deliveries.data,
+      },
       evidence: `${templates.length} templates, ${automations.length} automations, ${failed} recent failures`,
       cards: [
         {
           title: 'Customer email',
-          caption: connection?.fromEmail || 'No sender connected',
+          caption: canSeeConnection ? connection?.fromEmail || 'No sender connected' : undefined,
           metrics: [
             {
               label: 'Connection',
-              value: connection?.isEnabled ? 'Enabled' : 'Needs setup',
-              tone: connection?.isEnabled ? 'positive' : 'warning',
+              value: !canSeeConnection ? 'Not visible' : connection?.isEnabled ? 'Enabled' : 'Needs setup',
+              tone: !canSeeConnection ? 'default' : connection?.isEnabled ? 'positive' : 'warning',
             },
             { label: 'Active templates', value: String(templates.filter((item) => item.isActive).length) },
             { label: 'Live automations', value: String(automations.filter((item) => item.isEnabled).length) },
@@ -1821,7 +2364,8 @@ const getCommunicationsStatus: ToolDefinition = {
 
 const getPayrollOverview: ToolDefinition = {
   name: 'get_payroll_overview',
-  description: 'Preview payroll gross pay and paid hours for a date range, plus recent payroll runs.',
+  description:
+    'Preview payroll gross pay and paid hours for a date range, plus recent pay runs and their state: draft, finalised (hours and gross frozen), issued (payslips published to employees, irreversible) or superseded. Flags runs that are finalised but not issued and lines still missing their deductions.',
   capability: 'hr.payroll:read',
   step: 'Checking payroll',
   parameters: schema({
@@ -1836,8 +2380,32 @@ const getPayrollOverview: ToolDefinition = {
       runtime.get<PayrollPreview>(`/payroll/preview?${new URLSearchParams({ period, from: String(args.from), to: String(args.to) })}`),
       runtime.get<PayrollRun[]>('/payroll/runs'),
     ]);
+    const recentRuns = runs.slice(0, 10).map((run) => ({
+      id: run.id,
+      period: run.period,
+      periodStart: run.periodStart,
+      periodEnd: run.periodEnd,
+      status: run.status,
+      employees: run.lines.length,
+      grossGbp: round(
+        run.lines.reduce((sum, line) => sum + toNumber(line.grossPay), 0),
+        2,
+      ),
+      // `netPay: null` means the deductions have not been entered — never zero.
+      linesMissingDeductions: run.lines.filter((line) => line.netPay == null).length,
+      finalisedAt: run.finalisedAt,
+      issuedAt: run.issuedAt,
+      deductionsSource: run.deductionsSource,
+    }));
     return {
-      output: { preview, recentRuns: runs.slice(0, 10) },
+      output: {
+        preview,
+        recentRuns,
+        notes: [
+          'DUMA does not compute tax or NI: deductions are entered from whatever runs payroll, and a run cannot be issued until every line has them.',
+          'Issuing publishes the payslips to employees in My HR → Documents.',
+        ],
+      },
       evidence: `${preview.totals.employees} payroll employee${preview.totals.employees === 1 ? '' : 's'} ${String(args.from)}–${String(args.to)}`,
       cards: [
         {
@@ -1855,11 +2423,15 @@ const getPayrollOverview: ToolDefinition = {
                 ),
               ),
             },
-            { label: 'Recent runs', value: String(runs.length) },
+            {
+              label: 'Awaiting issue',
+              value: String(recentRuns.filter((run) => run.status === 'finalised').length),
+              tone: recentRuns.some((run) => run.status === 'finalised') ? ('warning' as const) : ('positive' as const),
+            },
           ],
         },
       ],
-      shortcuts: [page('Open payroll', '/staff/payroll', 'Team · Payroll')],
+      shortcuts: [page('Open payroll', '/staff/payroll', 'Staff · Payroll')],
     };
   },
 };
@@ -1868,16 +2440,17 @@ const getMyWorkspace: ToolDefinition = {
   module: 'people',
   name: 'get_my_workspace',
   description:
-    'Read the signed-in operator’s own Dashboard and My HR summary: current and upcoming shifts, leave balance, HR warnings, documents and support requests. Use for broad questions about my workday, my leave, my rota, or what needs my attention. For a simple name, address, emergency-contact or personal-details question, use get_my_profile instead. DUMA does not hold payslips or expense claims — say so rather than guessing.',
-  step: 'Checking your Dashboard and My HR',
+    'Read the signed-in operator’s own My rota and My HR summary: whether they are clocked in now, their next shifts over the coming five weeks, leave balance, HR warnings, documents and support requests. Use for broad questions about my workday, my next shift, my leave, my rota, or what needs my attention. For a simple name, address, emergency-contact or personal-details question, use get_my_profile instead; for pay, use get_my_payslips. DUMA does not hold expense claims — say so rather than guessing.',
+  step: 'Checking your rota and My HR',
   parameters: schema({}),
   async run(_args, runtime) {
     const now = new Date();
-    const weekStart = new Date(now);
-    weekStart.setHours(0, 0, 0, 0);
-    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 7);
+    const rotaFrom = new Date(now);
+    rotaFrom.setHours(0, 0, 0, 0);
+    // The same horizon My rota uses for "Next shift": a question about the next
+    // shift must not come back empty because it falls in a later week.
+    const rotaTo = new Date(rotaFrom);
+    rotaTo.setDate(rotaTo.getDate() + 35);
     const year = now.getFullYear();
 
     const [employee, optional] = await Promise.all([
@@ -1889,7 +2462,7 @@ const getMyWorkspace: ToolDefinition = {
         runtime.get<EmployeeDocument[]>('/hr/documents/me'),
         runtime.get<Shift[]>('/shifts/my'),
         runtime.get<ScheduledShift[]>(
-          `/scheduled-shifts/my?${new URLSearchParams({ from: weekStart.toISOString(), to: weekEnd.toISOString() })}`,
+          `/scheduled-shifts/my?${new URLSearchParams({ from: rotaFrom.toISOString(), to: rotaTo.toISOString() })}`,
         ),
       ]),
     ]);
@@ -1910,6 +2483,7 @@ const getMyWorkspace: ToolDefinition = {
     const upcoming = rota
       .filter((shift) => new Date(shift.endsAt).getTime() >= now.getTime())
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    const zoneOf = new Map((await runtime.locations().catch(() => [] as Location[])).map((location) => [location.id, location.timezone]));
     const openTickets = tickets.filter((ticket) => !['resolved', 'closed'].includes(ticket.status));
     const pendingLeave = requests.filter((request) => request.status === 'pending');
 
@@ -1937,12 +2511,16 @@ const getMyWorkspace: ToolDefinition = {
                 elapsedMinutes: Math.max(0, Math.round((now.getTime() - new Date(activeShift.clockedIn).getTime()) / 60_000)),
               }
             : null,
-          upcomingShifts: upcoming.slice(0, 12).map((shift) => ({
-            startsAt: shift.startsAt,
-            endsAt: shift.endsAt,
-            location: shift.location?.name ?? shift.locationId,
-            role: shift.role ?? null,
-          })),
+          upcomingShifts: upcoming.slice(0, 12).map((shift) => {
+            const timeZone = zoneOf.get(shift.locationId) || 'Europe/London';
+            return {
+              startsAt: shift.startsAt,
+              endsAt: shift.endsAt,
+              local: `${formatDateTime(shift.startsAt, timeZone)} → ${formatDateTime(shift.endsAt, timeZone)}`,
+              location: shift.location?.name ?? shift.locationId,
+              role: shift.role ?? null,
+            };
+          }),
         },
         myHr: {
           warnings: actions,
@@ -1966,7 +2544,7 @@ const getMyWorkspace: ToolDefinition = {
           unavailableSections: unavailable,
         },
       },
-      evidence: `Your Dashboard and My HR · ${actions.length} notice${actions.length === 1 ? '' : 's'}`,
+      evidence: `Your rota and My HR · ${actions.length} notice${actions.length === 1 ? '' : 's'}`,
       cards: [
         {
           title: 'My workday',
@@ -2106,9 +2684,76 @@ const getMyAttendance: ToolDefinition = {
   },
 };
 
+/**
+ * The operator's own issued payslips. A payslip is a line of a pay run that has
+ * been issued, so a draft or finalised run never appears here — "no payslip yet"
+ * usually means the run has not been issued, not that nobody was paid.
+ * Session-subject on the API: an employee is always entitled to their own.
+ */
+const getMyPayslips: ToolDefinition = {
+  module: 'payroll',
+  name: 'get_my_payslips',
+  description:
+    'Read the signed-in operator’s own issued payslips, newest first: pay period, gross pay, net pay, each named deduction (tax, social security, pension, other) and the hours paid. Use for "what was I paid", "my last payslip", "how much tax did I pay". Payslips appear only once a pay run is issued.',
+  step: 'Checking your payslips',
+  parameters: schema({ limit: { type: ['number', 'null'], description: 'How many payslips to return, up to 12. Null for 6.' } }),
+  async run(args, runtime) {
+    const payslips = await runtime.get<Payslip[]>('/hr/payslips/my');
+    const shown = payslips.slice(0, limit(args.limit, 6, 12));
+    const latest = payslips[0];
+    // Each payslip carries its workspace's currency; an employee may hold payslips from more than one.
+    const money = (value: unknown, currency: string) => {
+      try {
+        return toNumber(value).toLocaleString('en-GB', { style: 'currency', currency });
+      } catch {
+        return gbp(value);
+      }
+    };
+    return {
+      output: {
+        total: payslips.length,
+        payslips: shown.map((payslip) => ({
+          period: rangeLabel(payslip.payPeriodStart, payslip.payPeriodEnd),
+          payPeriodStart: payslip.payPeriodStart,
+          payPeriodEnd: payslip.payPeriodEnd,
+          currency: payslip.currency,
+          gross: toNumber(payslip.grossPay),
+          net: toNumber(payslip.netPay),
+          deductions: (payslip.deductions ?? [])
+            .filter((line) => line.paidBy === 'employee')
+            .map((line) => ({ label: line.label, kind: line.kind, amount: toNumber(line.amount) })),
+          employerContributions: payslip.employerContributions == null ? null : toNumber(payslip.employerContributions),
+          issuedAt: payslip.finalisedAt ?? null,
+        })),
+        ...(payslips.length === 0
+          ? { note: 'No payslip has been issued to this person yet. Payslips appear once their employer issues a pay run.' }
+          : {}),
+      },
+      evidence: `${payslips.length} payslip${payslips.length === 1 ? '' : 's'}`,
+      cards: latest
+        ? [
+            {
+              title: 'Latest payslip',
+              caption: rangeLabel(latest.payPeriodStart, latest.payPeriodEnd),
+              metrics: [
+                { label: 'Gross', value: money(latest.grossPay, latest.currency) },
+                { label: 'Net', value: money(latest.netPay, latest.currency) },
+                ...(latest.employeeDeductions != null
+                  ? [{ label: 'Deductions', value: money(latest.employeeDeductions, latest.currency) }]
+                  : []),
+              ],
+            },
+          ]
+        : [],
+      shortcuts: [page('Open your payslips', '/my-hr?tab=documents', 'My HR · Documents')],
+    };
+  },
+};
+
 export const TOOLS: ToolDefinition[] = [
   searchSupport,
   listLocations,
+  getWorkspaceModules,
   getQrOrderingStatus,
   listSuppliers,
   listStockItems,
@@ -2124,9 +2769,12 @@ export const TOOLS: ToolDefinition[] = [
   listRestockRequests,
   getStockOperations,
   getLossLog,
+  listRecipeGaps,
   searchCustomers,
+  getCustomer,
   listCustomerSegments,
   getSchedule,
+  getRotaVariance,
   listLeaveRequests,
   listHelpdeskTickets,
   getCashUpStatus,
@@ -2136,6 +2784,7 @@ export const TOOLS: ToolDefinition[] = [
   getMyProfile,
   getMyWorkspace,
   getMyAttendance,
+  getMyPayslips,
   getPayrollOverview,
 ];
 

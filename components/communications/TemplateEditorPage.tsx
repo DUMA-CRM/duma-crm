@@ -11,7 +11,6 @@ import {
   ImagePlus,
   Link2,
   ListView,
-  Loader2,
   Minus,
   Monitor,
   PlugZap,
@@ -24,6 +23,7 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { Modal } from '@/components/shared/Modal';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -209,6 +209,7 @@ export function TemplateEditorPage({
     return saved;
   };
 
+  const [justSaved, flashSaved] = useDoneBeat();
   const save = useMutation({
     mutationFn: persist,
     // Stays in the editor, as every builder does — Close is one click away.
@@ -342,15 +343,16 @@ export function TemplateEditorPage({
             </Button>
           )}
           {access.canWrite && (
-            <Button
+            <ActionButton
               type="submit"
               form={FORM_ID}
-              disabled={!canSave || save.isPending || (!dirty && Boolean(savedId))}
-              className="h-9 gap-2 px-5"
+              disabled={!canSave || (!dirty && Boolean(savedId))}
+              pending={save.isPending}
+              done={justSaved}
+              className="h-9 min-w-24 px-5"
             >
-              {save.isPending && <Loader2 size={14} className="animate-spin" />}
-              {save.isPending ? 'Saving…' : !dirty && savedId ? 'Saved' : 'Save'}
-            </Button>
+              {!dirty && savedId ? 'Saved' : 'Save'}
+            </ActionButton>
           )}
         </>
       }
@@ -359,7 +361,7 @@ export function TemplateEditorPage({
         id={FORM_ID}
         onSubmit={(event) => {
           event.preventDefault();
-          save.mutate();
+          save.mutate(undefined, { onSuccess: flashSaved });
         }}
         className={cn('grid min-h-0 flex-1', readOnly ? 'lg:grid-cols-[minmax(0,1fr)_24rem]' : 'lg:grid-cols-[13rem_minmax(0,1fr)_24rem]')}
       >

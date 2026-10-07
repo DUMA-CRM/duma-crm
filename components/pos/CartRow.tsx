@@ -80,7 +80,7 @@ export function CartRow({ cartItem, expanded, flash, onToggle, onQty, onNote, on
               maxLength={200}
               placeholder="Note for the kitchen"
               aria-label={`Note for ${cartItem.item.name}`}
-              className="h-12 w-full rounded-lg border border-input bg-field px-3.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
+              className="h-12 w-full rounded-lg border border-input bg-control px-3.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
             />
           </div>
         )}

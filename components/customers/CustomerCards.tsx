@@ -3,6 +3,7 @@ import { type ReactNode, useState } from 'react';
 
 import { AlertTriangle, Gift, Mail, MailX, Phone, ShieldAlert } from '@/components/icons';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
+import { Bone } from '@/components/shared/Skeleton';
 
 import { TIER_CONFIG } from '@/lib/constants/customers';
 import { cn } from '@/lib/utils/cn';
@@ -44,11 +45,13 @@ export function CustomerCards({
 }) {
   if (isLoading) {
     return (
-      <CardGrid>
-        {Array.from({ length: 12 }).map((_, index) => (
-          <CardSkeleton key={index} />
-        ))}
-      </CardGrid>
+      <div role="status" aria-busy="true" aria-label="Loading customers">
+        <CardGrid>
+          {Array.from({ length: 12 }).map((_, index) => (
+            <CardSkeleton key={index} />
+          ))}
+        </CardGrid>
+      </div>
     );
   }
 
@@ -246,16 +249,20 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function CardSkeleton() {
   return (
-    <div className="animate-pulse rounded-lg border border-rule/60 bg-card p-3.5">
-      <div className="flex items-start gap-3">
-        <div className="size-10 shrink-0 rounded-md bg-band" />
-        <div className="flex-1 space-y-1.5 pt-0.5">
-          <div className="h-3.5 w-2/3 rounded bg-band" />
-          <div className="h-3 w-4/5 rounded bg-band/70" />
-        </div>
+    <div className="flex flex-col rounded-lg border border-rule/60 bg-card" aria-hidden="true">
+      <div className="flex items-start gap-3 p-3.5 pb-3">
+        <Bone className="size-10 shrink-0" />
+        <span className="min-w-0 flex-1 space-y-1.5 pt-0.5">
+          <Bone className="h-3.5 w-2/3" />
+          <Bone className="h-3 w-4/5" />
+        </span>
+        <Bone className="h-4.5 w-10 shrink-0 rounded-sm" />
       </div>
-      <div className="mt-3 h-11 rounded-md bg-band/60" />
-      <div className="mt-3 h-3 w-1/2 rounded bg-band/70" />
+      <Bone className="mx-3.5 h-12" />
+      <div className="flex items-center gap-3 px-3.5 py-3">
+        <Bone className="h-3 w-1/2" />
+        <Bone className="ml-auto size-3.5" />
+      </div>
     </div>
   );
 }

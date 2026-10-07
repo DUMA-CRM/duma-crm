@@ -694,7 +694,7 @@ export function MyRota() {
             icon={CalendarRange}
             label="Scheduled"
             value={isLoading ? '…' : fmtHrs(totalMins)}
-            hint={`${shifts.length} ${shifts.length === 1 ? 'shift' : 'shifts'} · ${weekLabel}`}
+            hint={`${shifts.length} ${shifts.length === 1 ? 'shift' : 'shifts'}`}
           />
           <Fact
             surface="page"

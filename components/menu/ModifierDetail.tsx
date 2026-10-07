@@ -5,17 +5,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { Eye, EyeOff, Loader2, Scale, SlidersHorizontal, Trash2 } from '@/components/icons';
-import { RecipeIngredientEditor } from '@/components/menu/RecipeIngredientEditor';
+import { Eye, EyeOff, Scale, SlidersHorizontal, Trash2 } from '@/components/icons';
+import { RecipeIngredientEditor, RecipeIngredientSkeleton } from '@/components/menu/RecipeIngredientEditor';
 import { RecipeTotals } from '@/components/menu/RecipeTotals';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { useRecipeDraft } from '@/components/menu/useRecipeDraft';
+import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ChoiceCards } from '@/components/shared/FormParts';
+import { LoadingState } from '@/components/shared/Skeleton';
+import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -96,6 +98,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
   const fieldsDirty = draft !== null;
   const dirty = fieldsDirty || recipe.dirty;
 
+  const [justSaved, flashSaved] = useDoneBeat();
   const save = useMutation({
     mutationFn: async () => {
       if (fieldsDirty || !modifier) {
@@ -140,11 +143,14 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
     return (
       <EditorShell title="Modifier" onClose={() => router.push('/menu/modifiers')}>
         {isLoading ? (
-          <div className="flex items-center justify-center py-24 text-muted-foreground">
-            <Loader2 size={22} className="animate-spin" />
-          </div>
+          <LoadingState label="Loading the modifier" />
         ) : (
-          <EmptyState icon={SlidersHorizontal} title="This modifier no longer exists" description="It may have been deleted elsewhere." />
+          <EmptyState
+            icon={SlidersHorizontal}
+            kind="gone"
+            title="This modifier no longer exists"
+            description="It may have been deleted elsewhere."
+          />
         )}
       </EditorShell>
     );
@@ -172,10 +178,16 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
             </Button>
           )}
           {dirty && !save.isPending && <span className="hidden text-label font-semibold text-warning sm:inline">Unsaved changes</span>}
-          <Button type="submit" form={FORM_ID} disabled={save.isPending} className="h-9 gap-2 px-5">
-            {save.isPending && <Loader2 size={15} className="animate-spin" />}
-            {save.isPending ? 'Saving…' : modifier ? 'Save changes' : 'Create modifier'}
-          </Button>
+          <ActionButton
+            type="submit"
+            form={FORM_ID}
+            pending={save.isPending}
+            done={justSaved}
+            doneLabel={modifier ? 'Saved' : 'Created'}
+            className="h-9 min-w-36 px-5"
+          >
+            {modifier ? 'Save changes' : 'Create modifier'}
+          </ActionButton>
         </>
       }
     >
@@ -185,7 +197,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
         onSubmit={(e) => {
           e.preventDefault();
           setSubmitted(true);
-          if (!labelError && !priceError) save.mutate();
+          if (!labelError && !priceError) save.mutate(undefined, { onSuccess: flashSaved });
         }}
       >
         <SettingsTabBody
@@ -197,22 +209,39 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
                   {/* The explicit replacement for the old category === 'size'
                       rule, which silently disabled per-size costing if you typed
                       "Sizes". */}
-                  <SettingRow icon={Scale} title="This is a size" description="Sizes get their own quantity column in every recipe, so a large can use more milk than a small.">
+                  <SettingRow
+                    icon={Scale}
+                    title="This is a size"
+                    description="Sizes get their own quantity column in every recipe, so a large can use more milk than a small."
+                  >
                     <Switch label="This is a size" checked={isSize} onChange={(checked) => patch({ isSize: checked })} />
                   </SettingRow>
-                  <SettingRow icon={isAvailable ? Eye : EyeOff} title="Available at the till" description="Turn off when you run out. It stays set up and keeps its recipe.">
+                  <SettingRow
+                    icon={isAvailable ? Eye : EyeOff}
+                    title="Available at the till"
+                    description="Turn off when you run out. It stays set up and keeps its recipe."
+                  >
                     <Switch label="Available at the till" checked={isAvailable} onChange={(checked) => patch({ isAvailable: checked })} />
                   </SettingRow>
                 </SettingRows>
               </SettingsSection>
-              {modifier && recipe.hasIngredients && <RecipeTotals summary={recipe.summary} allAllergens={recipe.allAllergens} title="What it adds" />}
+              {modifier && recipe.hasIngredients && (
+                <RecipeTotals summary={recipe.summary} allAllergens={recipe.allAllergens} title="What it adds" />
+              )}
             </>
           }
         >
           <SettingsSection title="Modifier" description="An option offered with an item — a size, a milk, an extra shot.">
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
-                <Input label="Name" value={label} onChange={(e) => patch({ label: e.target.value })} placeholder="e.g. Oat milk" autoFocus={!modifier} error={submitted ? (labelError ?? undefined) : undefined} />
+                <Input
+                  label="Name"
+                  value={label}
+                  onChange={(e) => patch({ label: e.target.value })}
+                  placeholder="e.g. Oat milk"
+                  autoFocus={!modifier}
+                  error={submitted ? (labelError ?? undefined) : undefined}
+                />
                 <Input
                   label="Price change"
                   value={priceAdjust}
@@ -222,7 +251,15 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
                   leftIcon={<span className="text-sm">£</span>}
                   className="tabular-nums"
                   error={submitted ? (priceError ?? undefined) : undefined}
-                  hint={!priceError ? (Number(priceAdjust) === 0 ? 'No charge' : Number(priceAdjust) < 0 ? 'Takes money off' : 'Added to the item’s price') : undefined}
+                  hint={
+                    !priceError
+                      ? Number(priceAdjust) === 0
+                        ? 'No charge'
+                        : Number(priceAdjust) < 0
+                          ? 'Takes money off'
+                          : 'Added to the item’s price'
+                      : undefined
+                  }
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -250,11 +287,16 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
             </div>
           </SettingsSection>
 
-          <SettingsSection title="What it uses" description="The stock it adds to a drink — this is what makes stock, cost and allergens right.">
+          <SettingsSection
+            title="What it uses"
+            description="The stock it adds to a drink — this is what makes stock, cost and allergens right."
+          >
             {!modifier ? (
-              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">Create the modifier first, then set what it adds to a drink.</p>
+              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">
+                Create the modifier first, then set what it adds to a drink.
+              </p>
             ) : recipe.isLoading ? (
-              <div className="h-20 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+              <RecipeIngredientSkeleton />
             ) : (
               <RecipeIngredientEditor
                 rows={recipe.rows}

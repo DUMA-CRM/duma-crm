@@ -55,15 +55,9 @@ export function DashboardLaunchBoard({ widgetKeys }: { widgetKeys: readonly stri
 
   return (
     <section aria-labelledby="workspace-launches-title">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <div>
-          <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Workspace</p>
-          <h2 id="workspace-launches-title" className="mt-1 text-base font-semibold tracking-title text-foreground">
-            Ready when you are
-          </h2>
-        </div>
-        <span className="font-mono text-xs tabular-nums text-muted-foreground">{items.length} available</span>
-      </div>
+      <h2 id="workspace-launches-title" className="mb-3 text-base font-semibold tracking-title text-foreground">
+        Ready when you are
+      </h2>
 
       <div className="divide-y divide-rule/55 border-y border-rule/65">
         {items.map((item) => {

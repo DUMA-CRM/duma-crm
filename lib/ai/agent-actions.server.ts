@@ -5,10 +5,10 @@ import type { LocationStock } from '@/lib/modules/inventory/client';
 import { encodeNotes } from '@/lib/modules/inventory/client';
 import { MODULE_IDS, type ModuleId, isModuleSurfaceEnabled } from '@/lib/modules/manifest';
 import type { Order } from '@/lib/modules/ordering/client';
-import type { QrOrderingConfig } from '@/lib/modules/qr-ordering/client';
 import type { HrEmployee } from '@/lib/modules/people/client';
 import type { LeaveEntitlement, LeaveRequest, LeaveType } from '@/lib/modules/people/client';
 import type { PurchaseOrder } from '@/lib/modules/purchasing/client';
+import type { QrOrderingConfig } from '@/lib/modules/qr-ordering/client';
 import { isValidNiNumber, normaliseNiNumber } from '@/lib/utils/my-hr';
 import type { Customer, CustomersResponse } from '@/types/customers';
 import type { MenuItem } from '@/types/menu';
@@ -812,8 +812,8 @@ const reviewLeaveRequest: ActionDefinition = {
       ...(str(action.fields, 'reviewNotes') ? { reviewNotes: str(action.fields, 'reviewNotes') } : {}),
     });
     return {
-      message: `Leave request ${decision}. The employee can see the decision on their HR page.`,
-      shortcuts: [{ label: 'Open leave requests', href: '/staff/requests', description: 'Team · Requests', kind: 'page' }],
+      message: `Leave request ${decision}. The employee can see the decision in My HR → Time off.`,
+      shortcuts: [{ label: 'Open leave requests', href: '/staff/requests', description: 'Staff · Leave', kind: 'page' }],
     };
   },
 };

@@ -58,6 +58,9 @@
 :root {
   --ground: #f4f0e7;
   --field: #fffcf7;
+  /* Form controls sit a step brighter than the card they are on, so an empty
+     input still reads as a place to type. Dark keeps field — white would glare. */
+  --control: #ffffff;
   --band: #eae4d8;
 
   /* ── Ink: forest, deep enough to read as near-black. NOT the action
@@ -101,14 +104,11 @@
   --popover: var(--field);
   --popover-foreground: var(--ink);
 
-  /* Brand green, one step up from the forest shell (Δ0.069 from --sidebar, so it
-     reads as the same material). Legible as text on all three surfaces
-     (7.18 / 6.46 / 5.81:1) AND as a fill under warm white (7.08:1), which is
-     what `text-primary` and `bg-primary` both being one token requires.
-     Hover presses down onto the sidebar colour itself. */
-  --primary: #1f6146;
-  --primary-hover: #174c38;
-  --primary-foreground: #fffaf4;
+  /* The action key is the brand colour, which the user picks — values and
+     contrast figures live in the BRAND block at the end of this section. */
+  --primary: var(--brand);
+  --primary-hover: var(--brand-hover);
+  --primary-foreground: var(--brand-on);
 
   --secondary: var(--band);
   --secondary-foreground: var(--ink);
@@ -150,16 +150,26 @@
   --chart-4: var(--exception);
   --chart-5: oklch(0.55 0.02 250); /* neutral slate for the nth series */
 
-  --sidebar: #174c38;
+  /* Categorical identity for a stacked meter (media storage by file kind).
+     The --chart-* roles fail CVD and normal-vision separation when four sit
+     side by side, so a meter uses this validated order instead. Light mode
+     warns on contrast for slots 3–4, so every meter labels values in a legend. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+
+  /* The shell's material is the brand colour, so it is set in the BRAND block. */
+  --sidebar: var(--brand-shell);
   --sidebar-foreground: #f8f1e5;
   /* Position marker: the active-nav rail and count badges. Warm white rather
      than the old apricot — 8.79:1 on forest instead of 4.78:1, and it keeps the
      shell free of the one hue that now means "order data" everywhere else. */
   --sidebar-primary: #f8f1e5;
-  --sidebar-primary-foreground: #17382c;
-  --sidebar-accent: #28624d;
+  --sidebar-primary-foreground: var(--brand-shell-ink);
+  --sidebar-accent: var(--brand-shell-raised);
   --sidebar-accent-foreground: #fffaf2;
-  --sidebar-border: #3d6d59;
+  --sidebar-border: var(--brand-shell-seam);
   --sidebar-ring: #f8f1e5;
 
   --radius: 0.4375rem;
@@ -211,7 +221,7 @@
      --mascot-accent the notification pastille. Periwinkle: the pastille means
                      "there is something here for you", which is info, and info
                      is periwinkle everywhere else in the product. */
-  --mascot-ink: #1f6146;
+  --mascot-ink: var(--brand-mascot);
   --mascot-eye: var(--field);
   --mascot-accent: var(--reference);
 
@@ -253,6 +263,7 @@
      spacing, so field still lifts off ground and band still reads as a trough. */
   --ground: #181716;
   --field: #1f1e1c;
+  --control: var(--field);
   --band: #292724;
 
   /* Soft bone rather than paper white: 13.9 / 12.9 / 11.6:1 — still well over
@@ -286,12 +297,8 @@
 
   --ghost: color-mix(in oklab, var(--reference) 30%, transparent);
 
-  /* The night key: carries #171512 as a fill (6.53:1) and reads as text on all
-     three charcoals (6.41 / 5.97 / 5.34:1). Softer than the old #4fb187, still a
-     step deeper than --momentum so the two greens stay tellable apart. */
-  --primary: #5aaa85;
-  --primary-hover: #66b690;
-  --primary-foreground: #171512;
+  /* The night key is per brand — see the BRAND block. --primary still aliases
+     --brand, which the night brand blocks redefine. */
 
   /* Night success is a light green, so its label flips to the dark ink (8.55:1). */
   --success-foreground: #171512;
@@ -314,6 +321,10 @@
   --sidebar-ring: #ece6da;
 
   --chart-5: oklch(0.68 0.018 250);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
 
   /* Shadows barely register on charcoal, so overlays lean on a darker tint
      and on field sitting a step above ground. */
@@ -325,8 +336,139 @@
      Only the body moves: --mascot-eye is --field in both themes, so the figure
      inverts on its own — the body becomes the light thing and the eyes the dark
      ones. That is the same drawing read the other way up, and both directions are
-     legible. See the day block. */
-  --mascot-ink: #5aaa85;
+     legible. See the day block. The night value is per brand. */
+}
+
+/* ════════════════════════════════════════════════════════════════
+   BRAND — the one colour a workspace may choose. Forest is the default.
+
+   A brand is the action key (--primary), the day shell (--sidebar and its
+   raised/seam tiers) and the mascot body. It never touches the data roles:
+   momentum stays green under every brand, because "on track" is a meaning,
+   not a decoration. The night shell stays charcoal under every brand, for the
+   reason given in the night block.
+
+   Brand blocks match ANY element, not only <html>, so a swatch can wear a
+   brand it is not the page's (`<span data-brand="plum" class="bg-(--brand)">`)
+   and the picker reads its colours from here — this is the only place the
+   values live. Alias through --brand-* rather than redefining --primary: a
+   custom property resolves where it is declared, so a nested data-brand can
+   only change tokens it sets itself.
+
+   Every palette is held to the bars forest set, measured:
+                 day text field/ground/band   fill   shell fg   night text f/g/b   night fill
+     forest      7.18 / 6.46 / 5.81           7.08   8.79       5.97 / 6.41 / 5.34  6.53
+     ocean       7.55 / 6.79 / 6.10           7.44   9.66       6.22 / 6.69 / 5.56  6.81
+     plum        9.00 / 8.10 / 7.27           8.87   11.12      6.24 / 6.71 / 5.58  6.83
+     espresso    8.07 / 7.26 / 6.52           7.96   10.47      6.83 / 7.34 / 6.10  7.47
+     graphite    9.38 / 8.44 / 7.58           9.25   11.71      7.49 / 8.05 / 6.70  8.19
+   Keep them deep: ocean drifting light becomes periwinkle (reference), and
+   espresso drifting warm becomes rust (measured) or saffron (stock).
+
+   The selectable list is BRANDS in lib/utils/brand.ts — add a block here and
+   an entry there together. Persisted per device for now (uiSettingsStore);
+   the pre-paint script in app/layout.tsx applies it before first paint.
+   ════════════════════════════════════════════════════════════════ */
+:root,
+[data-brand='forest'] {
+  /* Brand green, one step up from the forest shell (Δ0.069 from --sidebar, so it
+     reads as the same material). Legible as text on all three surfaces AND as a
+     fill under warm white, which is what `text-primary` and `bg-primary` both
+     being one token requires. Hover presses down onto the shell colour itself. */
+  --brand: #1f6146;
+  --brand-hover: #174c38;
+  --brand-on: #fffaf4;
+  --brand-shell: #174c38;
+  --brand-shell-raised: #28624d;
+  --brand-shell-seam: #3d6d59;
+  --brand-shell-ink: #17382c;
+  --brand-mascot: #1f6146;
+}
+/* The night key: carries #171512 as a fill and reads as text on all three
+   charcoals. Softer than the old #4fb187, still a step deeper than --momentum
+   so the two greens stay tellable apart. */
+.dark,
+.dark[data-brand='forest'],
+.dark [data-brand='forest'] {
+  --brand: #5aaa85;
+  --brand-hover: #66b690;
+  --brand-on: #171512;
+  --brand-mascot: #5aaa85;
+}
+
+/* Deep harbour blue — held well below periwinkle in lightness and chroma. */
+[data-brand='ocean'] {
+  --brand: #1d5878;
+  --brand-hover: #15415a;
+  --brand-on: #fffaf4;
+  --brand-shell: #15415a;
+  --brand-shell-raised: #245f80;
+  --brand-shell-seam: #3a6a85;
+  --brand-shell-ink: #13303f;
+  --brand-mascot: #1d5878;
+}
+.dark[data-brand='ocean'],
+.dark [data-brand='ocean'] {
+  --brand: #62a6cc;
+  --brand-hover: #72b2d6;
+  --brand-on: #171512;
+  --brand-mascot: #62a6cc;
+}
+
+[data-brand='plum'] {
+  --brand: #6a3462;
+  --brand-hover: #4e2548;
+  --brand-on: #fffaf4;
+  --brand-shell: #4e2548;
+  --brand-shell-raised: #683a61;
+  --brand-shell-seam: #7a5573;
+  --brand-shell-ink: #3a1c35;
+  --brand-mascot: #6a3462;
+}
+.dark[data-brand='plum'],
+.dark [data-brand='plum'] {
+  --brand: #c48dba;
+  --brand-hover: #ce9cc5;
+  --brand-on: #171512;
+  --brand-mascot: #c48dba;
+}
+
+/* Roasted coffee — browner and darker than rust, so it is not order data. */
+[data-brand='espresso'] {
+  --brand: #6d452f;
+  --brand-hover: #4e3122;
+  --brand-on: #fffaf4;
+  --brand-shell: #4e3122;
+  --brand-shell-raised: #6a4835;
+  --brand-shell-seam: #7f6150;
+  --brand-shell-ink: #3a2418;
+  --brand-mascot: #6d452f;
+}
+.dark[data-brand='espresso'],
+.dark [data-brand='espresso'] {
+  --brand: #c99d7e;
+  --brand-hover: #d3ab8f;
+  --brand-on: #171512;
+  --brand-mascot: #c99d7e;
+}
+
+/* Cool slate — the quiet option; every role colour reads loudest against it. */
+[data-brand='graphite'] {
+  --brand: #3c4651;
+  --brand-hover: #2a3139;
+  --brand-on: #fffaf4;
+  --brand-shell: #2a3139;
+  --brand-shell-raised: #434d58;
+  --brand-shell-seam: #5a636e;
+  --brand-shell-ink: #20262c;
+  --brand-mascot: #3c4651;
+}
+.dark[data-brand='graphite'],
+.dark [data-brand='graphite'] {
+  --brand: #a5afba;
+  --brand-hover: #b3bcc6;
+  --brand-on: #171512;
+  --brand-mascot: #a5afba;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -364,6 +506,10 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -392,6 +538,7 @@
   --color-divider: var(--divider);
   --color-faint: var(--faint);
   --color-field: var(--field);
+  --color-control: var(--control);
 
   /* Semantic */
   --color-success: var(--success);
@@ -543,6 +690,31 @@
     border-radius: 999px;
   }
 
+  /* The skeleton's shimmer: a soft highlight sweeping across the band, left to
+     right, so a placeholder reads as "arriving" rather than blinking. One
+     class for every placeholder in the app (components/shared/Skeleton.tsx). */
+  .skeleton {
+    background-color: var(--band);
+    background-image: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in oklch, var(--field) 55%, transparent) 50%,
+      transparent 80%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: skeleton-sweep 1.4s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-sweep {
+    from {
+      background-position: 150% 0;
+    }
+    to {
+      background-position: -50% 0;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -558,6 +730,7 @@
        rate, no oscillation — so "still working" survives the preference. */
     .animate-spin,
     .animate-pulse,
+    .skeleton,
     [data-motion='progress'],
     [data-motion='progress'] * {
       animation-duration: 1.6s !important;
@@ -603,6 +776,47 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     white-space: nowrap;
+  }
+
+  /* A row that was just created: a primary-tinted light passes across it once
+     and its hairline glows, so the eye lands on the new thing in the list.
+     Reduced motion collapses it to an instant (see the base layer). */
+  .row-arrive {
+    position: relative;
+    overflow: hidden;
+    animation: row-arrive-ring 1.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .row-arrive::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(100deg, transparent 25%, color-mix(in oklch, var(--primary) 16%, transparent) 50%, transparent 75%);
+    background-size: 250% 100%;
+    animation: row-arrive-sweep 1.1s cubic-bezier(0.65, 0, 0.35, 1) 0.1s both;
+  }
+
+  @keyframes row-arrive-sweep {
+    from {
+      background-position: 120% 0;
+    }
+    to {
+      background-position: -20% 0;
+    }
+  }
+
+  @keyframes row-arrive-ring {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 45%, transparent);
+      border-color: var(--primary);
+    }
+    60% {
+      border-color: color-mix(in oklch, var(--primary) 60%, var(--rule));
+    }
+    100% {
+      box-shadow: 0 0 0 8px transparent;
+    }
   }
 }
 

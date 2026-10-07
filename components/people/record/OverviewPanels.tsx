@@ -4,13 +4,38 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { Banknote, Building2, CalendarCheck, CalendarDays, ChevronRight, Clock, HeartHandshake, KeyRound, Mail, MapPin, Phone, Plus, Power, Receipt, Shield, Users } from '@/components/icons';
+import {
+  Banknote,
+  CalendarCheck,
+  CalendarDays,
+  ChevronRight,
+  Clock,
+  HeartHandshake,
+  KeyRound,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Plus,
+  Power,
+  Receipt,
+  Shield,
+  Users,
+} from '@/components/icons';
 import { EMPLOYMENT_CONFIG, fmtDate, lbl, sel } from '@/components/people/shared';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
+import { StatusDot } from '@/components/shared/StatusDot';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
-import { type StaffProfile, type StaffRole, type StaffScope, type UpdateStaffPayload, getRoles, updateStaff } from '@/lib/modules/identity/client';
+import {
+  type StaffProfile,
+  type StaffRole,
+  type StaffScope,
+  type UpdateStaffPayload,
+  getRoles,
+  updateStaff,
+} from '@/lib/modules/identity/client';
 import { getWorkPattern } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
@@ -55,7 +80,6 @@ export function EmploymentPanel({
       note={canSeePay ? 'Bank details and the ID number itself are on Pay & statutory — revealing them is audited.' : undefined}
     >
       <RecordList>
-        <RecordListRow icon={Building2} label="Job title" value={employee.jobTitle} />
         <RecordListRow icon={Users} label="Department" value={employee.department} missing="No department" />
         <RecordListRow icon={Clock} label="Contract" value={EMPLOYMENT_CONFIG[employee.employmentType]?.label} />
         <RecordListRow
@@ -223,7 +247,8 @@ export function AccessCard({
   const roleEntry = roleCatalog?.roles.find((entry) => entry.key === member.role);
   const roleName = roleEntry?.name ?? member.role.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
   const locNames = (member.locationIds ?? []).map((id) => locations.find((l) => l.id === id)?.name ?? 'Unknown location');
-  const where = member.scope === 'location' ? locNames : [member.scope === 'franchise' ? 'Every location in their franchise' : 'Every location'];
+  const where =
+    member.scope === 'location' ? locNames : [member.scope === 'franchise' ? 'Every location in their franchise' : 'Every location'];
 
   const startEdit = () => {
     setRole(member.role);
@@ -240,8 +265,8 @@ export function AccessCard({
       action={
         canEdit &&
         !edit && (
-          <Button variant="outline" size="sm" onClick={startEdit}>
-            Edit
+          <Button type="button" variant="ghost" size="icon-sm" title="Edit access" aria-label="Edit access" onClick={startEdit}>
+            <Pencil aria-hidden="true" />
           </Button>
         )
       }
@@ -262,7 +287,13 @@ export function AccessCard({
             </div>
             <div>
               <label className={lbl}>Applies to</label>
-              <Select className={sel} value={scope} onValueChange={(value) => setScope(value as StaffScope)} options={SCOPE_OPTIONS} ariaLabel="Applies to" />
+              <Select
+                className={sel}
+                value={scope}
+                onValueChange={(value) => setScope(value as StaffScope)}
+                options={SCOPE_OPTIONS}
+                ariaLabel="Applies to"
+              />
             </div>
           </div>
           {scope === 'location' && locations.length > 0 && (
@@ -325,14 +356,24 @@ export function AccessCard({
               )
             }
           />
-          <RecordListRow icon={MapPin} tone="reference" label="Where" value={where.join(', ')} missing="No location — they can’t open any" />
+          <RecordListRow
+            icon={MapPin}
+            tone="reference"
+            label="Where"
+            value={where.join(', ')}
+            missing="No location — they can’t open any"
+          />
           <RecordListRow
             icon={Power}
             tone="reference"
             label="Sign-in"
-            value={member.isActive ? 'Can sign in' : 'Switched off'}
+            value={
+              <span className="inline-flex items-center gap-2">
+                <StatusDot tone={member.isActive ? 'success' : 'exception'} label={member.isActive ? 'Active' : 'Off'} />
+                {member.isActive ? 'Can sign in' : 'Switched off'}
+              </span>
+            }
             detail={member.isActive ? undefined : 'history kept'}
-            pill={member.isActive ? { label: 'Active', tone: 'success' } : { label: 'Off', tone: 'exception' }}
           />
         </RecordList>
       )}

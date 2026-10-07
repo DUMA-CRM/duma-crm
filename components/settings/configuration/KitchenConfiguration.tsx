@@ -25,7 +25,7 @@ import { CHIME_SOUNDS, chime } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
 import { DEFAULT_KDS_DISPLAY, type KdsCardSize, type KdsDisplay, type KdsLayout, type KdsTextSize, useKdsStore } from '@/stores/kdsStore';
 
-import { ConfigurationHeader, useMounted } from './shared';
+import { ConfigurationBodySkeleton, ConfigurationHeader, useMounted } from './shared';
 
 const LAYOUTS = [
   { value: 'lanes', label: 'Lanes', detail: 'New, Preparing and Ready side by side.', icon: LayoutDashboard },
@@ -38,7 +38,17 @@ export function KitchenConfiguration() {
   const set = (patch: Partial<KdsDisplay>) => settings.setDisplay(patch);
   const isDefault = (Object.keys(DEFAULT_KDS_DISPLAY) as (keyof KdsDisplay)[]).every((key) => settings[key] === DEFAULT_KDS_DISPLAY[key]);
 
-  if (!mounted) return <div className="h-60 animate-pulse rounded-lg bg-band/50" aria-busy="true" />;
+  // The header is static; only the device-stored settings wait for mount.
+  if (!mounted)
+    return (
+      <div className="space-y-5">
+        <ConfigurationHeader
+          title="Kitchen screen"
+          description="How the kitchen display on this device looks and alerts the team. Changes apply straight away."
+        />
+        <ConfigurationBodySkeleton label="Loading kitchen screen settings" />
+      </div>
+    );
 
   return (
     <div className="space-y-5">

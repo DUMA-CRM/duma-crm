@@ -17,6 +17,9 @@ importers:
       '@ncdai/react-swipe-actions':
         specifier: ^0.3.0
         version: 0.3.0(motion@13.4.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
+      '@ncdai/react-wheel-picker':
+        specifier: ^1.2.3
+        version: 1.2.3(react@19.2.4)
       '@tanstack/react-query':
         specifier: ^5.99.2
         version: 5.99.2(react@19.2.4)
@@ -44,6 +47,9 @@ importers:
       jsqr:
         specifier: ^1.4.0
         version: 1.4.0
+      marked:
+        specifier: ^18.1.0
+        version: 18.1.0
       motion:
         specifier: ^13.4.3
         version: 13.4.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -632,6 +638,11 @@ packages:
     peerDependencies:
       motion: '>=12'
       react: ^18.0.0 || ^19.0.0
+
+  '@ncdai/react-wheel-picker@1.2.3':
+    resolution: {integrity: sha512-TQjDfuDH9Ss7sgacSRPnakqWfkR8E1w6g7Pkt7bTYX35SfdHbGSzC8g/lXKFeMyNIikOWD9wC3uFPLy+Ui/R0g==}
+    peerDependencies:
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc
 
   '@next/env@16.3.3':
     resolution: {integrity: sha512-U2eYQRwXj+dsqxV79zFqExDdatnNY/ZWc2nsJU1p/OgT7fd3dXwlF6OjYaFQCfMoeTA19PWq+wVmYgimVA+V+g==}
@@ -3030,6 +3041,11 @@ packages:
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
+  marked@18.1.0:
+    resolution: {integrity: sha512-PamYXWWWg2nboG3oX5Ffzpy3EFZROqZJK9hSlMmUnekp7TxPs5DcT95vwd46m73/exfKCRVMtgXoPMI4FEJL6w==}
+    engines: {node: '>= 20'}
+    hasBin: true
+
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
@@ -4630,6 +4646,10 @@ snapshots:
   '@ncdai/react-swipe-actions@0.3.0(motion@13.4.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)':
     dependencies:
       motion: 13.4.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+
+  '@ncdai/react-wheel-picker@1.2.3(react@19.2.4)':
+    dependencies:
       react: 19.2.4
 
   '@next/env@16.3.3': {}
@@ -7120,6 +7140,8 @@ snapshots:
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  marked@18.1.0: {}
 
   math-intrinsics@1.1.0: {}
 

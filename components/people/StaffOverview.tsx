@@ -8,12 +8,15 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock, Info } from '@/components/icons';
 import { usePayrollSettings } from '@/components/payroll/usePayroll';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { Avatar } from '@/components/shared/Avatar';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 
 import { getStaff } from '@/lib/modules/identity/client';
-import { getEmployees } from '@/lib/modules/people/client';
 import { getPayrollRuns } from '@/lib/modules/payroll/client';
+import { getEmployees } from '@/lib/modules/people/client';
 import { type PeopleSummary, getManagedLeaveRequests, getManagedTickets, getPeopleSummary } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { getScheduledShifts, getVariance } from '@/lib/modules/workforce/client';
@@ -199,11 +202,8 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
     <motion.div className="space-y-7" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
       <motion.section variants={SECTION_RISE} aria-label="Needs you">
         {loading ? (
-          <div className="space-y-2" aria-label="Checking the team">
-            {[0, 1, 2].map((index) => (
-              <div key={index} className="h-16 animate-pulse rounded-lg bg-band/60" />
-            ))}
-          </div>
+          // The folded "needs you" card is one line until opened, so is its placeholder.
+          <TilesSkeleton count={1} label="Checking the team" tileClassName="border-rule/60 bg-field px-4 py-3.5" />
         ) : error ? (
           <ErrorState
             title="The team checks couldn’t run"
@@ -306,7 +306,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
             Today
           </SectionHeading>
           {rotaQ.isPending || activeQ.isPending || !roster ? (
-            <div className="h-48 animate-pulse rounded-lg bg-band/60" />
+            <RosterSkeleton />
           ) : rotaQ.isError || activeQ.isError ? (
             <ErrorState title="Today’s rota couldn’t be loaded" onRetry={() => void Promise.all([rotaQ.refetch(), activeQ.refetch()])} />
           ) : (
@@ -323,7 +323,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
           {summaryQ.isError ? (
             <ErrorState title="Team figures couldn’t be loaded" onRetry={() => void summaryQ.refetch()} />
           ) : summaryQ.isPending || staffQ.isPending ? (
-            <div className="h-64 animate-pulse rounded-lg bg-band/60" />
+            <TeamCardSkeleton />
           ) : (
             <TeamCard
               members={(staffQ.data ?? []).filter((member) => member.isActive)}
@@ -340,12 +340,73 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
   );
 }
 
-function initials(name: string) {
-  const parts = name.split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
+const DAY = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+
+/** `TodayRoster` without its words: the day and legend, then a row per person with their bar. */
+function RosterSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading today’s rota"
+      className="overflow-hidden rounded-lg border border-rule/60 bg-field"
+    >
+      <div className="flex items-center justify-between gap-3 border-b border-rule/50 px-5 py-3.5" aria-hidden="true">
+        <Bone className="h-3.5 w-40" />
+        <Bone className="h-3 w-48" />
+      </div>
+      <ul className="space-y-1 px-5 pt-3 pb-4" aria-hidden="true">
+        {[0, 1, 2, 3].map((index) => (
+          <li
+            key={index}
+            className="grid grid-cols-[11rem_minmax(0,1fr)_8.5rem] items-center gap-4 py-1.5 max-md:grid-cols-[8rem_minmax(0,1fr)]"
+          >
+            <span className="flex min-w-0 items-center gap-2.5">
+              <Bone className="size-8 shrink-0" />
+              <span className="min-w-0 flex-1 space-y-1.5">
+                <Bone className="h-3.5 w-20 max-w-full" />
+                <Bone className="h-3 w-24 max-w-full" />
+              </span>
+            </span>
+            <Bone className="h-7 w-full" />
+            <Bone className="ml-auto h-3 w-16 max-md:hidden" />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
-const DAY = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+/** `TeamCard` without its words: the faces and headcount, the department bar, the record checks. */
+function TeamCardSkeleton() {
+  return (
+    <div role="status" aria-busy="true" aria-label="Loading the team" className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-4 px-5 py-5" aria-hidden="true">
+        <span className="flex -space-x-2">
+          {[0, 1, 2, 3].map((index) => (
+            <Bone key={index} className="size-10 border-2 border-field" />
+          ))}
+        </span>
+        <span className="min-w-0 flex-1 space-y-2">
+          <Bone className="h-6 w-28" />
+          <Bone className="h-3.5 w-56 max-w-full" />
+        </span>
+      </div>
+      <div className="border-t border-rule/50 px-5 py-4" aria-hidden="true">
+        <Bone className="h-2.5 w-full rounded-full" />
+        <Bone className="mt-2.5 h-3 w-64 max-w-full" />
+      </div>
+      <div className="border-t border-rule/50" aria-hidden="true">
+        {[0, 1, 2].map((index) => (
+          <div key={index} className="flex items-center gap-3 border-b border-rule/45 px-5 py-3 last:border-b-0">
+            <Bone className="size-8 shrink-0" />
+            <Bone className={index % 2 ? 'h-3.5 w-48' : 'h-3.5 w-36'} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const STATUS_STYLE: Record<RosterStatus, { bar: string; dot: string; text: string; legend: string }> = {
   on: { bar: 'bg-primary', dot: 'bg-primary', text: 'text-primary', legend: 'On shift' },
@@ -455,14 +516,7 @@ function RosterLine({
   return (
     <li className="grid grid-cols-[11rem_minmax(0,1fr)_8.5rem] items-center gap-4 rounded-md py-1.5 max-md:grid-cols-[8rem_minmax(0,1fr)]">
       <span className="flex min-w-0 items-center gap-2.5">
-        <span
-          className={cn(
-            'flex size-8 shrink-0 items-center justify-center rounded-md text-xs font-semibold',
-            row.status === 'done' ? 'bg-band text-muted-foreground' : 'bg-primary/10 text-primary',
-          )}
-        >
-          {initials(row.name)}
-        </span>
+        <Avatar name={row.name} size="sm" className={cn(row.status === 'done' && 'opacity-50 grayscale')} />
         <span className="min-w-0">
           <span className={cn('block truncate text-sm font-medium', row.status === 'done' ? 'text-muted-foreground' : 'text-foreground')}>
             {row.name}
@@ -594,12 +648,8 @@ function TeamCard({
       <div className="flex flex-wrap items-center gap-x-6 gap-y-4 px-5 py-5">
         <div className="flex -space-x-2" aria-hidden="true">
           {faces.map((member) => (
-            <span
-              key={member.userId}
-              className="flex size-10 items-center justify-center rounded-md border-2 border-field bg-primary/12 text-xs font-semibold text-primary"
-              title={member.name ?? member.email ?? undefined}
-            >
-              {initials(member.name || member.email || '?')}
+            <span key={member.userId} className="rounded-md border-2 border-field" title={member.name ?? member.email ?? undefined}>
+              <Avatar name={member.name || member.email} email={member.email} size="md" />
             </span>
           ))}
           {members.length > faces.length && (

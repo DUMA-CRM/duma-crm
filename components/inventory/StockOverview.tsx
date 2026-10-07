@@ -1,18 +1,16 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import Link from 'next/link';
+import { motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
 import {
   AlertTriangle,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   Clock,
   Package,
+  Plus,
   Search,
   SlidersHorizontal,
   Timer,
@@ -22,12 +20,25 @@ import {
   X,
 } from '@/components/icons';
 import { AddItemDrawer, EditThresholdDrawer, LogLossDrawer, RestockDrawer } from '@/components/inventory/stock/StockDrawers';
-import { fmtQty, normaliseArray } from '@/components/inventory/stock/shared';
+import {
+  ParMeter,
+  STATUS_LABEL,
+  STATUS_TONE,
+  categoryMeta,
+  fmtQty,
+  normaliseArray,
+  statusGlyph,
+} from '@/components/inventory/stock/shared';
 import type { DraftLine } from '@/components/purchasing/PurchaseOrdersPanel';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRow } from '@/components/shared/ListRow';
+import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
+import { Pill } from '@/components/shared/Pill';
+import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
+import { TONE_TINT } from '@/components/shared/tone';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,7 +58,6 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import {
-  type StockHealth,
   type StockLine,
   type StockSort,
   type StockView,
@@ -72,16 +82,6 @@ import { toast } from '@/stores/toastStore';
  * against its par; and a suggested order that becomes a purchase order in
  * one step. Settings' vocabulary throughout — fields, facts, panels.
  */
-
-const HEALTH: Record<StockHealth, { label: string; tint: string; bar: string }> = {
-  ok: { label: 'Healthy', tint: 'bg-momentum/8 text-momentum', bar: 'bg-momentum' },
-  low: { label: 'Low', tint: 'bg-measured/10 text-measured', bar: 'bg-measured' },
-  critical: { label: 'Critical', tint: 'bg-exception/8 text-exception', bar: 'bg-exception' },
-  out: { label: 'Out', tint: 'bg-exception/8 text-exception', bar: 'bg-exception' },
-  unavailable: { label: 'Unavailable', tint: 'bg-band text-muted-foreground', bar: 'bg-muted-foreground/40' },
-};
-
-const CATEGORY_LABEL: Record<string, string> = { FOOD: 'Food', BEVERAGE: 'Drinks', SUPPLY: 'Supplies', MERCH: 'Retail' };
 
 const SORTS: { value: StockSort; label: string }[] = [
   { value: 'name', label: 'Sort: Name' },
@@ -120,6 +120,7 @@ export function StockOverview({
     waste: hasCapability(capabilities, 'loss:write'),
     par: hasCapability(capabilities, 'stock.locations:write'),
     order: hasCapability(capabilities, 'purchasing:write'),
+    add: hasCapability(capabilities, 'inventory:write'),
   };
   const [now] = useState(() => new Date());
   const [search, setSearch] = useState('');
@@ -193,17 +194,21 @@ export function StockOverview({
   };
 
   const views: { value: StockView; label: string }[] = [
-    { value: 'all', label: `All items · ${counts.total}` },
-    ...(purchasingEnabled ? [{ value: 'reorder' as const, label: `Suggested order · ${counts.reorder}` }] : []),
-    { value: 'low', label: `Low & out · ${counts.low}` },
-    { value: 'expiring', label: `Expiring this week · ${counts.expiring + counts.expired}` },
-    { value: 'unavailable', label: `Unavailable · ${counts.unavailable}` },
+    { value: 'all', label: 'All items' },
+    ...(purchasingEnabled ? [{ value: 'reorder' as const, label: 'Suggested order' }] : []),
+    { value: 'low', label: 'Low & out' },
+    { value: 'expiring', label: 'Expiring this week' },
+    // No tile counts these, so the option does.
+    { value: 'unavailable', label: counts.unavailable ? `Unavailable · ${counts.unavailable}` : 'Unavailable' },
   ];
   const hasFilters = !!search || effectiveView !== 'all' || category !== 'all';
 
   return (
     <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
-      <NeedsAttention lines={lines} now={now} can={can} onAction={open} />
+      <NeedsAttention
+        items={attentionItems(lines, now, can, open)}
+        clear={{ title: 'Nothing needs you', detail: 'Nothing is out, expired or about to run out.' }}
+      />
 
       <motion.dl variants={SECTION_RISE} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Fact
@@ -256,7 +261,7 @@ export function StockOverview({
               leftIcon={<Search size={14} />}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="border-rule bg-background"
+              className="border-rule"
               rightAction={
                 search ? (
                   <button
@@ -283,7 +288,7 @@ export function StockOverview({
             onValueChange={setCategory}
             options={[
               { value: 'all', label: 'All categories' },
-              ...categories.map((value) => ({ value, label: CATEGORY_LABEL[value] ?? value })),
+              ...categories.map((value) => ({ value, label: categoryMeta(value).label })),
             ]}
             ariaLabel="Category"
             className="w-40"
@@ -316,24 +321,56 @@ export function StockOverview({
             onRetry={() => void stockQuery.refetch()}
           />
         ) : stockQuery.isPending ? (
-          <div className="h-96 animate-pulse rounded-lg bg-band/60" aria-label="Loading stock" />
+          // Two category groups: the heading row, then the card of stock rows.
+          <div role="status" aria-busy="true" aria-label="Loading stock" className="space-y-5">
+            {[5, 3].map((rows, group) => (
+              <div key={group}>
+                <div className="mb-2 flex items-baseline justify-between px-1" aria-hidden="true">
+                  <Bone className="h-4 w-28" />
+                  <Bone className="h-3 w-24" />
+                </div>
+                <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                  {Array.from({ length: rows }, (_, index) => (
+                    <RowSkeleton key={index} index={index + group} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : effectiveView === 'reorder' ? (
           <SuggestedOrder lines={shown} money={money} canOrder={can.order && !!onCreatePurchaseOrder} onCreate={onCreatePurchaseOrder} />
         ) : shown.length === 0 ? (
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-            <EmptyState
-              icon={Package}
-              title={hasFilters ? 'Nothing matches' : 'No stock at this location yet'}
-              description={hasFilters ? 'Try another view, or clear the filters.' : 'Add the items you keep here with Add item above.'}
-            />
-          </div>
+          <EmptyState
+            icon={Package}
+            kind={hasFilters ? 'search' : 'start'}
+            title={hasFilters ? 'Nothing matches' : 'No stock at this location yet'}
+            description={
+              hasFilters
+                ? 'Try another view, or clear the filters.'
+                : 'Items you keep here appear with their levels and value once you add them.'
+            }
+            action={
+              hasFilters
+                ? {
+                    label: 'Clear filters',
+                    onClick: () => {
+                      setSearch('');
+                      setView('all');
+                      setCategory('all');
+                    },
+                  }
+                : can.add
+                  ? { label: 'Add item', icon: Plus, onClick: () => onAddOpenChange(true) }
+                  : undefined
+            }
+          />
         ) : (
           <div className="space-y-5">
             {groups.map((group) => (
               <section key={group.category ?? 'none'} aria-labelledby={`cat-${group.category ?? 'none'}`}>
                 <div className="mb-2 flex items-baseline justify-between px-1">
                   <h2 id={`cat-${group.category ?? 'none'}`} className="text-sm font-semibold text-foreground">
-                    {group.category ? (CATEGORY_LABEL[group.category] ?? group.category) : 'Uncategorised'}
+                    {categoryMeta(group.category).label}
                   </h2>
                   <p className="text-xs text-muted-foreground">
                     {group.lines.length} {group.lines.length === 1 ? 'item' : 'items'} · {money(stockValue(group.lines).value)}
@@ -397,40 +434,39 @@ function StockRow({
   onAction: (kind: Action['kind'], stockItemId: string) => void;
 }) {
   const health = stockHealth(line);
-  const meta = HEALTH[health];
-  const scale = line.threshold > 0 ? line.threshold * 2 : Math.max(line.qty, 1);
-  const fill = Math.max(0, Math.min(1, line.qty / scale));
-  const parAt = line.threshold > 0 ? Math.min(1, line.threshold / scale) : null;
+  const glyph = statusGlyph(health, line.category);
   const expired = isExpired(line.earliestExpiry, now);
   const expiring = !expired && expiresWithin(line.earliestExpiry, now, 7);
   const cover = line.coverDays;
+  // The row is a link; an action inside it must not also follow it.
+  const act = (kind: Action['kind']) => (event: React.MouseEvent) => {
+    event.preventDefault();
+    onAction(kind, line.stockItemId);
+  };
 
   return (
-    <li className="group border-b border-rule/45 last:border-b-0">
-      <div className="flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-band/40">
-        <Link
-          href={`/inventory/items/${line.stockItemId}`}
-          className="flex min-w-0 flex-1 items-center gap-3 focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', meta.tint)}>
-            <Package size={16} aria-hidden="true" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-foreground">{line.name}</span>
-            <span className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="relative block h-1.5 w-20 shrink-0 rounded-full bg-band" aria-hidden="true">
-                <span className={cn('absolute inset-y-0 left-0 rounded-full', meta.bar)} style={{ width: `${fill * 100}%` }} />
-                {parAt !== null && <span className="absolute -inset-y-0.5 w-px bg-foreground/50" style={{ left: `${parAt * 100}%` }} />}
-              </span>
-              <span className="truncate">
-                <span className={cn('font-medium', health === 'out' || health === 'critical' ? 'text-exception' : 'text-foreground')}>
-                  {fmtQty(line.qty)} {line.unit}
-                </span>
-                {line.threshold > 0 ? ` · par ${fmtQty(line.threshold)}` : ' · no par set'}
-              </span>
+    <ListRow
+      href={`/inventory/items/${line.stockItemId}`}
+      icon={glyph.icon}
+      tone={STATUS_TONE[health]}
+      iconLabel={glyph.label}
+      title={line.name}
+      // The word stays visible: Low and Critical share a glyph and differ only by colour.
+      titleExtra={health !== 'ok' && <Pill tone={STATUS_TONE[health]}>{STATUS_LABEL[health]}</Pill>}
+      meta={
+        <span className="flex items-center gap-2">
+          <ParMeter qty={line.qty} par={line.threshold} unit={line.unit} status={health} className="w-20 shrink-0" />
+          <span className="truncate">
+            <span className={cn('font-medium', health === 'out' || health === 'critical' ? 'text-exception' : 'text-foreground')}>
+              {fmtQty(line.qty)} {line.unit}
             </span>
+            {line.threshold > 0 && ` · par ${fmtQty(line.threshold)}`}
           </span>
-          <span className="hidden w-28 shrink-0 text-right lg:block">
+        </span>
+      }
+      trailing={
+        <>
+          <span className="hidden w-28 text-right lg:block">
             {cover === null ? (
               <span className="text-xs text-muted-foreground">No recent use</span>
             ) : (
@@ -444,32 +480,30 @@ function StockRow({
               </span>
             )}
           </span>
-          <span className="hidden w-32 shrink-0 md:flex md:justify-end">
+          <span className="hidden w-32 md:flex md:justify-end">
             {expired ? (
-              <span className="rounded-sm bg-exception/8 px-1.5 py-0.5 text-micro font-semibold text-exception">Expired</span>
+              <Pill tone="exception">Expired</Pill>
             ) : expiring ? (
-              <span className="rounded-sm bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured">
-                Expires {formatDate(line.earliestExpiry!)}
-              </span>
-            ) : health !== 'ok' ? (
-              <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', meta.tint)}>{meta.label}</span>
+              <Pill tone="warning">Expires {formatDate(line.earliestExpiry!)}</Pill>
             ) : null}
           </span>
-          <span className="w-20 shrink-0 text-right text-sm font-semibold text-foreground">
+          <span className="w-20 text-right text-sm font-semibold text-foreground">
             {line.unitCost !== null ? (
               money(Math.max(0, line.qty) * line.unitCost)
             ) : (
               <span className="text-xs font-normal text-muted-foreground">No cost</span>
             )}
           </span>
-        </Link>
-        {/* The row's fixes — visible on hover or focus, always reachable by keyboard. */}
-        <span className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        </>
+      }
+      actions={
+        <>
           {can.restock && (
             <Button
+              type="button"
               variant="ghost"
-              size="icon"
-              onClick={() => onAction('restock', line.stockItemId)}
+              size="icon-sm"
+              onClick={act('restock')}
               aria-label={`Request more ${line.name}`}
               title="Request more"
             >
@@ -478,9 +512,10 @@ function StockRow({
           )}
           {can.waste && (
             <Button
+              type="button"
               variant="ghost"
-              size="icon"
-              onClick={() => onAction('waste', line.stockItemId)}
+              size="icon-sm"
+              onClick={act('waste')}
               aria-label={`Log waste for ${line.name}`}
               title="Log waste"
             >
@@ -489,19 +524,19 @@ function StockRow({
           )}
           {can.par && (
             <Button
+              type="button"
               variant="ghost"
-              size="icon"
-              onClick={() => onAction('par', line.stockItemId)}
+              size="icon-sm"
+              onClick={act('par')}
               aria-label={`Set par for ${line.name}`}
               title="Set par"
             >
               <SlidersHorizontal />
             </Button>
           )}
-          <ChevronRight size={14} className="text-muted-foreground" aria-hidden="true" />
-        </span>
-      </div>
-    </li>
+        </>
+      }
+    />
   );
 }
 
@@ -509,32 +544,16 @@ function StockRow({
 
 /**
  * What needs someone, worst first, each row with its fix — the pattern from
- * Odoo's replenishment report and MarketMan's alerts. Folded to one line by
- * default, as on the staff overview.
+ * Odoo's replenishment report and MarketMan's alerts. Drawn by the shared
+ * folded card, as on Menu → Items.
  */
-function NeedsAttention({
-  lines,
-  now,
-  can,
-  onAction,
-}: {
-  lines: StockLine[];
-  now: Date;
-  can: { restock: boolean; waste: boolean };
-  onAction: (kind: Action['kind'], stockItemId: string) => void;
-}) {
-  const reduceMotion = useReducedMotion();
-  const [open, setOpen] = useState(false);
-
-  type Item = {
-    key: string;
-    tone: 'exception' | 'measured';
-    icon: typeof AlertTriangle;
-    title: string;
-    detail: string;
-    fix?: { label: string; run: () => void };
-  };
-  const items: Item[] = [];
+function attentionItems(
+  lines: StockLine[],
+  now: Date,
+  can: { restock: boolean; waste: boolean },
+  onAction: (kind: Action['kind'], stockItemId: string) => void,
+): NeedsAttentionItem[] {
+  const items: NeedsAttentionItem[] = [];
   for (const line of lines) {
     const health = stockHealth(line);
     if (isExpired(line.earliestExpiry, now))
@@ -565,106 +584,7 @@ function NeedsAttention({
         fix: can.restock ? { label: 'Request more', run: () => onAction('restock', line.stockItemId) } : undefined,
       });
   }
-  items.sort((a, b) => (a.tone === b.tone ? 0 : a.tone === 'exception' ? -1 : 1));
-
-  if (items.length === 0)
-    return (
-      <motion.section variants={SECTION_RISE} className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-momentum/10 text-momentum">
-          <CheckCircle2 size={18} aria-hidden="true" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-foreground">Nothing needs you</span>
-          <span className="block text-xs text-muted-foreground">Nothing is out, expired or about to run out.</span>
-        </span>
-      </motion.section>
-    );
-
-  const worst = items[0].tone;
-  return (
-    <motion.section
-      variants={SECTION_RISE}
-      aria-label="Needs attention"
-      className="overflow-hidden rounded-lg border border-rule/60 bg-field"
-    >
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-band/40"
-      >
-        <span
-          className={cn(
-            'flex size-10 shrink-0 items-center justify-center rounded-md',
-            worst === 'exception' ? 'bg-exception/8 text-exception' : 'bg-measured/10 text-measured',
-          )}
-        >
-          <AlertTriangle size={18} aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-foreground">
-            {items.length} {items.length === 1 ? 'thing needs' : 'things need'} you
-          </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{items.map((item) => item.title).join(' · ')}</span>
-        </span>
-        <span className="shrink-0 text-xs font-semibold text-muted-foreground">{open ? 'Hide' : 'Show'}</span>
-        <ChevronDown
-          size={15}
-          aria-hidden="true"
-          className={cn('shrink-0 text-muted-foreground transition-transform duration-200', open && 'rotate-180')}
-        />
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
-            exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden border-t border-rule/50"
-          >
-            <ul className="space-y-2 p-2">
-              {items.map((item) => {
-                const Icon = item.icon;
-                const body = (
-                  <>
-                    <span
-                      className={cn(
-                        'flex size-10 shrink-0 items-center justify-center rounded-md',
-                        item.tone === 'exception' ? 'bg-exception/8 text-exception' : 'bg-measured/10 text-measured',
-                      )}
-                    >
-                      <Icon size={18} aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-foreground">{item.title}</span>
-                      <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{item.detail}</span>
-                    </span>
-                  </>
-                );
-                return (
-                  <li
-                    key={item.key}
-                    className={cn(
-                      'flex items-center gap-3 rounded-lg border bg-background/60 px-3.5 py-3',
-                      item.tone === 'exception' ? 'border-exception/35' : 'border-rule/60',
-                    )}
-                  >
-                    {body}
-                    {item.fix && (
-                      <Button variant="outline" size="sm" onClick={item.fix.run}>
-                        {item.fix.label}
-                      </Button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.section>
-  );
+  return items.sort((a, b) => (a.tone === b.tone ? 0 : a.tone === 'exception' ? -1 : 1));
 }
 
 // ── Suggested order ──────────────────────────────────────────────────────────
@@ -694,9 +614,12 @@ function SuggestedOrder({
 
   if (suggestions.length === 0)
     return (
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-        <EmptyState icon={CheckCircle2} title="Nothing to order" description="Every item is above par and none runs out within a week." />
-      </div>
+      <EmptyState
+        icon={CheckCircle2}
+        kind="done"
+        title="Nothing to order"
+        description="Every item is above par and none runs out within a week."
+      />
     );
 
   return (
@@ -744,7 +667,9 @@ function SuggestedOrder({
                 off ? 'border-dashed border-rule/60 opacity-60' : 'border-rule/50 bg-background/60',
               )}
             >
-              <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', HEALTH[stockHealth(line)].tint)}>
+              <span
+                className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', TONE_TINT[STATUS_TONE[stockHealth(line)]])}
+              >
                 <Package size={16} aria-hidden="true" />
               </span>
               <span className="min-w-0 flex-1">

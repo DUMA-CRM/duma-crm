@@ -1,5 +1,6 @@
 import { AlertTriangle, Search, UtensilsCrossed } from '@/components/icons';
 import { ProductCard } from '@/components/pos/ProductCard';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
@@ -32,19 +33,25 @@ export const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-3
 const COMPACT_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2.5';
 
 export function MenuGrid({
-  items, counts, selectedId, onSelectItem, isLoading, isError, onRetry, query, onClearSearch, stock, tileStyle = 'photo', empty, currency,
+  items,
+  counts,
+  selectedId,
+  onSelectItem,
+  isLoading,
+  isError,
+  onRetry,
+  query,
+  onClearSearch,
+  stock,
+  tileStyle = 'photo',
+  empty,
+  currency,
 }: MenuGridProps) {
   if (isLoading) {
     return (
-      <div className={GRID} aria-busy="true" aria-label="Loading the menu">
+      <div className={tileStyle === 'compact' ? COMPACT_GRID : GRID} role="status" aria-busy="true" aria-label="Loading the menu">
         {Array.from({ length: 12 }).map((_, i) => (
-          <div key={i} className="overflow-hidden rounded-xl border border-rule/50 bg-card">
-            <div className="aspect-[16/10] animate-pulse bg-band/70" />
-            <div className="space-y-2 p-3">
-              <div className="h-3.5 w-3/4 animate-pulse rounded bg-band/70" />
-              <div className="h-3 w-1/3 animate-pulse rounded bg-band/70" />
-            </div>
-          </div>
+          <ProductCardSkeleton key={i} index={i} photo={tileStyle !== 'compact'} />
         ))}
       </div>
     );
@@ -72,7 +79,11 @@ export function MenuGrid({
         )}
       </PanelState>
     ) : (
-      <PanelState icon={UtensilsCrossed} title={empty?.title ?? 'Nothing in this category'} description={empty?.description ?? 'Items appear here once they’re on the menu and available.'} />
+      <PanelState
+        icon={UtensilsCrossed}
+        title={empty?.title ?? 'Nothing in this category'}
+        description={empty?.description ?? 'Items appear here once they’re on the menu and available.'}
+      />
     );
   }
 
@@ -90,6 +101,28 @@ export function MenuGrid({
           currency={currency}
         />
       ))}
+    </div>
+  );
+}
+
+const NAME_W = ['w-3/4', 'w-1/2', 'w-2/3', 'w-4/5'];
+
+/** A `ProductCard` without its words — same border, photo inset, name and price. */
+function ProductCardSkeleton({ index, photo }: { index: number; photo: boolean }) {
+  return (
+    <div
+      className={cn('flex flex-col overflow-hidden rounded-xl border border-rule/70 bg-card', photo ? 'min-h-28' : 'min-h-24')}
+      aria-hidden="true"
+    >
+      {photo && (
+        <span className="block shrink-0 p-1.5 pb-0">
+          <Bone className="aspect-[16/10] w-full rounded-lg" />
+        </span>
+      )}
+      <span className={cn('flex flex-1 flex-col justify-between gap-2 px-3 pb-3', photo ? 'pt-2.5' : 'pt-3')}>
+        <Bone className={cn('h-4', NAME_W[index % NAME_W.length])} />
+        <Bone className="h-3.5 w-12" />
+      </span>
     </div>
   );
 }

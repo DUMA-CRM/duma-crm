@@ -5,17 +5,32 @@ import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { ArrowDown, ArrowUp, FileText, type IconComponent, LayoutGrid, Loader2, Pencil, Plus, Scale, SlidersHorizontal, Trash2 } from '@/components/icons';
+import {
+  ArrowDown,
+  ArrowUp,
+  EyeOff,
+  FileText,
+  type IconComponent,
+  LayoutGrid,
+  Loader2,
+  Pencil,
+  Plus,
+  Scale,
+  SlidersHorizontal,
+  Trash2,
+} from '@/components/icons';
 import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
 import { categoryTone } from '@/components/menu/shared';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { EmptyState, type EmptyStateAction } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards, FormSection } from '@/components/shared/FormParts';
+import { IconTag } from '@/components/shared/IconTag';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -117,7 +132,9 @@ export function CategoriesWorkspace() {
   const itemCounts = countBy(items.data, (item) => item.categoryId);
   const modifierCounts = countBy(modifiers.data, (modifier) => modifier.groupId ?? null);
 
-  const orderedCategories = (categories.data ?? []).map((category) => (itemCounts ? { ...category, itemCount: itemCounts.get(category.id) ?? 0 } : category));
+  const orderedCategories = (categories.data ?? []).map((category) =>
+    itemCounts ? { ...category, itemCount: itemCounts.get(category.id) ?? 0 } : category,
+  );
   const orderedGroups = [...(groups.data ?? [])]
     .map((group) => (modifierCounts ? { ...group, modifierCount: modifierCounts.get(group.id) ?? 0 } : group))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
@@ -133,7 +150,11 @@ export function CategoriesWorkspace() {
     const b = orderedGroups[index + direction];
     if (!a || !b) return;
     // Equal sort orders would swap to themselves — fall back to positions.
-    if (a.sortOrder === b.sortOrder) reorderGroups.mutate([{ ...a, sortOrder: index }, { ...b, sortOrder: index + direction }]);
+    if (a.sortOrder === b.sortOrder)
+      reorderGroups.mutate([
+        { ...a, sortOrder: index },
+        { ...b, sortOrder: index + direction },
+      ]);
     else reorderGroups.mutate([a, b]);
   };
 
@@ -148,7 +169,6 @@ export function CategoriesWorkspace() {
               <ListSection
                 id="modifier-groups"
                 title="Modifier groups"
-                note="The choices an item offers — Size, Milk, Extras. Attach them to items on the item’s page."
                 action={
                   canWrite && (
                     <Button size="sm" onClick={() => setGroupDrawer('new')}>
@@ -159,7 +179,16 @@ export function CategoriesWorkspace() {
                 loading={groups.isPending}
                 error={groups.isError}
                 onRetry={() => void groups.refetch()}
-                empty={orderedGroups.length === 0 ? { icon: SlidersHorizontal, title: 'No modifier groups yet', description: 'Create Size first if drinks come in sizes — recipes cost each size separately.' } : null}
+                empty={
+                  orderedGroups.length === 0
+                    ? {
+                        icon: SlidersHorizontal,
+                        title: 'No modifier groups yet',
+                        description: 'Create Size first if drinks come in sizes — recipes cost each size separately.',
+                        action: canWrite ? { label: 'New group', icon: Plus, onClick: () => setGroupDrawer('new') } : undefined,
+                      }
+                    : null
+                }
               >
                 {orderedGroups.map((group, index) => (
                   <OrderedRow
@@ -172,7 +201,7 @@ export function CategoriesWorkspace() {
                         {group.modifierCount} {group.modifierCount === 1 ? 'modifier' : 'modifiers'}
                       </Link>
                     }
-                    pill={group.isSize ? { label: 'Sizes', tone: 'bg-primary/8 text-primary' } : undefined}
+                    iconLabel={group.isSize ? 'Sizes' : undefined}
                     canWrite={canWrite}
                     first={index === 0}
                     last={index === orderedGroups.length - 1}
@@ -198,7 +227,16 @@ export function CategoriesWorkspace() {
               loading={categories.isPending}
               error={categories.isError}
               onRetry={() => void categories.refetch()}
-              empty={orderedCategories.length === 0 ? { icon: LayoutGrid, title: 'No sections yet', description: 'Start with how your board reads — Coffee, Tea, Bakery.' } : null}
+              empty={
+                orderedCategories.length === 0
+                  ? {
+                      icon: LayoutGrid,
+                      title: 'No sections yet',
+                      description: 'Start with how your board reads — Coffee, Tea, Bakery.',
+                      action: canWrite ? { label: 'New section', icon: Plus, onClick: () => setCategoryDrawer('new') } : undefined,
+                    }
+                  : null
+              }
             >
               {orderedCategories.map((category, index) => (
                 <OrderedRow
@@ -207,8 +245,12 @@ export function CategoriesWorkspace() {
                   tile={categoryTone(category.slug, category)}
                   title={category.name}
                   muted={!category.isActive}
-                  detail={[category.description, `${category.itemCount} ${category.itemCount === 1 ? 'item' : 'items'}`].filter(Boolean).join(' · ')}
-                  pill={category.isActive ? undefined : { label: 'Hidden', tone: 'bg-band text-muted-foreground' }}
+                  detail={[category.description, `${category.itemCount} ${category.itemCount === 1 ? 'item' : 'items'}`]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  // The switch and the greyed name already say it; only a reader without
+                  // the switch needs the mark.
+                  titleExtra={!category.isActive && !canWrite ? <IconTag icon={EyeOff} label="Hidden from the menu" /> : undefined}
                   canWrite={canWrite}
                   first={index === 0}
                   last={index === orderedCategories.length - 1}
@@ -240,7 +282,9 @@ export function CategoriesWorkspace() {
           onClose={() => setCategoryDrawer(null)}
         />
       )}
-      {groupDrawer && tenantId && <GroupDrawer tenantId={tenantId} group={groupDrawer === 'new' ? undefined : groupDrawer} onClose={() => setGroupDrawer(null)} />}
+      {groupDrawer && tenantId && (
+        <GroupDrawer tenantId={tenantId} group={groupDrawer === 'new' ? undefined : groupDrawer} onClose={() => setGroupDrawer(null)} />
+      )}
     </EditorShell>
   );
 }
@@ -269,12 +313,12 @@ function ListSection({
 }: {
   id: string;
   title: string;
-  note: string;
+  note?: string;
   action?: React.ReactNode;
   loading: boolean;
   error: boolean;
   onRetry: () => void;
-  empty: { icon: IconComponent; title: string; description: string } | null;
+  empty: { icon: IconComponent; title: string; description: string; action?: EmptyStateAction } | null;
   children: React.ReactNode;
 }) {
   return (
@@ -288,25 +332,13 @@ function ListSection({
       {error ? (
         <ErrorState title={`Couldn’t load ${title.toLowerCase()}`} onRetry={onRetry} />
       ) : loading ? (
-        <div className="space-y-2" aria-label={`Loading ${title.toLowerCase()}`}>
-          {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="h-14 animate-pulse rounded-lg bg-band/60" />
-          ))}
-        </div>
+        <ListSkeleton rows={3} label={`Loading ${title.toLowerCase()}`} />
       ) : empty ? (
-        <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-4">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary" aria-hidden="true">
-            <empty.icon size={18} />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-foreground">{empty.title}</span>
-            <span className="block text-xs leading-relaxed text-muted-foreground">{empty.description}</span>
-          </span>
-        </div>
+        <EmptyState icon={empty.icon} compact title={empty.title} description={empty.description} action={empty.action} />
       ) : (
         <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">{children}</ul>
       )}
-      <p className="px-1 text-xs leading-relaxed text-muted-foreground">{note}</p>
+      {note && <p className="px-1 text-xs leading-relaxed text-muted-foreground">{note}</p>}
     </motion.section>
   );
 }
@@ -317,7 +349,8 @@ function OrderedRow({
   tile,
   title,
   detail,
-  pill,
+  iconLabel,
+  titleExtra,
   muted,
   trailing,
   canWrite,
@@ -331,7 +364,9 @@ function OrderedRow({
   tile: string;
   title: string;
   detail: React.ReactNode;
-  pill?: { label: string; tone: string };
+  /** What the tile's glyph means, when it carries information (a size group). */
+  iconLabel?: string;
+  titleExtra?: React.ReactNode;
   muted?: boolean;
   trailing?: React.ReactNode;
   canWrite: boolean;
@@ -345,21 +380,43 @@ function OrderedRow({
     <li className="flex items-center gap-3 border-b border-rule/45 px-3 py-2.5 last:border-b-0">
       {canWrite && (
         <span className="flex shrink-0 flex-col">
-          <Button variant="ghost" size="icon" className="size-6" disabled={first || busy} onClick={() => onMove(-1)} aria-label={`Move ${title} up`}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-6"
+            disabled={first || busy}
+            onClick={() => onMove(-1)}
+            aria-label={`Move ${title} up`}
+          >
             <ArrowUp size={13} />
           </Button>
-          <Button variant="ghost" size="icon" className="size-6" disabled={last || busy} onClick={() => onMove(1)} aria-label={`Move ${title} down`}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-6"
+            disabled={last || busy}
+            onClick={() => onMove(1)}
+            aria-label={`Move ${title} down`}
+          >
             <ArrowDown size={13} />
           </Button>
         </span>
       )}
-      <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', tile)} aria-hidden="true">
-        <Icon size={16} />
+      <span
+        className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', tile)}
+        title={iconLabel}
+        role={iconLabel ? 'img' : undefined}
+        aria-label={iconLabel}
+        aria-hidden={iconLabel ? undefined : true}
+      >
+        <Icon size={16} aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className={cn('truncate text-sm font-semibold', muted ? 'text-muted-foreground' : 'text-foreground')}>{title}</span>
-          {pill && <span className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', pill.tone)}>{pill.label}</span>}
+          {titleExtra}
         </span>
         <span className="block truncate text-xs text-muted-foreground">{detail}</span>
       </span>
@@ -375,11 +432,32 @@ function OrderedRow({
 
 // ── Drawers ──────────────────────────────────────────────────────────────────
 
-function Footer({ form, pending, label, onCancel, onDelete, deleting }: { form: string; pending: boolean; label: string; onCancel: () => void; onDelete?: () => void; deleting?: boolean }) {
+function Footer({
+  form,
+  pending,
+  label,
+  onCancel,
+  onDelete,
+  deleting,
+}: {
+  form: string;
+  pending: boolean;
+  label: string;
+  onCancel: () => void;
+  onDelete?: () => void;
+  deleting?: boolean;
+}) {
   return (
     <div className="flex gap-2">
       {onDelete && (
-        <Button variant="ghost" size="lg" className="text-exception hover:bg-exception/6 hover:text-exception" onClick={onDelete} disabled={pending || deleting}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="lg"
+          className="text-exception hover:bg-exception/6 hover:text-exception"
+          onClick={onDelete}
+          disabled={pending || deleting}
+        >
           {deleting ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
           Delete
         </Button>
@@ -395,7 +473,17 @@ function Footer({ form, pending, label, onCancel, onDelete, deleting }: { form: 
   );
 }
 
-function CategoryDrawer({ tenantId, category, others, onClose }: { tenantId: string; category?: MenuCategoryRecord; others: MenuCategoryRecord[]; onClose: () => void }) {
+function CategoryDrawer({
+  tenantId,
+  category,
+  others,
+  onClose,
+}: {
+  tenantId: string;
+  category?: MenuCategoryRecord;
+  others: MenuCategoryRecord[];
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const [name, setName] = useState(category?.name ?? '');
   const [description, setDescription] = useState(category?.description ?? '');
@@ -418,7 +506,13 @@ function CategoryDrawer({ tenantId, category, others, onClose }: { tenantId: str
       const data = { name: name.trim(), description: description.trim() || null, imageUrl: imageUrl.trim() || null, colour, isActive };
       return category
         ? updateMenuCategory(category.id, data)
-        : createMenuCategory({ tenantId, name: data.name, description: data.description ?? undefined, imageUrl: data.imageUrl ?? undefined, colour });
+        : createMenuCategory({
+            tenantId,
+            name: data.name,
+            description: data.description ?? undefined,
+            imageUrl: data.imageUrl ?? undefined,
+            colour,
+          });
     },
     onSuccess: () => {
       invalidate();
@@ -448,13 +542,26 @@ function CategoryDrawer({ tenantId, category, others, onClose }: { tenantId: str
             <Button variant="outline" size="lg" className="flex-1" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>
               Keep it
             </Button>
-            <Button variant="destructive" size="lg" className="flex-1" onClick={() => remove.mutate()} disabled={remove.isPending || (category.itemCount > 0 && !reassignTo)}>
+            <Button
+              type="button"
+              variant="destructive"
+              size="lg"
+              className="flex-1"
+              onClick={() => remove.mutate()}
+              disabled={remove.isPending || (category.itemCount > 0 && !reassignTo)}
+            >
               {remove.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
               Delete section
             </Button>
           </div>
         ) : (
-          <Footer form="category-form" pending={save.isPending} label={category ? 'Save changes' : 'Add section'} onCancel={onClose} onDelete={category ? () => setConfirmDelete(true) : undefined} />
+          <Footer
+            form="category-form"
+            pending={save.isPending}
+            label={category ? 'Save changes' : 'Add section'}
+            onCancel={onClose}
+            onDelete={category ? () => setConfirmDelete(true) : undefined}
+          />
         )
       }
     >
@@ -468,7 +575,13 @@ function CategoryDrawer({ tenantId, category, others, onClose }: { tenantId: str
           {category.itemCount > 0 && (
             <FormSection icon={LayoutGrid} title="Move its items to">
               {others.length ? (
-                <Select value={reassignTo} onValueChange={setReassignTo} options={others.map((c) => ({ value: c.id, label: c.name }))} ariaLabel="Move items to" className="w-full" />
+                <Select
+                  value={reassignTo}
+                  onValueChange={setReassignTo}
+                  options={others.map((c) => ({ value: c.id, label: c.name }))}
+                  ariaLabel="Move items to"
+                  className="w-full"
+                />
               ) : (
                 <p className="text-xs text-muted-foreground">There’s no other section to move them to. Create one first.</p>
               )}
@@ -487,19 +600,44 @@ function CategoryDrawer({ tenantId, category, others, onClose }: { tenantId: str
           }}
         >
           <FormSection icon={LayoutGrid} title="Section">
-            <Input label="Name" value={name} onChange={(event) => setName(event.target.value)} maxLength={50} autoFocus={!category} placeholder="e.g. Pastries" error={submitted ? (nameError ?? undefined) : undefined} />
-            <Input label="Description" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} placeholder="Optional — shown under the heading online" />
+            <Input
+              label="Name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={50}
+              autoFocus={!category}
+              placeholder="e.g. Pastries"
+              error={submitted ? (nameError ?? undefined) : undefined}
+            />
+            <Input
+              label="Description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              maxLength={500}
+              placeholder="Optional — shown under the heading online"
+            />
           </FormSection>
           <FormSection icon={FileText} title="Look">
             <div className="flex flex-col gap-1.5">
               <span className="text-label uppercase text-muted-foreground">Colour</span>
               <ChoiceCards columns={3} value={colour} onChange={setColour} options={COLOURS} />
             </div>
-            <Input label="Image" type="url" value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://… (optional)" error={submitted ? (urlError ?? undefined) : undefined} />
+            <Input
+              label="Image"
+              type="url"
+              value={imageUrl}
+              onChange={(event) => setImageUrl(event.target.value)}
+              placeholder="https://… (optional)"
+              error={submitted ? (urlError ?? undefined) : undefined}
+            />
           </FormSection>
           <div className="rounded-lg border border-rule/60 bg-card px-4 py-3.5">
             <SettingRows>
-              <SettingRow icon={LayoutGrid} title="Shown on the menu" description="Hidden sections keep their items but don’t show at the till or online.">
+              <SettingRow
+                icon={LayoutGrid}
+                title="Shown on the menu"
+                description="Hidden sections keep their items but don’t show at the till or online."
+              >
                 <Switch label="Shown on the menu" checked={isActive} onChange={setIsActive} />
               </SettingRow>
             </SettingRows>
@@ -522,7 +660,8 @@ function GroupDrawer({ tenantId, group, onClose }: { tenantId: string; group?: M
   };
 
   const save = useMutation({
-    mutationFn: () => (group ? updateModifierGroup(group.id, { name: name.trim(), isSize }) : createModifierGroup({ tenantId, name: name.trim(), isSize })),
+    mutationFn: () =>
+      group ? updateModifierGroup(group.id, { name: name.trim(), isSize }) : createModifierGroup({ tenantId, name: name.trim(), isSize }),
     onSuccess: () => {
       invalidate();
       toast('success', group ? 'Group updated.' : `${name.trim()} group added.`);
@@ -568,18 +707,31 @@ function GroupDrawer({ tenantId, group, onClose }: { tenantId: string; group?: M
         }}
       >
         <FormSection icon={SlidersHorizontal} title="Group">
-          <Input label="Name" value={name} onChange={(event) => setName(event.target.value)} maxLength={50} autoFocus={!group} placeholder="e.g. Milk" error={submitted ? (nameError ?? undefined) : undefined} />
+          <Input
+            label="Name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={50}
+            autoFocus={!group}
+            placeholder="e.g. Milk"
+            error={submitted ? (nameError ?? undefined) : undefined}
+          />
         </FormSection>
         <div className="rounded-lg border border-rule/60 bg-card px-4 py-3.5">
           <SettingRows>
-            <SettingRow icon={Scale} title="These are sizes" description="Recipes get a column per size, so a large can use more milk than a small.">
+            <SettingRow
+              icon={Scale}
+              title="These are sizes"
+              description="Recipes get a column per size, so a large can use more milk than a small."
+            >
               <Switch label="These are sizes" checked={isSize} onChange={setIsSize} />
             </SettingRow>
           </SettingRows>
         </div>
         {group && inUse && (
           <p className="px-1 text-xs text-muted-foreground">
-            {group.modifierCount} {group.modifierCount === 1 ? 'modifier is' : 'modifiers are'} in this group, so it can’t be deleted. Move or delete them on the Modifiers tab first.
+            {group.modifierCount} {group.modifierCount === 1 ? 'modifier is' : 'modifiers are'} in this group, so it can’t be deleted. Move
+            or delete them on the Modifiers tab first.
           </p>
         )}
       </form>

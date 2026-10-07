@@ -8,7 +8,9 @@ import { CalendarDays, CircleHelp, Loader2, Lock, MessageSquarePlus, Search, Sen
 import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRow } from '@/components/shared/ListRow';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Bone, LoadingState, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -33,6 +35,7 @@ import {
   PriorityTag,
   STATUS_ICON,
   STATUS_META,
+  STATUS_TONE,
   TICKET_CATEGORIES,
   TICKET_PRIORITIES,
   TICKET_STATUSES,
@@ -173,11 +176,49 @@ export function HelpdeskBoard({
       </div>
 
       {loading ? (
-        <div className={cn('grid gap-3', isAgent && 'md:grid-cols-2 xl:grid-cols-4')} aria-label="Loading requests">
-          {Array.from({ length: isAgent ? 4 : 3 }, (_, index) => (
-            <div key={index} className={cn('animate-pulse rounded-lg bg-band/60', isAgent ? 'h-72' : 'h-20')} />
-          ))}
-        </div>
+        isAgent ? (
+          <div
+            className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-4"
+            role="status"
+            aria-busy="true"
+            aria-label="Loading requests"
+          >
+            {Array.from({ length: 4 }, (_, column) => (
+              <div key={column} className="flex min-h-40 flex-col rounded-lg border border-transparent bg-band/40 p-2" aria-hidden="true">
+                <div className="flex items-center gap-2 px-2 pt-1 pb-2.5">
+                  <Bone className="size-2 rounded-full" />
+                  <Bone className="h-4 w-20" />
+                  <Bone className="h-4 w-5 rounded-sm" />
+                </div>
+                <div className="space-y-2">
+                  {Array.from({ length: column < 2 ? 2 : 1 }, (_, card) => (
+                    <div key={card} className="rounded-md border border-rule/60 bg-field p-3">
+                      <Bone className="h-3.5 w-full" />
+                      <Bone className="mt-1.5 h-3.5 w-3/5" />
+                      <div className="mt-2.5 flex items-center gap-2">
+                        <Bone className="h-5 w-16 rounded-sm" />
+                        <Bone className="ml-auto h-3 w-8" />
+                      </div>
+                      <div className="mt-2.5 flex items-center gap-2 border-t border-rule/40 pt-2.5">
+                        <Bone className="size-8 shrink-0" />
+                        <Bone className="h-3 w-24" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div role="status" aria-busy="true" aria-label="Loading requests">
+            <Bone className="mb-2 ml-1 h-4 w-12" />
+            <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+              {Array.from({ length: 3 }, (_, index) => (
+                <RowSkeleton key={index} index={index} />
+              ))}
+            </div>
+          </div>
+        )
       ) : error ? (
         <ErrorState
           icon={CircleHelp}
@@ -191,7 +232,15 @@ export function HelpdeskBoard({
         <EmptyState
           icon={CircleHelp}
           title={hasFilters ? 'No requests match' : emptyTitle}
-          description={hasFilters ? 'Try clearing the search.' : emptyDescription}
+          description={hasFilters ? 'Try a different search or category.' : emptyDescription}
+          kind={hasFilters ? 'search' : 'start'}
+          action={
+            hasFilters
+              ? { label: 'Clear filters', onClick: () => setFilters({ ...active, search: '', category: '' }) }
+              : onNew
+                ? { label: newLabel, onClick: onNew, icon: MessageSquarePlus }
+                : undefined
+          }
         />
       ) : (
         <MyRequests tickets={visible} onOpen={onSelect} />
@@ -366,25 +415,18 @@ function MyRequests({ tickets, onOpen }: { tickets: HelpdeskTicket[]; onOpen: (i
         .map((group) => (
           <section key={group.title}>
             <h3 className="mb-2 px-1 text-sm font-semibold text-foreground">{group.title}</h3>
-            <ul className="space-y-2">
+            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
               {group.rows.map((ticket) => (
-                <li key={ticket.id}>
-                  <button
-                    type="button"
-                    onClick={() => onOpen(ticket.id)}
-                    className="flex w-full items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-foreground">{ticket.subject}</span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {CATEGORY_META[ticket.category].label} · updated {fmtAgo(ticket.updatedAt)}
-                      </span>
-                    </span>
-                    <span className="shrink-0 rounded-md bg-band px-2 py-1 text-xs font-medium text-foreground">
-                      {STATUS_META[ticket.status].label}
-                    </span>
-                  </button>
-                </li>
+                <ListRow
+                  key={ticket.id}
+                  icon={STATUS_ICON[ticket.status].icon}
+                  tone={STATUS_TONE[ticket.status]}
+                  iconLabel={STATUS_META[ticket.status].label}
+                  title={ticket.subject}
+                  meta={CATEGORY_META[ticket.category].label}
+                  trailing={<span className="text-xs tabular-nums text-muted-foreground">{fmtAgo(ticket.updatedAt)}</span>}
+                  onClick={() => onOpen(ticket.id)}
+                />
               ))}
             </ul>
           </section>
@@ -503,9 +545,7 @@ function TicketPanel({
       }
     >
       {isPending ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState label="Loading the request" />
       ) : isError || !ticket ? (
         <ErrorState title="This request couldn’t be loaded" onRetry={() => void refetch()} />
       ) : (

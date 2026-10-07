@@ -10,6 +10,7 @@ import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -586,9 +587,9 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
             </h2>
             <div className="mt-4">
               {readers.isPending ? (
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Loading readers">
+                <div role="status" aria-busy="true" aria-label="Loading readers" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {Array.from({ length: 2 }, (_, index) => (
-                    <div key={index} className="aspect-[1.586] animate-pulse rounded-2xl bg-band/60" />
+                    <Bone key={index} className="aspect-[1.586] rounded-2xl" />
                   ))}
                 </div>
               ) : readers.isError ? (

@@ -10,10 +10,12 @@ import {
   type IconComponent,
   XCircle,
 } from '@/components/icons';
+import type { Tone } from '@/components/shared/tone';
 
 import type { HelpdeskTicket, TicketCategory, TicketPriority, TicketStatus } from '@/lib/modules/support/client';
 import { cn } from '@/lib/utils/cn';
 import { formatDate, formatDateTime } from '@/lib/utils/date';
+import { relativeTime } from '@/lib/utils/relative-time';
 
 // ── Status ────────────────────────────────────────────────────────────────────
 // Statuses group into the three workflow columns an issue tracker shows (to do,
@@ -40,6 +42,15 @@ export const STATUS_ICON: Record<TicketStatus, { icon: IconComponent; className:
   waiting_employee: { icon: Clock3, className: 'text-measured' },
   resolved: { icon: CheckCircle2, className: 'text-momentum' },
   closed: { icon: XCircle, className: 'text-muted-foreground' },
+};
+
+/** The same status in the app's shared tones, for a ListRow tile or an IconTag. */
+export const STATUS_TONE: Record<TicketStatus, Tone> = {
+  open: 'muted',
+  in_progress: 'primary',
+  waiting_employee: 'warning',
+  resolved: 'success',
+  closed: 'muted',
 };
 
 /** Uppercase status chip — the lozenge an issue tracker puts next to a key. */
@@ -111,16 +122,9 @@ export function ticketKey(ticket: Pick<HelpdeskTicket, 'id' | 'category'>): stri
 
 export const fmtWhen = (iso: string) => formatDateTime(iso);
 
+/** Relative within a month, then the date — a ticket from March reads better as a date. */
 export function fmtAgo(iso: string): string {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
-  return formatDate(iso);
+  return Date.now() - Date.parse(iso) < 30 * 86_400_000 ? relativeTime(iso) : formatDate(iso);
 }
 
 // ── Author avatar ─────────────────────────────────────────────────────────────

@@ -17,6 +17,11 @@
         "type": "http",
         "scheme": "bearer",
         "description": "Session token returned by sign-in in the `set-auth-token` header. Send as `Authorization: Bearer <token>`."
+      },
+      "cmsApiKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "CMS delivery key (`dcms_live_…` published only, `dcms_prev_…` adds drafts). Also accepted as `X-Api-Key`."
       }
     }
   },
@@ -119,6 +124,13 @@
       "name": "Support",
       "tags": [
         "Helpdesk"
+      ]
+    },
+    {
+      "name": "Content",
+      "tags": [
+        "CMS",
+        "CMS Delivery"
       ]
     },
     {
@@ -7349,7 +7361,7 @@
           "Loss Log"
         ],
         "summary": "List waste/loss movements",
-        "description": "Paginated list of stock movements where type = \"waste\". Scoped to tenant; location staff see their assigned locations only. store_manager+ only.",
+        "description": "Paginated list of stock movements where type = \"waste\", each with `user` ({ id, name }) — who logged it, or null if that account is gone. Scoped to tenant; location staff see their assigned locations only. store_manager+ only.",
         "parameters": [
           {
             "name": "locationId",
@@ -8126,7 +8138,7 @@
           "Suppliers"
         ],
         "summary": "List suppliers",
-        "description": "All suppliers for the caller's tenant. store_manager+ only.",
+        "description": "All suppliers for the caller's tenant. Each carries `summary.lastOrderedAt` — the newest non-draft, non-cancelled purchase order to it at a location the caller can see, or null. store_manager+ only.",
         "parameters": [
           {
             "name": "includeInactive",
@@ -8325,7 +8337,7 @@
           "Purchase Orders"
         ],
         "summary": "List purchase orders",
-        "description": "Paginated, scoped to location access. store_manager+ only.",
+        "description": "Paginated, scoped to location access. Each row carries `summary` — line count, total cost (GBP string, each line rounded to the penny as the detail view does) and quantities ordered/received (received capped per line) — so a list can show value and progress without fetching every order. store_manager+ only.",
         "parameters": [
           {
             "name": "locationId",
@@ -8565,7 +8577,7 @@
           "Stocktakes"
         ],
         "summary": "List stocktakes",
-        "description": "Paginated, scoped to location access. store_manager+ only.",
+        "description": "Paginated, scoped to location access. Each row carries `summary` — lines, how many are counted, and how many counted lines differ from what was expected. store_manager+ only.",
         "parameters": [
           {
             "name": "locationId",
@@ -13695,6 +13707,2238 @@
             },
             "in": "path",
             "name": "locationId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/delivery/assets/{id}/file/{name}": {
+      "get": {
+        "operationId": "getV1CmsDeliveryAssetsByIdFileByName",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "Download an asset file",
+        "description": "Public and keyless, for use in <img src>. Cached for a year: an asset's file never changes under the same id.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The file"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "name",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/delivery/assets/{id}/renditions/{renditionId}": {
+      "get": {
+        "operationId": "getV1CmsDeliveryAssetsByIdRenditionsByRenditionId",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "Download a smaller copy of an image",
+        "description": "Public and keyless, like the asset file — what a `srcset` entry points at. Cached for a year.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The image"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "renditionId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/delivery/preview/{token}": {
+      "get": {
+        "operationId": "getV1CmsDeliveryPreviewByToken",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "Read one draft through a preview link",
+        "description": "Keyless. The token comes from a \"Preview on site\" link (`?duma_preview=`); it names one entry and expires. Returns the draft, with media and references resolved one level (`include=0..2`).",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "{ data: Entry, preview: { expiresAt } }"
+          },
+          "401": {
+            "description": "Invalid or expired link"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "token",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/delivery/content-types": {
+      "get": {
+        "operationId": "getV1CmsDeliveryContentTypes",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "List the content types this key can read",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: ContentType[] }"
+          },
+          "401": {
+            "description": "Missing or invalid key"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/delivery/content-types/{typeKey}": {
+      "get": {
+        "operationId": "getV1CmsDeliveryContentTypesByTypeKey",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "One content type's schema",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ContentType"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not available to this key"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "typeKey",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/delivery/locales": {
+      "get": {
+        "operationId": "getV1CmsDeliveryLocales",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "The workspace's content locales",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: Locale[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/delivery/sync": {
+      "get": {
+        "operationId": "getV1CmsDeliverySync",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "What changed since a point in time",
+        "description": "For mirroring content into a static site without a full rebuild. Returns entries published (or republished) after `since`, and what stopped being delivered (`deletions`: unpublished or deleted entries, deleted assets), oldest first. Apply `deletions` first, then upsert `entries`; store `nextSince` and pass it next time. Omit `since` for everything published. `limit` ≤ 200; `hasMore` means call again at once.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ entries, deletions, nextSince, hasMore }"
+          },
+          "400": {
+            "description": "Bad `since`"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/delivery/entries/{typeKey}": {
+      "get": {
+        "operationId": "getV1CmsDeliveryEntriesByTypeKey",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "Query entries of a content type",
+        "description": "Filters: `filter[field][op]=value` with ops eq, ne, lt, lte, gt, gte, in, nin (comma separated), contains, startsWith, exists. System fields id, slug, createdAt, updatedAt, publishedAt are filterable and sortable. Nested group fields use dots: `filter[seo.title]`. `sort=-publishedAt,title` · `limit` (≤100) with `page` or `offset` · `fields=title,hero` · `include=0..3` resolves media and references · `locale=fr` with `fallback=true|false` · `q=` full-text search · `status=draft` (preview keys only).",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: Entry[], meta: { total, limit, offset, page, pages, locale } }"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "typeKey",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/delivery/entries/{typeKey}/{idOrSlug}": {
+      "get": {
+        "operationId": "getV1CmsDeliveryEntriesByTypeKeyByIdOrSlug",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "One entry by id or slug",
+        "description": "Accepts `locale`, `fallback`, `fields`, `include` and `status` as the list does.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: Entry }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found or not published"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "typeKey",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "idOrSlug",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/delivery/singletons/{typeKey}": {
+      "get": {
+        "operationId": "getV1CmsDeliverySingletonsByTypeKey",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "A singleton's entry",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: Entry }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not a singleton, or not published"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "typeKey",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/delivery/assets/{id}": {
+      "get": {
+        "operationId": "getV1CmsDeliveryAssetsById",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "Asset metadata",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: Asset }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/storage": {
+      "get": {
+        "operationId": "getV1CmsStorage",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Media storage: where uploads go and how full it is",
+        "description": "Built-in DUMA storage is free up to `builtIn.quotaBytes` per workspace. Connected buckets report what DUMA stored there against the limit the workspace set (`quotaBytes`); providers do not expose a quota of their own.",
+        "responses": {
+          "200": {
+            "description": "{ active, builtIn, connections }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/storage/connections": {
+      "post": {
+        "operationId": "postV1CmsStorageConnections",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Connect a storage bucket",
+        "description": "Writes and deletes a small test file before saving, so a read-only or mistyped key is refused here rather than on the first upload.",
+        "responses": {
+          "201": {
+            "description": "Connection"
+          },
+          "400": {
+            "description": "Invalid settings"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "422": {
+            "description": "The provider refused the credentials"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/storage/connections/{id}": {
+      "patch": {
+        "operationId": "patchV1CmsStorageConnectionsById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Update a storage connection",
+        "description": "Changing credentials re-runs the test upload. The bucket, endpoint, region and prefix cannot change while files are stored there.",
+        "responses": {
+          "200": {
+            "description": "Connection"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Would move stored files"
+          },
+          "422": {
+            "description": "The provider refused the credentials"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CmsStorageConnectionsById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Disconnect a storage bucket",
+        "description": "Refused with 409 while files are stored there — their URLs would break. Disconnecting the active bucket returns uploads to built-in storage.",
+        "responses": {
+          "204": {
+            "description": "Disconnected"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Files are stored there"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/storage/connections/{id}/verify": {
+      "post": {
+        "operationId": "postV1CmsStorageConnectionsByIdVerify",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Test a storage connection",
+        "responses": {
+          "200": {
+            "description": "Connection, with lastVerifiedAt or lastError"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/storage/active": {
+      "put": {
+        "operationId": "putV1CmsStorageActive",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Choose where new uploads go",
+        "description": "`connectionId: null` returns to built-in DUMA storage. Files already stored stay where they are.",
+        "responses": {
+          "204": {
+            "description": "Switched"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/storage/migrate": {
+      "post": {
+        "operationId": "postV1CmsStorageMigrate",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Move files to where uploads now go",
+        "description": "Copies up to `batch` files (and their responsive sizes) from `from` to the active storage, repoints each asset, then removes the old copy. Asset ids and API URLs keep working; a link written with the old bucket's own public URL does not. Call repeatedly until `remaining` is 0.",
+        "responses": {
+          "200": {
+            "description": "{ moved, remaining, failed: { id, error }[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Source is where uploads already go"
+          },
+          "413": {
+            "description": "Target is full"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/locales": {
+      "get": {
+        "operationId": "getV1CmsLocales",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "List CMS locales",
+        "responses": {
+          "200": {
+            "description": "{ data: CmsLocale[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1CmsLocales",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Add a CMS locale",
+        "responses": {
+          "201": {
+            "description": "Locale created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Locale exists"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/locales/{code}": {
+      "patch": {
+        "operationId": "patchV1CmsLocalesByCode",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Update a CMS locale",
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "code",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CmsLocalesByCode",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Remove a CMS locale",
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Default, or still has entries"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "code",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/overview": {
+      "get": {
+        "operationId": "getV1CmsOverview",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "CMS workspace overview",
+        "description": "Counts are per entry, not per language: an entry with English and French versions is one entry. `recentEntries` lists each entry once, at its most recent edit, with every language version in `localizations`.",
+        "responses": {
+          "200": {
+            "description": "Counts by area and recently edited entries"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/content-types": {
+      "get": {
+        "operationId": "getV1CmsContentTypes",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "List content types",
+        "responses": {
+          "200": {
+            "description": "{ data: ContentType[] } with entry counts"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1CmsContentTypes",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Create a content type",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Key in use"
+          },
+          "422": {
+            "description": "Invalid field definitions"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/content-types/{id}": {
+      "get": {
+        "operationId": "getV1CmsContentTypesById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Get a content type",
+        "responses": {
+          "200": {
+            "description": "ContentType"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1CmsContentTypesById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Update a content type",
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Edited elsewhere, or singleton conflict"
+          },
+          "422": {
+            "description": "Invalid"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CmsContentTypesById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Delete a content type",
+        "description": "Refused while entries exist unless `?force=true`, which deletes them too.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Has entries"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/content-types/{id}/impact": {
+      "post": {
+        "operationId": "postV1CmsContentTypesByIdImpact",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Preview the impact of a field change",
+        "description": "Lists removed, retyped and newly required fields and how many entries they touch, before the change is saved.",
+        "responses": {
+          "200": {
+            "description": "{ removed, retyped, newlyRequired, affectedEntries, publishedEntries }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries": {
+      "get": {
+        "operationId": "getV1CmsEntries",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "List entries",
+        "description": "Paginated; `status=scheduled` finds entries with a pending schedule, `status=live` anything currently published. `group=document` returns one row per entry with its `localizations`.",
+        "responses": {
+          "200": {
+            "description": "{ data, total, page, limit, pages }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1CmsEntries",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Create an entry (draft)",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Singleton exists, locale exists, or slug in use"
+          },
+          "422": {
+            "description": "Invalid data"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/content-types/{id}/roles": {
+      "get": {
+        "operationId": "getV1CmsContentTypesByIdRoles",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Who may edit this content type’s entries",
+        "description": "An empty list means every role that can edit content. The workspace owner always can.",
+        "responses": {
+          "200": {
+            "description": "{ roles: string[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putV1CmsContentTypesByIdRoles",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Limit who may edit this content type’s entries",
+        "description": "Replaces the list. Roles still need `cms:write` (and `cms:publish` to publish); this only narrows. Send `[]` to open it to everyone again.",
+        "responses": {
+          "200": {
+            "description": "{ roles: string[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}": {
+      "get": {
+        "operationId": "getV1CmsEntriesById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Get an entry with its content type and locales",
+        "responses": {
+          "200": {
+            "description": "Entry"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1CmsEntriesById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Save an entry draft",
+        "description": "Never changes what is published. Send `expectedVersion` to detect a concurrent save (409).",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Version conflict or slug in use"
+          },
+          "422": {
+            "description": "Invalid data"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CmsEntriesById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Delete an entry (one locale)",
+        "description": "Refused with 409 while other entries link to it, unless `?force=true`.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Linked from other entries"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}/publish": {
+      "post": {
+        "operationId": "postV1CmsEntriesByIdPublish",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Publish an entry",
+        "description": "Validates required fields and links; 422 lists what is missing.",
+        "responses": {
+          "200": {
+            "description": "Published"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "422": {
+            "description": "Not ready to publish"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}/unpublish": {
+      "post": {
+        "operationId": "postV1CmsEntriesByIdUnpublish",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Unpublish an entry",
+        "responses": {
+          "200": {
+            "description": "Unpublished"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Not published"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/export": {
+      "get": {
+        "operationId": "getV1CmsExport",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Everything in the CMS, as one JSON document",
+        "description": "Content types (with their roles), locales, every entry in every language (draft and published data), and media details with URLs — for backup, or moving to another workspace. Files themselves are linked, not embedded.",
+        "responses": {
+          "200": {
+            "description": "application/json attachment"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/import": {
+      "post": {
+        "operationId": "postV1CmsImport",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Create many entries at once",
+        "description": "Up to 200 per call, each `entries[i]` being field values keyed by field key (unknown keys are dropped). Created as drafts; with `publish`, each is then published if it passes validation. Returns what was created and why anything was not.",
+        "responses": {
+          "200": {
+            "description": "{ created: { index, id }[], failed: { index, error, issues? }[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/settings": {
+      "get": {
+        "operationId": "getV1CmsSettings",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "CMS workspace settings",
+        "responses": {
+          "200": {
+            "description": "{ privateUnpublishedAssets }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1CmsSettings",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Change CMS workspace settings",
+        "description": "`privateUnpublishedAssets`: the keyless file URL answers 404 for an asset no published entry uses. A file linked from outside the CMS stops loading.",
+        "responses": {
+          "200": {
+            "description": "{ privateUnpublishedAssets }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/entries/{id}/preview-link": {
+      "post": {
+        "operationId": "postV1CmsEntriesByIdPreviewLink",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Make a link that shows this draft on the website",
+        "description": "A signed token for this one entry, valid for `hours` (default 24, max 168). `url` is the content type’s preview URL with `?duma_preview=<token>` (null without one); the site reads the draft from `apiUrl`. Anyone with the link can read the draft until it expires.",
+        "responses": {
+          "201": {
+            "description": "{ token, url, apiUrl, expiresAt }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}/review": {
+      "post": {
+        "operationId": "postV1CmsEntriesByIdReview",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Submit an entry for review",
+        "description": "Marks the entry as waiting for someone who can publish. An optional `note` tells them what to look at.",
+        "responses": {
+          "200": {
+            "description": "Entry"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Archived"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CmsEntriesByIdReview",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Withdraw a review request, or dismiss its note",
+        "responses": {
+          "200": {
+            "description": "Entry"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}/review/changes": {
+      "post": {
+        "operationId": "postV1CmsEntriesByIdReviewChanges",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Send an entry back with requested changes",
+        "description": "Clears the review request and leaves `note` for the writer. To approve, publish.",
+        "responses": {
+          "200": {
+            "description": "Entry"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}/schedule": {
+      "post": {
+        "operationId": "postV1CmsEntriesByIdSchedule",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Schedule publish / unpublish",
+        "description": "Send null to clear a schedule. Times must be in the future.",
+        "responses": {
+          "200": {
+            "description": "Scheduled"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}/archive": {
+      "post": {
+        "operationId": "postV1CmsEntriesByIdArchive",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Archive an entry",
+        "description": "Unpublishes it first if it is live.",
+        "responses": {
+          "200": {
+            "description": "Archived"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}/restore": {
+      "post": {
+        "operationId": "postV1CmsEntriesByIdRestore",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Restore an archived entry to draft",
+        "responses": {
+          "200": {
+            "description": "Restored"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Not archived, or slug now in use"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}/duplicate": {
+      "post": {
+        "operationId": "postV1CmsEntriesByIdDuplicate",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Duplicate an entry as a new draft",
+        "description": "Slug and unique fields are cleared so the copy cannot collide.",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}/versions": {
+      "get": {
+        "operationId": "getV1CmsEntriesByIdVersions",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Version history of an entry",
+        "responses": {
+          "200": {
+            "description": "{ data: Version[] } newest first, without snapshots"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}/versions/{versionId}": {
+      "get": {
+        "operationId": "getV1CmsEntriesByIdVersionsByVersionId",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "One version snapshot",
+        "responses": {
+          "200": {
+            "description": "Version with data"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "versionId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/{id}/versions/{versionId}/restore": {
+      "post": {
+        "operationId": "postV1CmsEntriesByIdVersionsByVersionIdRestore",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Restore a version into the draft",
+        "description": "Copies the snapshot into the draft as a new version; publishing stays a separate step.",
+        "responses": {
+          "200": {
+            "description": "Restored into draft"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "versionId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/entries/bulk": {
+      "post": {
+        "operationId": "postV1CmsEntriesBulk",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Publish, unpublish or archive many entries",
+        "description": "Each entry succeeds or fails on its own; the response lists both.",
+        "responses": {
+          "200": {
+            "description": "{ succeeded: string[], failed: { id, error, issues? }[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/assets": {
+      "get": {
+        "operationId": "getV1CmsAssets",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "List media assets",
+        "responses": {
+          "200": {
+            "description": "{ data, total, page, limit, pages, folders }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1CmsAssets",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Upload a media asset",
+        "description": "multipart/form-data with `file` (max 25 MB) and optional title, altText, folder, tags (comma separated).",
+        "responses": {
+          "201": {
+            "description": "Asset"
+          },
+          "400": {
+            "description": "Unsupported or too large"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/assets/{id}": {
+      "get": {
+        "operationId": "getV1CmsAssetsById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Get an asset and where it is used",
+        "responses": {
+          "200": {
+            "description": "Asset with usedBy"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1CmsAssetsById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Update asset details",
+        "responses": {
+          "200": {
+            "description": "Asset"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CmsAssetsById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Delete an asset",
+        "description": "Refused with 409 while entries use it, unless `?force=true`.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "In use"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/assets/{id}/file": {
+      "get": {
+        "operationId": "getV1CmsAssetsByIdFile",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Read an asset file through the API",
+        "description": "For the editor: thumbnails (same-origin through its proxy, whatever the backend) and re-encoding images in the browser, which cannot read a bucket that sends no CORS headers. Websites use `url`. `?v=<updatedAt>` makes the response cacheable.",
+        "responses": {
+          "200": {
+            "description": "The file"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putV1CmsAssetsByIdFile",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Replace an asset file, keeping its id",
+        "description": "multipart/form-data with `file`. Entries keep pointing at the same asset; the new file is written to the current storage and the old one removed. Used to convert or compress an image in place.",
+        "responses": {
+          "200": {
+            "description": "Asset"
+          },
+          "400": {
+            "description": "Unsupported or too large"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "413": {
+            "description": "Over the storage limit"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/assets/{id}/renditions": {
+      "post": {
+        "operationId": "postV1CmsAssetsByIdRenditions",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Store a smaller copy of an image",
+        "description": "multipart/form-data with `file` — an image narrower than the original, made in the editor. One per (width, type); a second replaces the first. Counts against storage.",
+        "responses": {
+          "201": {
+            "description": "Asset with renditions"
+          },
+          "400": {
+            "description": "Not a smaller image"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "413": {
+            "description": "Over the storage limit"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CmsAssetsByIdRenditions",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Remove an image’s smaller copies",
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/assets/bulk": {
+      "post": {
+        "operationId": "postV1CmsAssetsBulk",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Act on many assets at once",
+        "description": "`delete` skips files entries still use unless `force`; `move` sets the folder (null clears it); `tag` / `untag` add or remove tags. Returns which ids succeeded and why others did not.",
+        "responses": {
+          "200": {
+            "description": "{ succeeded: string[], failed: { id, error }[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/api-keys": {
+      "get": {
+        "operationId": "getV1CmsApiKeys",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "List delivery API keys",
+        "description": "Tokens are never returned after creation; `tokenPrefix` identifies them.",
+        "responses": {
+          "200": {
+            "description": "{ data: ApiKey[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1CmsApiKeys",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Create a delivery API key",
+        "description": "The response holds the token once, in `token`. Store it; it cannot be shown again.",
+        "responses": {
+          "201": {
+            "description": "{ apiKey, token }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/api-keys/{id}": {
+      "patch": {
+        "operationId": "patchV1CmsApiKeysById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Update a delivery API key",
+        "responses": {
+          "200": {
+            "description": "ApiKey"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/api-keys/{id}/revoke": {
+      "post": {
+        "operationId": "postV1CmsApiKeysByIdRevoke",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Revoke a delivery API key",
+        "description": "Immediate and permanent. Create a new key to replace it.",
+        "responses": {
+          "200": {
+            "description": "ApiKey"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/webhooks": {
+      "get": {
+        "operationId": "getV1CmsWebhooks",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "List CMS webhooks",
+        "responses": {
+          "200": {
+            "description": "{ data: Webhook[] } with last delivery"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1CmsWebhooks",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Create a CMS webhook",
+        "description": "The signing secret is returned once, in `secret`.",
+        "responses": {
+          "201": {
+            "description": "{ webhook, secret }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/webhooks/{id}": {
+      "patch": {
+        "operationId": "patchV1CmsWebhooksById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Update a CMS webhook",
+        "responses": {
+          "200": {
+            "description": "Webhook"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CmsWebhooksById",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Delete a CMS webhook",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/webhooks/{id}/rotate-secret": {
+      "post": {
+        "operationId": "postV1CmsWebhooksByIdRotateSecret",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Rotate a webhook signing secret",
+        "description": "Returns the new secret once, in `secret`. The old one stops working immediately.",
+        "responses": {
+          "200": {
+            "description": "{ webhook, secret }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/webhooks/{id}/deliveries": {
+      "get": {
+        "operationId": "getV1CmsWebhooksByIdDeliveries",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Recent deliveries of a webhook",
+        "responses": {
+          "200": {
+            "description": "{ data: Delivery[] } newest first"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/webhooks/{id}/test": {
+      "post": {
+        "operationId": "postV1CmsWebhooksByIdTest",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Send a test ping",
+        "description": "Delivers a signed `ping` event now and reports the outcome; nothing is recorded.",
+        "responses": {
+          "200": {
+            "description": "{ ok, status?, error? }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/webhooks/{id}/deliveries/{deliveryId}/redeliver": {
+      "post": {
+        "operationId": "postV1CmsWebhooksByIdDeliveriesByDeliveryIdRedeliver",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Redeliver a webhook event now",
+        "responses": {
+          "200": {
+            "description": "Delivery"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "deliveryId",
             "required": true
           }
         ]

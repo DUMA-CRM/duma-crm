@@ -3,8 +3,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
-import { ChevronDown, Loader2 } from '@/components/icons';
+import { ChevronDown } from '@/components/icons';
 import { LoadMore } from '@/components/shared/LoadMore';
+import { RelativeTime } from '@/components/shared/RelativeTime';
+import { Bone } from '@/components/shared/Skeleton';
+import { TONE_TINT } from '@/components/shared/tone';
 
 import {
   dayHeading,
@@ -14,6 +17,7 @@ import {
   groupTimeSpan,
   groupVerbs,
   groupsByDay,
+  localDayKey,
   sortNewestFirst,
 } from '@/lib/audit/groups';
 import { ROLE_LABEL, auditDomain, auditPhrase, auditSeverity, auditStatus, severityClass, timeOfDay } from '@/lib/audit/narrative';
@@ -25,17 +29,11 @@ import { AuditGlyph, auditIcon } from './AuditGlyph';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-const STATUS_TONE = {
-  success: 'bg-momentum/8 text-momentum',
-  warning: 'bg-measured/10 text-measured',
-  exception: 'bg-exception/8 text-exception',
-} as const;
-
 /** Only what went differently — success is the default and says nothing. */
-function StatusPill({ severity, code }: { severity: AuditGroup['severity']; code?: number | null }) {
+function AuditStatusPill({ severity, code }: { severity: AuditGroup['severity']; code?: number | null }) {
   if (severity === 'ok') return null;
   const status = auditStatus(severity, code);
-  return <span className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', STATUS_TONE[status.tone])}>{status.label}</span>;
+  return <span className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', TONE_TINT[status.tone])}>{status.label}</span>;
 }
 
 /**
@@ -81,6 +79,7 @@ export function AuditActivityList({
                 group={group}
                 selectedId={selectedId}
                 expanded={expandedKey === group.key}
+                today={day.day === localDayKey(new Date(now))}
                 onToggle={() => onToggle(group.key)}
                 onSelect={onSelect}
               />
@@ -91,9 +90,7 @@ export function AuditActivityList({
 
       <LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={onLoadMore} />
       {total !== null && !hasMore && groups.length > 0 && (
-        <p className="pb-2 text-center text-xs tabular-nums text-muted-foreground">
-          That’s everything — {total.toLocaleString()} {total === 1 ? 'activity' : 'activities'}
-        </p>
+        <p className="pb-2 text-center text-xs text-muted-foreground">That’s everything</p>
       )}
     </div>
   );
@@ -103,12 +100,15 @@ function GroupRow({
   group,
   selectedId,
   expanded,
+  today,
   onToggle,
   onSelect,
 }: {
   group: AuditGroup;
   selectedId: string | null;
   expanded: boolean;
+  /** Today's rows read as a distance ("12m ago"); older days keep the clock. */
+  today: boolean;
   onToggle: () => void;
   onSelect: (entry: AuditLog) => void;
 }) {
@@ -146,8 +146,12 @@ function GroupRow({
           </span>
           {detail && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{detail}</span>}
         </span>
-        <StatusPill severity={group.severity} code={latest?.statusCode} />
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{groupTimeSpan(group)}</span>
+        <AuditStatusPill severity={group.severity} code={latest?.statusCode} />
+        {today ? (
+          <RelativeTime iso={group.lastAt} className="shrink-0 text-xs tabular-nums text-muted-foreground" />
+        ) : (
+          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{groupTimeSpan(group)}</span>
+        )}
         {many && (
           <ChevronDown
             size={14}
@@ -191,9 +195,14 @@ function GroupEntries({
       className="overflow-hidden bg-band/25"
     >
       {entries.isPending ? (
-        <p className="flex items-center gap-2 px-3.5 py-3 pl-15 text-xs text-muted-foreground">
-          <Loader2 size={13} className="animate-spin" aria-hidden="true" /> Loading {group.count} entries…
-        </p>
+        <div className="py-1" role="status" aria-busy="true" aria-label={`Loading ${group.count} entries`}>
+          {Array.from({ length: Math.min(group.entryIds.length, 4) || 1 }, (_, index) => (
+            <div key={index} className="flex items-center gap-3 py-2 pl-15 pr-3.5" aria-hidden="true">
+              <Bone className={cn('h-3.5', index % 2 === 0 ? 'w-56' : 'w-40', 'max-w-full')} />
+              <Bone className="ml-auto h-3 w-10 shrink-0" />
+            </div>
+          ))}
+        </div>
       ) : entries.isError ? (
         <p className="px-3.5 py-3 pl-15 text-xs text-exception">
           Couldn’t load these entries.{' '}
@@ -214,7 +223,7 @@ function GroupEntries({
                 )}
               >
                 <span className="min-w-0 flex-1 truncate text-foreground">{auditPhrase(entry)}</span>
-                <StatusPill severity={auditSeverity(entry)} code={entry.statusCode} />
+                <AuditStatusPill severity={auditSeverity(entry)} code={entry.statusCode} />
                 <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{timeOfDay(entry.createdAt)}</span>
               </button>
             </li>

@@ -10,8 +10,10 @@ import { type QuestionContext, questionFor } from '@/components/onboarding/quest
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Switch } from '@/components/settings/controls';
+import { TileSkeleton } from '@/components/shared/TileSkeleton';
 import { ModuleChangeDialog } from '@/components/settings/workspaces/ModuleChangeDialog';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -166,10 +168,17 @@ function ModuleOverview({
       }
     >
       {modules.isPending ? (
-        <div className="grid gap-2 sm:grid-cols-2" aria-label="Loading modules">
-          {Array.from({ length: 6 }, (_, index) => (
-            <div key={index} className="h-[4.25rem] animate-pulse rounded-lg bg-band/60" />
-          ))}
+        <div role="status" aria-busy="true" aria-label="Loading modules">
+          {/* The meter, then the module cards two across — as they land. */}
+          <div className="mb-4 flex items-center gap-3" aria-hidden="true">
+            <Bone className="h-1.5 flex-1 rounded-full" />
+            <Bone className="h-3 w-14 shrink-0" />
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {Array.from({ length: 6 }, (_, index) => (
+              <TileSkeleton key={index} index={index} trailing="h-5 w-9 rounded-full" />
+            ))}
+          </div>
         </div>
       ) : modules.isError ? (
         <ErrorState title="Couldn’t load this workspace’s modules" onRetry={() => void modules.refetch()} />

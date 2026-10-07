@@ -146,7 +146,7 @@ export function StaffWorkspace({ tab, initialTicket = null }: { tab: StaffTab; i
   if (capabilities.length > 0 && !canTeam && !canRota && !canLeave && !canHelpdesk && !canPayroll) {
     return (
       <EditorShell eyebrow="Management" title="Staff" icon={<UsersRound size={20} aria-hidden="true" />}>
-        <EmptyState icon={Lock} title="Not available" description="You don’t have access to the staff workspace." />
+        <EmptyState icon={Lock} kind="gone" title="Not available" description="You don’t have access to the staff workspace." />
       </EditorShell>
     );
   }

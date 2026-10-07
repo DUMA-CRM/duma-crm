@@ -3,10 +3,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { AlertTriangle, Barcode, Check, FileText, Flame, Gauge, Loader2, Package, PackageMinus, PackagePlus, Timer, TriangleAlert } from '@/components/icons';
+import {
+  AlertTriangle,
+  Barcode,
+  Check,
+  FileText,
+  Flame,
+  Gauge,
+  Loader2,
+  Package,
+  PackageMinus,
+  PackagePlus,
+  Timer,
+  TriangleAlert,
+} from '@/components/icons';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
 import { ChoiceCards, FormSection, NumberStepper } from '@/components/shared/FormParts';
+import { Pill } from '@/components/shared/Pill';
+import { TONE_TINT } from '@/components/shared/tone';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,15 +52,7 @@ import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { STATUS_LABEL, type StockStatus, fmtQty, getStatus, selectClass } from './shared';
-
-const STATUS_TONE: Record<StockStatus, string> = {
-  ok: 'bg-momentum/8 text-momentum',
-  low: 'bg-measured/10 text-measured',
-  critical: 'bg-exception/8 text-exception',
-  out: 'bg-exception/8 text-exception',
-  unavailable: 'bg-band text-muted-foreground',
-};
+import { ParMeter, STATUS_LABEL, STATUS_TONE, type StockStatus, fmtQty, getStatus, selectClass, statusGlyph } from './shared';
 
 // ── Nutrition fields (shared by create + edit item forms) ─────────────────────
 
@@ -115,7 +122,9 @@ function NutritionFields({
           onChange={(basis) => onChange({ ...draft, basis: draft.basis === basis ? '' : basis })}
           options={NUTRITION_BASES}
         />
-        <p className="text-xs text-muted-foreground">As printed on the label. Recipe amounts in kg or l convert automatically; “per piece” suits countable items.</p>
+        <p className="text-xs text-muted-foreground">
+          As printed on the label. Recipe amounts in kg or l convert automatically; “per piece” suits countable items.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
@@ -148,7 +157,9 @@ function NutritionFields({
                 aria-pressed={on}
                 className={cn(
                   'inline-flex h-8 items-center gap-1 rounded-md border px-2.5 text-xs font-semibold capitalize transition-colors',
-                  on ? 'border-measured/50 bg-measured/10 text-measured' : 'border-rule/60 bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
+                  on
+                    ? 'border-measured/50 bg-measured/10 text-measured'
+                    : 'border-rule/60 bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
                 )}
               >
                 {on && <Check size={12} aria-hidden="true" />}
@@ -248,7 +259,7 @@ export function AddItemDrawer({
       if (!newName.trim()) errs.name = 'Item name is required.';
       if (!newUnit.trim()) errs.unit = 'Unit is required (e.g. kg, ml, units).';
     }
-    if (!lowThreshold || parseFloat(lowThreshold) < 0) errs.threshold = 'Enter a valid threshold.';
+    if (!lowThreshold || parseFloat(lowThreshold) < 0) errs.threshold = 'Enter a valid par.';
     if (Object.keys(errs).length) {
       setErrors(errs);
       return;
@@ -389,7 +400,7 @@ export function AddItemDrawer({
             />
           </div>
           <div className="flex flex-col gap-1.5 flex-1">
-            <Label uppercase>Low threshold</Label>
+            <Label uppercase>Par</Label>
             <input
               type="number"
               min={0}
@@ -423,25 +434,36 @@ export function EditThresholdDrawer({ item, onClose, onSuccess }: { item: Locati
 
   const thresholdNumber = Number(threshold);
   const thresholdError = threshold.trim() === '' || !Number.isFinite(thresholdNumber) || thresholdNumber < 0 ? 'Enter 0 or more.' : null;
-  const reorderError = reorderQuantity.trim() !== '' && (!Number.isFinite(Number(reorderQuantity)) || Number(reorderQuantity) <= 0) ? 'Enter more than 0, or leave it blank.' : null;
+  const reorderError =
+    reorderQuantity.trim() !== '' && (!Number.isFinite(Number(reorderQuantity)) || Number(reorderQuantity) <= 0)
+      ? 'Enter more than 0, or leave it blank.'
+      : null;
   // What the item would read as with this threshold — the reason to change it.
   const preview = thresholdError ? null : getStatus({ ...item, lowThreshold: String(thresholdNumber) });
   const onHand = Number(item.quantity);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => updateLocationStock(item.id, { lowThreshold: String(thresholdNumber), reorderQuantity: reorderQuantity.trim() ? String(Number(reorderQuantity)) : null }),
+    mutationFn: () =>
+      updateLocationStock(item.id, {
+        lowThreshold: String(thresholdNumber),
+        reorderQuantity: reorderQuantity.trim() ? String(Number(reorderQuantity)) : null,
+      }),
     onSuccess: () => {
       onSuccess();
       toast('success', 'Reorder settings saved.');
       onClose();
     },
-    onError: (err) => toast('error', err.message || 'The threshold wasn’t saved. Try again.'),
+    onError: (err) => toast('error', err.message || 'The par wasn’t saved. Try again.'),
   });
 
   return (
     <Drawer
-      title="Reorder threshold"
-      description={item.stockItem?.name ? `${item.stockItem.name} — when it counts as low here, and how much to order.` : 'When it counts as low here, and how much to order.'}
+      title="Par level"
+      description={
+        item.stockItem?.name
+          ? `${item.stockItem.name} — when it counts as low here, and how much to order.`
+          : 'When it counts as low here, and how much to order.'
+      }
       onClose={onClose}
       footer={
         <div className="flex gap-2">
@@ -474,15 +496,19 @@ export function EditThresholdDrawer({ item, onClose, onSuccess }: { item: Locati
               {fmtQty(onHand)} {unit} on hand
             </p>
             <p className="text-xs text-muted-foreground">
-              {preview ? `Reads as ${STATUS_LABEL[preview].toLowerCase()} with this threshold` : 'Enter a threshold to see how it reads'}
+              {preview ? `Reads as ${STATUS_LABEL[preview].toLowerCase()} with this par` : 'Enter a par to see how it reads'}
             </p>
           </div>
-          {preview && <span className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', STATUS_TONE[preview])}>{STATUS_LABEL[preview]}</span>}
+          {preview && <Pill tone={STATUS_TONE[preview]}>{STATUS_LABEL[preview]}</Pill>}
         </div>
 
-        <FormSection icon={Gauge} title="Low at" note="At or below this it shows as low, joins the suggested order and raises the low-stock alert. Half of it counts as critical.">
+        <FormSection
+          icon={Gauge}
+          title="Low at"
+          note="At or below this it shows as low, joins the suggested order and raises the low-stock alert. Half of it counts as critical."
+        >
           <Input
-            label="Reorder threshold"
+            label="Par"
             value={threshold}
             onChange={(e) => setThreshold(e.target.value)}
             inputMode="decimal"
@@ -493,7 +519,11 @@ export function EditThresholdDrawer({ item, onClose, onSuccess }: { item: Locati
           />
         </FormSection>
 
-        <FormSection icon={PackagePlus} title="Order" note="What the suggested order proposes when it runs low. Leave blank to let the forecast decide.">
+        <FormSection
+          icon={PackagePlus}
+          title="Order"
+          note="What the suggested order proposes when it runs low. Leave blank to let the forecast decide."
+        >
           <Input
             label="Reorder quantity"
             value={reorderQuantity}
@@ -534,7 +564,8 @@ export function RestockDrawer({
   const [qty, setQty] = useState(forecast ?? usual ?? 1);
   const [notes, setNotes] = useState('');
   const status = getStatus(item);
-  const qtyError = !Number.isInteger(qty) || qty < 1 ? 'Whole units, 1 or more.' : qty > 999_999 ? 'That’s more than can be requested at once.' : null;
+  const qtyError =
+    !Number.isInteger(qty) || qty < 1 ? 'Whole units, 1 or more.' : qty > 999_999 ? 'That’s more than can be requested at once.' : null;
 
   const { mutate, isPending } = useMutation({
     mutationFn: (payload: CreateRestockRequestPayload) => createRestockRequest(payload),
@@ -575,10 +606,11 @@ export function RestockDrawer({
         className="space-y-7"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!qtyError) mutate({ stockItemId: item.stockItemId, locationId: item.locationId, requestedQty: qty, notes: notes.trim() || undefined });
+          if (!qtyError)
+            mutate({ stockItemId: item.stockItemId, locationId: item.locationId, requestedQty: qty, notes: notes.trim() || undefined });
         }}
       >
-        <ItemCard name={itemName} status={status} detail={`${fmtQty(onHand)} ${unit} on hand · threshold ${fmtQty(threshold)} ${unit}`} />
+        <ItemCard name={itemName} status={status} qty={onHand} par={threshold} unit={unit} category={item.stockItem?.category} />
 
         <FormSection icon={PackagePlus} title="How much">
           <NumberStepper value={qty} onChange={setQty} min={1} max={999_999} unit={unit} label="Quantity" />
@@ -592,7 +624,9 @@ export function RestockDrawer({
                   aria-pressed={qty === chip.value}
                   className={cn(
                     'h-8 rounded-md border px-2.5 text-xs font-semibold transition-colors',
-                    qty === chip.value ? 'border-primary bg-primary/5 text-primary' : 'border-rule/60 bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
+                    qty === chip.value
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-rule/60 bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
                   )}
                 >
                   {chip.label}
@@ -604,7 +638,11 @@ export function RestockDrawer({
             <p className="text-xs text-destructive">{qtyError}</p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Brings it to about <span className="font-semibold text-foreground">{fmtQty(onHand + qty)} {unit}</span> once delivered. Requests are in whole units.
+              Brings it to about{' '}
+              <span className="font-semibold text-foreground">
+                {fmtQty(onHand + qty)} {unit}
+              </span>{' '}
+              once delivered. Requests are in whole units.
             </p>
           )}
         </FormSection>
@@ -679,7 +717,12 @@ export function LogLossDrawer({
   const errors = {
     location: !locationId ? 'Choose a location.' : null,
     item: !stockItemId ? 'Choose an item.' : null,
-    qty: qty.trim() === '' || !Number.isFinite(n) || n <= 0 ? 'Enter how much was lost.' : n > onHand ? `Only ${fmtQty(onHand)} ${unit} on hand.` : null,
+    qty:
+      qty.trim() === '' || !Number.isFinite(n) || n <= 0
+        ? 'Enter how much was lost.'
+        : n > onHand
+          ? `Only ${fmtQty(onHand)} ${unit} on hand.`
+          : null,
   };
   const valid = Object.values(errors).every((e) => e === null);
 
@@ -723,7 +766,14 @@ export function LogLossDrawer({
         }}
       >
         {fixed && selected ? (
-          <ItemCard name={selected.stockItem?.name ?? 'Item'} status={getStatus(selected)} detail={`${fmtQty(onHand)} ${unit} on hand`} />
+          <ItemCard
+            name={selected.stockItem?.name ?? 'Item'}
+            status={getStatus(selected)}
+            qty={onHand}
+            par={Number(selected.lowThreshold) || 0}
+            unit={unit}
+            category={selected.stockItem?.category}
+          />
         ) : (
           <FormSection icon={Package} title="What">
             <div className="flex flex-col gap-1.5">
@@ -734,7 +784,10 @@ export function LogLossDrawer({
                   setLocationId(value);
                   setStockItemId('');
                 }}
-                options={[{ value: '', label: 'Choose a location' }, ...locations.map((location) => ({ value: location.id, label: location.name }))]}
+                options={[
+                  { value: '', label: 'Choose a location' },
+                  ...locations.map((location) => ({ value: location.id, label: location.name })),
+                ]}
                 ariaLabel="Location"
                 ariaInvalid={submitted && !!errors.location}
                 className="w-full"
@@ -747,7 +800,16 @@ export function LogLossDrawer({
                 value={stockItemId}
                 onValueChange={setStockItemId}
                 options={[
-                  { value: '', label: loadingStock ? 'Loading…' : !locationId ? 'Choose a location first' : availableItems.length === 0 ? 'Nothing in stock here' : 'Choose an item' },
+                  {
+                    value: '',
+                    label: loadingStock
+                      ? 'Loading…'
+                      : !locationId
+                        ? 'Choose a location first'
+                        : availableItems.length === 0
+                          ? 'Nothing in stock here'
+                          : 'Choose an item',
+                  },
                   ...availableItems.map((row) => ({ value: row.stockItemId, label: row.stockItem!.name })),
                 ]}
                 ariaLabel="Item"
@@ -776,7 +838,10 @@ export function LogLossDrawer({
               <span>
                 {!errors.qty ? (
                   <>
-                    Leaves <span className="font-semibold text-foreground">{fmtQty(onHand - n)} {unit}</span>
+                    Leaves{' '}
+                    <span className="font-semibold text-foreground">
+                      {fmtQty(onHand - n)} {unit}
+                    </span>
                     {cost != null && (
                       <>
                         {' '}
@@ -813,20 +878,47 @@ export function LogLossDrawer({
 }
 
 const TEXTAREA =
-  'w-full resize-none rounded-md border border-input bg-field px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured sm:text-sm';
+  'w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured sm:text-sm';
 
-/** The item a drawer acts on, as the Overview's profile card shows it: name, stock, status. */
-function ItemCard({ name, status, detail }: { name: string; status: StockStatus; detail: string }) {
+/** The item a drawer acts on, as a stock row shows it: a health-tinted tile, the level against par. */
+function ItemCard({
+  name,
+  status,
+  qty,
+  par,
+  unit,
+  category,
+}: {
+  name: string;
+  status: StockStatus;
+  qty: number;
+  par: number;
+  unit: string;
+  category?: string | null;
+}) {
+  const glyph = statusGlyph(status, category);
   return (
     <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3.5">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary" aria-hidden="true">
-        <Package size={18} />
+      <span
+        className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', TONE_TINT[STATUS_TONE[status]])}
+        role="img"
+        aria-label={glyph.label}
+        title={glyph.label}
+      >
+        <glyph.icon size={18} aria-hidden="true" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">{name}</p>
-        <p className="truncate text-xs text-muted-foreground">{detail}</p>
+        <p className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm font-semibold text-foreground">{name}</span>
+          {status !== 'ok' && <Pill tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Pill>}
+        </p>
+        <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <ParMeter qty={qty} par={par} unit={unit} status={status} className="w-20 shrink-0" />
+          <span className="truncate">
+            {fmtQty(qty)} {unit} on hand{par > 0 && ` · par ${fmtQty(par)}`}
+          </span>
+        </p>
       </div>
-      <span className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', STATUS_TONE[status])}>{STATUS_LABEL[status]}</span>
     </div>
   );
 }
@@ -863,14 +955,17 @@ export function EditStockItemDrawer({
   const [category, setCategory] = useState(item.category);
   const [isPerishable, setIsPerishable] = useState(item.isPerishable);
   const [shelfLife, setShelfLife] = useState(item.defaultShelfLifeDays ? String(item.defaultShelfLifeDays) : '');
-  const [containerQuantity, setContainerQuantity] = useState(item.defaultContainerQuantity ? String(Number(item.defaultContainerQuantity)) : '');
+  const [containerQuantity, setContainerQuantity] = useState(
+    item.defaultContainerQuantity ? String(Number(item.defaultContainerQuantity)) : '',
+  );
   const [reorderLevel, setReorderLevel] = useState(item.defaultReorderLevel ? String(Number(item.defaultReorderLevel)) : '');
   const [reorderQuantity, setReorderQuantity] = useState(item.defaultReorderQuantity ? String(Number(item.defaultReorderQuantity)) : '');
   const [nutrition, setNutrition] = useState<NutritionDraft>(() => nutritionDraftFrom(item.nutritionBasis, item.nutrition));
   const [allergens, setAllergens] = useState<Allergen[]>((item.allergens ?? []) as Allergen[]);
   const [submitted, setSubmitted] = useState(false);
 
-  const positive = (value: string, allowZero = true) => value.trim() === '' || (Number.isFinite(Number(value)) && (allowZero ? Number(value) >= 0 : Number(value) > 0));
+  const positive = (value: string, allowZero = true) =>
+    value.trim() === '' || (Number.isFinite(Number(value)) && (allowZero ? Number(value) >= 0 : Number(value) > 0));
   const errors = {
     name: name.trim().length < 1 ? 'A name is needed.' : null,
     unit: unit.trim().length < 1 ? 'A unit is needed, e.g. kg, l or pcs.' : null,
@@ -937,10 +1032,22 @@ export function EditStockItemDrawer({
           <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={255} error={show('name')} />
           <div className="flex flex-col gap-1.5">
             <Label uppercase>Category</Label>
-            <ChoiceCards columns={4} value={category} onChange={(value) => setCategory(value as StockItem['category'])} options={STOCK_CATEGORY_OPTIONS} />
+            <ChoiceCards
+              columns={4}
+              value={category}
+              onChange={(value) => setCategory(value as StockItem['category'])}
+              options={STOCK_CATEGORY_OPTIONS}
+            />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input label="Unit" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="kg, l, pcs…" required error={show('unit')} />
+            <Input
+              label="Unit"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              placeholder="kg, l, pcs…"
+              required
+              error={show('unit')}
+            />
             <Input
               label="Barcode"
               value={barcode}
@@ -992,10 +1099,14 @@ export function EditStockItemDrawer({
           </div>
         </FormSection>
 
-        <FormSection icon={PackagePlus} title="Reorder defaults" note="Used when a location starts stocking it. Each location can change its own threshold.">
+        <FormSection
+          icon={PackagePlus}
+          title="Reorder defaults"
+          note="Used when a location starts stocking it. Each location can change its own par."
+        >
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
-              label="Reorder threshold"
+              label="Par"
               value={reorderLevel}
               onChange={(e) => setReorderLevel(e.target.value)}
               inputMode="decimal"

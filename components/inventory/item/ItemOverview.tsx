@@ -13,19 +13,19 @@ import {
   Candy,
   CircleDot,
   Clock,
-  Coffee,
   Coins,
   Droplet,
   Droplets,
   Egg,
   Flame,
+  FlaskConical,
   Gauge,
   type IconComponent,
   Info as InfoIcon,
+  Leaf,
   Package,
   PackagePlus,
   Pencil,
-  ShoppingBag,
   Sprout,
   Tag,
   Timer,
@@ -34,11 +34,12 @@ import {
   TriangleAlert,
   Wheat,
 } from '@/components/icons';
-import { STATUS_LABEL, type StockStatus, fmtQty, formatDate } from '@/components/inventory/stock/shared';
+import { STATUS_LABEL, STATUS_TONE, type StockStatus, categoryMeta, fmtQty, formatDate } from '@/components/inventory/stock/shared';
 import { CopyButton, RecordBlock, RecordList, RecordListRow } from '@/components/people/record/shared';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact, SettingRow, SettingRows, Switch } from '@/components/settings/controls';
+import { Pill } from '@/components/shared/Pill';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
@@ -53,13 +54,6 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { type ItemAttentionSeverity, type ItemAttentionTarget, daysUntil, expiryLabel, itemAttention } from '@/lib/utils/stock-item';
 
-const CATEGORY: Record<string, { label: string; icon: IconComponent }> = {
-  FOOD: { label: 'Food', icon: Wheat },
-  BEVERAGE: { label: 'Drinks', icon: Coffee },
-  SUPPLY: { label: 'Supplies', icon: Package },
-  MERCH: { label: 'Retail', icon: ShoppingBag },
-};
-
 const BASIS_LABEL: Record<NutritionBasis, string> = { per_100g: 'Per 100 g', per_100ml: 'Per 100 ml', per_piece: 'Per piece' };
 
 const NUTRITION_ICONS: Record<string, IconComponent> = {
@@ -73,12 +67,19 @@ const NUTRITION_ICONS: Record<string, IconComponent> = {
   salt: CircleDot,
 };
 
-const STATUS_PILL: Record<StockStatus, string> = {
-  ok: 'bg-momentum/8 text-momentum',
-  low: 'bg-measured/10 text-measured',
-  critical: 'bg-exception/8 text-exception',
-  out: 'bg-exception/8 text-exception',
-  unavailable: 'bg-band text-muted-foreground',
+/** A glyph beside each allergen's name — the word stays, it's the compliance record. */
+const ALLERGEN_ICONS: Partial<Record<string, IconComponent>> = {
+  gluten: Wheat,
+  eggs: Egg,
+  milk: Droplet,
+  nuts: Sprout,
+  peanuts: Sprout,
+  celery: Leaf,
+  lupin: Leaf,
+  soya: Sprout,
+  sesame: CircleDot,
+  mustard: Flame,
+  sulphites: FlaskConical,
 };
 
 const SEVERITY_TILE: Record<ItemAttentionSeverity, string> = {
@@ -90,7 +91,7 @@ const SEVERITY_ICON: Record<ItemAttentionSeverity, IconComponent> = { blocking: 
 
 export interface ItemOverviewCan {
   restock: boolean;
-  /** `stock.locations:write` — threshold, availability, remove. */
+  /** `stock.locations:write` — par, availability, remove. */
   par: boolean;
   /** `stock:write` — the catalogue record. */
   edit: boolean;
@@ -144,7 +145,7 @@ export function ItemOverview({
   const { location } = useCurrentWorkspace();
   const [now] = useState(() => new Date());
   const unit = item.unit;
-  const category = CATEGORY[item.category] ?? { label: item.category, icon: Package };
+  const category = categoryMeta(item.category);
   const daysLeft = forecast?.daysOfStockRemaining ?? null;
   const cost = item.costPerUnit != null && item.costPerUnit !== '' ? Number(item.costPerUnit) : null;
   const expiry = expiryLabel(earliestExpiry ?? null, now);
@@ -168,7 +169,7 @@ export function ItemOverview({
     : [];
   const act: Record<ItemAttentionTarget, { label: string; run: () => void; allowed: boolean }> = {
     restock: { label: 'Restock', run: onRestock, allowed: can.restock },
-    threshold: { label: 'Set threshold', run: onEditThreshold, allowed: can.par },
+    threshold: { label: 'Set par', run: onEditThreshold, allowed: can.par },
     available: { label: 'Mark available', run: onToggleAvailable, allowed: can.par },
     containers: { label: 'Containers', run: onOpenContainers, allowed: true },
   };
@@ -246,13 +247,6 @@ export function ItemOverview({
                     placeholder="Not enough usage yet"
                   />
                   <RecordListRow
-                    icon={CalendarClock}
-                    tone="team"
-                    label="Estimated stockout"
-                    value={stockoutDate ? formatDate(stockoutDate) : undefined}
-                    placeholder="Not enough usage yet"
-                  />
-                  <RecordListRow
                     icon={PackagePlus}
                     tone="team"
                     label="Suggested reorder"
@@ -314,11 +308,21 @@ export function ItemOverview({
                         <TriangleAlert size={16} />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold capitalize text-foreground">{allergens.join(', ')}</span>
+                        <span className="flex flex-wrap gap-x-3 gap-y-1">
+                          {allergens.map((allergen) => {
+                            const Glyph = ALLERGEN_ICONS[allergen] ?? TriangleAlert;
+                            return (
+                              <span
+                                key={allergen}
+                                className="inline-flex items-center gap-1 text-sm font-semibold capitalize text-foreground"
+                              >
+                                <Glyph size={13} className="text-measured" aria-hidden="true" />
+                                {allergen}
+                              </span>
+                            );
+                          })}
+                        </span>
                         <span className="block text-xs text-muted-foreground">Allergens</span>
-                      </span>
-                      <span className="shrink-0 rounded-sm bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured">
-                        {allergens.length} {allergens.length === 1 ? 'allergen' : 'allergens'}
                       </span>
                     </div>
                   ) : null}
@@ -362,23 +366,29 @@ export function ItemOverview({
             <div className="min-w-0 flex-1">
               <p className="truncate text-2xl font-semibold tracking-headline text-foreground">{item.name}</p>
               <p className="mt-1 truncate text-sm text-muted-foreground">
-                {[category.label, unit, item.isPerishable ? 'Perishable' : null].filter(Boolean).join(' · ')}
+                {category.label} · {unit}
               </p>
               <p className="mt-2 flex flex-wrap items-center justify-center gap-1.5 sm:justify-start">
                 {status ? (
-                  <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', STATUS_PILL[status])}>
-                    {STATUS_LABEL[status]}
-                  </span>
+                  <Pill tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Pill>
                 ) : hasLocation ? (
-                  <span className="rounded-sm bg-band px-1.5 py-0.5 text-micro font-semibold text-muted-foreground">Not stocked here</span>
+                  <Pill tone="muted">Not stocked here</Pill>
                 ) : null}
                 {hasLocation && location && <span className="text-xs text-muted-foreground">at {location.name}</span>}
               </p>
             </div>
             {/* The catalogue record's one edit — name, unit, category, nutrition — on the card that shows it. */}
             {can.edit && (
-              <Button variant="outline" size="sm" className="shrink-0 self-center sm:self-start" onClick={onEditItem}>
-                <Pencil aria-hidden="true" /> Edit
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="shrink-0 self-center sm:self-start"
+                onClick={onEditItem}
+                aria-label={`Edit ${item.name}`}
+                title="Edit item"
+              >
+                <Pencil aria-hidden="true" />
               </Button>
             )}
           </div>
@@ -416,7 +426,7 @@ export function ItemOverview({
                 />
               </dl>
 
-              {/* On hand against the threshold: the marker is the threshold, the fill is the shelf. */}
+              {/* On hand against par: the marker is par, the fill is the shelf. */}
               <div className="mt-5">
                 <div className="relative h-2 rounded-full bg-band">
                   <motion.div
@@ -441,10 +451,10 @@ export function ItemOverview({
                   )}
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                  <span>{threshold > 0 ? `Reorder threshold ${fmtQty(threshold)} ${unit}` : 'No reorder threshold set'}</span>
+                  <span>{threshold > 0 ? `Par ${fmtQty(threshold)} ${unit}` : 'No par set'}</span>
                   {can.par && (
                     <button type="button" onClick={onEditThreshold} className="font-semibold text-primary hover:underline">
-                      {threshold > 0 ? 'Change' : 'Set threshold'}
+                      {threshold > 0 ? 'Change' : 'Set par'}
                     </button>
                   )}
                 </div>
@@ -452,27 +462,27 @@ export function ItemOverview({
             </>
           ) : hasLocation ? (
             <p className="mt-6 rounded-md bg-band/60 px-3.5 py-3 text-sm text-muted-foreground">
-              Not stocked at {location?.name ?? 'this location'}, so it has no stock level, threshold or containers here.
+              Not stocked at {location?.name ?? 'this location'}, so it has no stock level, par or containers here.
             </p>
           ) : null}
         </SettingsSection>
 
         <RecordBlock id="item-record" label="Item">
           <RecordList>
-            <RecordListRow icon={category.icon} tone="reference" label="Category" value={category.label} />
-            <RecordListRow
-              icon={Box}
-              tone="reference"
-              label="Unit"
-              value={unit}
-              detail={item.defaultContainerQuantity ? `containers of ${fmtQty(Number(item.defaultContainerQuantity))} ${unit}` : undefined}
-            />
+            {item.defaultContainerQuantity ? (
+              <RecordListRow
+                icon={Box}
+                tone="reference"
+                label="Container size"
+                value={`${fmtQty(Number(item.defaultContainerQuantity))} ${unit}`}
+              />
+            ) : null}
             <RecordListRow icon={Barcode} tone="reference" label="Barcode" value={item.barcode} placeholder="No barcode" />
             <RecordListRow
               icon={Timer}
               tone="reference"
-              label="Perishable"
-              value={item.isPerishable ? (item.defaultShelfLifeDays ? `Yes · ${item.defaultShelfLifeDays}-day shelf life` : 'Yes') : 'No'}
+              label="Shelf life"
+              value={item.isPerishable ? (item.defaultShelfLifeDays ? `${item.defaultShelfLifeDays} days` : 'Perishable') : '—'}
             />
             <RecordListRow
               icon={Tag}

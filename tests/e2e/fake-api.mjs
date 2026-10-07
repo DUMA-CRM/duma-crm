@@ -18,7 +18,7 @@ const tenantId = '11111111-1111-4111-8111-111111111111';
 const locationId = '22222222-2222-4222-8222-222222222222';
 const moduleIds = [
   'core', 'identity', 'organization', 'customers', 'catalog', 'ordering', 'pos', 'payments', 'inventory',
-  'purchasing', 'workforce', 'people', 'payroll', 'communications', 'compliance', 'audit', 'analytics', 'agent', 'support',
+  'purchasing', 'workforce', 'people', 'payroll', 'communications', 'compliance', 'audit', 'analytics', 'agent', 'support', 'cms',
 ];
 const capabilities = ['staff:read', 'scheduling:read', 'scheduling:write', 'shifts:read', 'shifts:write', 'hr.sensitive:read'];
 const staffProfile = {

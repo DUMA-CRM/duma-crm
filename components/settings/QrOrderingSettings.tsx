@@ -8,11 +8,9 @@ import QRCode from 'react-qr-code';
 import {
   Banknote,
   CalendarDays,
-  Check,
   CheckCircle2,
   Clock,
   Coins,
-  Copy,
   CreditCard,
   Download,
   ExternalLink,
@@ -35,10 +33,15 @@ import { relativeTime } from '@/components/settings/connectors/shared';
 import { StepperCard, Switch, ToggleCard } from '@/components/settings/controls';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
+import { SectionSkeleton, TileSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
+import { CopyGlyph } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { getMenuCategories, getMenuItems } from '@/lib/modules/catalog/client';
+import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import {
   type QrOrderingContent,
   type SaveQrOrderingConfig,
@@ -46,7 +49,6 @@ import {
   publishQrOrderingConfig,
   saveQrOrderingConfig,
 } from '@/lib/modules/qr-ordering/client';
-import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatMoney } from '@/lib/utils/dashboard';
@@ -145,6 +147,7 @@ export function QrOrderingSettings() {
     },
     onError: (error) => toast('error', error.message || 'QR ordering settings were not saved.'),
   });
+  const [justPublished, flashPublished] = useDoneBeat(1800);
   const publish = useMutation({
     mutationFn: async () => {
       await save.mutateAsync();
@@ -167,9 +170,31 @@ export function QrOrderingSettings() {
   }
   if (config.isPending) {
     return (
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]" aria-label="Loading QR ordering">
-        <div className="h-96 animate-pulse rounded-lg bg-band/60" />
-        <div className="h-96 animate-pulse rounded-lg bg-band/60" />
+      // The page's shape: the live headline, then the settings beside the QR code.
+      <div role="status" aria-busy="true" aria-label="Loading QR ordering" className="flex flex-col gap-6">
+        <div className="flex items-center gap-4" aria-hidden="true">
+          <Bone className="size-14 shrink-0 rounded-xl" />
+          <span className="min-w-0 flex-1 space-y-2">
+            <Bone className="h-6 w-72 max-w-full" />
+            <Bone className="h-3.5 w-44" />
+          </span>
+          <Bone className="hidden h-11 w-28 sm:block" />
+        </div>
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
+          <div className="flex min-w-0 flex-col gap-5">
+            <SectionSkeleton>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {Array.from({ length: 4 }, (_, index) => (
+                  <TileSkeleton key={index} index={index} />
+                ))}
+              </div>
+            </SectionSkeleton>
+            <SectionSkeleton fields={2} />
+          </div>
+          <SectionSkeleton>
+            <Bone className="mx-auto aspect-square w-48" />
+          </SectionSkeleton>
+        </div>
       </div>
     );
   }
@@ -254,13 +279,18 @@ export function QrOrderingSettings() {
               </motion.div>
             )}
           </AnimatePresence>
-          <Button
+          <ActionButton
             type="button"
             size="lg"
-            className="h-11 px-5"
-            onClick={() => publish.mutate()}
-            variant={unpublished ? 'default' : 'outline'}
-            disabled={!unpublished || !paymentsValid || save.isPending || publish.isPending}
+            className="h-11 min-w-36 px-5"
+            onClick={() => publish.mutate(undefined, { onSuccess: flashPublished })}
+            variant={unpublished || justPublished ? 'default' : 'outline'}
+            disabled={!unpublished || !paymentsValid || save.isPending}
+            pending={publish.isPending}
+            pendingLabel="Publishing…"
+            done={justPublished}
+            doneLabel="Live for guests"
+            icon={<CheckCircle2 aria-hidden="true" />}
             title={
               !unpublished
                 ? 'Guests already see the latest version'
@@ -269,9 +299,8 @@ export function QrOrderingSettings() {
                   : 'Show your latest changes to guests'
             }
           >
-            {publish.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}
-            {publish.isPending ? 'Publishing…' : unpublished ? 'Publish' : 'Published'}
-          </Button>
+            {unpublished ? 'Publish' : 'Published'}
+          </ActionButton>
         </div>
       </div>
 
@@ -332,7 +361,7 @@ export function QrOrderingSettings() {
               description={
                 Number(draft.minimumNoticeMinutes) > 0 ? 'How long you need to make an order.' : 'Orders can be collected straight away.'
               }
-              unit="min"
+              control="duration"
               min={0}
               max={1440}
               step={5}
@@ -343,6 +372,7 @@ export function QrOrderingSettings() {
               icon={Clock}
               title="A pickup every"
               description="How far apart pickup times are."
+              control="wheel"
               unit="min"
               min={5}
               max={120}
@@ -363,6 +393,7 @@ export function QrOrderingSettings() {
               icon={CalendarDays}
               title="Book ahead"
               description="How far ahead guests can order."
+              control="wheel"
               unit={Number(draft.bookingHorizonDays) === 1 ? 'day' : 'days'}
               min={1}
               max={30}
@@ -374,15 +405,23 @@ export function QrOrderingSettings() {
 
         <Section title="Menu">
           {items.isPending ? (
-            <div className="space-y-2" aria-label="Loading menu">
-              {Array.from({ length: 4 }, (_, index) => (
-                <div key={index} className="h-12 animate-pulse rounded-lg bg-band/60" />
-              ))}
-            </div>
+            <TilesSkeleton
+              count={4}
+              label="Loading menu"
+              className="grid gap-2"
+              tile="size-12"
+              trailing="h-4 w-12"
+              tileClassName="p-2 pr-3.5"
+            />
           ) : items.isError ? (
             <ErrorState title="Couldn’t load the menu" onRetry={() => void items.refetch()} />
           ) : allItems.length === 0 ? (
-            <EmptyState icon={Store} title="Nothing on the menu yet" description="Add products first — they appear here to show or hide." />
+            <EmptyState
+              icon={Store}
+              title="Nothing on the menu yet"
+              description="Add products first — they appear here to show or hide."
+              compact
+            />
           ) : (
             <QrMenuList
               items={allItems}
@@ -529,7 +568,7 @@ function WelcomeFields({ content, onChange }: { content: QrOrderingContent; onCh
           maxLength={500}
           value={content.collectionInstructions}
           onChange={(event) => onChange({ collectionInstructions: event.target.value })}
-          className="w-full resize-none rounded-md border border-input bg-field px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
+          className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
           placeholder="Collect from the pickup shelf by the window."
         />
         <p className="mt-1.5 flex justify-between text-xs text-muted-foreground">
@@ -596,7 +635,7 @@ function QrCodeCard({ url, locationName }: { url: string; locationName: string }
       </div>
       <div className="flex w-[4.5rem] flex-col gap-2 [&>*]:h-auto [&>*]:flex-1 [&_svg]:size-5">
         <Button type="button" variant="outline" onClick={copy} aria-label={copied ? 'Link copied' : 'Copy link'} title="Copy link">
-          {copied ? <Check className="text-primary" aria-hidden="true" /> : <Copy aria-hidden="true" />}
+          <CopyGlyph copied={copied} size={16} className="text-primary" />
         </Button>
         <Button type="button" variant="outline" onClick={download} aria-label="Download QR code" title="Download to print">
           <Download aria-hidden="true" />

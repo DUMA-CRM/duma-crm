@@ -4,11 +4,30 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { AlertTriangle, Ban, Building2, FileText, type IconComponent, Loader2, Mail, MapPin, Phone, Plus, Power, RotateCcw, Search, Truck, UserRound, X } from '@/components/icons';
+import {
+  AlertTriangle,
+  Ban,
+  Building2,
+  FileText,
+  type IconComponent,
+  Loader2,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
+  Power,
+  RotateCcw,
+  Search,
+  Truck,
+  UserRound,
+  X,
+} from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Drawer } from '@/components/shared/Drawer';
-import { FormSection } from '@/components/shared/FormParts';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { FormSection } from '@/components/shared/FormParts';
+import { Pill } from '@/components/shared/Pill';
+import { RelativeTime } from '@/components/shared/RelativeTime';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -82,7 +101,8 @@ function SupplierDrawer({
   const errorFor = (key: keyof SupplierForm) => (touched[key] || submitted ? errors[key] : undefined);
   const field = (key: keyof SupplierForm) => ({
     value: form[key],
-    onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((current) => ({ ...current, [key]: event.target.value })),
+    onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm((current) => ({ ...current, [key]: event.target.value })),
     onBlur: () => setTouched((current) => (form[key] !== initial[key] ? { ...current, [key]: true } : current)),
     disabled: readOnly,
     error: errorFor(key),
@@ -153,7 +173,14 @@ function SupplierDrawer({
     footer = (
       <div className="flex items-center gap-2">
         {supplier && canDelete && (
-          <Button variant="ghost" size="lg" className="text-exception hover:bg-exception/6 hover:text-exception" onClick={() => setConfirming(true)} disabled={pending}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="lg"
+            className="text-exception hover:bg-exception/6 hover:text-exception"
+            onClick={() => setConfirming(true)}
+            disabled={pending}
+          >
             <Power aria-hidden="true" />
             Deactivate
           </Button>
@@ -185,7 +212,14 @@ function SupplierDrawer({
     >
       <AnimatePresence mode="wait" initial={false}>
         {confirming && supplier ? (
-          <motion.div key="confirm" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.18 }} className="space-y-6">
+          <motion.div
+            key="confirm"
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-6"
+          >
             <CardPreview form={initial} status="leaving" />
             <DeactivateConsequences name={supplier.name} />
           </motion.div>
@@ -227,14 +261,37 @@ function SupplierDrawer({
               <>
                 <FormSection icon={Building2} title="Business">
                   <Input label="Name" required autoFocus={!supplier} placeholder="e.g. Dairy Direct" maxLength={255} {...field('name')} />
-                  <Input label="Address" leftIcon={<MapPin size={14} />} placeholder="Where deliveries come from" maxLength={500} {...field('address')} />
+                  <Input
+                    label="Address"
+                    leftIcon={<MapPin size={14} />}
+                    placeholder="Where deliveries come from"
+                    maxLength={500}
+                    {...field('address')}
+                  />
                 </FormSection>
 
                 <FormSection icon={UserRound} title="Contact">
                   <Input label="Contact person" placeholder="e.g. Priya Shah" maxLength={255} {...field('contactName')} />
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Input label="Email" type="email" inputMode="email" autoComplete="off" leftIcon={<Mail size={14} />} placeholder="orders@…" maxLength={255} {...field('email')} />
-                    <Input label="Phone" type="tel" inputMode="tel" leftIcon={<Phone size={14} />} placeholder="Optional" maxLength={30} {...field('phone')} />
+                    <Input
+                      label="Email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="off"
+                      leftIcon={<Mail size={14} />}
+                      placeholder="orders@…"
+                      maxLength={255}
+                      {...field('email')}
+                    />
+                    <Input
+                      label="Phone"
+                      type="tel"
+                      inputMode="tel"
+                      leftIcon={<Phone size={14} />}
+                      placeholder="Optional"
+                      maxLength={30}
+                      {...field('phone')}
+                    />
                   </div>
                   {noWayToReach && !readOnly && (
                     <p className="flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs text-measured">
@@ -251,7 +308,7 @@ function SupplierDrawer({
                     rows={4}
                     maxLength={2000}
                     placeholder={readOnly ? 'No notes' : 'e.g. Account DD-4471. Delivers Mon and Thu before 8am.'}
-                    className="w-full resize-none rounded-md border border-input bg-field px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured disabled:opacity-50 sm:text-sm"
+                    className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured disabled:opacity-50 sm:text-sm"
                   />
                   {notesError && <p className="text-xs font-semibold text-destructive">{notesError}</p>}
                   {form.notes.length > 1500 && <p className="text-right text-micro text-muted-foreground">{form.notes.length} / 2000</p>}
@@ -273,7 +330,12 @@ function ReadOnlyDetails({ supplier }: { supplier: Supplier }) {
     { icon: MapPin, label: 'Address', value: supplier.address },
     { icon: UserRound, label: 'Contact person', value: supplier.contactName },
     { icon: Mail, label: 'Email', value: supplier.email, href: supplier.email ? `mailto:${supplier.email}` : undefined },
-    { icon: Phone, label: 'Phone', value: supplier.phone, href: supplier.phone ? `tel:${supplier.phone.replace(/[^\d+]/g, '')}` : undefined },
+    {
+      icon: Phone,
+      label: 'Phone',
+      value: supplier.phone,
+      href: supplier.phone ? `tel:${supplier.phone.replace(/[^\d+]/g, '')}` : undefined,
+    },
     { icon: FileText, label: 'Notes', value: supplier.notes },
   ];
   return (
@@ -285,7 +347,12 @@ function ReadOnlyDetails({ supplier }: { supplier: Supplier }) {
           </span>
           <div className="min-w-0 flex-1">
             <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className={cn('whitespace-pre-line break-words text-sm', value ? 'font-semibold text-foreground' : 'text-muted-foreground/70')}>
+            <dd
+              className={cn(
+                'whitespace-pre-line break-words text-sm',
+                value ? 'font-semibold text-foreground' : 'text-muted-foreground/70',
+              )}
+            >
               {value && href ? (
                 <a href={href} className="hover:underline">
                   {value}
@@ -304,9 +371,24 @@ function ReadOnlyDetails({ supplier }: { supplier: Supplier }) {
 /** What deactivating does and doesn't do — the question a manager has before confirming. */
 function DeactivateConsequences({ name }: { name: string }) {
   const rows: { icon: IconComponent; title: string; detail: string; tone: 'stop' | 'keep' }[] = [
-    { icon: Ban, title: 'Can’t be picked for new orders', detail: `${name} leaves the supplier list on new purchase orders.`, tone: 'stop' },
-    { icon: FileText, title: 'Past orders keep it', detail: 'Orders already raised — sent, received or drafts — still show this supplier.', tone: 'keep' },
-    { icon: RotateCcw, title: 'Reactivate any time', detail: 'Nothing is deleted. Contact details and notes stay on the record.', tone: 'keep' },
+    {
+      icon: Ban,
+      title: 'Can’t be picked for new orders',
+      detail: `${name} leaves the supplier list on new purchase orders.`,
+      tone: 'stop',
+    },
+    {
+      icon: FileText,
+      title: 'Past orders keep it',
+      detail: 'Orders already raised — sent, received or drafts — still show this supplier.',
+      tone: 'keep',
+    },
+    {
+      icon: RotateCcw,
+      title: 'Reactivate any time',
+      detail: 'Nothing is deleted. Contact details and notes stay on the record.',
+      tone: 'keep',
+    },
   ];
   return (
     <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
@@ -344,7 +426,10 @@ function CardPreview({ form, status }: { form: SupplierForm; status?: 'active' |
       )}
       aria-label="Card preview"
     >
-      <span aria-hidden="true" className="pointer-events-none absolute -right-10 -top-14 size-40 rounded-full border-[16px] border-primary/[0.04]" />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-10 -top-14 size-40 rounded-full border-[16px] border-primary/[0.04]"
+      />
       <div className="relative flex items-center gap-3">
         <span
           aria-hidden="true"
@@ -356,7 +441,12 @@ function CardPreview({ form, status }: { form: SupplierForm; status?: 'active' |
           {initials || <Truck size={18} />}
         </span>
         <div className="min-w-0 flex-1">
-          <p className={cn('truncate text-base font-semibold tracking-title', !form.name.trim() ? 'text-muted-foreground/70' : muted ? 'text-foreground/60' : 'text-foreground')}>
+          <p
+            className={cn(
+              'truncate text-base font-semibold tracking-title',
+              !form.name.trim() ? 'text-muted-foreground/70' : muted ? 'text-foreground/60' : 'text-foreground',
+            )}
+          >
             {form.name.trim() || 'Supplier name'}
           </p>
           <p className="truncate text-xs text-muted-foreground">{[form.contactName.trim() || 'No contact person', ...reach].join(' · ')}</p>
@@ -409,10 +499,15 @@ export function SuppliersPanel({
             leftIcon={<Search size={14} />}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="border-rule bg-background"
+            className="border-rule"
             rightAction={
               search ? (
-                <button type="button" onClick={() => setSearch('')} aria-label="Clear search" className="text-muted-foreground hover:text-foreground">
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  className="text-muted-foreground hover:text-foreground"
+                >
                   <X size={14} />
                 </button>
               ) : undefined
@@ -437,13 +532,23 @@ export function SuppliersPanel({
 
       <motion.section variants={SECTION_RISE} aria-label="Suppliers">
         {shown.length === 0 && !(canWrite && suppliers.length === 0) ? (
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-            <EmptyState
-              icon={Truck}
-              title={suppliers.length === 0 ? 'No suppliers yet' : 'Nothing matches'}
-              description={suppliers.length === 0 ? 'Suppliers you buy from appear here.' : 'Try another search or status.'}
-            />
-          </div>
+          <EmptyState
+            icon={Truck}
+            title={suppliers.length === 0 ? 'No suppliers yet' : 'Nothing matches'}
+            description={suppliers.length === 0 ? 'Suppliers you buy from appear here.' : 'Try another search or status.'}
+            kind={suppliers.length === 0 ? 'start' : 'search'}
+            action={
+              suppliers.length === 0
+                ? undefined
+                : {
+                    label: 'Clear filters',
+                    onClick: () => {
+                      setSearch('');
+                      setView('all');
+                    },
+                  }
+            }
+          />
         ) : (
           // No card around the suppliers: they are cards already, like the readers in Settings.
           <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -502,8 +607,14 @@ function SupplierCard({ supplier, index, onOpen }: { supplier: Supplier; index: 
       )}
     >
       {/* Two faint rings, like the readers' cards in Settings. */}
-      <span aria-hidden="true" className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full border-[18px] border-primary/[0.04]" />
-      <span aria-hidden="true" className="pointer-events-none absolute -bottom-16 -right-2 size-40 rounded-full border-[14px] border-primary/[0.03]" />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full border-[18px] border-primary/[0.04]"
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-16 -right-2 size-40 rounded-full border-[14px] border-primary/[0.03]"
+      />
 
       {/* The whole card opens the record; the email and call links sit above it. */}
       <button
@@ -527,12 +638,30 @@ function SupplierCard({ supplier, index, onOpen }: { supplier: Supplier; index: 
           <span className={cn('block truncate text-base font-semibold tracking-title', active ? 'text-foreground' : 'text-foreground/60')}>
             {supplier.name}
           </span>
-          <span className="block truncate text-xs text-muted-foreground">{supplier.contactName || 'No contact person'}</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {supplier.contactName || 'No contact person'}
+            {/* When you last ordered is the better scan cue for "who do we actually use". */}
+            {supplier.summary?.lastOrderedAt && (
+              <>
+                {' · ordered '}
+                <RelativeTime iso={supplier.summary.lastOrderedAt} />
+              </>
+            )}
+          </span>
         </span>
-        {!active ? (
-          <span className="shrink-0 rounded-sm bg-field px-1.5 py-0.5 text-micro font-semibold text-muted-foreground">Inactive</span>
-        ) : missing.length > 0 ? (
-          <span className="flex shrink-0 items-center gap-1 rounded-sm bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured" title={`Missing ${missing.join(', ')}`}>
+        {/* A word, not an icon: the whole card is one button underneath, so a
+            hover tooltip could never open. What is missing shows either way —
+            the lines below only name it to screen readers. */}
+        {!active && (
+          <Pill tone="muted" icon={Ban}>
+            Inactive
+          </Pill>
+        )}
+        {missing.length > 0 ? (
+          <span
+            className="flex shrink-0 items-center gap-1 rounded-sm bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured"
+            title={`Missing ${missing.join(', ')}`}
+          >
             <AlertTriangle size={11} aria-hidden="true" />
             {cantReach ? 'Can’t reach' : 'Incomplete'}
           </span>
@@ -567,14 +696,15 @@ function SupplierCard({ supplier, index, onOpen }: { supplier: Supplier; index: 
   );
 }
 
+/** A way to reach them; a missing one is its icon alone, dimmed — the "Incomplete" chip already says what's missing. */
 function CardLine({ icon: Icon, value, empty }: { icon: typeof Mail; value?: string | null; empty: string }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <dt className="shrink-0 text-muted-foreground">
+      <dt className={cn('shrink-0', value ? 'text-muted-foreground' : 'text-muted-foreground/40')}>
         <Icon size={12} aria-hidden="true" />
         <span className="sr-only">{empty.replace('No ', '')}</span>
       </dt>
-      <dd className={cn('truncate', value ? 'text-foreground/80' : 'text-muted-foreground/60')}>{value || empty}</dd>
+      <dd className={cn('truncate', value ? 'text-foreground/80' : 'sr-only')}>{value || empty}</dd>
     </div>
   );
 }

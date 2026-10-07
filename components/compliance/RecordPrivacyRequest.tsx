@@ -146,7 +146,7 @@ export function RecordPrivacyRequest({
             rows={4}
             aria-label="Their request, in their words"
             placeholder="e.g. “Please delete my account and stop emailing me.”"
-            className="w-full rounded-md border border-input bg-field p-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-ring/30"
+            className="w-full rounded-md border border-input bg-control p-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-ring/30"
           />
         </Question>
 

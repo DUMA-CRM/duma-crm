@@ -19,6 +19,7 @@ import {
   Loader2,
   Lock,
   Minus,
+  Pencil,
   Play,
   Plus,
   Receipt,
@@ -26,7 +27,10 @@ import {
 } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { MiniBar } from '@/components/shared/MiniBar';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Bone, ListSkeleton, LoadingState } from '@/components/shared/Skeleton';
+import { TONE_TINT, type Tone } from '@/components/shared/tone';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -201,10 +205,7 @@ export function CashUpDrawer(props: DrawerProps) {
   if (rows.isPending) {
     return (
       <Drawer title="Cash up" description={props.locationName} onClose={onClose}>
-        <div className="space-y-3" aria-label="Loading">
-          <div className="h-20 animate-pulse rounded-lg bg-band/60" />
-          <div className="h-64 animate-pulse rounded-lg bg-band/50" />
-        </div>
+        <LoadingState label="Loading the day’s cash-up" />
       </Drawer>
     );
   }
@@ -325,7 +326,7 @@ function CashCounter({
                           placeholder="0"
                           onFocus={(event) => event.target.select()}
                           onChange={(event) => set(entry.value, Number(event.target.value.replace(/\D/g, '')) || 0)}
-                          className="h-10 w-14 rounded-md border border-input bg-field text-center text-base tabular-nums text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured"
+                          className="h-10 w-14 rounded-md border border-input bg-control text-center text-base tabular-nums text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured"
                         />
                         <StepButton label={`One more ${entry.label}`} onClick={() => set(entry.value, quantity + 1)}>
                           <Plus size={14} />
@@ -623,9 +624,19 @@ function CloseFlow({
         (expectation.isError ? (
           <ErrorState title="What the till expects couldn’t be loaded" onRetry={() => void expectation.refetch()} />
         ) : expectation.isPending || expectedCash === null || expectedCard === null ? (
-          <div className="space-y-3" aria-label="Loading">
-            <div className="h-28 animate-pulse rounded-lg bg-band/60" />
-            <div className="h-40 animate-pulse rounded-lg bg-band/50" />
+          <div className="space-y-5">
+            <ListSkeleton rows={2} label="Loading what the till expects" />
+            <div>
+              <Bone className="mx-1 mb-1.5 h-3 w-32" />
+              <div className="overflow-hidden rounded-lg border border-rule/60 bg-card" aria-hidden="true">
+                {[0, 1, 2].map((line) => (
+                  <div key={line} className="flex items-center justify-between gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+                    <Bone className={line === 0 ? 'h-3.5 w-28' : 'h-3.5 w-20'} />
+                    <Bone className="h-3.5 w-16" />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         ) : (
           <div className="space-y-5">
@@ -648,7 +659,7 @@ function CloseFlow({
                 onChange={(event) => setNote(event.target.value)}
                 maxLength={2000}
                 placeholder={explain ? 'e.g. £5 paid out for milk, receipt in the drawer' : 'Anything the next shift should know'}
-                className="min-h-24 w-full rounded-md border border-input bg-field p-3 text-sm leading-relaxed text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured"
+                className="min-h-24 w-full rounded-md border border-input bg-control p-3 text-sm leading-relaxed text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured"
               />
             </label>
 
@@ -693,11 +704,36 @@ function CheckRow({
   );
 }
 
+const BALANCE_TONE = { balanced: 'success', over: 'warning', short: 'exception' } as const satisfies Record<string, Tone>;
 const BALANCE_LOOK = {
-  balanced: { pill: 'bg-momentum/10 text-momentum', tile: 'bg-momentum/10 text-momentum' },
-  over: { pill: 'bg-measured/10 text-measured', tile: 'bg-measured/10 text-measured' },
-  short: { pill: 'bg-exception/8 text-exception', tile: 'bg-exception/8 text-exception' },
+  balanced: { pill: TONE_TINT.success, tile: TONE_TINT.success },
+  over: { pill: TONE_TINT.warning, tile: TONE_TINT.warning },
+  short: { pill: TONE_TINT.exception, tile: TONE_TINT.exception },
 } as const;
+
+/** Counted against expected: the fill is the count, the tick is what was expected. */
+function CountBar({
+  counted,
+  expected,
+  label,
+  balance,
+}: {
+  counted: number;
+  expected: number;
+  label: string;
+  balance: keyof typeof BALANCE_TONE;
+}) {
+  const money = useWorkspaceMoney();
+  return (
+    <MiniBar
+      value={counted}
+      target={expected}
+      tone={BALANCE_TONE[balance]}
+      label={`${label}: counted ${money(counted)} against ${money(expected)} expected`}
+      className="mt-1.5 max-w-48"
+    />
+  );
+}
 
 function BalancePill({ difference }: { difference: number }) {
   const money = useWorkspaceMoney();
@@ -737,10 +773,18 @@ function ReconRow({
         <span className="mt-0.5 block text-xs tabular-nums text-muted-foreground">
           Counted {money(counted / 100)} · expected {money(expected / 100)}
         </span>
+        <CountBar counted={counted / 100} expected={expected / 100} label={label} balance={balance} />
       </span>
-      <button type="button" onClick={onEdit} className="shrink-0 rounded-sm px-1.5 py-1 text-xs font-semibold text-primary hover:underline">
-        Recount
-      </button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={onEdit}
+        aria-label={`Recount ${label.toLowerCase()}`}
+        className="shrink-0 text-muted-foreground"
+      >
+        <Pencil />
+      </Button>
     </li>
   );
 }
@@ -885,6 +929,7 @@ function SummaryRow({
         <span className="mt-0.5 block text-xs tabular-nums text-muted-foreground">
           Counted {money(counted)} · expected {money(expected)}
         </span>
+        <CountBar counted={Number(counted ?? 0)} expected={Number(expected)} label={label} balance={balance} />
       </span>
       <BalancePill difference={difference} />
     </li>

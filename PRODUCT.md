@@ -117,7 +117,7 @@ explicit manager review and never replayed automatically.
 
 ## Brand Commitments
 
-- **Name:** DUMA. Landing positioning line in use: "Coffee Business OS" /
+- **Name:** DUMA. Landing positioning line in use: "Business OS" /
   "All in one business app".
 - **Palette is named and binding**, defined once in `app/globals.css` as the single
   source of truth: Bluerocratic `#236bfe` (primary), Dark Eclipse `#111a40`

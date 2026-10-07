@@ -4,13 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 
-import { Building2, CalendarDays, Loader2, MapPin, Pencil, Tag } from '@/components/icons';
+import { Building2, CalendarDays, Loader2, Pencil, Tag } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact } from '@/components/settings/controls';
 import { LocationList } from '@/components/settings/workspaces/LocationList';
 import { WorkspaceList } from '@/components/settings/workspaces/WorkspaceList';
 import { WorkspaceReadinessChecklist } from '@/components/settings/workspaces/WorkspaceReadinessChecklist';
+import { Bone, FactSkeleton } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,7 +75,7 @@ function ReadinessSection() {
 function BusinessSection() {
   const qc = useQueryClient();
   const capabilities = useAuthStore((state) => state.capabilities);
-  const { tenant, isPlatform, isLoading, locations } = useCurrentWorkspace();
+  const { tenant, isPlatform, isLoading } = useCurrentWorkspace();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   // Platform admins rename through the tenant routes; an owner through /tenants/current.
@@ -91,7 +92,24 @@ function BusinessSection() {
     onError: (error) => toast('error', error.message),
   });
 
-  if (isLoading) return <div className="h-40 animate-pulse rounded-lg bg-band/60" aria-label="Loading workspace" />;
+  if (isLoading)
+    return (
+      // The business card as it lands: the big tile, the name, then three facts.
+      <div role="status" aria-busy="true" aria-label="Loading workspace" className="rounded-lg border border-rule/60 bg-field p-5">
+        <div className="flex items-center gap-4" aria-hidden="true">
+          <Bone className="size-24 shrink-0 rounded-xl" />
+          <span className="min-w-0 flex-1 space-y-2">
+            <Bone className="h-6 w-56 max-w-full" />
+            <Bone className="h-3.5 w-36" />
+          </span>
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          {[0, 1, 2].map((index) => (
+            <FactSkeleton key={index} surface="panel" />
+          ))}
+        </div>
+      </div>
+    );
   if (!tenant) {
     return (
       <SettingsSection title="Business">
@@ -101,7 +119,6 @@ function BusinessSection() {
   }
 
   const status = STATUS[tenant.status];
-  const openLocations = locations?.filter((row) => row.isActive).length;
 
   return (
     <SettingsSection>
@@ -169,19 +186,11 @@ function BusinessSection() {
       </div>
       <dl className="mt-6 grid gap-3 sm:grid-cols-3">
         <Fact
-          icon={MapPin}
-          label="Locations"
-          value={
-            locations
-              ? `${openLocations} open${locations.length > (openLocations ?? 0) ? ` · ${locations.length - (openLocations ?? 0)} closed` : ''}`
-              : '—'
-          }
-        />
-        <Fact
           icon={CalendarDays}
           label="Created"
           value={new Date(tenant.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
         />
+        {/* The only place an owner can read their workspace ID. */}
         <Fact icon={Tag} label="Workspace ID" value={<span className="font-mono text-xs">{tenant.slug}</span>} />
       </dl>
       {tenant.status !== 'active' && tenant.statusReason && (

@@ -4,8 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 
 import { MyDashboard } from '@/components/dashboard/MyDashboard';
 import { TodayDashboard } from '@/components/dashboard/TodayDashboard';
-import { AlertTriangle, LayoutDashboard, Loader2 } from '@/components/icons';
+import { AlertTriangle, LayoutDashboard } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { ANALYTICS_WIDGET_KEYS } from '@/lib/dashboard/widget-registry';
@@ -33,9 +34,7 @@ export function ResolvedDashboard({ role }: { role: StaffRole }) {
   if (layout.isLoading) {
     return (
       <EditorShell title="Dashboard" icon={<LayoutDashboard size={20} aria-hidden="true" />}>
-        <div className="flex min-h-56 items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Loader2 size={16} className="animate-spin" aria-hidden="true" /> Preparing your workspace…
-        </div>
+        <LoadingState label="Preparing your dashboard" className="min-h-56" />
       </EditorShell>
     );
   }

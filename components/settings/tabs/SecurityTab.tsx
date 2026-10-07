@@ -4,12 +4,24 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
-import { Globe, type IconComponent, KeyRound, Loader2, LogOut, Mail, Monitor, Smartphone } from '@/components/icons';
+import {
+  Globe,
+  type IconComponent,
+  KeyRound,
+  Loader2,
+  LogOut,
+  Mail,
+  Monitor,
+  ShieldCheck,
+  ShieldOff,
+  Smartphone,
+} from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { relativeTime } from '@/components/settings/connectors/shared';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Badge } from '@/components/ui/badge';
+import { IconTag } from '@/components/shared/IconTag';
+import { RelativeTime } from '@/components/shared/RelativeTime';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -125,7 +137,13 @@ function EmailRow({ open, onToggle, onDone }: { open: boolean; onToggle: () => v
       value={
         <>
           <span className="truncate">{user?.email ?? '—'}</span>
-          {user && <Badge variant={user.emailVerified ? 'success' : 'muted'}>{user.emailVerified ? 'Verified' : 'Not verified'}</Badge>}
+          {user && (
+            <IconTag
+              icon={user.emailVerified ? ShieldCheck : ShieldOff}
+              label={user.emailVerified ? 'Email verified' : 'Email not verified'}
+              tone={user.emailVerified ? 'success' : 'muted'}
+            />
+          )}
         </>
       }
     >
@@ -318,11 +336,7 @@ function DevicesSection() {
       }
     >
       {sessions.isPending ? (
-        <div className="space-y-2" aria-label="Loading devices">
-          {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="h-16 animate-pulse rounded-lg bg-band/60" />
-          ))}
-        </div>
+        <TilesSkeleton count={2} label="Loading devices" />
       ) : sessions.isError ? (
         <ErrorState title="Couldn’t load your devices" onRetry={() => void sessions.refetch()} />
       ) : sorted.length === 0 ? (
@@ -334,7 +348,7 @@ function DevicesSection() {
               {sorted.map((session: Session, index) => {
                 const { label, icon: Icon } = describeDevice(session.userAgent);
                 const isCurrent = session.token === currentToken;
-                const lastActive = relativeTime(session.updatedAt ?? session.createdAt);
+                const lastActive = session.updatedAt ?? session.createdAt;
                 const pending = revoke.isPending && revoke.variables === session.token;
                 return (
                   <motion.li
@@ -343,6 +357,7 @@ function DevicesSection() {
                     initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0, transition: { delay: reduceMotion ? 0 : index * 0.05 } }}
                     exit={{ opacity: 0, x: 16 }}
+                    aria-current={isCurrent || undefined}
                     className={cn(
                       'flex items-center gap-3 rounded-lg border px-3.5 py-3',
                       isCurrent ? 'border-primary/40 bg-primary/5' : 'border-rule/50 bg-background/60',
@@ -359,15 +374,19 @@ function DevicesSection() {
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">{label}</p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {isCurrent ? 'Active now' : lastActive ? `Active ${lastActive}` : 'Signed in'}
+                        {/* One line: which this is, when it was last used, from where. */}
+                        {isCurrent ? (
+                          'This device'
+                        ) : lastActive ? (
+                          <>
+                            Active <RelativeTime iso={lastActive} />
+                          </>
+                        ) : (
+                          'Signed in'
+                        )}
                         {session.ipAddress ? ` · ${session.ipAddress}` : ''}
                       </p>
                     </div>
-                    {isCurrent && (
-                      <Badge variant="success" className="shrink-0">
-                        This device
-                      </Badge>
-                    )}
                     {!isCurrent && (
                       <Button
                         variant="ghost"

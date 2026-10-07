@@ -8,6 +8,7 @@ import { RecordBlock, RecordList, RecordListRow } from '@/components/people/reco
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { MonthGrid } from '@/components/shared/AttendanceCalendar';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { getMyAbsences } from '@/lib/modules/people/client';
@@ -119,7 +120,7 @@ function Absence() {
       }
     >
       {absences.isPending ? (
-        <div className="h-24 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+        <ListSkeleton rows={2} label="Loading your absence record" />
       ) : absences.isError ? (
         <div className="rounded-lg border border-rule/60 bg-card">
           <ErrorState title="Your absence record couldn’t be loaded" onRetry={() => void absences.refetch()} />

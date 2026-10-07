@@ -24,9 +24,11 @@ import {
 import { fmtQty } from '@/components/inventory/stock/shared';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Drawer } from '@/components/shared/Drawer';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { FormSection } from '@/components/shared/FormParts';
 import { LoadMore } from '@/components/shared/LoadMore';
+import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -53,7 +55,8 @@ const STATUS: Record<StockTransferStatus, { label: string; pill: string }> = {
   cancelled: { label: 'Cancelled', pill: 'bg-band text-muted-foreground' },
 };
 
-const dateTime = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const dateTime = (iso: string) =>
+  new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 const signed = (n: number) => (n > 0 ? `+${fmtQty(n)}` : n < 0 ? `−${fmtQty(-n)}` : '0');
 
@@ -105,9 +108,12 @@ export function TransferStockDrawer({
   const chosen = new Set(lines.map((l) => l.stockItemId).filter(Boolean));
   const from = locations.find((l) => l.id === locationId);
   const destinations = locations.filter((l) => l.id !== locationId);
-  const errors = lines.map((line) => (line.stockItemId ? quantityError(line.quantity, Number(rowFor(line.stockItemId)?.quantity ?? 0)) : 'Choose an item.'));
+  const errors = lines.map((line) =>
+    line.stockItemId ? quantityError(line.quantity, Number(rowFor(line.stockItemId)?.quantity ?? 0)) : 'Choose an item.',
+  );
   const valid = !!toLocationId && errors.every((e) => e === null);
-  const setLine = (index: number, patch: Partial<Line>) => setLines((current) => current.map((line, i) => (i === index ? { ...line, ...patch } : line)));
+  const setLine = (index: number, patch: Partial<Line>) =>
+    setLines((current) => current.map((line, i) => (i === index ? { ...line, ...patch } : line)));
 
   const create = useMutation({
     mutationFn: () =>
@@ -128,7 +134,9 @@ export function TransferStockDrawer({
   return (
     <Drawer
       title="New transfer"
-      description={from?.name ? `Send stock from ${from.name}. Nothing moves until it’s marked as arrived.` : 'Send stock to another location.'}
+      description={
+        from?.name ? `Send stock from ${from.name}. Nothing moves until it’s marked as arrived.` : 'Send stock to another location.'
+      }
       onClose={onClose}
       footer={
         <div className="flex gap-2">
@@ -156,7 +164,9 @@ export function TransferStockDrawer({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <div className="flex-1">
               <span className="mb-1.5 block text-label uppercase text-muted-foreground">From</span>
-              <div className="flex h-9 items-center rounded-md border border-rule/60 bg-band/50 px-3 text-sm text-muted-foreground">{from?.name ?? 'This location'}</div>
+              <div className="flex h-9 items-center rounded-md border border-rule/60 bg-band/50 px-3 text-sm text-muted-foreground">
+                {from?.name ?? 'This location'}
+              </div>
             </div>
             <ArrowRight size={16} className="mx-auto mb-2.5 hidden shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
             <div className="flex-1">
@@ -212,7 +222,9 @@ export function TransferStockDrawer({
                       size="icon"
                       aria-label="Remove item"
                       className="shrink-0 text-muted-foreground hover:text-exception"
-                      onClick={() => setLines(lines.length === 1 ? [{ stockItemId: '', quantity: '' }] : lines.filter((_, i) => i !== index))}
+                      onClick={() =>
+                        setLines(lines.length === 1 ? [{ stockItemId: '', quantity: '' }] : lines.filter((_, i) => i !== index))
+                      }
                     >
                       <Trash2 aria-hidden="true" />
                     </Button>
@@ -222,7 +234,11 @@ export function TransferStockDrawer({
                       {error ?? (row ? `${fmtQty(Number(row.quantity))} ${row.stockItem!.unit} available` : ' ')}
                     </span>
                     {row && !error && (
-                      <button type="button" className="font-semibold text-primary hover:underline" onClick={() => setLine(index, { quantity: String(Number(row.quantity)) })}>
+                      <button
+                        type="button"
+                        className="font-semibold text-primary hover:underline"
+                        onClick={() => setLine(index, { quantity: String(Number(row.quantity)) })}
+                      >
                         Send all
                       </button>
                     )}
@@ -239,7 +255,13 @@ export function TransferStockDrawer({
         </FormSection>
 
         <FormSection icon={FileText} title="Note">
-          <Input value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} placeholder="Optional — e.g. running low for the weekend" aria-label="Note" />
+          <Input
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={1000}
+            placeholder="Optional — e.g. running low for the weekend"
+            aria-label="Note"
+          />
         </FormSection>
       </form>
     </Drawer>
@@ -275,12 +297,15 @@ export function ItemTransfersSection({
 
   const query = useInfiniteQuery({
     queryKey: moduleQueryKeys.inventory.key('stock-transfers', locationId, status),
-    queryFn: ({ pageParam }) => getStockTransfers({ locationId, status: status === 'all' ? undefined : status, page: pageParam, limit: PAGE_SIZE }),
+    queryFn: ({ pageParam }) =>
+      getStockTransfers({ locationId, status: status === 'all' ? undefined : status, page: pageParam, limit: PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
   });
 
-  const transfers = (query.data?.pages.flatMap((page) => page.data) ?? []).filter((t) => t.lines.some((l) => l.stockItemId === stockItemId));
+  const transfers = (query.data?.pages.flatMap((page) => page.data) ?? []).filter((t) =>
+    t.lines.some((l) => l.stockItemId === stockItemId),
+  );
   const pending = transfers.filter((t) => t.status === 'pending');
   const settled = transfers.filter((t) => t.status !== 'pending');
   const days = groupByDay(status === 'pending' ? [] : settled, now);
@@ -313,24 +338,35 @@ export function ItemTransfersSection({
       {query.isError ? (
         <ErrorState title="Couldn’t load transfers" onRetry={() => void query.refetch()} />
       ) : query.isPending || (transfers.length === 0 && !exhausted) ? (
-        <div className="space-y-2" aria-label="Loading transfers">
-          {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-lg bg-band/60" />
-          ))}
+        // A day: its label, then the card of transfer rows.
+        <div role="status" aria-busy="true" aria-label="Loading transfers">
+          <Bone className="mb-2 h-3 w-20" />
+          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            {Array.from({ length: 3 }, (_, index) => (
+              <RowSkeleton key={index} index={index} />
+            ))}
+          </div>
         </div>
       ) : transfers.length === 0 ? (
-        <motion.div variants={SECTION_RISE} className="flex flex-col items-start gap-3 rounded-lg border border-rule/60 bg-card px-4 py-4 sm:flex-row sm:items-center">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary" aria-hidden="true">
-            <ArrowLeftRight size={18} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">{status === 'all' ? 'No transfers yet' : `Nothing ${STATUS[status].label.toLowerCase()}`}</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-              {status === 'all'
+        <motion.div variants={SECTION_RISE}>
+          <EmptyState
+            icon={ArrowLeftRight}
+            compact
+            kind={status === 'all' ? 'start' : status === 'pending' ? 'done' : 'search'}
+            title={status === 'all' ? 'No transfers yet' : `Nothing ${STATUS[status].label.toLowerCase()}`}
+            description={
+              status === 'all'
                 ? 'Send stock to another location when one runs short — it leaves here and arrives there once the transfer is marked as arrived.'
-                : 'Try another status.'}
-            </p>
-          </div>
+                : 'Try another status.'
+            }
+            action={
+              status !== 'all'
+                ? { label: 'Show all transfers', onClick: () => setStatus('all') }
+                : canWrite && onNewTransfer
+                  ? { label: 'New transfer', icon: Plus, onClick: onNewTransfer }
+                  : undefined
+            }
+          />
         </motion.div>
       ) : (
         <>
@@ -339,7 +375,15 @@ export function ItemTransfersSection({
               <h3 className="mb-2 text-label uppercase text-muted-foreground">Waiting to move · {pending.length}</h3>
               <ul className="overflow-hidden rounded-lg border border-measured/30 bg-card">
                 {pending.map((t) => (
-                  <TransferRow key={t.id} transfer={t} stockItemId={stockItemId} locationId={locationId} unit={unit} when={dateTime(t.createdAt)} onOpen={() => setOpenId(t.id)} />
+                  <TransferRow
+                    key={t.id}
+                    transfer={t}
+                    stockItemId={stockItemId}
+                    locationId={locationId}
+                    unit={unit}
+                    when={dateTime(t.createdAt)}
+                    onOpen={() => setOpenId(t.id)}
+                  />
                 ))}
               </ul>
             </motion.section>
@@ -349,14 +393,24 @@ export function ItemTransfersSection({
               <h3 className="mb-2 text-label uppercase text-muted-foreground">{day.label}</h3>
               <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
                 {day.items.map((t) => (
-                  <TransferRow key={t.id} transfer={t} stockItemId={stockItemId} locationId={locationId} unit={unit} when={time(t.createdAt)} onOpen={() => setOpenId(t.id)} />
+                  <TransferRow
+                    key={t.id}
+                    transfer={t}
+                    stockItemId={stockItemId}
+                    locationId={locationId}
+                    unit={unit}
+                    when={time(t.createdAt)}
+                    onOpen={() => setOpenId(t.id)}
+                  />
                 ))}
               </ul>
             </motion.section>
           ))}
         </>
       )}
-      {!query.isError && <LoadMore hasMore={!!query.hasNextPage} loading={query.isFetchingNextPage} onLoadMore={() => void query.fetchNextPage()} />}
+      {!query.isError && (
+        <LoadMore hasMore={!!query.hasNextPage} loading={query.isFetchingNextPage} onLoadMore={() => void query.fetchNextPage()} />
+      )}
 
       {open && <TransferDrawer transfer={open} locationId={locationId} canWrite={canWrite} onClose={() => setOpenId(null)} />}
     </motion.div>
@@ -383,27 +437,50 @@ function TransferRow({
   const { others } = itemLine(transfer, stockItemId);
   const meta = STATUS[transfer.status];
   const Icon: IconComponent = out ? ArrowUpRight : ArrowDownRight;
-  const detail = [transfer.createdByUser?.name ? `by ${transfer.createdByUser.name}` : null, others > 0 ? `+${others} other ${others === 1 ? 'item' : 'items'}` : null, transfer.notes].filter(Boolean);
+  const detail = [
+    transfer.createdByUser?.name ? `by ${transfer.createdByUser.name}` : null,
+    others > 0 ? `+${others} other ${others === 1 ? 'item' : 'items'}` : null,
+    transfer.notes,
+  ].filter(Boolean);
 
   return (
     <li className="border-b border-rule/45 last:border-b-0">
-      <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
-        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', out ? 'bg-reference/8 text-reference' : 'bg-primary/8 text-primary')} aria-hidden="true">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+      >
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-md',
+            out ? 'bg-reference/8 text-reference' : 'bg-primary/8 text-primary',
+          )}
+          aria-hidden="true"
+        >
           <Icon size={16} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-foreground">
             {out ? 'To' : 'From'} {otherSide(transfer, locationId)}
           </span>
-          <span className="block truncate text-xs text-muted-foreground">{detail.join(' · ') || (out ? 'Sent from here' : 'Sent here')}</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {detail.join(' · ') || (out ? 'Sent from here' : 'Sent here')}
+          </span>
         </span>
         {change !== null && (
-          <span className={cn('shrink-0 text-sm font-semibold tabular-nums', transfer.status === 'cancelled' ? 'text-muted-foreground line-through' : out ? 'text-foreground' : 'text-primary')}>
+          <span
+            className={cn(
+              'shrink-0 text-sm font-semibold tabular-nums',
+              transfer.status === 'cancelled' ? 'text-muted-foreground line-through' : out ? 'text-foreground' : 'text-primary',
+            )}
+          >
             {signed(change)} {unit}
           </span>
         )}
         <span className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', meta.pill)}>{meta.label}</span>
-        <span className="hidden w-28 shrink-0 whitespace-nowrap text-right text-xs tabular-nums text-muted-foreground sm:block">{when}</span>
+        <span className="hidden w-28 shrink-0 whitespace-nowrap text-right text-xs tabular-nums text-muted-foreground sm:block">
+          {when}
+        </span>
         <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
       </button>
     </li>
@@ -411,7 +488,17 @@ function TransferRow({
 }
 
 /** One transfer: the route, every item on it, and — while waiting — mark it arrived or cancel it. */
-function TransferDrawer({ transfer, locationId, canWrite, onClose }: { transfer: StockTransfer; locationId: string; canWrite: boolean; onClose: () => void }) {
+function TransferDrawer({
+  transfer,
+  locationId,
+  canWrite,
+  onClose,
+}: {
+  transfer: StockTransfer;
+  locationId: string;
+  canWrite: boolean;
+  onClose: () => void;
+}) {
   const invalidate = useInvalidateTransfers();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const out = direction(transfer, locationId) === 'out';
@@ -440,7 +527,11 @@ function TransferDrawer({ transfer, locationId, canWrite, onClose }: { transfer:
 
   return (
     <Drawer
-      title={out ? `Transfer to ${transfer.toLocation?.name ?? 'another location'}` : `Transfer from ${transfer.fromLocation?.name ?? 'another location'}`}
+      title={
+        out
+          ? `Transfer to ${transfer.toLocation?.name ?? 'another location'}`
+          : `Transfer from ${transfer.fromLocation?.name ?? 'another location'}`
+      }
       description={`Created ${dateTime(transfer.createdAt)}${transfer.createdByUser?.name ? ` by ${transfer.createdByUser.name}` : ''}.`}
       onClose={onClose}
       footer={
@@ -457,7 +548,13 @@ function TransferDrawer({ transfer, locationId, canWrite, onClose }: { transfer:
             </div>
           ) : (
             <div className="flex gap-2">
-              <Button variant="ghost" size="lg" className="text-exception hover:bg-exception/6 hover:text-exception" onClick={() => setConfirmCancel(true)} disabled={pending}>
+              <Button
+                variant="ghost"
+                size="lg"
+                className="text-exception hover:bg-exception/6 hover:text-exception"
+                onClick={() => setConfirmCancel(true)}
+                disabled={pending}
+              >
                 Cancel transfer
               </Button>
               <Button size="lg" className="flex-1" onClick={() => complete.mutate()} disabled={pending}>
@@ -472,9 +569,13 @@ function TransferDrawer({ transfer, locationId, canWrite, onClose }: { transfer:
       <div className="space-y-6">
         <div className="rounded-lg border border-rule/60 bg-card p-4">
           <div className="flex items-center gap-3 text-sm">
-            <span className={cn('min-w-0 flex-1 truncate font-semibold', out ? 'text-foreground' : 'text-muted-foreground')}>{transfer.fromLocation?.name ?? 'From'}</span>
+            <span className={cn('min-w-0 flex-1 truncate font-semibold', out ? 'text-foreground' : 'text-muted-foreground')}>
+              {transfer.fromLocation?.name ?? 'From'}
+            </span>
             <ArrowRight size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className={cn('min-w-0 flex-1 truncate text-right font-semibold', out ? 'text-muted-foreground' : 'text-foreground')}>{transfer.toLocation?.name ?? 'To'}</span>
+            <span className={cn('min-w-0 flex-1 truncate text-right font-semibold', out ? 'text-muted-foreground' : 'text-foreground')}>
+              {transfer.toLocation?.name ?? 'To'}
+            </span>
           </div>
           <div className="mt-3 flex items-center gap-2 border-t border-rule/45 pt-3">
             <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', meta.pill)}>{meta.label}</span>

@@ -3,18 +3,24 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { Clock, FileText, MailX, PlugZap, Send, TriangleAlert, Zap } from '@/components/icons';
+import { FileText, MailX, Send, TriangleAlert, Zap } from '@/components/icons';
 import { Fact } from '@/components/settings/controls';
+import { Avatar } from '@/components/shared/Avatar';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRow } from '@/components/shared/ListRow';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
+import { Pill } from '@/components/shared/Pill';
+import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
 
 import { type EmailDelivery, getEmailAutomations, getEmailDeliveries, getEmailTemplates } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { cn } from '@/lib/utils/cn';
-import { type AttentionIssue, type ConnectionState, attentionIssues, summariseWeek, timeAgo } from '@/lib/utils/communications';
+import { type AttentionIssue, attentionIssues, summariseWeek, timeAgo } from '@/lib/utils/communications';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { DELIVERY_STATUS } from './HistoryPanel';
 import { TRIGGER_LABELS } from './shared';
+
+type ShownIssue = Exclude<AttentionIssue, { kind: 'connection' | 'failed_deliveries' }>;
 
 /**
  * The front door: is email working, and does anything need me?
@@ -25,16 +31,12 @@ import { TRIGGER_LABELS } from './shared';
  * place that deals with it.
  */
 export function OverviewPanel({
-  connection,
-  onOpenConnection,
   onOpenAutomations,
   onOpenAutomation,
   onOpenFailures,
   onOpenHistory,
   onPreviewDelivery,
 }: {
-  connection: ConnectionState;
-  onOpenConnection?: () => void;
   onOpenAutomations: () => void;
   onOpenAutomation: (id: string) => void;
   /** Opens History filtered to failures. */
@@ -67,9 +69,14 @@ export function OverviewPanel({
   const templates = useMemo(() => templatesQuery.data ?? [], [templatesQuery.data]);
   const deliveries = useMemo(() => deliveriesQuery.data?.data ?? [], [deliveriesQuery.data]);
   const week = useMemo(() => summariseWeek(deliveries, now), [deliveries, now]);
+  // The connection rides in the masthead and failures are the Failed tile, so
+  // neither is repeated here — this list is what's wrong with the automations.
   const issues = useMemo(
-    () => attentionIssues({ connection, deliveries, automations, templates, now }),
-    [connection, deliveries, automations, templates, now],
+    () =>
+      attentionIssues({ connection: 'unknown', deliveries, automations, templates, now }).filter(
+        (issue): issue is ShownIssue => issue.kind !== 'connection' && issue.kind !== 'failed_deliveries',
+      ),
+    [deliveries, automations, templates, now],
   );
 
   const queries = [automationsQuery, templatesQuery, deliveriesQuery];
@@ -89,26 +96,8 @@ export function OverviewPanel({
   const drafts = automations.length - live.length;
   const activeTemplates = templates.filter((template) => template.isActive);
 
-  const toItem = (issue: AttentionIssue): NeedsAttentionItem => {
+  const toItem = (issue: ShownIssue): NeedsAttentionItem => {
     switch (issue.kind) {
-      case 'connection':
-        return {
-          key: 'connection',
-          icon: PlugZap,
-          tone: 'exception',
-          title: issue.state === 'missing' ? 'Email isn’t set up — nothing can send' : 'The email connection hasn’t passed a test',
-          detail: onOpenConnection ? undefined : 'Ask an owner to check the email connector in Settings.',
-          fix: onOpenConnection ? { label: 'Open connector', run: onOpenConnection } : undefined,
-        };
-      case 'failed_deliveries':
-        return {
-          key: 'failed',
-          icon: MailX,
-          tone: 'exception',
-          title: `${issue.count} email${issue.count === 1 ? '' : 's'} failed this week`,
-          detail: 'See why, and try them again.',
-          fix: { label: 'Review', run: onOpenFailures },
-        };
       case 'missing_template':
         return {
           key: `missing-${issue.automationId}`,
@@ -164,7 +153,8 @@ export function OverviewPanel({
           label="Failed · 7 days"
           value={loading ? '—' : week.failed.toLocaleString()}
           tone={week.failed > 0 ? 'danger' : 'default'}
-          hint={week.failed > 0 ? 'Needs a retry' : 'Nothing failing'}
+          hint={week.failed > 0 ? 'See why, and try again' : 'Nothing failing'}
+          onSelect={week.failed > 0 ? onOpenFailures : undefined}
         />
         <Fact
           surface="page"
@@ -183,11 +173,26 @@ export function OverviewPanel({
       </dl>
 
       {loading ? (
-        <div className="h-16 animate-pulse rounded-lg border border-rule/60 bg-field" aria-hidden="true" />
+        <div
+          className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5"
+          role="status"
+          aria-busy="true"
+          aria-label="Checking what needs attention"
+        >
+          <Bone className="size-10 shrink-0" />
+          <span className="min-w-0 flex-1 space-y-1.5">
+            <Bone className="h-3.5 w-36" />
+            <Bone className="h-3 w-72 max-w-full" />
+          </span>
+        </div>
       ) : (
         <NeedsAttention
           items={issues.map(toItem)}
-          clear={{ title: 'Nothing needs you', detail: 'Everything is sending — no failures, broken steps or unpublished changes.' }}
+          clear={
+            week.failed > 0
+              ? undefined
+              : { title: 'Nothing needs you', detail: 'Everything is sending — no failures, broken steps or unpublished changes.' }
+          }
         />
       )}
 
@@ -199,15 +204,22 @@ export function OverviewPanel({
             live.slice(0, 6).map((automation) => {
               const failed = automation.failedRunCount ?? 0;
               return (
-                <ActivityRow
+                <ListRow
                   key={automation.id}
                   icon={failed > 0 ? TriangleAlert : Zap}
-                  glyph={failed > 0 ? 'bg-exception/8 text-exception' : 'bg-momentum/8 text-momentum'}
+                  tone={failed > 0 ? 'exception' : 'success'}
                   title={automation.name}
-                  detail={`When: ${TRIGGER_LABELS[automation.trigger]} · ${(automation.runCount ?? 0).toLocaleString()} run${automation.runCount === 1 ? '' : 's'}`}
-                  pill={failed > 0 ? { label: `${failed} failed`, tone: 'exception' } : undefined}
-                  time={automation.lastEvaluatedAt ? timeAgo(automation.lastEvaluatedAt, now) : undefined}
-                  onSelect={() => onOpenAutomation(automation.id)}
+                  meta={`${TRIGGER_LABELS[automation.trigger]} · ${(automation.runCount ?? 0).toLocaleString()} run${automation.runCount === 1 ? '' : 's'}`}
+                  trailing={
+                    <>
+                      {failed > 0 && <Pill tone="exception">{failed} failed</Pill>}
+                      {automation.lastEvaluatedAt && (
+                        <span className="text-xs tabular-nums text-muted-foreground">{timeAgo(automation.lastEvaluatedAt, now)}</span>
+                      )}
+                    </>
+                  }
+                  chevron={false}
+                  onClick={() => onOpenAutomation(automation.id)}
                 />
               );
             })
@@ -218,45 +230,37 @@ export function OverviewPanel({
           {deliveries.length === 0 ? (
             <Quiet>No emails have gone out yet.</Quiet>
           ) : (
-            deliveries
-              .slice(0, 6)
-              .map((delivery) => (
-                <ActivityRow
-                  key={delivery.id}
-                  icon={delivery.status === 'failed' ? MailX : delivery.status === 'sent' ? Send : Clock}
-                  glyph={DELIVERY_GLYPH[delivery.status]}
-                  title={delivery.toName || delivery.toEmail}
-                  detail={delivery.subject}
-                  pill={
-                    delivery.status === 'failed'
-                      ? { label: 'Failed', tone: 'exception' }
-                      : delivery.status === 'sent'
-                        ? undefined
-                        : { label: delivery.status === 'cancelled' ? 'Cancelled' : 'Waiting', tone: 'warning' }
-                  }
-                  time={timeAgo(delivery.sentAt ?? delivery.createdAt, now)}
-                  onSelect={() => onPreviewDelivery(delivery)}
-                />
-              ))
+            deliveries.slice(0, 6).map((delivery) => (
+              <ListRow
+                key={delivery.id}
+                leading={
+                  <Avatar
+                    // Initials only: no Gravatar lookup for every address in the send log.
+                    name={delivery.toName || delivery.toEmail}
+                    status={DELIVERY_STATUS[delivery.status].tone}
+                    statusLabel={DELIVERY_STATUS[delivery.status].label}
+                  />
+                }
+                title={delivery.toName || delivery.toEmail}
+                meta={delivery.subject}
+                trailing={
+                  <>
+                    {delivery.status === 'failed' && <Pill tone="exception">Failed</Pill>}
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {timeAgo(delivery.sentAt ?? delivery.createdAt, now)}
+                    </span>
+                  </>
+                }
+                chevron={false}
+                onClick={() => onPreviewDelivery(delivery)}
+              />
+            ))
           )}
         </ActivitySection>
       </div>
     </div>
   );
 }
-
-const DELIVERY_GLYPH: Record<EmailDelivery['status'], string> = {
-  queued: 'bg-band text-muted-foreground',
-  sending: 'bg-primary/8 text-primary',
-  sent: 'bg-momentum/8 text-momentum',
-  failed: 'bg-exception/8 text-exception',
-  cancelled: 'bg-measured/10 text-measured',
-};
-
-const PILL_TONE = {
-  exception: 'bg-exception/8 text-exception',
-  warning: 'bg-measured/10 text-measured',
-} as const;
 
 /** A day heading and a bordered list, as the audit log groups its entries. */
 function ActivitySection({
@@ -285,52 +289,11 @@ function ActivitySection({
         </button>
       </div>
       {loading ? (
-        <div className="h-64 animate-pulse rounded-lg border border-rule/60 bg-card" aria-hidden="true" />
+        <ListSkeleton rows={6} label={`Loading ${title.toLowerCase()}`} />
       ) : (
         <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">{children}</ul>
       )}
     </section>
-  );
-}
-
-/** One row in the audit log's shape: tinted glyph, who/what, detail, status pill, time. */
-function ActivityRow({
-  icon: Icon,
-  glyph,
-  title,
-  detail,
-  pill,
-  time,
-  onSelect,
-}: {
-  icon: typeof Zap;
-  glyph: string;
-  title: string;
-  detail?: string;
-  pill?: { label: string; tone: keyof typeof PILL_TONE };
-  time?: string;
-  onSelect: () => void;
-}) {
-  return (
-    <li className="border-b border-rule/45 last:border-b-0">
-      <button
-        type="button"
-        onClick={onSelect}
-        className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-      >
-        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', glyph)}>
-          <Icon size={16} aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-foreground">{title}</span>
-          {detail && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{detail}</span>}
-        </span>
-        {pill && (
-          <span className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', PILL_TONE[pill.tone])}>{pill.label}</span>
-        )}
-        {time && <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{time}</span>}
-      </button>
-    </li>
   );
 }
 

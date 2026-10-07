@@ -4,12 +4,26 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
-import { ArrowRight, CheckCircle2, CircleDot, Clock, Coins, Droplets, History, type IconComponent, PackageMinus, ShieldAlert, Sparkles, TriangleAlert } from '@/components/icons';
+import {
+  ArrowRight,
+  CheckCircle2,
+  CircleDot,
+  Clock,
+  Coins,
+  Droplets,
+  History,
+  type IconComponent,
+  PackageMinus,
+  ShieldAlert,
+  Sparkles,
+  TriangleAlert,
+} from '@/components/icons';
 import { fmtQty } from '@/components/inventory/stock/shared';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { LoadMore } from '@/components/shared/LoadMore';
+import { FactsSkeleton } from '@/components/shared/Skeleton';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -68,7 +82,15 @@ export function LossesSection({
   // Under 'loss-log' so the page's invalidation after logging waste refreshes it.
   const query = useInfiniteQuery({
     queryKey: moduleQueryKeys.inventory.key('loss-log', 'item', stockItemId, locationId, period),
-    queryFn: ({ pageParam }) => getLossLog({ tenantId: tenantId ?? undefined, stockItemId, locationId: locationId ?? undefined, from, page: pageParam, limit: PAGE_SIZE }),
+    queryFn: ({ pageParam }) =>
+      getLossLog({
+        tenantId: tenantId ?? undefined,
+        stockItemId,
+        locationId: locationId ?? undefined,
+        from,
+        page: pageParam,
+        limit: PAGE_SIZE,
+      }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
     enabled: !!tenantId && !!locationId,
@@ -122,11 +144,7 @@ export function LossesSection({
         {query.isError ? (
           <ErrorState title="Couldn’t load losses" onRetry={() => void query.refetch()} />
         ) : query.isPending || (periodEmpty && period !== 'all' && latest.isPending) ? (
-          <div className="grid gap-3 sm:grid-cols-3" aria-label="Loading losses">
-            {Array.from({ length: 3 }, (_, i) => (
-              <div key={i} className="h-[76px] animate-pulse rounded-lg bg-band/60" />
-            ))}
-          </div>
+          <FactsSkeleton count={3} surface="card" label="Loading losses" className="grid-cols-1 sm:grid-cols-3 lg:grid-cols-3" />
         ) : periodEmpty ? (
           lastEver ? (
             <EmptyPanel
@@ -176,7 +194,13 @@ export function LossesSection({
               icon={summary.topKind ? KIND[summary.topKind].icon : TriangleAlert}
               label="Main reason"
               value={summary.topKind ? LOSS_LABEL[summary.topKind] : '—'}
-              hint={summary.topKind === 'expired' ? 'Order less, or use first' : summary.topKind === 'theft' ? 'Worth checking the till area' : undefined}
+              hint={
+                summary.topKind === 'expired'
+                  ? 'Order less, or use first'
+                  : summary.topKind === 'theft'
+                    ? 'Worth checking the till area'
+                    : undefined
+              }
             />
           </dl>
         )}
@@ -218,11 +242,26 @@ export function LossesSection({
 const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 /** An empty panel in the settings voice: a tile, what's true, and the one next step. */
-function EmptyPanel({ icon: Icon, tone, title, detail, action }: { icon: IconComponent; tone: 'good' | 'neutral'; title: string; detail: React.ReactNode; action?: React.ReactNode }) {
+function EmptyPanel({
+  icon: Icon,
+  tone,
+  title,
+  detail,
+  action,
+}: {
+  icon: IconComponent;
+  tone: 'good' | 'neutral';
+  title: string;
+  detail: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col items-start gap-3 rounded-lg border border-rule/60 bg-card px-4 py-4 sm:flex-row sm:items-center">
       <span
-        className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', tone === 'good' ? 'bg-momentum/8 text-momentum' : 'bg-primary/8 text-primary')}
+        className={cn(
+          'flex size-10 shrink-0 items-center justify-center rounded-lg',
+          tone === 'good' ? 'bg-momentum/8 text-momentum' : 'bg-primary/8 text-primary',
+        )}
         aria-hidden="true"
       >
         <Icon size={18} />
@@ -236,7 +275,17 @@ function EmptyPanel({ icon: Icon, tone, title, detail, action }: { icon: IconCom
   );
 }
 
-function LossRow({ loss, unit, cost, money }: { loss: LossRecord; unit: string; cost: number | null; money: ReturnType<typeof useWorkspaceMoney> }) {
+function LossRow({
+  loss,
+  unit,
+  cost,
+  money,
+}: {
+  loss: LossRecord;
+  unit: string;
+  cost: number | null;
+  money: ReturnType<typeof useWorkspaceMoney>;
+}) {
   const { kind, note } = readLoss(loss);
   const meta = KIND[kind];
   const quantity = Math.abs(Number(loss.quantity));
@@ -248,7 +297,12 @@ function LossRow({ loss, unit, cost, money }: { loss: LossRecord; unit: string; 
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold text-foreground">{LOSS_LABEL[kind]}</span>
-        <span className="block text-xs leading-relaxed text-muted-foreground">{note ?? 'No note'}</span>
+        {/* Who logged it leads the line — the question a manager asks of a loss. */}
+        {(loss.user?.name || note) && (
+          <span className="block text-xs leading-relaxed text-muted-foreground">
+            {[loss.user?.name && `by ${loss.user.name}`, note].filter(Boolean).join(' · ')}
+          </span>
+        )}
       </span>
       <span className="shrink-0 text-right">
         <span className="block text-sm font-semibold tabular-nums text-exception">
@@ -266,7 +320,10 @@ function LossRow({ loss, unit, cost, money }: { loss: LossRecord; unit: string; 
           )}
         </span>
       </span>
-      <time dateTime={loss.createdAt} className="hidden w-12 shrink-0 pt-0.5 text-right text-xs tabular-nums text-muted-foreground sm:block">
+      <time
+        dateTime={loss.createdAt}
+        className="hidden w-12 shrink-0 pt-0.5 text-right text-xs tabular-nums text-muted-foreground sm:block"
+      >
         {time(loss.createdAt)}
       </time>
     </li>

@@ -2,12 +2,16 @@
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { type IconComponent, Loader2, Minus, Plus } from '@/components/icons';
+import { type IconComponent, Minus, Plus } from '@/components/icons';
+import { ActionButton } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
+import { DurationPicker } from '@/components/ui/duration-picker';
+import { NumberWheelPicker } from '@/components/ui/number-wheel-picker';
 
 import { cn } from '@/lib/utils/cn';
+import { SAVE_SETTLE_MS, type SaveWatch, watchSave } from '@/lib/utils/motion-feedback';
 
 /** An on/off control. A spring on the knob, so a flip reads as a physical switch. */
 export function Switch({
@@ -120,30 +124,89 @@ export function SaveBar({
   extra?: React.ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
+  // A save that lands holds the bar for a "Saved" beat before it leaves. It is
+  // read from the props (lib/utils/motion-feedback.ts), so no caller has to
+  // report success.
+  const [justSaved, setJustSaved] = useState(false);
+  const [watch, setWatch] = useState<SaveWatch>({ saving, dirty, awaiting: false });
+  if (watch.saving !== saving || watch.dirty !== dirty) {
+    const next = watchSave(watch, { saving, dirty });
+    setWatch(next.watch);
+    if (next.saved) setJustSaved(true);
+  }
+  useEffect(() => {
+    if (!watch.awaiting) return;
+    const timer = setTimeout(() => setWatch((current) => ({ ...current, awaiting: false })), SAVE_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [watch.awaiting]);
+  useEffect(() => {
+    if (!justSaved) return;
+    const timer = setTimeout(() => setJustSaved(false), reduceMotion ? 700 : 1100);
+    return () => clearTimeout(timer);
+  }, [justSaved, reduceMotion]);
+  const settled = justSaved && !dirty;
+
   return (
     <AnimatePresence>
-      {dirty && (
+      {(dirty || settled) && (
         <motion.div
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
           transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          className="sticky bottom-4 z-20 mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-rule/70 bg-card/95 px-4 py-3 shadow-lg backdrop-blur-sm"
+          className="sticky bottom-4 z-20 mt-6"
           role="region"
-          aria-label="Unsaved changes"
+          aria-label={settled ? 'Changes saved' : 'Unsaved changes'}
         >
-          <span className="mr-auto flex items-center gap-2 text-sm font-medium text-foreground">
-            <span className="size-2 rounded-full bg-stock" aria-hidden="true" />
-            {message}
-          </span>
-          <Button type="button" variant="ghost" size="lg" className="h-11 px-4" onClick={onDiscard} disabled={saving}>
-            Discard
-          </Button>
-          {extra}
-          <Button type="button" size="lg" className="h-11 min-w-32 px-5" onClick={onSave} disabled={saving || disabled}>
-            {saving && <Loader2 className="animate-spin" aria-hidden="true" />}
-            {saving ? 'Saving…' : saveLabel}
-          </Button>
+          <div
+            className={cn(
+              'flex flex-wrap items-center gap-3 rounded-lg border bg-card/95 px-4 py-3 shadow-lg backdrop-blur-sm transition-colors duration-300',
+              settled ? 'border-success/50' : 'border-rule/70',
+            )}
+          >
+            <span className="mr-auto flex items-center gap-2 text-sm font-medium text-foreground">
+              <span
+                className={cn('size-2 rounded-full transition-colors duration-300', settled ? 'bg-success' : 'bg-stock')}
+                aria-hidden="true"
+              />
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.span
+                  key={settled ? 'saved' : 'dirty'}
+                  initial={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {settled ? 'All changes saved' : message}
+                </motion.span>
+              </AnimatePresence>
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              className="h-11 px-4"
+              onClick={() => {
+                setWatch((current) => ({ ...current, awaiting: false }));
+                onDiscard();
+              }}
+              disabled={saving || settled}
+            >
+              Discard
+            </Button>
+            {extra}
+            <ActionButton
+              type="button"
+              size="lg"
+              className="h-11 min-w-32 px-5"
+              onClick={onSave}
+              pending={saving}
+              done={settled}
+              disabled={disabled}
+            >
+              {saveLabel}
+            </ActionButton>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -187,29 +250,40 @@ export function Fact({
   /** 'panel' (default) for tiles inside a settings card; 'page' for tiles straight on the page background; 'card' for white tiles, e.g. on a drawer. */
   surface?: 'panel' | 'page' | 'card';
 }) {
+  // The icon is a rail, not a chip: a tinted strip from the card's edge, full
+  // height, so a row of tiles lines up on its icons and its numbers alike.
   const body = (
     <>
       <span
         className={cn(
-          'flex size-9 shrink-0 items-center justify-center rounded-md',
+          'flex w-12 shrink-0 items-center justify-center border-r',
           tone === 'danger'
-            ? 'bg-exception/8 text-exception'
+            ? 'border-exception/25 bg-exception/14 text-exception'
             : tone === 'warning'
-              ? 'bg-measured/10 text-measured'
-              : 'bg-primary/8 text-primary',
+              ? 'border-measured/30 bg-measured/18 text-measured'
+              : 'border-primary/22 bg-primary/14 text-primary',
         )}
       >
-        <Icon size={17} aria-hidden="true" />
+        <Icon size={18} aria-hidden="true" />
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1 self-center px-3.5 py-3">
         <dt className="text-label uppercase text-muted-foreground">{label}</dt>
-        <dd className={cn('mt-0.5 truncate text-sm font-semibold', tone === 'danger' ? 'text-exception' : 'text-foreground')}>{value}</dd>
+        <dd
+          className={cn(
+            'mt-0.5 truncate font-semibold tabular-nums',
+            // Straight on the page the tiles are the page's figures: the number leads.
+            surface === 'page' ? 'text-lg leading-snug tracking-title' : 'text-sm',
+            tone === 'danger' ? 'text-exception' : 'text-foreground',
+          )}
+        >
+          {value}
+        </dd>
         {hint && <dd className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</dd>}
       </div>
     </>
   );
   const className = cn(
-    'flex items-center gap-3 rounded-lg border px-3.5 py-3',
+    'flex items-stretch overflow-hidden rounded-lg border',
     selected
       ? 'border-primary bg-primary/5'
       : surface === 'page'
@@ -303,6 +377,7 @@ export function StepperCard({
   max,
   step = 1,
   unit,
+  control = 'stepper',
 }: {
   icon: IconComponent;
   title: string;
@@ -313,6 +388,12 @@ export function StepperCard({
   max: number;
   step?: number;
   unit?: string;
+  /**
+   * `stepper` (−/+) for numbers people type or nudge; `wheel` for a short
+   * bounded range; `duration` for minutes shown as hours + minutes wheels
+   * (`step` is then the minute step).
+   */
+  control?: 'stepper' | 'wheel' | 'duration';
 }) {
   const [text, setText] = useState<string | null>(null);
   const clamp = (next: number) => Math.min(max, Math.max(min, Math.round(next)));
@@ -328,49 +409,59 @@ export function StepperCard({
         {description && <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{description}</span>}
       </span>
       {/* Fixed width, so a row of steppers lines up whatever the unit. */}
-      <div className="flex w-36 shrink-0 items-center rounded-md border border-rule/60 bg-field focus-within:border-ring">
-        <button
-          type="button"
-          aria-label={`Less — ${title}`}
-          disabled={current <= min}
-          onClick={() => onChange(clamp(current - step))}
-          className="flex size-9 items-center justify-center rounded-l-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40"
-        >
-          <Minus size={15} aria-hidden="true" />
-        </button>
-        <label className="flex h-9 flex-1 items-center justify-center gap-1 border-x border-rule/60 px-2">
-          <input
-            type="number"
-            inputMode="numeric"
-            min={min}
-            max={max}
-            step={step}
-            aria-label={title}
-            value={text ?? String(current)}
-            onChange={(event) => {
-              setText(event.target.value);
-              const next = Number(event.target.value);
-              if (event.target.value !== '' && Number.isFinite(next) && next >= min && next <= max) onChange(Math.round(next));
-            }}
-            onBlur={() => {
-              if (text !== null) onChange(clamp(Number(text) || min));
-              setText(null);
-            }}
-            style={{ width: `${Math.max(2, String(text ?? current).length) + 0.5}ch` }}
-            className="h-9 bg-transparent text-center text-base font-semibold tabular-nums text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          />
-          {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
-        </label>
-        <button
-          type="button"
-          aria-label={`More — ${title}`}
-          disabled={current >= max}
-          onClick={() => onChange(clamp(current + step))}
-          className="flex size-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40"
-        >
-          <Plus size={15} aria-hidden="true" />
-        </button>
-      </div>
+      {control === 'wheel' ? (
+        <div className="w-36 shrink-0">
+          <NumberWheelPicker aria-label={title} value={current} onValueChange={onChange} min={min} max={max} step={step} unit={unit} />
+        </div>
+      ) : control === 'duration' ? (
+        <div className="w-36 shrink-0">
+          <DurationPicker aria-label={title} value={current} onValueChange={onChange} min={min} max={max} minuteStep={step} />
+        </div>
+      ) : (
+        <div className="flex w-36 shrink-0 items-center rounded-md border border-rule/60 bg-field focus-within:border-ring">
+          <button
+            type="button"
+            aria-label={`Less — ${title}`}
+            disabled={current <= min}
+            onClick={() => onChange(clamp(current - step))}
+            className="flex size-9 items-center justify-center rounded-l-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40"
+          >
+            <Minus size={15} aria-hidden="true" />
+          </button>
+          <label className="flex h-9 flex-1 items-center justify-center gap-1 border-x border-rule/60 px-2">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={min}
+              max={max}
+              step={step}
+              aria-label={title}
+              value={text ?? String(current)}
+              onChange={(event) => {
+                setText(event.target.value);
+                const next = Number(event.target.value);
+                if (event.target.value !== '' && Number.isFinite(next) && next >= min && next <= max) onChange(Math.round(next));
+              }}
+              onBlur={() => {
+                if (text !== null) onChange(clamp(Number(text) || min));
+                setText(null);
+              }}
+              style={{ width: `${Math.max(2, String(text ?? current).length) + 0.5}ch` }}
+              className="h-9 bg-transparent text-center text-base font-semibold tabular-nums text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+            {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
+          </label>
+          <button
+            type="button"
+            aria-label={`More — ${title}`}
+            disabled={current >= max}
+            onClick={() => onChange(clamp(current + step))}
+            className="flex size-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40"
+          >
+            <Plus size={15} aria-hidden="true" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

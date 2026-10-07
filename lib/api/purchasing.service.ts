@@ -14,6 +14,8 @@ export interface Supplier {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  /** On `GET /suppliers`: the newest sent (non-draft, non-cancelled) order at a location you can see. Optional until that API ships. */
+  summary?: { lastOrderedAt: string | null };
 }
 
 export interface SupplierPayload {
@@ -71,6 +73,12 @@ export interface PurchaseOrder {
   location?: { id: string; name: string };
   lines?: PurchaseOrderLine[];
   receipts?: GoodsReceipt[];
+  /**
+   * On the list (`GET /purchase-orders`), in place of `lines`: decimal strings,
+   * the total rounded per line as `orderTotal` does, received capped per line
+   * as `receivedShare` does. Optional until that API ships.
+   */
+  summary?: { lineCount: number; totalCost: string; quantityOrdered: string; quantityReceived: string };
 }
 
 export interface PurchaseOrdersResponse {

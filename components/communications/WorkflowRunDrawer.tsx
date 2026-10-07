@@ -2,8 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { CheckCircle2, Clock, Loader2, TriangleAlert } from '@/components/icons';
+import { CheckCircle2, Clock, TriangleAlert } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
+import { LoadingState } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 
 import { getEmailAutomationRun } from '@/lib/modules/communications/client';
@@ -28,9 +29,7 @@ export function WorkflowRunDrawer({ runId, onClose }: { runId: string; onClose: 
   return (
     <Drawer title="Workflow run" description={run ? `${run.eventKey} · version ${run.version}` : 'Execution details'} onClose={onClose}>
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-          <Loader2 className="animate-spin" /> Loading run…
-        </div>
+        <LoadingState label="Loading the run" />
       ) : error || !run ? (
         <div className="rounded-sm border border-destructive/30 bg-destructive/6 p-4 text-sm text-destructive">
           This workflow run could not be loaded.

@@ -15,13 +15,24 @@ import {
   subjectHref,
   subjectName,
 } from '@/components/compliance/privacyCopy';
-import { AlertTriangle, CalendarClock, CheckCircle2, ChevronDown, ClipboardList, Download, Plus, ShieldCheck, Timer } from '@/components/icons';
-import type { IconComponent } from '@/components/icons';
+import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
+  ChevronDown,
+  ClipboardList,
+  Download,
+  Plus,
+  ShieldCheck,
+  Timer,
+} from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Bone, FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -57,7 +68,7 @@ import { toast } from '@/stores/toastStore';
 const ERASE_PHRASE = 'ERASE';
 
 const TEXTAREA =
-  'w-full rounded-md border border-input bg-field p-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-ring/30';
+  'w-full rounded-md border border-input bg-control p-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-ring/30';
 
 const TONE_TEXT: Record<DeadlineTone, string> = {
   done: 'text-muted-foreground',
@@ -138,16 +149,33 @@ export function PrivacyRequestsPanel({
   const shown = scoped ? all : view === 'open' ? open : closed;
 
   const list = requests.isPending ? (
-    <div className="space-y-2" aria-label="Loading privacy requests">
+    <div className="space-y-2" role="status" aria-busy="true" aria-label="Loading privacy requests">
       {[0, 1, 2].map((item) => (
-        <div key={item} className="h-36 animate-pulse rounded-lg bg-band/60" />
+        <div key={item} className="rounded-lg border border-rule/60 bg-field px-4 py-4" aria-hidden="true">
+          <div className="flex items-start gap-3">
+            <Bone className="size-10 shrink-0" />
+            <span className="min-w-0 flex-1 space-y-1.5 pt-0.5">
+              <Bone className={cn('h-3.5', item % 2 ? 'w-36' : 'w-48')} />
+              <Bone className="h-3 w-64 max-w-full" />
+            </span>
+            <Bone className="h-5 w-20 shrink-0 rounded-sm" />
+          </div>
+          <div className="mt-4 flex items-center justify-between">
+            <Bone className="h-3 w-28" />
+            <Bone className="h-3 w-20" />
+          </div>
+          <Bone className="mt-1.5 h-1.5 rounded-full" />
+        </div>
       ))}
     </div>
   ) : requests.isError ? (
     <ErrorState title="Privacy requests couldn’t be loaded" onRetry={() => void requests.refetch()} />
   ) : shown.length === 0 ? (
-    <QueueMessage
+    <EmptyState
       icon={scoped ? ShieldCheck : view === 'open' ? CheckCircle2 : ClipboardList}
+      kind={!scoped && view === 'open' ? 'done' : 'start'}
+      className="flex-1"
+      action={scoped && canWrite ? { label: 'Record request', icon: Plus, onClick: () => setRecording(true) } : undefined}
       title={scoped ? 'No privacy requests' : view === 'open' ? 'Nothing waiting' : 'No closed requests yet'}
       description={
         scoped
@@ -214,11 +242,10 @@ export function PrivacyRequestsPanel({
           <h2 id="privacy-requests-title" className="flex-1 text-base font-semibold tracking-title text-foreground">
             Privacy requests
           </h2>
-          {summary.open > 0 && <Badge variant="warning">{summary.open} open</Badge>}
           {record}
         </div>
         {requests.isPending ? (
-          <div className="h-32 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+          <ListSkeleton rows={2} label="Loading privacy requests" />
         ) : requests.isError ? (
           <ErrorState title="Privacy requests couldn’t be loaded" onRetry={() => void requests.refetch()} />
         ) : (
@@ -230,7 +257,9 @@ export function PrivacyRequestsPanel({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm text-muted-foreground">None so far</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">Record one here if they ask for their data or to be deleted.</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Record one here if they ask for their data or to be deleted.
+                  </span>
                 </span>
               </li>
             ) : (
@@ -270,32 +299,35 @@ export function PrivacyRequestsPanel({
 
   return (
     <motion.div
-      className="space-y-5"
+      className="flex flex-1 flex-col gap-5"
       initial="hidden"
       animate="shown"
       variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
       aria-label="Privacy requests"
     >
-      <motion.dl variants={SECTION_RISE} className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <Fact icon={ClipboardList} label="Open" value={summary.open} />
-        <Fact icon={Timer} label="Due this week" value={summary.dueSoon} />
-        <Fact
-          icon={AlertTriangle}
-          label="Overdue"
-          value={<span className={cn(summary.overdue > 0 && 'text-exception')}>{summary.overdue}</span>}
-        />
-        <Fact icon={CheckCircle2} label="Closed in 30 days" value={summary.closedRecently} />
-      </motion.dl>
+      {/* While loading, the tiles are skeletons: a "0 overdue" before the data
+          arrives would read as a statement about the law, not a wait. */}
+      {requests.isPending ? (
+        <FactsSkeleton count={4} surface="card" label="Loading request counts" className="gap-2 sm:grid-cols-2 xl:grid-cols-4" />
+      ) : (
+        <motion.dl variants={SECTION_RISE} className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <Fact surface="card" icon={ClipboardList} label="Open" value={summary.open} />
+          <Fact surface="card" icon={Timer} label="Due this week" value={summary.dueSoon} />
+          <Fact
+            surface="card"
+            icon={AlertTriangle}
+            label="Overdue"
+            value={<span className={cn(summary.overdue > 0 && 'text-exception')}>{summary.overdue}</span>}
+          />
+          <Fact surface="card" icon={CheckCircle2} label="Closed in 30 days" value={summary.closedRecently} />
+        </motion.dl>
+      )}
 
       {/* No card around the queue: the requests are cards already, and a
           second border around them only boxes in the page. */}
-      <motion.section variants={SECTION_RISE} className="space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold tracking-title text-foreground">
-              {view === 'open' ? 'Open requests' : 'Closed requests'}
-            </h2>
-          </div>
+      <motion.section variants={SECTION_RISE} className="flex flex-1 flex-col gap-4">
+        {/* The segment names the view, so no heading repeats it. */}
+        <header className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-2">
             <SegmentedControl
               options={[
@@ -350,7 +382,11 @@ function ScopedRequestRow({
         <span
           className={cn(
             'flex size-9 shrink-0 items-center justify-center rounded-md',
-            closed ? 'bg-band text-muted-foreground' : deadline.tone === 'overdue' || request.type === 'erasure' ? 'bg-exception/8 text-exception' : 'bg-reference/8 text-reference',
+            closed
+              ? 'bg-band text-muted-foreground'
+              : deadline.tone === 'overdue' || request.type === 'erasure'
+                ? 'bg-exception/8 text-exception'
+                : 'bg-reference/8 text-reference',
           )}
         >
           <Icon size={16} aria-hidden="true" />
@@ -388,18 +424,6 @@ function ScopedRequestRow({
         )}
       </AnimatePresence>
     </li>
-  );
-}
-
-function QueueMessage({ icon: Icon, title, description }: { icon: IconComponent; title: string; description: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-rule/60 px-6 py-10 text-center">
-      <span className="flex size-11 items-center justify-center rounded-md bg-primary/8 text-primary">
-        <Icon size={20} aria-hidden="true" />
-      </span>
-      <h3 className="mt-3 text-sm font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
-    </div>
   );
 }
 
@@ -451,42 +475,42 @@ function RequestCard({
       )}
     >
       {!embedded && (
-      <div className="flex items-start gap-3">
-        <span
-          className={cn(
-            'flex size-10 shrink-0 items-center justify-center rounded-md',
-            closed
-              ? 'bg-band text-muted-foreground'
-              : request.type === 'erasure'
-                ? 'bg-exception/8 text-exception'
-                : 'bg-primary/8 text-primary',
-          )}
-        >
-          <Icon size={18} aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm text-foreground">
-            <span className="font-semibold">{kind.label}</span>
-            {!scoped && name && (
-              <>
-                <span className="text-muted-foreground"> · </span>
-                {href ? (
-                  <Link href={href} className="font-medium underline decoration-rule underline-offset-2 hover:decoration-foreground">
-                    {name}
-                  </Link>
-                ) : (
-                  <span className="font-medium">{name}</span>
-                )}
-                {request.subjectType === 'employee' && <span className="text-muted-foreground"> (staff)</span>}
-              </>
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              'flex size-10 shrink-0 items-center justify-center rounded-md',
+              closed
+                ? 'bg-band text-muted-foreground'
+                : request.type === 'erasure'
+                  ? 'bg-exception/8 text-exception'
+                  : 'bg-primary/8 text-primary',
             )}
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {kind.legal} · Received {formatDate(request.receivedAt)} · {channelLabel(request.requestChannel)}
-          </p>
+          >
+            <Icon size={18} aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-foreground">
+              <span className="font-semibold">{kind.label}</span>
+              {!scoped && name && (
+                <>
+                  <span className="text-muted-foreground"> · </span>
+                  {href ? (
+                    <Link href={href} className="font-medium underline decoration-rule underline-offset-2 hover:decoration-foreground">
+                      {name}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{name}</span>
+                  )}
+                  {request.subjectType === 'employee' && <span className="text-muted-foreground"> (staff)</span>}
+                </>
+              )}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {kind.legal} · Received {formatDate(request.receivedAt)} · {channelLabel(request.requestChannel)}
+            </p>
+          </div>
+          <Badge variant={status.tone}>{status.label}</Badge>
         </div>
-        <Badge variant={status.tone}>{status.label}</Badge>
-      </div>
       )}
 
       {request.details && (
@@ -505,12 +529,15 @@ function RequestCard({
         )
       ) : (
         <div className="mt-4">
-          <div className="flex items-center justify-between gap-3 text-xs">
-            <span className={cn('flex items-center gap-1.5 font-semibold', TONE_TEXT[deadline.tone])}>
-              <CalendarClock size={13} aria-hidden="true" />
-              {deadline.label}
-            </span>
-            <span className="text-muted-foreground">{formatDate(request.dueAt)}</span>
+          {/* Unfolded under a record's row, the row already says how long is left — only the date here. */}
+          <div className={cn('flex items-center gap-3 text-xs', embedded ? 'justify-end' : 'justify-between')}>
+            {!embedded && (
+              <span className={cn('flex items-center gap-1.5 font-semibold', TONE_TEXT[deadline.tone])}>
+                <CalendarClock size={13} aria-hidden="true" />
+                {deadline.label}
+              </span>
+            )}
+            <span className="text-muted-foreground">{embedded ? `Due ${formatDate(request.dueAt)}` : formatDate(request.dueAt)}</span>
           </div>
           <div
             className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-band"
@@ -724,7 +751,7 @@ function CompleteRequest({ request, onClose, onDone }: { request: PrivacyRequest
               value={phrase}
               onChange={(event) => setPhrase(event.target.value)}
               autoComplete="off"
-              className="h-10 w-full rounded-md border border-input bg-field px-3 text-sm text-foreground outline-none focus-visible:border-exception focus-visible:outline-2 focus-visible:outline-exception/30"
+              className="h-10 w-full rounded-md border border-input bg-control px-3 text-sm text-foreground outline-none focus-visible:border-exception focus-visible:outline-2 focus-visible:outline-exception/30"
             />
           </div>
         )}

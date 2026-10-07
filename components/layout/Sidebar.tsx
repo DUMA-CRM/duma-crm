@@ -48,7 +48,7 @@ export function Sidebar({ capabilities, moduleState }: { capabilities: readonly 
   const analyticsItems = filterNavByCapability(analyticsNavItems, effective, effectiveModuleState);
   const footerItems = filterNavByCapability(footerNavItems, effective, effectiveModuleState);
 
-  // Badge the Orders nav item with the exact active count. Three count-only
+  // Badge the kitchen queue with the exact active count. Three count-only
   // responses are much smaller than downloading 200 complete orders globally
   // on every CRM screen.
   const showOrders = mainItems.some((item) => item.href === '/orders');
@@ -77,7 +77,10 @@ export function Sidebar({ capabilities, moduleState }: { capabilities: readonly 
       (query.data?.data.filter((order) => !order.kitchenReleaseAt || new Date(order.kitchenReleaseAt).getTime() <= Date.now()).length ?? 0),
     0,
   );
-  const badges: Record<string, number> = { '/orders': activeOrders, '/kds': activeOrders };
+  // One badge for one fact: the kitchen queue is what the count is waiting on,
+  // so it sits on KDS. Orders carries it only when KDS is not in the nav.
+  const showKds = mainItems.some((item) => item.href === '/kds');
+  const badges: Record<string, number> = { [showKds ? '/kds' : '/orders']: activeOrders };
 
   return (
     <>

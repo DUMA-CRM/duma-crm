@@ -12,6 +12,7 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { FilterChip } from '@/components/shared/FilterChip';
+import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
 import { Input } from '@/components/ui/input';
 import { Select, type SelectOption } from '@/components/ui/select';
 
@@ -245,11 +246,9 @@ function AuditLogPageContent() {
   );
 
   const body = activity.isPending ? (
-    <div className="space-y-2" aria-label="Loading activity">
-      <div className="h-4 w-24 animate-pulse rounded-sm bg-band" />
-      {Array.from({ length: 8 }, (_, index) => (
-        <div key={index} className="h-15 animate-pulse rounded-lg bg-band/60" />
-      ))}
+    <div>
+      <Bone className="mx-1 mb-2 h-4 w-20" />
+      <ListSkeleton rows={8} label="Loading activity" />
     </div>
   ) : activity.isError && groups.length === 0 ? (
     <ErrorState title="The audit log could not be loaded" onRetry={() => void activity.refetch()} />
@@ -262,6 +261,8 @@ function AuditLogPageContent() {
           ? 'Try another search, or clear the filters.'
           : 'Every change made in this workspace lands here — who did it, what changed, and whether it worked.'
       }
+      kind={filtered ? 'search' : 'start'}
+      action={filtered ? { label: 'Clear filters', onClick: clearFilters } : undefined}
     />
   ) : (
     <AuditActivityList
@@ -337,11 +338,16 @@ function AuditLogPageContent() {
 function AuditLogPageFallback() {
   return (
     <EditorShell title="Audit log" icon={<History size={20} aria-hidden="true" />} flush>
-      <div className="space-y-2 px-3 py-4 md:px-6 md:py-6">
-        <div className="h-10 w-full max-w-sm animate-pulse rounded-md bg-band" />
-        {Array.from({ length: 8 }, (_, index) => (
-          <div key={index} className="h-15 animate-pulse rounded-lg bg-band/60" />
-        ))}
+      <div className="space-y-5 px-3 py-4 md:px-6 md:py-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <Bone className="h-9 min-w-56 flex-1 lg:max-w-sm" />
+          <Bone className="h-9 w-44" />
+          <Bone className="h-9 w-44" />
+        </div>
+        <div>
+          <Bone className="mx-1 mb-2 h-4 w-20" />
+          <ListSkeleton rows={8} label="Loading activity" />
+        </div>
       </div>
     </EditorShell>
   );

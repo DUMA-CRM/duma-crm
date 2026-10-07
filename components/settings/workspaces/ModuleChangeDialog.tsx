@@ -269,7 +269,7 @@ export function ModuleChangeDialog({ preview, onClose }: { preview: ModuleChange
             onChange={(event) => setReason(event.target.value)}
             aria-label="Reason"
             placeholder="Or write your own"
-            className="mt-2 h-9 w-full rounded-md border border-input bg-field px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
+            className="mt-2 h-9 w-full rounded-md border border-input bg-control px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
         </div>
 

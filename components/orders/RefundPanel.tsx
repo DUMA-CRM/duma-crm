@@ -3,11 +3,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Banknote, Clock, Coffee, CreditCard, HelpCircle, Loader2, Minus, PackageCheck, Plus, RotateCcw, Tag, User } from '@/components/icons';
+import {
+  Banknote,
+  Clock,
+  Coffee,
+  CreditCard,
+  HelpCircle,
+  Loader2,
+  Minus,
+  PackageCheck,
+  Plus,
+  RotateCcw,
+  Tag,
+  User,
+} from '@/components/icons';
 import { type Choice, ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { type OrderDetail, type RefundReason, createRefund, getRefundOptions } from '@/lib/modules/ordering/client';
@@ -72,7 +86,8 @@ export function useRefundDraft(order: OrderDetail, refundable: number, active: b
     amount,
     lines,
     submit,
-    setQuantity: (key: string, value: number, max: number) => setSelection({ ...chosen, [key]: Math.max(0, Math.min(max, Math.floor(value || 0))) }),
+    setQuantity: (key: string, value: number, max: number) =>
+      setSelection({ ...chosen, [key]: Math.max(0, Math.min(max, Math.floor(value || 0))) }),
     toggleItem: (item: (typeof items)[number]) => {
       const on = (chosen[`item:${item.id}`] ?? 0) === 0;
       const next = { ...chosen, [`item:${item.id}`]: on ? item.base.remainingQuantity : 0 };
@@ -132,12 +147,38 @@ export function RefundBody({
   refundable: number;
   money: (amount: string | number | null | undefined) => string;
 }) {
-  if (draft.options.isError) return <ErrorState title="What’s refundable couldn’t be loaded" onRetry={() => void draft.options.refetch()} />;
+  if (draft.options.isError)
+    return <ErrorState title="What’s refundable couldn’t be loaded" onRetry={() => void draft.options.refetch()} />;
   if (draft.options.isPending)
     return (
-      <div className="space-y-4" aria-hidden="true">
-        <div className="h-48 animate-pulse rounded-lg bg-band/60" />
-        <div className="h-56 animate-pulse rounded-lg bg-band/60" />
+      <div className="space-y-5" role="status" aria-busy="true" aria-label="Loading what can be refunded">
+        <section>
+          <div className="mb-3 flex min-h-8 items-center">
+            <Bone className="h-4 w-44" />
+          </div>
+          <ul className="space-y-2">
+            {[0, 1, 2].map((row) => (
+              <li key={row} className="flex items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3">
+                <Bone className="size-10 shrink-0" />
+                <span className="min-w-0 flex-1 space-y-1.5">
+                  <Bone className={row === 1 ? 'h-3.5 w-28' : 'h-3.5 w-40'} />
+                  <Bone className="h-3 w-24" />
+                </span>
+                <Bone className="h-6 w-10 shrink-0 rounded-full" />
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section>
+          <div className="mb-3 flex min-h-8 items-center">
+            <Bone className="h-4 w-12" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[0, 1, 2, 3].map((tile) => (
+              <Bone key={tile} className="h-16 rounded-lg" />
+            ))}
+          </div>
+        </section>
       </div>
     );
 
@@ -169,7 +210,11 @@ export function RefundBody({
                 key={item.id}
                 className={cn(
                   'overflow-hidden rounded-lg border transition-colors',
-                  gone ? 'border-dashed border-rule/60 bg-transparent' : selected ? 'border-exception/35 bg-card' : 'border-rule/50 bg-background/60',
+                  gone
+                    ? 'border-dashed border-rule/60 bg-transparent'
+                    : selected
+                      ? 'border-exception/35 bg-card'
+                      : 'border-rule/50 bg-background/60',
                 )}
               >
                 <div className="flex items-center gap-3 px-3.5 py-3">
@@ -183,7 +228,12 @@ export function RefundBody({
                     {gone ? <RotateCcw size={16} /> : `${item.base.remainingQuantity}×`}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={cn('block truncate text-sm font-semibold', gone ? 'text-muted-foreground line-through' : 'text-foreground')}>
+                    <span
+                      className={cn(
+                        'block truncate text-sm font-semibold',
+                        gone ? 'text-muted-foreground line-through' : 'text-foreground',
+                      )}
+                    >
                       {item.name}
                       {item.variantName && <span className="font-normal text-muted-foreground"> · {item.variantName}</span>}
                     </span>
@@ -250,7 +300,11 @@ export function RefundBody({
                           <span className="block text-sm text-foreground">Put it back in stock</span>
                           <span className="block text-xs text-muted-foreground">It’s unopened and can be sold again</span>
                         </span>
-                        <Switch label={`Put ${item.name} back in stock`} checked={draft.restock.has(item.id)} onChange={() => draft.toggleRestock(item.id)} />
+                        <Switch
+                          label={`Put ${item.name} back in stock`}
+                          checked={draft.restock.has(item.id)}
+                          onChange={() => draft.toggleRestock(item.id)}
+                        />
                       </li>
                     )}
                   </ul>
@@ -259,12 +313,9 @@ export function RefundBody({
             );
           })}
         </ul>
-        <p className="mt-2 flex items-center justify-between gap-3 px-1 text-xs text-muted-foreground">
-          <span>
-            {selectedCount} of {draft.items.length} {draft.items.length === 1 ? 'item' : 'items'}
-            {restockCount > 0 && ` · ${restockCount} back in stock`}
-          </span>
-          <span className="font-semibold text-foreground">{money(draft.amount)}</span>
+        <p className="mt-2 px-1 text-xs text-muted-foreground">
+          {selectedCount} of {draft.items.length} {draft.items.length === 1 ? 'item' : 'items'}
+          {restockCount > 0 && ` · ${restockCount} back in stock`}
         </p>
       </PlainSection>
 
@@ -293,7 +344,7 @@ export function RefundBody({
         <SettingRows>
           <SettingRow
             icon={cash ? Banknote : CreditCard}
-            title={cash ? `Hand back ${money(draft.amount)} in cash` : `${money(draft.amount)} back to their card`}
+            title={cash ? 'Hand it back in cash' : 'Back to their card'}
             description={
               cash
                 ? 'Hand the cash back first — this records the refund, it doesn’t open the till.'
@@ -324,7 +375,8 @@ export function RefundFooter({
       <p className="min-w-0 flex-1 truncate text-sm">
         {draft.reason ? (
           <>
-            <span className="text-muted-foreground">Refund</span> <span className="font-semibold text-foreground">{money(draft.amount)}</span>
+            <span className="text-muted-foreground">Refund</span>{' '}
+            <span className="font-semibold text-foreground">{money(draft.amount)}</span>
           </>
         ) : (
           <span className="text-muted-foreground">Choose why to continue</span>

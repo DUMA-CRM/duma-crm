@@ -273,7 +273,7 @@ export function DatePicker({
               aria-haspopup="dialog"
               className={cn(
                 // The `Input` field exactly: same height, hairline, fill and the amber focus marker.
-                'h-9 w-full rounded-md border border-input bg-field pl-3 pr-16 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground sm:text-sm',
+                'h-9 w-full rounded-md border border-input bg-control pl-3 pr-16 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground sm:text-sm',
                 'tabular-nums transition-[border-color,outline-color] duration-150 focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured',
                 (error || inputError) && 'border-exception focus:border-exception focus:outline-exception',
                 'disabled:cursor-not-allowed disabled:opacity-50',

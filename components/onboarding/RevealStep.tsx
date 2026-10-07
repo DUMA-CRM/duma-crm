@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 
 import { AlertTriangle, Check, ShieldCheck } from '@/components/icons';
+import { TileSkeleton } from '@/components/shared/TileSkeleton';
 import { ErrorState } from '@/components/shared/ErrorState';
 
 import { type WorkspaceModuleId, type WorkspaceRecommendation, previewWorkspaceRecommendation } from '@/lib/modules/organization/client';
@@ -164,16 +165,12 @@ export function RevealStep({ draft, onToggleModule, onChangeAnswers }: RevealSte
 
 function RevealLoading() {
   return (
-    <div role="status" aria-live="polite">
+    <div role="status" aria-busy="true" aria-live="polite">
       <p className="text-label uppercase text-muted-foreground">Your proposal</p>
       <p className="mt-3 text-2xl font-semibold tracking-headline text-foreground">Matching tools to your answers…</p>
       <div className="mt-9 grid gap-2 sm:grid-cols-2" aria-hidden="true">
         {Array.from({ length: 6 }, (_, index) => (
-          <div
-            key={index}
-            className="h-[4.25rem] animate-pulse rounded-lg border border-rule/40 bg-band/50"
-            style={{ animationDelay: `${index * 90}ms` }}
-          />
+          <TileSkeleton key={index} index={index} tile="size-8" className="items-start border-rule/60 bg-field" />
         ))}
       </div>
     </div>

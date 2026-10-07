@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { LoadMore } from '@/components/shared/LoadMore';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
@@ -125,11 +126,13 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
         {isError ? (
           <ErrorState title="This timeline couldn’t be loaded" onRetry={() => void refetch()} />
         ) : isLoading ? (
-          <div className="space-y-2" aria-label="Loading the timeline">
-            <div className="h-4 w-24 animate-pulse rounded-sm bg-band" />
-            {Array.from({ length: 6 }, (_, index) => (
-              <div key={index} className="h-15 animate-pulse rounded-lg bg-band/60" />
-            ))}
+          <div role="status" aria-busy="true" aria-label="Loading the timeline">
+            <Bone className="mb-2 ml-1 h-4 w-24" />
+            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              {Array.from({ length: 6 }, (_, index) => (
+                <RowSkeleton key={index} index={index} />
+              ))}
+            </div>
           </div>
         ) : entries.length === 0 ? (
           <EmptyState
@@ -140,6 +143,8 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
                 ? 'Orders, emails, points changes and consent decisions will appear here as they happen.'
                 : 'Try another kind of activity, or go back to all of it.'
             }
+            kind={filter === 'all' ? 'start' : 'search'}
+            action={filter === 'all' ? undefined : { label: 'Show all activity', onClick: () => setFilter('all') }}
           />
         ) : (
           <div className="space-y-6">

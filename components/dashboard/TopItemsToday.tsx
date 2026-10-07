@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 
-import { ArrowRight, Coffee } from '@/components/icons';
+import { ArrowUpRight, Coffee } from '@/components/icons';
+import { Bone } from '@/components/shared/Skeleton';
+import { Tooltip } from '@/components/shared/Tooltip';
+import { Button } from '@/components/ui/button';
 
 import type { TopItemAnalytics } from '@/lib/modules/analytics/client';
 import { formatMoney } from '@/lib/utils/dashboard';
@@ -21,21 +24,31 @@ export function TopItemsToday({ rows, loading }: { rows: TopItemAnalytics[]; loa
           <h2 className="text-base font-semibold tracking-title text-foreground">Selling today</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">Ranked by quantity, net of refunds</p>
         </div>
-        <Link
-          href="/menu"
-          className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-band hover:text-foreground"
-        >
-          Menu
-          <ArrowRight size={13} aria-hidden="true" />
-        </Link>
+        <Tooltip label="Menu" side="top" className="shrink-0">
+          <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground">
+            <Link href="/menu" aria-label="Open the menu">
+              <ArrowUpRight size={15} aria-hidden="true" />
+            </Link>
+          </Button>
+        </Tooltip>
       </div>
 
       {loading ? (
-        <div className="mt-5 space-y-3" aria-hidden="true">
-          {Array.from({ length: 5 }, (_, index) => (
-            <div key={index} className="h-9 animate-pulse rounded-sm bg-band" />
+        <ul className="mt-5 space-y-3.5" role="status" aria-busy="true" aria-label="Loading what’s selling today">
+          {['w-36', 'w-28', 'w-40', 'w-24', 'w-32'].map((width) => (
+            <li key={width} aria-hidden="true">
+              <div className="mb-1.5 flex items-center gap-3">
+                <span className="w-3" />
+                <span className="min-w-0 flex-1">
+                  <Bone className={`h-3.5 ${width} max-w-full`} />
+                </span>
+                <Bone className="h-3 w-5 shrink-0" />
+                <Bone className="h-3 w-12 shrink-0" />
+              </div>
+              <Bone className="ml-6 h-1.5 rounded-full" />
+            </li>
           ))}
-        </div>
+        </ul>
       ) : rows.length === 0 ? (
         <div className="mt-5 flex h-32 flex-col items-center justify-center gap-2 text-center">
           <Coffee size={20} className="text-muted-foreground" aria-hidden="true" />

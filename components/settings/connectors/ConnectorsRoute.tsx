@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ConnectorsGrid } from './ConnectorsGrid';
 import { EmailConnectWizard, EmailConnectorPage } from './EmailConnector';
 import { PaymentsConnectWizard, PaymentsConnectorPage } from './PaymentsConnector';
+import { StorageConnectWizard } from './StorageConnector';
+import { StorageConnectorPage } from './StorageConnectorPage';
 import type { ConnectorId } from './registry';
 
 const LIST = '/settings/connectors';
@@ -40,6 +42,14 @@ export function ConnectorsRoute() {
       <PaymentsConnectWizard onClose={toList} onDone={() => toManage('card-payments')} />
     ) : (
       <PaymentsConnectorPage onClose={toList} onAdd={() => toConnect('card-payments')} />
+    );
+  }
+
+  if (connector === 'media-storage') {
+    return connecting ? (
+      <StorageConnectWizard onClose={toList} onDone={() => toManage('media-storage')} />
+    ) : (
+      <StorageConnectorPage onClose={toList} onConnect={() => toConnect('media-storage')} />
     );
   }
 

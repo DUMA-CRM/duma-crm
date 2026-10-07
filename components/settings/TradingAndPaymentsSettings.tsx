@@ -10,7 +10,9 @@ import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SaveBar } from '@/components/settings/controls';
+import { SectionSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -77,9 +79,21 @@ export function TradingAndPaymentsSettings() {
   if (!tenantId) return <p className="text-sm text-muted-foreground">Choose a workspace first.</p>;
   if (settings.isPending || workspace.isLoading || setup.isPending) {
     return (
-      <div className="grid gap-5 lg:grid-cols-2" aria-label="Loading trading settings">
-        <div className="h-80 animate-pulse rounded-lg bg-band/60" />
-        <div className="h-80 animate-pulse rounded-lg bg-band/60" />
+      // The tab body's shape: the form sections, and the receipt preview beside them.
+      <div
+        role="status"
+        aria-busy="true"
+        aria-label="Loading trading settings"
+        className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]"
+      >
+        <div className="flex min-w-0 flex-col gap-5">
+          <SectionSkeleton fields={4} />
+          <SectionSkeleton fields={3} />
+        </div>
+        <div className="pt-1" aria-hidden="true">
+          <Bone className="mx-auto mb-2 h-2.5 w-24" />
+          <Bone className="mx-auto h-96 max-w-xs" />
+        </div>
       </div>
     );
   }
@@ -280,7 +294,7 @@ function TradingForm({
           {!locationId ? (
             <p className="text-sm text-muted-foreground">Choose a location to see its readers.</p>
           ) : readers.isPending ? (
-            <div className="h-14 animate-pulse rounded-lg bg-band/60" aria-label="Loading readers" />
+            <TilesSkeleton count={1} label="Loading readers" tile="size-9" trailing="h-4 w-14" tileClassName="py-2.5" />
           ) : readers.isError ? (
             <p className="text-sm text-muted-foreground">Couldn’t load readers right now.</p>
           ) : (readers.data ?? []).length === 0 ? (

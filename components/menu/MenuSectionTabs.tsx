@@ -8,7 +8,7 @@ import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 type Section = 'items' | 'categories' | 'modifiers';
 
 const TABS: SectionTab<Section>[] = [
-  { value: 'items', label: 'Menu items', icon: UtensilsCrossed },
+  { value: 'items', label: 'Items', icon: UtensilsCrossed },
   { value: 'categories', label: 'Categories', icon: LayoutGrid },
   { value: 'modifiers', label: 'Modifiers', icon: SlidersHorizontal },
 ];

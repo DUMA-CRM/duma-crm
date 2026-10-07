@@ -7,10 +7,10 @@ import { useMemo, useState } from 'react';
 
 import { ChevronRight, Search, Users, X } from '@/components/icons';
 import { Avatar, EMPLOYMENT_CONFIG, fmtMoney, roleConfig } from '@/components/people/shared';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -104,7 +104,6 @@ export function StaffDirectory() {
       .sort((a, b) => (a.name ?? a.email ?? '').localeCompare(b.name ?? b.email ?? ''));
   }, [staff, search, roleFilter, statusFilter, departmentFilter, recordFilter, empByUser, complianceAsOf]);
 
-  const enrolledCount = staff.filter((s) => empByUser.has(s.userId)).length;
   const actionCount = staff.filter((member) => coreProgress(member, empByUser.get(member.userId) ?? null, complianceAsOf) < 100).length;
   const activeCount = staff.filter((s) => s.isActive).length;
 
@@ -197,11 +196,13 @@ export function StaffDirectory() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2" aria-label="Loading the team">
-          {[0, 1, 2, 3, 4].map((index) => (
-            <div key={index} className="h-16 animate-pulse rounded-lg bg-band/60" />
-          ))}
-        </div>
+        <TilesSkeleton
+          count={5}
+          label="Loading the team"
+          tile="size-9"
+          trailing="hidden h-6 w-20 md:block"
+          tileClassName="border-rule/60 bg-field px-4"
+        />
       ) : staffError || employeeError ? (
         <ErrorState
           icon={Users}
@@ -219,6 +220,8 @@ export function StaffDirectory() {
           icon={staff.length === 0 ? Users : Search}
           title={staff.length === 0 ? 'No people yet' : 'No one matches'}
           description={staff.length === 0 ? 'Use “Onboard” to add your first team member.' : 'Try a different search or filter.'}
+          kind={staff.length === 0 ? 'start' : 'search'}
+          action={staff.length === 0 ? undefined : { label: 'Clear filters', onClick: clearFilters }}
         />
       ) : (
         <>
@@ -236,9 +239,7 @@ export function StaffDirectory() {
             ))}
           </ul>
           <p className="px-1 text-xs text-muted-foreground">
-            {filtered.length !== staff.length && `Showing ${filtered.length} of `}
-            {staff.length} {staff.length === 1 ? 'person' : 'people'} · {activeCount} active · {enrolledCount} with HR records ·{' '}
-            {actionCount} need setup
+            {filtered.length !== staff.length ? `Showing ${filtered.length} of ${staff.length}` : 'That’s everyone'}
           </p>
         </>
       )}
@@ -316,7 +317,7 @@ function MemberRow({
             <span className={cn('truncate text-sm font-semibold', member.isActive ? 'text-foreground' : 'text-muted-foreground')}>
               {member.name ?? member.email ?? 'Unnamed'}
             </span>
-            {!member.isActive && <Badge variant="muted">Left</Badge>}
+            {!member.isActive && <span className="sr-only">(left)</span>}
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground">{detail || member.email || 'No HR record yet'}</span>
         </span>

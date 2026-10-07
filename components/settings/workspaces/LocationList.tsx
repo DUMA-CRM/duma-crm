@@ -8,12 +8,14 @@ import { Check, ChefHat, MapPin, Pencil, Plus, Power, Store, Target, Trash2 } fr
 import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Modal } from '@/components/shared/Modal';
+import { StatusDot } from '@/components/shared/StatusDot';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
-import { Badge } from '@/components/ui/badge';
+import { TimePicker } from '@/components/ui/time-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -160,17 +162,21 @@ export function LocationList({ tenant }: { tenant?: Tenant }) {
       }
     >
       {!tenantId ? (
-        <EmptyState icon={MapPin} title="No workspace selected" description="Choose a workspace to see where it trades from." />
+        <EmptyState icon={MapPin} title="No workspace selected" description="Choose a workspace to see where it trades from." compact />
       ) : locations.isPending ? (
-        <div className="space-y-2" aria-label="Loading locations">
-          {Array.from({ length: 2 }, (_, index) => (
-            <div key={index} className="h-14 animate-pulse rounded-md bg-band/60" />
-          ))}
-        </div>
+        <TilesSkeleton count={2} label="Loading locations" />
       ) : locations.isError ? (
         <ErrorState title="Couldn’t load locations" onRetry={() => void locations.refetch()} />
       ) : rows.length === 0 ? (
-        <EmptyState icon={MapPin} title="No locations yet" description="Add the first place this business trades from." />
+        <EmptyState
+          icon={MapPin}
+          title="No locations yet"
+          description="Add the first place this business trades from."
+          action={
+            canWrite && workspaceActive ? { label: 'Add location', icon: Plus, onClick: () => setModal({ mode: 'create' }) } : undefined
+          }
+          compact
+        />
       ) : (
         <ul className="space-y-2">
           {rows.map((row, index) => {
@@ -215,7 +221,7 @@ export function LocationList({ tenant }: { tenant?: Tenant }) {
                       <span className={cn('truncate text-sm font-semibold', row.isActive ? 'text-foreground' : 'text-muted-foreground')}>
                         {row.name}
                       </span>
-                      {!row.isActive && <Badge variant="muted">Closed</Badge>}
+                      {!row.isActive && <StatusDot tone="muted" label="Closed" />}
                     </span>
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                       {[row.address || 'No address', ...details].join(' · ')}
@@ -223,11 +229,7 @@ export function LocationList({ tenant }: { tenant?: Tenant }) {
                   </span>
                 </button>
 
-                {selected && (
-                  <Badge variant="success" className="shrink-0">
-                    This device
-                  </Badge>
-                )}
+                {/* The tint and the tick mark this device's location; aria-pressed says it. */}
                 {/* Above the stretched row button, so the icons stay their own targets. */}
                 {(canWrite || canTarget || canActivate) && (
                   <div className="relative z-10 flex shrink-0 items-center gap-0.5">
@@ -406,9 +408,7 @@ function LocationForm({
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
 
   const inputClass =
-    'h-9 w-full rounded-md border border-input bg-field px-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15';
-  const timeClass =
-    'h-9 rounded-md border border-input bg-field px-2 text-sm tabular-nums text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
+    'h-9 w-full rounded-md border border-input bg-control px-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15';
   const setDay = (key: keyof OpeningHours, open: boolean) =>
     setHours((current) => ({ ...current, [key]: open ? { open: '09:00', close: '17:00' } : null }));
   const setTime = (key: keyof OpeningHours, field: 'open' | 'close', value: string) =>
@@ -507,21 +507,13 @@ function LocationForm({
                       exit={{ opacity: 0 }}
                       className="flex items-center gap-1.5"
                     >
-                      <input
-                        type="time"
-                        value={day.open}
-                        onChange={(event) => setTime(key, 'open', event.target.value)}
-                        className={timeClass}
-                        aria-label={`${label} opening time`}
-                      />
+                      <div className="w-28">
+                        <TimePicker value={day.open} onValueChange={(value) => setTime(key, 'open', value)} required aria-label={`${label} opening time`} />
+                      </div>
                       <span className="text-xs text-muted-foreground">to</span>
-                      <input
-                        type="time"
-                        value={day.close}
-                        onChange={(event) => setTime(key, 'close', event.target.value)}
-                        className={timeClass}
-                        aria-label={`${label} closing time`}
-                      />
+                      <div className="w-28">
+                        <TimePicker value={day.close} onValueChange={(value) => setTime(key, 'close', value)} required aria-label={`${label} closing time`} />
+                      </div>
                     </motion.div>
                   ) : (
                     <motion.span

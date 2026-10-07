@@ -6,7 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { ArrowRight, Check, ChevronDown, MapPin, Search } from '@/components/icons';
+import { initialsOf } from '@/components/shared/Avatar';
+import { StatusDot } from '@/components/shared/StatusDot';
 import { Tooltip } from '@/components/shared/Tooltip';
+import { TONE_TINT } from '@/components/shared/tone';
 
 import { type Location, getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -192,6 +195,7 @@ export function LocationPicker() {
           onClick={toggle}
           aria-haspopup="listbox"
           aria-expanded={open}
+          aria-label={`Location: ${label}`}
           className={cn(
             'w-[calc(100%-24px)] mx-3 flex items-center gap-2.5 px-3 py-1.75 rounded-md border text-left',
             'transition-colors duration-150',
@@ -201,12 +205,8 @@ export function LocationPicker() {
           )}
         >
           <MapPin size={18} aria-hidden="true" className="shrink-0 text-sidebar-foreground/70" />
-          <span className="min-w-0 flex-1">
-            <span className="block text-micro font-semibold uppercase tracking-micro text-sidebar-foreground/55 leading-none">
-              Location
-            </span>
-            <span className="block truncate text-sm font-medium leading-tight mt-0.5">{label}</span>
-          </span>
+          {/* The pin says "location"; the micro-label that repeated it is gone. */}
+          <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{label}</span>
           <ChevronDown
             size={14}
             aria-hidden="true"
@@ -237,17 +237,10 @@ export function LocationPicker() {
           'animate-in fade-in slide-in-from-bottom-1 duration-150',
         )}
       >
-        <div className="flex items-baseline justify-between gap-2 px-3 pt-2.5 pb-1.5 shrink-0">
-          <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Location scope</p>
-          {locations.length > 0 && (
-            <span data-figure className="text-micro text-muted-foreground">
-              {locations.length}
-            </span>
-          )}
-        </div>
-
+        {/* No heading: the listbox is named for screen readers, and the trigger
+            it opened from already says what this is. */}
         {showFilter && (
-          <div className="relative px-3 pb-2 shrink-0">
+          <div className="relative px-3 pt-2.5 pb-2 shrink-0">
             <Search size={13} aria-hidden="true" className="absolute left-5.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               value={query}
@@ -262,7 +255,7 @@ export function LocationPicker() {
           </div>
         )}
 
-        <div className="overflow-y-auto pb-1">
+        <div className={cn('overflow-y-auto pb-1', !showFilter && 'pt-1')}>
           {options.map((option, index) => {
             const selected = option ? option.id === locationId : !locationId;
             const isActive = index === activeIndex;
@@ -278,22 +271,29 @@ export function LocationPicker() {
                 aria-selected={selected}
                 onClick={() => select(option)}
                 onPointerEnter={() => setActiveIndex(index)}
-                className={cn('w-full flex items-start gap-2 px-3 py-2 text-left transition-colors', isActive && 'bg-band')}
+                className={cn('w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors', isActive && 'bg-band')}
               >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'flex size-8 shrink-0 items-center justify-center rounded-md text-xs font-semibold uppercase select-none',
+                    TONE_TINT[option && !option.isActive ? 'muted' : 'primary'],
+                  )}
+                >
+                  {option ? initialsOf(option.name) : <MapPin size={15} />}
+                </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
                     <span className={cn('truncate text-sm', selected ? 'font-medium text-foreground' : 'text-foreground/85')}>
                       {option ? option.name : 'All locations'}
                     </span>
-                    {option && !option.isActive && (
-                      <span className="shrink-0 text-micro font-semibold uppercase tracking-micro text-muted-foreground">Inactive</span>
-                    )}
+                    {option && !option.isActive && <StatusDot tone="muted" label="Inactive" />}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground mt-0.5">
                     {option ? option.address : 'Every site you can access'}
                   </span>
                 </span>
-                {selected && <Check size={14} aria-hidden="true" className="mt-1 shrink-0 text-primary" />}
+                {selected && <Check size={14} aria-hidden="true" className="shrink-0 text-primary" />}
               </button>
             );
           })}

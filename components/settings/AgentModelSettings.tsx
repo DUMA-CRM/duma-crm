@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 
-import { BookMarked } from '@/components/icons';
 import { ModelChoiceList } from '@/components/ai/ModelChoice';
+import { BookMarked, Pencil } from '@/components/icons';
 import { AgentMemoryDrawer } from '@/components/settings/AgentMemoryDrawer';
 import { SettingsSection as Section } from '@/components/settings/SettingsSection';
 import { SettingRow } from '@/components/settings/controls';
@@ -22,7 +22,16 @@ export function AgentModelSettings() {
   return (
     <Section title="Ask DUMA">
       <SettingRow icon={BookMarked} title="Ask DUMA memory">
-        <Button variant="outline" size="sm" onClick={() => setMemoryOpen(true)}>Edit</Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          title="Edit memory"
+          aria-label="Edit Ask DUMA memory"
+          onClick={() => setMemoryOpen(true)}
+        >
+          <Pencil aria-hidden="true" />
+        </Button>
       </SettingRow>
       <ModelChoiceList />
       {memoryOpen && <AgentMemoryDrawer onClose={() => setMemoryOpen(false)} />}

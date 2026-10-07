@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { STATUS_ICON, STATUS_META, fmtAgo, ticketKey } from '@/components/helpdesk/shared';
 import { ChevronRight, CircleHelp } from '@/components/icons';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 
 import type { HelpdeskTicket, TicketStatus } from '@/lib/modules/people/client';
@@ -13,7 +14,10 @@ import { openTicketsFor, recordRequestList } from '@/lib/utils/employee-record';
 import { RecordBlock, RecordList, RecordListRow } from './shared';
 
 /** A ticket's status as the row's tint and pill — waiting on them is the one that wants attention. */
-const STATUS_ROW: Record<TicketStatus, { tone: 'team' | 'money' | 'reference' | 'muted'; pill: 'success' | 'warning' | 'exception' | null }> = {
+const STATUS_ROW: Record<
+  TicketStatus,
+  { tone: 'team' | 'money' | 'reference' | 'muted'; pill: 'success' | 'warning' | 'exception' | null }
+> = {
   open: { tone: 'reference', pill: null },
   in_progress: { tone: 'team', pill: null },
   waiting_employee: { tone: 'money', pill: 'warning' },
@@ -76,7 +80,7 @@ export function EmployeeRequestsCard({
           onRetry={onRetry}
         />
       ) : loading ? (
-        <div className="h-32 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+        <ListSkeleton rows={3} label="Loading requests" />
       ) : (
         <RecordList>
           {shown.length === 0 ? (

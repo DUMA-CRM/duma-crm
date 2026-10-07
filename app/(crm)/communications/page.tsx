@@ -13,10 +13,12 @@ import { SuppressionsPanel } from '@/components/communications/SuppressionsPanel
 import { TemplateEditorPage } from '@/components/communications/TemplateEditorPage';
 import { TemplatesPanel } from '@/components/communications/TemplatesPanel';
 import { useEmailAccess } from '@/components/communications/useEmailAccess';
-import { Activity, CheckCircle2, FileText, Loader2, MailX, Plus, Send, ShieldOff, TriangleAlert, Zap } from '@/components/icons';
+import { Activity, CheckCircle2, FileText, MailX, Plus, Send, ShieldOff, TriangleAlert, Zap } from '@/components/icons';
+import type { IconComponent } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
+import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -122,7 +124,6 @@ function CommunicationsView() {
   });
   const connectionStatus = connectionState(connection, access.canReadConnection);
   const activeTemplates = useMemo(() => templates.filter((template) => template.isActive), [templates]);
-  const sendingCount = automations.filter((automation) => automation.isEnabled).length;
   // Failures on the newest page — surfaced on the History tab so they aren't missed.
   const failedCount = (deliveries?.data ?? []).filter((delivery) => delivery.status === 'failed').length;
 
@@ -131,20 +132,10 @@ function CommunicationsView() {
       { value: 'overview', label: 'Overview', icon: Activity },
       // Zap is the trigger glyph inside the workflow editor, so an automation
       // wears the same mark in the nav as it does on its own canvas.
-      {
-        value: 'automations',
-        label: 'Automations',
-        icon: Zap,
-        count: sendingCount,
-        countLabel: `${sendingCount} sending`,
-      },
-      {
-        value: 'templates',
-        label: 'Templates',
-        icon: FileText,
-        count: activeTemplates.length,
-        countLabel: `${activeTemplates.length} templates`,
-      },
+      // Only failures are counted: a tab badge is for something waiting on
+      // someone, and the live/template totals are already the Overview's tiles.
+      { value: 'automations', label: 'Automations', icon: Zap },
+      { value: 'templates', label: 'Templates', icon: FileText },
       {
         value: 'history',
         label: 'History',
@@ -155,7 +146,7 @@ function CommunicationsView() {
       },
       { value: 'suppressions', label: 'Suppressions', icon: ShieldOff },
     ],
-    [activeTemplates.length, sendingCount, failedCount],
+    [failedCount],
   );
 
   if (!tenantId) {
@@ -179,9 +170,9 @@ function CommunicationsView() {
         />
       );
     }
-    if (!templatesFetched) return <LoadingShell onClose={closeEditors} />;
+    if (!templatesFetched) return <LoadingShell label="Loading the template" onClose={closeEditors} />;
     const template = templates.find((item) => item.id === templateParam);
-    if (!template) return <MissingShell title="Template not found" onClose={closeEditors} />;
+    if (!template) return <MissingShell title="Template not found" icon={FileText} onClose={closeEditors} />;
     return <TemplateEditorPage template={template} onClose={closeEditors} onOpenConnection={openConnection} />;
   }
 
@@ -194,9 +185,9 @@ function CommunicationsView() {
     if (automationParam === 'new') {
       return <AutomationEditorPage {...shared} onSaved={(saved) => navigate({ automation: saved.id, preset: null }, 'replace')} />;
     }
-    if (!automationsFetched) return <LoadingShell onClose={closeEditors} />;
+    if (!automationsFetched) return <LoadingShell label="Loading the automation" onClose={closeEditors} />;
     const automation = automations.find((item) => item.id === automationParam);
-    if (!automation) return <MissingShell title="Automation not found" onClose={closeEditors} />;
+    if (!automation) return <MissingShell title="Automation not found" icon={Zap} onClose={closeEditors} />;
     return <AutomationEditorPage automation={automation} {...shared} />;
   }
 
@@ -249,8 +240,6 @@ function CommunicationsView() {
       <div className="space-y-5">
         {tab === 'overview' && (
           <OverviewPanel
-            connection={connectionStatus}
-            onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined}
             onOpenAutomations={() => navigate({ tab: 'automations' }, 'replace')}
             onOpenAutomation={(id) => navigate({ automation: id })}
             onOpenFailures={() => navigate({ tab: 'history', status: 'failed' }, 'replace')}
@@ -348,25 +337,25 @@ function ConnectionStatus({ state, onOpenConnection }: { state: ConnectionState;
   );
 }
 
-function LoadingShell({ onClose }: { onClose: () => void }) {
+function LoadingShell({ label, onClose }: { label: string; onClose: () => void }) {
   return (
     <EditorShell title="Loading…" onClose={onClose}>
-      <div className="flex items-center justify-center py-24 text-muted-foreground">
-        <Loader2 size={22} className="animate-spin" />
-      </div>
+      <LoadingState label={label} className="py-24" />
     </EditorShell>
   );
 }
 
-function MissingShell({ title, onClose }: { title: string; onClose: () => void }) {
+function MissingShell({ title, icon, onClose }: { title: string; icon: IconComponent; onClose: () => void }) {
   return (
     <EditorShell title={title} onClose={onClose}>
-      <div className="mx-auto max-w-md rounded-sm border border-rule bg-card shadow-sm p-6 text-center">
-        <p className="text-sm text-muted-foreground">It may have been deleted, or the link is out of date.</p>
-        <Button variant="outline" className="mt-4" onClick={onClose}>
-          Back to Communications
-        </Button>
-      </div>
+      <EmptyState
+        icon={icon}
+        title={title}
+        description="It may have been deleted, or the link is out of date."
+        kind="gone"
+        action={{ label: 'Back to Communications', onClick: onClose }}
+        compact
+      />
     </EditorShell>
   );
 }

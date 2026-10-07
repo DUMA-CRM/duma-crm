@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 
-import { ArrowDown, ArrowUp, ChevronsUpDown } from '@/components/icons';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown } from '@/components/icons';
+import { Bone } from '@/components/shared/Skeleton';
 
 import { cn } from '@/lib/utils';
 
@@ -158,11 +159,28 @@ function TablePagination({
         <p className="text-xs tabular-nums whitespace-nowrap text-muted-foreground" aria-live="polite">
           Page {page.toLocaleString()} of {totalPages.toLocaleString()}
         </p>
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-          Previous
+        {/* "Page x of y" frames the arrows, so they carry no words. */}
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label="Previous page"
+          title="Previous page"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+        >
+          <ChevronLeft aria-hidden="true" />
         </Button>
-        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
-          Next
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label="Next page"
+          title="Next page"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+        >
+          <ChevronRight aria-hidden="true" />
         </Button>
       </div>
     </div>
@@ -388,13 +406,13 @@ function DeclarativeTableContent<T>({
           })}
         </tr>
       </thead>
-      <tbody>
+      <tbody aria-busy={isLoading || undefined}>
         {isLoading ? (
           loadingState ? (
             <StateRow colSpan={stateColSpan}>{loadingState}</StateRow>
           ) : (
             Array.from({ length: loadingRows }).map((_, rowIndex) => (
-              <tr key={`loading-${rowIndex}`} className="animate-pulse">
+              <tr key={`loading-${rowIndex}`}>
                 {columns.map((column, columnIndex) => (
                   <td
                     key={column.id}
@@ -405,7 +423,14 @@ function DeclarativeTableContent<T>({
                     )}
                     style={columnStyle(column)}
                   >
-                    <span className="block h-4 rounded bg-muted" style={{ width: `${44 + ((rowIndex * 17 + columnIndex * 13) % 42)}%` }} />
+                    {rowIndex === 0 && columnIndex === 0 && (
+                      <span role="status" className="sr-only">
+                        Loading
+                      </span>
+                    )}
+                    <span className="block" style={{ width: `${44 + ((rowIndex * 17 + columnIndex * 13) % 42)}%` }}>
+                      <Bone className="h-4 w-full" />
+                    </span>
                   </td>
                 ))}
               </tr>

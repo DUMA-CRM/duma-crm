@@ -4,14 +4,15 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
-import { ChefHat, Loader2, UtensilsCrossed } from '@/components/icons';
+import { ChefHat, UtensilsCrossed } from '@/components/icons';
 import { DeleteMenuItemButton } from '@/components/menu/DeleteMenuItemButton';
 import { MenuItemForm } from '@/components/menu/MenuItemForm';
 import { RecipeEditor } from '@/components/menu/RecipeEditorPage';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
-import { Button } from '@/components/ui/button';
+import { LoadingState } from '@/components/shared/Skeleton';
+import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 
 import { getMenuItems } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -42,6 +43,7 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'recipe' && menuItemId ? 'recipe' : 'details');
   const [pending, setPending] = useState(false);
+  const [justSaved, flashSaved] = useDoneBeat();
   const [dirty, setDirty] = useState(false);
 
   const { data: items = [], isLoading } = useQuery({
@@ -58,12 +60,11 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
     return (
       <EditorShell title="Menu item" onClose={() => router.push('/menu/items')}>
         {isLoading ? (
-          <div className="flex items-center justify-center py-24 text-muted-foreground">
-            <Loader2 size={22} className="animate-spin" />
-          </div>
+          <LoadingState label="Loading the menu item" />
         ) : (
           <EmptyState
             icon={UtensilsCrossed}
+            kind="gone"
             title="This menu item no longer exists"
             description="It may have been deleted from another device."
           />
@@ -88,10 +89,9 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
           {item && <DeleteMenuItemButton item={item} onDeleted={() => router.push('/menu/items')} />}
           {/* Only the details form is a <form>; the recipe tab saves itself. */}
           {tab === 'details' && (
-            <Button type="submit" form={MENU_ITEM_FORM_ID} disabled={pending} className="h-9 gap-2 px-5">
-              {pending && <Loader2 size={15} className="animate-spin" />}
-              {pending ? 'Saving…' : item ? 'Save changes' : 'Create item'}
-            </Button>
+            <ActionButton type="submit" form={MENU_ITEM_FORM_ID} pending={pending} done={justSaved} className="h-9 min-w-36 px-5">
+              {item ? 'Save changes' : 'Create item'}
+            </ActionButton>
           )}
         </>
       }
@@ -106,7 +106,7 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
           // Creating navigates to the new item's own URL, so the address bar
           // and the Back button both stay honest.
           onCreated={(created) => router.replace(`/menu/items/${created.id}`)}
-          onSaved={() => undefined}
+          onSaved={flashSaved}
         />
       ) : (
         <RecipeEditor menuItemId={item.id} price={item.price} vatRate={item.vatRate} />

@@ -3,7 +3,10 @@
 import Link from 'next/link';
 
 import { DailyTargetControl } from '@/components/dashboard/DailyTargetControl';
-import { ArrowRight, Target, TrendingDown, TrendingUp } from '@/components/icons';
+import { ArrowUpRight, Target, TrendingDown, TrendingUp } from '@/components/icons';
+import { Bone } from '@/components/shared/Skeleton';
+import { Tooltip } from '@/components/shared/Tooltip';
+import { Button } from '@/components/ui/button';
 
 import type { DayBaseline, HourlyVolume } from '@/lib/modules/analytics/client';
 import { cn } from '@/lib/utils/cn';
@@ -204,7 +207,8 @@ function TodayCurve({
             className="pointer-events-none absolute right-0 -translate-y-1/2 rounded-sm bg-card px-1.5 text-micro font-bold text-primary"
             style={{ top: `${yAt(target.target)}%` }}
           >
-            Target {formatMoney(target.target)}
+            {/* The figure lives on the target control above; the line only needs naming. */}
+            Target
           </span>
         )}
       </div>
@@ -248,7 +252,6 @@ function TodayCurve({
 export function TakenTodayPanel({
   day,
   takenSoFar,
-  orderCount,
   hourly,
   baseline,
   pace,
@@ -260,7 +263,6 @@ export function TakenTodayPanel({
 }: {
   day: TradingDay;
   takenSoFar: number;
-  orderCount: number;
   hourly: HourlyVolume[];
   baseline: DayBaseline | undefined;
   pace: Pace;
@@ -286,23 +288,25 @@ export function TakenTodayPanel({
               ? 'No trade to measure — here is what a typical day looks like.'
               : day.state === 'before-open'
                 ? 'What a typical day looks like, and what you are aiming at.'
-                : `Net of refunds, against a typical ${day.weekday} by this time.`}
+                : 'Net of refunds.'}
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-1">
           {locationId && <DailyTargetControl locationId={locationId} target={target?.target ?? dailyTarget} />}
-          <Link
-            href="/reports"
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-band hover:text-foreground"
-          >
-            Reports
-            <ArrowRight size={13} aria-hidden="true" />
-          </Link>
+          <Tooltip label="Reports" side="top">
+            <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground">
+              <Link href="/reports" aria-label="Open Reports">
+                <ArrowUpRight size={15} aria-hidden="true" />
+              </Link>
+            </Button>
+          </Tooltip>
         </div>
       </div>
 
       {loading ? (
-        <div className="mt-5 h-10 w-48 animate-pulse rounded-sm bg-band" aria-hidden="true" />
+        <div className="mt-4" role="status" aria-busy="true" aria-label="Loading today’s takings">
+          <Bone className="h-8 w-40 sm:h-10 sm:w-48" />
+        </div>
       ) : (
         <div className="mt-4 flex flex-wrap items-end gap-x-5 gap-y-2">
           {day.state === 'closed-today' ? (
@@ -326,10 +330,10 @@ export function TakenTodayPanel({
             </>
           ) : (
             <>
+              {/* The order count is the KPI row's Orders card; it is not repeated here. */}
               <p data-figure className="text-2xl font-semibold text-foreground sm:text-metric">
                 {formatMoney(takenSoFar)}
               </p>
-              <p className="pb-1 text-sm text-muted-foreground">{orderCount} orders</p>
             </>
           )}
         </div>
@@ -344,9 +348,11 @@ export function TakenTodayPanel({
                   'inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-xs font-semibold',
                   ahead ? 'border-momentum/60 bg-momentum/6 text-momentum' : 'border-exception/60 bg-exception/6 text-exception',
                 )}
+                // The comparison is named once, in the chart legend; the pill only says which way.
+                title={`${ahead ? 'Ahead of' : 'Behind'} a typical ${day.weekday} by this time`}
               >
                 {ahead ? <TrendingUp size={13} aria-hidden="true" /> : <TrendingDown size={13} aria-hidden="true" />}
-                {formatMoney(Math.abs(pace.delta))} {ahead ? 'ahead of' : 'behind'} typical
+                {formatMoney(Math.abs(pace.delta))} {ahead ? 'ahead' : 'behind'}
                 {pace.deltaPct !== null && (
                   <span className="font-normal">
                     ({pace.deltaPct > 0 ? '+' : ''}
@@ -377,7 +383,7 @@ export function TakenTodayPanel({
               title={target.spreadEvenly ? 'Target spread evenly across the day — no baseline shape available yet.' : undefined}
             >
               <Target size={13} aria-hidden="true" />
-              {Math.round(target.progress * 100)}% of {formatMoney(target.target)}
+              {Math.round(target.progress * 100)}%<span className="sr-only"> of today&rsquo;s target</span>
             </span>
           )}
         </div>

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { ChefHat, Plus, Search, UtensilsCrossed, X } from '@/components/icons';
+import { ChefHat, CircleDollarSign, Plus, Search, UtensilsCrossed, X } from '@/components/icons';
 import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
 import { MenuSetupChecklist } from '@/components/menu/MenuSetupChecklist';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
@@ -14,7 +14,10 @@ import { Switch } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { IconTag } from '@/components/shared/IconTag';
 import { NeedsAttention } from '@/components/shared/NeedsAttention';
+import { Pill } from '@/components/shared/Pill';
+import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -101,10 +104,20 @@ export function MenuItemsWorkspace() {
       ) : itemsQuery.isError ? (
         <ErrorState title="Couldn’t load the menu" onRetry={() => void itemsQuery.refetch()} />
       ) : itemsQuery.isPending ? (
-        <div className="space-y-3" aria-label="Loading menu">
-          {Array.from({ length: 5 }, (_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-lg bg-band/60" />
-          ))}
+        // The search and category row, then a category: its label and the card of items.
+        <div role="status" aria-busy="true" aria-label="Loading the menu" className="space-y-5">
+          <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
+            <Bone className="h-9 min-w-56 flex-1 lg:max-w-xs" />
+            <Bone className="h-9 w-48" />
+          </div>
+          <div>
+            <Bone className="mb-2 h-3 w-24" />
+            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              {Array.from({ length: 5 }, (_, index) => (
+                <RowSkeleton key={index} index={index} />
+              ))}
+            </div>
+          </div>
         </div>
       ) : items.length === 0 ? (
         <MenuSetupChecklist />
@@ -127,7 +140,7 @@ export function MenuItemsWorkspace() {
                 leftIcon={<Search size={14} />}
                 placeholder="Find an item"
                 aria-label="Find an item"
-                className="border-rule bg-background"
+                className="border-rule"
                 rightAction={
                   search ? (
                     <button
@@ -168,19 +181,26 @@ export function MenuItemsWorkspace() {
           )}
 
           {groups.length === 0 ? (
-            <motion.div variants={SECTION_RISE} className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-              <EmptyState icon={Search} title="Nothing matches" description="Try another search or category." />
+            <motion.div variants={SECTION_RISE}>
+              <EmptyState
+                icon={Search}
+                kind="search"
+                title="Nothing matches"
+                description="Try another search or category."
+                action={{
+                  label: 'Clear filters',
+                  onClick: () => {
+                    setSearch('');
+                    setCategoryFilter('all');
+                  },
+                }}
+              />
             </motion.div>
           ) : (
             groups.map((group) => {
               return (
                 <motion.section key={group.id} variants={SECTION_RISE} aria-label={group.name}>
-                  <h2 className="mb-2 flex items-center gap-2 text-label uppercase text-muted-foreground">
-                    {group.name}
-                    <span className="normal-case tabular-nums">
-                      {group.available}/{group.items.length} on the menu
-                    </span>
-                  </h2>
+                  <h2 className="mb-2 text-label uppercase text-muted-foreground">{group.name}</h2>
                   <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
                     {group.items.map((item) => (
                       <ItemRow
@@ -267,7 +287,6 @@ function ItemRow({
       <Link
         href={`/menu/items/${item.id}`}
         className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
-        aria-label={`Open ${item.name}`}
       >
         {item.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -286,22 +305,21 @@ function ItemRow({
             <span className={cn('truncate text-sm font-semibold', item.isAvailable ? 'text-foreground' : 'text-muted-foreground')}>
               {item.name}
             </span>
-            {/* Only what's missing — a complete item says nothing extra. */}
-            {gaps.map((gap) => (
-              <span
-                key={gap}
-                className={cn(
-                  'hidden shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold md:inline',
-                  gap === 'No image' ? 'bg-band text-muted-foreground' : 'bg-measured/10 text-measured',
-                )}
-              >
-                {gap}
-              </span>
-            ))}
+            {/* Only what's missing — a complete item says nothing extra. A missing
+                image is already the placeholder thumbnail, so it isn't said twice. */}
+            {gaps
+              .filter((gap) => gap !== 'No image')
+              .map((gap) => (
+                <IconTag
+                  key={gap}
+                  icon={gap === 'No recipe' ? ChefHat : CircleDollarSign}
+                  label={gap}
+                  tone="warning"
+                  className="hidden md:inline-flex"
+                />
+              ))}
           </span>
-          <span className="block truncate text-xs text-muted-foreground">
-            {item.description || (item.isAvailable ? 'On the menu' : 'Off the menu')}
-          </span>
+          {item.description && <span className="block truncate text-xs text-muted-foreground">{item.description}</span>}
         </span>
       </Link>
 
@@ -309,20 +327,17 @@ function ItemRow({
       <span className="w-20 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
         {formatMoney(Number(item.price) || 0, 2)}
       </span>
-      <span className="flex w-24 shrink-0 items-center justify-end gap-2">
-        <span className={cn('text-micro font-semibold', item.isAvailable ? 'text-momentum' : 'text-muted-foreground')}>
-          {item.isAvailable ? 'On' : 'Off'}
-        </span>
+      <span className="flex w-24 shrink-0 items-center justify-end">
         <Switch label={`${item.name} on the menu`} checked={item.isAvailable} disabled={togglePending} onChange={onToggle} />
       </span>
     </li>
   );
 }
 
-/** Margin and cost, or why there's none — an uncosted item never shows a flattering 100%. */
+/** Margin and cost, or why there's none — an uncosted item never shows a flattering 100%.
+    The chip's tone uses the same line the recipe screen does: in the red is a loss. */
 function Margin({ cost }: { cost?: MenuItemCost }) {
-  if (!cost || cost.loading)
-    return <span className="hidden h-8 w-32 shrink-0 animate-pulse rounded-sm bg-band/60 sm:block" aria-hidden="true" />;
+  if (!cost || cost.loading) return <Bone className="hidden h-8 w-32 shrink-0 rounded-sm sm:block" />;
   if (!cost.costComplete)
     return (
       <span className="hidden w-32 shrink-0 text-right sm:block">
@@ -332,10 +347,10 @@ function Margin({ cost }: { cost?: MenuItemCost }) {
     );
   const { cogs, margin, marginPct } = cost.costing!;
   return (
-    <span className="hidden w-32 shrink-0 text-right tabular-nums sm:block">
-      <span className={cn('block text-sm font-semibold', margin >= 0 ? 'text-momentum' : 'text-exception')}>
-        {formatMoney(margin, 2)} <span className="text-xs font-normal text-muted-foreground">{marginPct.toFixed(0)}%</span>
-      </span>
+    <span className="hidden w-32 shrink-0 flex-col items-end gap-0.5 tabular-nums sm:flex">
+      <Pill tone={margin >= 0 ? 'success' : 'exception'} className="tabular-nums">
+        {formatMoney(margin, 2)} · {marginPct.toFixed(0)}%
+      </Pill>
       <span className="block text-xs text-muted-foreground">cost {formatMoney(cogs, 2)}</span>
     </span>
   );

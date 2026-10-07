@@ -14,17 +14,19 @@ import {
   Monitor,
   Moon,
   ShieldCheck,
+  ShieldOff,
   SlidersHorizontal,
   Sun,
 } from '@/components/icons';
 import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { AgentModelSettings } from '@/components/settings/AgentModelSettings';
+import { BrandPicker } from '@/components/settings/BrandPicker';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact, SettingRow, SettingRows } from '@/components/settings/controls';
+import { IconTag } from '@/components/shared/IconTag';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { Modal } from '@/components/shared/Modal';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
@@ -38,7 +40,6 @@ const THEMES = [
   { value: 'dark', label: 'Dark', detail: 'Easier on the eyes in low light.', icon: Moon },
   { value: 'system', label: 'System', detail: 'Follows this device’s setting.', icon: Monitor },
 ] as const;
-
 
 const humanise = (role: string) => role.charAt(0).toUpperCase() + role.slice(1).replaceAll('_', ' ');
 
@@ -68,13 +69,17 @@ export function ProfileTab() {
         <>
           <SettingsSection title="This device">
             <SettingRows>
-                <SettingRow icon={SlidersHorizontal} title="Till and kitchen screen" description="Layout, favourites, scanner and the order chime.">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href="/settings/configuration">Configuration</Link>
-                  </Button>
-                </SettingRow>
-                <InstallRow />
-              </SettingRows>
+              <SettingRow
+                icon={SlidersHorizontal}
+                title="Till and kitchen screen"
+                description="Layout, favourites, scanner and the order chime."
+              >
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/settings/configuration">Configuration</Link>
+                </Button>
+              </SettingRow>
+              <InstallRow />
+            </SettingRows>
           </SettingsSection>
           <AgentModelSettings />
         </>
@@ -93,7 +98,13 @@ export function ProfileTab() {
             <p className="mt-1.5 flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground sm:justify-start">
               <Mail size={15} aria-hidden="true" />
               <span className="truncate">{user?.email}</span>
-              {user && <Badge variant={user.emailVerified ? 'success' : 'muted'}>{user.emailVerified ? 'Verified' : 'Not verified'}</Badge>}
+              {user && (
+                <IconTag
+                  icon={user.emailVerified ? ShieldCheck : ShieldOff}
+                  label={user.emailVerified ? 'Email verified' : 'Email not verified'}
+                  tone={user.emailVerified ? 'success' : 'muted'}
+                />
+              )}
             </p>
           </div>
         </div>
@@ -118,6 +129,14 @@ export function ProfileTab() {
           onChange={setTheme}
           choices={THEMES}
         />
+      </SettingsSection>
+
+      <SettingsSection
+        title="Brand colour"
+        description="Buttons, links, the navigation bar and the DUMA assistant take this colour. Status colours keep their meaning whichever you pick."
+        footnote="Saved on this device only for now."
+      >
+        <BrandPicker />
       </SettingsSection>
     </SettingsTabBody>
   );

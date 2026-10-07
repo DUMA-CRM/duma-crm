@@ -64,3 +64,37 @@ export function describeProviders(): AgentProviderInfo[] {
     .filter(({ id }) => id !== 'nvidia')
     .map(({ id, model, label }) => ({ id, model, name: label }));
 }
+
+/**
+ * One plain completion — no tools, no streaming to the caller — over the same
+ * configured providers, falling through to the next on failure. For short
+ * writing help (Content's assist), not for the agent loop.
+ */
+export async function completeText(messages: Array<Record<string, unknown>>, options: { maxTokens?: number; temperature?: number; signal?: AbortSignal } = {}): Promise<string> {
+  const candidates: Array<{ id: string; url: string; model: string; key: string }> = [];
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const routerKey = process.env.OPENROUTER_API_KEY;
+  if (geminiKey) candidates.push({ id: 'gemini', url: GEMINI_URL, model: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite', key: geminiKey });
+  if (routerKey) candidates.push({ id: 'openrouter', url: OPENROUTER_URL, model: process.env.OPENROUTER_MODEL || 'google/gemma-4-31b-it:free', key: routerKey });
+  if (candidates.length === 0) throw new Error('No AI provider is configured.');
+  let last: unknown;
+  for (const candidate of candidates) {
+    try {
+      const reply = await completeChat({
+        url: candidate.url,
+        headers: {
+          Authorization: `Bearer ${candidate.key}`,
+          ...(candidate.id !== 'gemini' ? { 'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://duma.app', 'X-Title': 'DUMA Content' } : {}),
+        },
+        provider: AGENT_PROVIDER_NAMES[candidate.id] ?? candidate.id,
+        signal: options.signal,
+        body: { model: candidate.model, messages, temperature: options.temperature ?? 0.4, max_tokens: options.maxTokens ?? 600 },
+      });
+      const text = typeof reply.content === 'string' ? reply.content.trim() : '';
+      if (text) return text;
+    } catch (error) {
+      last = error;
+    }
+  }
+  throw last instanceof Error ? last : new Error('No answer from the AI provider.');
+}

@@ -16,6 +16,7 @@ import {
   Users,
   UsersRound,
   UtensilsCrossed,
+  Layers,
 } from '@/components/icons';
 
 import { type Capability, hasAnyCapability } from '@/lib/auth/capabilities';
@@ -41,43 +42,55 @@ export interface NavItem {
   children?: Omit<NavItem, 'children'>[];
 }
 
+/*
+  One list, no headings, in the order a day runs: what's happening now (till,
+  kitchen, orders), what you sell (menu, stock), who you sell to (customers,
+  communications), who does the work (staff, then your own rota and HR), and
+  how it went — which keeps its "Reports" heading in `analyticsNavItems`.
+  Neighbours are related, so the order does the grouping a heading would.
+
+  Labels are the page titles — "POS Terminal", "Fulfilment" and "Products" used
+  to open pages titled Till, Kitchen and Menu.
+*/
 export const mainNavItems: NavItem[] = [
   { module: 'analytics', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { module: 'people', label: 'My HR', href: '/my-hr', icon: HeartHandshake },
-  // Everyone's own rota. The team rota and shift cover live in the staff workspace.
-  { module: 'workforce', label: 'My Rota', href: '/scheduling', icon: CalendarDays },
-  // `marketing_manager` reaches this for the first time here — the old rank
-  // threshold hid it from the role whose job it is.
-  { module: 'customers', label: 'Customers', href: '/customers', icon: Users, capabilities: ['customers:read'] },
-  { module: 'communications', label: 'Communications', href: '/communications', icon: Mail, capabilities: ['email:read'] },
-  { module: 'pos', label: 'POS Terminal', href: '/pos', icon: Monitor, capabilities: ['orders:create'] },
-  { module: 'ordering', label: 'Fulfilment', href: '/kds', icon: ChefHat, capabilities: ['orders:status'], surface: 'fulfilment' },
-  { module: 'catalog', label: 'Products', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'] },
-  // One entry: stock, restock demand, purchase orders, suppliers and stocktakes
-  // are tabs of /inventory.
-  // `stock:read` rather than `inventory:read` — till staff hold the latter so
-  // they can record waste, and gating on it would put Inventory in the POS nav.
-  { module: 'inventory', label: 'Inventory', href: '/inventory', icon: Package, capabilities: ['stock:read'] },
+  { module: 'pos', label: 'Till', href: '/pos', icon: Monitor, capabilities: ['orders:create'] },
+  { module: 'ordering', label: 'Kitchen', href: '/kds', icon: ChefHat, capabilities: ['orders:status'], surface: 'fulfilment' },
   { module: 'ordering', label: 'Orders', href: '/orders', icon: ShoppingBag, capabilities: ['orders:read'] },
   // No End of day entry: opening and closing the trading day is done in the
   // till, at the drawer (2026-10-04). Reports keeps the read-only history.
-  // One entry: team, rota, shifts, leave, helpdesk and payroll are tabs of the
-  // staff workspace, each on its own route.
+  { module: 'catalog', label: 'Menu', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'] },
+  // One entry: stock, restock demand, purchase orders, suppliers and
+  // stocktakes are tabs of /inventory. `stock:read` rather than
+  // `inventory:read` — till staff hold the latter so they can record waste,
+  // and gating on it would put Inventory in the POS nav.
+  { module: 'inventory', label: 'Inventory', href: '/inventory', icon: Package, capabilities: ['stock:read'] },
+  // `marketing_manager` reaches this — the old rank threshold hid it from
+  // the role whose job it is.
+  { module: 'customers', label: 'Customers', href: '/customers', icon: Users, capabilities: ['customers:read'] },
+  { module: 'communications', label: 'Communications', href: '/communications', icon: Mail, capabilities: ['email:read'] },
+  // Website and app content, served to the tenant's own sites over an API key.
+  { module: 'cms', label: 'Content', href: '/content', icon: Layers, capabilities: ['cms:read'] },
+  // One entry: team, rota, shifts, leave, helpdesk and payroll are tabs of
+  // the staff workspace, each on its own route.
   { module: 'people', label: 'Staff', href: '/staff', icon: UsersRound, capabilities: ['staff:read', 'hr.people:read'] },
+  // Everyone's own rota and HR — beside the team they belong to, not at the
+  // top of a manager's nav. The team rota and shift cover live in Staff.
+  { module: 'workforce', label: 'My rota', href: '/scheduling', icon: CalendarDays },
+  { module: 'people', label: 'My HR', href: '/my-hr', icon: HeartHandshake },
   // Workspaces and locations are a tab of Settings — organisation structure is
-  // set up once, so it belongs with the other administration, not in the
-  // day-to-day nav.
+  // set up once, so it belongs with the other administration in the footer.
 ];
 
+// Under a "Reports" heading in the sidebar — looking back at the business,
+// rather than running it.
 export const analyticsNavItems: NavItem[] = [
   { module: 'analytics', label: 'Reports', href: '/reports', icon: BarChart3, capabilities: ['analytics:read'] },
-  // Subject access and erasure requests, moved out of the Customers page: a
-  // workload with statutory deadlines is not a way of browsing customers, and
-  // burying it behind a list made it easy to forget a clock was running.
+  // Subject access and erasure requests, out of Customers: a workload with
+  // statutory deadlines is not a way of browsing customers.
   { module: 'compliance', label: 'Compliance', href: '/compliance', icon: ShieldCheck, capabilities: ['privacy:read'] },
-  // `auditor` reaches this for the first time — the role existed to read the
-  // audit log and the old franchise_owner rank threshold shut it out.
-  { module: 'audit', label: 'Audit Log', href: '/audit-log', icon: History, capabilities: ['audit:read'] },
+  // `auditor` reaches this — the role exists to read the audit log.
+  { module: 'audit', label: 'Audit log', href: '/audit-log', icon: History, capabilities: ['audit:read'] },
 ];
 
 export const footerNavItems: NavItem[] = [

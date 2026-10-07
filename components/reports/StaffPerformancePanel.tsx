@@ -20,10 +20,13 @@ import {
   TrendingUp,
   Zap,
 } from '@/components/icons';
+import { SOURCE_META } from '@/components/orders/orderMeta';
 import { fmtDate, fmtMoney } from '@/components/people/shared';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { MiniBar } from '@/components/shared/MiniBar';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { StatCard, StatCardGrid, comparisonDelta } from '@/components/shared/StatCard';
+import { Bone } from '@/components/shared/Skeleton';
+import { StatCard, StatCardGrid, StatCardSkeleton, comparisonDelta } from '@/components/shared/StatCard';
 
 import { type StaffPerfWindowKey, getStaffPerformance } from '@/lib/modules/identity/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -96,13 +99,28 @@ export function StaffPerformancePanel({ userId }: { userId: string }) {
 
   if (isLoading) {
     return (
-      <div className="bg-card border border-rule rounded-sm p-5">
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-sm border border-rule bg-background animate-pulse" />
-          ))}
+      // The performance card as it lands: title and window switch, then the six stat cards.
+      <section
+        role="status"
+        aria-busy="true"
+        aria-label="Loading performance stats"
+        className="bg-card border border-rule rounded-sm overflow-hidden"
+      >
+        <div className="flex items-center justify-between gap-3 px-4 md:px-5 py-4 border-b border-rule flex-wrap" aria-hidden="true">
+          <div className="space-y-2">
+            <Bone className="h-4 w-44" />
+            <Bone className="h-3 w-32" />
+          </div>
+          <Bone className="h-8 w-56" />
         </div>
-      </div>
+        <div className="p-4 md:p-5">
+          <StatCardGrid columns={3}>
+            {Array.from({ length: 6 }, (_, index) => (
+              <StatCardSkeleton key={index} size="sm" />
+            ))}
+          </StatCardGrid>
+        </div>
+      </section>
     );
   }
 
@@ -140,8 +158,6 @@ export function StaffPerformancePanel({ userId }: { userId: string }) {
       ? `${fmtDate(w.firstOrderAt)} – ${fmtDate(w.lastOrderAt)}`
       : `${metrics.spanDays} calendar ${metrics.spanDays === 1 ? 'day' : 'days'}`;
   const slowTail = hasSlowTail(w);
-  const cancellationImproved = compared.cancellationRate < comparison.cancellationRate;
-  const paceImproved = compared.ordersPerCalendarDay > comparison.ordersPerCalendarDay;
 
   return (
     <div className="space-y-4">
@@ -152,9 +168,8 @@ export function StaffPerformancePanel({ userId }: { userId: string }) {
               <Gauge size={17} className="text-primary" aria-hidden="true" />
               <h2 className="font-semibold">Operational performance</h2>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {dateRange} · {w.totalOrders} orders · {w.activeDays} active {w.activeDays === 1 ? 'day' : 'days'}
-            </p>
+            {/* Orders and the daily rates are the cards below; this line only frames the window. */}
+            <p className="text-xs text-muted-foreground mt-1">{dateRange}</p>
           </div>
           <SegmentedControl options={PERF_WINDOWS} value={win} onChange={setWin} />
         </div>
@@ -334,8 +349,8 @@ export function StaffPerformancePanel({ userId }: { userId: string }) {
                 rows={[
                   // Order data, so these are the data roles in reading order —
                   // not the action colour and a raw Tailwind violet.
-                  { label: 'POS', value: w.bySource.pos, total: w.totalOrders, colour: 'bg-measured' },
-                  { label: 'Mobile', value: w.bySource.mobile, total: w.totalOrders, colour: 'bg-reference' },
+                  { label: SOURCE_META.pos.label, value: w.bySource.pos, total: w.totalOrders, colour: 'bg-measured' },
+                  { label: SOURCE_META.mobile.label, value: w.bySource.mobile, total: w.totalOrders, colour: 'bg-reference' },
                   { label: 'Other', value: otherSource, total: w.totalOrders, colour: 'bg-muted-foreground' },
                 ]}
               />
@@ -353,10 +368,8 @@ export function StaffPerformancePanel({ userId }: { userId: string }) {
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <DetailRow icon={Timer} label="Average" value={fmtMins(w.prepTime.measuredOrders, w.prepTime.avgMinutes)} />
-                <DetailRow icon={Clock} label="Median" value={fmtMins(w.prepTime.measuredOrders, w.prepTime.medianMinutes)} />
                 <DetailRow icon={ArrowDownRight} label="Fastest" value={fmtMins(w.prepTime.measuredOrders, w.prepTime.minMinutes)} />
                 <DetailRow icon={ArrowUpRight} label="Slowest" value={fmtMins(w.prepTime.measuredOrders, w.prepTime.maxMinutes)} />
-                <DetailRow icon={Target} label="Measured" value={`${w.prepTime.measuredOrders} orders`} />
                 <DetailRow icon={Gauge} label="Coverage" value={fmtPct(Math.min(100, metrics.prepCoverage))} />
               </div>
               {w.prepTime.measuredOrders === 0 && (
@@ -370,20 +383,27 @@ export function StaffPerformancePanel({ userId }: { userId: string }) {
               <div className="flex items-center gap-2 mb-4">
                 <CalendarDays size={16} className="text-primary" />
                 <div>
-                  <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Activity & value</p>
-                  <p className="text-xs text-muted-foreground mt-1">Work cadence and commercial contribution.</p>
+                  <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Activity</p>
+                  <p className="text-xs text-muted-foreground mt-1">Days with at least one attributed order.</p>
                 </div>
               </div>
-              <div className="grid sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-                <DetailRow icon={CalendarDays} label="Active days" value={`${w.activeDays} of ${metrics.spanDays}`} />
-                <DetailRow icon={Activity} label="Activity coverage" value={fmtPct(metrics.activityCoverage)} />
-                <DetailRow icon={Receipt} label="Orders / active day" value={metrics.ordersPerActiveDay.toFixed(1)} />
-                <DetailRow icon={Receipt} label="Orders / calendar day" value={metrics.ordersPerCalendarDay.toFixed(1)} />
-                <DetailRow icon={CircleDollarSign} label="Revenue / active day" value={fmtMoney(metrics.revenuePerActiveDay)} />
-                <DetailRow icon={CircleDollarSign} label="Revenue / calendar day" value={fmtMoney(metrics.revenuePerCalendarDay)} />
-                <DetailRow icon={Store} label="First order" value={w.firstOrderAt ? fmtDate(w.firstOrderAt) : '—'} />
-                <DetailRow icon={Store} label="Last order" value={w.lastOrderAt ? fmtDate(w.lastOrderAt) : '—'} />
+              {/* The per-day rates are the cards and the comparison above; the first and
+                  last order are the header's date line. Only the cadence is new here. */}
+              <div className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">Active days</span>
+                <span className="tabular-nums">
+                  <span className="font-semibold text-foreground">
+                    {w.activeDays} of {metrics.spanDays}
+                  </span>{' '}
+                  <span className="text-xs text-muted-foreground">· {fmtPct(metrics.activityCoverage)}</span>
+                </span>
               </div>
+              <MiniBar
+                value={metrics.activityCoverage}
+                max={100}
+                label={`Active on ${w.activeDays} of ${metrics.spanDays} days`}
+                className="mt-2"
+              />
             </section>
           </div>
 
@@ -396,25 +416,16 @@ export function StaffPerformancePanel({ userId }: { userId: string }) {
               </div>
             </div>
             <div className="grid md:grid-cols-2 gap-3">
-              <Insight tone={paceImproved ? 'good' : 'neutral'}>
-                Order pace is <strong className="text-foreground">{paceImproved ? 'above' : 'below'} the comparison baseline</strong> at{' '}
-                {compared.ordersPerCalendarDay.toFixed(1)} versus {comparison.ordersPerCalendarDay.toFixed(1)} orders per calendar day.
-              </Insight>
-              <Insight tone={cancellationImproved ? 'good' : compared.cancellationRate > comparison.cancellationRate ? 'watch' : 'neutral'}>
-                Cancellation rate is <strong className="text-foreground">{fmtPct(compared.cancellationRate)}</strong>, compared with{' '}
-                {fmtPct(comparison.cancellationRate)} in the baseline.
-              </Insight>
+              {/* Pace and cancellation against the baseline are the Comparison cards; these are the readings they don't give. */}
               <Insight tone={slowTail ? 'watch' : 'good'}>
                 {slowTail
                   ? 'Average prep is materially slower than the median, suggesting a tail of delayed orders worth reviewing.'
                   : 'Average and median prep are close, indicating relatively consistent measured fulfilment times.'}
               </Insight>
               <Insight tone={metrics.prepCoverage < 70 ? 'watch' : 'neutral'}>
-                Prep timing covers <strong className="text-foreground">{fmtPct(Math.min(100, metrics.prepCoverage))}</strong> of completed
-                orders.{' '}
                 {metrics.prepCoverage < 70
-                  ? 'Treat timing conclusions cautiously until coverage improves.'
-                  : 'Coverage is sufficient for a useful operational signal.'}
+                  ? 'Prep timing covers too few completed orders to lean on — treat timing conclusions cautiously until coverage improves.'
+                  : 'Prep timing covers enough completed orders for a useful operational signal.'}
               </Insight>
             </div>
             <p className="mt-4 text-label leading-relaxed text-muted-foreground">

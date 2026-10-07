@@ -1,8 +1,9 @@
 'use client';
 
-import { X } from '@/components/icons';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
+
+import { X } from '@/components/icons';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -22,6 +23,11 @@ interface ModalProps {
    * contract as `Drawer`, so a task reads the same whichever chrome it lands in.
    */
   footer?: React.ReactNode;
+  /**
+   * A picture above a centred title — `MascotGlyph`, for the dialogs that carry
+   * weight (cancelling an order). Without one the header is the plain left-aligned bar.
+   */
+  illustration?: React.ReactNode;
   /** Extra controls right of the title, left of the close button. */
   actions?: React.ReactNode;
   size?: ModalSize;
@@ -29,18 +35,20 @@ interface ModalProps {
   className?: string;
 }
 
-type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 
 const SIZES: Record<ModalSize, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-xl',
   xl: 'max-w-2xl',
+  // A workspace in a dialog: an image editor's stage beside its settings.
+  '2xl': 'max-w-5xl',
 };
 
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
-export function Modal({ title, description, onClose, footer, actions, size = 'md', children, className }: ModalProps) {
+export function Modal({ title, description, onClose, footer, illustration, actions, size = 'md', children, className }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   // Portal to <body> so `fixed` positioning is relative to the viewport, not a
   // transformed ancestor (e.g. the slide-in page sidebar). Mount-gate for SSR.
@@ -105,18 +113,32 @@ export function Modal({ title, description, onClose, footer, actions, size = 'md
           className,
         )}
       >
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-rule px-6 pb-4 pt-5">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-foreground">{title}</h2>
-            {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
+        {illustration ? (
+          <div className="relative flex shrink-0 flex-col items-center px-6 pt-7 text-center">
+            <div className="absolute top-3 right-3 flex items-center gap-1">
+              {actions}
+              <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog">
+                <X size={16} aria-hidden="true" />
+              </Button>
+            </div>
+            {illustration}
+            <h2 className="mt-3 text-base font-semibold text-foreground">{title}</h2>
+            {description && <p className="mt-1 max-w-[40ch] text-sm leading-6 text-muted-foreground">{description}</p>}
           </div>
-          <div className="flex shrink-0 items-center gap-1">
-            {actions}
-            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog">
-              <X size={16} aria-hidden="true" />
-            </Button>
+        ) : (
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-rule px-6 pb-4 pt-5">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-foreground">{title}</h2>
+              {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {actions}
+              <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog">
+                <X size={16} aria-hidden="true" />
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
 

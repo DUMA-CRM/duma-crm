@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { MIN_PASSWORD_LENGTH, passwordLengthHint } from '@/lib/auth/password-policy';
@@ -86,9 +87,9 @@ function Form() {
         aria-describedby={error ? 'reset-password-error' : undefined}
         hint={c && p !== c ? 'Passwords do not match yet.' : undefined}
       />
-      <button disabled={loading} className="h-10 w-full rounded-sm bg-primary text-sm font-semibold text-white disabled:opacity-60">
+      <Button type="submit" size="touch" disabled={loading} className="w-full">
         {loading ? (isActivation ? 'Activating account…' : 'Updating password…') : isActivation ? 'Activate account' : 'Update password'}
-      </button>
+      </Button>
     </form>
   );
 }

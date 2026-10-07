@@ -63,9 +63,9 @@ import type {
 } from '@/lib/ai/agent-types';
 import type { AgentRefusal } from '@/lib/ai/agent-types';
 import { visibleAnswer } from '@/lib/ai/conversation';
+import { flushAgentHistoryOutbox, queueAgentTurn } from '@/lib/ai/history-outbox';
 import { parsePriorityBrief } from '@/lib/ai/priority-brief';
 import { createAgentConversation, getAgentConversation, saveAgentTurn } from '@/lib/api/agent-conversations.service';
-import { flushAgentHistoryOutbox, queueAgentTurn } from '@/lib/ai/history-outbox';
 import { type Capability, hasAllCapabilities } from '@/lib/auth/capabilities';
 import { cn } from '@/lib/utils/cn';
 import { useAgentSettingsStore } from '@/stores/agentSettingsStore';
@@ -103,7 +103,8 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
       {
         icon: ClipboardCheck,
         label: 'Run today’s briefing',
-        prompt: 'Give me today’s operations briefing. Check every area I can access, rank up to three issues, show the evidence, and give me the next action for each.',
+        prompt:
+          'Give me today’s operations briefing. Check every area I can access, rank up to three issues, show the evidence, and give me the next action for each.',
       },
       { icon: BarChart3, label: 'Check trading pace', prompt: 'How is this location performing today compared with its recent pattern?' },
       { icon: Package, label: 'Find stock risks', prompt: 'Which stock items are most at risk at this location?' },
@@ -150,7 +151,11 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
       },
       { icon: ShoppingCart, label: 'Rank menu performance', prompt: 'What sold most and least this week, and what should I review?' },
       { icon: Receipt, label: 'Review refunds', prompt: 'Summarise refunds this week and compare them with last week.' },
-      { icon: Users, label: 'Check labour performance', prompt: 'Show staff hours for this week and highlight anything unusual.' },
+      {
+        icon: Users,
+        label: 'Check labour performance',
+        prompt: 'What was labour as a share of sales this week, and is the cost complete?',
+      },
     ],
   },
   customers: {
@@ -195,6 +200,7 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
     prompts: [
       { icon: CalendarDays, label: 'Check rota cover', prompt: 'Review this week’s rota and highlight gaps or unusual shifts.' },
       { icon: ClipboardCheck, label: 'Review leave requests', prompt: 'Show me the pending leave requests that need a decision.' },
+      { icon: CalendarDays, label: 'Check lateness', prompt: 'Compare this week’s rota with worked time — any no-shows or late starts?' },
       { icon: CreditCard, label: 'Preview payroll', prompt: 'Preview this week’s payroll totals and flag incomplete or unusual entries.' },
       { icon: Users, label: 'Review helpdesk work', prompt: 'Show open staff helpdesk requests, prioritised by urgency.' },
     ],
@@ -203,7 +209,7 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
     title: 'What do you need from the rota?',
     description: 'Check your working pattern or get help resolving a shift, attendance, or leave question.',
     prompts: [
-      { icon: CalendarDays, label: 'Understand my shifts', prompt: 'Summarise my rota and show me where to check each shift’s details.' },
+      { icon: CalendarDays, label: 'Understand my shifts', prompt: 'When is my next shift, and what does the rest of my week look like?' },
       { icon: BookOpen, label: 'Request leave', prompt: 'Explain how to request leave and open the right place in My HR.' },
       { icon: ClipboardCheck, label: 'Fix attendance', prompt: 'Show me how to request an attendance correction.' },
       { icon: Users, label: 'Report a rota problem', prompt: 'What should I do if a shift time or location on my rota looks wrong?' },
@@ -215,7 +221,7 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
     prompts: [
       { icon: CalendarDays, label: 'Request leave', prompt: 'Guide me through submitting a leave request.' },
       { icon: ClipboardCheck, label: 'Correct attendance', prompt: 'Guide me through reporting a missing or incorrect clock event.' },
-      { icon: CreditCard, label: 'Update payroll details', prompt: 'Show me how to review or update my payroll and bank details safely.' },
+      { icon: CreditCard, label: 'Check my payslips', prompt: 'Show my latest payslip and what was deducted.' },
       { icon: Mail, label: 'Raise a private request', prompt: 'Guide me through raising a private HR or payroll request.' },
     ],
   },
@@ -233,9 +239,9 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
     title: 'How can I help at the till?',
     description: 'Get quick guidance for service, customer identification, payment, or an interrupted transaction.',
     prompts: [
-      { icon: BookOpen, label: 'Take an order', prompt: 'Guide me through taking and completing an order in POS.' },
-      { icon: Users, label: 'Add a customer', prompt: 'Show me how to identify a customer before payment.' },
-      { icon: CreditCard, label: 'Resolve a payment issue', prompt: 'Help me troubleshoot a payment that did not complete.' },
+      { icon: BookOpen, label: 'Take an order', prompt: 'Guide me through taking and completing an order on the till.' },
+      { icon: Receipt, label: 'Check cash-up status', prompt: 'Is today’s trading day open, and did the last close balance?' },
+      { icon: Users, label: 'Add a customer', prompt: 'Show me how to identify a loyalty customer before payment.' },
       { icon: ShoppingCart, label: 'Check menu availability', prompt: 'Show menu items that are currently unavailable.' },
     ],
   },
@@ -250,15 +256,15 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
         label: 'Investigate a delayed order',
         prompt: 'Help me investigate an order that has been waiting too long.',
       },
-      { icon: Settings, label: 'Check device setup', prompt: 'Show me how to configure KDS sound and device settings.' },
+      { icon: Settings, label: 'Check device setup', prompt: 'Where do I change the kitchen screen layout and order chime?' },
     ],
   },
   'cash-up': {
     title: 'What should we reconcile?',
-    description: 'Check the trading-day state, understand a difference, or work through closing the location safely.',
+    description: 'Check the trading-day state, understand a difference, or work through closing the day at the till.',
     prompts: [
       { icon: Receipt, label: 'Check cash-up status', prompt: 'Show the latest cash-up record and any cash or card variance.' },
-      { icon: BookOpen, label: 'Close the trading day', prompt: 'Guide me through closing and reconciling the trading day.' },
+      { icon: BookOpen, label: 'Close the trading day', prompt: 'Guide me through closing the trading day from the till.' },
       { icon: Search, label: 'Explain a variance', prompt: 'Help me investigate the latest cash or card variance.' },
       { icon: ShoppingCart, label: 'Check unfinished orders', prompt: 'Show any active orders that should be resolved before cash-up.' },
     ],
@@ -326,20 +332,20 @@ const PROMPT_CAPABILITIES: Partial<Record<string, Capability[]>> = {
   'Check waiting workflows': ['analytics:read'],
   'Compare locations': ['analytics:read'],
   'Review AI quality': ['audit:read'],
-  'Check stock risk': ['inventory:read'],
+  'Check stock risk': ['stock.locations:read'],
   'Check team cover': ['scheduling:read'],
   'Prepare a stock order': ['purchasing:write'],
   'Check trading pace': ['analytics:read'],
-  'Find stock risks': ['inventory:read'],
+  'Find stock risks': ['stock.locations:read'],
   'Check who is working': ['scheduling:read'],
   'Review active orders': ['orders:read'],
   'Investigate an order': ['orders:read'],
   'Check cancellations': ['orders:read'],
   'Review QR orders': ['orders:read'],
   'Compare order performance': ['analytics:read'],
-  'Find low-stock risks': ['inventory:read'],
+  'Find low-stock risks': ['stock.locations:read'],
   'Prepare a purchase order': ['purchasing:write'],
-  'Review open stock work': ['stock:read'],
+  'Review open stock work': ['stock.transfers:read'],
   'Compare this week': ['analytics:read'],
   'Rank menu performance': ['analytics:read'],
   'Review refunds': ['analytics:read'],
@@ -350,7 +356,7 @@ const PROMPT_CAPABILITIES: Partial<Record<string, Capability[]>> = {
   'Review retention': ['analytics:read'],
   'Check email health': ['email:read'],
   'Review failed deliveries': ['email:read'],
-  'Set up an automation': ['email:send'],
+  'Set up an automation': ['email:write'],
   'Prepare an audience': ['segments:read'],
   'Check rota cover': ['scheduling:read'],
   'Review leave requests': ['hr.leave:read'],
@@ -358,11 +364,12 @@ const PROMPT_CAPABILITIES: Partial<Record<string, Capability[]>> = {
   'Review helpdesk work': ['helpdesk:manage'],
   'Update an item': ['menu:write'],
   'Build a recipe': ['recipes:write'],
-  'Review ingredient risk': ['inventory:read'],
+  'Review ingredient risk': ['stock.locations:read'],
   'Review the active queue': ['orders:read'],
   'Investigate a delayed order': ['orders:read'],
   'Check cash-up status': ['cashups:read'],
   'Explain a variance': ['cashups:read'],
+  'Check lateness': ['scheduling:read'],
   'Check unfinished orders': ['orders:read'],
   'Review open requests': ['privacy:read'],
   'Find the customer': ['customers:read'],
@@ -395,11 +402,11 @@ const PAGE_NAMES: Record<string, string> = {
   customers: 'Customers',
   dashboard: 'Dashboard',
   inventory: 'Inventory',
-  kds: 'Kitchen display',
+  kds: 'Kitchen',
   menu: 'Menu',
   'my-hr': 'My HR',
   orders: 'Orders',
-  pos: 'POS terminal',
+  pos: 'Till',
   reports: 'Reports',
   scheduling: 'My rota',
   settings: 'Settings',
@@ -412,9 +419,42 @@ function pageName(pathname: string) {
   return PAGE_NAMES[segment] ?? segment.replaceAll('-', ' ').replace(/^./, (letter) => letter.toUpperCase());
 }
 
+/**
+ * Sub-pages worth naming to the agent ("reports/end-of-day", "staff/payroll").
+ * Dynamic segments — a customer or item id — are never sent: the server writes
+ * the page into the prompt and only accepts lowercase words.
+ */
+const SUB_PAGES: Partial<Record<string, readonly string[]>> = {
+  customers: ['loyalty', 'duplicates'],
+  menu: ['items', 'categories', 'modifiers'],
+  reports: [
+    'sales-summary',
+    'sales-by-hour',
+    'sales-by-channel',
+    'sales-by-location',
+    'prime-cost',
+    'payment-methods',
+    'vat',
+    'item-sales',
+    'menu-engineering',
+    'refunds',
+    'discounts-voids',
+    'labour-vs-sales',
+    'staff-hours',
+    'customer-retention',
+    'stock-usage',
+    'waste',
+    'purchasing',
+    'end-of-day',
+  ],
+  settings: ['security', 'configuration', 'workspaces', 'roles', 'modules', 'trading', 'connectors', 'qr-ordering'],
+  staff: ['team', 'rota', 'requests', 'helpdesk', 'payroll'],
+};
+
 function pageId(pathname: string) {
-  const segment = pathname.split('/').filter(Boolean)[0] ?? 'dashboard';
-  return Object.hasOwn(PAGE_NAMES, segment) ? segment : undefined;
+  const [segment = 'dashboard', sub] = pathname.split('/').filter(Boolean);
+  if (!Object.hasOwn(PAGE_NAMES, segment)) return undefined;
+  return sub && SUB_PAGES[segment]?.includes(sub) ? `${segment}/${sub}` : segment;
 }
 
 function shortcutKey(shortcut: AgentShortcut) {
@@ -674,16 +714,24 @@ function CopyAnswer({ content }: { content: string }) {
   }, [copied]);
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        void navigator.clipboard?.writeText(content).then(() => setCopied(true));
-      }}
-      className="inline-flex items-center gap-1 rounded-sm px-1.5 py-1 text-label font-semibold text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-    >
-      {copied ? <Check size={11} aria-hidden="true" /> : <Copy size={11} aria-hidden="true" />}
-      {copied ? 'Copied' : 'Copy'}
-    </button>
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={() => {
+          void navigator.clipboard?.writeText(content).then(() => setCopied(true));
+        }}
+        aria-label={copied ? 'Copied' : 'Copy answer'}
+        title={copied ? 'Copied' : 'Copy answer'}
+        className="text-muted-foreground hover:text-foreground"
+      >
+        {copied ? <Check className="text-momentum" aria-hidden="true" /> : <Copy aria-hidden="true" />}
+      </Button>
+      <span className="sr-only" role="status" aria-live="polite">
+        {copied ? 'Answer copied' : ''}
+      </span>
+    </>
   );
 }
 
@@ -769,9 +817,15 @@ function DumaAgentPanel() {
   const { data: availableModels } = useAgentProviders({ enabled: open });
   useEffect(() => {
     if (!open) return;
-    const retry = () => void flushAgentHistoryOutbox().then(({ saved, remaining }) => {
-      if (saved) setNotice(remaining ? `${saved} answer${saved === 1 ? '' : 's'} saved. ${remaining} will retry automatically.` : 'Your pending chat history is saved.');
-    });
+    const retry = () =>
+      void flushAgentHistoryOutbox().then(({ saved, remaining }) => {
+        if (saved)
+          setNotice(
+            remaining
+              ? `${saved} answer${saved === 1 ? '' : 's'} saved. ${remaining} will retry automatically.`
+              : 'Your pending chat history is saved.',
+          );
+      });
     retry();
     window.addEventListener('online', retry);
     return () => window.removeEventListener('online', retry);
@@ -1051,7 +1105,11 @@ function DumaAgentPanel() {
             const turn = {
               requestId,
               question: content,
-              answer: event.response.message + (event.response.pendingAction ? '\n\nThis was an action draft. Ask DUMA to prepare it again if it has not been approved.' : ''),
+              answer:
+                event.response.message +
+                (event.response.pendingAction
+                  ? '\n\nThis was an action draft. Ask DUMA to prepare it again if it has not been approved.'
+                  : ''),
               model: event.response.model,
               evidence: event.response.evidence ?? [],
               presentation: {
@@ -1068,7 +1126,14 @@ function DumaAgentPanel() {
               await saveAgentTurn(activeConversation, turn);
               setNotice('');
             } catch {
-              queueAgentTurn({ groupId: historyGroupRef.current, conversationId: activeConversation, title: content.slice(0, 100), tenantId, locationId, turn });
+              queueAgentTurn({
+                groupId: historyGroupRef.current,
+                conversationId: activeConversation,
+                title: content.slice(0, 100),
+                tenantId,
+                locationId,
+                turn,
+              });
               setNotice('Saved on this device. Ask DUMA will add it to history automatically.');
             }
           }
@@ -1176,7 +1241,7 @@ function DumaAgentPanel() {
   const followUps = !busy && !pendingAction && lastMessage?.role === 'assistant' ? (lastMessage.followUps ?? []) : [];
   const retryPrompt = [...messages].reverse().find((message) => message.role === 'user')?.content;
   const currentPage = pageName(pathname);
-  const welcome = PAGE_WELCOMES[pageId(pathname) ?? ''] ?? DEFAULT_WELCOME;
+  const welcome = PAGE_WELCOMES[pageId(pathname)?.split('/')[0] ?? ''] ?? DEFAULT_WELCOME;
   const permittedPrompts = welcome.prompts.filter((prompt) => {
     const required = PROMPT_CAPABILITIES[prompt.label];
     return !required || hasAllCapabilities(capabilities, ...required);
@@ -1376,7 +1441,7 @@ function DumaAgentPanel() {
                             <span>{notice}</span>
                           </p>
                         )}
-                        <div className="flex items-end gap-2 rounded-md border border-input bg-field py-1.5 pr-1.5 pl-2 shadow-sm focus-within:border-measured focus-within:outline-2 focus-within:outline-measured">
+                        <div className="flex items-end gap-2 rounded-md border border-input bg-control py-1.5 pr-1.5 pl-2 shadow-sm focus-within:border-measured focus-within:outline-2 focus-within:outline-measured">
                           <textarea
                             ref={inputRef}
                             value={draft}
@@ -1445,8 +1510,13 @@ function DumaAgentPanel() {
                           setMessages(
                             saved.turns.flatMap((turn): AgentChatMessage[] => [
                               { role: 'user', content: turn.question },
-                              { ...turn.presentation, role: 'assistant', content: turn.answer, evidence: turn.evidence,
-                                generatedAt: turn.presentation?.generatedAt ?? turn.createdAt },
+                              {
+                                ...turn.presentation,
+                                role: 'assistant',
+                                content: turn.answer,
+                                evidence: turn.evidence,
+                                generatedAt: turn.presentation?.generatedAt ?? turn.createdAt,
+                              },
                             ]),
                           );
                           setConversationId(id);
@@ -1479,7 +1549,7 @@ function DumaAgentPanel() {
                         </p>
                       </section>
 
-                      <p className="mt-6 shrink-0 px-1 text-label uppercase text-muted-foreground">Suggested for {currentPage}</p>
+                      <p className="mt-6 shrink-0 px-1 text-label uppercase text-muted-foreground">Try asking</p>
 
                       {/* The settings page's row list: one bordered panel, a row per prompt. */}
                       <div className="mt-2 shrink-0 divide-y divide-rule/40 overflow-hidden rounded-lg border border-rule/60 bg-field">

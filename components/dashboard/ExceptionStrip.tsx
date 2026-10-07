@@ -3,6 +3,7 @@
 import { AlertTriangle, Boxes, Clock3, PackagePlus, Users } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { NeedsAttention, type NeedsAttentionTone } from '@/components/shared/NeedsAttention';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import type { InventoryForecast } from '@/lib/modules/inventory/client';
@@ -65,7 +66,7 @@ export function buildExceptions({
       icon: Clock3,
       // Same wording the kitchen sees: the stage clock, not time since ordering.
       label: `Order #${order.id.slice(0, 6).toUpperCase()} is over ${CRASH_MINS} minutes`,
-      detail: `${Math.floor(ageState(order, now).mins)} minutes ${STAGE_LABEL[order.status] ?? 'in this stage'}`,
+      detail: `${Math.floor(ageState(order, now).mins)}m ${STAGE_LABEL[order.status] ?? 'in this stage'}`,
       href: '/kds',
       fixLabel: 'Open KDS',
       tone: 'exception' as const,
@@ -154,7 +155,21 @@ export function ExceptionStrip({
       </div>
     );
 
-  if (loading) return <div className="h-16 animate-pulse rounded-lg bg-band/60" aria-label="Checking what needs you" />;
+  if (loading)
+    return (
+      <div
+        className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5"
+        role="status"
+        aria-busy="true"
+        aria-label="Checking what needs you"
+      >
+        <Bone className="size-10 shrink-0" />
+        <span className="min-w-0 flex-1 space-y-1.5">
+          <Bone className="h-3.5 w-32" />
+          <Bone className="h-3 w-64 max-w-full" />
+        </span>
+      </div>
+    );
 
   return (
     <NeedsAttention

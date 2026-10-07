@@ -1,45 +1,37 @@
-import { CheckCircle2 } from '@/components/icons';
+import Link from 'next/link';
+
+import { BrandBackdrop } from '@/components/shared/BrandBackdrop';
 import { Logo } from '@/components/shared/Logo';
 
+/**
+ * Sign-in, password reset and activation share the landing page's ground: one
+ * centred column, the mark above a single card. The green split panel this
+ * replaced made the front door and the sign-in screen look like two products.
+ */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-background lg:grid lg:grid-cols-[minmax(320px,0.8fr)_minmax(520px,1.2fr)]">
-      <aside className="hidden bg-sidebar p-10 text-sidebar-foreground lg:flex lg:flex-col lg:justify-between xl:p-14">
-        <div className="flex items-center gap-3">
-          <Logo size={40} variant="onDark" className="rounded-md shadow-sm" />
-          <div>
-            <p className="text-lg font-semibold leading-tight">DUMA</p>
-            <p className="mt-0.5 text-xs text-sidebar-foreground/65">Coffee operations, connected</p>
-          </div>
-        </div>
-        <div className="max-w-md">
-          <h2 className="text-4xl font-semibold leading-tight tracking-display">The whole shift, in one calm workspace.</h2>
-          <div className="mt-8 space-y-4 text-sm text-sidebar-foreground/78">
-            {[
-              'Orders move from till to kitchen',
-              'Stock risks surface before the rush',
-              'Every role sees the work that belongs to them',
-            ].map((item) => (
-              <p key={item} className="flex items-center gap-3">
-                <CheckCircle2 size={18} className="shrink-0 text-sidebar-primary" aria-hidden="true" />
-                {item}
-              </p>
-            ))}
-          </div>
-        </div>
-        <p className="text-xs text-sidebar-foreground/55">Built for independent coffee teams and growing groups.</p>
-      </aside>
+    <div className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-background text-foreground">
+      <BrandBackdrop />
 
-      <div className="flex min-h-dvh flex-col items-center justify-center p-4 sm:p-8">
-        <div className="mb-8 flex items-center gap-3 lg:hidden">
-          <Logo size={36} className="rounded-md shadow-sm" />
-          <div>
-            <p className="text-base font-semibold leading-tight text-foreground">DUMA</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Coffee operations, connected</p>
-          </div>
-        </div>
-        <main className="w-full max-w-xl rounded-lg border border-rule/65 bg-card p-6 shadow-md md:p-8">{children}</main>
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:py-16">
+        <Link href="/" aria-label="DUMA home" className="flex flex-col items-center rounded-md text-center">
+          <Logo size={56} className="rounded-[19.4%] shadow-md" />
+          <span className="mt-4 text-3xl font-semibold tracking-display text-foreground">DUMA</span>
+          <span className="mt-1.5 text-micro font-semibold uppercase tracking-micro text-muted-foreground">Business OS</span>
+        </Link>
+
+        <main className="mt-8 w-full max-w-md rounded-xl border border-rule/60 bg-card/95 p-6 shadow-lg backdrop-blur-sm motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 sm:p-8">
+          {children}
+        </main>
       </div>
+
+      <footer className="flex items-center justify-center gap-4 px-4 pb-6 text-xs text-muted-foreground">
+        <span>© 2026 DUMA</span>
+        <span aria-hidden="true">·</span>
+        <Link href="/support" className="min-h-11 content-center hover:text-foreground">
+          Support
+        </Link>
+      </footer>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
   UserRound,
   Users,
   Wallet,
+  Layers,
 } from '@/components/icons';
 
 import type { WorkspaceModuleId } from '@/lib/modules/organization/client';
@@ -42,6 +43,7 @@ export const MODULE_ORDER: readonly WorkspaceModuleId[] = [
   'analytics',
   'agent',
   'support',
+  'cms',
   'compliance',
   'audit',
   'core',
@@ -68,10 +70,11 @@ export const MODULE_COPY: Record<WorkspaceModuleId, { name: string; detail: stri
   customers: { name: 'Customers & loyalty', detail: 'Recognise regulars and reward them.', icon: BookOpen },
   communications: { name: 'Messages', detail: 'Email customers and your team.', icon: Bell },
   compliance: { name: 'Compliance', detail: 'Manage privacy and personal-data requests.', icon: ClipboardCheck },
-  audit: { name: 'Audit Log', detail: 'Review important activity and changes across the workspace.', icon: ShieldCheck },
+  audit: { name: 'Audit log', detail: 'Review important activity and changes across the workspace.', icon: ShieldCheck },
   analytics: { name: 'Analytics', detail: 'Sales, margin and labour trends.', icon: LineChart },
   agent: { name: 'Ask DUMA', detail: 'An assistant that knows your operation.', icon: Sparkles },
   support: { name: 'Help centre', detail: 'Guides and a helpdesk for your staff.', icon: LifeBuoy },
+  cms: { name: 'Content (CMS)', detail: 'Write your website and app content here; publish it over an API.', icon: Layers },
 };
 
 const readable = (id: string) =>

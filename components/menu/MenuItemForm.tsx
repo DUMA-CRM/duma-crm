@@ -6,8 +6,8 @@ import { useEffect, useState } from 'react';
 
 import { UtensilsCrossed } from '@/components/icons';
 import { categoryTone } from '@/components/menu/shared';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -79,7 +79,9 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
         const target = all.find((m) => m.id === modifierId);
         const rule = target?.groupId ? rules.find((entry) => entry.id === target.groupId) : undefined;
         if (target?.groupId && rule?.maxSelections != null) {
-          const others = attached.filter((m) => m.isDefault && m.id !== modifierId && all.find((x) => x.id === m.id)?.groupId === target.groupId);
+          const others = attached.filter(
+            (m) => m.isDefault && m.id !== modifierId && all.find((x) => x.id === m.id)?.groupId === target.groupId,
+          );
           const excess = others.length + 1 - rule.maxSelections;
           for (const other of others.slice(0, Math.max(0, excess))) await setModifierDefault(menuItemId, other.id, false);
         }
@@ -149,7 +151,13 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
               {group.items.map((m) => {
                 const isAttached = attachedIds.has(m.id);
                 return (
-                  <li key={m.id} className={cn('flex items-center border-b border-rule/45 transition-colors last:border-b-0 hover:bg-band/40', isAttached && 'bg-primary/4')}>
+                  <li
+                    key={m.id}
+                    className={cn(
+                      'flex items-center border-b border-rule/45 transition-colors last:border-b-0 hover:bg-band/40',
+                      isAttached && 'bg-primary/4',
+                    )}
+                  >
                     {/* The label carries the padding, so the whole row — not just the text — toggles it. */}
                     <label className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-3 px-3.5 py-2.5">
                       <input
@@ -159,8 +167,12 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
                         onChange={(e) => toggle.mutate({ modifierId: m.id, on: e.target.checked })}
                         className="size-4 shrink-0 rounded accent-primary"
                       />
-                      <span className={cn('truncate text-sm', isAttached ? 'font-semibold text-foreground' : 'text-muted-foreground')}>{modifierLabel(m)}</span>
-                      {adjust(m.priceAdjust) && <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{adjust(m.priceAdjust)}</span>}
+                      <span className={cn('truncate text-sm', isAttached ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+                        {modifierLabel(m)}
+                      </span>
+                      {adjust(m.priceAdjust) && (
+                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{adjust(m.priceAdjust)}</span>
+                      )}
                     </label>
                     {isAttached && (
                       <button
@@ -171,7 +183,9 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
                         title="Pre-select this at the till"
                         className={cn(
                           'mr-3.5 shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold transition-colors',
-                          defaultIds.has(m.id) ? 'bg-primary text-primary-foreground' : 'bg-band text-muted-foreground hover:text-foreground',
+                          defaultIds.has(m.id)
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-band text-muted-foreground hover:text-foreground',
                         )}
                       >
                         {defaultIds.has(m.id) ? 'Default' : 'Set default'}
@@ -274,7 +288,8 @@ export function MenuItemForm({
   const categoryError = !categoryId ? 'Choose a section.' : null;
   const priceError = !/^\d+(\.\d{1,2})?$/.test(price.trim()) ? 'A price like 3.20.' : null;
   // The API takes any string; links and inline data images are what's actually used.
-  const imageError = imageUrl.trim() && !/^(https?:\/\/\S+|data:image\/)/.test(imageUrl.trim()) ? 'A full web address, starting https://' : null;
+  const imageError =
+    imageUrl.trim() && !/^(https?:\/\/\S+|data:image\/)/.test(imageUrl.trim()) ? 'A full web address, starting https://' : null;
   const valid = !nameError && !categoryError && !priceError && !imageError;
   const show = (error: string | null) => (submitted ? (error ?? undefined) : undefined);
   const priceText = /^\d+(\.\d{1,2})?$/.test(price.trim()) ? `£${Number(price).toFixed(2)}` : '£—';
@@ -295,7 +310,9 @@ export function MenuItemForm({
             {item ? (
               <ItemModifiersEditor menuItemId={item.id} tenantId={item.tenantId} />
             ) : (
-              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">Create the item first — sizes, milks and syrups can be attached straight after.</p>
+              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">
+                Create the item first — sizes, milks and syrups can be attached straight after.
+              </p>
             )}
           </SettingsSection>
         }
@@ -308,7 +325,12 @@ export function MenuItemForm({
             <div className="relative size-28 shrink-0 overflow-hidden rounded-xl bg-linear-to-br from-primary/15 via-band to-band shadow-sm">
               {imageUrl.trim() && !imageBroken && !imageError ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={imageUrl} alt="" onError={() => setImageBroken(true)} className={cn('absolute inset-0 size-full object-cover', !isAvailable && 'opacity-60 grayscale')} />
+                <img
+                  src={imageUrl}
+                  alt=""
+                  onError={() => setImageBroken(true)}
+                  className={cn('absolute inset-0 size-full object-cover', !isAvailable && 'opacity-60 grayscale')}
+                />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground/50 select-none">
                   <UtensilsCrossed size={26} aria-hidden="true" />
@@ -319,14 +341,25 @@ export function MenuItemForm({
             <div className="min-w-0 flex-1 space-y-3">
               <div>
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className={cn('truncate text-2xl font-semibold tracking-headline', name.trim() ? 'text-foreground' : 'text-muted-foreground/60')}>{name.trim() || 'New item'}</p>
+                  <p
+                    className={cn(
+                      'truncate text-2xl font-semibold tracking-headline',
+                      name.trim() ? 'text-foreground' : 'text-muted-foreground/60',
+                    )}
+                  >
+                    {name.trim() || 'New item'}
+                  </p>
                   <p className="shrink-0 text-xl font-semibold tabular-nums text-foreground">{priceText}</p>
                 </div>
                 <p className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold uppercase tracking-micro', categoryTone(currentCategory?.slug ?? '', currentCategory))}>
+                  <span
+                    className={cn(
+                      'rounded-sm px-1.5 py-0.5 text-micro font-semibold uppercase tracking-micro',
+                      categoryTone(currentCategory?.slug ?? '', currentCategory),
+                    )}
+                  >
                     {currentCategory?.name ?? 'No section'}
                   </span>
-                  <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', isAvailable ? 'bg-momentum/8 text-momentum' : 'bg-band text-muted-foreground')}>{isAvailable ? 'On the menu' : 'Off the menu'}</span>
                 </p>
               </div>
               <Input
@@ -343,8 +376,16 @@ export function MenuItemForm({
           </div>
 
           <div className="mt-6 border-t border-rule/45 pt-6">
-          <div className="space-y-4">
-              <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} maxLength={255} placeholder="e.g. Flat white" autoFocus={!item} error={show(nameError)} />
+            <div className="space-y-4">
+              <Input
+                label="Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={255}
+                placeholder="e.g. Flat white"
+                autoFocus={!item}
+                error={show(nameError)}
+              />
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <span className="text-label uppercase text-muted-foreground">Section</span>
@@ -353,7 +394,9 @@ export function MenuItemForm({
                     onValueChange={setCategoryId}
                     options={[
                       ...(categoryId ? [] : [{ value: '', label: 'Choose a section' }]),
-                      ...categories.filter((entry) => entry.isActive || entry.id === item?.categoryId).map((entry) => ({ value: entry.id, label: entry.name })),
+                      ...categories
+                        .filter((entry) => entry.isActive || entry.id === item?.categoryId)
+                        .map((entry) => ({ value: entry.id, label: entry.name })),
                     ]}
                     ariaLabel="Menu section"
                     ariaInvalid={submitted && !!categoryError}
@@ -361,7 +404,16 @@ export function MenuItemForm({
                   />
                   {submitted && categoryError && <p className="text-xs text-destructive">{categoryError}</p>}
                 </div>
-                <Input label="Price" value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="3.20" leftIcon={<span className="text-sm">£</span>} className="tabular-nums" error={show(priceError)} />
+                <Input
+                  label="Price"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="3.20"
+                  leftIcon={<span className="text-sm">£</span>}
+                  className="tabular-nums"
+                  error={show(priceError)}
+                />
               </div>
               {/* Only meaningful for a VAT-registered tenant — otherwise no rate
                   applies to anything and the field is pure noise. */}
@@ -380,7 +432,10 @@ export function MenuItemForm({
                     ariaLabel="VAT rate for this item"
                     className="w-full"
                   />
-                  <p className="text-xs text-muted-foreground">Hot food and drink are standard-rated; most cold takeaway food is zero-rated. This changes the margin shown, not the price.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Hot food and drink are standard-rated; most cold takeaway food is zero-rated. This changes the margin shown, not the
+                    price.
+                  </p>
                 </div>
               )}
               <div className="flex flex-col gap-1.5">
@@ -391,7 +446,7 @@ export function MenuItemForm({
                   rows={2}
                   placeholder="Optional — shown to staff and online"
                   aria-label="Description"
-                  className="w-full resize-none rounded-md border border-input bg-field px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured sm:text-sm"
+                  className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured sm:text-sm"
                 />
               </div>
             </div>

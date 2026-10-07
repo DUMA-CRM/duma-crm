@@ -4,12 +4,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { Search, ShieldOff, X } from '@/components/icons';
+import { RotateCcw, Search, ShieldOff, X } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { Avatar } from '@/components/shared/Avatar';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRow } from '@/components/shared/ListRow';
 import { Modal } from '@/components/shared/Modal';
+import { RelativeTime } from '@/components/shared/RelativeTime';
+import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -22,7 +26,6 @@ import {
 } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { SUPPRESSION_REASONS, groupSuppressions, suppressionSourceLabel } from '@/lib/utils/communications';
-import { formatDate } from '@/lib/utils/date';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -112,11 +115,23 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
 
   if (suppressions.isPending)
     return (
-      <div className="space-y-2" aria-label="Loading suppressions">
-        <div className="h-4 w-24 animate-pulse rounded-sm bg-band" />
-        {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="h-15 animate-pulse rounded-lg bg-band/60" />
-        ))}
+      <div className="space-y-5" role="status" aria-busy="true" aria-label="Loading suppressions">
+        <div className="space-y-1.5 px-1" aria-hidden="true">
+          <Bone className="h-3.5 w-full max-w-xl" />
+          <Bone className="h-3.5 w-2/3 max-w-md" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
+          <Bone className="h-9 min-w-56 flex-1 lg:max-w-sm" />
+          <Bone className="ml-auto h-3 w-20" />
+        </div>
+        <div>
+          <Bone className="mb-2 h-3 w-24" />
+          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            {Array.from({ length: 4 }, (_, index) => (
+              <RowSkeleton key={index} index={index} avatar />
+            ))}
+          </div>
+        </div>
       </div>
     );
 
@@ -135,13 +150,11 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
       </motion.p>
 
       {list.length === 0 ? (
-        <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-          <EmptyState
-            icon={ShieldOff}
-            title="No one has opted out"
-            description="Unsubscribes, bounces and addresses you add by hand appear here."
-          />
-        </div>
+        <EmptyState
+          icon={ShieldOff}
+          title="No one has opted out"
+          description="Unsubscribes, bounces and addresses you add by hand appear here."
+        />
       ) : (
         <>
           <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-2">
@@ -174,8 +187,14 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
           </motion.div>
 
           {groups.length === 0 ? (
-            <motion.div variants={SECTION_RISE} className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-              <EmptyState icon={Search} title="Nothing matches" description="Try another name, address or reason." />
+            <motion.div variants={SECTION_RISE}>
+              <EmptyState
+                icon={Search}
+                kind="search"
+                title="Nothing matches"
+                description="Try another name, address or reason."
+                action={{ label: 'Clear search', onClick: () => setSearch('') }}
+              />
             </motion.div>
           ) : (
             groups.map((group) => (
@@ -217,29 +236,36 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
   );
 }
 
-/** One address in the audit log's shape: glyph, who, how it was added, when, and Lift. */
+/** One address: who (their initials when it's a customer), the masked address and how it was added on one line, when, and Lift on hover. */
 function SuppressionRow({ item, canLift, onLift }: { item: MarketingSuppression; canLift: boolean; onLift: () => void }) {
   const name = item.customer ? `${item.customer.firstName} ${item.customer.lastName}` : null;
   return (
-    <li className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground" aria-hidden="true">
-        <ShieldOff size={16} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">
-          {name ?? <span className="font-mono">{item.maskedValue}</span>}
-        </span>
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+    <ListRow
+      icon={name ? undefined : ShieldOff}
+      tone="muted"
+      leading={name ? <Avatar name={name} /> : undefined}
+      title={name ?? <span className="font-mono">{item.maskedValue}</span>}
+      meta={
+        <>
           {name && <span className="font-mono">{item.maskedValue} · </span>}
           {suppressionSourceLabel(item.source)}
-        </span>
-      </span>
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{formatDate(item.createdAt)}</span>
-      {canLift && (
-        <Button variant="outline" size="sm" onClick={onLift} className="shrink-0" title="Allow marketing email to this address again">
-          Lift
-        </Button>
-      )}
-    </li>
+        </>
+      }
+      trailing={<RelativeTime iso={item.createdAt} className="text-xs tabular-nums text-muted-foreground" />}
+      actions={
+        canLift ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onLift}
+            aria-label={`Lift suppression for ${name ?? item.maskedValue}`}
+            title="Allow marketing email to this address again"
+          >
+            <RotateCcw />
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }

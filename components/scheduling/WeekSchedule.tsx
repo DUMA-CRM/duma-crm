@@ -1,9 +1,10 @@
 'use client';
 
-import { CalendarClock, CheckCircle2, Clock, Coffee, FileText, MapPin, Sun } from '@/components/icons';
+import { CalendarClock, CheckCircle2, Clock, Coffee, FileText, MapPin, Moon, Sun } from '@/components/icons';
 import type { ShiftDetail } from '@/components/scheduling/ShiftDetailDrawer';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
 
 import type { LeaveRequest } from '@/lib/modules/people/client';
 import type { ScheduledShift, Shift } from '@/lib/modules/workforce/client';
@@ -94,9 +95,20 @@ export function WeekSchedule({
           onRetry={onRetry}
         />
       ) : loading ? (
-        <div className="grid gap-2 lg:grid-cols-7" aria-busy="true" aria-label="Loading your rota">
+        <div role="status" className="grid gap-2 lg:grid-cols-7" aria-busy="true" aria-label="Loading your rota">
+          {/* Each day's own card — the date, then a shift-sized block — so the week doesn't jump. */}
           {days.map((day) => (
-            <div key={day.toISOString()} className="h-20 animate-pulse rounded-lg bg-band/60 lg:h-48" />
+            <div
+              key={day.toISOString()}
+              className="flex gap-3 rounded-lg border border-rule/50 bg-background/60 p-2.5 lg:min-h-52 lg:flex-col lg:gap-2"
+              aria-hidden="true"
+            >
+              <span className="flex w-14 shrink-0 flex-col gap-1 lg:w-auto lg:flex-row lg:items-center lg:gap-2 lg:px-0.5">
+                <Bone className="h-2.5 w-8" />
+                <Bone className="h-4 w-6" />
+              </span>
+              <Bone className="h-14 min-w-0 flex-1 lg:flex-none" />
+            </div>
           ))}
         </div>
       ) : (
@@ -125,6 +137,7 @@ export function WeekSchedule({
               const past = day < today && !isToday;
               const windows = openWindowsByDay[index];
               const dayLeave = leaveOnDay(leave, day);
+              const off = planned.length === 0 && unplanned.length === 0 && dayLeave.length === 0;
 
               return (
                 <li
@@ -154,31 +167,37 @@ export function WeekSchedule({
                   </header>
 
                   {/* ── Its shifts ───────────────────────────────────────── */}
-                  <div className="grid min-w-0 flex-1 content-start gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                    {dayLeave.map((request) => (
-                      <LeaveCard key={request.id} request={request} />
-                    ))}
-                    {planned.map((shift) => {
-                      const worked = byShift.get(shift.id) ?? [];
-                      return (
-                        <ShiftCard
-                          key={shift.id}
-                          shift={shift}
-                          worked={worked}
-                          now={now}
-                          breakRule={breakRule}
-                          change={changes.get(shift.id)}
-                          onOpen={() => onOpen({ kind: 'shift', shift, worked })}
-                        />
-                      );
-                    })}
-                    {unplanned.map((run) => (
-                      <UnplannedCard key={run[0].id} run={run} now={now} onOpen={() => onOpen({ kind: 'unplanned', run })} />
-                    ))}
-                    {planned.length === 0 && unplanned.length === 0 && dayLeave.length === 0 && (
-                      <p className="flex min-h-10 items-center text-xs text-muted-foreground/80 lg:flex-1 lg:justify-center">Off</p>
-                    )}
-                  </div>
+                  {off ? (
+                    // A day off fills the column it would have held shifts in,
+                    // so the week reads as a row of equal days, not a gap.
+                    <p className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-dashed border-rule/50 px-3 text-xs font-medium text-muted-foreground lg:flex-col lg:justify-center lg:gap-1.5 lg:px-2">
+                      <Moon size={14} className="shrink-0 text-muted-foreground/60" aria-hidden="true" />
+                      {isToday ? 'Day off' : 'Off'}
+                    </p>
+                  ) : (
+                    <div className="grid min-w-0 flex-1 content-start gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                      {dayLeave.map((request) => (
+                        <LeaveCard key={request.id} request={request} />
+                      ))}
+                      {planned.map((shift) => {
+                        const worked = byShift.get(shift.id) ?? [];
+                        return (
+                          <ShiftCard
+                            key={shift.id}
+                            shift={shift}
+                            worked={worked}
+                            now={now}
+                            breakRule={breakRule}
+                            change={changes.get(shift.id)}
+                            onOpen={() => onOpen({ kind: 'shift', shift, worked })}
+                          />
+                        );
+                      })}
+                      {unplanned.map((run) => (
+                        <UnplannedCard key={run[0].id} run={run} now={now} onOpen={() => onOpen({ kind: 'unplanned', run })} />
+                      ))}
+                    </div>
+                  )}
 
                   {windows.length > 0 && (
                     <p className="hidden truncate px-0.5 text-micro text-muted-foreground lg:block" title="Location opening hours">

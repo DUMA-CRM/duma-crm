@@ -93,13 +93,8 @@ interface GlossaryEntry {
 
 const tabs: SectionTab<GuideTab>[] = [
   { value: 'overview', label: 'Start here', icon: BookOpen },
-  {
-    value: 'guides',
-    label: 'In-depth guides',
-    icon: FileText,
-    count: SUPPORT_ARTICLES.length,
-    countLabel: `${SUPPORT_ARTICLES.length} articles`,
-  },
+  // No count: a tab badge is for what is waiting on you, not a library's size.
+  { value: 'guides', label: 'In-depth guides', icon: FileText },
   { value: 'service', label: 'Run service', icon: Monitor },
   { value: 'management', label: 'Manage the business', icon: BarChart3 },
   { value: 'people', label: 'People & account', icon: UsersRound },
@@ -112,256 +107,253 @@ const tabs: SectionTab<GuideTab>[] = [
 const serviceTopics: GuideTopic[] = [
   {
     title: 'Dashboard',
-    description: 'Your starting point for the current location, service activity, alerts, and the work that needs attention.',
+    description: 'Your starting point: today’s trading for the selected location, what needs you, and your own workday.',
     icon: LayoutDashboard,
     href: '/dashboard',
     linkLabel: 'Open dashboard',
     steps: [
-      'Confirm the active location in the location picker before reviewing any figures.',
-      'Use the operational cards to spot current service and stock activity.',
-      'Follow the links on each card to open the relevant workspace and take action.',
+      'Confirm the location picker at the bottom of the sidebar before reading any figures.',
+      'Work through Needs you — each item has a button that opens the page to fix it.',
+      'Choose which panels you see, and their order, in Settings → Configuration → Dashboard.',
     ],
-    tips: ['The information shown changes with your role and selected location.'],
+    tips: ['Managers see Today’s trading; everyone else sees My workday with their shift and rota.'],
   },
   {
-    title: 'POS terminal',
-    description: 'Build an order, apply options, identify a customer, and complete checkout from a counter or tablet.',
+    title: 'Till',
+    description: 'Clock in, build a ticket, add a loyalty customer, hold tickets and take cash or card payment.',
     icon: Monitor,
     href: '/pos',
-    linkLabel: 'Open POS',
+    linkLabel: 'Open the till',
+    access: 'Take orders',
     steps: [
-      'Select a menu item and choose any required size, milk, extras, or other modifiers.',
-      'Add or scan a customer before payment when they want to earn or use loyalty benefits.',
-      'Review the basket, choose checkout, then confirm the payment method and completion.',
-      'If Wi-Fi drops, keep serving: eligible orders are queued on the device and sync when the connection returns.',
+      'Slide to clock in — the till only sells while you are on shift.',
+      'Tap items (or search the menu), make the required choices and add a note for the kitchen if needed.',
+      'Add the customer before charging: search by name, phone or email, or scan their loyalty code. Apply any ready rewards.',
+      'Charge, then take cash, send the amount to a card reader, or confirm a card-machine payment.',
+      'Use Hold to park a ticket and Held to pick it up again on the same till.',
     ],
-    tips: ['Check Settings → POS before service to choose a camera or external loyalty-code scanner.'],
+    tips: [
+      'Offline, cash and card-machine sales save on the till and send when the connection returns.',
+      'Layout, favourites and the loyalty scanner are set per device in Settings → Configuration → Till.',
+    ],
   },
   {
-    title: 'Kitchen display',
-    description: 'Move incoming tickets through preparation and keep the hand-off queue clear.',
+    title: 'Cash up',
+    description:
+      'Open and close the trading day from the till: count the float, count the drawer, enter the card total and explain any difference.',
+    icon: Boxes,
+    href: '/pos?cashup=open',
+    linkLabel: 'Cash up on the till',
+    access: 'Cash-up permission',
+    steps: [
+      'Use Cash up in the till’s header. It reads Open the day, Cash up, Close yesterday or Day closed.',
+      'To open, count the float into the drawer and confirm it. The till starts from the last float you used.',
+      'To close, check held tickets and unsent offline sales, count the drawer by notes and coins, then enter the card terminal’s end-of-day total.',
+      'The till shows what it expected only after you have counted. A difference of 1.00 or more needs a note before the day closes.',
+    ],
+    tips: ['A closed day can’t be reopened. Past days are in Reports → End of day.'],
+  },
+  {
+    title: 'Kitchen',
+    description: 'Move paid tickets through New, Preparing and Ready, and keep the hand-off clear.',
     icon: ChefHat,
     href: '/kds',
-    linkLabel: 'Open KDS',
+    linkLabel: 'Open the kitchen screen',
+    access: 'Update order status',
     steps: [
-      'Keep DUMA on the KDS screen during service so new orders appear in the queue.',
-      'Open a ticket to review items and modifiers, then move it into preparation.',
-      'Mark the order ready when every item is complete, and clear it after collection.',
+      'Keep the Kitchen screen open on the kitchen tablet, on the right location, and tap it once so the chime can play.',
+      'Tap Start to begin a ticket, Ready when it is made, and Collected when it is handed over.',
+      'Use Undo on the toast, or Recall in the toolbar, if a ticket was moved by mistake.',
+      'Tickets show Nearly late from 2 minutes in a stage and Late from 5.',
     ],
-    tips: ['KDS sound and display preferences are stored per device in Settings.'],
+    tips: ['Layout, text size, tap-to-strike and the order chime are set per device in Settings → Configuration → Kitchen screen.'],
   },
   {
     title: 'Orders',
-    description: 'Review order history, payment context, fulfilment state, and individual order details.',
+    description: 'Order history, cash waiting for approval, refunds and the full timeline of each order.',
     icon: ShoppingBag,
     href: '/orders',
     linkLabel: 'View orders',
-    access: 'Manager access',
+    access: 'Read orders',
     steps: [
-      'Search or filter the order list to narrow down a customer, date, or order state.',
-      'Open an order to inspect its items, totals, source, staff member, and status history.',
-      'Use the recorded timeline when investigating a missing, delayed, or cancelled order.',
+      'Filter by status, channel, payment, dates or who took it, or search by customer phone or ID.',
+      'Approve QR cash orders with Cash received only once the customer has paid.',
+      'Open an order to see its items, progress, payment, receipt and activity.',
+      'Refund a completed order in full or by item — with refund permission — and choose whether to put items back in stock.',
     ],
-  },
-  {
-    title: 'Cash-up',
-    description: 'Open and close the trading day from the till: count the float, count the drawer, read the card terminal and explain any difference.',
-    icon: Boxes,
-    href: '/cash-up',
-    linkLabel: 'Open cash-up',
-    access: 'Cash-up access',
-    steps: [
-      'Use Cash up in the till’s header. The dot shows whether the day is open, not yet opened or left open from an earlier day.',
-      'To open, put the float in the drawer and confirm it. The till starts from the last float you used.',
-      'To close, check for held tickets and unsent offline sales first, then count the drawer by notes and coins and enter the card terminal’s end-of-day total.',
-      'The till shows what it expected only after you have counted. A difference of 1.00 or more needs a note before the day closes.',
-    ],
-    tips: ['A variance is a signal to investigate, not a number to edit away.'],
   },
   {
     title: 'Customers & loyalty',
-    description: 'Find customer records, review visits and orders, and manage loyalty points.',
+    description: 'Find customer records, read what to know before serving, and manage loyalty points, stamps and rewards.',
     icon: Users,
     href: '/customers',
     linkLabel: 'Open customers',
-    access: 'Manager access',
+    access: 'Read customers',
     steps: [
-      'Search by customer details, then open the customer record.',
-      'Review loyalty progress, visit history, recent orders, and past communications.',
-      'Use Segments to save a reusable live audience; review consent before sending customer email.',
-      'Use the points adjustment action only when a correction is needed, and include a clear reason.',
+      'Search by name, email or phone, then open the record.',
+      'Check Before you serve for allergies and alerts, then loyalty cards, points and the timeline.',
+      'Save a filter you reuse as a segment with Segments → Save current filters….',
+      'Adjust points or stamps only to correct a real error, and choose a reason.',
     ],
-    tips: ['At the till, use the customer QR code or phone search instead of creating a duplicate record.'],
+    tips: ['Loyalty programmes are set up under Loyalty rules on the Customers page.'],
   },
   {
     title: 'Customer duplicates',
-    description: 'Review likely duplicate customer records and merge only when the identity evidence is strong enough.',
+    description: 'Review likely duplicate customer records and merge only when the evidence is strong enough.',
     icon: Users,
     href: '/customers/duplicates',
     linkLabel: 'Review duplicates',
-    access: 'Customer merge access',
+    access: 'Merge customers',
     steps: [
-      'Review the matching phone, email and name signals on both records.',
-      'Open each record when the evidence is ambiguous; do not merge on a similar name alone.',
-      'Choose the surviving record, check what history and loyalty balance will move, then confirm the merge.',
+      'Compare the matching email or name on both records.',
+      'Open each record when the evidence is unclear; use Not the same person to skip a pair.',
+      'Use Review & merge, choose the record to keep, and check what will move before confirming.',
     ],
-    tips: ['Merging changes customer history and should be treated as a controlled action.'],
+    tips: ['Points are added together and marketing consent is not transferred. A merge can be undone with Separate.'],
   },
 ];
 
 const managementTopics: GuideTopic[] = [
   {
     title: 'Menu, recipes & modifiers',
-    description: 'Maintain what can be sold and connect menu choices to consistent recipes.',
+    description: 'Maintain what can be sold and connect each item to a costed recipe.',
     icon: UtensilsCrossed,
     href: '/menu',
     linkLabel: 'Manage menu',
-    access: 'Store manager+',
+    access: 'Menu or recipe permission',
     steps: [
-      'Create or edit menu items with the correct name, price, availability, and category.',
-      'Build modifier groups for choices such as size, milk, temperature, and extras.',
-      'Attach recipes and quantities so sales can drive accurate ingredient usage.',
-      'Review the POS after a menu change to confirm the item and its choices appear as expected.',
+      'Create or edit items with the right name, price and category; use On the menu to take one off the till.',
+      'Build modifier groups for choices such as size, milk and extras.',
+      'Add recipes under Recipe & cost so sales use stock and margins are accurate.',
+      'Check the till after a change to confirm the item and its choices appear as expected.',
     ],
   },
   {
     title: 'Inventory',
-    description: 'Track on-hand quantities, low-stock risk, stock units, expiry dates, and forecasted cover.',
+    description: 'Track on-hand stock, items below par, containers, expiry dates and days of cover.',
     icon: Package,
     href: '/inventory',
     linkLabel: 'Open inventory',
-    access: 'Store manager+',
+    access: 'Read stock',
     steps: [
-      'Select the correct location and review items marked low, critical, out, or expiring.',
-      'Open an item to inspect its stock units, thresholds, usage, and current availability.',
-      'Record new units and expiry information when stock arrives.',
-      'Use forecasts as an early warning, then check actual stock before ordering.',
+      'Select the location, then review items below par, running out within a week or expiring this week.',
+      'Open an item to read its containers, ledger, losses and transfers.',
+      'Use Log waste when something is spilt, damaged or expires, and Request more when it runs low.',
+      'Use Transfer when stock physically moves between locations.',
     ],
   },
   {
-    title: 'Purchasing & restocks',
-    description: 'Maintain suppliers, raise purchase orders, and process requests for more stock.',
+    title: 'Restock demand & purchase orders',
+    description: 'Approve requests for more stock, raise purchase orders and receive deliveries.',
     icon: Truck,
     href: '/inventory?tab=orders',
     linkLabel: 'Open purchase orders',
-    access: 'Store manager+',
+    access: 'Purchasing permission',
     steps: [
-      'Keep supplier details and the items they provide up to date.',
-      'Create a purchase order with the expected quantities, costs, and delivery details.',
-      'Review restock requests and approve, decline, or fulfil them with a clear audit trail.',
-      'Record received stock so inventory reflects what physically arrived.',
+      'Approve or reject requests on Restock demand.',
+      'Create a purchase order from one request, or order every approved request for a location together.',
+      'Use Mark as sent to supplier, then Receive delivery and record what physically arrived, with expiry dates.',
+      'Enter the invoice number and amount to check it against the order.',
     ],
   },
   {
-    title: 'Stocktakes & transfers',
-    description: 'Count physical stock, resolve differences, and move stock between locations.',
+    title: 'Stocktakes',
+    description: 'Count physical stock, review the differences and apply the count.',
     icon: ClipboardCheck,
     href: '/inventory?tab=stocktakes',
     linkLabel: 'Open stocktakes',
-    access: 'Store manager+',
+    access: 'Stocktake permission',
     steps: [
-      'Start a stocktake for the correct location and count the physical quantity of every listed item.',
-      'Review variances before finalising; correct counting errors rather than accepting a known mismatch.',
-      'Use transfers when stock physically moves between locations so both balances remain accurate.',
+      'Use Start stocktake for the selected location and count every listed item, including zeros.',
+      'Save counts as you go; turn on Blind count to hide expected figures.',
+      'Use Review & apply, check large differences, and correct counting errors before applying.',
     ],
-    tips: ['Avoid receiving deliveries or making transfers during an active count where possible.'],
+    tips: ['Avoid receiving deliveries or making transfers during an active count.'],
   },
   {
     title: 'Reports',
-    description: 'Understand performance through headline metrics, report library, comparisons, and top-item analysis.',
+    description: 'Net sales, targets, prime cost and a library of reports with one set of filters.',
     icon: BarChart3,
     href: '/reports',
     linkLabel: 'View reports',
-    access: 'Store manager+',
+    access: 'Analytics permission',
     steps: [
-      'Set the reporting period and location scope before interpreting a result.',
-      'Use the report library for a focused metric or top-items view.',
-      'Use Compare to place periods or locations side by side on a consistent basis.',
-      'Check operational context before acting on a single change in a chart.',
+      'Set the dates, comparison and location in the header before reading a figure.',
+      'Use the home for net sales, progress against the daily target, what stood out and prime cost.',
+      'Search All reports or star the ones you use; click a row to see the detail or the orders behind it.',
+      'Export CSV or print from any report.',
     ],
-  },
-  {
-    title: 'Report library, comparisons & refunds',
-    description: 'Move from headline reporting into a focused saved view, side-by-side comparison, item ranking, or refund analysis.',
-    icon: BarChart3,
-    href: '/reports',
-    linkLabel: 'Open report library',
-    access: 'Store manager+',
-    steps: [
-      'Choose Library when you know the operational question but not the report name.',
-      'Use Compare for like-for-like periods or locations, keeping the same metric and date basis.',
-      'Use Top items to find volume and revenue leaders; use Refunds to separate refund timing from sale timing.',
-      'Open a metric detail page when you need the definition and supporting trend behind one headline figure.',
-    ],
+    tips: ['End of day, Refunds, Waste & loss and Purchasing have their own permissions.'],
   },
   {
     title: 'Customer communications',
-    description: 'Connect email, build reusable templates, automate messages, and review delivery history.',
+    description: 'Connect email, write templates, automate messages and review delivery history.',
     icon: Mail,
     href: '/communications',
     linkLabel: 'Open communications',
-    access: 'Owner, manager, or marketing',
+    access: 'Email permission',
     steps: [
-      'Complete the email connection checklist before trying to send a campaign or automation.',
-      'Create a template and use supported customer variables for personalisation.',
-      'Preview the final email before enabling an automation.',
-      'Review History for sent, failed, or pending messages and resolve repeated delivery problems.',
+      'Connect a mailbox in Settings → Connectors → Email before building anything.',
+      'Create a template and preview it with real customer variables.',
+      'Build an automation from a trigger and a template, then switch it on.',
+      'Check History for failed messages and use Try again once the cause is fixed.',
     ],
   },
   {
-    title: 'Workspaces & locations',
-    description: 'Structure the organisation, create locations, and control where teams operate.',
+    title: 'Workspace & locations',
+    description: 'Your business details, locations, opening hours, order workflow and daily targets.',
     icon: Building2,
     href: '/settings/workspaces',
-    linkLabel: 'Manage workspaces',
-    access: 'Franchise owner+',
+    linkLabel: 'Open workspace settings',
+    access: 'Settings permission',
     steps: [
-      'Use a workspace for the business or franchise and add each operating site as a location.',
-      'Complete each location record so staff, stock, reporting, and service data are scoped correctly.',
-      'Assign staff only to the locations they need, then verify their access after changes.',
+      'Add each site as a location with its timezone and opening hours.',
+      'Choose each location’s order workflow: Kitchen workflow or Counter service.',
+      'Work through the readiness checklist until it reads Ready for service.',
+      'Assign staff only to the locations they need, then check their access.',
     ],
   },
   {
-    title: 'Trading, payments & connectors',
-    description: 'Configure legal trading details, tax behaviour, payment connections, and external service integrations.',
+    title: 'Modules, roles & connectors',
+    description: 'Choose the tools your workspace uses, decide what each role may do, and connect payments and email.',
     icon: Settings,
-    href: '/settings/trading',
-    linkLabel: 'Open trading settings',
-    access: 'Owner or settings access',
+    href: '/settings/modules',
+    linkLabel: 'Open modules',
+    access: 'Settings permission',
     steps: [
-      'Complete legal name, address, currency, VAT and receipt details before taking live payments.',
-      'Connect each payment provider with the intended location scope and verify it before service.',
-      'Open Connectors to review external integrations and their current connection state.',
-      'Test on the intended device and location before relying on a new connection during service.',
+      'Use Settings → Modules to review which tools are on; a module that is off hides its pages for everyone.',
+      'Use Settings → Roles & access to create custom roles with exactly the permissions they need.',
+      'Set receipt details and VAT in Settings → Trading & tax.',
+      'Add card readers, online card checkout and your email mailbox in Settings → Connectors.',
     ],
-    tips: ['Never paste secret keys into support messages or the AI chat.'],
+    tips: ['Never paste secret keys into support messages or Ask DUMA.'],
   },
   {
     title: 'Compliance & privacy requests',
-    description: 'Track customer data requests, deadlines, identity checks, exports, and completion evidence.',
+    description: 'Record data requests, track the one-month deadline, download data and erase records.',
     icon: ShieldCheck,
     href: '/compliance',
     linkLabel: 'Open compliance',
-    access: 'Privacy access',
+    access: 'Privacy permission',
     steps: [
-      'Record the request with the correct type, channel, received date and customer.',
-      'Confirm identity before exposing or changing personal data.',
-      'Track the due date and keep the status current while the request is being handled.',
-      'Add resolution notes and complete the request only when the required work and evidence are ready.',
+      'Use Record request: who asked, what they want, and how it reached you.',
+      'Confirm their identity before handing over or changing data; use Waiting for ID meanwhile.',
+      'Keep the status current and watch Due this week and Overdue.',
+      'Finish with Download their data, Complete, Erase and complete, or Decline with a reason.',
     ],
-    tips: ['Use the audit log to verify sensitive changes; do not copy personal data into support requests.'],
+    tips: ['Never copy personal data into support requests or Ask DUMA.'],
   },
   {
     title: 'Audit log',
-    description: 'A record of who changed what, used when a figure, price, or permission needs explaining.',
+    description: 'A record of who changed what, used when a figure, price or permission needs explaining.',
     icon: ClipboardCheck,
     href: '/audit-log',
     linkLabel: 'Open audit log',
-    access: 'Franchise owner and above',
+    access: 'Audit permission',
     steps: [
-      'Narrow the log to the period you are investigating before reading individual entries.',
-      'Match the entry to the record it changed — an order, a price, a stock figure, or an account.',
-      'Use the actor and timestamp to follow up with the person who made the change.',
+      'Search people, records or details, or narrow by who and what kind of record.',
+      'Match the entry to the record it changed — an order, a price, a stock figure or an account.',
+      'Use the person and time to follow up with whoever made the change.',
     ],
     tips: ['Check here first when two people disagree about what a figure used to be.'],
   },
@@ -370,181 +362,204 @@ const managementTopics: GuideTopic[] = [
 const peopleTopics: GuideTopic[] = [
   {
     title: 'My rota',
-    description: 'See your own scheduled shifts and upcoming working pattern.',
+    description: 'Your week of shifts and leave, and where you clock in and out.',
     icon: CalendarDays,
     href: '/scheduling',
-    linkLabel: 'View my rota',
+    linkLabel: 'Open my rota',
     steps: [
-      'Check the date range and location for every upcoming shift.',
-      'Open My HR if you need to request leave or raise an attendance correction.',
-      'Contact your manager promptly when a shift or location looks incorrect.',
+      'Check the location picker, then Slide to clock in. You can clock in from an hour before a shift.',
+      'Tap a shift for its times, break, paid time, estimated pay and any note from your manager.',
+      'Look for New and Changed badges on shifts that moved since you last looked.',
+      'Use Clock out at the end of your shift.',
     ],
+    tips: ['Breaks are an unpaid rule your manager sets — there is nothing to start or stop.'],
   },
   {
     title: 'My HR',
-    description: 'Your personal home for leave, attendance, learning, documents, and private helpdesk requests.',
+    description: 'Your own details, time off, attendance, documents, payslips and private HR requests.',
     icon: HeartHandshake,
     href: '/my-hr',
     linkLabel: 'Open My HR',
     steps: [
-      'Use Overview for your details, bank record and documents held by HR.',
-      'Submit leave from Time & attendance with the correct dates and anything the approver needs to know.',
-      'Review the attendance calendar before requesting a correction to a missed or incorrect clock event.',
-      'Use Requests for a private HR request and continue the conversation on the same ticket.',
+      'Use Edit your details for your address, emergency contact and bank details.',
+      'Use Request time off on the Time off tab, with the dates and day length.',
+      'Open a day on the Attendance tab and use Query this day if it is wrong.',
+      'Read payslips under Documents, and use Ask HR for a private request.',
     ],
   },
   {
     title: 'Staff, rota & payroll',
-    description: 'Manage employee records, team cover, leave, attendance, HR tickets, and payroll runs.',
+    description: 'Employee records, onboarding, the team rota, worked hours, leave, helpdesk and payroll runs.',
     icon: UsersRound,
     href: '/staff',
     linkLabel: 'Open staff workspace',
-    access: 'People manager access',
+    access: 'Staff permission',
     steps: [
-      'Keep each employee record, role, scope, and assigned locations current.',
-      'Build the team rota and use coverage information to find gaps before publishing.',
-      'Review leave and helpdesk requests from their dedicated tabs.',
-      'Check payroll inputs and exceptions carefully before finalising or exporting a run.',
+      'Use Onboard on the Team tab to add someone and send their sign-in link.',
+      'Plan shifts on Rota & shifts and publish the drafts so the team can see them.',
+      'Correct worked hours, and turn unplanned work into a matching rota shift.',
+      'Decide leave on the Leave tab; run payroll, freeze it, enter deductions and issue payslips on Payroll.',
     ],
+    tips: ['Each tab needs its own permission, and pay details need sensitive HR permission.'],
   },
   {
     title: 'Settings & security',
-    description: 'Personalise DUMA, configure this device, install the app, and protect your account.',
+    description: 'Personalise DUMA, set up this device, install the app and protect your account.',
     icon: Settings,
     href: '/settings',
     linkLabel: 'Open settings',
     steps: [
-      'Choose light, dark, or system appearance and adjust page chrome preferences.',
-      'Configure device-specific POS scanner and KDS sound options before putting a device into service.',
-      'Install DUMA from the App section when the browser offers it.',
-      'Review signed-in sessions and revoke devices you no longer recognise or use.',
+      'Choose a colour theme and brand colour in Settings → Profile.',
+      'Set up a till or kitchen tablet in Settings → Configuration before putting it into service.',
+      'Install DUMA from Settings → Profile → Install the app.',
+      'Change your password and sign out devices you no longer use in Settings → Security.',
     ],
-    tips: ['Shared terminals should use the appropriate staff account and be signed out when no longer supervised.'],
+    tips: ['On a shared terminal, make sure the person clocked in is the one signed in.'],
   },
   {
     title: 'Helpdesk requests',
-    description: 'Raise a tracked request for HR, payroll, scheduling, workplace, or IT help, and follow the reply.',
+    description: 'Raise a tracked request for HR, payroll, scheduling, leave, workplace or IT help, and follow the reply.',
     icon: Headphones,
     href: '/my-hr?tab=requests',
-    linkLabel: 'Open helpdesk',
+    linkLabel: 'Open requests',
     steps: [
-      'Choose the category that matches your problem so it reaches the right person.',
-      'Set the priority honestly — urgent is for work that cannot continue.',
-      'Describe what you expected, what happened, and the time it happened.',
-      'Reply on the same request rather than raising a second one for the same issue.',
+      'Use Ask HR and pick the topic that matches your problem so it reaches the right person.',
+      'Set the urgency honestly — Urgent is for work that cannot continue.',
+      'Describe what you expected, what happened and when it happened.',
+      'Reply on the same request rather than raising a second one.',
     ],
     tips: ['A request keeps its history, so anyone picking it up later can see the full conversation.'],
   },
 ];
 
 const accessAreas: AccessArea[] = [
-  { area: 'Dashboard, POS, KDS', detail: 'Serving customers and seeing today’s activity.', who: ['Everyone'] },
-  { area: 'My HR, My Rota', detail: 'Your own leave, attendance, shifts and documents.', who: ['Everyone'] },
-  { area: 'Support', detail: 'This help centre and the request form.', who: ['Everyone'] },
+  { area: 'Dashboard, My rota, My HR', detail: 'Today’s activity, your own shifts, leave, attendance and payslips.', who: ['Everyone'] },
   {
-    area: 'Orders, Customers, Menu, Inventory, Reports',
-    detail: 'Trading history, customer records, the menu, stock and analysis.',
+    area: 'Settings: Profile, Security, Configuration',
+    detail: 'Your appearance, password, devices and device screens.',
+    who: ['Everyone'],
+  },
+  { area: 'Support', detail: 'This help centre and the request form.', who: ['Everyone'] },
+  { area: 'Till', detail: 'Taking orders and payment.', who: ['Create orders'] },
+  { area: 'Cash up on the till', detail: 'Opening and closing the trading day.', who: ['Cash-up write and create orders'] },
+  { area: 'Kitchen', detail: 'Moving tickets through the kitchen.', who: ['Update order status'] },
+  {
+    area: 'Orders, Customers, Menu, Inventory',
+    detail: 'Order history, customer records, the menu and stock.',
     who: ['Area-specific read or write permission'],
   },
   {
-    area: 'Communications',
-    detail: 'Customer email templates, automations and delivery history.',
-    who: ['Email read or send permission'],
+    area: 'Reports',
+    detail: 'Sales, profit and labour reports. End of day, Refunds, Waste & loss and Purchasing have their own.',
+    who: ['Analytics, or the report’s own permission'],
   },
+  { area: 'Communications', detail: 'Email templates, automations and delivery history.', who: ['Email read permission'] },
   {
-    area: 'Staff — team, rota, shifts',
-    detail: 'Employee records, team cover and shift management.',
-    who: ['Staff or scheduling permission'],
+    area: 'Staff — team, rota & shifts',
+    detail: 'Employee records, onboarding, the team rota and worked hours.',
+    who: ['Staff, scheduling or shifts permission'],
   },
   {
     area: 'Staff — leave, helpdesk, payroll',
-    detail: 'Approving leave, triaging HR requests and running payroll.',
-    who: ['Leave, helpdesk, or payroll permission'],
+    detail: 'Deciding leave, triaging HR requests and running payroll.',
+    who: ['Leave review, helpdesk or payroll permission'],
   },
   {
-    area: 'Pay, bank details, payslips',
-    detail: 'Money held on an employee record, wherever it appears. Everyone can see and manage their own in My HR.',
-    who: ['HR people or payroll permission'],
+    area: 'Pay, bank and statutory details',
+    detail: 'Money held on someone else’s record, wherever it appears. Your own are managed in My HR.',
+    who: ['Sensitive HR permission'],
   },
   {
-    area: 'Workspaces & locations',
-    detail: 'Creating locations and controlling where teams operate.',
-    who: ['Location or tenant settings permission'],
+    area: 'Settings: Workspace, Modules, Trading & tax',
+    detail: 'Business details, locations, the tools in use, VAT and receipts.',
+    who: ['Settings write permission'],
   },
-  {
-    area: 'Audit log',
-    detail: 'Reviewing who changed what, including auditor access.',
-    who: ['Audit read permission'],
-  },
+  { area: 'Settings: Roles & access', detail: 'Creating roles and choosing their permissions.', who: ['Staff access permission'] },
+  { area: 'Compliance', detail: 'Customer and staff privacy requests.', who: ['Privacy permission'] },
+  { area: 'Audit log', detail: 'Reviewing who changed what.', who: ['Audit read permission'] },
 ];
 
 const playbooks: Playbook[] = [
   {
-    symptom: 'The POS is offline mid-service',
-    cause: 'The device lost its connection. DUMA keeps serving and queues eligible orders on that device.',
+    symptom: 'The till is offline mid-service',
+    cause: 'The device lost its connection. Cash and card-machine sales save on the till; connected card readers need a connection.',
     icon: WifiOff,
     steps: [
-      'Carry on taking orders — the offline indicator shows the app is queueing rather than failing.',
-      'Leave the DUMA tab open. Closing the browser stops queued orders from syncing.',
-      'When the connection returns, wait for the queue to clear rather than re-entering orders.',
-      'Confirm each order appears in Orders before assuming it was lost.',
+      'Carry on with cash or the card machine — the offline banner shows sales are being saved on this till.',
+      'Keep DUMA on that till. Saved sales send automatically when the connection returns.',
+      'Wait for them to send rather than re-entering them.',
+      'Check Orders before assuming a sale was lost.',
     ],
     href: '/orders',
     linkLabel: 'Check orders',
   },
   {
-    symptom: 'A queued offline order will not sync',
-    cause: 'The sync stopped because the session expired, or the order needs a decision.',
+    symptom: 'A saved offline sale will not send',
+    cause: 'Sending paused because the cashier was signed out, or the server refused the sale and it needs a manager.',
     icon: RefreshCw,
     steps: [
-      'Sign in again if you were signed out — syncing pauses rather than discarding the order.',
-      'Read the status shown against the queued order: some need attention rather than another retry.',
-      'If it still fails, note the customer, items and time before contacting support.',
+      'Sign in again as the person who took the sale — sending resumes and nothing is discarded.',
+      'Read the reason shown against a sale marked for a manager, fix it, then use Retry.',
+      'If it still fails, note the customer, items and time before contacting support. Never delete or re-enter it.',
     ],
+    href: '/pos',
+    linkLabel: 'Open the till',
+  },
+  {
+    symptom: 'The till says Clock in to start selling',
+    cause: 'The till only sells while you are on shift at the selected location.',
+    icon: Clock3,
+    steps: [
+      'Check the location picker shows where you are working.',
+      'Drag Slide to clock in on the till, or clock in on My rota.',
+      'If it says Your shift couldn’t be checked, check the connection and use Try again.',
+    ],
+    href: '/scheduling',
+    linkLabel: 'Open my rota',
   },
   {
     symptom: 'I was signed out unexpectedly',
-    cause: 'The session expired or was revoked on another device.',
+    cause: 'The session expired, your password was changed, or your role was updated.',
     icon: ShieldCheck,
     steps: [
-      'Sign in again — you are returned to the page you were on.',
-      'Check Settings for sessions you do not recognise and revoke them.',
+      'Sign in again — use Forgot password? if you need a new one.',
+      'Check Settings → Security for devices you do not recognise and sign them out.',
       'On a shared terminal, sign in with the account that should be recorded against the orders.',
     ],
-    href: '/settings',
-    linkLabel: 'Open settings',
+    href: '/settings/security',
+    linkLabel: 'Open security',
   },
   {
     symptom: 'A page in this guide is missing for me',
-    cause: 'Pages follow your role and your assigned locations.',
+    cause: 'Pages follow your permissions and the modules your workspace uses.',
     icon: KeyRound,
     steps: [
-      'Check the Roles & access tab to see who can open that area.',
+      'Check the Roles & access tab to see which permission that area needs.',
       'Confirm the correct location is selected in the location picker.',
-      'Ask a manager to review your role and location assignment if it should be available.',
+      'Ask an owner or administrator to review your role, or whether the module is switched on.',
     ],
   },
   {
-    symptom: 'A menu item is missing from the POS',
-    cause: 'Items are enabled per location, and an item can be hidden or out of stock.',
+    symptom: 'A menu item is missing from the till',
+    cause: 'The item is off the menu, has not loaded, or the till is filtered to another category.',
     icon: UtensilsCrossed,
     steps: [
-      'Confirm the POS is on the right location.',
-      'Open Menu and check the item is active for that location.',
-      'Check the linked stock item is available — an ingredient at zero can take an item off sale.',
+      'Search the menu on the till, or open the Everything tab.',
+      'Open Menu and check the item’s On the menu switch.',
+      'Reload the till after a menu change so it fetches the latest menu.',
     ],
     href: '/menu',
     linkLabel: 'Open menu',
   },
   {
     symptom: 'Stock figures do not match the shelf',
-    cause: 'On-hand is the sum of open containers, so unrecorded waste or deliveries show up as a gap.',
+    cause: 'On-hand is the sum of containers, so unrecorded waste or deliveries show up as a gap.',
     icon: Boxes,
     steps: [
       'Open the item and read its containers — each one carries its own remaining balance.',
-      'Record any waste or breakage as a loss so the reason is kept with the movement.',
-      'Receive deliveries as containers rather than adjusting a total by hand.',
-      'Use a stocktake to correct the count, then read the variance to see what was missed.',
+      'Use Log waste for any spill, breakage or expiry so the reason is kept.',
+      'Receive deliveries against the purchase order rather than adjusting a total by hand.',
+      'Run a stocktake to correct the count, then read the differences to see what was missed.',
     ],
     href: '/inventory',
     linkLabel: 'Open inventory',
@@ -554,8 +569,8 @@ const playbooks: Playbook[] = [
     cause: 'A purchase order only moves stock when the delivery is received against it.',
     icon: Truck,
     steps: [
-      'Open the purchase order and check its status — submitted means nothing has arrived yet.',
-      'Use Receive goods and enter what physically turned up, per line.',
+      'Open the purchase order — Awaiting delivery means nothing has been received yet.',
+      'Use Receive delivery and enter what physically turned up, per line.',
       'Enter expiry dates for perishable lines; they drive the expiry warnings later.',
       'Part deliveries are normal: receive what came and the rest stays outstanding.',
     ],
@@ -564,61 +579,75 @@ const playbooks: Playbook[] = [
   },
   {
     symptom: 'Customer emails are not arriving',
-    cause: 'Email needs a connected mail account, an active template and an enabled automation.',
+    cause: 'Email needs a connected mailbox, a template, an automation that is on, and a customer who may receive it.',
     icon: Mail,
     steps: [
-      'Check the connection state in Communications — the header shows whether email is set up.',
-      'Confirm the template is in use and the automation is switched on.',
-      'Open History and read the status against the message: failed entries show the reason.',
-      'Use Try again on a failed delivery once the cause is fixed.',
+      'Check the Communications header reads Email connected.',
+      'Confirm the automation is on and its template still exists.',
+      'Check the customer has opted in and is not suppressed.',
+      'Open History, read the status and error, and use Try again once the cause is fixed.',
     ],
     href: '/communications',
     linkLabel: 'Open communications',
   },
   {
     symptom: 'A loyalty code will not scan',
-    cause: 'The camera or scanner is not set up on that device, or the customer has no record yet.',
+    cause: 'This till is set to the wrong scanner, the camera is blocked, or the code is not a DUMA loyalty code.',
     icon: Users,
     steps: [
-      'Check the scanner and camera choice in Settings for that device.',
-      'Search the customer by phone number or name instead of scanning.',
-      'Create a record only after searching, so you do not end up with duplicates.',
+      'Check Settings → Configuration → Till → Loyalty scanner on that device: Camera or USB scanner.',
+      'If the camera is blocked, allow camera access for DUMA in the browser.',
+      'Search the customer by name, phone or email instead.',
+      'Create a new customer only after searching, so you do not make a duplicate.',
     ],
-    href: '/customers',
-    linkLabel: 'Open customers',
+    href: '/settings/configuration/pos',
+    linkLabel: 'Open till settings',
   },
   {
     symptom: 'Loyalty points look wrong',
-    cause: 'Points move with orders, and a manual adjustment is a deliberate correction.',
+    cause: 'Points move with completed orders; a manual adjustment is a deliberate correction.',
     icon: Sparkles,
     steps: [
-      'Open the customer and read their recent orders and points balance together.',
-      'Adjust points only to correct a real error, and write the reason.',
-      'Remember tier progress is measured against the points thresholds, not spend alone.',
+      'Open the customer and read the Points entries on the Timeline.',
+      'Check for an offline sale still waiting to send, or a duplicate record.',
+      'Use Adjust points only to correct a real error, and choose a reason.',
     ],
     href: '/customers',
     linkLabel: 'Open customers',
   },
   {
-    symptom: 'The KDS is not showing new orders',
-    cause: 'The screen needs DUMA open and on the right location.',
+    symptom: 'The kitchen screen is not showing new orders',
+    cause: 'The screen is on another location, offline, or the order is not paid or released yet.',
     icon: ChefHat,
     steps: [
-      'Confirm the KDS device is on the location taking the orders.',
-      'Keep the KDS page open during service rather than switching tabs.',
-      'Check the device is online — the offline indicator appears when it is not.',
+      'Confirm the kitchen device is on the location taking the orders.',
+      'Check the toolbar reads Live, not Offline or Reconnecting.',
+      'Check Orders: unpaid QR orders and cash orders awaiting approval stay out of the kitchen, and scheduled orders appear when it is time to start them.',
     ],
     href: '/kds',
-    linkLabel: 'Open KDS',
+    linkLabel: 'Open the kitchen screen',
+  },
+  {
+    symptom: 'The cash-up does not balance',
+    cause: 'A count error, a refund or float issue, or sales still waiting to send from offline.',
+    icon: Boxes,
+    steps: [
+      'Recount the drawer by notes and coins, including the float.',
+      'Check the card total matches the terminal’s end-of-day (Z) print for this location.',
+      'Wait for unsent offline sales before closing if you can.',
+      'Write a note explaining any difference of 1.00 or more — a closed day can’t be reopened.',
+    ],
+    href: '/reports/end-of-day',
+    linkLabel: 'Open End of day',
   },
   {
     symptom: 'My hours or leave balance look wrong',
-    cause: 'Hours come from clock events and leave from your entitlement, so both are corrected by a person.',
+    cause: 'Hours come from clock-ins and leave from your entitlement, so both are corrected by a person.',
     icon: CalendarDays,
     steps: [
-      'Check Time & attendance in My HR for the day in question.',
-      'Raise an attendance correction from that day rather than emailing separately.',
-      'For a balance, check the entitlement year shown before reporting a difference.',
+      'Open the day on the Attendance tab in My HR.',
+      'Use Query this day rather than emailing separately.',
+      'For a balance, check the leave year shown on Time off before reporting a difference.',
     ],
     href: '/my-hr',
     linkLabel: 'Open My HR',
@@ -628,9 +657,9 @@ const playbooks: Playbook[] = [
     cause: 'DUMA installs to the home screen or desktop from the browser.',
     icon: Monitor,
     steps: [
-      'Open Settings and use the install option when the browser offers it.',
+      'Open Settings → Profile and use Install the app.',
       'On iPad or iPhone, use Share then Add to Home Screen.',
-      'Sign in once installed so the account is available for offline use on that device.',
+      'Sign in once installed so the account is ready on that device.',
     ],
     href: '/settings',
     linkLabel: 'Open settings',
@@ -645,20 +674,45 @@ const glossary: GlossaryEntry[] = [
   },
   {
     term: 'Location',
-    definition: 'A single site. The location picker decides which site you are working in.',
+    definition: 'A single site. The location picker at the bottom of the sidebar decides which site you are working in.',
     group: 'Workspace',
   },
-  { term: 'Role', definition: 'What your account may do. Roles rank, so a higher role generally sees more.', group: 'Workspace' },
   {
-    term: 'Scope',
-    definition: 'How far a role reaches — one location, a franchise, or everything in the workspace.',
+    term: 'Role',
+    definition:
+      'A named set of permissions given to an account. Roles do not rank — what you can open depends on the permissions the role holds.',
+    group: 'Workspace',
+  },
+  {
+    term: 'Permission',
+    definition: 'One action an account may take, such as reading orders or writing stock. DUMA checks permissions on every request.',
+    group: 'Workspace',
+  },
+  {
+    term: 'Module',
+    definition: 'A tool the workspace uses, such as the Till, Stock or Payroll. A module that is off hides its pages from everyone.',
+    group: 'Workspace',
+  },
+  {
+    term: 'Access scope',
+    definition: 'How far someone reaches — chosen locations, their franchise, or everywhere in the workspace.',
     group: 'Workspace',
   },
   { term: 'Audit entry', definition: 'A record of a change: who made it, what changed, and when.', group: 'Workspace' },
-  { term: 'Source', definition: 'Where an order came from, such as the POS or a mobile order.', group: 'Service' },
+  {
+    term: 'Channel',
+    definition: 'Where an order came from: Counter (the till), QR table or Mobile.',
+    group: 'Service',
+  },
   {
     term: 'Order status',
-    definition: 'Pending, preparing, ready, done or cancelled — the fulfilment stage of an order.',
+    definition: 'New, Preparing, Ready, Done or Cancelled — the fulfilment stage. Unpaid QR orders can also be Expired.',
+    group: 'Service',
+  },
+  {
+    term: 'Order workflow',
+    definition:
+      'A location setting: Kitchen workflow keeps paid tickets on the kitchen screen until made; Counter service completes the sale when paid.',
     group: 'Service',
   },
   {
@@ -666,64 +720,110 @@ const glossary: GlossaryEntry[] = [
     definition: 'A choice attached to a menu item, like a size or a milk. Modifiers can change the price.',
     group: 'Service',
   },
-  { term: 'Recipe', definition: 'The ingredients behind a menu item, used to consume stock and estimate cost.', group: 'Service' },
+  { term: 'Recipe', definition: 'The ingredients behind a menu item, used to consume stock and cost the plate.', group: 'Service' },
   {
-    term: 'Offline queue',
-    definition: 'Orders held on a device while it has no connection, sent automatically once it returns.',
+    term: 'Held ticket',
+    definition: 'A ticket parked on one till to serve someone else. It is not a sale until charged.',
+    group: 'Service',
+  },
+  {
+    term: 'Offline sale',
+    definition: 'A cash or card-machine sale saved on a till without a connection, sent automatically once it returns.',
+    group: 'Service',
+  },
+  {
+    term: 'Cash-up',
+    definition: 'Opening the trading day with a float and closing it with a blind count of the drawer and the card total, on the till.',
+    group: 'Service',
+  },
+  {
+    term: 'Blind count',
+    definition: 'Counting before DUMA shows what it expected, so the count stays honest. Used in cash-up and stocktakes.',
     group: 'Service',
   },
   { term: 'Stock item', definition: 'Something you hold, defined once for the workspace with its unit of measure.', group: 'Stock' },
   {
-    term: 'Container (stock unit)',
+    term: 'Container',
     definition: 'One physical unit of a stock item — a bag, bottle or box — with its own remaining balance, lot and expiry.',
     group: 'Stock',
   },
-  { term: 'On hand', definition: 'The total left across a location’s open containers of an item.', group: 'Stock' },
+  { term: 'On hand', definition: 'The total left across a location’s containers of an item.', group: 'Stock' },
   {
-    term: 'FEFO',
-    definition: 'First expired, first out: containers are consumed in expiry order so the oldest stock goes first.',
+    term: 'Use-first order',
+    definition: 'Open containers are used first, then the earliest expiry, so the oldest usable stock goes first.',
     group: 'Stock',
   },
-  { term: 'Reorder threshold', definition: 'The level at which an item is treated as low and needs ordering.', group: 'Stock' },
+  { term: 'Par', definition: 'The level at which an item counts as low and needs ordering, with its reorder quantity.', group: 'Stock' },
   {
     term: 'Restock request',
-    definition: 'A request to buy more of an item. It moves from pending to approved, then to ordered once it is on a purchase order.',
+    definition: 'A request to buy more of an item: Waiting for review, Approved or Rejected, then Ordered once it is on a purchase order.',
     group: 'Stock',
   },
   {
     term: 'Purchase order',
-    definition: 'An order to a supplier. Draft, submitted, part received, received or cancelled.',
+    definition: 'An order to a supplier: Draft, Awaiting delivery, Part delivered, Received or Cancelled.',
     group: 'Stock',
   },
-  { term: 'Loss', definition: 'Stock written off with a reason: waste, expiry, damage or theft.', group: 'Stock' },
-  { term: 'Stocktake variance', definition: 'The difference between the counted quantity and what DUMA expected.', group: 'Stock' },
-  { term: 'Transfer', definition: 'Stock moved between locations. It leaves one and arrives at the other when completed.', group: 'Stock' },
-  { term: 'Employment type', definition: 'Full time, part time, contractor or zero hours, held on the employee record.', group: 'People' },
-  { term: 'Entitlement', definition: 'The leave days available to someone for a given year.', group: 'People' },
+  { term: 'Waste', definition: 'Stock written off with a reason, such as expired, damaged or theft, using Log waste.', group: 'Stock' },
+  { term: 'Stocktake difference', definition: 'The gap between the counted quantity and what DUMA expected.', group: 'Stock' },
+  { term: 'Transfer', definition: 'Stock moved between locations: Waiting, then Moved once it arrives, or Cancelled.', group: 'Stock' },
+  { term: 'Contract', definition: 'Full time, part time, zero hours or contractor, held on the employee record.', group: 'People' },
+  { term: 'Entitlement', definition: 'The leave days available to someone in a leave year.', group: 'People' },
   {
-    term: 'Attendance status',
-    definition: 'How a shift was worked: full, partial, missed, approved leave, or no shift scheduled.',
+    term: 'Attendance',
+    definition: 'How a day was worked against the rota: Worked, Short, Missed, Leave, Rostered or No shift.',
+    group: 'People',
+  },
+  { term: 'Draft shift', definition: 'A planned shift only managers can see until it is published to the team.', group: 'People' },
+  {
+    term: 'Payroll run',
+    definition: 'A pay period frozen, given deductions and issued as payslips that staff read in My HR.',
     group: 'People',
   },
   {
     term: 'Helpdesk request',
-    definition: 'A tracked conversation with HR or support, with a status and a full history.',
+    definition: 'A tracked conversation with HR, with a status and a full history.',
     group: 'People',
   },
   {
     term: 'Loyalty points',
-    definition: 'The balance a customer can earn and spend. Adjustments are manual corrections.',
+    definition: 'The balance a customer earns on completed orders. Adjustments are deliberate corrections with a reason.',
     group: 'Customers',
   },
-  { term: 'Tier', definition: 'Bronze, silver, gold or VIP, reached at set points thresholds.', group: 'Customers' },
+  {
+    term: 'Stamp card',
+    definition: 'A loyalty programme that counts units, such as one stamp per coffee, and issues a reward after a set number.',
+    group: 'Customers',
+  },
+  {
+    term: 'Reward',
+    definition: 'A free item, free modifier or percentage off a customer has earned, applied at the till under Customer rewards.',
+    group: 'Customers',
+  },
+  { term: 'Tier', definition: 'Bronze from 0, Silver from 100, Gold from 300 and VIP from 800 points.', group: 'Customers' },
+  {
+    term: 'Segment',
+    definition: 'A saved set of customer filters that re-runs each time, used as a live audience.',
+    group: 'Customers',
+  },
+  {
+    term: 'Suppression',
+    definition: 'An address that must not receive marketing email — an unsubscribe, bounce, complaint or erasure.',
+    group: 'Customers',
+  },
   {
     term: 'Delivery status',
-    definition: 'What happened to an email: queued, sending, sent, failed or cancelled.',
+    definition: 'What happened to an email: Waiting, Sending, Sent, Failed or Cancelled.',
     group: 'Customers',
   },
   {
     term: 'Automation',
-    definition: 'A rule that sends a template when something happens, such as an order being ready.',
+    definition: 'A rule that sends a template when something happens, such as an order being ready for collection.',
+    group: 'Customers',
+  },
+  {
+    term: 'Privacy request',
+    definition: 'A request to access, correct, erase or move personal data, due one calendar month after it is recorded.',
     group: 'Customers',
   },
 ];
@@ -732,92 +832,124 @@ const faqs = [
   {
     question: 'Why can’t I see a page mentioned in this guide?',
     answer:
-      'DUMA shows tools according to your role and assigned locations. For example, customer, order, inventory, and reporting tools need manager access, while workspace administration needs franchise-owner access. Ask your manager to check your role and location assignment.',
+      'DUMA shows pages according to the permissions your role holds and the modules your workspace uses — roles do not simply rank. For example, Customers needs customer read permission and Settings → Workspace needs settings permission. Ask an owner or administrator to check your role, or whether the module is switched on.',
   },
   {
     question: 'How do I change the location I am working in?',
     answer:
-      'Use the location picker. Always confirm it before taking orders, counting stock, receiving deliveries, or reading location-specific reports. If the location is missing, your staff assignment may need updating.',
+      'Use the location picker at the bottom of the sidebar. Always confirm it before clocking in, taking orders, cashing up, counting stock or reading location reports. If a location is missing, your access may need updating.',
   },
   {
-    question: 'What happens if the POS loses its internet connection?',
+    question: 'Why won’t the till let me take orders?',
     answer:
-      'DUMA displays its offline state and can queue eligible orders on that device. Keep the app open and reconnect as soon as possible; queued orders will attempt to sync automatically. Confirm that the order appears in Orders after the connection returns before re-entering it.',
+      'The till only sells while you are clocked in at the selected location. Drag Slide to clock in on the till or on My rota. If it says No location selected, choose one in the location picker first.',
   },
   {
-    question: 'Why is a menu item missing from the POS?',
+    question: 'What happens if the till loses its internet connection?',
     answer:
-      'Check that the correct location is active, the item is available, and its menu setup is complete. Review its modifier requirements and recipe, then reload the POS. A user without menu access should ask a store manager to make these checks.',
+      'Cash and card-machine sales save on that till and send automatically when the connection returns. Connected card readers need a connection. Keep DUMA on the till, and check Orders before re-entering anything — a saved sale is never deleted automatically.',
   },
   {
-    question: 'Why do the KDS and POS show different information?',
+    question: 'Where do I cash up now?',
     answer:
-      'First confirm both devices are using the same location and are online. Refresh the KDS, then inspect the order in Orders for its recorded status. If the mismatch remains, email support with the order number, location, approximate time, and screenshots from both devices.',
+      'On the till. Use the Cash up button in the till’s header to open the day with a float and close it with a blind count and the card total. Past days are in Reports → End of day.',
+  },
+  {
+    question: 'Why is a menu item missing from the till?',
+    answer:
+      'Search for it on the till first. Then check in Menu that the item is On the menu, and reload the till. Someone without menu permission should ask a manager to check.',
+  },
+  {
+    question: 'Why do the kitchen screen and the till show different things?',
+    answer:
+      'The kitchen screen only shows paid orders released to the kitchen, for its selected location. Check both devices are on the same location and online, then check the order’s status in Orders. Cash QR orders stay out of the kitchen until approved with Cash received.',
   },
   {
     question: 'How should I correct loyalty points?',
     answer:
-      'Open the customer record, use the points adjustment action, enter only the amount needed to correct the balance, and record a useful reason. Check for duplicate customer records or an unsynced order before making a manual adjustment.',
+      'Open the customer, use Adjust points (or Adjust stamps), enter only the amount needed and choose a reason. Check for a duplicate record or an offline sale still waiting to send first.',
+  },
+  {
+    question: 'How do tiers work?',
+    answer:
+      'Tiers come from the points balance and are the same for every customer: Bronze from 0, Silver from 100, Gold from 300 and VIP from 800 points.',
   },
   {
     question: 'Why do stock figures look wrong?',
     answer:
-      'Check the selected location, recent deliveries, transfers, stocktakes, and recipe quantities. Confirm physical stock and review the item’s units and usage before changing a balance. If several items shifted together, look for an unfinished stocktake or transfer.',
+      'Check the selected location, recent deliveries, transfers, stocktakes and recipe quantities. Read the item’s containers and ledger before changing anything. If several items shifted together, look for an unfinished stocktake or transfer.',
   },
   {
     question: 'Can I install DUMA on a tablet or desktop?',
     answer:
-      'Yes. Open Settings → App and use Install DUMA when available. On iPhone or iPad, use the browser Share menu and choose Add to Home Screen. Installation is especially useful for dedicated POS and KDS devices.',
+      'Yes. Open Settings → Profile and use Install the app. On iPhone or iPad, use the browser Share menu and choose Add to Home Screen. It is especially useful for dedicated till and kitchen tablets.',
+  },
+  {
+    question: 'How do I set up a till or kitchen tablet?',
+    answer:
+      'On that device, open Settings → Configuration. Till sets the layout, favourites, stock warnings and loyalty scanner; Kitchen screen sets the layout, text size and order chime. These choices stay on the device.',
   },
   {
     question: 'How do I report a leave or attendance problem?',
     answer:
-      'Open My HR. Use Time & attendance for a new leave request or a clocking correction. For a private or more complex issue, raise a ticket under Requests and keep replies in that ticket so the history stays together.',
+      'Open My HR. Use Request time off on the Time off tab for leave. For hours, open the day on the Attendance tab and use Query this day. For anything else, use Ask HR and keep replies on that request.',
+  },
+  {
+    question: 'Where are my payslips?',
+    answer: 'In My HR → Documents, under Payslips, once payroll has issued them. Your latest payslip also shows on the Overview.',
+  },
+  {
+    question: 'Can I claim expenses in DUMA?',
+    answer: 'No. DUMA does not handle expense claims. Ask your manager or HR how expenses are handled in your business.',
   },
   {
     question: 'What should I include when contacting support?',
     answer:
-      'Include your name, workspace and location, the page you were using, what you expected, what happened instead, the approximate time, and any order or customer reference. Add a screenshot of the full page when possible, but never include passwords or payment-card details.',
+      'Include your name, workspace and location, the page you were using, what you expected, what happened instead, the approximate time, and any order or customer reference. Add a screenshot when it is safe, but never include passwords or payment-card details.',
   },
   {
     question: 'Should I email support or raise a request?',
     answer:
-      'Raise a request for anything about your work — HR, payroll, scheduling, workplace or IT. It keeps a status and a history, and the reply stays on the same request. Email support when DUMA itself is not working and you cannot get far enough into the app to raise a request.',
+      'Raise a request in My HR for anything about your work — HR, payroll, scheduling, leave, workplace or IT. It keeps a status and a history. Email support when DUMA itself is not working and you cannot get far enough into the app to raise a request.',
   },
   {
     question: 'Why does the same figure differ between two pages?',
     answer:
-      'Almost always the location or the date range differs. Check the location picker and the period control on the page. Reports compare the period you choose against the equivalent period immediately before it, so the comparison figure changes when the period does.',
+      'Almost always the location or the dates differ. The Dashboard shows today only; Reports use the dates in their header. Reports compare against the previous period or the same days last year, so the comparison changes when the dates do.',
   },
   {
     question: 'What is a container, and why not just edit the total?',
     answer:
-      'A container is one physical bag, bottle or box with its own remaining balance, lot and expiry. On-hand is the sum of them, which is what makes expiry warnings and first-expired-first-out consumption possible. Receiving deliveries and recording losses keeps that structure intact; editing a total by hand does not.',
+      'A container is one physical bag, bottle or box with its own remaining balance, lot and expiry. On-hand is the sum of them, which is what makes expiry warnings and use-first order possible. Receiving deliveries and logging waste keep that intact; editing a total does not.',
   },
   {
     question: 'How do approved restock requests become a purchase order?',
     answer:
-      'From Purchasing, open the approved list and create a purchase order from one request, or combine every approved request for one location into a single order. Requests move to ordered once the order is created. A purchase order only changes stock when the delivery is received against it.',
+      'On Inventory → Restock demand, use Create purchase order on one approved request, or on the Approved filter order every approved request for one location together. Requests then show as Ordered. A purchase order only changes stock when the delivery is received against it.',
   },
   {
     question: 'Who can see pay, bank details and payslips?',
     answer:
-      'Other people’s pay is visible only to HR managers, franchise owners and super admins, wherever that information appears. A store manager can manage the team and the rota without seeing pay. This is deliberate and is not something a manager can grant locally. Your own payslips, bank details and National Insurance number are always yours to see and update, in My HR.',
+      'Other people’s pay, bank and statutory details need sensitive HR permission. By default HR managers, franchise owners and super admins hold it, so a store manager can manage the team and the rota without seeing pay. Your own payslips are always in My HR, and you can update your bank details and National Insurance number there — stored bank details are never shown back, even to you.',
   },
   {
     question: 'Can I use DUMA on more than one device at a time?',
     answer:
-      'Yes. Each device keeps its own settings — scanner choice, KDS sound, appearance — while your data stays shared. Review the signed-in sessions in Settings occasionally and revoke any device you no longer use.',
+      'Yes. Each device keeps its own till, kitchen screen and appearance settings, while your data and dashboard layout follow your account. Review your signed-in devices in Settings → Security and sign out any you no longer use.',
   },
   {
     question: 'Does DUMA work with no internet at all?',
     answer:
-      'Partly. Pages you have already opened stay available on that device and the POS can queue eligible orders. Anything that needs fresh data from the server — reports, history, most management pages — needs a connection. Keep the app open until the queue clears.',
+      'Partly. The till can save cash and card-machine sales, and the kitchen screen keeps its tickets on screen. Anything that needs fresh data — reports, history, most management pages — needs a connection.',
   },
   {
     question: 'How do I get a new starter set up?',
     answer:
-      'Onboard them from the Staff workspace, which creates the account and the employment record together. The team list shows what is still missing on each record, and pay-affecting gaps are flagged so payroll is not run on an incomplete record.',
+      'Use Onboard on Staff → Team. It creates the account and the employment record together and emails them a single-use link to set a password. The record then flags anything still missing, such as bank details or a pay rate.',
+  },
+  {
+    question: 'I forgot my password. What do I do?',
+    answer: 'Use Forgot password? on the sign-in page. DUMA emails a single-use link to choose a new password of at least 12 characters.',
   },
 ];
 
@@ -917,6 +1049,7 @@ function OpenRequests() {
               <span className="font-mono text-label font-semibold text-muted-foreground">{ticketKey(ticket)}</span>
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{ticket.subject}</span>
               <span className="hidden text-label text-muted-foreground sm:inline">{fmtAgo(ticket.updatedAt)}</span>
+              {/* The word, not a glyph: it is the one thing this row tells you. */}
               <StatusLozenge status={ticket.status} />
             </Link>
           </li>
@@ -1083,7 +1216,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
               <div className="mt-5 rounded-sm border border-dashed border-rule bg-card p-8 text-center">
                 <CircleHelp className="mx-auto text-muted-foreground" size={24} aria-hidden="true" />
                 <p className="mt-3 text-sm font-medium text-foreground">
-                  Try a feature name such as “POS”, “stock”, “rota”, or “password”.
+                  Try a feature name such as “till”, “stock”, “rota”, or “password”.
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   You can also email support and the message will open with a useful checklist.
@@ -1102,8 +1235,8 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                     <h2 className="text-xl font-semibold text-foreground">A good place to begin</h2>
                   </div>
                   <p className="mt-2 max-w-[70ch] text-base leading-7 text-muted-foreground">
-                    DUMA keeps work organised by workspace, location, and staff role. Start every task by checking the active location; the
-                    pages and actions you can see then reflect your access.
+                    DUMA keeps work organised by workspace, location, and the permissions your role holds. Start every task by checking the
+                    active location; the pages and actions you can see then reflect your access.
                   </p>
 
                   <div className="mt-5 grid gap-4 md:grid-cols-3">
@@ -1123,7 +1256,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                       number="03"
                       icon={ShieldCheck}
                       title="Know your access"
-                      description="If a tool is missing, your role or location assignment may not include it."
+                      description="If a tool is missing, your role may not hold its permission, or its module may be switched off."
                     />
                   </div>
                 </section>
@@ -1144,14 +1277,14 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                           ? 'Confirm workspace locations and staff access before moving into menu, stock, and reporting.'
                           : isManager
                             ? 'Check service activity and alerts, then make sure the menu, stock, rota, and terminals are ready.'
-                            : 'Check your rota and dashboard, then open the POS or KDS assigned to your station.'}
+                            : 'Clock in, check your rota and dashboard, then open the till or kitchen screen at your station.'}
                       </p>
                     </div>
                     <Link
                       href={isOwner ? '/settings/workspaces' : '/dashboard'}
                       className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-sm border border-rule bg-background px-4 text-sm font-semibold text-foreground hover:bg-muted"
                     >
-                      {isOwner ? 'Open workspaces' : 'Open dashboard'}
+                      {isOwner ? 'Open workspace settings' : 'Open dashboard'}
                       <ArrowRight size={14} aria-hidden="true" />
                     </Link>
                   </div>
@@ -1170,7 +1303,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                       onClick={() => setActiveTab('guides')}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                     >
-                      All {SUPPORT_ARTICLES.length} guides
+                      All guides
                       <ArrowRight size={13} aria-hidden="true" />
                     </button>
                   </div>
@@ -1178,60 +1311,6 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                     {SUPPORT_ARTICLES.slice(0, 3).map((article) => (
                       <ArticleCard key={article.slug} article={article} />
                     ))}
-                  </div>
-                </section>
-
-                <section>
-                  <h2 className="text-xl font-semibold text-foreground">Choose what you need</h2>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <BrowseCard
-                      icon={Monitor}
-                      title="Run service"
-                      description="POS, KDS, orders, and customers"
-                      onClick={() => setActiveTab('service')}
-                    />
-                    <BrowseCard
-                      icon={Boxes}
-                      title="Manage the business"
-                      description="Menu, stock, purchasing, reports, and locations"
-                      onClick={() => setActiveTab('management')}
-                    />
-                    <BrowseCard
-                      icon={UsersRound}
-                      title="People & account"
-                      description="Rota, HR, settings, and security"
-                      onClick={() => setActiveTab('people')}
-                    />
-                    <BrowseCard
-                      icon={FileText}
-                      title="In-depth guides"
-                      description="Full walkthroughs of the trickier workflows"
-                      onClick={() => setActiveTab('guides')}
-                    />
-                    <BrowseCard
-                      icon={KeyRound}
-                      title="Roles & access"
-                      description="Who can open what, and why something is missing"
-                      onClick={() => setActiveTab('access')}
-                    />
-                    <BrowseCard
-                      icon={Wrench}
-                      title="Fix a problem"
-                      description="Offline orders, stock gaps, emails, scanning"
-                      onClick={() => setActiveTab('fix')}
-                    />
-                    <BrowseCard
-                      icon={BookMarked}
-                      title="Glossary"
-                      description="Containers, FEFO, tiers, entitlements"
-                      onClick={() => setActiveTab('glossary')}
-                    />
-                    <BrowseCard
-                      icon={CircleHelp}
-                      title="Common questions"
-                      description="Quick answers to what gets asked most"
-                      onClick={() => setActiveTab('faq')}
-                    />
                   </div>
                 </section>
 
@@ -1328,7 +1407,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
               <GuideSection
                 eyebrow="Roles & access"
                 title="Who can open what"
-                description="The API returns your effective permissions at sign-in. Your role supplies the defaults; the live permission is what the app enforces."
+                description="Your role supplies your permissions, and DUMA checks them on every request. Modules your workspace has switched off are hidden for everyone."
               >
                 <div className="space-y-6">
                   <div className="overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
@@ -1371,8 +1450,8 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                       </p>
                       {role && (
                         <p className="mt-3 text-sm text-muted-foreground">
-                          You are signed in as <span className="font-semibold text-foreground">{roleLabels[role]}</span>. DUMA checks the
-                          live permissions attached to that account on every request.
+                          You are signed in as <span className="font-semibold text-foreground">{roleLabels[role] ?? role}</span>. DUMA
+                          checks the live permissions attached to that account on every request.
                         </p>
                       )}
                     </div>
@@ -1524,39 +1603,6 @@ function OverviewCard({
       <h3 className="mt-4 font-semibold text-foreground">{title}</h3>
       <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{description}</p>
     </article>
-  );
-}
-
-function BrowseCard({
-  icon: Icon,
-  title,
-  description,
-  onClick,
-}: {
-  icon: IconComponent;
-  title: string;
-  description: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group rounded-sm border border-rule bg-card shadow-sm p-4 text-left transition-colors hover:border-primary/40 hover:bg-band"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <span className="flex size-9 items-center justify-center rounded-sm bg-muted text-foreground group-hover:bg-band group-hover:text-primary">
-          <Icon size={17} aria-hidden="true" />
-        </span>
-        <ArrowRight
-          size={15}
-          className="mt-2 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
-          aria-hidden="true"
-        />
-      </div>
-      <h3 className="mt-3 text-sm font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
-    </button>
   );
 }
 

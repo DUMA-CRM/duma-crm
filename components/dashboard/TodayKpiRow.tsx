@@ -77,7 +77,7 @@ export function TodayKpiRow({
       <StatCard
         label="Orders"
         value={formatCompact(orders)}
-        hint={comparable ? `${Math.round(typicalOrders)} by now on a typical ${day.weekday}` : 'No comparison available'}
+        hint={comparable ? `${Math.round(typicalOrders)} expected by now` : 'No comparison available'}
         delta={comparable ? changeDelta(percentageChange(orders, typicalOrders), { label: vsTypical }) : undefined}
         icon={ShoppingBag}
         accent="info"
@@ -87,7 +87,7 @@ export function TodayKpiRow({
       <StatCard
         label="Average order"
         value={formatMoney(averageOrderValue, 2)}
-        hint={comparable && typicalAov > 0 ? `${formatMoney(typicalAov, 2)} on a typical ${day.weekday}` : 'No comparison available'}
+        hint={comparable && typicalAov > 0 ? `${formatMoney(typicalAov, 2)} expected` : 'No comparison available'}
         delta={
           comparable && typicalAov > 0 ? changeDelta(percentageChange(averageOrderValue, typicalAov), { label: vsTypical }) : undefined
         }

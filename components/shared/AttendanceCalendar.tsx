@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 
 import { CalendarCheck } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { Bone } from '@/components/shared/Skeleton';
 import { Calendar } from '@/components/ui/calendar';
 
 import type { AttendanceDay, AttendanceStatus } from '@/lib/modules/people/client';
@@ -185,14 +186,19 @@ export function MonthGrid({
 
         {isLoading ? (
           // Same height as a real cell, so the grid does not jump when data lands.
-          <div className="grid grid-cols-7 gap-1 md:gap-1.5" aria-busy="true" aria-label={`Loading attendance for ${monthName}`}>
+          <div
+            className="grid grid-cols-7 gap-1 md:gap-1.5"
+            role="status"
+            aria-busy="true"
+            aria-label={`Loading attendance for ${monthName}`}
+          >
             {WEEKDAYS.map((day) => (
               <div key={day} className="px-1 pb-1 text-label uppercase text-muted-foreground">
                 {day}
               </div>
             ))}
             {Array.from({ length: 35 }, (_, i) => (
-              <div key={`skeleton-${i}`} className="h-20 animate-pulse rounded-md bg-band/60 md:h-24" />
+              <Bone key={`skeleton-${i}`} className="h-20 md:h-24" />
             ))}
           </div>
         ) : (
@@ -250,13 +256,12 @@ export function MonthGrid({
       </div>
 
       {!isLoading && byDate.size === 0 && (
-        <div className="mt-3 overflow-hidden rounded-lg border border-rule/60 bg-card">
-          <EmptyState
-            icon={CalendarCheck}
-            title={`Nothing recorded in ${monthName}`}
-            description="Days rostered or worked will appear here."
-          />
-        </div>
+        <EmptyState
+          icon={CalendarCheck}
+          title={`Nothing recorded in ${monthName}`}
+          description="Days rostered or worked will appear here."
+          compact
+        />
       )}
     </>
   );

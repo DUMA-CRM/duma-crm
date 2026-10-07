@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 
 import {
   AlertTriangle,
+  Ban,
   CalendarClock,
   CalendarRange,
   Check,
@@ -17,10 +18,13 @@ import {
   Users,
   X,
 } from '@/components/icons';
-import { Avatar } from '@/components/people/shared';
+import { Avatar, LeaveTypeIcon } from '@/components/people/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { IconTag } from '@/components/shared/IconTag';
+import { MiniBar } from '@/components/shared/MiniBar';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -123,9 +127,9 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
       />
 
       {requests.isPending ? (
-        <div className="space-y-2" aria-label="Loading leave requests">
+        <div role="status" aria-busy="true" aria-label="Loading leave requests" className="space-y-2.5">
           {[0, 1, 2].map((index) => (
-            <div key={index} className="h-40 animate-pulse rounded-lg bg-band/60" />
+            <RequestCardSkeleton key={index} />
           ))}
         </div>
       ) : requests.isError ? (
@@ -141,6 +145,7 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
           icon={status === 'pending' ? CheckCircle2 : Clock3}
           title={status === 'pending' ? 'Nobody is waiting' : `No ${STATUS_LABEL[status as keyof typeof STATUS_LABEL].toLowerCase()} leave`}
           description={status === 'pending' ? 'New requests appear here as the team books time off.' : 'Nothing to show for this status.'}
+          kind={status === 'pending' ? 'done' : 'search'}
         />
       ) : (
         <ul className="space-y-2.5">
@@ -166,6 +171,38 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** A `RequestCard` without its words: who and when, the three checks, the decision bar. */
+function RequestCardSkeleton() {
+  return (
+    <div className="rounded-lg border border-rule/60 bg-field" aria-hidden="true">
+      <div className="flex items-start gap-4 px-5 pt-4">
+        <Bone className="size-9 shrink-0" />
+        <span className="min-w-0 flex-1 space-y-2">
+          <Bone className="h-3.5 w-44 max-w-full" />
+          <Bone className="h-5 w-56 max-w-full" />
+          <Bone className="h-3 w-28" />
+        </span>
+        <Bone className="h-5 w-24 shrink-0" />
+      </div>
+      <div className="mx-5 mt-4 grid gap-2 sm:grid-cols-3">
+        {[0, 1, 2].map((index) => (
+          <div key={index} className="flex items-center gap-2.5 rounded-md border border-rule/50 bg-background/60 px-3 py-2.5">
+            <Bone className="size-8 shrink-0" />
+            <span className="min-w-0 flex-1 space-y-1.5">
+              <Bone className="h-3.5 w-28 max-w-full" />
+              <Bone className="h-3 w-20 max-w-full" />
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex justify-end gap-2 border-t border-rule/50 px-5 py-3.5">
+        <Bone className="h-9 w-24" />
+        <Bone className="h-9 w-24" />
+      </div>
     </div>
   );
 }
@@ -210,14 +247,16 @@ function RequestCard({
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-foreground">{name}</span>
-            <span className="rounded-md bg-band px-2 py-0.5 text-xs font-medium text-foreground">{request.leaveType.name}</span>
+            <span className="inline-flex items-center gap-1 rounded-md bg-band px-2 py-0.5 text-xs font-medium text-foreground">
+              <LeaveTypeIcon name={request.leaveType.name} size={12} className="text-muted-foreground" />
+              {request.leaveType.name}
+            </span>
           </p>
           <p className="mt-1 text-lg font-semibold tracking-title text-foreground">
             {sameDay ? DAY.format(start) : `${DAY.format(start)} – ${DAY.format(end)}`}
           </p>
           <p className="text-xs text-muted-foreground">
-            {days} working {days === 1 ? 'day' : 'days'} off · asked{' '}
-            {waited < 1 ? 'today' : `${waited} ${waited === 1 ? 'day' : 'days'} ago`}
+            {days} working {days === 1 ? 'day' : 'days'} off
           </p>
         </div>
         {request.status === 'pending' ? (
@@ -229,7 +268,12 @@ function RequestCard({
             <Badge variant="muted">New today</Badge>
           )
         ) : (
-          <Badge variant={request.status === 'approved' ? 'success' : 'muted'}>{STATUS_LABEL[request.status]}</Badge>
+          <IconTag
+            icon={request.status === 'approved' ? Check : Ban}
+            label={STATUS_LABEL[request.status]}
+            tone={request.status === 'approved' ? 'success' : 'muted'}
+            tile
+          />
         )}
       </div>
 
@@ -253,6 +297,17 @@ function RequestCard({
                   : `${context.balance.after} of ${context.balance.total} days left after`
             }
             detail={context?.balance ? `${context.balance.remaining} left before this request` : 'Nothing to count it against'}
+            meter={
+              context?.balance && context.balance.total > 0 ? (
+                <MiniBar
+                  value={context.balance.total - context.balance.after}
+                  max={context.balance.total}
+                  tone={overAllowance ? 'exception' : context.balance.after <= 3 ? 'warning' : 'success'}
+                  label={`${context.balance.total - context.balance.after} of ${context.balance.total} days used after this request`}
+                  className="mt-1.5"
+                />
+              ) : undefined
+            }
           />
           <ContextItem
             icon={Users}
@@ -343,12 +398,15 @@ function ContextItem({
   tone,
   title,
   detail,
+  meter,
   href,
 }: {
   icon: typeof Users;
   tone: 'ok' | 'warning' | 'danger' | 'muted';
   title: string;
   detail: string;
+  /** A thin bar under the detail, for a reading with a whole (days of an allowance). */
+  meter?: React.ReactNode;
   href?: string;
 }) {
   const body = (
@@ -367,11 +425,12 @@ function ContextItem({
       >
         {tone === 'danger' ? <AlertTriangle size={15} aria-hidden="true" /> : <Icon size={15} aria-hidden="true" />}
       </span>
-      <span className="min-w-0">
+      <span className="min-w-0 flex-1">
         <span className={cn('block truncate text-sm font-semibold', tone === 'danger' ? 'text-exception' : 'text-foreground')}>
           {title}
         </span>
         <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+        {meter}
       </span>
     </>
   );

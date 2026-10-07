@@ -23,7 +23,7 @@ const TRIGGER =
   'disabled:pointer-events-none disabled:opacity-60';
 
 const EDITOR =
-  'w-full rounded-sm border border-measured bg-field px-1.5 py-0.5 text-sm text-foreground outline-none ' +
+  'w-full rounded-sm border border-measured bg-control px-1.5 py-0.5 text-sm text-foreground outline-none ' +
   'focus:outline-2 focus:outline-offset-0 focus:outline-measured';
 
 const AFFORDANCE = 'shrink-0 text-muted-foreground opacity-45 transition-opacity group-hover/inline:opacity-100';

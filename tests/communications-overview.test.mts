@@ -110,9 +110,9 @@ test('attentionIssues is empty when all is well', () => {
 test('timeAgo reads in plain steps', async () => {
   const { timeAgo } = await import('../lib/utils/communications.ts');
   assert.equal(timeAgo(new Date(NOW - 20_000).toISOString(), NOW), 'just now');
-  assert.equal(timeAgo(new Date(NOW - 12 * 60_000).toISOString(), NOW), '12 min ago');
-  assert.equal(timeAgo(new Date(NOW - 3 * 3_600_000).toISOString(), NOW), '3 h ago');
-  assert.equal(timeAgo(ago(2), NOW), '2 d ago');
+  assert.equal(timeAgo(new Date(NOW - 12 * 60_000).toISOString(), NOW), '12m ago');
+  assert.equal(timeAgo(new Date(NOW - 3 * 3_600_000).toISOString(), NOW), '3h ago');
+  assert.equal(timeAgo(ago(2), NOW), '2d ago');
 });
 
 test('groupAutomations groups by trigger and puts sending first', async () => {

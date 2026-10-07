@@ -489,3 +489,20 @@ export function splitLeaveRequests<T extends LeaveRequestLike>(requests: T[], to
   history.sort((a, b) => b.startDate.localeCompare(a.startDate));
   return { upcoming, history };
 }
+
+// ── Leave type kind ───────────────────────────────────────────────────────────
+
+/**
+ * What a leave type *is*, read from its name — the API carries only the name
+ * and `isPaid`, and workspaces name their own types ("Holiday", "Annual leave",
+ * "Sickness"). Used to pick the glyph a leave row leads with; the name itself
+ * stays the label.
+ */
+export type LeaveKind = 'annual' | 'sick' | 'other';
+
+export function leaveKind(name: string | null | undefined): LeaveKind {
+  const text = (name ?? '').toLowerCase();
+  if (/\b(sick|sickness|illness|ill)\b/.test(text)) return 'sick';
+  if (/\b(annual|holiday|holidays|vacation|pto)\b/.test(text)) return 'annual';
+  return 'other';
+}

@@ -109,7 +109,7 @@ const RELATIONSHIPS = [
 ];
 
 const textarea =
-  'w-full min-h-24 rounded-md border border-input bg-field p-3 text-sm leading-relaxed text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured';
+  'w-full min-h-24 rounded-md border border-input bg-control p-3 text-sm leading-relaxed text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured';
 
 // ── Your details ──────────────────────────────────────────────────────────────
 

@@ -29,7 +29,6 @@ export function StaffPerformanceReport({ userId }: { userId: string }) {
       title={name}
       leading={member ? <Avatar name={member.name} email={member.email} size="lg" /> : undefined}
       icon={member ? undefined : <TrendingUp size={20} aria-hidden="true" />}
-      meta={<span className="text-xs text-muted-foreground">Operational performance</span>}
       actions={
         <Link
           href={`/staff/${userId}`}

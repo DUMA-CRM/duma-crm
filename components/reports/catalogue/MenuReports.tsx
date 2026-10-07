@@ -2,8 +2,26 @@
 
 import { useState } from 'react';
 
-import { AlertTriangle, Award, ChevronRight, Coins, Layers3, Package, Pencil, Scale, UtensilsCrossed, Wallet } from '@/components/icons';
+import {
+  AlertTriangle,
+  Award,
+  ChevronRight,
+  Coins,
+  type IconComponent,
+  Layers3,
+  Package,
+  Pencil,
+  Repeat,
+  Scale,
+  Sparkles,
+  Star,
+  TrendingDown,
+  UtensilsCrossed,
+  Wallet,
+} from '@/components/icons';
+import { IconTag } from '@/components/shared/IconTag';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { TONE_INK, type Tone } from '@/components/shared/tone';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 
 import { getCategorySales, getTopItems } from '@/lib/modules/analytics/client';
@@ -12,7 +30,7 @@ import { cn } from '@/lib/utils/cn';
 import { type MenuQuadrant, QUADRANT, classifyMenu } from '@/lib/utils/menu-engineering';
 import { delta, exportFileName, share, toCsv } from '@/lib/utils/report-filters';
 
-import { DrawerFacts, DrawerList, DrawerMark, DrawerSection, ReportDrawer } from '../kit/DetailDrawer';
+import { DrawerFacts, DrawerList, DrawerListSkeleton, DrawerMark, DrawerSection, ReportDrawer } from '../kit/DetailDrawer';
 import { ReportFrame, downloadFile } from '../kit/ReportFrame';
 import { ChangePill, KpiGrid, ReportBlock, ReportError, ReportLoading, ReportTable } from '../kit/parts';
 import { useMenuCosting } from '../kit/useMenuCosting';
@@ -144,7 +162,6 @@ export function ItemSalesReport({ filters }: { filters: ReportFilterState }) {
                   align: 'right',
                   render: (row) => count(row.quantity),
                   sort: (row) => row.quantity,
-                  total: count(units),
                 },
                 { key: 'orders', header: 'Orders', align: 'right', render: (row) => count(row.orders), sort: (row) => row.orders },
                 {
@@ -153,7 +170,6 @@ export function ItemSalesReport({ filters }: { filters: ReportFilterState }) {
                   align: 'right',
                   render: (row) => money(row.revenue),
                   sort: (row) => row.revenue,
-                  total: money(total),
                 },
                 {
                   key: 'share',
@@ -189,6 +205,14 @@ export function ItemSalesReport({ filters }: { filters: ReportFilterState }) {
 }
 
 // ── Menu engineering ─────────────────────────────────────────────────────────
+
+/** The class's glyph — the table's Class column, keyed by the cards above it. */
+const QUADRANT_ICON: Record<MenuQuadrant, { icon: IconComponent; tone: Tone }> = {
+  star: { icon: Star, tone: 'success' },
+  workhorse: { icon: Repeat, tone: 'warning' },
+  opportunity: { icon: Sparkles, tone: 'info' },
+  low: { icon: TrendingDown, tone: 'muted' },
+};
 
 const QUADRANT_TONE: Record<MenuQuadrant, string> = {
   star: 'border-momentum/35 bg-momentum/5',
@@ -289,7 +313,13 @@ export function MenuEngineeringReport({ filters }: { filters: ReportFilterState 
                   aria-label={QUADRANT[quadrant].label}
                 >
                   <div className="flex items-baseline justify-between gap-3">
-                    <h2 className="text-sm font-semibold text-foreground">{QUADRANT[quadrant].label}</h2>
+                    <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                      {(() => {
+                        const { icon: Icon, tone } = QUADRANT_ICON[quadrant];
+                        return <Icon size={14} className={TONE_INK[tone]} aria-hidden="true" />;
+                      })()}
+                      {QUADRANT[quadrant].label}
+                    </h2>
                     <span className="text-xs tabular-nums text-muted-foreground">{members.length} items</span>
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">{QUADRANT[quadrant].advice}</p>
@@ -326,20 +356,34 @@ export function MenuEngineeringReport({ filters }: { filters: ReportFilterState 
                   align: 'right',
                   render: (row) => (row.contribution === null ? '—' : money(row.contribution)),
                   sort: (row) => row.contribution ?? -Infinity,
-                  total: money(contribution),
                 },
                 {
                   key: 'margin',
                   header: 'Margin',
                   align: 'right',
                   render: (row) =>
-                    row.margin === null ? <span className="text-muted-foreground">Not costed</span> : `${row.margin.toFixed(1)}%`,
+                    row.margin === null ? (
+                      <span className="text-muted-foreground" title="Not costed">
+                        —<span className="sr-only">Not costed</span>
+                      </span>
+                    ) : (
+                      `${row.margin.toFixed(1)}%`
+                    ),
                   sort: (row) => row.margin ?? -Infinity,
                 },
                 {
                   key: 'class',
                   header: 'Class',
-                  render: (row) => (row.quadrant ? QUADRANT[row.quadrant].label : '—'),
+                  render: (row) =>
+                    row.quadrant ? (
+                      <IconTag
+                        icon={QUADRANT_ICON[row.quadrant].icon}
+                        label={QUADRANT[row.quadrant].label}
+                        tone={QUADRANT_ICON[row.quadrant].tone}
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    ),
                   sort: (row) => row.quadrant ?? 'z',
                 },
               ]}
@@ -421,7 +465,7 @@ export function ItemDrawer({ filters, itemId, onClose }: { filters: ReportFilter
 
           <DrawerSection title="What each one earns">
             {costing.loading ? (
-              <div className="h-24 animate-pulse rounded-lg bg-band/60" />
+              <DrawerListSkeleton rows={4} label="Loading what each one earns" />
             ) : costed && costed.cost !== null ? (
               <>
                 <DrawerList
@@ -491,7 +535,7 @@ function CategoryDrawer({
       )}
       <DrawerSection title="Items" aside={members.length ? `${members.length} in the top 100` : undefined}>
         {costing.loading ? (
-          <div className="h-40 animate-pulse rounded-lg bg-band/60" />
+          <DrawerListSkeleton rows={4} lines={2} label="Loading the items" />
         ) : members.length === 0 ? (
           <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">
             None of its items are among the top 100 sellers.

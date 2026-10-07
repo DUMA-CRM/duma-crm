@@ -69,7 +69,7 @@ export function DailyTargetControl({ locationId, target }: { locationId: string;
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="No target"
-        className="h-8 w-28 rounded-md border border-input bg-field px-2 text-sm tabular-nums text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        className="h-8 w-28 rounded-md border border-input bg-control px-2 text-sm tabular-nums text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
       />
       <button
         type="submit"

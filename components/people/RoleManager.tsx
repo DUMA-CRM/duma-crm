@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ClipboardCheck,
   KeyRound,
-  Loader2,
   Megaphone,
   Plus,
   ShieldCheck,
@@ -18,9 +17,12 @@ import {
   UsersRound,
 } from '@/components/icons';
 import { moduleCopy } from '@/components/onboarding/modules';
-import { ErrorState } from '@/components/shared/ErrorState';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { IconTag } from '@/components/shared/IconTag';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,13 +70,14 @@ export function RoleManager() {
   const editable = useMemo(() => new Set(data?.grantableCapabilities ?? []), [data]);
   const selectedRole = draft.id ? data?.roles.find((role) => role.id === draft.id) : undefined;
   const isBuiltIn = Boolean(selectedRole?.isBuiltIn);
-  const displayName = isBuiltIn ? selectedRole?.name ?? 'Role' : draft.name.trim() || selectedRole?.name || 'New role';
+  const displayName = isBuiltIn ? (selectedRole?.name ?? 'Role') : draft.name.trim() || selectedRole?.name || 'New role';
   const isDirty = selectedRole
     ? draft.name.trim() !== selectedRole.name ||
       draft.description.trim() !== (selectedRole.description ?? '') ||
       sorted(draft.capabilities).join('|') !== sorted(selectedRole.capabilities).join('|')
     : Boolean(draft.name.trim() || draft.description.trim() || draft.capabilities.length);
 
+  const [justSaved, flashSaved] = useDoneBeat();
   const save = useMutation({
     mutationFn: () => {
       const payload = {
@@ -82,9 +85,7 @@ export function RoleManager() {
         description: draft.description.trim() || null,
         capabilities: draft.capabilities,
       };
-      return draft.id
-        ? updateRole(draft.id, payload, tenantId ?? undefined)
-        : createRole({ ...payload, tenantId: tenantId ?? undefined });
+      return draft.id ? updateRole(draft.id, payload, tenantId ?? undefined) : createRole({ ...payload, tenantId: tenantId ?? undefined });
     },
     onSuccess: async (role) => {
       await queryClient.invalidateQueries({ queryKey: rolesKey });
@@ -126,21 +127,23 @@ export function RoleManager() {
 
   const roleDirectory = (
     <SettingsSection
-      title="Roles"
       actions={
         <Button size="sm" variant="outline" onClick={startNewRole} aria-pressed={draft.id === null}>
-          <Plus data-icon="inline-start" /> New
+          <Plus data-icon="inline-start" /> New role
         </Button>
       }
       bodyClassName="pt-3"
     >
-      {isPending && (
-        <div className="flex items-center gap-2 rounded-md border border-rule/60 bg-page px-3 py-4 text-sm text-muted-foreground">
-          <Loader2 className="animate-spin" /> Loading roles…
-        </div>
-      )}
+      {isPending && <TilesSkeleton count={5} label="Loading roles" className="space-y-1.5" tileClassName="rounded-md bg-page p-3" />}
 
-      {isError && <ErrorState title="Roles could not load" description="Try loading this list again." onRetry={() => void refetch()} className="py-6" />}
+      {isError && (
+        <ErrorState
+          title="Roles could not load"
+          description="Try loading this list again."
+          onRetry={() => void refetch()}
+          className="py-6"
+        />
+      )}
 
       {!isPending && !isError && (
         <nav className="space-y-1.5" aria-label="Workspace roles">
@@ -171,7 +174,11 @@ export function RoleManager() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-semibold text-foreground">{role.name}</span>
-                      <Badge variant={role.isBuiltIn ? 'primary' : 'muted'}>{role.isBuiltIn ? 'Built in' : 'Custom'}</Badge>
+                      <IconTag
+                        icon={role.isBuiltIn ? ShieldCheck : KeyRound}
+                        label={role.isBuiltIn ? 'Built in' : 'Custom'}
+                        tone={role.isBuiltIn ? 'primary' : 'muted'}
+                      />
                     </span>
                     <span className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                       <KeyRound className="size-3" />
@@ -204,9 +211,13 @@ export function RoleManager() {
               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <h2 className="truncate text-2xl font-semibold tracking-headline text-foreground">{displayName}</h2>
                 {isBuiltIn ? (
-                  <Badge variant="primary"><ShieldCheck /> Built in</Badge>
+                  <Badge variant="primary">
+                    <ShieldCheck /> Built in
+                  </Badge>
                 ) : selectedRole ? (
-                  <Badge variant="muted"><KeyRound /> Custom</Badge>
+                  <Badge variant="muted">
+                    <KeyRound /> Custom
+                  </Badge>
                 ) : null}
               </div>
               <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-muted-foreground sm:justify-start">
@@ -238,7 +249,9 @@ export function RoleManager() {
           <div>
             <div className="mb-3">
               <h3 className="text-sm font-semibold text-foreground">Permissions</h3>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Open a section to choose the actions this role can perform.</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Open a section to choose the actions this role can perform.
+              </p>
             </div>
 
             <div className="grid gap-2 xl:grid-cols-2">
@@ -259,7 +272,9 @@ export function RoleManager() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold text-foreground">{copy.name}</span>
-                        <span className="block text-xs text-muted-foreground">{selectedCount} of {visible.length} selected</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {selectedCount} of {visible.length} selected
+                        </span>
                       </span>
                       <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
                     </summary>
@@ -308,16 +323,22 @@ export function RoleManager() {
                     <Button variant="destructive" size="sm" onClick={() => remove.mutate(selectedRole)} disabled={remove.isPending}>
                       {remove.isPending ? 'Deleting…' : 'Yes, delete'}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>Cancel</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>
+                      Cancel
+                    </Button>
                   </div>
                 )}
               </div>
-              <Button
-                onClick={() => save.mutate()}
-                disabled={draft.name.trim().length < 2 || save.isPending || (Boolean(selectedRole) && !isDirty)}
+              <ActionButton
+                className="min-w-32"
+                onClick={() => save.mutate(undefined, { onSuccess: flashSaved })}
+                disabled={draft.name.trim().length < 2 || (Boolean(selectedRole) && !isDirty)}
+                pending={save.isPending}
+                done={justSaved}
+                doneLabel={draft.id ? 'Saved' : 'Role created'}
               >
-                {save.isPending ? 'Saving…' : draft.id ? 'Save changes' : 'Create role'}
-              </Button>
+                {draft.id ? 'Save changes' : 'Create role'}
+              </ActionButton>
             </div>
           )}
         </div>

@@ -9,6 +9,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SaveBar, Switch } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -477,7 +478,16 @@ export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => vo
           </span>
           <div className="min-w-0">
             <p className="truncate text-xl font-semibold tracking-headline text-foreground">
-              {isLoading ? 'Loading…' : connection ? `Sending from ${connection.fromEmail || connection.username}` : 'Email isn’t set up'}
+              {isLoading ? (
+                // The headline's own line, waiting for the sender — not a word standing in for it.
+                <span role="status" aria-busy="true" aria-label="Loading the email connection" className="flex h-7 items-center">
+                  <Bone className="h-5 w-64 max-w-full" />
+                </span>
+              ) : connection ? (
+                `Sending from ${connection.fromEmail || connection.username}`
+              ) : (
+                'Email isn’t set up'
+              )}
             </p>
             <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
               <span className={cn('size-1.5 rounded-full', status.dot)} aria-hidden="true" />

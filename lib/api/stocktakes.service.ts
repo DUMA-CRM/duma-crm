@@ -26,6 +26,8 @@ export interface Stocktake {
   lines?: StocktakeLine[];
   /** Present on the complete response: how many variance adjustments were applied. */
   adjustments?: number;
+  /** On the list (`GET /stocktakes`). A difference is a counted line off its snapshot. Optional until that API ships. */
+  summary?: { lineCount: number; countedCount: number; differenceCount: number };
 }
 
 export interface StocktakesResponse {

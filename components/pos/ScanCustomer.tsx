@@ -85,7 +85,7 @@ export function ScanCustomer({ onSelect, onSearchInstead }: ScanCustomerProps) {
             aria-label="Loyalty code"
             placeholder="Waiting for the scanner…"
             autoComplete="off"
-            className="mt-4 h-12 w-full rounded-lg border border-input bg-field px-3.5 text-center text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
+            className="mt-4 h-12 w-full rounded-lg border border-input bg-control px-3.5 text-center text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
           />
         </form>
       )}

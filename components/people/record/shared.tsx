@@ -4,9 +4,10 @@ import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { Check, Copy } from '@/components/icons';
+import '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { CopyGlyph } from '@/components/ui/action-button';
 
 import { getEmployee } from '@/lib/modules/people/client';
 import { cn } from '@/lib/utils/cn';
@@ -36,7 +37,7 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
       aria-label={copied ? 'Copied' : `Copy ${label}`}
       className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground"
     >
-      {copied ? <Check size={14} className="text-primary" /> : <Copy size={14} />}
+      <CopyGlyph copied={copied} className="size-3.5 text-primary" />
     </button>
   );
 }
@@ -58,8 +59,7 @@ const PILL_TONE = {
   exception: 'bg-exception/8 text-exception',
 } as const;
 
-const INTERACTIVE =
-  'transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring';
+const INTERACTIVE = 'transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring';
 
 /** A list of `RecordListRow`s in the audit log's frame: one hairline box, rows divided inside it. */
 export function RecordList({ children }: { children: React.ReactNode }) {
@@ -81,6 +81,7 @@ export function RecordListRow({
   placeholder = 'Not set',
   pill,
   trailing,
+  actions,
   href,
   onSelect,
 }: {
@@ -97,6 +98,8 @@ export function RecordListRow({
   placeholder?: string;
   pill?: { label: string; tone: keyof typeof PILL_TONE };
   trailing?: React.ReactNode;
+  /** Row actions (download, remove) — hidden until the row is hovered or focused. Not for a linked row. */
+  actions?: React.ReactNode;
   /** Makes the row a link — the audit log's hover, the whole row the target. */
   href?: string;
   /** Like `href`, for a row that opens something in place (a modal). */
@@ -119,11 +122,18 @@ export function RecordListRow({
           {detail && ` · ${detail}`}
         </span>
       </span>
-      {status && <span className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', PILL_TONE[status.tone])}>{status.label}</span>}
+      {status && (
+        <span className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', PILL_TONE[status.tone])}>{status.label}</span>
+      )}
       {trailing && <span className="shrink-0 text-xs text-muted-foreground">{trailing}</span>}
+      {actions && (
+        <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100 pointer-coarse:opacity-100">
+          {actions}
+        </span>
+      )}
     </>
   );
-  const row = 'flex items-center gap-3 px-3.5 py-3';
+  const row = cn('group/row flex items-center gap-3 px-3.5 py-3', actions && 'transition-colors hover:bg-band/25');
   return (
     <li className="border-b border-rule/45 last:border-b-0">
       {href ? (

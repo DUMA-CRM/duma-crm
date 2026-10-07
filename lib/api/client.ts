@@ -31,6 +31,9 @@ interface FetchOptions extends RequestInit {
   // Abort the request after this many ms. Important for the POS: behind the
   // same-origin proxy an unreachable API doesn't fail fast — it hangs.
   timeoutMs?: number;
+  // Return the body as a Blob instead of parsing JSON — for a file read
+  // through the API. Kept on apiFetch so the contract test still sees the path.
+  asBlob?: boolean;
 }
 
 /** One field-level complaint from the API's Zod validation. */
@@ -127,7 +130,7 @@ async function extractErrorMessage(res: Response): Promise<{
 }
 
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
-  const { cookieHeader, headers, timeoutMs, ...rest } = options;
+  const { cookieHeader, headers, timeoutMs, asBlob, ...rest } = options;
 
   // We always send `Content-Type: application/json`, and the API rejects a JSON
   // content type with an empty body ("Invalid JSON in request body"). So for
@@ -164,5 +167,6 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   // 204 No Content — return undefined cast as T
   if (res.status === 204) return undefined as T;
 
+  if (asBlob) return res.blob() as Promise<T>;
   return res.json() as Promise<T>;
 }

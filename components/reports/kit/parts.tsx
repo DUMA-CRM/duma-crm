@@ -5,10 +5,24 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, type IconComponent, Search } from '@/components/icons';
+import {
+  ArrowDown,
+  ArrowUp,
+  Banknote,
+  ChevronDown,
+  ChevronRight,
+  CircleDashed,
+  CreditCard,
+  Gift,
+  type IconComponent,
+  Search,
+  Tag,
+  Wallet,
+} from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { EmptyState, type EmptyStateKind } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone, FactsSkeleton, LoadingState } from '@/components/shared/Skeleton';
 import { Input } from '@/components/ui/input';
 
 import { cn } from '@/lib/utils/cn';
@@ -35,7 +49,11 @@ export interface Kpi {
 
 export function KpiGrid({ kpis, loading = false }: { kpis: Kpi[]; loading?: boolean }) {
   return (
-    <motion.dl variants={SECTION_RISE} className={cn('grid gap-3 sm:grid-cols-2', kpis.length >= 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3')}>
+    <motion.dl
+      variants={SECTION_RISE}
+      aria-busy={loading || undefined}
+      className={cn('grid gap-3 sm:grid-cols-2', kpis.length >= 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3')}
+    >
       {kpis.map((kpi) => (
         <KpiTile key={kpi.label} kpi={kpi} loading={loading} />
       ))}
@@ -55,7 +73,7 @@ function KpiTile({ kpi, loading }: { kpi: Kpi; loading: boolean }) {
         <dt className="text-label uppercase text-muted-foreground">{kpi.label}</dt>
         <dd className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           {loading ? (
-            <span className="h-6 w-20 animate-pulse rounded-sm bg-band" aria-label="Loading" />
+            <Bone className="my-0.5 h-6 w-20 rounded-sm" />
           ) : (
             <span className="text-xl font-semibold tabular-nums tracking-headline text-foreground">{kpi.value}</span>
           )}
@@ -636,6 +654,29 @@ export function BarList({
   );
 }
 
+// ── Tenders ──────────────────────────────────────────────────────────────────
+
+const TENDER: Record<string, { label: string; icon: IconComponent }> = {
+  card: { label: 'Card', icon: CreditCard },
+  cash: { label: 'Cash', icon: Banknote },
+  voucher: { label: 'Voucher', icon: Tag },
+  gift_card: { label: 'Gift card', icon: Gift },
+  unrecorded: { label: 'Not recorded', icon: CircleDashed },
+};
+
+/** How a payment method reads in every report: "Card", "Gift card". */
+export const tenderLabel = (method: string) =>
+  TENDER[method]?.label ?? method.charAt(0).toUpperCase() + method.slice(1).replaceAll('_', ' ');
+
+/** The glyph before a tender's name. The name stays beside it — tenders vary
+    by workspace, so the icon frames the word rather than replacing it. */
+export const tenderIcon = (method: string | null | undefined): IconComponent => (method && TENDER[method]?.icon) || Wallet;
+
+export function TenderIcon({ method }: { method: string | null | undefined }) {
+  const Icon = (method && TENDER[method]?.icon) || Wallet;
+  return <Icon size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />;
+}
+
 // ── Table ────────────────────────────────────────────────────────────────────
 
 export interface Column<T> {
@@ -643,6 +684,8 @@ export interface Column<T> {
   header: string;
   align?: 'left' | 'right';
   render: (row: T) => React.ReactNode;
+  /** A glyph or status dot before the value — a refund's kind, a delivery's state. */
+  leading?: (row: T) => React.ReactNode;
   /** A quieter second line under the value — a category, a count, a date. */
   sub?: (row: T) => React.ReactNode;
   /** 0–1: a thin share bar under the value, so a column of percentages reads at a glance. */
@@ -846,16 +889,31 @@ export function ReportTable<T>({
                     {columns.map((column, index) => {
                       const meter = column.meter?.(row);
                       const sub = column.sub?.(row);
+                      const lead = column.leading?.(row);
+                      const value = column.render(row);
                       const content = (
                         <>
-                          <span className={cn('block', index === 0 ? 'font-medium text-foreground' : 'text-foreground')}>
-                            {column.render(row)}
+                          <span
+                            className={cn(
+                              index === 0 ? 'font-medium text-foreground' : 'text-foreground',
+                              lead ? cn('flex items-center gap-2', column.align === 'right' && 'justify-end') : 'block',
+                            )}
+                          >
+                            {lead}
+                            {lead ? <span className="min-w-0">{value}</span> : value}
                           </span>
                           {sub !== undefined && sub !== null && sub !== '' && (
                             <span className="mt-0.5 block truncate text-xs font-normal text-muted-foreground">{sub}</span>
                           )}
                           {meter !== undefined && (
+                            // The share, readable: on hover, and by name for a screen reader.
                             <span
+                              role="meter"
+                              aria-valuenow={Math.round(meter * 100)}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                              aria-label={`${Math.round(meter * 100)}% share`}
+                              title={`${Math.round(meter * 100)}% share`}
                               className={cn(
                                 'mt-1.5 flex h-1 w-full max-w-28 overflow-hidden rounded-full bg-band',
                                 column.align === 'right' && 'ml-auto',
@@ -941,14 +999,11 @@ export function ReportTable<T>({
 
 export function ReportLoading() {
   return (
+    // KPI tiles have a known shape, so they skeleton; the chart and table below
+    // don't until the figures arrive, so the mascot holds their place.
     <div className="space-y-5" aria-busy="true" aria-label="Loading the report">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[0, 1, 2, 3].map((tile) => (
-          <div key={tile} className="h-20 animate-pulse rounded-lg bg-band/60" />
-        ))}
-      </div>
-      <div className="h-72 animate-pulse rounded-lg bg-band/60" />
-      <div className="h-48 animate-pulse rounded-lg bg-band/60" />
+      <FactsSkeleton count={4} label="Loading the figures" className="sm:grid-cols-2 xl:grid-cols-4" />
+      <LoadingState label="Working out the report" />
     </div>
   );
 }
@@ -965,10 +1020,16 @@ export function ReportError({ onRetry, what = 'This report' }: { onRetry: () => 
   );
 }
 
-export function ReportEmpty({ icon, title, description }: { icon: IconComponent; title: string; description: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-rule/60">
-      <EmptyState icon={icon} title={title} description={description} />
-    </div>
-  );
+export function ReportEmpty({
+  icon,
+  title,
+  description,
+  kind,
+}: {
+  icon: IconComponent;
+  title: string;
+  description: string;
+  kind?: EmptyStateKind;
+}) {
+  return <EmptyState icon={icon} title={title} description={description} kind={kind} />;
 }

@@ -13,12 +13,12 @@ import {
   Plug,
   QrCode,
   Receipt,
+  Settings,
   ShieldCheck,
   SlidersHorizontal,
   UserRound,
 } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
-import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { SectionTabs } from '@/components/shared/SectionTabs';
 
 import { type Capability, hasAnyCapability } from '@/lib/auth/capabilities';
@@ -87,7 +87,7 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
     href: '/settings/connectors',
     label: 'Connectors',
     icon: Plug,
-    anyOf: ['email.connections:write', 'payments.connections:write'],
+    anyOf: ['email.connections:write', 'payments.connections:write', 'cms.keys:write'],
   },
   {
     href: '/settings/qr-ordering',
@@ -117,7 +117,6 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const reduceMotion = useReducedMotion();
-  const user = useAuthStore((state) => state.user);
   const capabilities = useAuthStore((state) => state.capabilities);
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const router = useRouter();
@@ -144,13 +143,16 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
 
   if (pathname.startsWith('/settings/connectors') && searchParams.get('connector')) return <>{children}</>;
 
-  const [firstName = '', lastName = ''] = (user?.name ?? '').split(' ');
-
   return (
     <EditorShell
       eyebrow="Account"
       title="Settings"
-      leading={<InitialsAvatar firstName={firstName || 'U'} lastName={lastName} email={user?.email} className="size-9" />}
+      // A gear, not the user's face — the Profile tab already shows that, a few pixels below.
+      leading={
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
+          <Settings size={17} aria-hidden="true" />
+        </span>
+      }
       subheader={
         // The same tab bar every full-page view uses; it animates its own active tab.
         <SectionTabs

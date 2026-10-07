@@ -3,7 +3,8 @@
 // what an order comes to, and how much of it has arrived. Pure and tested.
 // ---------------------------------------------------------------------------
 
-const localKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const localKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
 const OPEN = new Set(['submitted', 'partially_received']);
@@ -37,7 +38,9 @@ interface LineLike {
 
 /** The order's value, summed in cents so a long order has no float artefacts. */
 export function orderTotal(lines: LineLike[] = []): number {
-  return lines.reduce((cents, line) => cents + Math.round((Number(line.quantityOrdered) || 0) * (Number(line.unitCost) || 0) * 100), 0) / 100;
+  return (
+    lines.reduce((cents, line) => cents + Math.round((Number(line.quantityOrdered) || 0) * (Number(line.unitCost) || 0) * 100), 0) / 100
+  );
 }
 
 /** How much of the order has arrived, 0–1, by quantity across lines (capped per line). */
@@ -50,6 +53,14 @@ export function receivedShare(lines: LineLike[] = []): number {
     received += Math.min(o, Number(line.quantityReceived) || 0);
   }
   return ordered > 0 ? received / ordered : 0;
+}
+
+/** `receivedShare` for a list row, from the API's per-order summary (already capped per line). */
+export function summaryReceivedShare(summary: { quantityOrdered: string; quantityReceived: string } | undefined): number | null {
+  if (!summary) return null;
+  const ordered = Number(summary.quantityOrdered) || 0;
+  if (ordered <= 0) return null;
+  return Math.min(1, Math.max(0, (Number(summary.quantityReceived) || 0) / ordered));
 }
 
 /** Whether an invoice amount agrees with the order total, to the penny. */

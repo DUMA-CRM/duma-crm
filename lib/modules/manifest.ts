@@ -21,6 +21,7 @@ export const MODULE_IDS = [
   'analytics',
   'agent',
   'support',
+  'cms',
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];
@@ -104,6 +105,7 @@ export const CRM_MODULE_CAPABILITIES = {
   analytics: ['analytics:read'],
   agent: [],
   support: ['helpdesk:manage'],
+  cms: ['cms:read', 'cms:write', 'cms:publish', 'cms.schema:write', 'cms.keys:write'],
 } as const satisfies Record<ModuleId, readonly string[]>;
 
 type CrmCapabilityRegistry = typeof CRM_MODULE_CAPABILITIES;
@@ -176,6 +178,7 @@ const pages: Record<ModuleId, readonly string[]> = {
   ],
   agent: [],
   support: ['/staff/helpdesk', '/support', '/support/[slug]'],
+  cms: ['/content'],
 };
 
 const dependencies: Record<ModuleId, readonly ModuleId[]> = {
@@ -199,6 +202,7 @@ const dependencies: Record<ModuleId, readonly ModuleId[]> = {
   analytics: ['ordering'],
   agent: ['core', 'analytics', 'inventory', 'workforce'],
   support: ['identity', 'organization'],
+  cms: ['organization'],
 };
 
 const navigation: Record<ModuleId, readonly string[]> = {
@@ -222,6 +226,7 @@ const navigation: Record<ModuleId, readonly string[]> = {
   analytics: ['/dashboard', '/reports'],
   agent: [],
   support: ['/support'],
+  cms: ['/content'],
 };
 
 export const CRM_MODULE_MANIFESTS: readonly ModuleManifest[] = MODULE_IDS.map((id) => ({

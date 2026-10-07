@@ -22,6 +22,8 @@ export interface LossRecord {
   createdAt: string;
   stockItem?: { id: string; name: string; unit: string };
   location?: { id: string; name: string };
+  /** Who logged it, on `GET /loss-log`; null when that account is gone. Optional until that API ships. */
+  user?: { id: string; name: string } | null;
 }
 
 export interface CreateLossPayload {

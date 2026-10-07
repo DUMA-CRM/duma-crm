@@ -28,6 +28,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards, FormSection, NumberStepper } from '@/components/shared/FormParts';
 import { LoadMore } from '@/components/shared/LoadMore';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
@@ -249,9 +250,9 @@ export function RestockApprovals({
 
   return (
     <motion.div className="space-y-4" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
-      {/* How many requests sit at each stage — a summary; the status selector below does the switching. */}
-      <motion.dl variants={SECTION_RISE} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {TILES.map((tile) => (
+      {/* How many requests sit at each stage — and the way in: a tile filters to its stage, again to show all. */}
+      <motion.dl variants={SECTION_RISE} className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {TILES.filter((tile) => tile.value !== 'all').map((tile) => (
           <Fact
             key={tile.value}
             surface="page"
@@ -259,6 +260,9 @@ export function RestockApprovals({
             label={tile.label}
             value={counts[tile.value]}
             tone={tile.value === 'pending' && urgent > 0 ? 'danger' : 'default'}
+            hint={tile.value === 'pending' && urgent > 0 ? `${urgent} urgent` : undefined}
+            onSelect={() => changeStatus(activeStatus === tile.value ? 'all' : tile.value)}
+            selected={activeStatus === tile.value}
           />
         ))}
       </motion.dl>
@@ -268,7 +272,7 @@ export function RestockApprovals({
           value={activeStatus}
           onValueChange={(value) => changeStatus(value as RestockStatus | 'all')}
           ariaLabel="Status"
-          options={TILES.map((tile) => ({ value: tile.value, label: `${tile.label} · ${counts[tile.value]}` }))}
+          options={TILES.map((tile) => ({ value: tile.value, label: tile.label }))}
           className="w-52"
         />
         <Select
@@ -285,14 +289,10 @@ export function RestockApprovals({
           ]}
           className="w-56"
         />
-        {urgent > 0 && (
-          <span className="inline-flex h-7 items-center gap-1 rounded-sm bg-exception/8 px-2 text-xs font-semibold text-exception">
-            <Flame size={12} aria-hidden="true" /> {urgent} urgent
-          </span>
-        )}
         <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
           {list.isFetching && !list.isPending && <Loader2 size={12} className="animate-spin" aria-label="Updating" />}
-          {total} {total === 1 ? 'request' : 'requests'}
+          {/* A single stage's count is on its tile already. */}
+          {activeStatus === 'all' && `${total} ${total === 1 ? 'request' : 'requests'}`}
         </span>
       </motion.div>
 
@@ -328,25 +328,31 @@ export function RestockApprovals({
             onRetry={() => void list.refetch()}
           />
         ) : list.isPending ? (
-          <div className="h-64 animate-pulse rounded-lg bg-band/60" aria-label="Loading requests" />
+          <ListSkeleton rows={5} label="Loading restock requests" />
         ) : requests.length === 0 ? (
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-            <EmptyState
-              icon={activeStatus === 'pending' ? CheckCircle2 : ClipboardList}
-              title={
-                activeStatus === 'all'
-                  ? 'No restock requests yet'
-                  : activeStatus === 'pending'
-                    ? 'Nothing to review'
-                    : `No ${STATUS_META[activeStatus].label.toLowerCase()} requests`
-              }
-              description={
-                itemFilter !== 'all'
-                  ? 'Try another item, or all items.'
-                  : 'Requests from the team — or from Request more on the Stock tab — land here.'
-              }
-            />
-          </div>
+          <EmptyState
+            icon={activeStatus === 'pending' ? CheckCircle2 : ClipboardList}
+            kind={itemFilter !== 'all' ? 'search' : activeStatus === 'pending' ? 'done' : activeStatus === 'all' ? 'start' : 'search'}
+            title={
+              activeStatus === 'all'
+                ? 'No restock requests yet'
+                : activeStatus === 'pending'
+                  ? 'Nothing to review'
+                  : `No ${STATUS_META[activeStatus].label.toLowerCase()} requests`
+            }
+            description={
+              itemFilter !== 'all'
+                ? 'Try another item, or all items.'
+                : 'Requests from the team — or from Request more on the Stock tab — land here.'
+            }
+            action={
+              itemFilter !== 'all'
+                ? { label: 'Show all items', onClick: () => setItemFilter('all') }
+                : activeStatus !== 'all' && activeStatus !== 'pending'
+                  ? { label: 'Show all requests', onClick: () => changeStatus('all') }
+                  : undefined
+            }
+          />
         ) : (
           <div className="space-y-5">
             {groups.map((group) => (
@@ -717,15 +723,28 @@ function RequestRow({
                     <p className="text-sm text-muted-foreground">No note.</p>
                   )}
                   {pending && canDecide && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setMode('edit')}>
-                        <Pencil data-icon="inline-start" />
-                        Edit
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setMode('edit')}
+                        aria-label="Edit request"
+                        title="Edit request"
+                      >
+                        <Pencil />
                       </Button>
                       {canDelete && (
-                        <Button variant="ghost" size="sm" className="text-exception hover:text-exception" onClick={() => setMode('delete')}>
-                          <Trash2 data-icon="inline-start" />
-                          Delete
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-exception hover:text-exception"
+                          onClick={() => setMode('delete')}
+                          aria-label="Delete request"
+                          title="Delete request"
+                        >
+                          <Trash2 />
                         </Button>
                       )}
                     </div>

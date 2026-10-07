@@ -1,6 +1,8 @@
 'use client';
 
 import { Clock } from '@/components/icons';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Bone } from '@/components/shared/Skeleton';
 
 import type { DayBaseline, HourlyVolume } from '@/lib/modules/analytics/client';
 import { cn } from '@/lib/utils/cn';
@@ -12,6 +14,22 @@ import { type TradingDay, axisHours, axisNowMinutes } from '@/lib/utils/trading-
 
    The axis is clipped to the location's real opening hours — the old version drew
    a fixed 00:00–23:00 range, most of which was structurally empty. */
+
+/** A quiet hump of placeholder bars — the chart's own shape, not a grey slab. */
+const HOUR_BARS = [
+  'h-[12%]',
+  'h-[22%]',
+  'h-[38%]',
+  'h-[55%]',
+  'h-[70%]',
+  'h-[48%]',
+  'h-[34%]',
+  'h-[42%]',
+  'h-[60%]',
+  'h-[46%]',
+  'h-[28%]',
+  'h-[16%]',
+];
 
 export function OrdersByHour({
   day,
@@ -58,14 +76,22 @@ export function OrdersByHour({
       </div>
 
       {loading ? (
-        <div className="mt-5 h-32 animate-pulse rounded-sm bg-band" aria-hidden="true" />
-      ) : totalSoFar === 0 ? (
-        <div className="mt-5 flex h-32 flex-col items-center justify-center gap-2 text-center">
-          <Clock size={20} className="text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">
-            {day.state === 'before-open' ? 'Nothing yet — the day starts at ' + (day.hours?.open ?? '—') : 'No orders yet today.'}
-          </p>
+        <div className="mt-5 flex h-32 items-end gap-1" role="status" aria-busy="true" aria-label="Loading orders by hour">
+          {HOUR_BARS.map((height, index) => (
+            <Bone key={index} className={cn('min-w-0 flex-1 rounded-b-none rounded-t-sm', height)} />
+          ))}
         </div>
+      ) : totalSoFar === 0 ? (
+        // Held to the chart's height, so the tile doesn't jump when the first order lands.
+        <EmptyState
+          icon={Clock}
+          title={day.state === 'before-open' ? 'Not open yet' : 'No orders yet today'}
+          description={
+            day.state === 'before-open' ? `The day starts at ${day.hours?.open ?? '—'}.` : 'Each hour’s orders appear here as they come in.'
+          }
+          compact
+          className="mt-5 h-32 py-0"
+        />
       ) : (
         <>
           <div

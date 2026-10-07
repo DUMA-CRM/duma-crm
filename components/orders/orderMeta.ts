@@ -1,5 +1,6 @@
 import { Bell, CheckCircle2, Clock, Flame, Monitor, QrCode, Smartphone, XCircle } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
+import type { Tone } from '@/components/shared/tone';
 import type { SelectOption } from '@/components/ui/select';
 
 import type { OrderSource, OrderStatus } from '@/lib/modules/ordering/client';
@@ -10,20 +11,58 @@ import type { OrderSource, OrderStatus } from '@/lib/modules/ordering/client';
  * so a list of orders scans the way the rest of the back office does.
  */
 
-export const STATUS_META: Record<OrderStatus, { label: string; tint: string; dot: string; ring: string; icon: IconComponent }> = {
-  pending: { label: 'Pending', tint: 'bg-reference/8 text-reference', dot: 'bg-reference', ring: 'ring-reference/35', icon: Clock },
-  preparing: { label: 'Preparing', tint: 'bg-measured/10 text-measured', dot: 'bg-measured', ring: 'ring-measured/40', icon: Flame },
-  ready: { label: 'Ready', tint: 'bg-primary/8 text-primary', dot: 'bg-primary', ring: 'ring-primary/35', icon: Bell },
-  done: { label: 'Done', tint: 'bg-momentum/8 text-momentum', dot: 'bg-momentum', ring: 'ring-momentum/35', icon: CheckCircle2 },
-  cancelled: { label: 'Cancelled', tint: 'bg-exception/8 text-exception', dot: 'bg-exception', ring: 'ring-exception/35', icon: XCircle },
-  expired: { label: 'Expired', tint: 'bg-band text-muted-foreground', dot: 'bg-muted-foreground/60', ring: 'ring-muted-foreground/30', icon: Clock },
-};
+export const STATUS_META: Record<OrderStatus, { label: string; tone: Tone; tint: string; dot: string; ring: string; icon: IconComponent }> =
+  {
+    pending: {
+      tone: 'info',
+      label: 'New',
+      tint: 'bg-reference/8 text-reference',
+      dot: 'bg-reference',
+      ring: 'ring-reference/35',
+      icon: Clock,
+    },
+    preparing: {
+      tone: 'warning',
+      label: 'Preparing',
+      tint: 'bg-measured/10 text-measured',
+      dot: 'bg-measured',
+      ring: 'ring-measured/40',
+      icon: Flame,
+    },
+    ready: { tone: 'primary', label: 'Ready', tint: 'bg-primary/8 text-primary', dot: 'bg-primary', ring: 'ring-primary/35', icon: Bell },
+    done: {
+      tone: 'success',
+      label: 'Done',
+      tint: 'bg-momentum/8 text-momentum',
+      dot: 'bg-momentum',
+      ring: 'ring-momentum/35',
+      icon: CheckCircle2,
+    },
+    cancelled: {
+      tone: 'exception',
+      label: 'Cancelled',
+      tint: 'bg-exception/8 text-exception',
+      dot: 'bg-exception',
+      ring: 'ring-exception/35',
+      icon: XCircle,
+    },
+    expired: {
+      tone: 'muted',
+      label: 'Expired',
+      tint: 'bg-band text-muted-foreground',
+      dot: 'bg-muted-foreground/60',
+      ring: 'ring-muted-foreground/30',
+      icon: Clock,
+    },
+  };
 
-/** Where an order came from, named the way a café says it. */
-export const SOURCE_META: Record<OrderSource, { label: string; icon: IconComponent }> = {
-  pos: { label: 'Counter', icon: Monitor },
-  mobile: { label: 'Mobile', icon: Smartphone },
-  qr_code: { label: 'QR table', icon: QrCode },
+/** Where an order came from, named the way a café says it — the one vocabulary
+    for channels, shared by the orders screens, the kitchen and the reports.
+    `short` is for a surface with no room (a KDS ticket header). */
+export const SOURCE_META: Record<OrderSource, { label: string; short: string; icon: IconComponent }> = {
+  pos: { label: 'Counter', short: 'Counter', icon: Monitor },
+  mobile: { label: 'Mobile', short: 'Mobile', icon: Smartphone },
+  qr_code: { label: 'QR table', short: 'QR', icon: QrCode },
 };
 
 export const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {

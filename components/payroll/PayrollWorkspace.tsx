@@ -25,10 +25,15 @@ import { LineEditor } from '@/components/payroll/LineEditor';
 import { PayLineDrawer } from '@/components/payroll/PayLineDrawer';
 import { PayrollSettingsDrawer } from '@/components/payroll/PayrollSettingsDrawer';
 import { Fact } from '@/components/settings/controls';
+import { TileSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { Avatar } from '@/components/shared/Avatar';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Badge } from '@/components/ui/badge';
+import { MiniBar } from '@/components/shared/MiniBar';
+import { Pill } from '@/components/shared/Pill';
+import { RelativeTime } from '@/components/shared/RelativeTime';
+import { Bone, LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -131,9 +136,14 @@ export function PayrollWorkspace() {
             onBack={() => setView({ kind: 'runs' })}
           />
         ) : runs.isPending ? (
-          <div className="h-64 animate-pulse rounded-lg bg-band/60" />
+          <LoadingState label="Loading the pay run" />
         ) : (
-          <EmptyState icon={History} title="This pay run isn’t here any more" description="Go back to the list of pay runs." />
+          <EmptyState
+            icon={History}
+            kind="gone"
+            title="This pay run isn’t here any more"
+            action={{ label: 'Back to pay runs', onClick: () => setView({ kind: 'runs' }) }}
+          />
         ))}
       {settingsOpen && settings.data && <PayrollSettingsDrawer settings={settings.data} onClose={() => setSettingsOpen(false)} />}
     </div>
@@ -234,11 +244,20 @@ function RunsView({
       )}
 
       {loading ? (
-        <div className="space-y-2" aria-label="Loading pay runs">
-          {[0, 1, 2].map((index) => (
-            <div key={index} className="h-16 animate-pulse rounded-lg bg-band/60" />
-          ))}
-        </div>
+        <section role="status" aria-busy="true" aria-label="Loading pay runs">
+          <Bone className="mx-1 mb-2 h-3.5 w-20" />
+          <div className="space-y-2" aria-hidden="true">
+            {[0, 1, 2].map((index) => (
+              <TileSkeleton
+                key={index}
+                index={index}
+                tile={null}
+                trailing={['hidden h-8 w-28 sm:block', 'hidden h-8 w-28 md:block']}
+                className="gap-4 border-rule/60 bg-field px-4"
+              />
+            ))}
+          </div>
+        </section>
       ) : error ? (
         // Financial records: "couldn't read" and "there are none" are different claims.
         <ErrorState
@@ -252,6 +271,7 @@ function RunsView({
           icon={History}
           title="No pay runs yet"
           description="Run payroll to freeze a period’s hours and pay into a record here."
+          action={canWrite ? { label: 'Run payroll', onClick: onNew, icon: Play } : undefined}
         />
       ) : (
         <section>
@@ -324,11 +344,16 @@ function PeriodRows({
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-foreground">{rangeLabel(run.periodStart, run.periodEnd)}</span>
-                    <Badge variant={chip.variant}>{chip.label}</Badge>
+                    <RunSteps stage={stage} label={chip.label} />
                   </span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
                     {PERIOD_LABEL[run.period].name} · {totals.people} {totals.people === 1 ? 'person' : 'people'}
-                    {run.issuedAt ? ` · issued ${formatDate(run.issuedAt)}` : ''}
+                    {run.issuedAt && (
+                      <>
+                        {' '}
+                        · issued <RelativeTime iso={run.issuedAt} />
+                      </>
+                    )}
                   </span>
                 </span>
                 <span className="hidden w-28 text-right sm:block">
@@ -457,7 +482,10 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-xl font-semibold tracking-headline text-foreground">
-            {rangeLabel(run.periodStart, run.periodEnd)} <Badge variant={STATUS_CHIP[stage].variant}>{STATUS_CHIP[stage].label}</Badge>
+            {rangeLabel(run.periodStart, run.periodEnd)}
+            {/* The steps below say where a live run is up to; nothing says a
+                run was set aside, and that is the one reading that must not be missed. */}
+            {stage === 'superseded' && <Pill tone="muted">Set aside</Pill>}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {PERIOD_LABEL[run.period].name} · finalised {formatDate(run.finalisedAt)}
@@ -509,7 +537,7 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
           icon={Users}
           label="Net pay"
           value={totals.entered === totals.people ? money(totals.net) : '—'}
-          hint={totals.entered === totals.people ? 'Paid to employees' : `${totals.people - totals.entered} still to enter`}
+          hint={totals.entered === totals.people ? 'Paid to employees' : 'Shown once every payslip is entered'}
         />
         <Fact
           surface="page"
@@ -521,7 +549,14 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
       </dl>
 
       <section>
-        <h3 className="mb-2 px-1 text-sm font-semibold text-foreground">Payslips</h3>
+        {/* The column names once, above the rows, instead of on every row. */}
+        <div className="mb-2 flex items-end gap-4 px-4">
+          <h3 className="min-w-0 flex-1 text-sm font-semibold text-foreground">Payslips</h3>
+          <span className="hidden w-28 text-right text-xs text-muted-foreground sm:block">Gross</span>
+          <span className="hidden w-28 text-right text-xs text-muted-foreground sm:block">Deductions</span>
+          <span className="w-32 text-right text-xs text-muted-foreground">Net</span>
+          <span className="w-[15px] shrink-0" aria-hidden="true" />
+        </div>
         <ul className="space-y-2">
           {lines.map((line) => {
             const done = lineIsComplete(line);
@@ -537,6 +572,7 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
                     done ? 'border-rule/60' : 'border-dashed border-measured/50',
                   )}
                 >
+                  <Avatar name={line.employeeName ?? 'Unknown'} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-foreground">{line.employeeName ?? 'Unknown'}</span>
                     <span className="block text-xs text-muted-foreground">
@@ -549,8 +585,16 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
                   <span className="w-32 text-right">
                     {done ? (
                       <>
-                        <span className="block text-xs text-muted-foreground">Net</span>
                         <span className="block text-sm font-semibold text-foreground">{money(line.netPay)}</span>
+                        {Number(line.grossPay) > 0 && (
+                          <MiniBar
+                            value={Number(line.netPay)}
+                            max={Number(line.grossPay)}
+                            tone="success"
+                            label={`Net ${money(line.netPay)} of ${money(line.grossPay)} gross`}
+                            className="mt-1 ml-auto w-20"
+                          />
+                        )}
                       </>
                     ) : (
                       <span className="text-xs font-semibold text-measured">{editable ? 'Enter figures' : 'Not entered'}</span>
@@ -604,11 +648,43 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
   );
 }
 
+/** A figure under a column header named once above the list; `label` keeps it named for screen readers. */
 function Amount({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <span className="hidden w-28 text-right sm:block">
-      <span className="block text-xs text-muted-foreground">{label}</span>
+      <span className="sr-only">{label} </span>
       <span className={cn('block text-sm', muted ? 'text-muted-foreground' : 'font-semibold text-foreground')}>{value}</span>
+    </span>
+  );
+}
+
+/** The run's three steps as dots — finalised, figures in, issued — with the stage word on hover. */
+const RUN_STEPS_DONE: Record<keyof typeof STATUS_CHIP, number> = { draft: 0, figures: 1, ready: 2, issued: 3, superseded: 0 };
+
+function RunSteps({ stage, label }: { stage: keyof typeof STATUS_CHIP; label: string }) {
+  const done = RUN_STEPS_DONE[stage];
+  return (
+    <span className="inline-flex items-center gap-1" role="img" aria-label={label} title={label}>
+      {[0, 1, 2].map((step) => (
+        <span
+          key={step}
+          aria-hidden="true"
+          className={cn(
+            'size-1.5 rounded-full',
+            stage === 'superseded'
+              ? 'bg-muted-foreground/30'
+              : step < done
+                ? stage === 'issued'
+                  ? 'bg-momentum'
+                  : 'bg-primary'
+                : step === done
+                  ? stage === 'figures'
+                    ? 'bg-measured'
+                    : 'border border-primary/60'
+                  : 'bg-band ring-1 ring-rule',
+          )}
+        />
+      ))}
     </span>
   );
 }
@@ -767,11 +843,13 @@ function NewRunView({
       </dl>
 
       {preview.isPending ? (
-        <div className="space-y-2">
-          {[0, 1, 2].map((index) => (
-            <div key={index} className="h-14 animate-pulse rounded-lg bg-band/60" />
-          ))}
-        </div>
+        <TilesSkeleton
+          count={3}
+          label="Loading the hours"
+          tile={null}
+          trailing={['hidden h-4 w-28 sm:block', 'hidden h-4 w-28 sm:block', 'h-4 w-32']}
+          tileClassName="gap-4 border-rule/60 bg-field px-4"
+        />
       ) : preview.isError ? (
         <ErrorState
           icon={Users}

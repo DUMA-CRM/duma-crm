@@ -4,9 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import { AlertTriangle, MapPin, Package, Sparkles } from '@/components/icons';
-import { STATUS_BAR, STATUS_LABEL, STATUS_VARIANT, fmtQty, getStatus, stockPct } from '@/components/inventory/stock/shared';
+import { ParMeter, STATUS_LABEL, STATUS_TONE, fmtQty, getStatus, statusGlyph } from '@/components/inventory/stock/shared';
+import { Pill } from '@/components/shared/Pill';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Badge } from '@/components/ui/badge';
+import { TONE_TINT } from '@/components/shared/tone';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -20,7 +21,7 @@ import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const selectClass = cn(
-  'w-full h-9 bg-field border border-input rounded-sm px-3 pr-8 text-sm text-foreground',
+  'w-full h-9 bg-control border border-input rounded-sm px-3 pr-8 text-sm text-foreground',
   'outline-none focus:border-primary focus:ring-2 focus:ring-primary/15',
   'transition-[border-color,box-shadow] duration-150 appearance-none cursor-pointer',
   'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -36,40 +37,48 @@ interface FormErrors {
   qty?: string;
 }
 
-/** Live stock context for the picked item — current level vs threshold + a suggested order. */
+/** Live stock context for the picked item — current level against par + a suggested order. */
 function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSuggestion: (qty: number) => void }) {
   const qty = parseFloat(ls.quantity);
   const threshold = parseFloat(ls.lowThreshold);
   const status = getStatus(ls);
-  const pct = stockPct(qty, threshold);
+  const glyph = statusGlyph(status, ls.stockItem?.category);
   const unit = ls.stockItem?.unit ?? 'units';
   const configuredReorder = Number(ls.reorderQuantity ?? ls.stockItem?.defaultReorderQuantity);
-  // Prefer the configured reorder quantity; otherwise top up to twice the threshold.
+  // Prefer the configured reorder quantity; otherwise top up to twice par.
   const target = threshold > 0 ? threshold * 2 : qty + 1;
   const suggested =
     Number.isFinite(configuredReorder) && configuredReorder > 0 ? Math.ceil(configuredReorder) : Math.max(Math.ceil(target - qty), 1);
 
   return (
-    <div className="rounded-sm border border-rule bg-band p-4 space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-foreground truncate">{ls.stockItem?.name}</p>
-        <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
-      </div>
-      <div>
-        <div className="h-2 rounded-full bg-border overflow-hidden">
-          <div className={cn('h-full rounded-full transition-all', STATUS_BAR[status])} style={{ width: `${pct}%` }} />
-        </div>
-        <div className="flex items-center justify-between mt-1.5 text-xs text-muted-foreground">
-          <span>
-            <span className="font-semibold text-foreground tabular-nums">{fmtQty(qty)}</span> {unit} in stock
-          </span>
-          <span>threshold {fmtQty(threshold)}</span>
+    <div className="space-y-3 rounded-lg border border-rule/60 bg-card p-4">
+      <div className="flex items-center gap-3">
+        <span
+          className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', TONE_TINT[STATUS_TONE[status]])}
+          role="img"
+          aria-label={glyph.label}
+          title={glyph.label}
+        >
+          <glyph.icon size={18} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-semibold text-foreground">{ls.stockItem?.name}</span>
+            {status !== 'ok' && <Pill tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Pill>}
+          </p>
+          <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+            <ParMeter qty={qty} par={threshold} unit={unit} status={status} className="w-20 shrink-0" />
+            <span className="truncate">
+              <span className="font-semibold tabular-nums text-foreground">{fmtQty(qty)}</span> {unit} in stock
+              {threshold > 0 && ` · par ${fmtQty(threshold)}`}
+            </span>
+          </p>
         </div>
       </div>
       <button
         type="button"
         onClick={() => onUseSuggestion(suggested)}
-        className="w-full flex items-center justify-between gap-2 rounded-sm border border-primary/30 bg-band px-3 py-2 hover:bg-band transition-colors"
+        className="flex w-full items-center justify-between gap-2 rounded-md border border-primary/30 bg-background/60 px-3 py-2 transition-colors hover:bg-band/40"
       >
         <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Sparkles size={12} className="text-primary" /> {configuredReorder > 0 ? 'Configured reorder' : 'Suggested order'}
@@ -235,7 +244,7 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
               }}
               placeholder="0"
               className={cn(
-                'flex-1 h-9 px-3 bg-field border border-input rounded-sm text-sm text-foreground',
+                'flex-1 h-9 px-3 bg-control border border-input rounded-sm text-sm text-foreground',
                 'placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15',
                 'transition-[border-color,box-shadow] duration-150',
                 errors.qty && 'border-destructive/60 focus:border-destructive focus:ring-destructive/15',
@@ -272,7 +281,7 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
             maxLength={900}
             rows={3}
             className={cn(
-              'w-full bg-field border border-input rounded-sm px-3 py-2 text-sm text-foreground',
+              'w-full bg-control border border-input rounded-sm px-3 py-2 text-sm text-foreground',
               'placeholder:text-muted-foreground outline-none resize-none',
               'focus:border-primary focus:ring-2 focus:ring-primary/15',
               'transition-[border-color,box-shadow] duration-150',

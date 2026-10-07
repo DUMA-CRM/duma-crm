@@ -1,9 +1,11 @@
 'use client';
 
-import { ArrowLeft, ImagePlus, Plus, Trash2 } from '@/components/icons';
+import { Slider } from '@/components/ui/slider';
+import { ArrowLeft, ImagePlus, Plus, Trash2, Zap } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingRow, SettingRows } from '@/components/settings/controls';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { StatusDot } from '@/components/shared/StatusDot';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -97,7 +99,7 @@ export function TemplateSettingsPanel({
   onStyles: (patch: Partial<TemplateDesign['styles']>) => void;
   variables: string[];
   onInsertVariable: (token: string) => boolean;
-  usedBy: { id: string; name: string }[];
+  usedBy: { id: string; name: string; isEnabled: boolean }[];
   canDelete: boolean;
   onDelete: () => void;
   readOnly: boolean;
@@ -142,7 +144,12 @@ export function TemplateSettingsPanel({
                 placeholder="The line shown after the subject"
                 disabled={htmlMode}
               />
-              <p className={cn('mt-1 text-right text-micro tabular-nums', preheader.length > PREHEADER_LIMIT ? 'text-measured' : 'text-muted-foreground')}>
+              <p
+                className={cn(
+                  'mt-1 text-right text-micro tabular-nums',
+                  preheader.length > PREHEADER_LIMIT ? 'text-measured' : 'text-muted-foreground',
+                )}
+              >
                 {htmlMode ? 'Set in the HTML itself while editing HTML' : `${preheader.length}/${PREHEADER_LIMIT}`}
               </p>
             </div>
@@ -154,7 +161,13 @@ export function TemplateSettingsPanel({
             <Input label="Name" value={name} onChange={(event) => onName(event.target.value)} required placeholder="Order ready" />
             <div className="space-y-1.5">
               <p className="text-label uppercase text-muted-foreground">Category</p>
-              <Select value={category} onValueChange={onCategory} options={categoryOptions} ariaLabel="Template category" className="w-full" />
+              <Select
+                value={category}
+                onValueChange={onCategory}
+                options={categoryOptions}
+                ariaLabel="Template category"
+                className="w-full"
+              />
               <p className="text-xs text-muted-foreground">{categoryHint}</p>
             </div>
           </div>
@@ -211,16 +224,37 @@ export function TemplateSettingsPanel({
             ) : undefined
           }
         >
-          <p className="text-sm text-muted-foreground">
-            {usedBy.length ? usedBy.map((item) => item.name).join(', ') : 'No automation sends this yet.'}
-          </p>
+          {usedBy.length ? (
+            <ul className="flex flex-wrap gap-1.5">
+              {usedBy.map((item) => (
+                <li key={item.id}>
+                  {/* Not a link: leaving from here would skip the editor's unsaved-changes guard. */}
+                  <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-rule/60 bg-band/40 px-2 text-xs font-medium text-foreground">
+                    <Zap size={12} className="text-primary" aria-hidden="true" />
+                    <span className="max-w-48 truncate">{item.name}</span>
+                    <StatusDot tone={item.isEnabled ? 'success' : 'muted'} label={item.isEnabled ? 'Sending' : 'Switched off'} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No automation sends this yet.</p>
+          )}
         </SettingsSection>
       )}
     </div>
   );
 }
 
-function BlockSettings({ block, onChange, onChooseImage }: { block: TemplateBlock; onChange: (block: TemplateBlock) => void; onChooseImage: () => void }) {
+function BlockSettings({
+  block,
+  onChange,
+  onChooseImage,
+}: {
+  block: TemplateBlock;
+  onChange: (block: TemplateBlock) => void;
+  onChooseImage: () => void;
+}) {
   const title = BLOCK_LABEL[block.type];
   const alignment =
     'align' in block ? (
@@ -268,7 +302,12 @@ function BlockSettings({ block, onChange, onChooseImage }: { block: TemplateBloc
               <ImagePlus />
               {block.url ? 'Replace image' : 'Upload image'}
             </Button>
-            <Input label="Or paste an image link" value={block.url} onChange={(event) => onChange({ ...block, url: event.target.value })} placeholder="https://" />
+            <Input
+              label="Or paste an image link"
+              value={block.url}
+              onChange={(event) => onChange({ ...block, url: event.target.value })}
+              placeholder="https://"
+            />
             <Input
               label="Description"
               value={block.alt}
@@ -280,22 +319,22 @@ function BlockSettings({ block, onChange, onChooseImage }: { block: TemplateBloc
         </SettingsSection>
         <SettingsSection title="Link and size">
           <div className="space-y-4">
-            <Input label="Opens" value={block.href} onChange={(event) => onChange({ ...block, href: event.target.value })} placeholder="Optional — https://" />
-            <div className="space-y-1.5">
-              <p className="flex justify-between text-label uppercase text-muted-foreground">
-                Width <span className="tabular-nums normal-case">{block.width}%</span>
-              </p>
-              <input
-                type="range"
-                min={10}
-                max={100}
-                step={5}
-                value={block.width}
-                onChange={(event) => onChange({ ...block, width: Number(event.target.value) })}
-                aria-label="Width"
-                className="w-full accent-primary"
-              />
-            </div>
+            <Input
+              label="Opens"
+              value={block.href}
+              onChange={(event) => onChange({ ...block, href: event.target.value })}
+              placeholder="Optional — https://"
+            />
+            <Slider
+              label="Width"
+              aria-label="Image width"
+              min={10}
+              max={100}
+              step={5}
+              value={block.width}
+              onValueChange={(width) => onChange({ ...block, width })}
+              formatValue={(width) => `${width}%`}
+            />
             {alignment}
           </div>
         </SettingsSection>
@@ -305,21 +344,16 @@ function BlockSettings({ block, onChange, onChooseImage }: { block: TemplateBloc
   if (block.type === 'spacer')
     return (
       <SettingsSection title={title} description="Empty space between blocks.">
-        <div className="space-y-1.5">
-          <p className="flex justify-between text-label uppercase text-muted-foreground">
-            Height <span className="tabular-nums normal-case">{block.height}px</span>
-          </p>
-          <input
-            type="range"
-            min={8}
-            max={120}
-            step={4}
-            value={block.height}
-            onChange={(event) => onChange({ ...block, height: Number(event.target.value) })}
-            aria-label="Height"
-            className="w-full accent-primary"
-          />
-        </div>
+        <Slider
+          label="Height"
+          aria-label="Spacer height"
+          min={8}
+          max={120}
+          step={4}
+          value={block.height}
+          onValueChange={(height) => onChange({ ...block, height })}
+          formatValue={(height) => `${height}px`}
+        />
       </SettingsSection>
     );
 
@@ -340,7 +374,11 @@ function BlockSettings({ block, onChange, onChooseImage }: { block: TemplateBloc
             >
               <span className="flex h-6 w-full items-stretch gap-1" aria-hidden="true">
                 {widths.map((width, index) => (
-                  <span key={index} style={{ width: `${width}%` }} className={cn('rounded-sm', block.layout === value ? 'bg-primary/25' : 'bg-band')} />
+                  <span
+                    key={index}
+                    style={{ width: `${width}%` }}
+                    className={cn('rounded-sm', block.layout === value ? 'bg-primary/25' : 'bg-band')}
+                  />
                 ))}
               </span>
               <span className="text-micro font-semibold">{label}</span>
@@ -361,14 +399,20 @@ function BlockSettings({ block, onChange, onChooseImage }: { block: TemplateBloc
                   label="Label"
                   value={link.label}
                   onChange={(event) =>
-                    onChange({ ...block, links: block.links.map((item, position) => (position === index ? { ...item, label: event.target.value } : item)) })
+                    onChange({
+                      ...block,
+                      links: block.links.map((item, position) => (position === index ? { ...item, label: event.target.value } : item)),
+                    })
                   }
                 />
                 <Input
                   label="Link"
                   value={link.url}
                   onChange={(event) =>
-                    onChange({ ...block, links: block.links.map((item, position) => (position === index ? { ...item, url: event.target.value } : item)) })
+                    onChange({
+                      ...block,
+                      links: block.links.map((item, position) => (position === index ? { ...item, url: event.target.value } : item)),
+                    })
                   }
                 />
               </div>

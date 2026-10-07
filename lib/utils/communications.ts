@@ -1,3 +1,5 @@
+import { relativeTime } from './relative-time.ts';
+
 // Pure logic behind the Communications overview and history — no React, so it
 // can be tested. Structural types only: the caller passes API records as-is.
 
@@ -131,14 +133,7 @@ export function attentionIssues({
 }
 
 /** "just now", "12 min ago", "3 h ago", "2 d ago" — for short activity lists. */
-export function timeAgo(iso: string, now: number): string {
-  const minutes = Math.max(0, Math.round((now - Date.parse(iso)) / 60_000));
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  return `${Math.round(hours / 24)} d ago`;
-}
+export const timeAgo = (iso: string, now: number): string => relativeTime(iso, now);
 
 // ── Automations list ──────────────────────────────────────────────────────────
 

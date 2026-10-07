@@ -5,7 +5,6 @@ import { motion } from 'motion/react';
 import { AlertTriangle, Leaf, MapPin, ShieldAlert, ShieldCheck } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
-import { Badge } from '@/components/ui/badge';
 
 import { cn } from '@/lib/utils/cn';
 import type { Customer, CustomerAlert } from '@/types/customers';
@@ -27,10 +26,10 @@ import type { Customer, CustomerAlert } from '@/types/customers';
  * trains people to skip the whole area, which defeats the point.
  */
 
-const SEVERITY: Record<CustomerAlert['severity'], { tile: string; badge: 'destructive' | 'warning' | 'muted'; label: string }> = {
-  critical: { tile: 'bg-exception/8 text-exception', badge: 'destructive', label: 'Critical' },
-  warning: { tile: 'bg-measured/10 text-measured', badge: 'warning', label: 'Warning' },
-  info: { tile: 'bg-band text-muted-foreground', badge: 'muted', label: 'Note' },
+const SEVERITY: Record<CustomerAlert['severity'], { tile: string; label: string }> = {
+  critical: { tile: 'bg-exception/8 text-exception', label: 'Critical' },
+  warning: { tile: 'bg-measured/10 text-measured', label: 'Warning' },
+  info: { tile: 'bg-band text-muted-foreground', label: 'Note' },
 };
 
 const labelFor = (slug: string) => {
@@ -110,7 +109,13 @@ export function GuestSafetyBlock({ customer }: { customer: Customer }) {
             const severity = SEVERITY[alert.severity];
             return (
               <li key={`${alert.label}-${index}`} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
-                <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', severity.tile)}>
+                {/* The tile's colour is the severity; its word is the tile's name. */}
+                <span
+                  className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', severity.tile)}
+                  role="img"
+                  aria-label={severity.label}
+                  title={severity.label}
+                >
                   <ShieldAlert size={16} aria-hidden="true" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -119,7 +124,6 @@ export function GuestSafetyBlock({ customer }: { customer: Customer }) {
                   </p>
                   {alert.note && <p className="mt-0.5 text-xs text-muted-foreground">{alert.note}</p>}
                 </div>
-                <Badge variant={severity.badge}>{severity.label}</Badge>
               </li>
             );
           })}
@@ -131,7 +135,13 @@ export function GuestSafetyBlock({ customer }: { customer: Customer }) {
         <dl className="grid gap-3 sm:grid-cols-2">
           {dietary.length > 0 && (
             <Preference icon={Leaf} label="Dietary">
-              {dietary.map(labelFor).join(', ')}
+              <span className="mt-1 flex flex-wrap gap-1">
+                {dietary.map((item) => (
+                  <span key={item} className="rounded-sm bg-band px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                    {labelFor(item)}
+                  </span>
+                ))}
+              </span>
             </Preference>
           )}
           {seating && (

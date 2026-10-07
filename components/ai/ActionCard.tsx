@@ -246,13 +246,7 @@ export function ActionCard({
           </div>
           <dl className="divide-y divide-rule/40 px-4 pb-1">
             {visibleFields.map((field) => (
-              <div
-                key={field.key}
-                className={cn(
-                  'gap-3 py-3',
-                  field.type === 'textarea' ? 'grid' : 'flex items-start justify-between',
-                )}
-              >
+              <div key={field.key} className={cn('gap-3 py-3', field.type === 'textarea' ? 'grid' : 'flex items-start justify-between')}>
                 <dt className="min-w-0 pt-0.5 text-sm font-medium text-foreground">
                   {field.label}
                   {field.hint && <span className="mt-0.5 block text-xs font-normal leading-5 text-muted-foreground">{field.hint}</span>}
@@ -342,22 +336,13 @@ export function ActionCard({
       )}
 
       <footer className="border-t border-rule/40 bg-background/45 px-4 py-3.5">
-        <div className="flex items-start gap-2.5">
-          <span
-            className={cn(
-              'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-sm',
-              critical ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary',
-            )}
-          >
-            {critical ? <TriangleAlert size={13} aria-hidden="true" /> : <ShieldCheck size={13} aria-hidden="true" />}
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-foreground">Check before DUMA makes this change</p>
-            <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{action.note}</p>
-          </div>
-        </div>
+        {/* The header already carries the tile and what this does — the footer adds only the note. */}
+        <p className="text-xs leading-5 text-muted-foreground">{action.note}</p>
         {blocked && (
-          <div className="mt-3 flex items-start gap-2 rounded-md border border-exception/25 bg-exception/5 px-3 py-2 text-xs text-exception" role="status">
+          <div
+            className="mt-3 flex items-start gap-2 rounded-md border border-exception/25 bg-exception/5 px-3 py-2 text-xs text-exception"
+            role="status"
+          >
             <TriangleAlert size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
             <span>{tooFewLines ? `Add at least ${group?.minLines} item to continue.` : `${missing?.label} still needs a value.`}</span>
           </div>

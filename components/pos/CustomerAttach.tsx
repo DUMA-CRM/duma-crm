@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowLeft, Loader2, QrCode, Search, UserPlus, X } from '@/components/icons';
 import { ScanCustomer } from '@/components/pos/ScanCustomer';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { ApiError } from '@/lib/modules/core/client';
@@ -24,7 +25,11 @@ export type CustomerView = 'find' | 'new' | 'scan';
  * their loyalty code, or creating them, pre-filled from what was searched.
  */
 export function CustomerAttach({
-  initialView, current, onSelect, onRemove, onClose,
+  initialView,
+  current,
+  onSelect,
+  onRemove,
+  onClose,
 }: {
   initialView: CustomerView;
   /** The customer already on the ticket — shown first, with Remove. */
@@ -42,7 +47,13 @@ export function CustomerAttach({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-16 shrink-0 items-center gap-2 border-b border-rule/60 px-3">
-        <Button variant="ghost" size="icon" onClick={back} aria-label={view === 'find' || initialView === view ? 'Back to the ticket' : 'Back to search'} className="size-12">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={back}
+          aria-label={view === 'find' || initialView === view ? 'Back to the ticket' : 'Back to search'}
+          className="size-12"
+        >
           <ArrowLeft size={20} />
         </Button>
         <p className="text-lg font-semibold text-foreground">{title}</p>
@@ -52,8 +63,12 @@ export function CustomerAttach({
           <div className="mx-4 mt-4 flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
             <InitialsAvatar firstName={current.firstName} lastName={current.lastName} email={current.email} size="sm" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-base font-semibold text-foreground">{current.firstName} {current.lastName}</span>
-              <span className="block text-sm text-muted-foreground">On this ticket · {(current.pointsBalance ?? 0).toLocaleString()} pts</span>
+              <span className="block truncate text-base font-semibold text-foreground">
+                {current.firstName} {current.lastName}
+              </span>
+              <span className="block text-sm text-muted-foreground">
+                On this ticket · {(current.pointsBalance ?? 0).toLocaleString()} pts
+              </span>
             </span>
             {onRemove && (
               <Button variant="outline" onClick={onRemove} className="h-11 shrink-0 text-destructive hover:text-destructive">
@@ -62,7 +77,9 @@ export function CustomerAttach({
             )}
           </div>
         )}
-        {view === 'find' && <FindCustomer query={query} onQuery={setQuery} onSelect={onSelect} onNew={() => setView('new')} onScan={() => setView('scan')} />}
+        {view === 'find' && (
+          <FindCustomer query={query} onQuery={setQuery} onSelect={onSelect} onNew={() => setView('new')} onScan={() => setView('scan')} />
+        )}
         {view === 'new' && (
           <NewCustomer
             initial={guessNewCustomer(query)}
@@ -82,8 +99,18 @@ export function CustomerAttach({
 // ── Find ─────────────────────────────────────────────────────────────────────
 
 function FindCustomer({
-  query, onQuery, onSelect, onNew, onScan,
-}: { query: string; onQuery: (q: string) => void; onSelect: (c: Customer) => void; onNew: () => void; onScan: () => void }) {
+  query,
+  onQuery,
+  onSelect,
+  onNew,
+  onScan,
+}: {
+  query: string;
+  onQuery: (q: string) => void;
+  onSelect: (c: Customer) => void;
+  onNew: () => void;
+  onScan: () => void;
+}) {
   // Wait for a pause in typing so every keystroke isn't a request.
   const [term, setTerm] = useState(query.trim());
   useEffect(() => {
@@ -103,7 +130,11 @@ function FindCustomer({
   return (
     <div className="space-y-4 p-4">
       <div className="relative">
-        <Search size={20} aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Search
+          size={20}
+          aria-hidden="true"
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
         <input
           autoFocus
           type="search"
@@ -113,13 +144,19 @@ function FindCustomer({
           aria-label="Find a customer by name, phone or email"
           enterKeyHint="search"
           autoComplete="off"
-          className="h-14 w-full rounded-xl border border-input bg-field pl-12 pr-12 text-lg text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured [&::-webkit-search-cancel-button]:hidden"
+          className="h-14 w-full rounded-xl border border-input bg-control pl-12 pr-12 text-lg text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured [&::-webkit-search-cancel-button]:hidden"
         />
         {search.isFetching ? (
           <Loader2 size={18} aria-hidden="true" className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
         ) : (
           query && (
-            <Button variant="ghost" size="icon" onClick={() => onQuery('')} aria-label="Clear search" className="absolute right-1 top-1/2 size-12 -translate-y-1/2 text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onQuery('')}
+              aria-label="Clear search"
+              className="absolute right-1 top-1/2 size-12 -translate-y-1/2 text-muted-foreground"
+            >
               <X size={18} />
             </Button>
           )
@@ -132,31 +169,42 @@ function FindCustomer({
           <BigAction icon={UserPlus} title="New customer" description="Name and phone — takes a few seconds." onClick={onNew} />
         </div>
       ) : search.isError ? (
-        <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-foreground">
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-foreground"
+        >
           <span className="flex items-center gap-2">
             <AlertTriangle size={17} aria-hidden="true" className="text-destructive" /> The search didn’t work.
           </span>
-          <Button variant="outline" onClick={() => void search.refetch()} className="h-11">Try again</Button>
+          <Button variant="outline" onClick={() => void search.refetch()} className="h-11">
+            Try again
+          </Button>
         </div>
       ) : search.isLoading ? (
-        <ul className="space-y-2" aria-busy="true" aria-label="Searching">
-          {[0, 1, 2].map((row) => <li key={row} className="h-16 animate-pulse rounded-xl bg-band/60" />)}
-        </ul>
+        <ListSkeleton rows={3} avatar label="Searching customers" className="rounded-xl" />
       ) : (
         <>
           {results.length > 0 && (
             <ul className="divide-y divide-rule/45 overflow-hidden rounded-xl border border-rule/60 bg-card">
               {results.map((customer) => (
                 <li key={customer.id}>
-                  <button type="button" onClick={() => onSelect(customer)} className="flex min-h-16 w-full items-center gap-3 px-4 py-2.5 text-left active:bg-band">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(customer)}
+                    className="flex min-h-16 w-full items-center gap-3 px-4 py-2.5 text-left active:bg-band"
+                  >
                     <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} email={customer.email} size="sm" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-base font-semibold text-foreground">
                         {customer.firstName} {customer.lastName}
                       </span>
-                      <span className="block truncate text-sm text-muted-foreground">{[customer.phone, customer.email].filter(Boolean).join(' · ')}</span>
+                      <span className="block truncate text-sm text-muted-foreground">
+                        {[customer.phone, customer.email].filter(Boolean).join(' · ')}
+                      </span>
                     </span>
-                    <span data-figure className="shrink-0 text-sm tabular-nums text-muted-foreground">{(customer.pointsBalance ?? 0).toLocaleString()} pts</span>
+                    <span data-figure className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                      {(customer.pointsBalance ?? 0).toLocaleString()} pts
+                    </span>
                   </button>
                 </li>
               ))}
@@ -180,7 +228,19 @@ function FindCustomer({
   );
 }
 
-function BigAction({ icon: Icon, title, description, onClick, dashed = false }: { icon: typeof QrCode; title: string; description: string; onClick: () => void; dashed?: boolean }) {
+function BigAction({
+  icon: Icon,
+  title,
+  description,
+  onClick,
+  dashed = false,
+}: {
+  icon: typeof QrCode;
+  title: string;
+  description: string;
+  onClick: () => void;
+  dashed?: boolean;
+}) {
   return (
     <button
       type="button"
@@ -204,8 +264,14 @@ function BigAction({ icon: Icon, title, description, onClick, dashed = false }: 
 // ── New ──────────────────────────────────────────────────────────────────────
 
 function NewCustomer({
-  initial, onCreated, onFindExisting,
-}: { initial: ReturnType<typeof guessNewCustomer>; onCreated: (c: Customer) => void; onFindExisting: (phone: string) => void }) {
+  initial,
+  onCreated,
+  onFindExisting,
+}: {
+  initial: ReturnType<typeof guessNewCustomer>;
+  onCreated: (c: Customer) => void;
+  onFindExisting: (phone: string) => void;
+}) {
   const { tenantId } = useWorkspaceStore();
   const qc = useQueryClient();
   const [form, setForm] = useState(initial);
@@ -242,21 +308,54 @@ function NewCustomer({
     >
       <div className="grid grid-cols-2 gap-3">
         <Field label="First name" error={tried ? errors.firstName : undefined}>
-          <input autoFocus={!initial.firstName} value={form.firstName} onChange={set('firstName')} autoComplete="off" maxLength={100} className={fieldClass(tried && !!errors.firstName)} />
+          <input
+            autoFocus={!initial.firstName}
+            value={form.firstName}
+            onChange={set('firstName')}
+            autoComplete="off"
+            maxLength={100}
+            className={fieldClass(tried && !!errors.firstName)}
+          />
         </Field>
         <Field label="Last name" error={tried ? errors.lastName : undefined}>
-          <input autoFocus={!!initial.firstName && !initial.lastName} value={form.lastName} onChange={set('lastName')} autoComplete="off" maxLength={100} className={fieldClass(tried && !!errors.lastName)} />
+          <input
+            autoFocus={!!initial.firstName && !initial.lastName}
+            value={form.lastName}
+            onChange={set('lastName')}
+            autoComplete="off"
+            maxLength={100}
+            className={fieldClass(tried && !!errors.lastName)}
+          />
         </Field>
       </div>
       <Field label="Phone" error={tried ? errors.phone : undefined}>
-        <input type="tel" inputMode="tel" value={form.phone} onChange={set('phone')} autoComplete="off" maxLength={30} placeholder="+44 7911 123456" className={fieldClass(tried && !!errors.phone)} />
+        <input
+          type="tel"
+          inputMode="tel"
+          value={form.phone}
+          onChange={set('phone')}
+          autoComplete="off"
+          maxLength={30}
+          placeholder="+44 7911 123456"
+          className={fieldClass(tried && !!errors.phone)}
+        />
       </Field>
       <Field label="Email" hint="Optional — for receipts and offers they sign up to." error={tried ? errors.email : undefined}>
-        <input type="email" inputMode="email" value={form.email} onChange={set('email')} autoComplete="off" className={fieldClass(tried && !!errors.email)} />
+        <input
+          type="email"
+          inputMode="email"
+          value={form.email}
+          onChange={set('email')}
+          autoComplete="off"
+          className={fieldClass(tried && !!errors.email)}
+        />
       </Field>
 
       {create.isError && (
-        <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-foreground">
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-foreground"
+        >
           <span>{duplicate ? 'There’s already a customer with this phone number.' : 'The customer wasn’t created. Try again.'}</span>
           {duplicate && (
             <Button type="button" variant="outline" onClick={() => onFindExisting(form.phone.trim())} className="h-11 shrink-0">
@@ -285,7 +384,11 @@ function Field({ label, hint, error, children }: { label: string; hint?: string;
     <label className="block">
       <span className="mb-1.5 block text-label uppercase text-muted-foreground">{label}</span>
       {children}
-      {error ? <span className="mt-1 block text-sm text-exception">{error}</span> : hint ? <span className="mt-1 block text-sm text-muted-foreground">{hint}</span> : null}
+      {error ? (
+        <span className="mt-1 block text-sm text-exception">{error}</span>
+      ) : hint ? (
+        <span className="mt-1 block text-sm text-muted-foreground">{hint}</span>
+      ) : null}
     </label>
   );
 }

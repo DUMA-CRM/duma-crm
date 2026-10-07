@@ -4,16 +4,43 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 
+import { DurationPicker } from '@/components/ui/duration-picker';
 import {
-  AlertTriangle, ArrowLeft, Building2, CalendarClock, CheckCircle2, ChefHat, Clock, Coffee, FileText, Globe, Loader2, MapPin,
-  ShieldCheck, Store, Timer, UserRound, Users, Wallet, X,
+  AlertTriangle,
+  ArrowLeft,
+  Building2,
+  CalendarCheck,
+  CalendarClock,
+  CheckCircle2,
+  ChefHat,
+  Clock,
+  Coffee,
+  FileText,
+  Globe,
+  HeartHandshake,
+  type IconComponent,
+  Landmark,
+  Loader2,
+  Mail,
+  MapPin,
+  Pencil,
+  Plus,
+  Receipt,
+  ShieldCheck,
+  Store,
+  Timer,
+  UserRound,
+  Users,
+  Wallet,
+  X,
 } from '@/components/icons';
 import { type Choice, ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { BigInput, Em } from '@/components/onboarding/questions';
 import { usePayrollLocale } from '@/components/payroll/usePayroll';
 import { AddressFields } from '@/components/people/AddressFields';
-import { EMPLOYMENT_CONFIG, PAY_CONFIG } from '@/components/people/shared';
-import { NumberStepper } from '@/components/shared/FormParts';
+import { RecordList, RecordListRow } from '@/components/people/record/shared';
+import { Avatar, EMPLOYMENT_CONFIG, PAY_CONFIG } from '@/components/people/shared';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
@@ -31,8 +58,21 @@ import { ageBasedMinimumWage, statutoryIdLabel } from '@/lib/utils/employee-comp
 import { formatNiNumber, formatSortCode } from '@/lib/utils/my-hr';
 import { formatMoney } from '@/lib/utils/payroll-totals';
 import {
-  STAFF_SECTIONS, STAFF_STEPS, type StaffContext, type StaffDraft, type StaffStepId, bankIssues, emptyStaffDraft, firstName,
-  isStaffStepComplete, isStepSkipped, nextStaffStep, niValid, previousStaffStep, resolveStaffStep, staffOnboardPayload,
+  STAFF_SECTIONS,
+  STAFF_STEPS,
+  type StaffContext,
+  type StaffDraft,
+  type StaffStepId,
+  bankIssues,
+  emptyStaffDraft,
+  firstName,
+  isStaffStepComplete,
+  isStepSkipped,
+  nextStaffStep,
+  niValid,
+  previousStaffStep,
+  resolveStaffStep,
+  staffOnboardPayload,
   staffProgressFor,
 } from '@/lib/utils/staff-onboarding';
 import { useAuthStore } from '@/stores/authStore';
@@ -56,7 +96,12 @@ const SCOPE_CHOICES: Choice<StaffScope>[] = [
 const CONTRACT_CHOICES: Choice<EmploymentType>[] = [
   { value: 'full_time', label: EMPLOYMENT_CONFIG.full_time.label, detail: 'Regular hours, usually 35 or more a week.', icon: Clock },
   { value: 'part_time', label: EMPLOYMENT_CONFIG.part_time.label, detail: 'Regular hours, fewer than full time.', icon: CalendarClock },
-  { value: 'zero_hours', label: EMPLOYMENT_CONFIG.zero_hours.label, detail: 'No guaranteed hours — paid for the shifts they work.', icon: Timer },
+  {
+    value: 'zero_hours',
+    label: EMPLOYMENT_CONFIG.zero_hours.label,
+    detail: 'No guaranteed hours — paid for the shifts they work.',
+    icon: Timer,
+  },
   { value: 'contractor', label: EMPLOYMENT_CONFIG.contractor.label, detail: 'Self-employed and invoices for their work.', icon: FileText },
 ];
 
@@ -78,8 +123,11 @@ function roleIcon(key: string) {
 
 function currencySymbol(currency: string) {
   try {
-    return new Intl.NumberFormat('en-GB', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })
-      .formatToParts(0).find((part) => part.type === 'currency')?.value ?? currency;
+    return (
+      new Intl.NumberFormat('en-GB', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })
+        .formatToParts(0)
+        .find((part) => part.type === 'currency')?.value ?? currency
+    );
   } catch {
     return currency;
   }
@@ -136,14 +184,22 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
     setRequested(target);
   };
 
-  useEffect(() => () => {
-    if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
+    },
+    [],
+  );
 
   // Screen readers land on the new question; a step that autofocused its own field keeps that focus.
   useEffect(() => {
     const active = document.activeElement;
-    if (!active || active === document.body || !document.getElementById('staff-onboarding')?.contains(active) || active.tagName === 'BUTTON') {
+    if (
+      !active ||
+      active === document.body ||
+      !document.getElementById('staff-onboarding')?.contains(active) ||
+      active.tagName === 'BUTTON'
+    ) {
       headingRef.current?.focus({ preventScroll: true });
     }
   }, [step, created]);
@@ -180,9 +236,14 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
     },
     onError: (err) => {
       // The review is long; the reason sits above it, out of sight from the button that was pressed.
-      requestAnimationFrame(() => document.getElementById('staff-onboarding')?.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }));
+      requestAnimationFrame(() =>
+        document.getElementById('staff-onboarding')?.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }),
+      );
       if (err instanceof ApiError && err.status === 409) {
-        setError({ message: `There is already an account for ${draftRef.current.email.trim()}. Use a different email, or find them in the team list.`, step: 'email' });
+        setError({
+          message: `There is already an account for ${draftRef.current.email.trim()}. Use a different email, or find them in the team list.`,
+          step: 'email',
+        });
       } else {
         setError({ message: (err as Error).message || 'They weren’t onboarded. Check the details and try again.' });
       }
@@ -225,11 +286,24 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
   const skipping = isStepSkipped(step, draft);
   const first = firstName(draft.name) || 'them';
 
-  const question = created ? null : questionFor(step, {
-    draft, ctx, update, choose, first, country, currency,
-    roles: { list: availableRoles, isLoading: roles.isLoading, isError: roles.isError, retry: () => roles.refetch() },
-    locations: { list: locations.data ?? [], isLoading: locations.isLoading, isError: locations.isError, retry: () => locations.refetch() },
-  });
+  const question = created
+    ? null
+    : questionFor(step, {
+        draft,
+        ctx,
+        update,
+        choose,
+        first,
+        country,
+        currency,
+        roles: { list: availableRoles, isLoading: roles.isLoading, isError: roles.isError, retry: () => roles.refetch() },
+        locations: {
+          list: locations.data ?? [],
+          isLoading: locations.isLoading,
+          isError: locations.isError,
+          retry: () => locations.refetch(),
+        },
+      });
 
   return (
     <div id="staff-onboarding" className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-background">
@@ -281,17 +355,40 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                 {sectionLabel && (
                   <p className="text-label uppercase text-muted-foreground">
                     {sectionLabel}
-                    <span className="ml-2 tabular-nums text-muted-foreground/70">{progress.position} of {progress.total}</span>
-                    {STAFF_STEPS.find((entry) => entry.id === step)?.optional && <span className="ml-2 normal-case tracking-normal text-muted-foreground/70">· optional</span>}
+                    <span className="ml-2 tabular-nums text-muted-foreground/70">
+                      {progress.position} of {progress.total}
+                    </span>
+                    {STAFF_STEPS.find((entry) => entry.id === step)?.optional && (
+                      <span className="ml-2 normal-case tracking-normal text-muted-foreground/70">· optional</span>
+                    )}
                   </p>
                 )}
-                <h1 ref={headingRef} tabIndex={-1} className="mt-3 text-2xl font-semibold leading-tight tracking-headline text-foreground outline-none sm:text-3xl">
-                  {step === 'review' ? <>Check the details, then add <Em>{first}</Em> to the team.</> : question?.title}
+                <h1
+                  ref={headingRef}
+                  tabIndex={-1}
+                  className="mt-3 text-2xl font-semibold leading-tight tracking-headline text-foreground outline-none sm:text-3xl"
+                >
+                  {step === 'review' ? (
+                    <>
+                      Check the details, then add <Em>{first}</Em> to the team.
+                    </>
+                  ) : (
+                    question?.title
+                  )}
                 </h1>
                 {question?.hint && <p className="mt-2 max-w-[56ch] text-sm leading-6 text-muted-foreground">{question.hint}</p>}
                 <div className="mt-8">
                   {step === 'review' ? (
-                    <StaffReview draft={draft} ctx={ctx} currency={currency} country={country} roles={availableRoles} locations={locations.data ?? []} error={error} onEdit={goTo} />
+                    <StaffReview
+                      draft={draft}
+                      ctx={ctx}
+                      currency={currency}
+                      country={country}
+                      roles={availableRoles}
+                      locations={locations.data ?? []}
+                      error={error}
+                      onEdit={goTo}
+                    />
                   ) : (
                     question?.body
                   )}
@@ -304,11 +401,25 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
                 <ArrowLeft aria-hidden="true" />
                 {previousStaffStep(step) ? 'Back' : 'Cancel'}
               </Button>
-              <Button type="submit" size="lg" disabled={!canContinue} variant={skipping ? 'outline' : 'default'} className="h-11 min-w-36 gap-2 px-5">
+              <Button
+                type="submit"
+                size="lg"
+                disabled={!canContinue}
+                variant={skipping ? 'outline' : 'default'}
+                className="h-11 min-w-36 gap-2 px-5"
+              >
                 {create.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
                 {step === 'review' ? (create.isPending ? 'Adding…' : `Add ${first}`) : skipping ? 'Skip for now' : 'Continue'}
                 {!create.isPending && (
-                  <kbd aria-hidden="true" className={cn('hidden rounded border px-1 font-mono text-micro sm:inline', skipping ? 'border-rule' : 'border-primary-foreground/30')}>↵</kbd>
+                  <kbd
+                    aria-hidden="true"
+                    className={cn(
+                      'hidden rounded border px-1 font-mono text-micro sm:inline',
+                      skipping ? 'border-rule' : 'border-primary-foreground/30',
+                    )}
+                  >
+                    ↵
+                  </kbd>
                 )}
               </Button>
             </div>
@@ -387,7 +498,15 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
         title: 'Who’s joining the team?',
         hint: 'Their full name, as it should appear on the rota and their payslips.',
         body: (
-          <BigInput label="Full name" name="name" autoComplete="off" placeholder="Jane Doe" maxLength={255} value={draft.name} onChange={(name) => update({ name })} />
+          <BigInput
+            label="Full name"
+            name="name"
+            autoComplete="off"
+            placeholder="Jane Doe"
+            maxLength={255}
+            value={draft.name}
+            onChange={(name) => update({ name })}
+          />
         ),
       };
 
@@ -396,7 +515,16 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
         title: <>What’s {them}’s email?</>,
         hint: 'We’ll send a single-use link there so they can set a password and sign in.',
         body: (
-          <BigInput label="Email" name="email" type="email" inputMode="email" autoComplete="off" placeholder="jane@example.com" value={draft.email} onChange={(email) => update({ email })} />
+          <BigInput
+            label="Email"
+            name="email"
+            type="email"
+            inputMode="email"
+            autoComplete="off"
+            placeholder="jane@example.com"
+            value={draft.email}
+            onChange={(email) => update({ email })}
+          />
         ),
       };
 
@@ -444,8 +572,17 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
                     shortcuts={false}
                     selected={draft.locationIds}
                     onChange={(id) =>
-                      update({ locationIds: draft.locationIds.includes(id) ? draft.locationIds.filter((entry) => entry !== id) : [...draft.locationIds, id] })}
-                    choices={q.locations.list.map((location) => ({ value: location.id, label: location.name, detail: location.address || undefined }))}
+                      update({
+                        locationIds: draft.locationIds.includes(id)
+                          ? draft.locationIds.filter((entry) => entry !== id)
+                          : [...draft.locationIds, id],
+                      })
+                    }
+                    choices={q.locations.list.map((location) => ({
+                      value: location.id,
+                      label: location.name,
+                      detail: location.address || undefined,
+                    }))}
                   />
                 </Loaded>
               </div>
@@ -460,7 +597,13 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
         hint: 'Used to check pay against the age-based minimum wage. The rest of the team never sees it.',
         body: (
           <div className="max-w-xs">
-            <DatePicker label="Date of birth" value={draft.dateOfBirth} onValueChange={(dateOfBirth) => update({ dateOfBirth })} max={q.ctx.today} autoFocus />
+            <DatePicker
+              label="Date of birth"
+              value={draft.dateOfBirth}
+              onValueChange={(dateOfBirth) => update({ dateOfBirth })}
+              max={q.ctx.today}
+              autoFocus
+            />
           </div>
         ),
       };
@@ -478,10 +621,28 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
         hint: 'An emergency contact the manager on shift can reach.',
         body: (
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Name" value={draft.emergencyContactName} maxLength={255} onChange={(event) => update({ emergencyContactName: event.target.value })} autoFocus />
-            <Input label="Relationship" value={draft.emergencyContactRelation} maxLength={100} placeholder="e.g. Partner" onChange={(event) => update({ emergencyContactRelation: event.target.value })} />
+            <Input
+              label="Name"
+              value={draft.emergencyContactName}
+              maxLength={255}
+              onChange={(event) => update({ emergencyContactName: event.target.value })}
+              autoFocus
+            />
+            <Input
+              label="Relationship"
+              value={draft.emergencyContactRelation}
+              maxLength={100}
+              placeholder="e.g. Partner"
+              onChange={(event) => update({ emergencyContactRelation: event.target.value })}
+            />
             <div className="sm:col-span-2">
-              <Input label="Phone" type="tel" value={draft.emergencyContactPhone} maxLength={30} onChange={(event) => update({ emergencyContactPhone: event.target.value })} />
+              <Input
+                label="Phone"
+                type="tel"
+                value={draft.emergencyContactPhone}
+                maxLength={30}
+                onChange={(event) => update({ emergencyContactPhone: event.target.value })}
+              />
             </div>
           </div>
         ),
@@ -493,9 +654,24 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
         hint: 'As it should read on their contract.',
         body: (
           <div className="space-y-6">
-            <BigInput label="Job title" name="jobTitle" autoComplete="off" placeholder="Barista" maxLength={255} value={draft.jobTitle} onChange={(jobTitle) => update({ jobTitle })} />
+            <BigInput
+              label="Job title"
+              name="jobTitle"
+              autoComplete="off"
+              placeholder="Barista"
+              maxLength={255}
+              value={draft.jobTitle}
+              onChange={(jobTitle) => update({ jobTitle })}
+            />
             <div className="max-w-sm">
-              <Input label="Department" value={draft.department} maxLength={100} placeholder="e.g. Front of house" hint="Optional." onChange={(event) => update({ department: event.target.value })} />
+              <Input
+                label="Department"
+                value={draft.department}
+                maxLength={100}
+                placeholder="e.g. Front of house"
+                hint="Optional."
+                onChange={(event) => update({ department: event.target.value })}
+              />
             </div>
           </div>
         ),
@@ -520,20 +696,35 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
         hint: 'Their first day. Rotas and holiday entitlement count from here.',
         body: (
           <div className="max-w-xs">
-            <DatePicker label="Start date" value={draft.startDate} onValueChange={(startDate) => update({ startDate })} required autoFocus />
+            <DatePicker
+              label="Start date"
+              value={draft.startDate}
+              onValueChange={(startDate) => update({ startDate })}
+              required
+              autoFocus
+            />
           </div>
         ),
       };
 
     case 'pay': {
       const hourly = draft.payType !== 'salaried';
-      const ageRate = draft.payType === 'hourly' ? ageBasedMinimumWage(draft.dateOfBirth || undefined, new Date(`${q.ctx.today}T12:00:00`), q.country) : null;
+      const ageRate =
+        draft.payType === 'hourly'
+          ? ageBasedMinimumWage(draft.dateOfBirth || undefined, new Date(`${q.ctx.today}T12:00:00`), q.country)
+          : null;
       const belowAgeRate = !!ageRate && draft.hourlyRate.trim() !== '' && Number(draft.hourlyRate) < ageRate.rate;
       return {
         title: <>How is {them} paid?</>,
         body: (
           <div className="space-y-8">
-            <ChoiceGrid label="Pay type" shortcuts={false} selected={draft.payType ? [draft.payType] : []} onChange={(payType) => update({ payType })} choices={PAY_CHOICES} />
+            <ChoiceGrid
+              label="Pay type"
+              shortcuts={false}
+              selected={draft.payType ? [draft.payType] : []}
+              onChange={(payType) => update({ payType })}
+              choices={PAY_CHOICES}
+            />
             {draft.payType && (
               <div>
                 <p className={fieldLabel}>{hourly ? 'Hourly rate' : 'Annual salary'}</p>
@@ -546,7 +737,9 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
                   prefix={currencySymbol(q.currency)}
                   placeholder={hourly ? '12.60' : '26,000'}
                   value={hourly ? draft.hourlyRate : draft.annualSalary}
-                  onChange={(value) => update(hourly ? { hourlyRate: value.replace(/[^\d.,]/g, '') } : { annualSalary: value.replace(/[^\d.,]/g, '') })}
+                  onChange={(value) =>
+                    update(hourly ? { hourlyRate: value.replace(/[^\d.,]/g, '') } : { annualSalary: value.replace(/[^\d.,]/g, '') })
+                  }
                 />
                 {ageRate && !belowAgeRate && (
                   <p className="mt-3 text-xs text-muted-foreground">
@@ -556,10 +749,14 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
               </div>
             )}
             {belowAgeRate && (
-              <p role="alert" className="flex gap-2.5 rounded-lg border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-foreground">
+              <p
+                role="alert"
+                className="flex gap-2.5 rounded-lg border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-foreground"
+              >
                 <AlertTriangle size={17} className="mt-0.5 shrink-0 text-destructive" aria-hidden="true" />
                 <span>
-                  That’s below the {formatMoney(ageRate.rate, q.currency)} minimum for {ageRate.label.toLowerCase()} from 1 April 2026. Apprentice rates differ and need checking separately.
+                  That’s below the {formatMoney(ageRate.rate, q.currency)} minimum for {ageRate.label.toLowerCase()} from 1 April 2026.
+                  Apprentice rates differ and need checking separately.
                 </span>
               </p>
             )}
@@ -576,18 +773,24 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
           <div className="grid gap-6 sm:grid-cols-2">
             <div>
               <p className={fieldLabel}>Unpaid break</p>
-              <NumberStepper label="Unpaid break" value={draft.unpaidBreakMins} onChange={(value) => update({ unpaidBreakMins: Math.round(value) })} min={0} max={480} step={5} unit="min" />
+              <DurationPicker
+                aria-label="Unpaid break"
+                value={draft.unpaidBreakMins}
+                onValueChange={(minutes) => update({ unpaidBreakMins: minutes })}
+                min={0}
+                max={480}
+                minuteStep={5}
+              />
             </div>
             <div>
               <p className={fieldLabel}>Once a shift passes</p>
-              <NumberStepper
-                label="Break threshold"
-                value={draft.breakThresholdMins / 60}
-                onChange={(value) => update({ breakThresholdMins: Math.round(value * 60) })}
+              <DurationPicker
+                aria-label="Break threshold"
+                value={draft.breakThresholdMins}
+                onValueChange={(minutes) => update({ breakThresholdMins: minutes })}
                 min={0}
-                max={24}
-                step={0.5}
-                unit="hours"
+                max={1440}
+                minuteStep={30}
               />
             </div>
           </div>
@@ -646,8 +849,22 @@ function BankFields({ draft, update, uk }: { draft: StaffDraft; update: (patch: 
   const issues = bankIssues(draft, uk);
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Input label="Name on the account" value={draft.accountHolder} maxLength={255} onChange={(event) => update({ accountHolder: event.target.value })} onBlur={blur('holder')} error={touched.holder ? issues.holder : undefined} autoFocus />
-      <Input label="Bank" value={draft.bankName} maxLength={255} placeholder="Optional" onChange={(event) => update({ bankName: event.target.value })} />
+      <Input
+        label="Name on the account"
+        value={draft.accountHolder}
+        maxLength={255}
+        onChange={(event) => update({ accountHolder: event.target.value })}
+        onBlur={blur('holder')}
+        error={touched.holder ? issues.holder : undefined}
+        autoFocus
+      />
+      <Input
+        label="Bank"
+        value={draft.bankName}
+        maxLength={255}
+        placeholder="Optional"
+        onChange={(event) => update({ bankName: event.target.value })}
+      />
       <Input
         label={uk ? 'Sort code' : 'Bank code'}
         value={uk ? formatSortCode(draft.sortCode) : draft.sortCode}
@@ -678,27 +895,62 @@ function BankFields({ draft, update, uk }: { draft: StaffDraft; update: (patch: 
 function Loaded<T>({ source, what, empty, children }: { source: Loadable<T>; what: string; empty: string; children: React.ReactNode }) {
   if (source.isLoading) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2" aria-busy="true" aria-label={`Loading ${what}`}>
-        {[0, 1, 2, 3].map((index) => <div key={index} className="h-[4.5rem] animate-pulse rounded-lg bg-band/60" />)}
-      </div>
+      // A ChoiceGrid's cards, two across, waiting for their words.
+      <TilesSkeleton
+        count={4}
+        label={`Loading ${what}`}
+        className="grid gap-3 sm:grid-cols-2"
+        tile="mt-0.5 size-9"
+        tileClassName="min-h-16 items-start gap-3.5 border-rule/70 bg-field px-4 py-3.5"
+      />
     );
   }
   if (source.isError) {
     return (
-      <div role="alert" className="flex items-center justify-between gap-4 rounded-lg border border-exception/35 bg-destructive/6 px-4 py-3 text-sm">
+      <div
+        role="alert"
+        className="flex items-center justify-between gap-4 rounded-lg border border-exception/35 bg-destructive/6 px-4 py-3 text-sm"
+      >
         <span className="text-foreground">The {what} didn’t load.</span>
-        <Button type="button" variant="outline" size="sm" onClick={source.retry}>Try again</Button>
+        <Button type="button" variant="outline" size="sm" onClick={source.retry}>
+          Try again
+        </Button>
       </div>
     );
   }
-  if (source.list.length === 0) return <p className="rounded-lg border border-dashed border-rule px-4 py-6 text-center text-sm text-muted-foreground">{empty}</p>;
+  if (source.list.length === 0)
+    return <p className="rounded-lg border border-dashed border-rule px-4 py-6 text-center text-sm text-muted-foreground">{empty}</p>;
   return <>{children}</>;
 }
 
 // ── Review ────────────────────────────────────────────────────────────────────
 
+/** The tile each review row leads with, so the summary scans by shape as well as by word. */
+const REVIEW_ICON: Partial<Record<StaffStepId, IconComponent>> = {
+  email: Mail,
+  role: ShieldCheck,
+  access: Store,
+  birthday: CalendarCheck,
+  address: MapPin,
+  emergency: HeartHandshake,
+  job: Building2,
+  contract: FileText,
+  start: CalendarClock,
+  pay: Wallet,
+  breaks: Coffee,
+  tax: Receipt,
+  bank: Landmark,
+};
+
 function StaffReview({
-  draft, ctx, currency, country, roles, locations, error, onEdit,
+  draft,
+  ctx,
+  currency,
+  country,
+  roles,
+  locations,
+  error,
+  onEdit,
 }: {
   draft: StaffDraft;
   ctx: StaffContext;
@@ -710,16 +962,30 @@ function StaffReview({
   onEdit: (step: StaffStepId) => void;
 }) {
   const skipped = 'Not added';
-  const access = draft.scope === 'location'
-    ? locations.filter((location) => draft.locationIds.includes(location.id)).map((location) => location.name).join(', ') || SCOPE_LABEL.location
-    : draft.scope ? SCOPE_LABEL[draft.scope] : '—';
-  const pay = draft.payType === 'salaried'
-    ? `${formatMoney(draft.annualSalary.replace(/,/g, ''), currency)} a year`
-    : `${formatMoney(draft.hourlyRate.replace(/,/g, ''), currency)} an hour`;
+  const access =
+    draft.scope === 'location'
+      ? locations
+          .filter((location) => draft.locationIds.includes(location.id))
+          .map((location) => location.name)
+          .join(', ') || SCOPE_LABEL.location
+      : draft.scope
+        ? SCOPE_LABEL[draft.scope]
+        : '—';
+  const pay =
+    draft.payType === 'salaried'
+      ? `${formatMoney(draft.annualSalary.replace(/,/g, ''), currency)} a year`
+      : `${formatMoney(draft.hourlyRate.replace(/,/g, ''), currency)} an hour`;
   const threshold = draft.breakThresholdMins / 60;
-  const emergency = [draft.emergencyContactName, draft.emergencyContactRelation && `(${draft.emergencyContactRelation})`, draft.emergencyContactPhone]
-    .filter((part) => part && part.trim()).join(' ');
-  const tax = [draft.niNumber && (ctx.uk ? formatNiNumber(draft.niNumber) : draft.niNumber), draft.taxCode && `Tax code ${draft.taxCode}`].filter(Boolean).join(' · ');
+  const emergency = [
+    draft.emergencyContactName,
+    draft.emergencyContactRelation && `(${draft.emergencyContactRelation})`,
+    draft.emergencyContactPhone,
+  ]
+    .filter((part) => part && part.trim())
+    .join(' ');
+  const tax = [draft.niNumber && (ctx.uk ? formatNiNumber(draft.niNumber) : draft.niNumber), draft.taxCode && `Tax code ${draft.taxCode}`]
+    .filter(Boolean)
+    .join(' · ');
   const bank = draft.accountNumber
     ? `${draft.accountHolder.trim()} · ${ctx.uk ? formatSortCode(draft.sortCode) : draft.sortCode} · ••••${draft.accountNumber.replace(/\s/g, '').slice(-4)}`
     : '';
@@ -728,7 +994,7 @@ function StaffReview({
     {
       title: 'Account',
       rows: [
-        { step: 'name', label: 'Name', value: draft.name.trim() },
+        // The name heads the review beside their picture, so it isn't a row too.
         { step: 'email', label: 'Email', value: draft.email.trim() },
         { step: 'role', label: 'Role', value: roles.find((role) => role.key === draft.role)?.name ?? draft.role },
         { step: 'access', label: 'Works at', value: access },
@@ -737,8 +1003,18 @@ function StaffReview({
     {
       title: 'Personal',
       rows: [
-        { step: 'birthday', label: 'Birthday', value: draft.dateOfBirth ? formatDate(draft.dateOfBirth) : skipped, muted: !draft.dateOfBirth },
-        { step: 'address', label: 'Address', value: isStepSkipped('address', draft) ? skipped : draft.address.replace(/^[,\s]+|[,\s]+$/g, ''), muted: isStepSkipped('address', draft) },
+        {
+          step: 'birthday',
+          label: 'Birthday',
+          value: draft.dateOfBirth ? formatDate(draft.dateOfBirth) : skipped,
+          muted: !draft.dateOfBirth,
+        },
+        {
+          step: 'address',
+          label: 'Address',
+          value: isStepSkipped('address', draft) ? skipped : draft.address.replace(/^[,\s]+|[,\s]+$/g, ''),
+          muted: isStepSkipped('address', draft),
+        },
         { step: 'emergency', label: 'Emergency', value: emergency || skipped, muted: !emergency },
       ],
     },
@@ -749,7 +1025,13 @@ function StaffReview({
         { step: 'contract', label: 'Contract', value: draft.employmentType ? EMPLOYMENT_CONFIG[draft.employmentType].label : '—' },
         { step: 'start', label: 'Starts', value: formatDate(draft.startDate) },
         { step: 'pay', label: 'Pay', value: pay },
-        { step: 'breaks', label: 'Breaks', value: draft.unpaidBreakMins ? `${draft.unpaidBreakMins} min unpaid after ${threshold} hour${threshold === 1 ? '' : 's'}` : 'No unpaid break' },
+        {
+          step: 'breaks',
+          label: 'Breaks',
+          value: draft.unpaidBreakMins
+            ? `${draft.unpaidBreakMins} min unpaid after ${threshold} hour${threshold === 1 ? '' : 's'}`
+            : 'No unpaid break',
+        },
       ],
     },
     {
@@ -764,36 +1046,56 @@ function StaffReview({
   return (
     <div className="space-y-6">
       {error && (
-        <div role="alert" className="flex items-start justify-between gap-4 rounded-md border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="flex items-start justify-between gap-4 rounded-md border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-destructive"
+        >
           <span>{error.message}</span>
           {error.step && (
-            <button type="button" onClick={() => onEdit(error.step!)} className="shrink-0 text-xs font-semibold underline-offset-4 hover:underline">
+            <button
+              type="button"
+              onClick={() => onEdit(error.step!)}
+              className="shrink-0 text-xs font-semibold underline-offset-4 hover:underline"
+            >
               Change
             </button>
           )}
         </div>
       )}
+      <div className="flex items-center gap-3">
+        <Avatar name={draft.name} email={draft.email.trim() || undefined} size="lg" />
+        <p className="min-w-0 flex-1 truncate text-lg font-semibold tracking-title text-foreground">{draft.name.trim() || 'New starter'}</p>
+        <Button type="button" variant="ghost" size="icon-sm" title="Change name" aria-label="Change name" onClick={() => onEdit('name')}>
+          <Pencil aria-hidden="true" />
+        </Button>
+      </div>
       {groups.map((group) => (
         <section key={group.title}>
-          <h2 className="mb-1 text-label uppercase text-muted-foreground/80">{group.title}</h2>
-          <dl className="divide-y divide-rule/45 border-y border-rule/45">
+          <h2 className="mb-1.5 text-label uppercase text-muted-foreground/80">{group.title}</h2>
+          <RecordList>
             {group.rows.map((row) => (
-              <div key={row.label} className="flex items-baseline gap-4 py-2.5">
-                <dt className="w-28 shrink-0 text-sm text-muted-foreground">{row.label}</dt>
-                <dd className={cn('min-w-0 flex-1 truncate text-sm', row.muted ? 'text-muted-foreground/70' : 'text-foreground')}>{row.value}</dd>
-                <dd>
-                  <button
+              <RecordListRow
+                key={row.label}
+                icon={REVIEW_ICON[row.step] ?? FileText}
+                tone={row.muted ? 'muted' : 'reference'}
+                value={row.muted ? undefined : row.value}
+                placeholder={row.value}
+                label={row.label}
+                trailing={
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    title={row.muted ? 'Add' : 'Change'}
+                    aria-label={`${row.muted ? 'Add' : 'Change'} ${row.label.toLowerCase()}`}
                     onClick={() => onEdit(row.step)}
-                    className="text-xs font-semibold text-reference underline-offset-4 hover:underline"
-                    aria-label={`Change ${row.label.toLowerCase()}`}
                   >
-                    {row.muted ? 'Add' : 'Change'}
-                  </button>
-                </dd>
-              </div>
+                    {row.muted ? <Plus aria-hidden="true" /> : <Pencil aria-hidden="true" />}
+                  </Button>
+                }
+              />
             ))}
-          </dl>
+          </RecordList>
         </section>
       ))}
       <p className="text-xs text-muted-foreground">
@@ -821,7 +1123,12 @@ const FOLLOW_UP = [
 ];
 
 function Done({
-  result, first, uk, headingRef, onOpen, onAnother,
+  result,
+  first,
+  uk,
+  headingRef,
+  onOpen,
+  onAnother,
 }: {
   result: OnboardResult;
   first: string;
@@ -841,11 +1148,16 @@ function Done({
       <span className="flex size-12 items-center justify-center rounded-xl bg-success/10 text-success" aria-hidden="true">
         <CheckCircle2 size={24} />
       </span>
-      <h1 ref={headingRef} tabIndex={-1} className="mt-6 text-2xl font-semibold leading-tight tracking-headline text-foreground outline-none sm:text-3xl">
+      <h1
+        ref={headingRef}
+        tabIndex={-1}
+        className="mt-6 text-2xl font-semibold leading-tight tracking-headline text-foreground outline-none sm:text-3xl"
+      >
         <Em>{first}</Em> is on the team.
       </h1>
       <p className="mt-2 max-w-[56ch] text-sm leading-6 text-muted-foreground">
-        We’ve emailed a single-use link to <span className="font-medium text-foreground">{result.email}</span> so they can set a password and sign in.
+        We’ve emailed a single-use link to <span className="font-medium text-foreground">{result.email}</span> so they can set a password
+        and sign in.
       </p>
 
       <section className="mt-10">
@@ -859,7 +1171,9 @@ function Done({
               transition={{ delay: reduceMotion ? 0 : 0.2 + index * 0.05, duration: 0.3, ease: EASE }}
               className="flex items-start gap-3 py-2.5 text-sm text-foreground"
             >
-              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-rule/70 text-micro tabular-nums text-muted-foreground">{index + 1}</span>
+              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-rule/70 text-micro tabular-nums text-muted-foreground">
+                {index + 1}
+              </span>
               {item}
             </motion.li>
           ))}

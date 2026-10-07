@@ -5,10 +5,10 @@ import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 
 import { getPaymentMethodSales, getTaxAnalytics } from '@/lib/modules/analytics/client';
 import { REPORTS } from '@/lib/reports/catalogue';
-import { exportFileName, ordersHref, share, toCsv } from '@/lib/utils/report-filters';
+import { delta, exportFileName, ordersHref, share, toCsv } from '@/lib/utils/report-filters';
 
 import { ReportFrame, downloadFile } from '../kit/ReportFrame';
-import { BarList, KpiGrid, ReportBlock, ReportError, ReportLoading, ReportTable } from '../kit/parts';
+import { ChangePill, KpiGrid, ReportBlock, ReportError, ReportLoading, ReportTable, TenderIcon, tenderLabel } from '../kit/parts';
 import { useRangeQuery } from '../kit/useRangeQuery';
 import type { ReportFilterState } from '../kit/useReportFilters';
 
@@ -17,14 +17,7 @@ import { rangeKeys } from './SalesReports';
 const def = (id: string) => REPORTS.find((report) => report.id === id)!;
 const count = (value: number) => value.toLocaleString('en-GB');
 
-const METHOD: Record<string, string> = {
-  card: 'Card',
-  cash: 'Cash',
-  unrecorded: 'Not recorded',
-  voucher: 'Voucher',
-  gift_card: 'Gift card',
-};
-const methodLabel = (method: string) => METHOD[method] ?? method.charAt(0).toUpperCase() + method.slice(1).replaceAll('_', ' ');
+const methodLabel = tenderLabel;
 
 // ── Payment methods ──────────────────────────────────────────────────────────
 
@@ -96,18 +89,6 @@ export function PaymentMethodsReport({ filters }: { filters: ReportFilterState }
               card settlement or the till.
             </p>
           )}
-          <ReportBlock title="Share of net sales">
-            <BarList
-              rows={rows.map((row) => ({
-                key: row.method,
-                label: methodLabel(row.method),
-                value: row.revenue,
-                previous: row.previous,
-                detail: `${count(row.orders)} orders`,
-              }))}
-              format={(value) => money(value)}
-            />
-          </ReportBlock>
           <ReportBlock title="By method" description="Gross is what was charged; net is after refunds made against those orders." flush>
             <ReportTable
               rows={rows}
@@ -123,6 +104,7 @@ export function PaymentMethodsReport({ filters }: { filters: ReportFilterState }
                   key: 'method',
                   header: 'Method',
                   // The Orders page filters by card and cash; other tenders show as text.
+                  leading: (row) => <TenderIcon method={row.method} />,
                   render: (row) => methodLabel(row.method),
                   sort: (row) => methodLabel(row.method),
                 },
@@ -155,8 +137,10 @@ export function PaymentMethodsReport({ filters }: { filters: ReportFilterState }
                   header: 'Net',
                   align: 'right',
                   render: (row) => <span className="font-semibold">{money(row.revenue)}</span>,
+                  // The share of net sales, read down the column.
+                  meter: (row) => share(Math.max(0, row.revenue), total),
+                  sub: (row) => (row.previous === null ? undefined : <ChangePill change={delta(row.revenue, row.previous)} />),
                   sort: (row) => row.revenue,
-                  total: money(total),
                 },
               ]}
             />
@@ -253,6 +237,7 @@ export function VatReport({ filters }: { filters: ReportFilterState }) {
                   align: 'right',
                   render: (row) => money(row.gross),
                   sort: (row) => row.gross,
+                  // The by-rate split can differ from the recorded VAT above, so these totals aren't repeats.
                   total: money(tax.byRateTotal.gross),
                 },
                 {

@@ -15,16 +15,15 @@ import {
   ChevronRight,
   Clock,
   Info as InfoIcon,
-  Mail,
   Timer,
 } from '@/components/icons';
 import { usePayrollSettings } from '@/components/payroll/usePayroll';
 import { fmtDate, fmtHours } from '@/components/people/shared';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
-import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
-import { Badge } from '@/components/ui/badge';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact } from '@/components/settings/controls';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { MiniBar } from '@/components/shared/MiniBar';
 import { Button } from '@/components/ui/button';
 
 import type { StaffProfile } from '@/lib/modules/identity/client';
@@ -120,9 +119,6 @@ export function OverviewSection({
     [ticketsQuery.data, userId],
   );
 
-  const [firstName = '', lastName = ''] = (member?.name ?? '').split(' ');
-  const profileLine = employee ? [employee.jobTitle, employee.department].filter(Boolean).join(' · ') : 'No employment record';
-
   return (
     <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
       {member && (
@@ -152,7 +148,9 @@ export function OverviewSection({
         aside={
           <>
             {employee && <PersonalPanel employee={employee} email={member?.email} onEdit={access.money ? onEdit : undefined} />}
-            {member && <AccessCard member={member} locations={locations} canEdit={access.staffAccess} canManageRoles={access.staffAccess} />}
+            {member && (
+              <AccessCard member={member} locations={locations} canEdit={access.staffAccess} canManageRoles={access.staffAccess} />
+            )}
             {access.helpdesk && (
               <EmployeeRequestsCard
                 tickets={tickets}
@@ -165,40 +163,34 @@ export function OverviewSection({
           </>
         }
       >
-        <SettingsSection>
-          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-            <InitialsAvatar
-              firstName={firstName || '?'}
-              lastName={lastName}
-              email={member?.email}
-              className="size-24 shrink-0 rounded-xl text-3xl shadow-sm"
-            />
-            <div className="min-w-0">
-              <p className="truncate text-2xl font-semibold tracking-headline text-foreground">{member?.name ?? employee?.jobTitle ?? 'Employee'}</p>
-              <p className="mt-1 truncate text-sm text-muted-foreground">{profileLine}</p>
-              {member && (
-                <p className="mt-1.5 flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground sm:justify-start">
-                  <Mail size={15} aria-hidden="true" />
-                  <span className="truncate">{member.email}</span>
-                  <Badge variant={member.isActive ? 'success' : 'muted'}>{member.isActive ? 'Active' : 'Can’t sign in'}</Badge>
-                </p>
-              )}
-            </div>
-          </div>
-          {employee && (
-            <div className="mt-6">
-              <GlanceFacts userId={userId} employee={employee} access={access} currency={currency} onOpenSection={onOpenSection} />
-            </div>
-          )}
-        </SettingsSection>
+        {/* The page header is the one identity block — name, picture and job
+            title are not repeated here; sign-in state lives on the Access panel. */}
+        {employee && (
+          <SettingsSection>
+            <GlanceFacts userId={userId} employee={employee} access={access} currency={currency} onOpenSection={onOpenSection} />
+          </SettingsSection>
+        )}
 
         {employee ? (
-          <EmploymentPanel userId={userId} employee={employee} canSeePay={access.money} currency={currency} country={payroll?.payrollCountry ?? null} />
+          <EmploymentPanel
+            userId={userId}
+            employee={employee}
+            canSeePay={access.money}
+            currency={currency}
+            country={payroll?.payrollCountry ?? null}
+          />
         ) : (
           <SettingsSection title="Account only">
             <p className="text-sm leading-relaxed text-muted-foreground">
               This login has no linked employment record. Don’t schedule or pay this person until onboarding is complete.
             </p>
+            {/* With no employment record there is no Personal panel, so this is
+                the one place their sign-in email shows. */}
+            {member?.email && (
+              <p className="mt-2 text-sm text-foreground">
+                Signs in as <span className="font-semibold">{member.email}</span>
+              </p>
+            )}
           </SettingsSection>
         )}
       </SettingsTabBody>
@@ -254,7 +246,8 @@ function RecordAttention({
       ? 'attention'
       : 'info';
 
-  if (canReadDocuments && documentsQuery.isPending) return <div className="h-16 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />;
+  if (canReadDocuments && documentsQuery.isPending)
+    return <TilesSkeleton count={1} label="Checking the record" tileClassName="border-rule/60 bg-field px-4 py-3.5" />;
 
   if (canReadDocuments && documentsQuery.isError)
     return (
@@ -264,7 +257,9 @@ function RecordAttention({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-foreground">The record checks couldn’t run</span>
-          <span className="block text-xs text-muted-foreground">Documents didn’t load, so right-to-work and contract status are unknown.</span>
+          <span className="block text-xs text-muted-foreground">
+            Documents didn’t load, so right-to-work and contract status are unknown.
+          </span>
         </span>
         <Button variant="outline" size="sm" onClick={() => void documentsQuery.refetch()}>
           Try again
@@ -437,7 +432,24 @@ function GlanceFacts({
         icon={CalendarDays}
         label="Holiday left"
         value={
-          entitlementsQuery.isPending ? '…' : entitlementsQuery.isError ? '—' : leave.hasEntitlement ? `${leave.remaining} days` : 'No allowance'
+          entitlementsQuery.isPending ? (
+            '…'
+          ) : entitlementsQuery.isError ? (
+            '—'
+          ) : leave.hasEntitlement ? (
+            <>
+              {leave.remaining} days
+              <MiniBar
+                value={leave.used}
+                max={leave.total}
+                tone={leave.remaining <= 0 ? 'warning' : 'primary'}
+                label={`${leave.used} of ${leave.total} days used`}
+                className="mt-1.5 w-28"
+              />
+            </>
+          ) : (
+            'No allowance'
+          )
         }
         hint={
           entitlementsQuery.isError
@@ -451,9 +463,17 @@ function GlanceFacts({
       />
       {access.rota && (
         <Fact
-            icon={CalendarClock}
+          icon={CalendarClock}
           label="Next shift"
-          value={rotaQuery.isPending ? '…' : rotaQuery.isError ? '—' : nextShift ? SHIFT_DAY.format(new Date(nextShift.startsAt)) : 'None planned'}
+          value={
+            rotaQuery.isPending
+              ? '…'
+              : rotaQuery.isError
+                ? '—'
+                : nextShift
+                  ? SHIFT_DAY.format(new Date(nextShift.startsAt))
+                  : 'None planned'
+          }
           hint={
             rotaQuery.isError
               ? 'Couldn’t be loaded'

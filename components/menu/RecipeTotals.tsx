@@ -1,11 +1,12 @@
 'use client';
 
 import { Flame, TriangleAlert } from '@/components/icons';
+import { AllergenChip } from '@/components/menu/shared';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 
+import type { Costing } from '@/lib/menu/costing';
 import { cn } from '@/lib/utils/cn';
 import { formatMoney } from '@/lib/utils/dashboard';
-import type { Costing } from '@/lib/menu/costing';
 
 interface SummaryEntry {
   col: { id: string; label: string };
@@ -56,7 +57,8 @@ export function RecipeTotals({
                     label="Margin"
                     value={
                       <>
-                        {formatMoney(s.costing.margin, 2)} <span className="font-normal text-muted-foreground">({s.costing.marginPct.toFixed(0)}%)</span>
+                        {formatMoney(s.costing.margin, 2)}{' '}
+                        <span className="font-normal text-muted-foreground">({s.costing.marginPct.toFixed(0)}%)</span>
                       </>
                     }
                     strong
@@ -64,7 +66,15 @@ export function RecipeTotals({
                   />
                 </>
               )}
-              <Figure label={<><Flame size={13} aria-hidden="true" /> Energy</>} value={`${Math.round(s.kcal)} kcal`} incomplete={s.missingNutrition > 0} />
+              <Figure
+                label={
+                  <>
+                    <Flame size={13} aria-hidden="true" /> Energy
+                  </>
+                }
+                value={`${Math.round(s.kcal)} kcal`}
+                incomplete={s.missingNutrition > 0}
+              />
             </dl>
           </div>
         ))}
@@ -74,9 +84,7 @@ export function RecipeTotals({
             <p className="mb-2 text-label uppercase text-muted-foreground">Allergens</p>
             <div className="flex flex-wrap gap-1.5">
               {allAllergens.map((allergen) => (
-                <span key={allergen} className="rounded-sm bg-measured/10 px-2 py-0.5 text-xs font-semibold capitalize text-measured">
-                  {allergen}
-                </span>
+                <AllergenChip key={allergen} allergen={allergen} />
               ))}
             </div>
           </div>
@@ -110,7 +118,9 @@ export function Figure({
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="flex items-center gap-1 text-muted-foreground">{label}</dt>
-      <dd className={cn(strong && 'font-semibold', tone === 'good' ? 'text-momentum' : tone === 'bad' ? 'text-exception' : 'text-foreground')}>
+      <dd
+        className={cn(strong && 'font-semibold', tone === 'good' ? 'text-momentum' : tone === 'bad' ? 'text-exception' : 'text-foreground')}
+      >
         {value}
         {incomplete && <span className="text-measured">*</span>}
       </dd>

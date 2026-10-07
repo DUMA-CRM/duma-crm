@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   ArrowRight,
   Check,
-  ChevronRight,
   ClipboardCheck,
   Equal,
   EyeOff,
@@ -26,6 +25,13 @@ import { ConfirmDrawer } from '@/components/shared/ConfirmDrawer';
 import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { IconTag } from '@/components/shared/IconTag';
+import { ListRow } from '@/components/shared/ListRow';
+import { MiniBar } from '@/components/shared/MiniBar';
+import { Pill } from '@/components/shared/Pill';
+import { RelativeTime } from '@/components/shared/RelativeTime';
+import { LoadingState } from '@/components/shared/Skeleton';
+import type { Tone } from '@/components/shared/tone';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,10 +79,10 @@ import { toast } from '@/stores/toastStore';
 const CATEGORY_LABEL: Record<string, string> = { FOOD: 'Food', BEVERAGE: 'Drinks', SUPPLY: 'Supplies', MERCH: 'Retail' };
 const CATEGORY_ORDER = ['FOOD', 'BEVERAGE', 'SUPPLY', 'MERCH'];
 
-const STATUS_META: Record<StocktakeStatus, { label: string; pill: string; tile: string; icon: IconComponent }> = {
-  in_progress: { label: 'Counting', pill: 'bg-measured/10 text-measured', tile: 'bg-measured/10 text-measured', icon: ClipboardCheck },
-  completed: { label: 'Applied', pill: 'bg-success/10 text-success', tile: 'bg-primary/8 text-primary', icon: Check },
-  cancelled: { label: 'Cancelled', pill: 'bg-band text-muted-foreground', tile: 'bg-band text-muted-foreground', icon: X },
+const STATUS_META: Record<StocktakeStatus, { label: string; tone: Tone; icon: IconComponent }> = {
+  in_progress: { label: 'Counting', tone: 'warning', icon: ClipboardCheck },
+  completed: { label: 'Applied', tone: 'success', icon: Check },
+  cancelled: { label: 'Cancelled', tone: 'muted', icon: X },
 };
 
 const TONE_TEXT = { match: 'text-success', over: 'text-primary', short: 'text-exception' } as const;
@@ -102,7 +108,11 @@ function useCatalogue(locationId: string) {
   return useMemo(() => new Map((data ?? []).map((row: LocationStock) => [row.stockItemId, row.stockItem])), [data]);
 }
 
-function toSheet(lines: StocktakeLine[], catalogue: ReturnType<typeof useCatalogue>, counted: (line: StocktakeLine) => number | null): SheetLine[] {
+function toSheet(
+  lines: StocktakeLine[],
+  catalogue: ReturnType<typeof useCatalogue>,
+  counted: (line: StocktakeLine) => number | null,
+): SheetLine[] {
   return lines.map((line) => {
     const item = catalogue.get(line.stockItemId);
     const cost = item?.costPerUnit != null ? Number(item.costPerUnit) : null;
@@ -192,13 +202,8 @@ export function StocktakePanel({ locationId }: { locationId: string }) {
 
   if (query.isError) return <ErrorState title="Couldn’t load stocktakes" onRetry={() => void query.refetch()} />;
   if (query.isPending || (activeId && active.isPending)) {
-    return (
-      <div className="space-y-3" aria-label="Loading stocktakes">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="h-14 animate-pulse rounded-lg bg-band/60" />
-        ))}
-      </div>
-    );
+    // Either the open count sheet or the history lands here — the shape isn't known until it does.
+    return <LoadingState label={activeId ? 'Loading the count' : 'Loading stocktakes'} />;
   }
   if (activeId && active.isError) return <ErrorState title="Couldn’t load the count" onRetry={() => void active.refetch()} />;
   if (activeId && active.data) return <CountSheet key={active.data.id} stocktake={active.data} catalogue={catalogue} canWrite={canWrite} />;
@@ -225,7 +230,9 @@ function History({
 
   const shown = stocktakes.filter((s) => status === 'all' || s.status === status);
   const lastApplied = stocktakes.find((s) => s.status === 'completed');
-  const daysSince = lastApplied ? Math.floor((mountedAt - new Date(lastApplied.completedAt ?? lastApplied.createdAt).getTime()) / 86_400_000) : null;
+  const daysSince = lastApplied
+    ? Math.floor((mountedAt - new Date(lastApplied.completedAt ?? lastApplied.createdAt).getTime()) / 86_400_000)
+    : null;
   const months: { label: string; items: Stocktake[] }[] = [];
   for (const s of shown) {
     const label = monthLabel(s.createdAt);
@@ -236,7 +243,7 @@ function History({
 
   if (stocktakes.length === 0) {
     return (
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+      <div>
         <EmptyState
           icon={ClipboardCheck}
           title="No stocktakes yet"
@@ -268,14 +275,26 @@ function History({
           ]}
           className="w-52"
         />
-        <span className={cn('ml-auto text-xs', daysSince !== null && daysSince > 30 ? 'font-semibold text-measured' : 'text-muted-foreground')}>
-          {daysSince === null ? 'Never fully counted' : daysSince === 0 ? 'Last applied today' : `Last applied ${daysSince} ${daysSince === 1 ? 'day' : 'days'} ago`}
+        <span
+          className={cn('ml-auto text-xs', daysSince !== null && daysSince > 30 ? 'font-semibold text-measured' : 'text-muted-foreground')}
+        >
+          {daysSince === null
+            ? 'Never fully counted'
+            : daysSince === 0
+              ? 'Last applied today'
+              : `Last applied ${daysSince} ${daysSince === 1 ? 'day' : 'days'} ago`}
         </span>
       </motion.div>
 
       {shown.length === 0 ? (
-        <motion.div variants={SECTION_RISE} className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-          <EmptyState icon={ClipboardCheck} title="Nothing here" description="No stocktakes with that status." />
+        <motion.div variants={SECTION_RISE}>
+          <EmptyState
+            icon={ClipboardCheck}
+            kind="search"
+            title="Nothing here"
+            description="No stocktakes with that status."
+            action={{ label: 'Show all stocktakes', onClick: () => setStatus('all') }}
+          />
         </motion.div>
       ) : (
         months.map((month) => (
@@ -286,25 +305,17 @@ function History({
                 const meta = STATUS_META[s.status];
                 const took = countDuration(s.createdAt, s.completedAt);
                 return (
-                  <li key={s.id} className="border-b border-rule/45 last:border-b-0">
-                    <button
-                      type="button"
-                      onClick={() => setOpenId(s.id)}
-                      className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:outline-ring"
-                    >
-                      <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', meta.tile)} aria-hidden="true">
-                        <meta.icon size={16} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-foreground">{dateTime(s.createdAt)}</span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {[s.startedByUser?.name, took && `took ${took}`, s.notes].filter(Boolean).join(' · ') || 'Stocktake'}
-                        </span>
-                      </span>
-                      <span className={cn('shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold', meta.pill)}>{meta.label}</span>
-                      <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-                    </button>
-                  </li>
+                  <ListRow
+                    key={s.id}
+                    onClick={() => setOpenId(s.id)}
+                    icon={meta.icon}
+                    tone={meta.tone}
+                    iconLabel={meta.label}
+                    muted={s.status === 'cancelled'}
+                    title={<RelativeTime iso={s.createdAt} />}
+                    meta={[s.startedByUser?.name, took && `took ${took}`, s.notes].filter(Boolean).join(' · ') || 'Stocktake'}
+                    trailing={<StocktakeOutcome stocktake={s} />}
+                  />
                 );
               })}
             </ul>
@@ -340,24 +351,42 @@ function StocktakeDrawer({ id, catalogue, onClose }: { id: string; catalogue: Re
       {isError ? (
         <ErrorState title="Couldn’t load this stocktake" onRetry={() => void refetch()} />
       ) : !data || !meta ? (
-        <div className="space-y-3">
-          <div className="h-24 animate-pulse rounded-lg bg-band/60" />
-          <div className="h-48 animate-pulse rounded-lg bg-band/60" />
-        </div>
+        <LoadingState label="Loading the stocktake" />
       ) : (
         <div className="space-y-6">
           <div>
             <div className="flex items-center gap-2">
-              <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', meta.pill)}>{meta.label}</span>
+              <Pill tone={meta.tone}>{meta.label}</Pill>
               <span className="text-xs text-muted-foreground">
-                {data.status === 'completed' && data.completedAt ? `Applied ${dateTime(data.completedAt)}${took ? ` · took ${took}` : ''}` : null}
+                {data.status === 'completed' && data.completedAt
+                  ? `Applied ${dateTime(data.completedAt)}${took ? ` · took ${took}` : ''}`
+                  : null}
                 {data.status === 'cancelled' ? 'Nothing was applied' : null}
               </span>
             </div>
             <dl className="mt-3 grid grid-cols-2 gap-3">
-              <Fact surface="card" icon={ClipboardCheck} label="Counted" value={`${summary.counted} of ${summary.total}`} hint={summary.uncounted ? `${summary.uncounted} left as they were` : 'Every item'} />
-              <Fact surface="card" icon={Check} label="Matched" value={summary.matched} hint={summary.counted ? `${Math.round((summary.matched / summary.counted) * 100)}% of counted` : undefined} />
-              <Fact surface="card" icon={AlertTriangle} label="Differences" value={summary.differences} tone={summary.differences ? 'warning' : 'default'} hint={`${summary.over} over · ${summary.short} short`} />
+              <Fact
+                surface="card"
+                icon={ClipboardCheck}
+                label="Counted"
+                value={`${summary.counted} of ${summary.total}`}
+                hint={summary.uncounted ? undefined : 'Every item'}
+              />
+              <Fact
+                surface="card"
+                icon={Check}
+                label="Matched"
+                value={summary.matched}
+                hint={summary.counted ? `${Math.round((summary.matched / summary.counted) * 100)}% of counted` : undefined}
+              />
+              <Fact
+                surface="card"
+                icon={AlertTriangle}
+                label="Differences"
+                value={summary.differences}
+                tone={summary.differences ? 'warning' : 'default'}
+                hint={`${summary.over} over · ${summary.short} short`}
+              />
               <ValueFact summary={summary} money={money} />
             </dl>
           </div>
@@ -393,12 +422,20 @@ function ValueFact({ summary, money }: { summary: ReturnType<typeof summarise>; 
 }
 
 /** Differences as audit rows: item, expected → counted, the difference and its value. */
-function DiffList({ title, lines, money, empty }: { title: string; lines: SheetLine[]; money: ReturnType<typeof useWorkspaceMoney>; empty: string }) {
+function DiffList({
+  title,
+  lines,
+  money,
+  empty,
+}: {
+  title: string;
+  lines: SheetLine[];
+  money: ReturnType<typeof useWorkspaceMoney>;
+  empty: string;
+}) {
   return (
     <section>
-      <h3 className="mb-2 text-sm font-semibold text-foreground">
-        {title} <span className="font-normal text-muted-foreground">· {lines.length}</span>
-      </h3>
+      <h3 className="mb-2 text-sm font-semibold text-foreground">{title}</h3>
       {lines.length === 0 ? (
         <p className="flex items-center gap-2 rounded-lg border border-rule/60 bg-card px-3.5 py-3 text-sm text-muted-foreground">
           <Check size={15} className="text-success" aria-hidden="true" /> {empty}
@@ -410,7 +447,10 @@ function DiffList({ title, lines, money, empty }: { title: string; lines: SheetL
             return (
               <li key={line.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
                 <span
-                  className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', v.tone === 'short' ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary')}
+                  className={cn(
+                    'flex size-9 shrink-0 items-center justify-center rounded-md',
+                    v.tone === 'short' ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary',
+                  )}
                   aria-hidden="true"
                 >
                   {v.tone === 'short' ? <Minus size={16} /> : <Plus size={16} />}
@@ -419,7 +459,7 @@ function DiffList({ title, lines, money, empty }: { title: string; lines: SheetL
                   <span className="block truncate text-sm font-semibold text-foreground">{line.name}</span>
                   <span className="flex items-center gap-1 text-xs tabular-nums text-muted-foreground">
                     {formatQty(line.expected)} <ArrowRight size={11} aria-hidden="true" /> {formatQty(line.counted ?? 0)} {line.unit}
-                    {v.large && <span className="ml-1 rounded-sm bg-measured/10 px-1 text-micro font-semibold text-measured">Large</span>}
+                    {v.large && <IconTag icon={AlertTriangle} tone="warning" label="Large difference" size={12} className="ml-1" />}
                   </span>
                 </span>
                 <span className="shrink-0 text-right">
@@ -442,7 +482,15 @@ function DiffList({ title, lines, money, empty }: { title: string; lines: SheetL
 
 // ── Count sheet ───────────────────────────────────────────────────────────────
 
-function CountSheet({ stocktake, catalogue, canWrite }: { stocktake: Stocktake; catalogue: ReturnType<typeof useCatalogue>; canWrite: boolean }) {
+function CountSheet({
+  stocktake,
+  catalogue,
+  canWrite,
+}: {
+  stocktake: Stocktake;
+  catalogue: ReturnType<typeof useCatalogue>;
+  canWrite: boolean;
+}) {
   const qc = useQueryClient();
   const money = useWorkspaceMoney();
   // Local draft keyed by stock item; absent = the saved value.
@@ -549,7 +597,8 @@ function CountSheet({ stocktake, catalogue, canWrite }: { stocktake: Stocktake; 
             <p className="text-base font-semibold tracking-title text-foreground">Counting in progress</p>
             <p className="truncate text-xs text-muted-foreground">
               Started {dateTime(stocktake.createdAt)}
-              {stocktake.startedByUser?.name ? ` by ${stocktake.startedByUser.name}` : ''} · expected quantities are as of {time(stocktake.createdAt)}
+              {stocktake.startedByUser?.name ? ` by ${stocktake.startedByUser.name}` : ''} · expected quantities are as of{' '}
+              {time(stocktake.createdAt)}
             </p>
           </div>
           <div className="text-right">
@@ -564,8 +613,20 @@ function CountSheet({ stocktake, catalogue, canWrite }: { stocktake: Stocktake; 
             )}
           </div>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-band" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Counted">
-          <motion.div className="h-full rounded-full bg-primary" initial={false} animate={{ width: `${progress * 100}%` }} transition={{ duration: 0.3 }} />
+        <div
+          className="mt-3 h-1.5 overflow-hidden rounded-full bg-band"
+          role="progressbar"
+          aria-valuenow={Math.round(progress * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Counted"
+        >
+          <motion.div
+            className="h-full rounded-full bg-primary"
+            initial={false}
+            animate={{ width: `${progress * 100}%` }}
+            transition={{ duration: 0.3 }}
+          />
         </div>
       </motion.div>
 
@@ -577,10 +638,15 @@ function CountSheet({ stocktake, catalogue, canWrite }: { stocktake: Stocktake; 
             leftIcon={<Search size={14} />}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="border-rule bg-background"
+            className="border-rule"
             rightAction={
               search ? (
-                <button type="button" onClick={() => setSearch('')} aria-label="Clear search" className="text-muted-foreground hover:text-foreground">
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  className="text-muted-foreground hover:text-foreground"
+                >
                   <X size={14} />
                 </button>
               ) : undefined
@@ -616,13 +682,25 @@ function CountSheet({ stocktake, catalogue, canWrite }: { stocktake: Stocktake; 
 
       <motion.div variants={SECTION_RISE} ref={sheetRef} className="space-y-5">
         {groups.length === 0 ? (
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-            <EmptyState
-              icon={view === 'todo' ? Check : Search}
-              title={view === 'todo' && !q ? 'Everything is counted' : 'Nothing matches'}
-              description={view === 'todo' && !q ? 'Review the differences, then apply the stocktake.' : 'Try another search or show all items.'}
-            />
-          </div>
+          <EmptyState
+            icon={view === 'todo' ? Check : Search}
+            kind={view === 'todo' && !q ? 'done' : 'search'}
+            title={view === 'todo' && !q ? 'Everything is counted' : 'Nothing matches'}
+            description={
+              view === 'todo' && !q ? 'Review the differences, then apply the stocktake.' : 'Try another search or show all items.'
+            }
+            action={
+              view === 'todo' && !q
+                ? undefined
+                : {
+                    label: 'Clear filters',
+                    onClick: () => {
+                      setSearch('');
+                      setView('all');
+                    },
+                  }
+            }
+          />
         ) : (
           groups.map((group) => (
             <section key={group.key} aria-label={group.label}>
@@ -639,32 +717,60 @@ function CountSheet({ stocktake, catalogue, canWrite }: { stocktake: Stocktake; 
                   const bad = parseCount(text) === 'invalid';
                   const v = line.counted !== null ? variance(line.expected, line.counted) : null;
                   return (
-                    <li key={line.id} className={cn('flex items-center gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0', v && 'bg-band/15')}>
+                    <li
+                      key={line.id}
+                      className={cn('flex items-center gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0', v && 'bg-band/15')}
+                    >
                       <span
                         className={cn(
                           'flex size-9 shrink-0 items-center justify-center rounded-md',
-                          !v ? 'bg-band text-muted-foreground' : blind || v.tone === 'match' ? 'bg-success/10 text-success' : v.tone === 'short' ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary',
+                          !v
+                            ? 'bg-band text-muted-foreground'
+                            : blind || v.tone === 'match'
+                              ? 'bg-success/10 text-success'
+                              : v.tone === 'short'
+                                ? 'bg-exception/8 text-exception'
+                                : 'bg-primary/8 text-primary',
                         )}
                         aria-hidden="true"
                       >
-                        {!v ? <span className="size-1.5 rounded-full bg-muted-foreground/50" /> : blind || v.tone === 'match' ? <Check size={16} /> : v.tone === 'short' ? <Minus size={16} /> : <Plus size={16} />}
+                        {!v ? (
+                          <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+                        ) : blind || v.tone === 'match' ? (
+                          <Check size={16} />
+                        ) : v.tone === 'short' ? (
+                          <Minus size={16} />
+                        ) : (
+                          <Plus size={16} />
+                        )}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold text-foreground">{line.name}</span>
                         <span className="block truncate text-xs tabular-nums text-muted-foreground">
-                          {blind ? line.unit : `Expected ${formatQty(line.expected)} ${line.unit}`}
+                          {!blind && `Expected ${formatQty(line.expected)}`}
                           {!blind && v && v.tone !== 'match' && (
                             <span className={cn('ml-1.5 font-semibold', TONE_TEXT[v.tone])}>
                               {formatDelta(v.delta)}
                               {line.cost != null && ` · ${v.delta < 0 ? '−' : '+'}${money(Math.abs(v.delta * line.cost))}`}
                             </span>
                           )}
-                          {!blind && v?.large && <span className="ml-1.5 rounded-sm bg-measured/10 px-1 text-micro font-semibold text-measured">Recount?</span>}
+                          {!blind && v?.large && (
+                            <IconTag icon={AlertTriangle} tone="warning" label="Large difference — recount?" size={12} className="ml-1.5" />
+                          )}
                         </span>
                       </span>
                       {canWrite && !blind && text === '' && (
-                        <Button variant="ghost" size="sm" className="shrink-0 text-muted-foreground" onClick={() => set(line.stockItemId, formatQty(line.expected))} title="Counted exactly what was expected">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="shrink-0 text-muted-foreground"
+                          onClick={() => set(line.stockItemId, formatQty(line.expected))}
+                          aria-label={`${line.name} matches what was expected`}
+                          title="Counted exactly what was expected"
+                        >
                           <Equal aria-hidden="true" />
+                          {/* A counting control on a tablet: the word stays where there is room. */}
                           <span className="hidden sm:inline">Matches</span>
                         </Button>
                       )}
@@ -700,10 +806,22 @@ function CountSheet({ stocktake, catalogue, canWrite }: { stocktake: Stocktake; 
       {canWrite && (
         // Pinned to the bottom of the viewport so saving is never a scroll away on a long sheet.
         <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-2 rounded-lg border border-rule/60 bg-card/95 px-3 py-2.5 shadow-md backdrop-blur">
-          <Button variant="ghost" className="text-exception hover:bg-exception/6 hover:text-exception" onClick={() => setConfirm('cancel')} disabled={pending}>
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-exception hover:bg-exception/6 hover:text-exception"
+            onClick={() => setConfirm('cancel')}
+            disabled={pending}
+          >
             Cancel stocktake
           </Button>
-          <p className={cn('flex-1 text-xs', invalid.length ? 'font-semibold text-exception' : unsaved ? 'text-measured' : 'text-muted-foreground')} aria-live="polite">
+          <p
+            className={cn(
+              'flex-1 text-xs',
+              invalid.length ? 'font-semibold text-exception' : unsaved ? 'text-measured' : 'text-muted-foreground',
+            )}
+            aria-live="polite"
+          >
             {invalid.length
               ? `${invalid.length} ${invalid.length === 1 ? 'count needs' : 'counts need'} fixing — numbers up to two decimals.`
               : unsaved
@@ -723,7 +841,13 @@ function CountSheet({ stocktake, catalogue, canWrite }: { stocktake: Stocktake; 
 
       <AnimatePresence>
         {confirm === 'review' && (
-          <ReviewDrawer sheet={sheet} summary={summary} pending={complete.isPending} onApply={() => complete.mutate()} onClose={() => setConfirm(null)} />
+          <ReviewDrawer
+            sheet={sheet}
+            summary={summary}
+            pending={complete.isPending}
+            onApply={() => complete.mutate()}
+            onClose={() => setConfirm(null)}
+          />
         )}
       </AnimatePresence>
       {confirm === 'cancel' && (
@@ -769,28 +893,75 @@ function ReviewDrawer({
           </Button>
           <Button size="lg" className="flex-1" onClick={onApply} disabled={pending}>
             {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
-            {differences.length ? `Apply ${differences.length} ${differences.length === 1 ? 'adjustment' : 'adjustments'}` : 'Apply — no changes'}
+            {differences.length
+              ? `Apply ${differences.length} ${differences.length === 1 ? 'adjustment' : 'adjustments'}`
+              : 'Apply — no changes'}
           </Button>
         </div>
       }
     >
       <div className="space-y-6">
         <dl className="grid grid-cols-2 gap-3">
-          <Fact surface="card" icon={ClipboardCheck} label="Counted" value={`${summary.counted} of ${summary.total}`} hint={summary.uncounted ? `${summary.uncounted} not counted` : 'Every item'} />
+          <Fact
+            surface="card"
+            icon={ClipboardCheck}
+            label="Counted"
+            value={`${summary.counted} of ${summary.total}`}
+            hint={summary.uncounted ? undefined : 'Every item'}
+          />
           <Fact surface="card" icon={Check} label="Matched" value={summary.matched} />
-          <Fact surface="card" icon={AlertTriangle} label="Differences" value={summary.differences} tone={summary.differences ? 'warning' : 'default'} hint={`${summary.over} over · ${summary.short} short`} />
+          <Fact
+            surface="card"
+            icon={AlertTriangle}
+            label="Differences"
+            value={summary.differences}
+            tone={summary.differences ? 'warning' : 'default'}
+            hint={`${summary.over} over · ${summary.short} short`}
+          />
           <ValueFact summary={summary} money={money} />
         </dl>
 
         {summary.uncounted > 0 && (
           <p className="flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs text-measured">
             <AlertTriangle size={13} className="mt-px shrink-0" aria-hidden="true" />
-            {summary.uncounted} {summary.uncounted === 1 ? 'item wasn’t' : 'items weren’t'} counted and will keep {summary.uncounted === 1 ? 'its' : 'their'} current stock.
+            {summary.uncounted} {summary.uncounted === 1 ? 'item wasn’t' : 'items weren’t'} counted and will keep{' '}
+            {summary.uncounted === 1 ? 'its' : 'their'} current stock.
           </p>
         )}
 
-        <DiffList title="What will change" lines={differences} money={money} empty="Every counted item matched — applying records no adjustments." />
+        <DiffList
+          title="What will change"
+          lines={differences}
+          money={money}
+          empty="Every counted item matched — applying records no adjustments."
+        />
       </div>
     </Drawer>
+  );
+}
+
+/** What a past or running count came to, from the list's summary — absent until the API ships it. */
+function StocktakeOutcome({ stocktake }: { stocktake: Stocktake }) {
+  const summary = stocktake.summary;
+  if (!summary || summary.lineCount === 0 || stocktake.status === 'cancelled') return null;
+  if (stocktake.status === 'in_progress') {
+    return (
+      <span className="hidden w-24 text-right text-xs text-muted-foreground sm:block">
+        {summary.countedCount} of {summary.lineCount} counted
+        <MiniBar
+          value={summary.countedCount}
+          max={summary.lineCount}
+          label={`${summary.countedCount} of ${summary.lineCount} counted`}
+          className="mt-1"
+        />
+      </span>
+    );
+  }
+  return summary.differenceCount > 0 ? (
+    <Pill tone="warning">
+      {summary.differenceCount} {summary.differenceCount === 1 ? 'difference' : 'differences'}
+    </Pill>
+  ) : (
+    <span className="text-xs text-muted-foreground">All matched</span>
   );
 }

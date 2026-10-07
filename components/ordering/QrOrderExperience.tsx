@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Dialog } from 'radix-ui';
 import { useEffect, useRef, useState } from 'react';
 
+import { WheelPicker, WheelPickerWrapper } from '@/components/ui/wheel-picker';
 import {
   ArrowLeft,
   Banknote,
@@ -23,6 +24,7 @@ import {
   User,
   X,
 } from '@/components/icons';
+import { PublicMenuSkeleton, TrackedOrderSkeleton } from '@/components/ordering/PublicMenuSkeleton';
 import { Logo } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -394,13 +396,7 @@ export function QrOrderExperience({
       setCheckoutError(error instanceof Error ? error.message : 'This order could not be created. Review the details and try again.'),
   });
 
-  if (menu.isPending)
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground">
-        <Loader2 className="animate-spin" />
-        <span className="sr-only">Loading menu</span>
-      </div>
-    );
+  if (menu.isPending) return <PublicMenuSkeleton />;
   if (menu.isError || !menu.data) {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-background p-5">
@@ -420,6 +416,8 @@ export function QrOrderExperience({
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const minimum = Number(data.ordering.minimumOrderAmount);
   const groupedSlots = Object.entries(Object.groupBy(data.ordering.slots, (slot) => slot.dateLabel));
+  // The day wheel follows the chosen slot.
+  const selectedDay = data.ordering.slots.find((slot) => slot.value === collectionTime)?.dateLabel ?? groupedSlots[0]?.[0] ?? '';
   const detailsComplete =
     cart.length > 0 &&
     total >= minimum &&
@@ -492,10 +490,7 @@ export function QrOrderExperience({
         </header>
         <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
           {trackedOrder.isPending ? (
-            <div className="flex min-h-64 items-center justify-center">
-              <Loader2 className="animate-spin" />
-              <span className="sr-only">Loading order</span>
-            </div>
+            <TrackedOrderSkeleton />
           ) : trackedOrder.isError || !order ? (
             <div className="rounded-lg bg-card p-6 shadow-md">
               <h1 className="text-2xl font-semibold">We could not find this order</h1>
@@ -688,25 +683,25 @@ export function QrOrderExperience({
               </div>
               {collectionTime !== 'asap' && (
                 <div>
-                  <label htmlFor="collection-slot" className="text-label uppercase text-muted-foreground">
+                  <p id="collection-slot-label" className="text-label uppercase text-muted-foreground">
                     Choose a time
-                  </label>
-                  <select
-                    id="collection-slot"
-                    value={collectionTime}
-                    onChange={(event) => setCollectionTime(event.target.value)}
-                    className="mt-1.5 h-11 w-full rounded-md border border-input bg-field px-3 text-base outline-none focus:outline-2 focus:outline-ring"
-                  >
-                    {groupedSlots.map(([dateLabel, slots]) => (
-                      <optgroup key={dateLabel} label={dateLabel}>
-                        {slots?.map((slot) => (
-                          <option key={slot.value} value={slot.value}>
-                            {slot.label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
+                  </p>
+                  {/* Day and time as wheels, the way a phone picks a time. The value is
+                      still the slot's own value, so ordering is unchanged. */}
+                  <div id="collection-slot" role="group" aria-labelledby="collection-slot-label" className="mt-1.5">
+                    <WheelPickerWrapper className="w-full">
+                      <WheelPicker
+                        options={groupedSlots.map(([dateLabel]) => ({ value: dateLabel, label: dateLabel }))}
+                        value={selectedDay}
+                        onValueChange={(day) => setCollectionTime(groupedSlots.find(([dateLabel]) => dateLabel === day)?.[1]?.[0]?.value ?? collectionTime)}
+                      />
+                      <WheelPicker
+                        options={(groupedSlots.find(([dateLabel]) => dateLabel === selectedDay)?.[1] ?? []).map((slot) => ({ value: slot.value, label: slot.label }))}
+                        value={collectionTime}
+                        onValueChange={setCollectionTime}
+                      />
+                    </WheelPickerWrapper>
+                  </div>
                 </div>
               )}
             </section>

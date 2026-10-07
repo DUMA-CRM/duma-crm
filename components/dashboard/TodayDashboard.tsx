@@ -73,6 +73,8 @@ export function TodayDashboard({
     'analytics.top-items',
   ];
 
+  const chartShowsNow = tradingDay.state === 'trading' && dashboardKeys.includes('analytics.trading');
+
   if (errors.core) {
     return (
       <EditorShell title="Today" icon={<LayoutDashboard size={20} aria-hidden="true" />}>
@@ -95,16 +97,22 @@ export function TodayDashboard({
 
   return (
     <EditorShell
-      title={`Today at ${selectedLocation?.name ?? 'your business'}`}
+      // The sidebar's location picker names the site; the title does not repeat it.
+      title="Today"
       icon={<LayoutDashboard size={20} aria-hidden="true" />}
       meta={
         // Rendered only after mount: it reads the clock, and a server-rendered
         // time would hydrate into a different string.
+        // While trading, the chart's "now" marker already carries the time.
         mounted ? (
           <span className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{tradingDayLabel(tradingDay)}</span>
-            <span aria-hidden="true">·</span>
-            <span data-figure>{tradingDay.time}</span>
+            {!chartShowsNow && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span data-figure>{tradingDay.time}</span>
+              </>
+            )}
           </span>
         ) : undefined
       }
@@ -148,42 +156,46 @@ export function TodayDashboard({
             if (key === 'analytics.exceptions') {
               return (
                 <div key={key} className="lg:col-span-12">
-                  <ExceptionStrip items={exceptions} loading={loading.operations} error={errors.operations} onRetry={() => void refresh()} />
+                  <ExceptionStrip
+                    items={exceptions}
+                    loading={loading.operations}
+                    error={errors.operations}
+                    onRetry={() => void refresh()}
+                  />
                 </div>
               );
             }
             if (key === 'analytics.trading') {
               return (
                 <div key={key} className="min-w-0 lg:col-span-8 [&>*]:h-full">
-              <TakenTodayPanel
-                day={tradingDay}
-                takenSoFar={metrics.revenue}
-                orderCount={metrics.orders}
-                hourly={hourly}
-                baseline={baseline}
-                pace={pace}
-                target={target}
-                loading={loading.core}
-                yesterdayRevenue={yesterdayMetrics ? yesterdayMetrics.revenue : null}
-                locationId={dashboard.activeLocationId}
-                dailyTarget={dashboard.dailyTarget}
-              />
+                  <TakenTodayPanel
+                    day={tradingDay}
+                    takenSoFar={metrics.revenue}
+                    hourly={hourly}
+                    baseline={baseline}
+                    pace={pace}
+                    target={target}
+                    loading={loading.core}
+                    yesterdayRevenue={yesterdayMetrics ? yesterdayMetrics.revenue : null}
+                    locationId={dashboard.activeLocationId}
+                    dailyTarget={dashboard.dailyTarget}
+                  />
                 </div>
               );
             }
             if (key === 'analytics.live') {
               return (
                 <div key={key} className="min-w-0 lg:col-span-4 [&>*]:h-full">
-              <LivePanel
-                day={tradingDay}
-                pendingOrders={dashboard.pendingOrders}
-                preparingOrders={dashboard.preparingOrders}
-                readyOrders={dashboard.readyOrders}
-                lateCount={dashboard.lateOrders.length}
-                clockedIn={dashboard.clockedIn.length}
-                labourOpenShifts={labour?.openShifts ?? 0}
-                loading={loading.operations}
-              />
+                  <LivePanel
+                    day={tradingDay}
+                    pendingOrders={dashboard.pendingOrders}
+                    preparingOrders={dashboard.preparingOrders}
+                    readyOrders={dashboard.readyOrders}
+                    lateCount={dashboard.lateOrders.length}
+                    clockedIn={dashboard.clockedIn.length}
+                    labourOpenShifts={labour?.openShifts ?? 0}
+                    loading={loading.operations}
+                  />
                 </div>
               );
             }

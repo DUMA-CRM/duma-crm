@@ -4,16 +4,31 @@ import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
-import { Banknote, ChevronDown, Download, Eye, EyeOff, KeyRound, Landmark, Receipt, ReceiptText, Shield, UserRound } from '@/components/icons';
+import {
+  Banknote,
+  ChevronDown,
+  Download,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Landmark,
+  Pencil,
+  Receipt,
+  ReceiptText,
+  Shield,
+  UserRound,
+} from '@/components/icons';
 import { usePayrollLocale } from '@/components/payroll/usePayroll';
 import { fmtDate } from '@/components/people/shared';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
+import { FramedRows } from '@/components/shared/TileSkeleton';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { FactSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
-import { getEmployee, getEmployeeBank } from '@/lib/modules/people/client';
 import { type Payslip, getEmployeePayslips } from '@/lib/modules/payroll/client';
+import { getEmployee, getEmployeeBank } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { statutoryIdLabel } from '@/lib/utils/employee-record';
@@ -76,9 +91,14 @@ export function PayslipsCard({ userId }: { userId: string }) {
           onRetry={() => void refetch()}
         />
       ) : isPending ? (
-        <div className="space-y-3" aria-hidden="true">
-          <div className="h-16 animate-pulse rounded-lg bg-band/60" />
-          <div className="h-40 animate-pulse rounded-lg bg-band/60" />
+        // The year's three facts, then the payslip list.
+        <div role="status" aria-busy="true" aria-label="Loading payslips" className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[0, 1, 2].map((index) => (
+              <FactSkeleton key={index} surface="page" />
+            ))}
+          </div>
+          <FramedRows rows={3} />
         </div>
       ) : (
         <div className="space-y-3">
@@ -91,13 +111,7 @@ export function PayslipsCard({ userId }: { userId: string }) {
                 value={latest ? money(latest.netPay) : '—'}
                 hint={latest ? periodLabel(latest) : 'Nothing finalised yet'}
               />
-              <Fact
-                surface="page"
-                icon={ReceiptText}
-                label={`Gross · ${year}`}
-                value={money(ytd.gross)}
-                hint={`${money(ytd.net)} net`}
-              />
+              <Fact surface="page" icon={ReceiptText} label={`Gross · ${year}`} value={money(ytd.gross)} hint={`${money(ytd.net)} net`} />
               <Fact
                 surface="page"
                 icon={Receipt}
@@ -111,15 +125,17 @@ export function PayslipsCard({ userId }: { userId: string }) {
             {payslips.length === 0 ? (
               <RecordListRow icon={ReceiptText} tone="muted" label="Issued from a pay run" placeholder="No payslips yet" />
             ) : (
-              payslips.slice(0, 12).map((payslip) => (
-                <PayslipRow
-                  key={payslip.id}
-                  payslip={payslip}
-                  money={money}
-                  open={open === payslip.id}
-                  onToggle={() => setOpen((current) => (current === payslip.id ? null : payslip.id))}
-                />
-              ))
+              payslips
+                .slice(0, 12)
+                .map((payslip) => (
+                  <PayslipRow
+                    key={payslip.id}
+                    payslip={payslip}
+                    money={money}
+                    open={open === payslip.id}
+                    onToggle={() => setOpen((current) => (current === payslip.id ? null : payslip.id))}
+                  />
+                ))
             )}
           </RecordList>
         </div>
@@ -157,7 +173,12 @@ function PayslipRow({
           open ? 'bg-band/50' : 'hover:bg-band/40',
         )}
       >
-        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', draft ? 'bg-measured/8 text-measured' : 'bg-momentum/8 text-momentum')}>
+        <span
+          className={cn(
+            'flex size-9 shrink-0 items-center justify-center rounded-md',
+            draft ? 'bg-measured/8 text-measured' : 'bg-momentum/8 text-momentum',
+          )}
+        >
           <ReceiptText size={16} aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">
@@ -171,7 +192,11 @@ function PayslipRow({
           <span className="block text-sm font-semibold text-foreground">{money(payslip.netPay)}</span>
           <span className="block text-xs text-muted-foreground">net</span>
         </span>
-        <ChevronDown size={14} aria-hidden="true" className={cn('shrink-0 text-muted-foreground transition-transform duration-200', open && 'rotate-180')} />
+        <ChevronDown
+          size={14}
+          aria-hidden="true"
+          className={cn('shrink-0 text-muted-foreground transition-transform duration-200', open && 'rotate-180')}
+        />
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -261,8 +286,8 @@ export function BankTab({ userId, emp, onEdit }: { userId: string; emp: Employee
         {reveal ? 'Hide' : 'Reveal'}
       </Button>
       {onEdit && (
-        <Button variant="outline" size="sm" onClick={onEdit}>
-          Edit
+        <Button type="button" variant="ghost" size="icon-sm" title="Edit bank details" aria-label="Edit bank details" onClick={onEdit}>
+          <Pencil aria-hidden="true" />
         </Button>
       )}
     </>
@@ -270,7 +295,12 @@ export function BankTab({ userId, emp, onEdit }: { userId: string; emp: Employee
 
   return (
     <motion.div variants={SECTION_RISE} className="flex flex-col gap-5">
-      <RecordBlock id="record-bank" title="Bank details" action={actions} note="Stored encrypted. Revealing is a separate request, and it’s audited.">
+      <RecordBlock
+        id="record-bank"
+        title="Bank details"
+        action={actions}
+        note="Stored encrypted. Revealing is a separate request, and it’s audited."
+      >
         {isError ? (
           <ErrorState
             icon={Landmark}
@@ -279,7 +309,7 @@ export function BankTab({ userId, emp, onEdit }: { userId: string; emp: Employee
             onRetry={() => void refetch()}
           />
         ) : isPending ? (
-          <div className="h-32 animate-pulse rounded-lg bg-band/60" aria-hidden="true" />
+          <ListSkeleton rows={3} trailing={false} label="Loading bank details" />
         ) : (
           <RecordList>
             <RecordListRow

@@ -210,21 +210,7 @@ export function stampLabel(iso: string, now: number): string {
   return day === 'Today' ? time : `${day} ${time}`;
 }
 
-export function relativeTime(iso: string, now: number): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const seconds = Math.round((now - date.getTime()) / 1000);
-  if (seconds < 45) return 'just now';
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  const months = Math.round(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  return `${Math.round(months / 12)}y ago`;
-}
+export { relativeTime } from '../utils/relative-time.ts';
 
 export function formatDuration(ms?: number | null): string | null {
   if (ms == null) return null;

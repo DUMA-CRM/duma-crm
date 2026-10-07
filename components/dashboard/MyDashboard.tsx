@@ -4,17 +4,26 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { type ReactNode, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
-import { CalendarClock, ChevronDown, Clock, LogOut, MapPin, Send } from '@/components/icons';
+import { ArrowUpRight, CalendarClock, ChevronDown, Clock, LogOut, Send } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ListRow } from '@/components/shared/ListRow';
+import { StatusDot } from '@/components/shared/StatusDot';
 import { Toast, type ToastMessage } from '@/components/shared/Toast';
+import { Tooltip } from '@/components/shared/Tooltip';
+import { TONE_TINT } from '@/components/shared/tone';
 import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
 import { SlideToClockIn } from '@/components/shifts/SlideToClockIn';
+import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
+import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import { TimePicker } from '@/components/ui/time-picker';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { createScheduledShift, getMyScheduledShifts } from '@/lib/modules/workforce/client';
 import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
+import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
+import { relativeTime } from '@/lib/utils/relative-time';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -48,8 +57,25 @@ function startOfWeek(): Date {
 }
 
 const inp =
-  'w-full h-9 bg-field border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-control border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
+
+/** Weekday over day number — the rota row's leading tile. */
+function DateTile({ iso }: { iso: string }) {
+  const d = new Date(iso);
+  return (
+    <span className={cn('flex size-9 shrink-0 flex-col items-center justify-center rounded-md leading-none', TONE_TINT.primary)}>
+      {/* The tile is the row's only date, so screen readers get it in full. */}
+      <span className="sr-only">{d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+      <span className="text-[10px] font-semibold uppercase" aria-hidden="true">
+        {d.toLocaleDateString('en-GB', { weekday: 'short' })}
+      </span>
+      <span className="mt-0.5 text-sm font-semibold tabular-nums" aria-hidden="true">
+        {d.getDate()}
+      </span>
+    </span>
+  );
+}
 
 // ── Component ───────────────────────────────────────────────────────────────────
 
@@ -91,6 +117,8 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
   const upcoming = [...rota]
     .filter((shift) => new Date(shift.endsAt).getTime() >= now.getTime())
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  // A location on every row only says something when the rows disagree.
+  const showRotaLocation = new Set(upcoming.map((shift) => shift.location?.name ?? '')).size > 1;
 
   const invalidateShifts = () => qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts-my') });
   const clockInM = useMutation({
@@ -143,12 +171,11 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
               <div className="min-w-0">
                 {active ? (
                   <>
-                    <div className="flex items-center gap-2">
-                      <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-                      <p className="text-xs font-bold uppercase tracking-wider text-success">On shift</p>
-                    </div>
+                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <StatusDot tone="success" pulse label="On shift" />
+                      Clocked in at {fmtTime(active.clockedIn)}
+                    </p>
                     <p className="text-sm text-muted-foreground">
-                      Clocked in at {fmtTime(active.clockedIn)} ·{' '}
                       {fmtDur(Math.max(0, (now.getTime() - new Date(active.clockedIn).getTime()) / 60000))} elapsed
                     </p>
                   </>
@@ -186,36 +213,65 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* My rota this week */}
           <section className="flex flex-col overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
-            <div className="flex items-center justify-between border-b border-rule px-5 py-3.5">
+            <div className="flex items-center justify-between border-b border-rule px-5 py-2.5">
               <div className="flex items-center gap-2">
                 <CalendarClock size={15} className="text-muted-foreground" />
                 <p className="text-sm font-semibold text-foreground">My rota this week</p>
               </div>
-              <Link href="/scheduling" className="text-xs text-primary hover:underline">
-                Full rota
-              </Link>
+              <Tooltip label="Full rota" side="top">
+                <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground">
+                  <Link href="/scheduling" aria-label="Open the full rota">
+                    <ArrowUpRight size={15} aria-hidden="true" />
+                  </Link>
+                </Button>
+              </Tooltip>
             </div>
-            <div className="px-5 py-2 flex-1">
-              {upcoming.length === 0 ? (
-                <EmptyState icon={CalendarClock} title="No shifts this week" description="Published shifts will appear here." />
-              ) : (
-                upcoming.map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 py-2.5 border-b border-rule last:border-0">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">{fmtDayDate(s.startsAt)}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MapPin size={11} /> {s.location?.name ?? '—'}
-                        {s.role ? ` · ${s.role}` : ''}
-                      </p>
-                    </div>
-                    <p className="text-sm font-semibold text-foreground tabular-nums shrink-0">
-                      {fmtTime(s.startsAt)}–{fmtTime(s.endsAt)}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
+            {upcoming.length === 0 ? (
+              <div className="flex-1 px-5 py-2">
+                <EmptyState
+                  icon={CalendarClock}
+                  title="No shifts this week"
+                  description="Your shifts appear here once the rota is published."
+                  compact
+                />
+              </div>
+            ) : (
+              <ul className="flex-1">
+                {upcoming.map((s) => {
+                  const started = new Date(s.startsAt).getTime() <= now.getTime();
+                  const meta = [showRotaLocation ? (s.location?.name ?? '—') : null, s.role].filter(Boolean).join(' · ');
+                  return (
+                    <ListRow
+                      key={s.id}
+                      leading={<DateTile iso={s.startsAt} />}
+                      title={
+                        <span className="tabular-nums">
+                          {fmtTime(s.startsAt)}–{fmtTime(s.endsAt)}
+                        </span>
+                      }
+                      meta={meta || undefined}
+                      trailing={
+                        mounted &&
+                        (started ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-momentum">
+                            <StatusDot tone="success" pulse label="Happening now" />
+                            Now
+                          </span>
+                        ) : (
+                          <time
+                            dateTime={s.startsAt}
+                            title={fmtDayDate(s.startsAt)}
+                            className="rounded-sm bg-band px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap text-muted-foreground"
+                          >
+                            {relativeTime(s.startsAt, now.getTime())}
+                          </time>
+                        ))
+                      }
+                    />
+                  );
+                })}
+              </ul>
+            )}
           </section>
 
           {/* Suggest a shift */}
@@ -254,6 +310,7 @@ function SuggestShiftCard({
 
   const durationMins = minutesBetween(start, end);
 
+  const [sent, flashSent] = useDoneBeat(1800);
   const { mutate, isPending, reset } = useMutation({
     mutationFn: () =>
       createScheduledShift({
@@ -264,6 +321,7 @@ function SuggestShiftCard({
       }),
     onSuccess: () => {
       onDone('Shift suggestion sent — a manager will review it.');
+      flashSent();
       setDate('');
       setNotes('');
       reset();
@@ -299,11 +357,11 @@ function SuggestShiftCard({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={lbl}>From</label>
-            <input type="time" value={start} onChange={(e) => setStart(e.target.value)} required className={inp} />
+            <TimePicker value={start} onValueChange={setStart} required aria-label="From" />
           </div>
           <div>
             <label className={lbl}>To</label>
-            <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} required className={inp} />
+            <TimePicker value={end} onValueChange={setEnd} required aria-label="To" />
           </div>
         </div>
         {end && start && durationMins <= 0 && <p className="text-xs text-destructive">End time must be after the start time.</p>}
@@ -312,14 +370,18 @@ function SuggestShiftCard({
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the manager should know" className={inp} />
         </div>
         {!locationId && <p className="text-xs text-muted-foreground">Select your location before sending a suggestion.</p>}
-        <button
+        <ActionButton
           type="submit"
-          disabled={!valid || isPending}
-          className="w-full h-10 bg-primary hover:bg-primary-hover active:translate-y-px text-white text-sm font-semibold rounded-sm flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!valid}
+          pending={isPending}
+          pendingLabel="Sending…"
+          done={sent}
+          doneLabel="Suggestion sent"
+          icon={<Send size={15} aria-hidden="true" />}
+          className="h-10 w-full rounded-sm"
         >
-          <Send size={15} />
-          {isPending ? 'Sending…' : 'Send suggestion'}
-        </button>
+          Send suggestion
+        </ActionButton>
       </form>
     </details>
   );

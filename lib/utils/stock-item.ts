@@ -58,28 +58,74 @@ export function itemAttention(input: ItemAttentionInput): ItemAttention[] {
   const { onHand, threshold, unit } = input;
 
   if (onHand <= 0) {
-    items.push({ id: 'out', severity: 'blocking', title: 'Out of stock', detail: 'Nothing on hand here — anything that uses it can’t be made.', target: 'restock' });
+    items.push({
+      id: 'out',
+      severity: 'blocking',
+      title: 'Out of stock',
+      detail: 'Nothing on hand here — anything that uses it can’t be made.',
+      target: 'restock',
+    });
   } else if (threshold > 0 && onHand <= threshold) {
     items.push({
       id: 'low',
       severity: onHand <= threshold / 2 ? 'blocking' : 'attention',
-      title: 'Below the reorder threshold',
-      detail: `${qty(onHand)} ${unit} on hand, threshold ${qty(threshold)} ${unit}${input.daysLeft != null ? ` · about ${daysText(input.daysLeft)} left` : ''}.`,
+      title: 'Below par',
+      detail: `${qty(onHand)} ${unit} on hand, par ${qty(threshold)} ${unit}${input.daysLeft != null ? ` · about ${daysText(input.daysLeft)} left` : ''}.`,
       target: 'restock',
     });
   } else if (input.daysLeft != null && input.daysLeft <= 3) {
-    items.push({ id: 'running-out', severity: 'attention', title: `Runs out in about ${daysText(input.daysLeft)}`, detail: 'At the last 30 days’ usage, before it reaches the threshold.', target: 'restock' });
+    items.push({
+      id: 'running-out',
+      severity: 'attention',
+      title: `Runs out in about ${daysText(input.daysLeft)}`,
+      detail: 'At the last 30 days’ usage, before it reaches par.',
+      target: 'restock',
+    });
   }
 
   if (input.earliestExpiry && onHand > 0) {
     const days = daysUntil(input.earliestExpiry, input.now);
-    if (days < 0) items.push({ id: 'expired', severity: 'blocking', title: 'A container has expired', detail: 'Use by date passed — log it as waste or check the date.', target: 'containers' });
-    else if (days <= 2) items.push({ id: 'expiring', severity: 'attention', title: `A container expires ${days === 0 ? 'today' : days === 1 ? 'tomorrow' : 'in 2 days'}`, detail: 'Use it first, or log it as waste once it’s gone over.', target: 'containers' });
+    if (days < 0)
+      items.push({
+        id: 'expired',
+        severity: 'blocking',
+        title: 'A container has expired',
+        detail: 'Use by date passed — log it as waste or check the date.',
+        target: 'containers',
+      });
+    else if (days <= 2)
+      items.push({
+        id: 'expiring',
+        severity: 'attention',
+        title: `A container expires ${days === 0 ? 'today' : days === 1 ? 'tomorrow' : 'in 2 days'}`,
+        detail: 'Use it first, or log it as waste once it’s gone over.',
+        target: 'containers',
+      });
   }
 
-  if (!input.isAvailable) items.push({ id: 'unavailable', severity: 'attention', title: 'Marked unavailable here', detail: 'Hidden from ordering at this location until it’s marked available.', target: 'available' });
-  if (threshold <= 0) items.push({ id: 'no-threshold', severity: 'info', title: 'No reorder threshold', detail: 'Without one it never shows as low or appears in the suggested order.', target: 'threshold' });
-  if (input.cost == null || input.cost === '') items.push({ id: 'no-cost', severity: 'info', title: 'No cost yet', detail: 'Set by the first delivery received with a price — until then stock value and margins leave it out.' });
+  if (!input.isAvailable)
+    items.push({
+      id: 'unavailable',
+      severity: 'attention',
+      title: 'Marked unavailable here',
+      detail: 'Hidden from ordering at this location until it’s marked available.',
+      target: 'available',
+    });
+  if (threshold <= 0)
+    items.push({
+      id: 'no-threshold',
+      severity: 'info',
+      title: 'No par level',
+      detail: 'Without one it never shows as low or appears in the suggested order.',
+      target: 'threshold',
+    });
+  if (input.cost == null || input.cost === '')
+    items.push({
+      id: 'no-cost',
+      severity: 'info',
+      title: 'No cost yet',
+      detail: 'Set by the first delivery received with a price — until then stock value and margins leave it out.',
+    });
 
   const rank: Record<ItemAttentionSeverity, number> = { blocking: 0, attention: 1, info: 2 };
   return items.sort((a, b) => rank[a.severity] - rank[b.severity]);
