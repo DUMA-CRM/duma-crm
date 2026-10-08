@@ -14,7 +14,7 @@ import { FIELD_LABEL_CLASS } from './shared';
 /**
  * A moment in time, picked as the app picks every date — the shared
  * DatePicker — plus a time box. Value in and out is an ISO instant (or '' when
- * cleared), shown in the viewer's own time zone.
+ * cleared), shown in the workspace's time zone.
  */
 export function DateTimeField({
   label,

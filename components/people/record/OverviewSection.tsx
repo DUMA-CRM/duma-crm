@@ -41,6 +41,7 @@ import {
 } from '@/lib/utils/employee-record';
 import { leaveBalance } from '@/lib/utils/my-hr';
 import { formatMoney } from '@/lib/utils/payroll-totals';
+import { workspaceDateKey, workspaceFormatter } from '@/lib/utils/workspace-time';
 
 import { AccessCard, EmploymentPanel, PersonalPanel } from './OverviewPanels';
 import { EmployeeRequestsCard } from './RequestsCard';
@@ -61,8 +62,8 @@ const SEVERITY_ICON: Record<RecordAttentionSeverity, typeof AlertTriangle> = {
   info: InfoIcon,
 };
 
-const SHIFT_DAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-const SHIFT_TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
+const SHIFT_DAY = () => workspaceFormatter({ weekday: 'short', day: 'numeric', month: 'short' });
+const SHIFT_TIME = () => workspaceFormatter({ hour: '2-digit', minute: '2-digit' });
 
 export interface OverviewAccess {
   /** `hr.sensitive:read` — pay, tax code, statutory ID. */
@@ -394,8 +395,8 @@ function GlanceFacts({
     const at = new Date();
     return {
       now: at,
-      today: at.toISOString().slice(0, 10),
-      horizon: new Date(at.getTime() + 28 * 86_400_000).toISOString().slice(0, 10),
+      today: workspaceDateKey(at),
+      horizon: workspaceDateKey(at.getTime() + 28 * 86_400_000),
       month: monthRange(0),
     };
   });
@@ -471,14 +472,14 @@ function GlanceFacts({
               : rotaQuery.isError
                 ? '—'
                 : nextShift
-                  ? SHIFT_DAY.format(new Date(nextShift.startsAt))
+                  ? SHIFT_DAY().format(new Date(nextShift.startsAt))
                   : 'None planned'
           }
           hint={
             rotaQuery.isError
               ? 'Couldn’t be loaded'
               : nextShift
-                ? `${SHIFT_TIME.format(new Date(nextShift.startsAt))}–${SHIFT_TIME.format(new Date(nextShift.endsAt))}${nextShift.location?.name ? ` · ${nextShift.location.name}` : ''}`
+                ? `${SHIFT_TIME().format(new Date(nextShift.startsAt))}–${SHIFT_TIME().format(new Date(nextShift.endsAt))}${nextShift.location?.name ? ` · ${nextShift.location.name}` : ''}`
                 : 'Nothing in the next four weeks'
           }
           tone={rotaQuery.isError ? 'warning' : 'default'}

@@ -63,6 +63,7 @@ import { cn } from '@/lib/utils/cn';
 import { timeAgo } from '@/lib/utils/format';
 import { type RestockJourneyStage, restockJourney } from '@/lib/utils/restock-journey';
 import { type StockContext, dayLabel, orderRequests, requestContext } from '@/lib/utils/restock-queue';
+import { formatInstant, workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -412,9 +413,10 @@ function ReceiveRestockDrawer({ request, onClose, onDone }: { request: RestockRe
   const [quantity, setQuantity] = useState(String(request.requestedQty));
   const [expiryDate, setExpiryDate] = useState(() => {
     if (!item?.isPerishable || !item.defaultShelfLifeDays) return '';
-    const date = new Date();
-    date.setDate(date.getDate() + item.defaultShelfLifeDays);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    // Today at the business, plus the shelf life — counted in whole calendar days at UTC noon.
+    const date = new Date(`${workspaceDateKey()}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + item.defaultShelfLifeDays);
+    return date.toISOString().slice(0, 10);
   });
   const [lotNumber, setLotNumber] = useState('');
   const [notes, setNotes] = useState('');
@@ -517,8 +519,6 @@ function ReceiveRestockDrawer({ request, onClose, onDone }: { request: RestockRe
 }
 
 // ── Row ──────────────────────────────────────────────────────────────────────
-
-const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 function RequestJourney({ stages }: { stages: RestockJourneyStage[] }) {
   const current = stages.find((stage) => stage.state === 'current') ?? stages.at(-1)!;
@@ -663,8 +663,8 @@ function RequestRow({
           </span>
         </span>
         <RequestJourney stages={journey} />
-        <span className="hidden w-14 shrink-0 text-right text-xs text-muted-foreground sm:block" title={createdAt.toLocaleString('en-GB')}>
-          {mountedAt - createdAt.getTime() < 86_400_000 ? TIME.format(createdAt) : timeAgo(request.createdAt)}
+        <span className="hidden w-14 shrink-0 text-right text-xs text-muted-foreground sm:block" title={formatInstant(createdAt, { dateStyle: 'short', timeStyle: 'medium' })}>
+          {mountedAt - createdAt.getTime() < 86_400_000 ? formatInstant(createdAt, { hour: '2-digit', minute: '2-digit' }) : timeAgo(request.createdAt)}
         </span>
         {pending && canDecide && (
           <span className="flex shrink-0 items-center gap-1" onClick={(event) => event.stopPropagation()}>

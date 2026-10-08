@@ -23,6 +23,10 @@ interface CartRowProps {
   /** Swipe left to reveal Remove; a full swipe removes. Needs a `SwipeRoot` around the list. */
   swipe?: boolean;
   currency?: string;
+  /** The row's own background while swiping — `control` (white) inside a white pane, like New order's. */
+  surface?: 'card' | 'control';
+  /** What the note is for: the kitchen at a till; a packer or courier for an order taken by hand. */
+  notePlaceholder?: string;
 }
 
 /**
@@ -30,7 +34,19 @@ interface CartRowProps {
  * options underneath, the line price. Tap it to edit: a large stepper, a note
  * for the kitchen, and Remove (with Undo in the panel, so no confirm dialog).
  */
-export function CartRow({ cartItem, expanded, flash, onToggle, onQty, onNote, onRemove, swipe = false, currency }: CartRowProps) {
+export function CartRow({
+  cartItem,
+  expanded,
+  flash,
+  onToggle,
+  onQty,
+  onNote,
+  onRemove,
+  swipe = false,
+  currency,
+  surface = 'card',
+  notePlaceholder = 'Note for the kitchen',
+}: CartRowProps) {
   const reduceMotion = useReducedMotion();
   const total = cartItemTotal(cartItem);
   const options = cartItem.selected.map((option) => option.label).join(' · ');
@@ -78,7 +94,7 @@ export function CartRow({ cartItem, expanded, flash, onToggle, onQty, onNote, on
               value={cartItem.note ?? ''}
               onChange={(event) => onNote(event.target.value)}
               maxLength={200}
-              placeholder="Note for the kitchen"
+              placeholder={notePlaceholder}
               aria-label={`Note for ${cartItem.item.name}`}
               className="h-12 w-full rounded-lg border border-input bg-control px-3.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
             />
@@ -108,7 +124,11 @@ export function CartRow({ cartItem, expanded, flash, onToggle, onQty, onNote, on
             Remove
           </SwipeAction>
         </SwipeActions>
-        <SwipeContent className={cn('bg-card transition-colors duration-500', flash && 'bg-primary/6', expanded && 'bg-band/50')}>{body}</SwipeContent>
+        <SwipeContent
+          className={cn(surface === 'control' ? 'bg-control' : 'bg-card', 'transition-colors duration-500', flash && 'bg-primary/6', expanded && 'bg-band/50')}
+        >
+          {body}
+        </SwipeContent>
       </SwipeItem>
     );
   }

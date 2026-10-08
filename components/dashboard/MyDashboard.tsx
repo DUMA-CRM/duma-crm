@@ -24,15 +24,19 @@ import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { relativeTime } from '@/lib/utils/relative-time';
+import { formatInstant, workspaceDateKey, zonedParts, zonedToInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const two = (n: number) => String(n).padStart(2, '0');
-const fmtClock = (d: Date) => `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
-const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-const fmtDayDate = (iso: string) => `${new Date(iso).toLocaleDateString('en-GB', { weekday: 'short' })} ${formatDate(iso)}`;
+const fmtClock = (d: Date) => {
+  const parts = zonedParts(d);
+  return `${parts.time}:${two(parts.second)}`;
+};
+const fmtTime = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
+const fmtDayDate = (iso: string) => `${formatInstant(iso, { weekday: 'short' })} ${formatDate(iso)}`;
 const fmtDur = (mins: number) => `${Math.floor(mins / 60)}h ${two(Math.round(mins % 60))}m`;
 
 // Minutes between two "HH:MM" strings on the same day (0 if invalid / not positive).
@@ -49,11 +53,11 @@ function greeting(h: number) {
   return 'Good evening';
 }
 
+/** Monday 00:00 at the business, this week. */
 function startOfWeek(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return d;
+  const today = zonedParts();
+  const monday = new Date(Date.UTC(today.year, today.month - 1, today.day - ((today.weekday + 6) % 7))).toISOString().slice(0, 10);
+  return zonedToInstant(monday, '00:00') ?? new Date();
 }
 
 const inp =
@@ -62,16 +66,15 @@ const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-wi
 
 /** Weekday over day number — the rota row's leading tile. */
 function DateTile({ iso }: { iso: string }) {
-  const d = new Date(iso);
   return (
     <span className={cn('flex size-9 shrink-0 flex-col items-center justify-center rounded-md leading-none', TONE_TINT.primary)}>
       {/* The tile is the row's only date, so screen readers get it in full. */}
-      <span className="sr-only">{d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+      <span className="sr-only">{formatInstant(iso, { weekday: 'long', day: 'numeric', month: 'long' })}</span>
       <span className="text-[10px] font-semibold uppercase" aria-hidden="true">
-        {d.toLocaleDateString('en-GB', { weekday: 'short' })}
+        {formatInstant(iso, { weekday: 'short' })}
       </span>
       <span className="mt-0.5 text-sm font-semibold tabular-nums" aria-hidden="true">
-        {d.getDate()}
+        {zonedParts(iso).day}
       </span>
     </span>
   );
@@ -145,11 +148,11 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
               <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">My workday</p>
             </div>
             <h1 className="text-2xl font-semibold tracking-headline text-foreground md:text-metric">
-              {greeting(now.getHours())}
+              {greeting(zonedParts(now).hour)}
               {user?.name ? `, ${user.name.split(' ')[0]}` : ''}
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              {now.toLocaleDateString('en-GB', { weekday: 'long' })}, {formatDate(now)}
+              {formatInstant(now, { weekday: 'long' })}, {formatDate(workspaceDateKey(now))}
             </p>
           </div>
           <div className="flex items-center gap-3 rounded-sm border border-rule bg-card px-4 py-2.5 shadow-sm">

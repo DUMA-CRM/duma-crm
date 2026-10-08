@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button';
 import type { CustomerLoyaltyProgram } from '@/lib/api/loyalty.service';
 import { cn } from '@/lib/utils/cn';
 import { type OptionGroupRule, cartCount, cartTotal, formatPrice } from '@/lib/utils/pos';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import type { HeldTicket } from '@/stores/heldTicketsStore';
 import { usePosSettingsStore } from '@/stores/posSettingsStore';
 import { Customer } from '@/types/customers';
@@ -277,7 +278,7 @@ export function OrderPanel(props: OrderPanelProps) {
                         {programme.nextRewardExpiresAt && (
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             Earliest reward expires{' '}
-                            {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(new Date(programme.nextRewardExpiresAt))}
+                            {formatInstant(programme.nextRewardExpiresAt, { dateStyle: 'medium' })}
                           </p>
                         )}
                       </div>

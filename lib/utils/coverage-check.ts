@@ -12,6 +12,8 @@
  * uncorrected join puts every recommendation an hour early.
  */
 
+import { zonedParts, zonedToInstant } from './workspace-time.ts';
+
 export interface DemandHour {
   /** UTC hour, as the API reports it. */
   hour: number;
@@ -48,8 +50,8 @@ const HOUR = 3_600_000;
 /** Headcount on the rota during each local hour of `day` — any overlap counts. */
 export function rosteredByHour(shifts: readonly RotaShiftLike[], day: Date): number[] {
   const counts = Array.from({ length: 24 }, () => 0);
-  const midnight = new Date(day);
-  midnight.setHours(0, 0, 0, 0);
+  // `day` is a calendar day; its hours are counted from midnight at the business.
+  const midnight = zonedToInstant(dateToKey(day), '00:00') ?? day;
   for (const shift of shifts) {
     if (shift.status === 'cancelled') continue;
     const start = new Date(shift.startsAt).getTime();
@@ -62,10 +64,13 @@ export function rosteredByHour(shifts: readonly RotaShiftLike[], day: Date): num
   return counts;
 }
 
-/** The local hour that a UTC hour on `day` falls in. */
+/** The hour at the business that a UTC hour on `day` falls in. */
 export function localHourOf(utcHour: number, day: Date): number {
-  return new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate(), utcHour)).getHours();
+  return zonedParts(new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate(), utcHour))).hour;
 }
+
+const dateToKey = (day: Date) =>
+  `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
 
 export function coverageForDay(demand: readonly DemandHour[], shifts: readonly RotaShiftLike[], day: Date): CoverageDay {
   const rostered = rosteredByHour(shifts, day);

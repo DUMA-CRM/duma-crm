@@ -36,6 +36,7 @@ import {
 } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { workspaceDateKey } from '@/lib/utils/workspace-time';
 import {
   formatNiNumber,
   formatSortCode,
@@ -354,7 +355,7 @@ export function LeaveRequestDrawer({ onClose, onDone }: { onClose: () => void; o
   });
   // Booking time off that has already passed is almost always a slip, and the
   // approver cannot act on it either way.
-  const backdated = !!form.startDate && form.startDate < new Date().toISOString().slice(0, 10);
+  const backdated = !!form.startDate && form.startDate < workspaceDateKey();
   const inverted = !!form.startDate && !!form.endDate && form.endDate < form.startDate;
 
   const incomplete = !leaveTypeId || !form.startDate || !form.endDate || inverted;

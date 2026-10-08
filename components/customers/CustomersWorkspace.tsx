@@ -26,6 +26,7 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { getCustomers, getDuplicateCandidates, hasActiveFilters } from '@/lib/modules/customers/client';
 import { getSegment, getSegments } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { zonedParts } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { type ListView as ListViewMode, useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -95,7 +96,8 @@ export function CustomersWorkspace() {
   });
   const segments = useMemo(() => segmentsData?.data ?? [], [segmentsData]);
 
-  const [month] = useState(() => new Date().getMonth() + 1);
+  // This month at the business — the workspace zone, not the browser's.
+  const [month] = useState(() => zonedParts().month);
   // Under 'customers', so creating, merging or editing refreshes these too.
   const summary = useQueries({
     queries: SUMMARY.map((item) => ({

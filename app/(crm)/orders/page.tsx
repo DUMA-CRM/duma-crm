@@ -2,7 +2,7 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Popover } from 'radix-ui';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -17,9 +17,10 @@ import {
   Download,
   Flame,
   Loader2,
+  Package,
+  Plus,
   RotateCcw,
   Search,
-  Package,
   ShoppingBag,
   SlidersHorizontal,
   User,
@@ -27,6 +28,7 @@ import {
   X,
   XCircle,
 } from '@/components/icons';
+import { NewOrderModal } from '@/components/orders/NewOrderModal';
 import { OrderDrawer } from '@/components/orders/OrderDrawer';
 import { StatusMenu } from '@/components/orders/StatusMenu';
 import { LIVE_STATUSES, SOURCE_META, STATUS_META, optionLabel } from '@/components/orders/orderMeta';
@@ -51,12 +53,15 @@ import { Select, type SelectOption } from '@/components/ui/select';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { API_PREFIX } from '@/lib/modules/core/client';
+import { getCustomer } from '@/lib/modules/customers/client';
 import { getStaff } from '@/lib/modules/identity/client';
 import { type Order, type OrderSource, type OrderStatus, approveCashOrder, getOrders } from '@/lib/modules/ordering/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { paymentClears } from '@/lib/utils/order-workflow';
 import { groupOrdersByDay, itemCount, itemPreview, orderCode, paymentSummary, shiftDay, todayKey } from '@/lib/utils/orders-list';
+import { workspaceFormatter } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -118,7 +123,7 @@ function datesForPreset(preset: Exclude<DatePreset, 'all' | 'custom'>, now: Date
 }
 
 const DAY_LABEL = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
+const TIME = () => workspaceFormatter({ hour: '2-digit', minute: '2-digit' });
 
 // ── Row ──────────────────────────────────────────────────────────────────────
 
@@ -169,7 +174,7 @@ function OrderRow({
         titleExtra={order.customerName && <span className="truncate text-sm text-foreground">{order.customerName}</span>}
         meta={
           <>
-            {TIME.format(new Date(order.createdAt))}
+            {TIME().format(new Date(order.createdAt))}
             {preview && ` · ${preview}`}
           </>
         }
@@ -240,6 +245,28 @@ function OrdersPageContent() {
   const locationId = reportScope === null ? headerLocationId : reportScope === 'all' ? null : reportScope;
   const capabilities = useAuthStore((state) => state.capabilities);
   const canExport = hasCapability(capabilities, 'orders:bulk');
+  // Taking an order by hand (phone, email, wholesale) — any workspace with Orders, alongside a Till or not.
+  const canCreate = hasCapability(capabilities, 'orders:create');
+  const [creating, setCreating] = useState(false);
+  // `?newOrder=<customer id>`: "Start an order" from a customer's record when there is no Till —
+  // New order opens with them already picked, once they've loaded (or without them if they can't be).
+  const router = useRouter();
+  const pathname = usePathname();
+  const newOrderFor = canCreate ? searchParams.get('newOrder') : null;
+  const startingCustomer = useQuery({
+    queryKey: moduleQueryKeys.customers.key('customer', newOrderFor),
+    queryFn: () => getCustomer(newOrderFor!),
+    enabled: !!newOrderFor,
+  });
+  const showCreate = creating || (!!newOrderFor && !startingCustomer.isPending);
+  const closeCreate = () => {
+    setCreating(false);
+    if (newOrderFor) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('newOrder');
+      router.replace(params.size > 0 ? `${pathname}?${params}` : pathname, { scroll: false });
+    }
+  };
 
   const pick = <T extends string>(value: string | null, allowed: readonly string[], fallback: T) =>
     value && allowed.includes(value) ? (value as T) : fallback;
@@ -351,7 +378,7 @@ function OrdersPageContent() {
       orders.filter((o) => o.status !== 'cancelled' && o.status !== 'expired').reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
     const todays = onDay(today);
     const yesterdays = onDay(yesterday);
-    const kitchen = recent.filter((o) => LIVE_STATUSES.includes(o.status) && o.paymentStatus === 'paid');
+    const kitchen = recent.filter((o) => LIVE_STATUSES.includes(o.status) && paymentClears(o));
     const live = Object.fromEntries(LIVE_STATUSES.map((status) => [status, kitchen.filter((o) => o.status === status).length])) as Record<
       string,
       number
@@ -537,15 +564,30 @@ function OrdersPageContent() {
       title="Orders"
       icon={<ShoppingBag size={20} aria-hidden="true" />}
       actions={
-        canExport && (
-          <Button variant="outline" className="h-9" onClick={() => void exportCsv()} disabled={exporting}>
-            {exporting ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
-            <span className="hidden md:inline">Export CSV</span>
-          </Button>
+        (canExport || canCreate) && (
+          <>
+            {canExport && (
+              <Button variant="outline" className="h-9" onClick={() => void exportCsv()} disabled={exporting} aria-label="Export CSV">
+                {exporting ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
+                <span className="hidden md:inline">Export CSV</span>
+              </Button>
+            )}
+            {canCreate && (
+              <Button className="h-9 gap-1.5" onClick={() => setCreating(true)} aria-label="New order">
+                <Plus size={15} aria-hidden="true" />
+                <span className="hidden md:inline">New order</span>
+              </Button>
+            )}
+          </>
         )
       }
     >
-      <motion.div className="flex flex-1 flex-col space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+      <motion.div
+        className="flex flex-1 flex-col space-y-5"
+        initial="hidden"
+        animate="shown"
+        variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
+      >
         {/* Cash orders waiting at the counter — the one thing on this page that blocks a customer. */}
         {cashWaiting.length > 0 && (
           <motion.section
@@ -939,6 +981,24 @@ function OrdersPageContent() {
           )}
         </motion.section>
       </motion.div>
+
+      {showCreate && (
+        <NewOrderModal
+          initialCustomer={creating ? null : (startingCustomer.data ?? null)}
+          onClose={closeCreate}
+          onCreated={(order) => {
+            closeCreate();
+            void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders') });
+            void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders-all') });
+            void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('kds-orders') });
+            toast(
+              'success',
+              `Order ${orderCode(order.id)} created${order.paymentStatus === 'paid' ? '' : ' — unpaid, mark it paid when the money comes in'}.`,
+            );
+            open(order.id);
+          }}
+        />
+      )}
 
       {selectedId && (
         <OrderDrawer

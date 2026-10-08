@@ -4,6 +4,7 @@
  * all-day tally of what's still to make.
  */
 import type { OrderStatus } from '../api/orders.service.ts';
+import { paymentClears } from './order-workflow.ts';
 
 export type KdsLane = 'pending' | 'preparing' | 'ready';
 export const KDS_LANES: KdsLane[] = ['pending', 'preparing', 'ready'];
@@ -14,9 +15,9 @@ export const NEXT_STATUS: Record<KdsLane, OrderStatus> = { pending: 'preparing',
 /** Undo steps back one lane. `done` can't be undone — the API refuses to change a completed order. */
 export const PREVIOUS_STATUS: Partial<Record<OrderStatus, KdsLane>> = { preparing: 'pending', ready: 'preparing' };
 
-/** On the screen: paid, and released to the kitchen (a scheduled pre-order waits for its release). */
-export function isOnScreen(order: { kitchenReleaseAt?: string | null; paymentStatus?: string }, now: number) {
-  if (order.paymentStatus && order.paymentStatus !== 'paid') return false;
+/** On the screen: paid (or taken by hand, to be paid later), and released to the kitchen (a scheduled pre-order waits for its release). */
+export function isOnScreen(order: { kitchenReleaseAt?: string | null; paymentStatus?: string; source?: string }, now: number) {
+  if (!paymentClears(order)) return false;
   return !order.kitchenReleaseAt || new Date(order.kitchenReleaseAt).getTime() <= now;
 }
 

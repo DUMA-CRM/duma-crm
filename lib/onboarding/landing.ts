@@ -1,10 +1,9 @@
 /**
  * Where a brand-new workspace goes first, and the two buttons that say so.
  *
- * `/dashboard` belongs to the analytics module, which is only on when someone
- * chose Reports — sending everyone there landed most new owners on a page
- * whose data calls were refused. The first useful page follows what the
- * owner actually switched on.
+ * Every workspace has a dashboard, but a brand-new one is mostly empty until
+ * there's trading to chart — Reports (Analytics) is what fills it on day one.
+ * Without it, the first useful page follows what the owner switched on.
  */
 import { type OnboardingDraft, hasPremises, sellsOnline } from './flow.ts';
 

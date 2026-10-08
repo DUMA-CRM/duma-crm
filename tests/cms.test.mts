@@ -183,6 +183,12 @@ test('date and time parts round-trip through an ISO instant in local time', () =
   assert.deepEqual(isoToLocalParts(null), { date: '', time: '' });
 });
 
+test('a scheduled publish time is wall-clock time at the business, not on the device', () => {
+  // Scheduling 09:00 from anywhere means 09:00 in Kyiv for a Kyiv workspace.
+  assert.equal(localPartsToIso('2026-10-06', '09:00', 'Europe/Kyiv'), '2026-10-06T06:00:00.000Z');
+  assert.deepEqual(isoToLocalParts('2026-10-06T06:00:00.000Z', 'Europe/Kyiv'), { date: '2026-10-06', time: '09:00' });
+});
+
 const { safeHref, safeImageSrc } = await import('../lib/utils/cms.ts');
 
 test('preview links and images refuse script and data URLs', () => {

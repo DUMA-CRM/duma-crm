@@ -53,6 +53,7 @@ import {
 } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import {
   type CountLine,
   type CountView,
@@ -88,9 +89,9 @@ const STATUS_META: Record<StocktakeStatus, { label: string; tone: Tone; icon: Ic
 const TONE_TEXT = { match: 'text-success', over: 'text-primary', short: 'text-exception' } as const;
 
 const dateTime = (iso: string) =>
-  new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-const monthLabel = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  formatInstant(iso, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const time = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
+const monthLabel = (iso: string) => formatInstant(iso, { month: 'long', year: 'numeric' });
 
 /** A stocktake line joined with what location stock knows about the item: its category and last cost. */
 interface SheetLine extends CountLine {

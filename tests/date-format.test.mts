@@ -80,3 +80,15 @@ test('the opener is only stripped when a real request follows it', () => {
   assert.equal(asOperatorRequest('Would you like to?'), 'Would you like to?');
   assert.equal(asOperatorRequest('  Shall I,  export the report? '), 'Export the report');
 });
+
+const { formatDateTime } = await import('../lib/utils/date.ts');
+const { setWorkspaceTimeZone } = await import('../lib/utils/workspace-time.ts');
+
+test('timestamps read in the workspace zone; calendar dates never move', () => {
+  setWorkspaceTimeZone('America/New_York');
+  assert.equal(formatDate('2026-08-02T02:30:00Z'), '01/08/2026'); // still the evening before in New York
+  assert.equal(formatDateTime('2026-08-02T02:30:00Z'), '01/08/2026, 22:30');
+  assert.equal(formatDate('2026-08-02'), '02/08/2026');
+  assert.equal(formatDate('1990-05-17T00:00:00.000Z'), '17/05/1990'); // a dob through a JS Date
+  setWorkspaceTimeZone(null);
+});

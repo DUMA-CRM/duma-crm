@@ -274,3 +274,13 @@ test('after close, now sits beyond the axis so the rule can be dropped', () => {
   const position = (axisNowMinutes(day) - range.start) / (range.end - range.start);
   assert.ok(position > 1, `now must fall outside the axis so it is not pinned to the end, got ${position}`);
 });
+
+test('a location open 24/7 is trading all day, never "no hours"', async () => {
+  const { ALWAYS_OPEN_HOURS, isAlwaysOpen, resolveTradingDay } = await import('../lib/utils/trading-day.ts');
+  const day = resolveTradingDay({ timezone: 'Europe/Kyiv', openingHours: ALWAYS_OPEN_HOURS }, new Date('2026-10-08T23:30:00Z'));
+  assert.equal(day.state, 'trading');
+  assert.equal(day.closeMinutes, 24 * 60);
+  assert.equal(isAlwaysOpen(ALWAYS_OPEN_HOURS), true);
+  assert.equal(isAlwaysOpen({ ...ALWAYS_OPEN_HOURS, sun: null }), false);
+  assert.equal(isAlwaysOpen(null), false);
+});

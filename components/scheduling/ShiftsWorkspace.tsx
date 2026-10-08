@@ -64,6 +64,7 @@ import { cn } from '@/lib/utils/cn';
 import { shiftBarGeometry } from '@/lib/utils/shift-bar';
 import { groupShiftsByDay } from '@/lib/utils/shift-days';
 import { reconcileClockEntries } from '@/lib/utils/shift-reconciliation';
+import { workspaceDateKey, zonedToInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -87,7 +88,8 @@ const matchesPreset = (preset: RangePreset, from: string, to: string) => {
 
 /** Inclusive from/to for a named range, as the YYYY-MM-DD the date inputs use. */
 function presetRange(preset: RangePreset): { from: string; to: string } {
-  const today = new Date();
+  // Today at the business, as a local calendar Date for the day arithmetic below.
+  const today = new Date(`${workspaceDateKey()}T00:00:00`);
   if (preset === 'this_month') {
     const first = new Date(today.getFullYear(), today.getMonth(), 1);
     const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -162,8 +164,12 @@ export function ShiftsWorkspace({
   const [from, setFrom] = useState(week.from);
   const [to, setTo] = useState(week.to);
   const [customRange, setCustomRange] = useState(false);
-  const fromISO = useMemo(() => new Date(`${from}T00:00:00`).toISOString(), [from]);
-  const toISO = useMemo(() => new Date(`${to}T23:59:59`).toISOString(), [to]);
+  // The range is whole days on the workspace clock, the same days the rows group by.
+  const fromISO = useMemo(() => (zonedToInstant(from, '00:00') ?? new Date(`${from}T00:00:00`)).toISOString(), [from]);
+  const toISO = useMemo(() => {
+    const lastMinute = zonedToInstant(to, '23:59');
+    return (lastMinute ? new Date(lastMinute.getTime() + 59_000) : new Date(`${to}T23:59:59`)).toISOString();
+  }, [to]);
 
   const isThisWeek = from === week.from && to === week.to;
   // A hand-picked range shows as "Custom", as does any range the arrows land on
@@ -415,8 +421,8 @@ export function ShiftsWorkspace({
 
   // Looking back over a finished period reads newest day first; anything that
   // includes today or the future reads forwards, the way a rota is worked.
-  const days = useMemo(() => groupShiftsByDay(filtered, to < toDateInput(new Date(now)) ? 'desc' : 'asc'), [filtered, to, now]);
-  const todayKey = toDateInput(new Date(now));
+  const days = useMemo(() => groupShiftsByDay(filtered, to < workspaceDateKey(now) ? 'desc' : 'asc'), [filtered, to, now]);
+  const todayKey = workspaceDateKey(now);
   // The days the cover check offers: the whole period when it's a week or two,
   // otherwise the week that holds today (or the period's first week).
   const checkDays = useMemo(() => {

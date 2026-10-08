@@ -14,6 +14,7 @@ import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { type Order, type OrderStatus, type VoidReason, updateOrderStatus } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { paymentClears } from '@/lib/utils/order-workflow';
 import { orderCode } from '@/lib/utils/orders-list';
 import { toast } from '@/stores/toastStore';
 
@@ -73,7 +74,7 @@ export function StatusMenu({ order }: { order: Order }) {
   const nexts =
     NEXT_STATUSES[order.status].length === 0
       ? []
-      : order.paymentStatus && order.paymentStatus !== 'paid'
+      : !paymentClears(order)
         ? (['cancelled'] as OrderStatus[])
         : NEXT_STATUSES[order.status];
 

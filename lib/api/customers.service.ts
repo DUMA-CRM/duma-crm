@@ -12,6 +12,7 @@ import type {
 } from '@/types/customers';
 
 import { apiFetch } from './client';
+import type { OrderShippingAddress } from './orders.service';
 
 /**
  * Serialise the filter block the way the API parses it.
@@ -137,3 +138,36 @@ export const unmergeCustomer = (id: string) =>
  */
 export const eraseCustomer = (id: string) =>
   apiFetch<{ ok: true; customer: Customer }>(`/customers/${id}`, { method: 'DELETE' });
+
+/** A delivery address saved on a customer — from a website order, or one set on an order taken by hand. */
+export interface CustomerAddress {
+  id: string;
+  label: string | null;
+  recipientName: string | null;
+  phone: string | null;
+  line1: string;
+  line2: string | null;
+  city: string;
+  region: string | null;
+  postcode: string;
+  /** ISO 3166-1 alpha-2. */
+  country: string;
+  isDefault: boolean;
+}
+
+/** Default first, then the most recently added. */
+export const getCustomerAddresses = (customerId: string) => apiFetch<CustomerAddress[]>(`/customers/${customerId}/addresses`);
+
+/** What the API takes for a saved address: an order's address, plus a name for it and whether it's the default. */
+export type CustomerAddressInput = OrderShippingAddress & { label?: string | null; isDefault?: boolean };
+
+/** Add a saved address; the first one (or one sent with isDefault) becomes the default. */
+export const createCustomerAddress = (customerId: string, data: CustomerAddressInput) =>
+  apiFetch<CustomerAddress>(`/customers/${customerId}/addresses`, { method: 'POST', body: JSON.stringify(data) });
+
+/** Change a saved address. Orders already sent there keep their copy. */
+export const updateCustomerAddress = (customerId: string, addressId: string, data: CustomerAddressInput) =>
+  apiFetch<CustomerAddress>(`/customers/${customerId}/addresses/${addressId}`, { method: 'PATCH', body: JSON.stringify(data) });
+
+export const deleteCustomerAddress = (customerId: string, addressId: string) =>
+  apiFetch<{ deleted: true }>(`/customers/${customerId}/addresses/${addressId}`, { method: 'DELETE' });

@@ -7,7 +7,6 @@ import { createPortal } from 'react-dom';
 import {
   AlertTriangle,
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -28,9 +27,9 @@ import {
   UploadCloud,
   X,
 } from '@/components/icons';
-import type { IconComponent } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
+import { DetailRow, DrawerSection } from '@/components/shared/DrawerSection';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
@@ -971,96 +970,5 @@ export function AssetDrawer({
         />
       )}
     </Drawer>
-  );
-}
-
-/** A titled group in the file drawer — the heading above, its rows together in one white card, as the order drawer does it. */
-function DrawerSection({
-  id,
-  title,
-  count,
-  action,
-  children,
-}: {
-  id: string;
-  title: string;
-  count?: number;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section aria-labelledby={id}>
-      <div className="mb-2 flex min-h-7 items-center justify-between gap-2">
-        <h3 id={id} className="text-sm font-semibold text-foreground">
-          {title}
-          {count ? <span className="ml-1.5 font-normal tabular-nums text-muted-foreground">{count}</span> : null}
-        </h3>
-        {action}
-      </div>
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-control">{children}</div>
-    </section>
-  );
-}
-
-/**
- * One detail on one line — icon, name, what it is set to — that opens its
- * input underneath on a tap, as the Schedule card does on an entry.
- */
-function DetailRow({
-  icon,
-  title,
-  value,
-  muted,
-  tone,
-  info,
-  open,
-  onToggle,
-  children,
-}: {
-  icon: IconComponent;
-  title: string;
-  value: string;
-  muted?: boolean;
-  tone?: 'warning';
-  info?: string;
-  open: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="border-b border-rule/45 last:border-b-0">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-      >
-        <RowTile icon={icon} tone={tone} />
-        <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-foreground">
-          {title}
-          {info && (
-            <Tooltip side="top" wrap label={info}>
-              <span className="text-muted-foreground hover:text-foreground">
-                <Info size={13} aria-label="About" />
-              </span>
-            </Tooltip>
-          )}
-        </span>
-        <span
-          className={cn(
-            'min-w-0 flex-1 truncate text-right text-sm',
-            tone === 'warning' ? 'font-medium text-measured' : muted ? 'text-muted-foreground/70' : 'text-muted-foreground',
-          )}
-        >
-          {value}
-        </span>
-        <ChevronDown
-          size={14}
-          className={cn('shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')}
-          aria-hidden="true"
-        />
-      </button>
-      {open && <div className="bg-band/25 px-4 pb-3.5 pt-1">{children}</div>}
-    </div>
   );
 }

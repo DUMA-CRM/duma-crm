@@ -7,6 +7,7 @@
  * custom pair on the compare tab). This replaces them. Pure and tested; dates
  * are local calendar days, and every range is [from, to) with `to` exclusive.
  */
+import { zonedParts, zonedToInstant } from './workspace-time.ts';
 
 export type RangePreset =
   | 'today'
@@ -83,7 +84,9 @@ export function fromDateKey(key: string): Date | null {
 
 /** The range a set of filters means at `now`. A custom range missing a day falls back to the default. */
 export function resolveRange(filters: Pick<ReportFilters, 'preset' | 'from' | 'to'>, now: Date): DateRange {
-  const today = startOfDay(now);
+  // "Today" is the workspace's; the range itself stays local calendar Dates.
+  const { year, month, day } = zonedParts(now);
+  const today = new Date(year, month - 1, day);
   switch (filters.preset) {
     case 'today':
       return { from: today, to: addDays(today, 1) };
@@ -163,9 +166,13 @@ export function rangeDates(range: DateRange): string {
   return rangeLabel({ preset: 'custom' }, range);
 }
 
-/** The API's window: ISO instants, `to` the last millisecond of the range. */
-export function apiRange(range: DateRange): { from: string; to: string } {
-  return { from: range.from.toISOString(), to: new Date(range.to.getTime() - 1).toISOString() };
+/**
+ * The API's window: ISO instants, `to` the last millisecond of the range. Each
+ * day starts at midnight in `timeZone` (default: the workspace's), not the browser's.
+ */
+export function apiRange(range: DateRange, timeZone?: string): { from: string; to: string } {
+  const midnight = (date: Date) => zonedToInstant(toDateKey(date), '00:00', timeZone) ?? date;
+  return { from: midnight(range.from).toISOString(), to: new Date(midnight(range.to).getTime() - 1).toISOString() };
 }
 
 // ── URL ───────────────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-import { ANALYTICS_WIDGET_KEYS } from '@/lib/dashboard/widget-registry';
+import { ANALYTICS_WIDGET_KEYS, widgetDefinition } from '@/lib/dashboard/widget-registry';
 import {
   type ResolvedDashboardLayout,
   publishPersonalDashboardLayout,
@@ -16,7 +16,9 @@ import {
 } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 
-const canConfigure = (key: string) => ANALYTICS_WIDGET_KEYS.has(key) || key === 'workforce.my-day';
+// Every registered widget renders on the board, so every one can be shown, hidden and ordered.
+// The API decides which of them this viewer may have (module enabled, capability held).
+const canConfigure = (key: string) => widgetDefinition(key) !== undefined;
 
 const SERVICE_FIRST = [
   'analytics.exceptions',

@@ -39,6 +39,7 @@ const BLOCK_LABEL: Record<TemplateBlock['type'], string> = {
   divider: 'Divider',
   spacer: 'Spacer',
   social: 'Social links',
+  html: 'Custom HTML',
   columns: 'Column row',
 };
 
@@ -385,6 +386,19 @@ function BlockSettings({
             </button>
           ))}
         </div>
+      </SettingsSection>
+    );
+
+  if (block.type === 'html')
+    return (
+      <SettingsSection title={title} description="Sent exactly as written. Inline styles are the safest — many inboxes drop <style> tags.">
+        <textarea
+          value={block.html}
+          onChange={(event) => onChange({ ...block, html: event.target.value })}
+          aria-label="Custom HTML"
+          spellCheck={false}
+          className="min-h-80 w-full rounded-md border border-rule/60 bg-background p-3 font-mono text-xs outline-none focus:border-primary"
+        />
       </SettingsSection>
     );
 

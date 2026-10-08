@@ -3,6 +3,7 @@
 // neither path aliases nor extensionless imports. Same convention as lib/ai.
 import type { AuditLog } from '../api/audit.service.ts';
 import { parseJsonObject } from '../utils/json.ts';
+import { formatCalendarDate, workspaceFormatter } from '../utils/workspace-time.ts';
 
 /**
  * Turns an entry's stored payloads into the two things a person actually asks:
@@ -54,7 +55,7 @@ export function shortId(value: string): string {
 }
 
 const MONEY = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
-const DATE = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
 
 export function humaniseKey(key: string): string {
   const words = key
@@ -75,8 +76,10 @@ export function formatValue(key: string, value: unknown): string {
   const text = String(value);
   if (MONEY_KEY.test(key) && /^-?\d+(\.\d+)?$/.test(text)) return MONEY.format(Number(text));
   if (ISO_DATE.test(text)) {
+    // A bare `YYYY-MM-DD` is a calendar date and is shown as written; a timestamp is read in the workspace zone.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return formatCalendarDate(text, DATE_OPTIONS);
     const date = new Date(text);
-    if (!Number.isNaN(date.getTime())) return DATE.format(date);
+    if (!Number.isNaN(date.getTime())) return workspaceFormatter(DATE_OPTIONS).format(date);
   }
   if (UUID.test(text)) return shortId(text);
   // Enum-ish values arrive as snake_case; they are read, not parsed.

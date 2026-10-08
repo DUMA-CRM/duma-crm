@@ -4,8 +4,10 @@ import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { serverCache } from '@/lib/api/cache-policy';
+import { hasCapability } from '@/lib/auth/capabilities';
+import { useLateness } from '@/lib/hooks/useLateness';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import {
-  getCustomerRetention,
   getDayBaseline,
   getHourlyVolume,
   getLabourAnalytics,
@@ -24,6 +26,7 @@ import { getDateWindow, orderMetrics } from '@/lib/utils/dashboard';
 import { isLate, stageSince } from '@/lib/utils/kitchen-age';
 import { computePace, computeTargetProgress } from '@/lib/utils/pace';
 import { resolveTradingDay } from '@/lib/utils/trading-day';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // Lateness is not defined here. It comes from lib/utils/kitchen-age, the same
@@ -90,6 +93,16 @@ export function useTodayDashboard() {
 
   const ready = locationsQuery.isSuccess;
 
+  // Shifts, the rota and labour are Workforce's. With it off the API refuses
+  // them (403 module_disabled) — so they aren't asked for, and the panels that
+  // read them hide their staff parts (see `workforce` below).
+  const workforce = useModuleEnabled('workforce');
+  // When an order counts as late is the workspace's setting; off flags nothing.
+  const lateness = useLateness();
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const canReadRota = hasCapability(capabilities, 'scheduling:read');
+  const canReadRestocks = hasCapability(capabilities, 'restock:read');
+
   const orders = useQuery({
     queryKey: moduleQueryKeys.analytics.key('today-orders', dateKey, scopeKey, timeZone),
     queryFn: () => getOrderAnalytics(currentParams()),
@@ -113,7 +126,7 @@ export function useTodayDashboard() {
     queryKey: moduleQueryKeys.analytics.key('today-labour', dateKey, scopeKey, timeZone),
     queryFn: () => getLabourAnalytics(currentParams()),
     ...serverCache('labour'),
-    enabled: ready,
+    enabled: ready && workforce,
     refetchInterval: 60_000,
   });
 
@@ -129,13 +142,6 @@ export function useTodayDashboard() {
     queryKey: moduleQueryKeys.analytics.key('today-top-items', dateKey, scopeKey, timeZone),
     queryFn: () => getTopItems(currentParams(), 5),
     ...serverCache('topItems'),
-    enabled: ready && secondaryEnabled,
-  });
-
-  const retention = useQuery({
-    queryKey: moduleQueryKeys.analytics.key('today-retention', dateKey, scopeKey, timeZone),
-    queryFn: () => getCustomerRetention(currentParams()),
-    ...serverCache('customerRetention'),
     enabled: ready && secondaryEnabled,
   });
 
@@ -163,13 +169,14 @@ export function useTodayDashboard() {
   const restocks = useQuery({
     queryKey: moduleQueryKeys.inventory.key('restock-requests', 'pending', scopeKey, 'today-dashboard'),
     queryFn: () => getRestockRequests({ status: 'pending', ...(activeLocationId ? { locationId: activeLocationId } : {}), limit: 6 }),
-    enabled: ready,
+    enabled: ready && canReadRestocks,
   });
 
   const activeShifts = useQuery({
     queryKey: moduleQueryKeys.workforce.key('shifts-active'),
     queryFn: getActiveShifts,
     refetchInterval: 60_000,
+    enabled: ready && workforce,
   });
 
   // Rostered shifts for the rest of today, so a gap in cover is visible before
@@ -185,7 +192,7 @@ export function useTodayDashboard() {
         ...(activeLocationId ? { locationId: activeLocationId } : {}),
       });
     },
-    enabled: ready,
+    enabled: ready && workforce && canReadRota,
   });
 
   const liveOrderQueries = useQueries({
@@ -207,7 +214,7 @@ export function useTodayDashboard() {
   // manager's problem as a slow prep.
   const lateOrders = liveOrderQueries
     .flatMap((query) => query.data?.data ?? [])
-    .filter((order) => isLate(order, now.getTime()))
+    .filter((order) => isLate(order, now.getTime(), lateness))
     .sort((a, b) => new Date(stageSince(a)).getTime() - new Date(stageSince(b)).getTime());
   const criticalStock = (forecast.data ?? []).filter((item) => item.isCritical);
   const urgentRestocks = (restocks.data?.data ?? []).filter((request) => decodeNotes(request.notes).priority === 'urgent');
@@ -262,6 +269,8 @@ export function useTodayDashboard() {
     locations,
     selectedLocation,
     activeLocationId,
+    /** Workforce is on: show labour and who's clocked in. */
+    workforce,
 
     // Figures
     metrics,
@@ -272,7 +281,6 @@ export function useTodayDashboard() {
     labour: labour.data,
     hourly: hourly.data ?? [],
     topItems: topItems.data ?? [],
-    retention: retention.data,
     yesterdayMetrics: tradingDay.state === 'closed-today' ? orderMetrics(yesterday.data) : null,
 
     // Two different questions: what was paid out today, and how much of today's
@@ -285,6 +293,7 @@ export function useTodayDashboard() {
     preparingOrders: liveOrderQueries[1]?.data?.total ?? 0,
     readyOrders: liveOrderQueries[2]?.data?.total ?? 0,
     lateOrders,
+    lateness,
     criticalStock,
     urgentRestocks,
     pendingRestockCount: restocks.data?.total ?? 0,
@@ -299,7 +308,9 @@ export function useTodayDashboard() {
       labour: labour.isPending,
       hourly: hourly.isPending,
       topItems: topItems.isPending,
-      operations: forecast.isPending || restocks.isPending || liveOrderQueries.some((query) => query.isPending),
+      // A query that isn't allowed to run stays "pending" forever — only count the ones that may.
+      operations:
+        forecast.isPending || (canReadRestocks && restocks.isPending) || liveOrderQueries.some((query) => query.isPending),
     },
     errors: {
       core: locationsQuery.isError || orders.isError,

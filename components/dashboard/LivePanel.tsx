@@ -41,6 +41,9 @@ export function LivePanel({
   clockedIn,
   labourOpenShifts,
   loading,
+  showStaff = true,
+  kitchenScreen = true,
+  showLate = true,
 }: {
   day: TradingDay;
   pendingOrders: number;
@@ -50,6 +53,12 @@ export function LivePanel({
   clockedIn: number;
   labourOpenShifts: number;
   loading: boolean;
+  /** The clocked-in row; off when the workspace runs no Workforce module. */
+  showStaff?: boolean;
+  /** The Kitchen display is on: its rows open it. Without one they open the Orders page. */
+  kitchenScreen?: boolean;
+  /** The Late row; off when the workspace doesn't flag late orders. */
+  showLate?: boolean;
 }) {
   const inService = day.state === 'trading';
   // Late orders are a subset of these three, so they share the same whole.
@@ -79,12 +88,14 @@ export function LivePanel({
       ) : (
         <div className="mt-4 space-y-2">
           <Row href="/orders" label="Waiting" value={pendingOrders} total={activeOrders} tone={STATUS_META.pending.tone} />
-          <Row href="/kds" label="Preparing" value={preparingOrders} total={activeOrders} tone={STATUS_META.preparing.tone} />
+          <Row href={kitchenScreen ? '/kds' : '/orders'} label="Preparing" value={preparingOrders} total={activeOrders} tone={STATUS_META.preparing.tone} />
           <Row href="/orders" label="Ready to hand over" value={readyOrders} total={activeOrders} tone={STATUS_META.ready.tone} />
-          <Row href="/kds" label="Late" value={lateCount} total={activeOrders} tone="exception" />
+          {showLate && <Row href={kitchenScreen ? '/kds' : '/orders'} label="Late" value={lateCount} total={activeOrders} tone="exception" />}
         </div>
       )}
 
+      {/* Who's on comes from Workforce; a workspace without it has no clock to read. */}
+      {showStaff && (
       <div className="mt-4 border-t border-rule/50 pt-4">
         <Link href="/staff/shifts" className="flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-card/70">
           <Users size={15} className="shrink-0 text-momentum" aria-hidden="true" />
@@ -103,6 +114,7 @@ export function LivePanel({
           </p>
         )}
       </div>
+      )}
     </aside>
   );
 }

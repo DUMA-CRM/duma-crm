@@ -113,7 +113,12 @@ export function SetContainerCostDrawer({
     mutationFn: async () => {
       const cost = price.trim() === '' ? null : unitCostFromPrice(price, quantity);
       // One request each — the API sets a container at a time. Sequential, so a failure stops the rest.
-      for (const unit of units) await setStockUnitCost(unit.id, cost);
+      for (const unit of units) {
+        const saved = await setStockUnitCost(unit.id, cost);
+        // An API on an older schema accepts the request and drops the field — say so, not "saved".
+        const stored = saved.unitCost == null ? null : Number(saved.unitCost);
+        if (stored !== cost) throw new Error('The cost wasn’t stored — the API may be out of date. Try again shortly.');
+      }
     },
     onSuccess: () => {
       toast('success', units.length === 1 ? 'Container cost saved.' : `Cost saved on ${units.length} containers.`);

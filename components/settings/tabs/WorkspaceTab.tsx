@@ -2,9 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useState, useSyncExternalStore } from 'react';
 
-import { Building2, CalendarDays, Loader2, Pencil, Tag } from '@/components/icons';
+import { Building2, CalendarDays, Globe, Loader2, Pencil, Tag } from '@/components/icons';
+import { BrandPicker } from '@/components/settings/BrandPicker';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact } from '@/components/settings/controls';
@@ -12,17 +14,35 @@ import { CatalogKindSetting } from '@/components/settings/workspaces/CatalogKind
 import { LocationList } from '@/components/settings/workspaces/LocationList';
 import { WorkspaceList } from '@/components/settings/workspaces/WorkspaceList';
 import { WorkspaceReadinessChecklist } from '@/components/settings/workspaces/WorkspaceReadinessChecklist';
+import { Modal } from '@/components/shared/Modal';
 import { Bone, FactSkeleton } from '@/components/shared/Skeleton';
+import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
-import { getWorkspaceSetup, renameCurrentTenant, updateTenant } from '@/lib/modules/organization/client';
+import {
+  type CurrentTenantPatch,
+  getWorkspaceSetup,
+  renameCurrentTenant,
+  updateCurrentTenant,
+  updateTenant,
+} from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { type Brand, parseBrand } from '@/lib/utils/brand';
+import {
+  formatInstant,
+  isValidTimeZone,
+  timeZoneCity,
+  timeZoneGap,
+  timeZoneOffsetLabel,
+  workspaceTimeZone,
+} from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
+import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const STATUS = {
@@ -37,6 +57,7 @@ export function WorkspaceTab() {
   return (
     <SettingsTabBody>
       <BusinessSection />
+      <BrandSection />
       <CatalogKindSetting />
       <ReadinessSection />
       {isPlatform ? (
@@ -190,14 +211,158 @@ function BusinessSection() {
         <Fact
           icon={CalendarDays}
           label="Created"
-          value={new Date(tenant.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+          value={formatInstant(tenant.createdAt, { day: 'numeric', month: 'short', year: 'numeric' })}
         />
         {/* The only place an owner can read their workspace ID. */}
         <Fact icon={Tag} label="Workspace ID" value={<span className="font-mono text-xs">{tenant.slug}</span>} />
+        <TimezoneFact />
       </dl>
       {tenant.status !== 'active' && tenant.statusReason && (
         <p className="mt-3 text-xs text-muted-foreground">Status note: {tenant.statusReason}</p>
       )}
+    </SettingsSection>
+  );
+}
+
+/**
+ * Saving the workspace's clock or colour. Both belong to the business, not the
+ * device: every time in the app is read in the zone — wherever the person
+ * reading it is — and everyone in the workspace sees the colour.
+ */
+function useWorkspaceAppearance() {
+  const qc = useQueryClient();
+  const router = useRouter();
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const ownTenantId = useWorkspaceStore((state) => state.tenantId);
+  const setDeviceBrand = useUiSettingsStore((state) => state.setBrand);
+  const { tenant, isPlatform } = useCurrentWorkspace();
+  const canEdit = isPlatform ? hasCapability(capabilities, 'tenants:write') : hasCapability(capabilities, 'settings:write');
+  // A platform admin may be looking at someone else's workspace; only our own repaints this browser.
+  const own = !isPlatform || tenant?.id === ownTenantId;
+
+  const save = useMutation({
+    mutationFn: (patch: CurrentTenantPatch) => (isPlatform ? updateTenant(tenant!.id, patch) : updateCurrentTenant(patch)),
+    onSuccess: (_saved, patch) => {
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenants') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('current-tenant') });
+      if (patch.brand) {
+        if (own) setDeviceBrand(parseBrand(patch.brand));
+        toast('success', 'Brand colour saved for everyone in the workspace.');
+      }
+      // Every time on every page was drawn in the old zone, so redraw them all.
+      if (patch.timezone && own) window.location.reload();
+      else if (patch.timezone) toast('success', 'Timezone saved.');
+      // The layout reads both with the profile — fetch it again.
+      router.refresh();
+    },
+    onError: (error) => toast('error', error.message),
+  });
+
+  return { tenant, canEdit, save };
+}
+
+/** The wall clock, to the half minute — null on the server, so the server and browser render alike. */
+const subscribeClock = (tick: () => void) => {
+  const timer = window.setInterval(tick, 30_000);
+  return () => window.clearInterval(timer);
+};
+const clockSnapshot = () => Math.floor(Date.now() / 30_000) * 30_000;
+function useNow() {
+  const at = useSyncExternalStore(subscribeClock, clockSnapshot, () => null);
+  return at === null ? null : new Date(at);
+}
+
+const clockIn = (timeZone: string, at: Date) =>
+  new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' }).format(at);
+
+/** The business card's third figure: where the workspace keeps time, and what time it is there. */
+function TimezoneFact() {
+  const { tenant, canEdit } = useWorkspaceAppearance();
+  const now = useNow();
+  const [editing, setEditing] = useState(false);
+  if (!tenant) return null;
+
+  const zone = tenant.timezone ?? workspaceTimeZone() ?? 'Europe/London';
+  return (
+    <>
+      <Fact
+        icon={Globe}
+        label="Timezone"
+        value={timeZoneCity(zone)}
+        hint={now ? `${timeZoneOffsetLabel(zone, now)} · ${clockIn(zone, now)} there now` : zone}
+        {...(canEdit ? { onSelect: () => setEditing(true) } : {})}
+      />
+      {editing && <TimezoneDialog current={zone} onClose={() => setEditing(false)} />}
+    </>
+  );
+}
+
+function TimezoneDialog({ current, onClose }: { current: string; onClose: () => void }) {
+  const { save } = useWorkspaceAppearance();
+  const now = useNow() ?? new Date();
+  const [zone, setZone] = useState(current);
+  const valid = isValidTimeZone(zone);
+  const changed = valid && zone !== current;
+
+  return (
+    <Modal
+      title="Workspace timezone"
+      description="Every time in DUMA is shown in this zone, wherever you are. Reports and scheduled posts follow it too."
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={!changed || save.isPending} onClick={() => save.mutate({ timezone: zone })}>
+            {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+            Save timezone
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <TimezoneSelect value={zone} onChange={setZone} required />
+
+        {valid && (
+          // The answer to "is this right?": the time it is there, against the time here.
+          <div className="flex items-center gap-4 rounded-lg border border-rule/60 bg-band/40 px-4 py-3">
+            <span className="text-3xl font-semibold tabular-nums tracking-headline text-foreground">{clockIn(zone, now)}</span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-foreground">
+                {timeZoneCity(zone)} · {timeZoneOffsetLabel(zone, now)}
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {new Intl.DateTimeFormat('en-GB', { timeZone: zone, weekday: 'long', day: 'numeric', month: 'long' }).format(now)} ·{' '}
+                {timeZoneGap(zone, undefined, now)}
+              </span>
+            </span>
+          </div>
+        )}
+
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Each location keeps its own zone for its trading day and opening hours. Saving reloads DUMA so every time is redrawn.
+        </p>
+      </div>
+    </Modal>
+  );
+}
+
+function BrandSection() {
+  const { tenant, canEdit, save } = useWorkspaceAppearance();
+  if (!tenant) return null;
+  const brand: Brand | undefined = tenant.brand ? parseBrand(tenant.brand) : undefined;
+
+  return (
+    <SettingsSection
+      title="Brand colour"
+      description="Buttons, links, the navigation bar and the DUMA assistant take this colour, for everyone in the workspace. Status colours keep their meaning whichever you pick."
+    >
+      <BrandPicker
+        value={save.isPending && save.variables?.brand ? parseBrand(save.variables.brand) : brand}
+        onChange={(next) => next !== brand && save.mutate({ brand: next })}
+        disabled={!canEdit || save.isPending}
+      />
     </SettingsSection>
   );
 }

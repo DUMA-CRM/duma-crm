@@ -56,6 +56,7 @@ import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { dueLabel, invoiceDifference, isOverdue, orderTotal, receivedShare, summaryReceivedShare } from '@/lib/utils/purchase-orders';
 import { dayLabel } from '@/lib/utils/restock-queue';
+import { workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
@@ -78,8 +79,9 @@ const STATUS: Record<PurchaseOrderStatus, { label: string; tone: Tone; icon: typ
 
 const defaultExpiry = (shelfLifeDays?: number | null) => {
   if (!shelfLifeDays) return '';
-  const date = new Date();
-  date.setDate(date.getDate() + shelfLifeDays);
+  // Today at the business, plus the shelf life — counted in whole calendar days at UTC noon.
+  const date = new Date(`${workspaceDateKey()}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + shelfLifeDays);
   return date.toISOString().slice(0, 10);
 };
 

@@ -25,6 +25,7 @@ import { findCoverGaps } from '@/lib/utils/attendance';
 import { cn } from '@/lib/utils/cn';
 import { type StaffAttentionSeverity, buildStaffAttention, noShows, teamRecordState, unpublishedShifts } from '@/lib/utils/staff-overview';
 import { type RosterRow, type RosterStatus, buildRoster } from '@/lib/utils/today-roster';
+import { workspaceDateKey, workspaceFormatter } from '@/lib/utils/workspace-time';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /** Consequence as colour: blocking is red, attention amber, information the calm green. */
@@ -39,7 +40,8 @@ const SEVERITY_ICON: Record<StaffAttentionSeverity, typeof AlertTriangle> = {
   info: Info,
 };
 
-const isoDate = (date: Date) => date.toISOString().slice(0, 10);
+/** The day an instant falls on at the business — not in UTC, not on this device. */
+const isoDate = (date: Date) => workspaceDateKey(date);
 
 export interface StaffOverviewAccess {
   team: boolean;
@@ -340,7 +342,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
   );
 }
 
-const DAY = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+const DAY = () => workspaceFormatter({ weekday: 'long', day: 'numeric', month: 'long' });
 
 /** `TodayRoster` without its words: the day and legend, then a row per person with their bar. */
 function RosterSkeleton() {
@@ -430,7 +432,7 @@ function TodayRoster({ roster, now }: { roster: ReturnType<typeof buildRoster>; 
   return (
     <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-rule/50 px-5 py-3.5">
-        <p className="text-sm font-semibold text-foreground">{DAY.format(now)}</p>
+        <p className="text-sm font-semibold text-foreground">{DAY().format(now)}</p>
         <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
           {LEGEND_ORDER.filter((status) => counts[status] > 0).map((status) => (
             <li key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">

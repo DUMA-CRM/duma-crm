@@ -5,6 +5,7 @@
  * covers the same dates the automatic job would. Local dates, `YYYY-MM-DD`.
  */
 import type { PayrollPeriod } from '../api/payroll.service.ts';
+import { zonedParts } from './workspace-time.ts';
 
 export const PERIODS_PER_YEAR: Record<PayrollPeriod, number> = { weekly: 52, fortnightly: 26, semi_monthly: 24, monthly: 12 };
 
@@ -27,6 +28,12 @@ const addDays = (date: Date, days: number) => new Date(date.getFullYear(), date.
 const mondayOf = (date: Date) => addDays(date, -((date.getDay() + 6) % 7));
 const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
 const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+
+/** The workspace's today as a local calendar Date — the periods are dates, so only "today" needs the zone. */
+export function workspaceToday(now = new Date()): Date {
+  const { year, month, day } = zonedParts(now);
+  return new Date(year, month - 1, day);
+}
 
 /** The period of this kind that contains `date`. */
 export function periodContaining(period: PayrollPeriod, date: Date): PayPeriodRange {
@@ -54,7 +61,7 @@ export function periodContaining(period: PayrollPeriod, date: Date): PayPeriodRa
 }
 
 /** The last `count` periods, most recent first, starting with the one containing `today`. */
-export function recentPeriods(period: PayrollPeriod, count: number, today = new Date()): PayPeriodRange[] {
+export function recentPeriods(period: PayrollPeriod, count: number, today = workspaceToday()): PayPeriodRange[] {
   const out: PayPeriodRange[] = [];
   let cursor = today;
   for (let index = 0; index < count; index += 1) {

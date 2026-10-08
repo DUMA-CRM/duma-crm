@@ -15,8 +15,10 @@ import { Input } from '@/components/ui/input';
 
 import { type CustomerLoyaltyProgram, adjustCustomerLoyaltyBalance, grantCustomerLoyaltyReward } from '@/lib/api/loyalty.service';
 import { getMenuCategories, getMenuItems, getModifierGroups } from '@/lib/api/menu.service';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { rewardsCompleted } from '@/lib/utils/balance-adjust';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { cn } from '@/lib/utils/cn';
 import { describeRewardScope, getLoyaltyCardProgress, stampColumns } from '@/lib/utils/loyalty-card';
 import { toast } from '@/stores/toastStore';
@@ -153,7 +155,7 @@ export function rewardLabel(programme: CustomerLoyaltyProgram) {
 function rewardExpiryLabel(programme: CustomerLoyaltyProgram) {
   const expiry = programme.nextRewardExpiresAt ?? programme.rewards?.find((reward) => reward.expiresAt)?.expiresAt;
   if (expiry) {
-    return `Use by ${new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(new Date(expiry))}.`;
+    return `Use by ${formatInstant(expiry, { dateStyle: 'medium' })}.`;
   }
   const validity = programme.rewardRule.validity;
   if (validity?.type === 'days') return `Valid for ${validity.days ?? 1} days after issue.`;
@@ -204,7 +206,7 @@ function RewardVoucher({ programme, onOpen }: { programme: CustomerLoyaltyProgra
   );
 }
 
-const fmtUseBy = (iso: string) => new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(new Date(iso));
+const fmtUseBy = (iso: string) => formatInstant(iso, { dateStyle: 'medium' });
 
 /**
  * Everything about a ready reward: what it is, what it covers, each one in the
@@ -225,6 +227,8 @@ function RewardDrawer({
 }) {
   const router = useRouter();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
+  // A reward is redeemed at the Till; a hand-taken order has nowhere to apply it.
+  const posOn = useModuleEnabled('pos');
   const rule = programme.rewardRule;
   const needsItems = rule.kind !== 'free_modifier' && rule.menuItemIds.length > 0;
   const needsCategories = rule.kind !== 'free_modifier' && rule.categoryIds.length > 0;
@@ -268,8 +272,8 @@ function RewardDrawer({
           <Button variant="outline" size="lg" onClick={onClose} className="flex-1">
             Close
           </Button>
-          {canOrder && (
-            <Button size="lg" onClick={() => router.push(`/pos?customer=${customerId}`)} className="flex-1">
+          {canOrder && posOn && (
+            <Button size="lg" onClick={() => router.push(`/pos?customer=${encodeURIComponent(customerId)}`)} className="flex-1">
               <ShoppingBag data-icon="inline-start" />
               Use in an order
             </Button>
@@ -535,6 +539,7 @@ export function CustomerLoyaltyCards({
   programmes,
   canAdjust,
   canOrder,
+  stacked = false,
 }: {
   customerId: string;
   customerName: string;
@@ -542,6 +547,8 @@ export function CustomerLoyaltyCards({
   canAdjust: boolean;
   /** Not for an erased record: there is no guest left to attach to an order. */
   canOrder: boolean;
+  /** One column — for a narrow sidebar, where two cards side by side don't fit. */
+  stacked?: boolean;
 }) {
   const [selected, setSelected] = useState<CustomerLoyaltyProgram | null>(null);
   const [granting, setGranting] = useState<CustomerLoyaltyProgram | null>(null);
@@ -556,14 +563,14 @@ export function CustomerLoyaltyCards({
   return (
     <SettingsSection title="Loyalty cards" bodyClassName="space-y-4">
       {available.length > 0 && (
-        <div className="grid gap-2.5 xl:grid-cols-2">
+        <div className={cn('grid gap-2.5', !stacked && 'xl:grid-cols-2')}>
           {available.map((programme) => (
             <RewardVoucher key={`reward-${programme.id}`} programme={programme} onOpen={() => setOpened(programme)} />
           ))}
         </div>
       )}
       {stampProgrammes.length > 0 && (
-        <div className="grid gap-4 2xl:grid-cols-2">
+        <div className={cn('grid gap-4', !stacked && '2xl:grid-cols-2')}>
           {stampProgrammes.map((programme) => (
             <StampCard
               key={programme.id}

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { type CmsEntryFilters, bulkCmsEntries, getCmsContentTypes, getCmsEntries, getCmsLocales } from '@/lib/modules/cms/client';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -33,7 +34,7 @@ const STATUS_OPTIONS: Array<{ value: StatusFilter | 'all'; label: string }> = [
 ];
 
 const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  formatInstant(iso, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }, '—', undefined);
 
 export function EntriesPanel({
   initialTypeId,

@@ -113,7 +113,7 @@ export function Sidebar({ capabilities, moduleState }: { capabilities: readonly 
           {!collapsed && (
             <div className="min-w-0 overflow-hidden">
               <p className="text-base font-semibold leading-tight text-sidebar-foreground tracking-title">DUMA</p>
-              <p className="text-micro text-sidebar-foreground/65 leading-none mt-0.5 font-semibold">Coffee operations</p>
+              <p className="text-micro text-sidebar-foreground/65 leading-none mt-0.5 font-semibold">Business OS</p>
             </div>
           )}
         </div>

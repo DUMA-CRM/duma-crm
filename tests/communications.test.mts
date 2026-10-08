@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { defaultTemplateDesign, renderTemplateDesign, templateDesignToPlainText } from '../components/communications/templateDesign.ts';
+import {
+  defaultTemplateDesign,
+  htmlToDesign,
+  renderTemplateDesign,
+  templateChecks,
+  templateDesignToPlainText,
+} from '../components/communications/templateDesign.ts';
 import {
   defaultWorkflow,
   insertWorkflowNode,
@@ -21,6 +27,27 @@ test('rich template designs compile to safe email HTML and plain text', () => {
   assert.match(html, /href="#"/);
   assert.doesNotMatch(html, /javascript:/);
   assert.equal(templateDesignToPlainText(design), 'Hello <customer>\n\nVisit: javascript:alert(1)');
+});
+
+test('pasted HTML survives the trip back to the designer and sends verbatim', () => {
+  const pasted = '<html><body><table><tr><td style="color:red">Hi {{customer.firstName}}</td></tr></table><a href="https://x.test">Order</a></body></html>';
+  const base = { ...defaultTemplateDesign(), preheader: 'Fresh this week' };
+  const design = htmlToDesign(pasted, base);
+
+  assert.equal(design.blocks.length, 1);
+  assert.equal(design.blocks[0].type, 'html');
+  assert.equal(design.preheader, 'Fresh this week');
+
+  const html = renderTemplateDesign(design);
+  assert.match(html, /<td style="color:red">Hi \{\{customer\.firstName\}\}<\/td>/);
+  assert.match(html, /<body><div style="display:none[^"]*">Fresh this week/);
+  assert.equal(templateDesignToPlainText(design), 'Hi {{customer.firstName}}\n\nOrder (https://x.test)');
+
+  // Editing in the HTML tab again must not stack a second preview line.
+  const again = renderTemplateDesign(htmlToDesign(html, design));
+  assert.equal(again.match(/Fresh this week/g)?.length, 1);
+
+  assert.ok(templateChecks(htmlToDesign('<p>{{nope}}</p>'), 'Hi', ['customer.firstName']).some((check) => check.key === 'var-nope'));
 });
 
 test('inserting a condition creates valid yes and no workflow branches', () => {

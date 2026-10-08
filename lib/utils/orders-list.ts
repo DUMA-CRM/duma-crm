@@ -6,6 +6,8 @@
 // decide the same way.
 // ---------------------------------------------------------------------------
 import type { Order, OrderItem, OrderStatus } from '@/lib/modules/ordering/client';
+import { paymentClears } from './order-workflow.ts';
+import { formatInstant, workspaceDateKey, zonedParts } from './workspace-time.ts';
 
 /** "#AB12CD34" — the short code staff read out, from the id's first eight characters. */
 export const orderCode = (id: string) => `#${id.slice(0, 8).toUpperCase()}`;
@@ -14,7 +16,7 @@ const localKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 export interface OrderDay<T> {
-  /** YYYY-MM-DD, local. */
+  /** YYYY-MM-DD, in the workspace zone. */
   key: string;
   label: string;
   orders: T[];
@@ -24,16 +26,17 @@ export interface OrderDay<T> {
 }
 
 /**
- * Orders under a heading per local day, newest day first, in the order given
+ * Orders under a heading per workspace day, newest day first, in the order given
  * within a day. "Today" and "Yesterday" by name; older days by date.
  */
 export function groupOrdersByDay<T extends Pick<Order, 'createdAt' | 'status' | 'totalAmount'>>(orders: T[], now: Date): OrderDay<T>[] {
-  const today = localKey(now);
-  const yesterday = localKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+  const current = zonedParts(now);
+  const today = current.date;
+  const yesterday = shiftDay(today, -1);
   const days = new Map<string, OrderDay<T>>();
   for (const order of orders) {
-    const at = new Date(order.createdAt);
-    const key = localKey(at);
+    const at = zonedParts(order.createdAt);
+    const key = at.date;
     let day = days.get(key);
     if (!day) {
       const label =
@@ -41,11 +44,11 @@ export function groupOrdersByDay<T extends Pick<Order, 'createdAt' | 'status' | 
           ? 'Today'
           : key === yesterday
             ? 'Yesterday'
-            : at.toLocaleDateString('en-GB', {
+            : formatInstant(order.createdAt, {
                 weekday: 'long',
                 day: 'numeric',
                 month: 'long',
-                ...(at.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+                ...(at.year !== current.year ? { year: 'numeric' } : {}),
               });
       day = { key, label, orders: [], count: 0, total: 0 };
       days.set(key, day);
@@ -79,10 +82,10 @@ export const itemCount = (items: Pick<OrderItem, 'quantity'>[] | undefined): num
 /**
  * The one step forward an order can take, as the drawer's primary button.
  * Nothing moves until it's paid — an unpaid order can only be cancelled, and
- * that is not a "next step".
+ * that is not a "next step". Except an order taken by hand, which is paid later.
  */
-export function nextStep(order: Pick<Order, 'status' | 'paymentStatus'>): { status: OrderStatus; label: string } | null {
-  if (order.paymentStatus && order.paymentStatus !== 'paid') return null;
+export function nextStep(order: Pick<Order, 'status' | 'paymentStatus'> & { source?: Order['source'] }): { status: OrderStatus; label: string } | null {
+  if (!paymentClears(order)) return null;
   if (order.status === 'pending') return { status: 'preparing', label: 'Start preparing' };
   if (order.status === 'preparing') return { status: 'ready', label: 'Mark ready' };
   if (order.status === 'ready') return { status: 'done', label: 'Complete' };
@@ -102,9 +105,13 @@ export function paymentSummary(order: Pick<Order, 'paymentMethod' | 'paymentStat
       ? 'Cash'
       : order.paymentMethod === 'card'
         ? 'Card'
-        : order.paymentMethod
-          ? order.paymentMethod
-          : 'No payment';
+        : order.paymentMethod === 'bank_transfer'
+          ? 'Bank transfer'
+          : order.paymentMethod === 'custom'
+            ? 'Other'
+            : order.paymentMethod
+              ? order.paymentMethod
+              : 'No payment';
   switch (order.paymentStatus) {
     case undefined:
     case 'paid':
@@ -115,8 +122,10 @@ export function paymentSummary(order: Pick<Order, 'paymentMethod' | 'paymentStat
       return { method, state: 'Cash at counter', tone: 'warning' };
     case 'awaiting_payment':
     case 'processing':
-    case 'unpaid':
       return { method, state: 'Unpaid', tone: 'warning' };
+    case 'unpaid':
+      // No method yet means nothing has been taken: one phrase, not "No payment · Unpaid".
+      return order.paymentMethod ? { method, state: 'Unpaid', tone: 'warning' } : { method: 'Not paid yet', state: null, tone: 'warning' };
     case 'failed':
       return { method, state: 'Payment failed', tone: 'exception' };
     default:
@@ -130,7 +139,7 @@ export function shiftDay(day: string, delta: number): string {
   return localKey(new Date(y, m - 1, d + delta));
 }
 
-export const todayKey = (now: Date) => localKey(now);
+export const todayKey = (now: Date) => workspaceDateKey(now);
 
 // ── Refund selection ─────────────────────────────────────────────────────────
 

@@ -639,6 +639,8 @@ function LeafView({
 
   if (block.type === 'divider') return <hr className={cn('border-current/15', compact ? 'my-3' : 'my-5')} />;
 
+  if (block.type === 'html') return <HtmlPreview html={block.html} />;
+
   if (block.type === 'spacer')
     return (
       <div className="flex items-center justify-center opacity-40" style={{ height: block.height }}>
@@ -652,6 +654,51 @@ function LeafView({
         <span key={`${link.label}-${index}`}>{link.label}</span>
       ))}
     </div>
+  );
+}
+
+/**
+ * Pasted HTML drawn as it will send, sized to its content. The frame runs no
+ * scripts; same-origin is only there so its height can be read. Clicks pass
+ * through to the block, so a link inside cannot navigate the editor.
+ */
+function HtmlPreview({ html }: { html: string }) {
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState(120);
+
+  const measure = () => {
+    const body = frameRef.current?.contentDocument?.body;
+    if (!body) return;
+    setHeight(Math.max(40, body.scrollHeight));
+    const observer = new ResizeObserver(() => setHeight(Math.max(40, body.scrollHeight)));
+    observer.observe(body);
+    return observer;
+  };
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    let observer: ResizeObserver | undefined;
+    const onLoad = () => {
+      observer?.disconnect();
+      observer = measure();
+    };
+    frame.addEventListener('load', onLoad);
+    return () => {
+      frame.removeEventListener('load', onLoad);
+      observer?.disconnect();
+    };
+  }, []);
+
+  return (
+    <iframe
+      ref={frameRef}
+      title="Custom HTML"
+      sandbox="allow-same-origin"
+      srcDoc={html}
+      className="pointer-events-none block w-full border-0"
+      style={{ height }}
+    />
   );
 }
 

@@ -32,6 +32,7 @@ import { REPORTS } from '@/lib/reports/catalogue';
 import { cn } from '@/lib/utils/cn';
 import { exportFileName, toCsv, toDateKey } from '@/lib/utils/report-filters';
 import { movementValue } from '@/lib/utils/stock-cost';
+import { formatCalendarDate, formatInstant } from '@/lib/utils/workspace-time';
 
 import { DrawerFacts, DrawerList, DrawerMark, DrawerNote, DrawerSection, ReportDrawer } from '../kit/DetailDrawer';
 import { ReportFrame, downloadFile } from '../kit/ReportFrame';
@@ -43,7 +44,9 @@ const def = (id: string) => REPORTS.find((report) => report.id === id)!;
 const num = (value: string | number | null | undefined) => Number(value ?? 0) || 0;
 const count = (value: number) => value.toLocaleString('en-GB');
 const qty = (value: number, unit?: string) => `${(Math.round(value * 100) / 100).toLocaleString('en-GB')}${unit ? ` ${unit}` : ''}`;
-const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const day = (iso: string) => formatInstant(iso, { day: 'numeric', month: 'short', year: 'numeric' });
+/** A trading or expected date is a calendar day, not an instant — never shifted by a zone. */
+const calendarDay = (date: string) => formatCalendarDate(date, { day: 'numeric', month: 'short', year: 'numeric' });
 
 /** Stock items by id — names, units and last known cost for every inventory report. */
 function useStockItems() {
@@ -659,7 +662,7 @@ export function EndOfDayReport({ filters }: { filters: ReportFilterState }) {
                   // Closed is the norm, so it is only a dot; an open day says so.
                   leading: (row) =>
                     row.status === 'closed' ? <StatusDot tone="success" label="Closed" /> : <StatusDot tone="warning" label="Open" />,
-                  render: (row) => day(row.tradingDate),
+                  render: (row) => calendarDay(row.tradingDate),
                   sub: (row) =>
                     row.status === 'closed' ? undefined : (
                       <span className="font-semibold text-measured" aria-hidden="true">
@@ -709,8 +712,7 @@ export function EndOfDayReport({ filters }: { filters: ReportFilterState }) {
 
 // ── Drawers ──────────────────────────────────────────────────────────────────
 
-const when = (iso: string) =>
-  new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const when = (iso: string) => formatInstant(iso, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const signed = (amount: number, money: (value: number) => string) =>
   `${amount > 0 ? '+' : amount < 0 ? '−' : ''}${money(Math.abs(amount))}`;
 
@@ -853,7 +855,7 @@ function PurchaseOrderDrawer({ order, onClose }: { order: PurchaseOrder; onClose
         rows={[
           { label: 'Status', value: <PoStatus status={order.status} /> },
           { label: 'Raised', value: day(order.createdAt) },
-          { label: 'Expected', value: order.expectedAt ? day(order.expectedAt) : undefined },
+          { label: 'Expected', value: order.expectedAt ? calendarDay(order.expectedAt) : undefined },
           {
             label: 'Invoice',
             value: order.invoiceNumber
@@ -917,7 +919,7 @@ function CashUpDayDrawer({ day: cashUp, onClose }: { day: CashUp & { locationNam
 
   return (
     <ReportDrawer
-      title={new Date(`${cashUp.tradingDate.slice(0, 10)}T12:00:00`).toLocaleDateString('en-GB', {
+      title={formatCalendarDate(cashUp.tradingDate, {
         weekday: 'long',
         day: 'numeric',
         month: 'long',

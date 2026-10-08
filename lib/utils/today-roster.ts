@@ -4,6 +4,8 @@
  * and the "late" rule are tested without a browser.
  */
 
+import { workspaceDateKey, zonedParts, zonedToInstant } from './workspace-time.ts';
+
 export type RosterStatus = 'on' | 'late' | 'later' | 'done' | 'unplanned';
 
 export interface RosterShiftInput {
@@ -49,7 +51,7 @@ export interface RosterWindow {
 export const LATE_AFTER_MINUTES = 5;
 
 const MINUTE = 60_000;
-const clock = (date: Date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+const clock = (date: Date) => zonedParts(date).time;
 
 export function buildRoster(input: { shifts: RosterShiftInput[]; clockedIn: RosterClockInput[]; now: Date }): {
   rows: RosterRow[];
@@ -57,10 +59,9 @@ export function buildRoster(input: { shifts: RosterShiftInput[]; clockedIn: Rost
   counts: Record<RosterStatus, number>;
 } {
   const { shifts, clockedIn, now } = input;
-  // Hours since today's midnight, clamped to the day: a shift that runs past
-  // midnight ends at 24 rather than wrapping round to "01:38 this morning".
-  const midnight = new Date(now);
-  midnight.setHours(0, 0, 0, 0);
+  // Hours since today's midnight at the business, clamped to the day: a shift
+  // that runs past midnight ends at 24 rather than wrapping round to "01:38".
+  const midnight = zonedToInstant(workspaceDateKey(now), '00:00') ?? now;
   const hourOf = (date: Date) => Math.min(24, Math.max(0, (date.getTime() - midnight.getTime()) / 3_600_000));
   const clockByUser = new Map(clockedIn.map((entry) => [entry.userId, entry]));
   const rostered = new Set(shifts.map((shift) => shift.userId).filter(Boolean));

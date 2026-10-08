@@ -29,6 +29,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { chime, unlockAudio } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
 import { KDS_LANES, type KdsLane, NEXT_STATUS, PREVIOUS_STATUS, allDay, arrivals, isOnScreen, ticketName } from '@/lib/utils/kds';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { type KdsTextSize, useKdsStore } from '@/stores/kdsStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -47,12 +48,13 @@ const laneKey = (locationId: string, status: KdsLane) => moduleQueryKeys.orderin
 
 /** Every page of a lane, then only what belongs on the screen (paid and released). */
 async function getLaneOrders(locationId: string, status: KdsLane): Promise<Order[]> {
-  const first = await getOrders({ page: 1, limit: 100, locationId, status, paymentStatus: 'paid' });
+  // Not filtered to paid on the server: an order taken by hand is made now and paid later. isOnScreen decides.
+  const first = await getOrders({ page: 1, limit: 100, locationId, status });
   const rest =
     first.pages > 1
       ? await Promise.all(
           Array.from({ length: first.pages - 1 }, (_, index) =>
-            getOrders({ page: index + 2, limit: 100, locationId, status, paymentStatus: 'paid' }),
+            getOrders({ page: index + 2, limit: 100, locationId, status }),
           ),
         )
       : [];
@@ -378,7 +380,7 @@ export default function KdsPage() {
                 {!online ? 'Offline' : syncProblem ? 'Reconnecting' : 'Live'}
                 {lastSync > 0 && (
                   <span data-figure className="font-medium tabular-nums opacity-80">
-                    · {new Date(lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    · {formatInstant(lastSync, { hour: '2-digit', minute: '2-digit', second: '2-digit' }, '—', [])}
                   </span>
                 )}
               </span>
@@ -430,7 +432,7 @@ export default function KdsPage() {
               {!online
                 ? 'This screen is offline. Tickets stay on screen and refresh when it reconnects.'
                 : 'Some tickets didn’t refresh. Retrying every 10 seconds.'}
-              {lastSync > 0 && ` Last update ${new Date(lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
+              {lastSync > 0 && ` Last update ${formatInstant(lastSync, { hour: '2-digit', minute: '2-digit' }, '—', [])}.`}
             </span>
             <Button variant="outline" onClick={() => laneQueries.forEach((query) => void query.refetch())} className="h-11">
               Retry now
@@ -557,7 +559,7 @@ export default function KdsPage() {
                             <span className="block truncate text-base font-semibold">{entry.name}</span>
                             <span className="block text-sm text-muted-foreground">
                               {entry.to === 'done' ? 'Collected' : `Moved to ${LANE_LABEL[entry.to as KdsLane]}`} ·{' '}
-                              {new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatInstant(entry.at, { hour: '2-digit', minute: '2-digit' }, '—', [])}
                             </span>
                           </span>
                           {back ? (

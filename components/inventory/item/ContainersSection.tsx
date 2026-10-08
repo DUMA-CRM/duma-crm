@@ -35,6 +35,7 @@ import {
 } from '@/lib/utils/containers';
 import { containerPrice, unitCostFromPrice } from '@/lib/utils/stock-cost';
 import { daysUntil, expiryLabel } from '@/lib/utils/stock-item';
+import { workspaceDateKey } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 
 /*
@@ -419,9 +420,10 @@ function ReceiveContainersDrawer({
   // A perishable item with a shelf life gets its use-by pre-filled from today.
   const [expiryDate, setExpiryDate] = useState(() => {
     if (!item.isPerishable || !item.defaultShelfLifeDays) return '';
-    const date = new Date();
-    date.setDate(date.getDate() + item.defaultShelfLifeDays);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    // Today at the business, plus the shelf life — counted in whole calendar days at UTC noon.
+    const date = new Date(`${workspaceDateKey()}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + item.defaultShelfLifeDays);
+    return date.toISOString().slice(0, 10);
   });
   const [lotNumber, setLotNumber] = useState('');
   const [price, setPrice] = useState('');

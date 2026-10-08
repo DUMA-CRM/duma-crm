@@ -10,6 +10,7 @@ import { FramedRows, SectionSkeleton, TileSkeleton } from '@/components/shared/T
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
 
+import { widgetDefinition } from '@/lib/dashboard/widget-registry';
 import { type ResolvedDashboardLayout, getResolvedDashboardLayout } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -131,7 +132,17 @@ function DashboardPreview({ panelKeys }: { panelKeys: string[] }) {
                   </div>
                 );
               }
-              return <div key={key} className="col-span-4 h-16 rounded-md border border-rule/55 bg-card" />;
+              // A module card or a launch card: half width, as on the board; "My workday" is full.
+              return (
+                <div
+                  key={key}
+                  className={`${key === 'workforce.my-day' ? 'col-span-4 h-20' : 'col-span-2 h-14'} flex flex-col justify-center gap-1.5 rounded-md border border-rule/55 bg-card px-2.5`}
+                >
+                  <span className="truncate text-[0.625rem] font-semibold text-muted-foreground">{widgetDefinition(key)?.label ?? key}</span>
+                  <span className="h-1.5 w-3/4 rounded-full bg-foreground/10" />
+                  <span className="h-1.5 w-1/2 rounded-full bg-foreground/8" />
+                </div>
+              );
             })}
           </div>
         )}

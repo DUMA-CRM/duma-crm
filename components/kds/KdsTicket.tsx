@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button';
 import type { Order, OrderItem } from '@/lib/modules/ordering/client';
 import { cn } from '@/lib/utils/cn';
 import { type KdsLane, elapsedLabel, ticketName } from '@/lib/utils/kds';
-import { CRASH_MINS, ageState, stageSince } from '@/lib/utils/kitchen-age';
+import { useLateness } from '@/lib/hooks/useLateness';
+import { ageState, durationLabel, stageSince } from '@/lib/utils/kitchen-age';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { useKdsStore } from '@/stores/kdsStore';
 
 export const LANE_ACTION: Record<KdsLane, { label: string; icon: typeof Flame }> = {
@@ -39,23 +41,23 @@ const TONE = {
 
 /**
  * The ageing bar runs itself: one linear CSS transition from the ticket's age
- * now to the limit, timed to arrive exactly at CRASH_MINS — smooth and live
+ * now to the limit, timed to arrive exactly at the workspace's "late" — smooth and live
  * without re-rendering the board every frame. It restarts when the ticket
  * enters a new stage (its `since` changes).
  */
-function AgeBar({ since, className }: { since: string; className: string }) {
+function AgeBar({ since, lateMins, className }: { since: string; lateMins: number; className: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const bar = ref.current;
     if (!bar) return;
-    const limit = CRASH_MINS * 60_000;
+    const limit = lateMins * 60_000;
     const elapsed = Math.max(0, Date.now() - new Date(since).getTime());
     bar.style.transition = 'none';
     bar.style.width = `${Math.min(1, elapsed / limit) * 100}%`;
     void bar.offsetWidth; // commit the starting width before animating from it
     bar.style.transition = `width ${Math.max(0, limit - elapsed)}ms linear, background-color 300ms`;
     bar.style.width = '100%';
-  }, [since]);
+  }, [since, lateMins]);
   return <div ref={ref} className={cn('h-full', className)} />;
 }
 
@@ -88,7 +90,9 @@ export function KdsTicket({
   onBump: () => void;
   onRetryItems: () => void;
 }) {
-  const age = ageState(order, now);
+  // When a ticket is late is the workspace's setting (Settings → Configuration → Orders).
+  const lateness = useLateness();
+  const age = ageState(order, now, lateness);
   const tone = TONE[age.tone];
   const name = ticketName(order);
   const channel = SOURCE_META[order.source] as (typeof SOURCE_META)[keyof typeof SOURCE_META] | undefined;
@@ -117,7 +121,7 @@ export function KdsTicket({
             </p>
             {age.tone === 'crashed' && (
               <p className="text-xs font-bold uppercase tracking-wide">
-                Late<span className="sr-only"> — past {CRASH_MINS} minutes</span>
+                Late<span className="sr-only"> — past {lateness ? durationLabel(lateness.lateMins) : ''}</span>
               </p>
             )}
             {age.tone === 'approaching' && <p className="text-xs font-semibold uppercase tracking-wide text-measured">Nearly late</p>}
@@ -137,7 +141,7 @@ export function KdsTicket({
           {showStage && <span className="rounded-md bg-background/70 px-2 py-0.5 text-foreground">{LANE_LABEL[lane]}</span>}
           {collectAt && (
             <span className="flex items-center gap-1.5">
-              <Clock size={15} aria-hidden="true" /> Collect {collectAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <Clock size={15} aria-hidden="true" /> Collect {formatInstant(collectAt, { hour: '2-digit', minute: '2-digit' }, '—', [])}
             </span>
           )}
           {!compact && (
@@ -146,9 +150,12 @@ export function KdsTicket({
             </span>
           )}
         </div>
-        <div className="-mx-4 h-1.5 bg-black/10" aria-hidden="true">
-          <AgeBar since={stageSince(order)} className={tone.bar} />
-        </div>
+        {/* No lateness, no ageing bar: there is nothing to run out of. */}
+        {lateness && (
+          <div className="-mx-4 h-1.5 bg-black/10" aria-hidden="true">
+            <AgeBar since={stageSince(order)} lateMins={lateness.lateMins} className={tone.bar} />
+          </div>
+        )}
       </header>
 
       {allergens.length > 0 && (

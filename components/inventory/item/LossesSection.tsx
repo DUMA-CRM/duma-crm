@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils/cn';
 import { groupByDay } from '@/lib/utils/ledger';
 import { LOSS_LABEL, type LossKind, type LossPeriod, periodFrom, readLoss, summariseLosses } from '@/lib/utils/losses';
 import { movementValue } from '@/lib/utils/stock-cost';
+import { formatInstant } from '@/lib/utils/workspace-time';
 
 /*
  * What's been written off for this item here: a period summary (how much, what
@@ -55,7 +56,7 @@ const KIND: Record<LossKind, { tile: string; icon: IconComponent }> = {
 };
 
 const PERIOD_LABEL: Record<LossPeriod, string> = { '30d': 'Last 30 days', '90d': 'Last 90 days', '12m': 'Last 12 months', all: 'All time' };
-const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const time = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 
 export function LossesSection({
   stockItemId,
@@ -243,7 +244,7 @@ export function LossesSection({
   );
 }
 
-const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const formatDay = (iso: string) => formatInstant(iso, { day: 'numeric', month: 'short', year: 'numeric' });
 
 
 function LossRow({

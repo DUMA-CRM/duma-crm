@@ -409,7 +409,7 @@ const peopleTopics: GuideTopic[] = [
     href: '/settings',
     linkLabel: 'Open settings',
     steps: [
-      'Choose a colour theme and brand colour in Settings → Profile.',
+      'Choose a colour theme in Settings → Profile; the workspace brand colour and timezone are in Settings → Workspace.',
       'Set up a till or kitchen tablet in Settings → Configuration before putting it into service.',
       'Install DUMA from Settings → Profile → Install the app.',
       'Change your password and sign out devices you no longer use in Settings → Security.',

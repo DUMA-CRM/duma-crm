@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
+import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import {
@@ -86,6 +87,8 @@ import { toast } from '@/stores/toastStore';
  * one step. Settings' vocabulary throughout — fields, facts, panels.
  */
 
+const STOCK_VIEWS: readonly StockView[] = ['all', 'reorder', 'low', 'expiring', 'unavailable'];
+
 const SORTS: { value: StockSort; label: string }[] = [
   { value: 'name', label: 'Sort: Name' },
   { value: 'cover', label: 'Sort: Runs out first' },
@@ -127,7 +130,12 @@ export function StockOverview({
   };
   const [now] = useState(() => new Date());
   const [search, setSearch] = useState('');
-  const [view, setView] = useState<StockView>('all');
+  // A link can open the list already filtered — the dashboard's Stock health rows do (`?view=low`).
+  const searchParams = useSearchParams();
+  const [view, setView] = useState<StockView>(() => {
+    const requested = searchParams.get('view');
+    return STOCK_VIEWS.includes(requested as StockView) ? (requested as StockView) : 'all';
+  });
   const effectiveView = !purchasingEnabled && view === 'reorder' ? 'all' : view;
   const [category, setCategory] = useState('all');
   const [sort, setSort] = useState<StockSort>('name');
@@ -217,10 +225,8 @@ export function StockOverview({
 
   return (
     <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
-      <NeedsAttention
-        items={attentionItems(lines, now, can, open)}
-        clear={{ title: 'Nothing needs you', detail: 'Nothing is out, expired or about to run out.' }}
-      />
+      {/* Only when something does need someone — an all-clear banner is a row of nothing. */}
+      <NeedsAttention items={attentionItems(lines, now, can, open)} />
 
       <motion.dl variants={SECTION_RISE} className={cn('grid gap-3', forecasting ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-3')}>
         <Fact

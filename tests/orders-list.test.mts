@@ -182,3 +182,8 @@ test('a website payment names its provider and a short reference', async () => {
   assert.equal(paymentSourceLabel('shopify_payments', null), 'Shopify Payments');
   assert.equal(paymentSourceLabel(null, 'x'), null);
 });
+
+test('an unpaid order with no method reads as one phrase', () => {
+  assert.deepEqual(paymentSummary({ paymentMethod: null, paymentStatus: 'unpaid' }), { method: 'Not paid yet', state: null, tone: 'warning' });
+  assert.equal(paymentSummary({ paymentMethod: 'card', paymentStatus: 'unpaid' }).state, 'Unpaid');
+});

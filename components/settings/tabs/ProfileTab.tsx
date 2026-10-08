@@ -20,7 +20,6 @@ import {
 } from '@/components/icons';
 import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { AgentModelSettings } from '@/components/settings/AgentModelSettings';
-import { BrandPicker } from '@/components/settings/BrandPicker';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact, SettingRow, SettingRows } from '@/components/settings/controls';
@@ -30,6 +29,7 @@ import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { usePwaStore } from '@/stores/pwaStore';
 
@@ -67,17 +67,8 @@ export function ProfileTab() {
     <SettingsTabBody
       aside={
         <>
-          <SettingsSection title="This device">
+          <SettingsSection>
             <SettingRows>
-              <SettingRow
-                icon={SlidersHorizontal}
-                title="Till and kitchen screen"
-                description="Layout, favourites, scanner and the order chime."
-              >
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/settings/configuration">Configuration</Link>
-                </Button>
-              </SettingRow>
               <InstallRow />
             </SettingRows>
           </SettingsSection>
@@ -115,7 +106,7 @@ export function ProfileTab() {
           <Fact
             icon={CalendarDays}
             label="Member since"
-            value={user?.createdAt ? new Date(user.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : '—'}
+            value={formatInstant(user?.createdAt, { month: 'long', year: 'numeric' })}
           />
         </dl>
       </SettingsSection>
@@ -129,14 +120,6 @@ export function ProfileTab() {
           onChange={setTheme}
           choices={THEMES}
         />
-      </SettingsSection>
-
-      <SettingsSection
-        title="Brand colour"
-        description="Buttons, links, the navigation bar and the DUMA assistant take this colour. Status colours keep their meaning whichever you pick."
-        footnote="Saved on this device only for now."
-      >
-        <BrandPicker />
       </SettingsSection>
     </SettingsTabBody>
   );
@@ -196,7 +179,6 @@ function InstallRow() {
       <SettingRow
         icon={Download}
         title="Install the app"
-        description={done ? 'Installed — DUMA opens in its own window.' : 'Opens full screen, like an app.'}
       >
         {done ? (
           <span className="flex items-center gap-1.5 text-sm font-semibold text-success">

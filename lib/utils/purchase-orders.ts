@@ -3,16 +3,21 @@
 // what an order comes to, and how much of it has arrived. Pure and tested.
 // ---------------------------------------------------------------------------
 
-const localKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+import { formatCalendarDate, workspaceDateKey } from './workspace-time.ts';
+
+/**
+ * Whole days from the workspace's today to a calendar `YYYY-MM-DD`. The expected
+ * date is a calendar day, not an instant — only "today" depends on the zone.
+ */
+const daysFromToday = (date: string, now: Date) =>
+  Math.round((Date.parse(`${date.slice(0, 10)}T00:00:00Z`) - Date.parse(`${workspaceDateKey(now)}T00:00:00Z`)) / 86_400_000);
 
 const OPEN = new Set(['submitted', 'partially_received']);
 
 /** Waiting on a delivery whose expected day has passed. */
 export function isOverdue(po: { status: string; expectedAt?: string | null }, now: Date): boolean {
   if (!po.expectedAt || !OPEN.has(po.status)) return false;
-  return new Date(`${po.expectedAt.slice(0, 10)}T00:00:00`) < startOfDay(now);
+  return daysFromToday(po.expectedAt, now) < 0;
 }
 
 /**
@@ -22,12 +27,11 @@ export function isOverdue(po: { status: string; expectedAt?: string | null }, no
  */
 export function dueLabel(po: { status: string; expectedAt?: string | null }, now: Date): string | null {
   if (!po.expectedAt || !OPEN.has(po.status)) return null;
-  const due = new Date(`${po.expectedAt.slice(0, 10)}T00:00:00`);
-  const days = Math.round((due.getTime() - startOfDay(now).getTime()) / 86_400_000);
+  const days = daysFromToday(po.expectedAt, now);
   if (days < 0) return `${-days} ${days === -1 ? 'day' : 'days'} late`;
   if (days === 0) return 'Due today';
   if (days === 1) return 'Due tomorrow';
-  return `Due ${due.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`;
+  return `Due ${formatCalendarDate(po.expectedAt, { weekday: 'short', day: 'numeric', month: 'short' })}`;
 }
 
 interface LineLike {
@@ -69,4 +73,4 @@ export function invoiceDifference(invoiceAmount: string | number | null | undefi
   return Math.round((Number(invoiceAmount) - total) * 100) / 100;
 }
 
-export const dayKey = (iso: string) => localKey(new Date(iso));
+export const dayKey = (iso: string) => workspaceDateKey(iso);

@@ -4,13 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
-import { Check, ChefHat, MapPin, Pencil, Plus, Power, Store, Target, Trash2 } from '@/components/icons';
+import { Check, ChefHat, Clock, Globe, MapPin, Pencil, Plus, Power, Store, Target, Trash2 } from '@/components/icons';
 import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
 import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ChoiceCards } from '@/components/shared/FormParts';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Modal } from '@/components/shared/Modal';
 import { StatusDot } from '@/components/shared/StatusDot';
@@ -20,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { hasCapability } from '@/lib/auth/capabilities';
+import { ALWAYS_OPEN_HOURS, isAlwaysOpen } from '@/lib/utils/trading-day';
 import {
   type Location,
   type LocationPayload,
@@ -76,6 +78,7 @@ function normaliseHours(hours?: OpeningHours | null): OpeningHours {
 }
 
 function hoursSummary(hours?: OpeningHours | null) {
+  if (isAlwaysOpen(hours)) return 'Open 24/7';
   const open = WEEKDAYS.filter(({ key }) => hours?.[key]);
   if (!hours || open.length === 0) return 'Hours not set';
   const first = hours[open[0].key]!;
@@ -291,6 +294,7 @@ export function LocationList({ tenant }: { tenant?: Tenant }) {
           <LocationForm
             initial={modal.mode === 'edit' ? modal.location : undefined}
             tenantId={tenantId}
+            defaultTimezone={tenant?.timezone}
             pending={create.isPending || update.isPending}
             onClose={() => setModal(null)}
             onSubmit={({ tenantId: ignored, ...data }) => {
@@ -388,27 +392,30 @@ function TargetForm({
 function LocationForm({
   initial,
   tenantId,
+  defaultTimezone,
   pending,
   onClose,
   onSubmit,
 }: {
   initial?: Location;
   tenantId: string;
+  /** A new location starts in the workspace's zone. */
+  defaultTimezone?: string;
   pending: boolean;
   onClose: () => void;
   onSubmit: (data: LocationPayload) => void;
 }) {
   const [name, setName] = useState(initial?.name ?? '');
   const [address, setAddress] = useState(initial?.address ?? '');
-  const [timezone, setTimezone] = useState(initial?.timezone ?? 'Europe/London');
+  const [timezone, setTimezone] = useState(initial?.timezone ?? defaultTimezone ?? 'Europe/London');
   const [phone, setPhone] = useState(initial?.phone ?? '');
-  const [hours, setHours] = useState<OpeningHours>(normaliseHours(initial?.openingHours));
+  // Fixed hours, or open 24/7 — an online shop, or anywhere that never closes.
+  const [hoursMode, setHoursMode] = useState<'set' | 'always'>(isAlwaysOpen(initial?.openingHours) ? 'always' : 'set');
+  const [hours, setHours] = useState<OpeningHours>(normaliseHours(isAlwaysOpen(initial?.openingHours) ? null : initial?.openingHours));
   const [workflow, setWorkflow] = useState<OrderFulfilmentMode>(initial?.orderFulfilmentMode ?? 'kitchen');
   const [dailyTarget, setDailyTarget] = useState(initial?.dailyRevenueTarget != null ? String(Number(initial.dailyRevenueTarget)) : '');
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
 
-  const inputClass =
-    'h-9 w-full rounded-md border border-input bg-control px-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15';
   const setDay = (key: keyof OpeningHours, open: boolean) =>
     setHours((current) => ({ ...current, [key]: open ? { open: '09:00', close: '17:00' } : null }));
   const setTime = (key: keyof OpeningHours, field: 'open' | 'close', value: string) =>
@@ -426,10 +433,10 @@ function LocationForm({
         onSubmit({
           tenantId,
           name,
-          address,
+          address: address.trim() || null,
           timezone,
           phone: phone || undefined,
-          openingHours: hours,
+          openingHours: hoursMode === 'always' ? ALWAYS_OPEN_HOURS : hours,
           orderFulfilmentMode: workflow,
           // Empty clears the target rather than storing a zero the dashboard would read as "aiming for nothing".
           dailyRevenueTarget: dailyTarget.trim() === '' ? null : Number(dailyTarget),
@@ -458,13 +465,13 @@ function LocationForm({
             label="Address"
             value={address}
             onChange={(event) => setAddress(event.target.value)}
-            required
             placeholder="42 High St, London NW1"
+            hint="Leave blank for an online shop with no premises."
           />
         </div>
         <div className="sm:col-span-2">
           <label className="mb-1.5 block text-label uppercase text-muted-foreground">Timezone</label>
-          <TimezoneSelect value={timezone} onChange={setTimezone} required inputClassName={inputClass} placeholder="Search timezone…" />
+          <TimezoneSelect value={timezone} onChange={setTimezone} required placeholder="Search timezone…" />
         </div>
       </div>
 
@@ -482,15 +489,34 @@ function LocationForm({
       <fieldset>
         <div className="mb-2 flex items-center justify-between">
           <legend className="text-label uppercase text-muted-foreground">Opening hours</legend>
-          <button
-            type="button"
-            onClick={copyMonday}
-            disabled={!hours.mon}
-            className="text-xs font-semibold text-reference hover:underline disabled:opacity-40"
-          >
-            Copy Monday to every day
-          </button>
+          {hoursMode === 'set' && (
+            <button
+              type="button"
+              onClick={copyMonday}
+              disabled={!hours.mon}
+              className="text-xs font-semibold text-reference hover:underline disabled:opacity-40"
+            >
+              Copy Monday to every day
+            </button>
+          )}
         </div>
+        <div className="mb-3">
+          <ChoiceCards
+            columns={2}
+            value={hoursMode}
+            onChange={(next) => setHoursMode(next as 'set' | 'always')}
+            options={[
+              { value: 'set', label: 'Set opening hours', icon: Clock },
+              { value: 'always', label: 'Open 24/7', icon: Globe },
+            ]}
+          />
+        </div>
+        {hoursMode === 'always' ? (
+          <p className="rounded-lg border border-rule/60 bg-band/40 px-3.5 py-3 text-sm text-muted-foreground">
+            Orders are taken around the clock — right for an online shop. The dashboard reads the whole day as trading, and won’t ask for
+            hours.
+          </p>
+        ) : (
         <div className="divide-y divide-rule/40 rounded-lg border border-rule/60">
           {WEEKDAYS.map(({ key, label }) => {
             const day = hours[key];
@@ -531,6 +557,7 @@ function LocationForm({
             );
           })}
         </div>
+        )}
       </fieldset>
 
       <Input

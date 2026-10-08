@@ -13,6 +13,8 @@ export interface SelectOption {
   disabled?: boolean;
   /** Drawn before the label in the list — and on the trigger while this option is chosen. */
   icon?: ReactNode;
+  /** A rule after this option — to set pinned choices (your own country) apart from the rest. */
+  dividerAfter?: boolean;
 }
 
 interface SelectProps {
@@ -105,8 +107,11 @@ function Select({
             contentClassName,
           )}
         >
-          <SelectPrimitive.Viewport className="p-1">
-            {options.map((option) => (
+          {/* Radix hides the viewport's scrollbar with a stylesheet rule; a long list (countries) should
+              show that it scrolls. Inline wins over that rule, and a set scrollbar-width also retires its
+              ::-webkit-scrollbar { display: none } in Chrome and Safari 18.2+. */}
+          <SelectPrimitive.Viewport className="p-1" style={{ scrollbarWidth: 'thin' }}>
+            {options.flatMap((option) => [
               <SelectPrimitive.Item
                 key={option.value}
                 value={option.value || EMPTY_VALUE}
@@ -121,8 +126,9 @@ function Select({
                 <SelectPrimitive.ItemIndicator className="absolute right-3 inline-flex items-center text-measured">
                   <Check size={14} aria-hidden="true" />
                 </SelectPrimitive.ItemIndicator>
-              </SelectPrimitive.Item>
-            ))}
+              </SelectPrimitive.Item>,
+              ...(option.dividerAfter ? [<SelectPrimitive.Separator key={`${option.value}-divider`} className="mx-2 my-1 h-px bg-rule/60" />] : []),
+            ])}
           </SelectPrimitive.Viewport>
         </SelectPrimitive.Content>
       </SelectPrimitive.Portal>

@@ -1,8 +1,14 @@
 import { apiFetch } from './client';
 
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'done' | 'cancelled' | 'expired';
-/** `web`: placed by the business's own website through a storefront API key. */
-export type OrderSource = 'pos' | 'mobile' | 'qr_code' | 'web';
+/**
+ * `web`: placed by the business's own website through a storefront API key.
+ * `manual`: taken by staff in the CRM (phone, email, wholesale) — may be paid later.
+ */
+export type OrderSource = 'pos' | 'mobile' | 'qr_code' | 'web' | 'manual';
+
+/** How a payment taken outside DUMA was made, for an order taken by hand. */
+export type RecordedPaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'custom';
 
 export interface OrderItemModifier {
   id: string;
@@ -252,8 +258,10 @@ export interface CreateOrderItem {
 export interface CreateOrderPayload {
   locationId: string;
   customerId?: string;
-  source: 'pos' | 'mobile';
+  source: 'pos' | 'mobile' | 'manual';
   paymentMethod?: string;
+  /** manual only: already paid outside DUMA by `paymentMethod`. Omit for "pay later". */
+  paid?: boolean;
   notes?: string;
   loyaltyRedemptions?: Array<{
     programId: string;
@@ -291,6 +299,23 @@ export const createRefund = (
 ) => apiFetch<OrderRefund>(`/orders/${id}/refunds`, { method: 'POST', body: JSON.stringify(data) });
 
 export const approveCashOrder = (id: string) => apiFetch<Order>(`/orders/${id}/approve-cash`, { method: 'POST' });
+
+/**
+ * Who an order taken by hand is for, and how it reaches them. `customerId: null`
+ * takes the customer off; a delivery address is also saved to the customer.
+ */
+export const updateOrderDetails = (
+  id: string,
+  data: { customerId?: string | null; fulfilment?: { type: 'collection' | 'delivery'; address?: OrderShippingAddress | null } },
+) => apiFetch<Order>(`/orders/${id}/details`, { method: 'POST', body: JSON.stringify(data) });
+
+/** Add, change or clear an order's note — any order, any status. An empty note clears it. */
+export const updateOrderNotes = (id: string, notes: string) =>
+  apiFetch<Order>(`/orders/${id}/notes`, { method: 'POST', body: JSON.stringify({ notes }) });
+
+/** Record that an unpaid order taken by hand has now been paid, and how. Nothing is charged. */
+export const markOrderPaid = (id: string, paymentMethod: RecordedPaymentMethod) =>
+  apiFetch<Order>(`/orders/${id}/mark-paid`, { method: 'POST', body: JSON.stringify({ paymentMethod }) });
 
 export const getOrders = (params: OrdersParams = {}) => {
   const qs = new URLSearchParams();

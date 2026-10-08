@@ -4,19 +4,26 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { RowTile } from '@/components/cms/rows';
 import { PILL_TONE, TIMELINE_KIND_META } from '@/components/customers/timelineKinds';
 import {
-  AlertTriangle,
+  Activity,
+  CalendarDays,
+  Clock,
   Coins,
-  ExternalLink,
-  Gift,
+  FileText,
   type IconComponent,
   Loader2,
+  Mail,
   MailX,
   RefreshCw,
+  Send,
   ShieldCheck,
   TrendingDown,
   TrendingUp,
+  Type,
+  User,
+  Zap,
 } from '@/components/icons';
 import { Fact } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
@@ -27,12 +34,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import { getEmailDeliveries } from '@/lib/modules/communications/client';
-import { type OrderStatus, getOrder } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { timelineRowText } from '@/lib/utils/customer-timeline';
 import { formatDateTime } from '@/lib/utils/date';
-import type { OrderLoyaltyMovement, TimelineEntry } from '@/types/customers';
+import type { TimelineEntry } from '@/types/customers';
 
 /**
  * The detail behind one timeline row.
@@ -43,25 +49,15 @@ import type { OrderLoyaltyMovement, TimelineEntry } from '@/types/customers';
  * drawer keeps the record underneath: you look at the email that bounced, close
  * it, and carry on down the list.
  *
- * Only orders and emails need a request. Points, consent and privacy entries
+ * An order is not opened here — the timeline gives it the Orders page's own
+ * drawer, which already holds everything about one. Only emails need a request. Points, consent and privacy entries
  * already carry everything they can say, so those open instantly rather than
  * showing a spinner to render four fields the caller already had.
  *
- * Laid out as the audit inspector is: the row's own tile and sentence as the
- * header, then titled sections of label/value rows on the porcelain field.
+ * Laid out as the newer drawers are (Media's file drawer): the row's own tile
+ * and sentence as the header, then titled white cards of rows, each with an
+ * icon tile, its name, and its value on the right.
  */
-
-/** Mirrors the Orders screen's own status vocabulary, in badge terms. */
-const ORDER_STATUS_VARIANT: Record<OrderStatus, 'success' | 'warning' | 'destructive' | 'primary' | 'muted'> = {
-  pending: 'muted',
-  preparing: 'warning',
-  ready: 'primary',
-  done: 'success',
-  cancelled: 'destructive',
-  expired: 'warning',
-};
-
-type Money = (amount: string | number | null | undefined) => string;
 
 interface Props {
   entry: TimelineEntry;
@@ -105,12 +101,7 @@ export function TimelineEntryDrawer({ entry, customerId, tenantId, onRetryEmail,
       }
       onClose={onClose}
       footer={
-        entry.kind === 'order' ? (
-          <Button size="lg" variant="outline" onClick={() => router.push(`/orders?order=${entry.id}`)} className="w-full">
-            <ExternalLink data-icon="inline-start" />
-            Open in Orders
-          </Button>
-        ) : entry.kind === 'email' && entry.status === 'failed' && onRetryEmail ? (
+        entry.kind === 'email' && entry.status === 'failed' && onRetryEmail ? (
           <Button size="lg" onClick={() => onRetryEmail(entry.id)} disabled={retryPending} className="w-full">
             {retryPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw data-icon="inline-start" />}
             {retryPending ? 'Queueing…' : 'Try sending again'}
@@ -123,9 +114,7 @@ export function TimelineEntryDrawer({ entry, customerId, tenantId, onRetryEmail,
         ) : undefined
       }
     >
-      {entry.kind === 'order' ? (
-        <OrderDetailBody orderId={entry.id} loyalty={entry.loyalty ?? []} points={entry.points ?? null} money={money} />
-      ) : entry.kind === 'email' ? (
+      {entry.kind === 'email' ? (
         <EmailDetailBody entry={entry} customerId={customerId} tenantId={tenantId} />
       ) : entry.kind === 'points' ? (
         <PointsDetailBody entry={entry} />
@@ -135,175 +124,6 @@ export function TimelineEntryDrawer({ entry, customerId, tenantId, onRetryEmail,
         <PrivacyDetailBody entry={entry} />
       )}
     </Drawer>
-  );
-}
-
-// ── Order ─────────────────────────────────────────────────────────────────
-
-const CHANNEL: Record<string, string> = { pos: 'At the till', qr_code: 'QR code' };
-
-function OrderDetailBody({
-  orderId,
-  loyalty,
-  points,
-  money,
-}: {
-  orderId: string;
-  loyalty: OrderLoyaltyMovement[];
-  points: TimelineEntry['points'];
-  money: Money;
-}) {
-  const {
-    data: order,
-    isPending,
-    isError,
-    refetch,
-  } = useQuery({ queryKey: moduleQueryKeys.ordering.key('order', orderId), queryFn: () => getOrder(orderId) });
-
-  if (isPending) return <LoadingState label="Loading the order" />;
-  if (isError || !order) return <ErrorState title="This order couldn’t be loaded" onRetry={() => void refetch()} />;
-
-  const discount = Number(order.discountAmount ?? 0);
-  const refunded = (order.refunds ?? []).reduce((sum, refund) => sum + Number(refund.amount), 0);
-
-  return (
-    <div className="space-y-6">
-      <section>
-        <SectionTitle>The order</SectionTitle>
-        <Panel>
-          <Row label="Status">
-            <Badge variant={ORDER_STATUS_VARIANT[order.status]}>
-              <span className="capitalize">{order.status}</span>
-            </Badge>
-            {order.refundStatus && order.refundStatus !== 'none' && (
-              <Badge variant="destructive">{order.refundStatus === 'refunded' ? 'Refunded' : 'Part refunded'}</Badge>
-            )}
-          </Row>
-          <Row label="Total">
-            <span className="font-semibold tabular-nums">{money(order.totalAmount)}</span>
-          </Row>
-          {discount > 0 && (
-            <Row label="Discount">
-              <span className="tabular-nums">−{money(discount)}</span>
-            </Row>
-          )}
-          {refunded > 0 && (
-            <Row label="Refunded">
-              <span className="tabular-nums text-exception">−{money(refunded)}</span>
-            </Row>
-          )}
-          <Row label="Payment">{order.paymentMethod === 'cash' ? 'Cash' : 'Card'}</Row>
-          <Row label="Taken">{CHANNEL[order.source] ?? 'Mobile'}</Row>
-          <Row label="Reference">
-            <span className="font-mono text-xs uppercase">#{order.id.slice(0, 8)}</span>
-          </Row>
-        </Panel>
-      </section>
-
-      <section>
-        <SectionTitle>
-          {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
-        </SectionTitle>
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-          {order.items.map((item) => (
-            <li key={item.id} className="border-b border-rule/45 px-3.5 py-3 last:border-b-0">
-              <div className="flex items-start justify-between gap-3">
-                <p className="min-w-0 text-sm text-foreground">
-                  <span className="font-semibold tabular-nums">{item.quantity}×</span> {item.name}
-                </p>
-                <span data-figure className="shrink-0 text-sm tabular-nums text-foreground">
-                  {money(item.subtotal)}
-                </span>
-              </div>
-              {(item.modifiers?.length ?? 0) > 0 && (
-                <p className="mt-0.5 text-xs text-muted-foreground">{item.modifiers!.map((modifier) => modifier.name).join(', ')}</p>
-              )}
-              {item.notes && <p className="mt-0.5 text-xs italic text-muted-foreground">{item.notes}</p>}
-              {(item.allergens?.length ?? 0) > 0 && (
-                <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-exception">
-                  <AlertTriangle size={12} aria-hidden="true" />
-                  {item.allergens!.join(', ')}
-                </p>
-              )}
-              {item.allergenCoverage === 'missing_recipe' && (
-                <p className="mt-1 flex items-start gap-1.5 text-xs font-semibold text-warning" role="alert">
-                  <AlertTriangle size={12} className="mt-px shrink-0" aria-hidden="true" />
-                  Allergen check incomplete — no recipe was recorded for this sold item.
-                </p>
-              )}
-              {item.refundStatus && item.refundStatus !== 'none' && (
-                <p className="mt-1 text-xs text-exception">{item.refundStatus === 'refunded' ? 'Refunded' : 'Partly refunded'}</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {(loyalty.length > 0 || points) && (
-        <section>
-          <SectionTitle>Rewards and points</SectionTitle>
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-            {points && (
-              <IconRow
-                icon={Coins}
-                tile="bg-stock/10 text-stock"
-                title={`Points ${points.delta >= 0 ? 'earned' : 'reversed'}`}
-                detail={`Balance after this order: ${points.balanceAfter.toLocaleString()}`}
-                figure={`${points.delta >= 0 ? '+' : '−'}${Math.abs(points.delta).toLocaleString()} pts`}
-                tone={points.delta >= 0 ? 'good' : 'bad'}
-              />
-            )}
-            {loyalty.map((movement, index) => {
-              const amount = Math.abs(movement.delta);
-              return (
-                <IconRow
-                  key={`${movement.programId}-${movement.source}-${index}`}
-                  icon={Gift}
-                  tile="bg-stock/10 text-stock"
-                  title={movement.programName}
-                  detail={
-                    movement.source === 'order_earn'
-                      ? 'Earned with this order'
-                      : movement.source === 'redemption'
-                        ? 'Used on this order'
-                        : 'Adjusted when this order changed'
-                  }
-                  figure={`${movement.delta > 0 ? '+' : '−'}${amount} ${amount === 1 ? movement.unitSingular : movement.unitPlural}`}
-                  tone={movement.delta > 0 ? 'good' : 'bad'}
-                />
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
-      {(order.refunds?.length ?? 0) > 0 && (
-        <section>
-          <SectionTitle>Refunds</SectionTitle>
-          <ul className="overflow-hidden rounded-lg border border-exception/30 bg-exception/5">
-            {order.refunds!.map((refund) => (
-              <li key={refund.id} className="border-b border-exception/20 px-3.5 py-3 last:border-b-0">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold capitalize text-exception">{refund.reason.replaceAll('_', ' ')}</span>
-                  <span data-figure className="text-sm tabular-nums text-exception">
-                    −{money(refund.amount)}
-                  </span>
-                </div>
-                {refund.notes && <p className="mt-0.5 text-xs text-muted-foreground">{refund.notes}</p>}
-                <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(refund.createdAt)}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {order.notes && (
-        <section>
-          <SectionTitle>Order notes</SectionTitle>
-          <p className="rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-sm text-foreground">{order.notes}</p>
-        </section>
-      )}
-    </div>
   );
 }
 
@@ -330,13 +150,13 @@ function EmailDetailBody({ entry, customerId, tenantId }: { entry: TimelineEntry
       <section>
         <SectionTitle>The message</SectionTitle>
         <Panel>
-          <Row label="Subject">
+          <Row icon={Type} label="Subject">
             <span className="font-semibold wrap-break-word">{entry.subject ?? delivery?.subject ?? '—'}</span>
           </Row>
-          <Row label="To">
+          <Row icon={Mail} label="To">
             <span className="break-all">{entry.toEmail ?? delivery?.toEmail ?? '—'}</span>
           </Row>
-          <Row label="Status">
+          <Row icon={Activity} label="Status">
             <span className="capitalize">{entry.status}</span>
             {delivery && delivery.attemptCount > 1 && (
               <span className="text-xs text-muted-foreground">
@@ -345,12 +165,20 @@ function EmailDetailBody({ entry, customerId, tenantId }: { entry: TimelineEntry
             )}
           </Row>
           {entry.trigger && (
-            <Row label="Sent because">
+            <Row icon={Zap} label="Sent because">
               <span className="capitalize">{entry.trigger.replaceAll('_', ' ')}</span>
             </Row>
           )}
-          {delivery?.template?.name && <Row label="Template">{delivery.template.name}</Row>}
-          {delivery?.sentAt && <Row label="Sent at">{formatDateTime(delivery.sentAt)}</Row>}
+          {delivery?.template?.name && (
+            <Row icon={FileText} label="Template">
+              {delivery.template.name}
+            </Row>
+          )}
+          {delivery?.sentAt && (
+            <Row icon={Send} label="Sent at">
+              {formatDateTime(delivery.sentAt)}
+            </Row>
+          )}
         </Panel>
       </section>
 
@@ -427,7 +255,7 @@ function ConsentDetailBody({ entry }: { entry: TimelineEntry }) {
       <section>
         <SectionTitle>The change</SectionTitle>
         <Panel>
-          <Row label="Now">
+          <Row icon={ShieldCheck} label="Now">
             <span className="font-semibold">
               {entry.action === 'opted_in'
                 ? 'Opted in to marketing'
@@ -436,11 +264,11 @@ function ConsentDetailBody({ entry }: { entry: TimelineEntry }) {
                   : 'Address suppressed'}
             </span>
           </Row>
-          <Row label="Recorded by">
+          <Row icon={User} label="Recorded by">
             <span className="capitalize">{(entry.source ?? '—').replaceAll('_', ' ')}</span>
           </Row>
           {entry.reason && (
-            <Row label="Wording">
+            <Row icon={FileText} label="Wording">
               <span className="wrap-break-word">{entry.reason}</span>
             </Row>
           )}
@@ -460,13 +288,19 @@ function PrivacyDetailBody({ entry }: { entry: TimelineEntry }) {
       <section>
         <SectionTitle>The request</SectionTitle>
         <Panel>
-          <Row label="Status">
+          <Row icon={Activity} label="Status">
             <Badge variant={entry.status === 'completed' ? 'success' : entry.status === 'declined' ? 'muted' : 'warning'}>
               <span className="capitalize">{(entry.status ?? '').replaceAll('_', ' ')}</span>
             </Badge>
           </Row>
-          <Row label="Received">{formatDateTime(entry.at)}</Row>
-          {entry.dueAt && <Row label="Due">{formatDateTime(entry.dueAt)}</Row>}
+          <Row icon={CalendarDays} label="Received">
+            {formatDateTime(entry.at)}
+          </Row>
+          {entry.dueAt && (
+            <Row icon={Clock} label="Due">
+              {formatDateTime(entry.dueAt)}
+            </Row>
+          )}
         </Panel>
       </section>
       <p className="text-xs leading-relaxed text-muted-foreground">
@@ -476,52 +310,26 @@ function PrivacyDetailBody({ entry }: { entry: TimelineEntry }) {
   );
 }
 
-// ── Pieces — the audit inspector's ────────────────────────────────────────
+// ── Pieces — the newer drawers' ───────────────────────────────────────────
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-sm font-semibold text-foreground">{children}</h3>;
+  return <h3 className="mb-2 flex min-h-7 items-center text-sm font-semibold text-foreground">{children}</h3>;
 }
 
+/** One white card of rows, as Media's file drawer groups its details. */
 function Panel({ children }: { children: React.ReactNode }) {
-  return <dl className="overflow-hidden rounded-lg border border-rule/60 bg-field">{children}</dl>;
+  return <dl className="overflow-hidden rounded-lg border border-rule/60 bg-control">{children}</dl>;
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+/** Tile and name on the left, the value on the right — wrapping, since a subject or an address can be long. */
+function Row({ icon, label, children }: { icon: IconComponent; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-baseline gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
-      <dt className="w-24 shrink-0 text-xs text-muted-foreground">{label}</dt>
-      <dd className="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5 text-sm text-foreground">{children}</dd>
+    <div className="flex items-center gap-3 border-b border-rule/45 px-4 py-2.5 last:border-b-0">
+      <RowTile icon={icon} />
+      <dt className="w-24 shrink-0 text-sm font-semibold text-foreground">{label}</dt>
+      <dd className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5 text-right text-sm text-muted-foreground">
+        {children}
+      </dd>
     </div>
-  );
-}
-
-function IconRow({
-  icon: Icon,
-  tile,
-  title,
-  detail,
-  figure,
-  tone,
-}: {
-  icon: IconComponent;
-  tile: string;
-  title: string;
-  detail: string;
-  figure: string;
-  tone: 'good' | 'bad';
-}) {
-  return (
-    <li className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
-      <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', tile)}>
-        <Icon size={16} aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{title}</span>
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{detail}</span>
-      </span>
-      <span className={cn('shrink-0 text-sm font-semibold tabular-nums', tone === 'good' ? 'text-momentum' : 'text-exception')}>
-        {figure}
-      </span>
-    </li>
   );
 }

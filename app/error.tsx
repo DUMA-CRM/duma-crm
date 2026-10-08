@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from 'react';
 
 import { AlertTriangle, Clock, CloudOff, Lock, LogIn, RefreshCw, RotateCcw, Search, Server, Timer, WifiOff } from '@/components/icons';
-import { describeError, type ErrorKind } from '@/lib/utils/error-message';
+
+import { type ErrorKind, describeError } from '@/lib/utils/error-message';
 
 // Route-level error boundary — a render/runtime throw in any page lands here
 // instead of white-screening the app.
@@ -127,8 +128,11 @@ export default function ErrorPage({ error, unstable_retry }: { error: Error & { 
           <RotateCcw
             size={15}
             aria-hidden="true"
-            className={retrying ? 'animate-spin [animation-direction:reverse]' : undefined}
-            style={spin ? { animationDelay: `-${spin.delay}ms` } : undefined}
+            className={retrying ? 'animate-spin' : undefined}
+            // Counter-clockwise, the way the arrow points — "go back and try again". Inline,
+            // because `animate-spin` is the `animation` shorthand, which resets the direction
+            // whenever its rule lands after a class that set it.
+            style={retrying ? { animationDirection: 'normal', animationDelay: spin ? `-${spin.delay}ms` : undefined } : undefined}
           />
           {description.actionLabel}
         </button>

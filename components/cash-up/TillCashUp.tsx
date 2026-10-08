@@ -49,6 +49,7 @@ import {
   toMinor,
 } from '@/lib/utils/cash-count';
 import { cn } from '@/lib/utils/cn';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
@@ -69,7 +70,7 @@ const DATE = (key: string, style: 'short' | 'long' = 'short') =>
     'en-GB',
     style === 'long' ? { weekday: 'long', day: 'numeric', month: 'long' } : { weekday: 'short', day: 'numeric', month: 'short' },
   );
-const TIME = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const TIME = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 
 /** Today where the site is, not where the browser is — a trading day belongs to the site. */
 export function tradingDateIn(timeZone: string) {

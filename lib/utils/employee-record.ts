@@ -11,6 +11,7 @@
 // ---------------------------------------------------------------------------
 import type { HelpdeskTicket } from '@/lib/modules/people/client';
 import type { ComplianceCheck } from '@/lib/utils/employee-compliance';
+import { zonedParts } from './workspace-time.ts';
 
 export type RecordAttentionSeverity = 'blocking' | 'attention' | 'info';
 
@@ -205,14 +206,16 @@ export function recordRequestList(tickets: HelpdeskTicket[], limit = 5): Helpdes
 const localIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /**
- * The calendar month `offset` months before `now`, as local dates. Built with
- * `toISOString()` until 2026-09-26, which is UTC: east of Greenwich — the UK
- * all summer — midnight on the 1st is still the previous day, so September
- * began on 31 August and every timesheet took the last day of the month before.
+ * The calendar month `offset` months before `now` (in the workspace zone), as
+ * local dates. Built with `toISOString()` until 2026-09-26, which is UTC: east
+ * of Greenwich — the UK all summer — midnight on the 1st is still the previous
+ * day, so September began on 31 August and every timesheet took the last day
+ * of the month before.
  */
 export function monthRangeOf(now: Date, offset: number): { from: string; to: string; label: string } {
-  const start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-  const end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 0);
+  const { year, month } = zonedParts(now);
+  const start = new Date(year, month - 1 - offset, 1);
+  const end = new Date(year, month - offset, 0);
   return {
     from: localIso(start),
     to: localIso(end),

@@ -29,6 +29,7 @@ import type { DailyOrderAnalytics, OrderAnalyticsBreakdown, OrderAnalyticsSummar
 import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
 import { getHourlyVolume, getTopItems } from '@/lib/modules/analytics/client';
 import { REPORTS, REPORT_CATEGORIES, type ReportDefinition, type ReportId, searchReports } from '@/lib/reports/catalogue';
+import { type ReportContext, reportRelevance, splitReports } from '@/lib/reports/relevance';
 import { cn } from '@/lib/utils/cn';
 import { compactMoney } from '@/lib/utils/report-chart';
 import {
@@ -42,9 +43,9 @@ import {
   rangeDates,
   rangeDays,
   suggestedGranularity,
-  toDateKey,
 } from '@/lib/utils/report-filters';
 import { type PeriodTarget, periodTarget, primeCostBand, targetDays } from '@/lib/utils/report-profit';
+import { workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 
 import { BAND_LOOK, ProfitBar, usePrimeCost } from './catalogue/ProfitReports';
@@ -54,6 +55,7 @@ import { DEFAULT_REPORT_ICON, REPORT_ICON } from './kit/ReportFrame';
 import { ChangePill, ReportError, TrendChart, TrendLegend } from './kit/parts';
 import { useRangeQuery } from './kit/useRangeQuery';
 import { type ReportFilterState, useReportFilters } from './kit/useReportFilters';
+import { useReportContext } from './kit/useReportRelevance';
 
 const FAVOURITES_KEY = 'duma:report-favourites';
 const num = (value: string | number | null | undefined) => Number(value ?? 0) || 0;
@@ -102,8 +104,18 @@ export function ReportsHome() {
   const [search, setSearch] = useState('');
   const { favourites, toggle } = useFavourites();
 
-  const available = useMemo(() => REPORTS.filter((report) => hasAnyCapability(capabilities, ...report.anyOf)), [capabilities]);
+  const context = useReportContext(filters);
+  // Who may open a report (capabilities), then whether it would say anything here (modules, sites, channels).
+  const { shown: available, hidden } = useMemo(
+    () =>
+      splitReports(
+        REPORTS.filter((report) => hasAnyCapability(capabilities, ...report.anyOf)),
+        context,
+      ),
+    [capabilities, context],
+  );
   const matches = searchReports(available, search);
+  const hiddenMatches = search ? hidden.filter((entry) => searchReports([entry.report], search).length > 0) : [];
   const starred = available.filter((report) => favourites.includes(report.id));
 
   return (
@@ -129,7 +141,7 @@ export function ReportsHome() {
         animate="shown"
         variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
       >
-        {hasCapability(capabilities, 'analytics:read') && <Overview filters={filters} />}
+        {hasCapability(capabilities, 'analytics:read') && <Overview filters={filters} context={context} />}
 
         <motion.section variants={SECTION_RISE} aria-labelledby="report-library-title" className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -165,7 +177,9 @@ export function ReportsHome() {
               <ReportList reports={matches} query={filters.query} favourites={favourites} onToggle={toggle} />
             ) : (
               <p className="rounded-lg border border-dashed border-rule/60 px-4 py-6 text-center text-sm text-muted-foreground">
-                No report matches “{search}”.
+                {hiddenMatches.length > 0
+                  ? hiddenMatches.map((entry) => `${entry.report.title} is hidden: ${entry.reason}.`).join(' ')
+                  : `No report matches “${search}”.`}
               </p>
             )
           ) : (
@@ -188,6 +202,7 @@ export function ReportsHome() {
               })}
             </div>
           )}
+          {!search && hidden.length > 0 && <HiddenReports hidden={hidden} />}
         </motion.section>
       </motion.div>
     </EditorShell>
@@ -196,13 +211,15 @@ export function ReportsHome() {
 
 // ── The period ───────────────────────────────────────────────────────────────
 
-function Overview({ filters }: { filters: ReportFilterState }) {
+function Overview({ filters, context }: { filters: ReportFilterState; context: ReportContext }) {
   const capabilities = useAuthStore((state) => state.capabilities);
   const sales = useOrderAnalytics(filters);
   const target = periodTarget(filters.locations, filters.filters.locationId);
   const days = sales.data ? fillDays(sales.data.daily, filters.range, (row) => num(row.revenue)) : [];
   // Profit needs recipe costs as well as sales; without `recipes:read` there's no food cost to show.
-  const showProfit = hasCapability(capabilities, 'recipes:read');
+  // …and a kitchen with recipes, stock and a rota — the same test as the Prime cost report.
+  const showProfit = hasCapability(capabilities, 'recipes:read') && reportRelevance('prime-cost', context).relevant;
+  const showChannel = reportRelevance('sales-by-channel', context).relevant;
 
   if (sales.isError) return <ReportError what="Your sales" onRetry={sales.refetch} />;
 
@@ -218,7 +235,14 @@ function Overview({ filters }: { filters: ReportFilterState }) {
         target={target}
       />
       <div className={cn('grid gap-6', showProfit && 'lg:grid-cols-2')}>
-        <WorthKnowing filters={filters} daily={days} bySource={sales.data?.bySource ?? []} loading={sales.isPending} target={target} />
+        <WorthKnowing
+          filters={filters}
+          daily={days}
+          bySource={sales.data?.bySource ?? []}
+          loading={sales.isPending}
+          target={target}
+          showChannel={showChannel}
+        />
         {showProfit && <ProfitPanel filters={filters} />}
       </div>
     </>
@@ -269,7 +293,7 @@ function SalesPanel({
   const comparisonLabel = filters.filters.compare === 'year' ? 'Last year' : 'Period before';
 
   // The target for the days that have happened, so a month in progress isn't judged on days to come.
-  const todayKey = toDateKey(new Date());
+  const todayKey = workspaceDateKey();
   const elapsed = fillDays([], filters.range, () => 0).filter((day) => day.date <= todayKey).length;
   const goal = target ? target.daily * elapsed : null;
 
@@ -440,12 +464,15 @@ function WorthKnowing({
   bySource,
   loading,
   target,
+  showChannel,
 }: {
   filters: ReportFilterState;
   daily: { date: string; value: number }[];
   bySource: OrderAnalyticsBreakdown[];
   loading: boolean;
   target: PeriodTarget | null;
+  /** One channel leads nothing — the line goes with the report. */
+  showChannel: boolean;
 }) {
   const money = useWorkspaceMoney();
   const hourly = useRangeQuery(
@@ -466,7 +493,7 @@ function WorthKnowing({
   const top = [...(items.data ?? [])].sort((a, b) => num(b.totalRevenue) - num(a.totalRevenue))[0];
   const channelTotal = bySource.reduce((sum, row) => sum + num(row.revenue), 0);
   const leading = [...bySource].sort((a, b) => num(b.revenue) - num(a.revenue))[0];
-  const hit = target ? targetDays(daily, target.daily, toDateKey(new Date())) : null;
+  const hit = target ? targetDays(daily, target.daily, workspaceDateKey()) : null;
   const hour = (value: number) => `${String(value).padStart(2, '0')}:00`;
   const share = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : '');
 
@@ -511,14 +538,18 @@ function WorthKnowing({
       href: link('item-sales'),
       pending: items.isPending,
     },
-    {
-      icon: (SOURCE_META as Partial<Record<string, { icon: IconComponent }>>)[leading?.source ?? '']?.icon ?? Store,
-      label: 'Leading channel',
-      value: leading ? (CHANNEL_LABEL[leading.source ?? ''] ?? leading.source ?? '—') : '—',
-      detail: leading ? `${share(num(leading.revenue), channelTotal)} of net sales` : undefined,
-      href: link('sales-by-channel'),
-      pending: loading,
-    },
+    ...(showChannel
+      ? [
+          {
+            icon: (SOURCE_META as Partial<Record<string, { icon: IconComponent }>>)[leading?.source ?? '']?.icon ?? Store,
+            label: 'Leading channel',
+            value: leading ? (CHANNEL_LABEL[leading.source ?? ''] ?? leading.source ?? '—') : '—',
+            detail: leading ? `${share(num(leading.revenue), channelTotal)} of net sales` : undefined,
+            href: link('sales-by-channel'),
+            pending: loading,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -674,6 +705,31 @@ function Category({
       </h3>
       <ReportList {...list} />
     </section>
+  );
+}
+
+/**
+ * The reports set aside because they'd say nothing here — named, with why, so
+ * a missing report is never a mystery. Folded away: it's a footnote.
+ */
+function HiddenReports({ hidden }: { hidden: Array<{ report: ReportDefinition; reason: string }> }) {
+  return (
+    <details className="group px-1 text-sm text-muted-foreground">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-sm text-xs hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+        <ChevronRight size={12} className="transition-transform group-open:rotate-90" aria-hidden="true" />
+        {hidden.length} {hidden.length === 1 ? 'report doesn’t' : 'reports don’t'} apply to this workspace
+      </summary>
+      <ul className="mt-2 space-y-1 pl-[1.125rem] text-xs">
+        {hidden.map(({ report, reason }) => (
+          <li key={report.id}>
+            <span className="font-medium text-foreground">{report.title}</span> — {reason}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 pl-[1.125rem] text-xs">
+        They come back on their own when that changes — a second site, or a module switched on in Settings.
+      </p>
+    </details>
   );
 }
 

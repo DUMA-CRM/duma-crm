@@ -229,7 +229,8 @@ export function zonedNow(timeZone: string, now = new Date()) {
  * before the open is the late shift — it runs past midnight into the next day.
  */
 export function isWithinHours(time: string, open: string, close: string) {
-  if (close === open) return false;
+  // 00:00–00:00 is "open 24/7" (Settings → location → Open 24/7). Any other empty window stays closed.
+  if (close === open) return open === '00:00';
   return close > open ? time >= open && time < close : time >= open || time < close;
 }
 

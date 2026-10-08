@@ -1,84 +1,93 @@
 'use client';
 
-import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 
-import { ArrowUpRight, Coffee } from '@/components/icons';
-import { Bone } from '@/components/shared/Skeleton';
-import { Tooltip } from '@/components/shared/Tooltip';
+import { ModuleCard } from '@/components/dashboard/ModuleCards';
+import { Award, Coffee, Tag } from '@/components/icons';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
-import { Button } from '@/components/ui/button';
 
+import { proxiedImage } from '@/lib/api/client';
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import type { TopItemAnalytics } from '@/lib/modules/analytics/client';
+import { getMenuItems } from '@/lib/modules/catalog/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { cn } from '@/lib/utils/cn';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-/* What is actually selling today, ranked by quantity net of refunds. Lifted from
-   the previous dashboard, which had this right — a ruled list with bar length as
-   the second channel, not a pie chart. */
+/* What is actually selling today, ranked by quantity net of refunds — the
+   Stock health card's frame: every item with its photo, its name and the
+   count large, the first marked as the best seller. */
 
 export function TopItemsToday({ rows, loading }: { rows: TopItemAnalytics[]; loading: boolean }) {
   const formatMoney = useFormatMoney();
-  const max = Math.max(...rows.map((row) => Number(row.totalQuantity ?? 0)), 1);
+  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const { tools, section } = useCatalogWords();
+  // The products list's own query and cache — photos without another request when it's warm.
+  const items = useQuery({
+    queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId),
+    queryFn: () => getMenuItems(tenantId ?? undefined),
+    enabled: !!tenantId && rows.length > 0,
+  });
+  const photo = new Map((items.data ?? []).map((item) => [item.id, proxiedImage(item.imageUrl)]));
+  const quantity = (row: TopItemAnalytics) => Number(row.totalQuantity ?? 0);
+  const best = rows[0];
+  const Fallback = tools.kitchen ? Coffee : Tag;
 
   return (
-    <div className="rounded-lg border border-rule/65 bg-card p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-base font-semibold tracking-title text-foreground">Selling today</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">Ranked by quantity, net of refunds</p>
-        </div>
-        <Tooltip label="Menu" side="top" className="shrink-0">
-          <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground">
-            <Link href="/menu" aria-label="Open the menu">
-              <ArrowUpRight size={15} aria-hidden="true" />
-            </Link>
-          </Button>
-        </Tooltip>
-      </div>
-
-      {loading ? (
-        <ul className="mt-5 space-y-3.5" role="status" aria-busy="true" aria-label="Loading what’s selling today">
-          {['w-36', 'w-28', 'w-40', 'w-24', 'w-32'].map((width) => (
-            <li key={width} aria-hidden="true">
-              <div className="mb-1.5 flex items-center gap-3">
-                <span className="w-3" />
-                <span className="min-w-0 flex-1">
-                  <Bone className={`h-3.5 ${width} max-w-full`} />
-                </span>
-                <Bone className="h-3 w-5 shrink-0" />
-                <Bone className="h-3 w-12 shrink-0" />
+    <ModuleCard
+      title="Selling today"
+      subtitle="Ranked by quantity, net of refunds"
+      href="/menu/items"
+      hrefLabel={`Open ${section.toLowerCase()}`}
+      loading={loading}
+      error={false}
+      onRetry={() => undefined}
+      empty={
+        rows.length === 0
+          ? { icon: Coffee, title: 'Nothing sold yet today', description: 'Your best sellers appear here as orders come in.' }
+          : undefined
+      }
+    >
+      {best && (
+        // Every item drawn the same way — photo, name, the count large and what it took;
+        // only the first carries the Best seller mark.
+        <ol className="space-y-4">
+          {rows.map((row, index) => (
+            <li key={`${row.menuItemId}-${row.name}`} className="flex items-center gap-3">
+              <Thumb src={photo.get(row.menuItemId)} fallback={Fallback} className="size-12 rounded-lg" />
+              <div className="min-w-0 flex-1">
+                {index === 0 && (
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Award size={12} className="text-measured" aria-hidden="true" />
+                    Best seller
+                  </p>
+                )}
+                <p className="truncate text-base font-semibold text-foreground">{row.name}</p>
               </div>
-              <Bone className="ml-6 h-1.5 rounded-full" />
+              <p className="shrink-0 text-right">
+                <span data-figure className="block text-2xl font-semibold leading-none tracking-figure text-foreground">
+                  {quantity(row)}
+                </span>
+                <span data-figure className="text-xs text-muted-foreground">
+                  sold · {formatMoney(Number(row.totalRevenue ?? 0))}
+                </span>
+              </p>
             </li>
           ))}
-        </ul>
-      ) : rows.length === 0 ? (
-        <div className="mt-5 flex h-32 flex-col items-center justify-center gap-2 text-center">
-          <Coffee size={20} className="text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">Nothing sold yet today.</p>
-        </div>
-      ) : (
-        <ul className="mt-5 space-y-3.5">
-          {rows.map((row, index) => {
-            const quantity = Number(row.totalQuantity ?? 0);
-            return (
-              <li key={`${row.menuItemId}-${row.name}`}>
-                <div className="mb-1.5 flex items-baseline gap-3">
-                  <span className="w-3 text-xs font-semibold text-muted-foreground">{index + 1}</span>
-                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{row.name}</p>
-                  <p data-figure className="shrink-0 text-xs font-semibold text-foreground">
-                    {quantity}
-                  </p>
-                  <p data-figure className="w-16 shrink-0 text-right text-xs text-muted-foreground">
-                    {formatMoney(Number(row.totalRevenue ?? 0))}
-                  </p>
-                </div>
-                <div className="ml-6 h-1.5 overflow-hidden rounded-full bg-band">
-                  <div className="h-full rounded-full bg-measured/70" style={{ width: `${(quantity / max) * 100}%` }} />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        </ol>
       )}
-    </div>
+    </ModuleCard>
+  );
+}
+
+/** The item's photo, or a quiet tile when it has none (or can't be read). */
+function Thumb({ src, fallback: Fallback, className }: { src: string | null | undefined; fallback: typeof Coffee; className: string }) {
+  return src ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" className={cn('shrink-0 bg-band object-cover', className)} />
+  ) : (
+    <span className={cn('flex shrink-0 items-center justify-center bg-band text-muted-foreground', className)} aria-hidden="true">
+      <Fallback size={15} />
+    </span>
   );
 }

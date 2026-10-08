@@ -2,6 +2,7 @@ import type { StaffProfile } from '@/lib/modules/identity/client';
 import type { ScheduledShift, ScheduledShiftStatus, VarianceRow } from '@/lib/modules/workforce/client';
 import type { Shift } from '@/lib/modules/workforce/client';
 import { formatDate } from '@/lib/utils/date';
+import { formatCalendarDate, formatInstant, workspaceDateKey, zonedParts, zonedToInstant } from '@/lib/utils/workspace-time';
 
 // ── Form styles ───────────────────────────────────────────────────────────────
 
@@ -51,13 +52,15 @@ export function toDateInput(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** `HH:MM` of an instant on the workspace clock — what the time inputs edit. */
 export function toTimeInput(d: Date): string {
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return zonedParts(d).time;
 }
 
-export const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+export const fmtTime = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 export const fmtDate = (iso: string) => formatDate(iso);
-export const fmtDayHeading = (iso: string) => `${new Date(iso).toLocaleDateString('en-GB', { weekday: 'long' })}, ${formatDate(iso)}`;
+/** A day heading for a calendar date (`YYYY-MM-DD…`) — written as is, never shifted by a zone. */
+export const fmtDayHeading = (key: string) => `${formatCalendarDate(key, { weekday: 'long' })}, ${formatDate(key.slice(0, 10))}`;
 
 /**
  * "4 – 10 Aug 2026", collapsing the parts both ends share; a single day is just
@@ -95,11 +98,18 @@ export const fmtHours = (mins: number) => {
 export const shiftMinutes = (s: { startsAt: string; endsAt: string }) =>
   Math.max(0, (new Date(s.endsAt).getTime() - new Date(s.startsAt).getTime()) / 60000);
 
-/** Combine a date + start/end times into ISO timestamps; an end at or before the start rolls to the next day (overnight shift). */
+/**
+ * Combine a date + start/end times, read on the workspace clock, into ISO
+ * timestamps; an end at or before the start rolls to the next day (overnight shift).
+ */
 export function toShiftTimes(dateStr: string, startTime: string, endTime: string): { startsAt: string; endsAt: string } {
-  const starts = new Date(`${dateStr}T${startTime}`);
-  const ends = new Date(`${dateStr}T${endTime}`);
-  if (ends <= starts) ends.setDate(ends.getDate() + 1);
+  const starts = zonedToInstant(dateStr, startTime) ?? new Date(NaN);
+  let ends = zonedToInstant(dateStr, endTime) ?? new Date(NaN);
+  if (ends <= starts) {
+    const next = new Date(`${dateStr}T12:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    ends = zonedToInstant(next.toISOString().slice(0, 10), endTime) ?? new Date(NaN);
+  }
   return { startsAt: starts.toISOString(), endsAt: ends.toISOString() };
 }
 
@@ -176,8 +186,8 @@ export function staffLabel(profile: StaffProfile | undefined, fallback?: string)
   return profile?.name ?? profile?.email ?? fallback ?? 'Unknown';
 }
 
-/** Local YYYY-MM-DD for an instant — rows group by the day the shift starts. */
-export const dayKey = (iso: string) => toDateInput(new Date(iso));
+/** Workspace-day YYYY-MM-DD for an instant — rows group by the day the shift starts. */
+export const dayKey = (iso: string) => workspaceDateKey(iso);
 
 export function workStateOf(shift: ScheduledShift | null, variance: VarianceRow | undefined, clocked: Shift[], now: number): WorkState {
   if (shift?.status === 'cancelled') return 'cancelled';

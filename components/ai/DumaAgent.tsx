@@ -62,6 +62,7 @@ import type {
   AgentStreamEvent,
 } from '@/lib/ai/agent-types';
 import type { AgentRefusal } from '@/lib/ai/agent-types';
+import { ASK_DUMA_EVENT, type AskDumaDetail } from '@/lib/ai/ask-duma';
 import { visibleAnswer } from '@/lib/ai/conversation';
 import { flushAgentHistoryOutbox, queueAgentTurn } from '@/lib/ai/history-outbox';
 import { parsePriorityBrief } from '@/lib/ai/priority-brief';
@@ -934,6 +935,26 @@ function DumaAgentPanel() {
     setOpen(true);
     setMinimized(false);
   };
+
+  // `askDuma(prompt)` from any screen: open, with the question typed and the caret after it.
+  useEffect(() => {
+    const onAsk = (event: Event) => {
+      const prompt = (event as CustomEvent<AskDumaDetail>).detail?.prompt?.trim();
+      if (!prompt) return;
+      if (document.activeElement instanceof HTMLElement) openerRef.current = document.activeElement;
+      setDraft(prompt);
+      setOpen(true);
+      setMinimized(false);
+      window.setTimeout(() => {
+        const input = inputRef.current;
+        if (!input) return;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      }, 120);
+    };
+    window.addEventListener(ASK_DUMA_EVENT, onAsk);
+    return () => window.removeEventListener(ASK_DUMA_EVENT, onAsk);
+  }, []);
 
   // Ctrl/⌘+J opens and closes it from anywhere, as Linear and Microsoft Copilot do.
   useEffect(() => {

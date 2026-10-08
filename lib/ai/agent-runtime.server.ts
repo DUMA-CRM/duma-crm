@@ -139,7 +139,8 @@ export class AgentRuntime {
   /** Timezone of a location, falling back to the UK the whole product assumes. */
   async timezone(id: string | null | undefined) {
     const locations = await this.locations().catch(() => [] as Location[]);
-    return locations.find((row) => row.id === id)?.timezone || 'Europe/London';
+    // No location in question means the whole business: read it on the workspace's clock.
+    return locations.find((row) => row.id === id)?.timezone || this.profile.workspace?.timezone || 'Europe/London';
   }
 
   async locationOptions(): Promise<AgentFieldOption[]> {

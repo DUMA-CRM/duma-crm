@@ -1,4 +1,5 @@
 import type { CmsEntryStatus, CmsFieldDefinition, CmsFieldType } from '../api/cms.service.ts';
+import { zonedParts, zonedToInstant } from './workspace-time.ts';
 
 // ---------------------------------------------------------------------------
 // Pure helpers for the Content (CMS) workspace. The API is the authority on
@@ -257,29 +258,25 @@ export function localeDisplayName(code: string): string {
 
 // ─── Date & time ─────────────────────────────────────────────────────────────
 
-const pad = (value: number) => String(value).padStart(2, '0');
-
 /**
- * An ISO instant split into the viewer's local date (`YYYY-MM-DD`, what the
- * shared DatePicker takes) and time (`HH:MM`). Empty parts for no value.
+ * An ISO instant split into the workspace's wall-clock date (`YYYY-MM-DD`, what
+ * the shared DatePicker takes) and time (`HH:MM`). Empty parts for no value.
+ * Workspace, not browser: "publish at 09:00" means 09:00 at the business, even
+ * when the person scheduling it is abroad.
  */
-export function isoToLocalParts(iso: string | null | undefined): { date: string; time: string } {
+export function isoToLocalParts(iso: string | null | undefined, timeZone?: string): { date: string; time: string } {
   if (!iso) return { date: '', time: '' };
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return { date: '', time: '' };
-  return {
-    date: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
-    time: `${pad(date.getHours())}:${pad(date.getMinutes())}`,
-  };
+  const parts = timeZone ? zonedParts(date, timeZone) : zonedParts(date);
+  return { date: parts.date, time: parts.time };
 }
 
-/** Local date + time back to an ISO instant; no date means no value. A missing time is 09:00. */
-export function localPartsToIso(date: string, time: string): string | null {
-  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  if (!day) return null;
-  const clock = /^(\d{2}):(\d{2})$/.exec(time) ?? [null, '09', '00'];
-  const local = new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]), Number(clock[1]), Number(clock[2]));
-  return Number.isNaN(local.getTime()) ? null : local.toISOString();
+/** Workspace date + time back to an ISO instant; no date means no value. A missing time is 09:00. */
+export function localPartsToIso(date: string, time: string, timeZone?: string): string | null {
+  const clock = /^\d{2}:\d{2}$/.test(time) ? time : '09:00';
+  const instant = timeZone ? zonedToInstant(date, clock, timeZone) : zonedToInstant(date, clock);
+  return instant ? instant.toISOString() : null;
 }
 
 // ─── Markdown preview ────────────────────────────────────────────────────────

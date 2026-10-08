@@ -39,6 +39,9 @@ export interface StaffProfile {
   // Only `GET /staff/me` returns these — rows from `GET /staff` (the team list)
   // describe other people and carry no capability list, hence optional.
   capabilities?: string[];
+  // The workspace's clock and colour. Only `GET /staff/me` carries it — every
+  // role needs both, and most cannot read `/tenants/current`.
+  workspace?: { timezone: string; brand: string } | null;
 }
 
 // Lift the nested `user` fields to the top level so `profile.name` / `profile.email`

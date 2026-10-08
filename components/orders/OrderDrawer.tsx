@@ -11,7 +11,6 @@ import {
   Clock,
   CreditCard,
   Download,
-  FileText,
   Globe,
   Loader2,
   Mail,
@@ -31,8 +30,9 @@ import { TONE_INK } from '@/components/shared/tone';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
-import { hasCapability } from '@/lib/auth/capabilities';
+import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
 import { API_PREFIX } from '@/lib/modules/core/client';
+import { getCustomer } from '@/lib/modules/customers/client';
 import { type OrderDetail, getOrder } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
@@ -50,8 +50,12 @@ import {
   shippingAddressLines,
   turnaround,
 } from '@/lib/utils/orders-list';
+import { workspaceDateKey, workspaceFormatter } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 
+import { OrderNote } from './OrderNote';
+import { PaymentDueCard } from './PaymentDueCard';
+import { OrderDeliveryEditor } from './OrderDeliveryEditor';
 import { RefundBody, RefundFooter, useRefundDraft } from './RefundPanel';
 import { StatusMenu, useStatusChange } from './StatusMenu';
 import { REFUND_REASON_OPTIONS, SOURCE_META, STATUS_META, VOID_REASON_OPTIONS, optionLabel } from './orderMeta';
@@ -95,13 +99,34 @@ export function OrderDrawer({
     useAuthStore((state) => state.capabilities),
     'orders:refund',
   );
+  // Anyone who works orders can keep a note on one (POST /orders/:id/notes checks the same).
+  const canNote = hasAnyCapability(
+    useAuthStore((state) => state.capabilities),
+    'orders:status',
+    'orders:create',
+  );
+  // Whoever can take an order by hand can record its payment (the API checks the same).
+  const canTakeOrders = hasCapability(
+    useAuthStore((state) => state.capabilities),
+    'orders:create',
+  );
   const [showReceipt, setShowReceipt] = useState(false);
+  const [editingDelivery, setEditingDelivery] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
   const { data, isPending, isError, refetch } = useQuery<OrderDetail>({
     queryKey: moduleQueryKeys.ordering.key('order', orderId),
     queryFn: () => getOrder(orderId),
   });
+  // Orders created before the API recorded the customer's name carry only their id — look the name up.
+  const linkedCustomer = useQuery({
+    queryKey: moduleQueryKeys.customers.key('customer', data?.customerId ?? null),
+    queryFn: () => getCustomer(data!.customerId!),
+    enabled: !!data?.customerId && !data.customerName,
+  });
+  const linkedCustomerName = linkedCustomer.data
+    ? [linkedCustomer.data.firstName, linkedCustomer.data.lastName].filter(Boolean).join(' ') || linkedCustomer.data.email || null
+    : null;
   const advance = useStatusChange({ id: orderId });
 
   // ↑/↓ step through the list, the way a mail client does — unless a field or
@@ -246,10 +271,10 @@ export function OrderDrawer({
                     )}
                     {payment.state ? `${payment.method} · ${payment.state}` : payment.method}
                   </span>
-                  {data.customerName && (
+                  {(data.customerName || linkedCustomerName) && (
                     <>
                       <span aria-hidden="true">·</span>
-                      <span className="truncate">For {data.customerName}</span>
+                      <span className="truncate">For {data.customerName || linkedCustomerName}</span>
                     </>
                   )}
                 </p>
@@ -338,6 +363,48 @@ export function OrderDrawer({
             </div>
           </section>
 
+          {/* An order taken by hand: who it's for and how it reaches them, filled in now or later. */}
+          {data.source === 'manual' && !['done', 'cancelled', 'expired'].includes(data.status) && canTakeOrders && (
+            <section aria-labelledby="order-delivery" className="rounded-lg border border-rule/60 bg-control px-3.5 py-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    'flex size-9 shrink-0 items-center justify-center rounded-md',
+                    data.customerId ? 'bg-primary/8 text-primary' : 'bg-measured/10 text-measured',
+                  )}
+                  aria-hidden="true"
+                >
+                  {data.fulfilmentType === 'delivery' ? <Truck size={15} /> : <User size={15} />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 id="order-delivery" className="truncate text-sm font-semibold text-foreground">
+                    {data.customerId ? (data.customerName || linkedCustomerName || 'Customer') : 'No customer yet'}
+                  </h3>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {data.fulfilmentType === 'delivery'
+                      ? data.shippingAddress
+                        ? `Delivery to ${shippingAddressLines(data.shippingAddress).slice(1).join(', ')}`
+                        : 'Delivery — no address yet'
+                      : data.customerId
+                        ? 'They collect it'
+                        : 'Add who it’s for — needed to deliver it'}
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setEditingDelivery(true)}>
+                  {data.customerId ? 'Edit' : 'Add'}
+                </Button>
+              </div>
+            </section>
+          )}
+
+          {/* Taken by hand and still to be paid — gone once it is. */}
+          {data.source === 'manual' && data.paymentStatus === 'unpaid' && !['cancelled', 'expired'].includes(data.status) && canTakeOrders && (
+            <PaymentDueCard orderId={data.id} amountDue={Number(data.totalAmount)} />
+          )}
+
+          {/* The order's note: added or changed whenever there's something worth keeping. */}
+          <OrderNote key={data.notes ?? ''} orderId={data.id} notes={data.notes} canEdit={canNote} />
+
           <section aria-labelledby="order-details">
             <h3 id="order-details" className="mb-2 text-sm font-semibold text-foreground">
               Details
@@ -376,7 +443,6 @@ export function OrderDrawer({
                   value={`${optionLabel(VOID_REASON_OPTIONS, data.voidReason)}${data.voidNotes ? ` — ${data.voidNotes}` : ''}`}
                 />
               )}
-              {data.notes && <Detail wide icon={FileText} label="Note" value={data.notes} />}
             </dl>
           </section>
 
@@ -415,6 +481,7 @@ export function OrderDrawer({
       )}
 
       {showReceipt && <ReceiptModal orderId={data.id} onClose={() => setShowReceipt(false)} />}
+      {editingDelivery && <OrderDeliveryEditor order={data} onClose={() => setEditingDelivery(false)} />}
       {showEmail && data.customerId && (
         <SendEmailModal
           customerId={data.customerId}
@@ -427,8 +494,8 @@ export function OrderDrawer({
   );
 }
 
-const ACTIVITY_TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
-const ACTIVITY_DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
+const ACTIVITY_TIME = () => workspaceFormatter({ hour: '2-digit', minute: '2-digit' });
+const ACTIVITY_DAY = () => workspaceFormatter({ day: 'numeric', month: 'short' });
 
 /**
  * One step in the order's life, as an activity feed reads: a tinted marker on
@@ -456,7 +523,7 @@ function ActivityItem({
   const tint = meta ? meta.tint : 'bg-exception/8 text-exception';
   const actor = staffName(event.kind === 'status' ? event.entry.changedBy : event.refund.createdBy);
   const at = new Date(event.at);
-  const sameDayAsNow = at.toDateString() === new Date().toDateString();
+  const sameDayAsNow = workspaceDateKey(at) === workspaceDateKey();
 
   return (
     <li className="relative flex gap-3">
@@ -489,7 +556,7 @@ function ActivityItem({
               : STATUS_EVENT[event.kind === 'status' ? event.entry.status : 'done']}
           </p>
           <time dateTime={event.at} title={formatDateTime(event.at)} className="shrink-0 text-xs text-muted-foreground">
-            {sameDayAsNow ? ACTIVITY_TIME.format(at) : `${ACTIVITY_DAY.format(at)}, ${ACTIVITY_TIME.format(at)}`}
+            {sameDayAsNow ? ACTIVITY_TIME().format(at) : `${ACTIVITY_DAY().format(at)}, ${ACTIVITY_TIME().format(at)}`}
           </time>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
@@ -540,7 +607,7 @@ function OrderProgress({ status, history }: { status: OrderDetail['status']; his
       <div className={cn('flex items-center gap-2 border-t border-rule/45 px-4 py-2.5 text-xs font-medium', meta.tint)}>
         <meta.icon size={13} aria-hidden="true" />
         {status === 'cancelled' ? 'Cancelled' : 'Expired before it was paid'}
-        {at && <span className="font-normal opacity-80">· {ACTIVITY_TIME.format(new Date(at))}</span>}
+        {at && <span className="font-normal opacity-80">· {ACTIVITY_TIME().format(new Date(at))}</span>}
       </div>
     );
   }
@@ -563,7 +630,7 @@ function OrderProgress({ status, history }: { status: OrderDetail['status']; his
             >
               {PROGRESS_LABEL[step]}
             </span>
-            <span className="block text-xs text-muted-foreground">{at ? ACTIVITY_TIME.format(new Date(at)) : '—'}</span>
+            <span className="block text-xs text-muted-foreground">{at ? ACTIVITY_TIME().format(new Date(at)) : '—'}</span>
           </li>
         );
       })}

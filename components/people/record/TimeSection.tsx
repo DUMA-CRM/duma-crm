@@ -49,6 +49,7 @@ import {
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { workingDaysLabel } from '@/lib/utils/employee-record';
+import { formatInstant, workspaceDateKey, zonedParts } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 
 import { ChoiceCards, type Employee, ModalActions, NumberStepper, RecordBlock, RecordList, RecordListRow, monthRange } from './shared';
@@ -68,7 +69,7 @@ import { ChoiceCards, type Employee, ModalActions, NumberStepper, RecordBlock, R
 export function AbsenceCard({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const [adding, setAdding] = useState(false);
-  const [initialDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [initialDate] = useState(() => workspaceDateKey());
   const [form, setForm] = useState({ date: initialDate, leaveTypeId: '', isHalfDay: false, reason: '' });
   const {
     data: absences = [],
@@ -920,12 +921,10 @@ interface DayGroup {
   locations: string[];
 }
 
-const dayKey = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-};
-const fmtDay = (d: Date) => `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${fmtDate(d.toISOString())}`;
-const fmtTime = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—');
+// Clocked time groups by its day at the business, not on this device.
+const dayKey = (iso: string) => workspaceDateKey(iso);
+const fmtDay = (d: Date) => `${formatInstant(d, { weekday: 'short' })} ${fmtDate(d.toISOString())}`;
+const fmtTime = (iso: string | null) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 
 function groupByDay(shifts: TimesheetShift[]): DayGroup[] {
   const map = new Map<string, DayGroup>();
@@ -1067,8 +1066,8 @@ export function TimesheetCard({
     split shift or a late close reads at a glance instead of a Clock per row. */
 function DaySpan({ segments }: { segments: TimesheetShift[] }) {
   const hourOf = (iso: string) => {
-    const at = new Date(iso);
-    return at.getHours() + at.getMinutes() / 60;
+    const at = zonedParts(iso);
+    return at.hour + at.minute / 60;
   };
   const label = segments.map((s) => `${fmtTime(s.clockedIn)} – ${s.clockedOut ? fmtTime(s.clockedOut) : 'still clocked in'}`).join(', ');
   return (

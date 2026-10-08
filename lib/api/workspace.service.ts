@@ -10,13 +10,22 @@ export interface Tenant {
   statusReason?: string | null;
   statusChangedAt: string;
   locationCount?: number;
+  /** IANA zone every time in the app is read in. */
+  timezone?: string;
+  /** Brand colour id — see lib/utils/brand.ts. */
+  brand?: string;
   createdAt: string;
 }
 
 export interface TenantPayload {
   name: string;
   slug: string;
+  timezone?: string;
+  brand?: string;
 }
+
+/** What an owner can change on their own workspace. */
+export type CurrentTenantPatch = Partial<Pick<TenantPayload, 'name' | 'timezone' | 'brand'>>;
 
 export const getTenants = () => apiFetch<Tenant[]>('/tenants');
 
@@ -24,8 +33,10 @@ export const getTenants = () => apiFetch<Tenant[]>('/tenants');
 // owner uses, and they cannot reach another tenant.
 export const getCurrentTenant = () => apiFetch<Tenant>('/tenants/current');
 
-export const renameCurrentTenant = (name: string) =>
-  apiFetch<Tenant>('/tenants/current', { method: 'PATCH', body: JSON.stringify({ name }) });
+export const updateCurrentTenant = (patch: CurrentTenantPatch) =>
+  apiFetch<Tenant>('/tenants/current', { method: 'PATCH', body: JSON.stringify(patch) });
+
+export const renameCurrentTenant = (name: string) => updateCurrentTenant({ name });
 
 export const createTenant = (data: TenantPayload) => apiFetch<Tenant>('/tenants', { method: 'POST', body: JSON.stringify(data) });
 
@@ -71,7 +82,8 @@ export interface Location {
 export interface LocationPayload {
   tenantId: string;
   name: string;
-  address: string;
+  /** None for an online-only shop with no premises. */
+  address?: string | null;
   timezone: string;
   phone?: string;
   openingHours?: OpeningHours | null;

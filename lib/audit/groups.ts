@@ -3,6 +3,7 @@ import type { AuditGroup, AuditLog } from '../api/audit.service.ts';
 import { auditSubject, shortId } from './change.ts';
 import { auditPhrase } from './narrative.ts';
 import { actionVerb, resourceMeta } from './vocabulary.ts';
+import { workspaceDateKey, workspaceFormatter, zonedParts } from '../utils/workspace-time.ts';
 
 /**
  * Reading the API's audit groups (`GET /audit-logs/groups`).
@@ -53,33 +54,34 @@ export function summariseVerbs(verbs: readonly string[]): string {
   return `${verbs.slice(0, 2).join(', ')} and ${verbs.length - 2} more`;
 }
 
-const CLOCK = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+const CLOCK = () => workspaceFormatter({ hour: '2-digit', minute: '2-digit', hour12: false });
 
 /** "09:12" for a moment, "09:12–11:40" for a span. */
 export function groupTimeSpan(group: Pick<AuditGroup, 'firstAt' | 'lastAt'>): string {
   const [start, end] = [group.firstAt, group.lastAt].sort();
-  const first = CLOCK.format(new Date(start));
-  const last = CLOCK.format(new Date(end));
+  const first = CLOCK().format(new Date(start));
+  const last = CLOCK().format(new Date(end));
   return first === last ? last : `${first}–${last}`;
 }
 
 const DAY_HEADING = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
-export const localDayKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+/** The workspace day an instant falls on, `YYYY-MM-DD`. */
+export const localDayKey = (date: Date) => workspaceDateKey(date);
 
-/** "Today", "Yesterday", "Monday 22 September" — the year only when it isn't this one. */
+/**
+ * "Today", "Yesterday", "Monday 22 September" — the year only when it isn't this one.
+ * `day` is a calendar key, formatted as written; only "today" depends on the zone.
+ */
 export function dayHeading(day: string, now: number): string {
-  const today = new Date(now);
-  if (day === localDayKey(today)) return 'Today';
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (day === localDayKey(yesterday)) return 'Yesterday';
+  const today = zonedParts(new Date(now));
+  if (day === today.date) return 'Today';
+  if (day === new Date(Date.UTC(today.year, today.month - 1, today.day - 1)).toISOString().slice(0, 10)) return 'Yesterday';
   const [year, month, date] = day.split('-').map(Number);
   const value = new Date(year, month - 1, date);
   if (Number.isNaN(value.getTime())) return day;
   // Appended by hand: en-GB puts a comma after the weekday once a year is in the format.
-  return year === today.getFullYear() ? DAY_HEADING.format(value) : `${DAY_HEADING.format(value)} ${year}`;
+  return year === today.year ? DAY_HEADING.format(value) : `${DAY_HEADING.format(value)} ${year}`;
 }
 
 /**

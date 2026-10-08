@@ -2,6 +2,7 @@
 // The restock queue's ordering and the context a decision needs. Pure, so the
 // rule "urgent first, then whoever has waited longest" is tested, not assumed.
 // ---------------------------------------------------------------------------
+import { formatInstant, zonedParts } from './workspace-time.ts';
 
 export type RestockPriority = 'standard' | 'urgent';
 
@@ -44,13 +45,17 @@ export function requestContext(requestedQty: number, stock: StockContext | undef
   return { text: parts.join(' · '), tone: over ? 'over' : low ? 'low' : 'ok' };
 }
 
-const localKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+/** The calendar day before a `YYYY-MM-DD` key. */
+const dayBefore = (key: string) => {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+};
 
-/** "Today", "Yesterday", or the date — for grouping any dated list by local day. */
+/** "Today", "Yesterday", or the date — for grouping any dated list by workspace day. */
 export function dayLabel(iso: string, now: Date): string {
-  const at = new Date(iso);
-  const key = localKey(at);
-  if (key === localKey(now)) return 'Today';
-  if (key === localKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))) return 'Yesterday';
-  return at.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', ...(at.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
+  const at = zonedParts(iso);
+  const today = zonedParts(now);
+  if (at.date === today.date) return 'Today';
+  if (at.date === dayBefore(today.date)) return 'Yesterday';
+  return formatInstant(iso, { weekday: 'long', day: 'numeric', month: 'long', ...(at.year !== today.year ? { year: 'numeric' } : {}) });
 }

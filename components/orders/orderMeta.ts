@@ -1,4 +1,4 @@
-import { Bell, CheckCircle2, Clock, Flame, Globe, Monitor, QrCode, Smartphone, XCircle } from '@/components/icons';
+import { Bell, CheckCircle2, Clock, Flame, Globe, Monitor, Pencil, QrCode, Smartphone, XCircle } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import type { Tone } from '@/components/shared/tone';
 import type { SelectOption } from '@/components/ui/select';
@@ -64,6 +64,8 @@ export const SOURCE_META: Record<OrderSource, { label: string; short: string; ic
   mobile: { label: 'Mobile', short: 'Mobile', icon: Smartphone },
   qr_code: { label: 'QR table', short: 'QR', icon: QrCode },
   web: { label: 'Website', short: 'Web', icon: Globe },
+  // Taken by staff in the CRM's New order — a phone, email or wholesale order.
+  manual: { label: 'Manual', short: 'Manual', icon: Pencil },
 };
 
 export const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {

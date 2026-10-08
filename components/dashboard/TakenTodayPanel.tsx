@@ -4,251 +4,31 @@ import Link from 'next/link';
 
 import { DailyTargetControl } from '@/components/dashboard/DailyTargetControl';
 import { ArrowUpRight, Target, TrendingDown, TrendingUp } from '@/components/icons';
-import { Bone } from '@/components/shared/Skeleton';
+import { TrendChart, TrendLegend } from '@/components/reports/kit/parts';
+import { Bone, LoadingState } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
-import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
+import { useFormatMoney, useWorkspaceCurrency } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
 import type { DayBaseline, HourlyVolume } from '@/lib/modules/analytics/client';
 import { cn } from '@/lib/utils/cn';
 import { MIN_BASELINE_SAMPLES, type Pace, type TargetProgress } from '@/lib/utils/pace';
-import { type TradingDay, axisHours, axisNowMinutes, axisRange } from '@/lib/utils/trading-day';
+import { compactMoney } from '@/lib/utils/report-chart';
+import { takenTodaySeries } from '@/lib/utils/taken-today';
+import { type TradingDay, axisHours, axisNowMinutes } from '@/lib/utils/trading-day';
 
-/* The board: what the site has taken today, measured against what a typical
-   same-weekday had taken by this exact minute.
+/* What the site has taken today, against what a typical same weekday had taken
+   by this exact time — laid out as Reports' Net sales panel, and drawn with
+   its trend chart: the running total, a typical day dashed, the target
+   stepped, a tooltip on every hour. One look across the two pages. */
 
-   This replaced the old service-board gantt, whose lane blocks were positioned
-   by hardcoded percentages and whose Now/shift/week tabs only changed a heading.
-   The time axis and the "Now" rule survive because those were the honest parts
-   of that idea — they now sit on the location's real trading hours and real
-   takings. */
-
-interface CurvePoint {
-  x: number;
-  y: number;
-}
-
-function toPath(points: CurvePoint[]) {
-  if (points.length === 0) return '';
-  return points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
-}
-
-function TodayCurve({
-  day,
-  hourly,
-  baseline,
-  takenSoFar,
-  pace,
-  target,
-  showToday,
-}: {
-  day: TradingDay;
-  hourly: HourlyVolume[];
-  baseline: DayBaseline | undefined;
-  takenSoFar: number;
-  pace: Pace;
-  target: TargetProgress | null;
-  showToday: boolean;
-}) {
-  const formatMoney = useFormatMoney();
-  const hasTypical = (baseline?.sampleCount ?? 0) >= MIN_BASELINE_SAMPLES;
-  const revenueByHour = new Map(hourly.map((row) => [row.hour, Number(row.totalRevenue ?? 0)]));
-
-  // Everything is positioned in axis-minute space, so a site trading past
-  // midnight lays out left-to-right instead of folding back on itself.
-  const { start, end } = axisRange(day);
-  const buckets = axisHours(day);
-  const xAt = (minutes: number) => ((minutes - start) / Math.max(1, end - start)) * 100;
-
-  const nowMinutes = axisNowMinutes(day);
-  const rawNowX = xAt(nowMinutes);
-  const nowX = Math.min(100, Math.max(0, rawNowX));
-  // The rule marks the present moment. Once the day is over it would be marking
-  // nothing — clamped to the right-hand edge it reads as "we are at closing
-  // time" for the rest of the evening, which is a lie the axis tells for hours.
-  const showNowRule = day.state === 'trading' && rawNowX >= 0 && rawNowX <= 100;
-
-  const typicalPoints: CurvePoint[] = [];
-  const todayPoints: CurvePoint[] = [];
-  let typicalRunning = 0;
-  let todayRunning = 0;
-
-  for (const bucket of buckets) {
-    const endX = xAt(bucket.startMinutes + 60);
-
-    if (hasTypical) {
-      typicalRunning = baseline?.byHour[bucket.hour]?.cumulativeRevenue ?? typicalRunning;
-      typicalPoints.push({ x: Math.min(100, endX), y: typicalRunning });
-    }
-    // Only hours that have actually happened carry a point.
-    if (showToday && bucket.startMinutes <= nowMinutes) {
-      todayRunning += revenueByHour.get(bucket.hour) ?? 0;
-      todayPoints.push({ x: Math.min(endX, nowX), y: todayRunning });
-    }
-  }
-
-  // Pin the last point to the live total so the line's end and the headline
-  // figure can never disagree by a rounding of the hour buckets.
-  if (showToday) todayPoints.push({ x: nowX, y: takenSoFar });
-
-  const ceiling = Math.max(takenSoFar, hasTypical ? (baseline?.dailyMedianRevenue ?? 0) : 0, target?.target ?? 0, 1);
-  const yAt = (value: number) => 100 - (value / ceiling) * 100;
-
-  // At most six ticks, always including the first and last hour of the day.
-  const tickStep = Math.max(1, Math.ceil(buckets.length / 6));
-  const ticks = buckets.filter((_, index) => index % tickStep === 0 || index === buckets.length - 1);
-
-  const scale = (points: CurvePoint[]) => points.map((point) => ({ x: point.x, y: yAt(point.y) }));
-  const todayPath = toPath([{ x: 0, y: yAt(0) }, ...scale(todayPoints)]);
-  const typicalPath = toPath([{ x: 0, y: yAt(0) }, ...scale(typicalPoints)]);
-  const todayArea = todayPath ? `${todayPath} L${nowX.toFixed(2)},100 L0,100 Z` : '';
-
-  const summary = showToday
-    ? `Taken ${formatMoney(takenSoFar)} by ${day.time}.` +
-      (pace.available
-        ? ` ${formatMoney(Math.abs(pace.delta))} ${pace.delta >= 0 ? 'ahead of' : 'behind'} a typical ${day.weekday}.`
-        : ' Not enough history to compare.')
-    : `A typical ${day.weekday} takes ${formatMoney(baseline?.dailyMedianRevenue ?? 0)}.`;
-
-  return (
-    <div className="mt-5">
-      <div className="relative h-40 sm:h-48">
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="absolute inset-0 size-full overflow-visible"
-          role="img"
-          aria-label={summary}
-        >
-          {/* Quiet horizontal guides — quarter, half, three-quarter of the ceiling. */}
-          {[25, 50, 75].map((position) => (
-            <line
-              key={position}
-              x1="0"
-              x2="100"
-              y1={position}
-              y2={position}
-              className="stroke-rule/50"
-              strokeWidth="1"
-              strokeDasharray="2 3"
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-
-          {target && yAt(target.target) >= 0 && (
-            <line
-              x1="0"
-              x2="100"
-              y1={yAt(target.target)}
-              y2={yAt(target.target)}
-              className="stroke-primary/70"
-              strokeWidth="1.5"
-              strokeDasharray="5 3"
-              vectorEffect="non-scaling-stroke"
-            />
-          )}
-
-          {typicalPath && (
-            <path
-              d={typicalPath}
-              fill="none"
-              className="stroke-reference"
-              strokeWidth="1.5"
-              strokeDasharray="4 3"
-              vectorEffect="non-scaling-stroke"
-            />
-          )}
-
-          {todayArea && <path d={todayArea} className="fill-measured/12" />}
-          {todayPath && (
-            <path
-              d={todayPath}
-              fill="none"
-              className="stroke-measured"
-              strokeWidth="2.5"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-            />
-          )}
-
-          {showNowRule && (
-            <line
-              x1={nowX}
-              x2={nowX}
-              y1="0"
-              y2="100"
-              className="stroke-foreground/35"
-              strokeWidth="1"
-              strokeDasharray="3 3"
-              vectorEffect="non-scaling-stroke"
-            />
-          )}
-        </svg>
-
-        {/* The head of today's line, as HTML rather than an SVG circle: the
-            viewBox is stretched to fit, so a circle would render as an ellipse. */}
-        {showToday && todayPoints.length > 0 && (
-          <span
-            className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-measured ring-2 ring-card"
-            style={{ left: `${nowX}%`, top: `${Math.min(100, Math.max(0, yAt(takenSoFar)))}%` }}
-            aria-hidden="true"
-          />
-        )}
-        {showNowRule && (
-          <span
-            className="pointer-events-none absolute -top-2 -translate-x-1/2 whitespace-nowrap rounded-sm border border-rule bg-card px-1.5 py-0.5 text-micro font-bold text-foreground shadow-sm"
-            style={{ left: `${nowX}%` }}
-            aria-hidden="true"
-          >
-            {day.time}
-          </span>
-        )}
-        {target && yAt(target.target) >= 0 && (
-          <span
-            className="pointer-events-none absolute right-0 -translate-y-1/2 rounded-sm bg-card px-1.5 text-micro font-bold text-primary"
-            style={{ top: `${yAt(target.target)}%` }}
-          >
-            {/* The figure lives on the target control above; the line only needs naming. */}
-            Target
-          </span>
-        )}
-      </div>
-
-      {/* Axis ticks sit at their true position rather than being spread evenly —
-          on a page about honest marks, the labels have to be honest too. */}
-      <div className="relative mt-2 h-4 text-micro font-semibold text-muted-foreground" aria-hidden="true">
-        {ticks.map((tick) => (
-          <span
-            key={tick.startMinutes}
-            className="absolute -translate-x-1/2 whitespace-nowrap"
-            style={{ left: `${Math.min(98, Math.max(2, xAt(tick.startMinutes)))}%` }}
-          >
-            {String(tick.hour).padStart(2, '0')}:00
-          </span>
-        ))}
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-        {showToday && (
-          <span className="flex items-center gap-1.5">
-            <span className="h-0.5 w-4 rounded-full bg-measured" aria-hidden="true" />
-            Today
-          </span>
-        )}
-        {hasTypical ? (
-          <span className="flex items-center gap-1.5">
-            <span className="h-0.5 w-4 rounded-full bg-reference" aria-hidden="true" />
-            Typical {day.weekday} · {baseline?.sampleCount} weeks
-          </span>
-        ) : (
-          <span>
-            Not enough history for a typical {day.weekday} yet ({baseline?.sampleCount ?? 0} of {MIN_BASELINE_SAMPLES} needed)
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
+/** Static classes — Tailwind can't see a computed `sm:grid-cols-${n}`. */
+const STAT_COLUMNS: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  3: 'grid-cols-2 sm:grid-cols-3',
+  4: 'grid-cols-2 sm:grid-cols-4',
+};
 
 export function TakenTodayPanel({
   day,
@@ -274,132 +54,176 @@ export function TakenTodayPanel({
   locationId: string | null;
   dailyTarget: number | null;
 }) {
-  const formatMoney = useFormatMoney();
-  const trading = day.state === 'trading' || day.state === 'after-close' || day.state === 'no-hours';
+  const money = useFormatMoney();
+  const currency = useWorkspaceCurrency();
+  const showToday = day.state !== 'before-open' && day.state !== 'closed-today';
+  const hasTypical = (baseline?.sampleCount ?? 0) >= MIN_BASELINE_SAMPLES;
+  const typicalLabel = `Typical ${day.weekday}`;
   const ahead = pace.delta >= 0;
 
+  const series = takenTodaySeries({
+    buckets: axisHours(day),
+    revenueByHour: new Map(hourly.map((row) => [row.hour, Number(row.totalRevenue ?? 0)])),
+    typicalByHour: hasTypical ? new Map((baseline?.byHour ?? []).map((row) => [row.hour, row.cumulativeRevenue])) : new Map(),
+    typicalDay: hasTypical ? (baseline?.dailyMedianRevenue ?? 0) : 0,
+    nowMinutes: axisNowMinutes(day),
+    takenSoFar,
+    target: target?.target ?? null,
+    showToday,
+  });
+
+  // The headline: what's in, or before it starts, what the day is aiming at.
+  const headline = showToday ? takenSoFar : (target?.target ?? baseline?.dailyMedianRevenue ?? 0);
+  const caption = showToday
+    ? 'Net of refunds'
+    : day.state === 'before-open'
+      ? `${target ? 'Today’s target' : typicalLabel} · opens ${day.hours?.open ?? '—'}`
+      : `${typicalLabel} — closed today`;
+
+  // The day's counts in one row, as Net sales has; only the ones that can be said honestly.
+  const stats = [
+    showToday && pace.available ? { label: 'Typical by now', value: money(pace.expectedByNow) } : null,
+    showToday && day.state === 'trading' && pace.projected !== null ? { label: 'On pace for', value: money(pace.projected) } : null,
+    hasTypical ? { label: typicalLabel, value: money(baseline?.dailyMedianRevenue ?? 0) } : null,
+    yesterdayRevenue !== null ? { label: 'Yesterday', value: money(yesterdayRevenue) } : null,
+  ].filter((stat): stat is { label: string; value: string } => stat !== null);
+
   return (
-    <div className="rounded-lg border border-rule/65 bg-card p-4 sm:p-5 lg:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold tracking-title text-foreground">
+    <section aria-labelledby="taken-today-title" className="rounded-lg border border-rule/60 bg-field">
+      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 px-5 pt-5">
+        <div className="min-w-0">
+          <h2 id="taken-today-title" className="text-sm font-semibold text-foreground">
             {day.state === 'before-open' ? 'Before open' : day.state === 'closed-today' ? 'Closed today' : 'Taken today'}
           </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {day.state === 'closed-today'
-              ? 'No trade to measure — here is what a typical day looks like.'
-              : day.state === 'before-open'
-                ? 'What a typical day looks like, and what you are aiming at.'
-                : 'Net of refunds.'}
-          </p>
+          {loading ? (
+            <div role="status" aria-busy="true" aria-label="Loading today’s takings" className="mt-1 space-y-2">
+              <Bone className="h-9 w-40" />
+              <Bone className="h-3 w-56" />
+            </div>
+          ) : (
+            <>
+              <p className="mt-1 flex flex-wrap items-center gap-2.5">
+                <span data-figure className="text-3xl font-semibold tracking-title tabular-nums text-foreground">
+                  {money(headline)}
+                </span>
+                {showToday && pace.available && (
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-micro font-semibold tabular-nums',
+                      ahead ? 'bg-momentum/10 text-momentum' : 'bg-exception/8 text-exception',
+                    )}
+                    title={`${ahead ? 'Ahead of' : 'Behind'} a typical ${day.weekday} by this time`}
+                  >
+                    {ahead ? <TrendingUp size={11} aria-hidden="true" /> : <TrendingDown size={11} aria-hidden="true" />}
+                    {money(Math.abs(pace.delta))} {ahead ? 'ahead' : 'behind'}
+                    {pace.deltaPct !== null && ` · ${pace.deltaPct > 0 ? '+' : ''}${pace.deltaPct.toFixed(0)}%`}
+                  </span>
+                )}
+              </p>
+              <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                {caption}
+                {showToday && !pace.available && (
+                  <>
+                    <span aria-hidden="true"> · </span>
+                    {pace.sampleCount < MIN_BASELINE_SAMPLES
+                      ? `pace needs ${MIN_BASELINE_SAMPLES} past ${day.weekday}s (there are ${pace.sampleCount})`
+                      : 'too early to compare'}
+                  </>
+                )}
+              </p>
+            </>
+          )}
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-1">
+        <div className="flex items-center gap-2">
           {locationId && <DailyTargetControl locationId={locationId} target={target?.target ?? dailyTarget} />}
-          <Tooltip label="Reports" side="top">
+          {/* The same corner as the module cards: an arrow into the report behind it. */}
+          <Tooltip label="Open sales by hour" side="top" className="shrink-0">
             <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground">
-              <Link href="/reports" aria-label="Open Reports">
+              <Link href="/reports/sales-by-hour" aria-label="Open sales by hour">
                 <ArrowUpRight size={15} aria-hidden="true" />
               </Link>
             </Button>
           </Tooltip>
         </div>
+      </header>
+
+      {/* Progress on the target, as Net sales shows it. */}
+      {target && !loading && (
+        <div className="mx-5 mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-band/50 px-3.5 py-2.5">
+          <Target size={15} className={cn('shrink-0', target.ahead ? 'text-momentum' : 'text-warning')} aria-hidden="true" />
+          <div className="min-w-40 flex-1">
+            <div className="flex h-1.5 overflow-hidden rounded-full bg-rule/40">
+              <span
+                className={cn('rounded-full', target.ahead ? 'bg-momentum' : 'bg-warning')}
+                style={{ width: `${Math.min(100, target.progress * 100)}%` }}
+              />
+            </div>
+          </div>
+          <p className="text-xs tabular-nums text-muted-foreground">
+            <span className={cn('font-semibold', target.progress >= 1 ? 'text-momentum' : 'text-foreground')}>
+              {Math.round(target.progress * 100)}%
+            </span>{' '}
+            of {money(target.target)} target
+            {showToday && ` · ${Math.round(target.expectedByNow * 100)}% expected by now`}
+          </p>
+        </div>
+      )}
+
+      <div className="px-3 pb-2 pt-4 sm:px-4">
+        {loading ? (
+          <LoadingState label="Drawing today’s takings" className="h-56 py-0" />
+        ) : series.points.length === 0 ? (
+          <p className="flex h-40 items-center justify-center text-sm text-muted-foreground">The day’s first hour hasn’t started yet.</p>
+        ) : (
+          <TrendChart
+            points={series.points.map((point) => ({ label: `By ${point.label}`, axis: point.label, value: point.value }))}
+            previous={series.typical}
+            target={series.target}
+            format={(value) => money(value)}
+            axisFormat={(value) => compactMoney(value, currency)}
+            height={220}
+            ariaLabel={
+              showToday ? `Taken through the day so far, against a typical ${day.weekday}` : `A typical ${day.weekday}, hour by hour`
+            }
+            seriesLabel={showToday ? 'Today' : typicalLabel}
+            previousLabel={typicalLabel}
+          />
+        )}
       </div>
 
-      {loading ? (
-        <div className="mt-4" role="status" aria-busy="true" aria-label="Loading today’s takings">
-          <Bone className="h-8 w-40 sm:h-10 sm:w-48" />
-        </div>
-      ) : (
-        <div className="mt-4 flex flex-wrap items-end gap-x-5 gap-y-2">
-          {day.state === 'closed-today' ? (
-            <>
-              <p data-figure className="text-2xl font-semibold text-foreground sm:text-metric">
-                {formatMoney(baseline?.dailyMedianRevenue ?? 0)}
-              </p>
-              <p className="pb-1 text-sm text-muted-foreground">
-                typical {day.weekday}
-                {yesterdayRevenue !== null && <> · yesterday {formatMoney(yesterdayRevenue)}</>}
-              </p>
-            </>
-          ) : day.state === 'before-open' ? (
-            <>
-              <p data-figure className="text-2xl font-semibold text-foreground sm:text-metric">
-                {formatMoney(target?.target ?? baseline?.dailyMedianRevenue ?? 0)}
-              </p>
-              <p className="pb-1 text-sm text-muted-foreground">
-                {target ? "today's target" : `typical ${day.weekday}`} · opens {day.hours?.open ?? '—'}
-              </p>
-            </>
-          ) : (
-            <>
-              {/* The order count is the KPI row's Orders card; it is not repeated here. */}
-              <p data-figure className="text-2xl font-semibold text-foreground sm:text-metric">
-                {formatMoney(takenSoFar)}
-              </p>
-            </>
-          )}
-        </div>
-      )}
-
-      {trading && !loading && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {pace.available ? (
-            <>
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-xs font-semibold',
-                  ahead ? 'border-momentum/60 bg-momentum/6 text-momentum' : 'border-exception/60 bg-exception/6 text-exception',
-                )}
-                // The comparison is named once, in the chart legend; the pill only says which way.
-                title={`${ahead ? 'Ahead of' : 'Behind'} a typical ${day.weekday} by this time`}
-              >
-                {ahead ? <TrendingUp size={13} aria-hidden="true" /> : <TrendingDown size={13} aria-hidden="true" />}
-                {formatMoney(Math.abs(pace.delta))} {ahead ? 'ahead' : 'behind'}
-                {pace.deltaPct !== null && (
-                  <span className="font-normal">
-                    ({pace.deltaPct > 0 ? '+' : ''}
-                    {pace.deltaPct.toFixed(0)}%)
-                  </span>
-                )}
-              </span>
-              {pace.projected !== null && day.state === 'trading' && (
-                <span className="text-xs text-muted-foreground">
-                  On pace for <span className="font-semibold text-foreground">{formatMoney(pace.projected)}</span> by close
-                </span>
-              )}
-            </>
-          ) : (
-            <span className="text-xs text-muted-foreground">
-              {pace.sampleCount < MIN_BASELINE_SAMPLES
-                ? `Pace needs ${MIN_BASELINE_SAMPLES} past ${day.weekday}s to be worth showing — there are ${pace.sampleCount}.`
-                : 'Too early in the day to project a close.'}
-            </span>
-          )}
-
-          {target && (
-            <span
+      {stats.length > 0 && (
+        <dl className={cn('grid border-t border-rule/50', STAT_COLUMNS[stats.length])}>
+          {stats.map((stat, index) => (
+            <div
+              key={stat.label}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-xs font-semibold',
-                target.ahead ? 'border-momentum/60 text-momentum' : 'border-measured/60 text-measured',
+                'min-w-0 px-5 py-3.5',
+                index % 2 === 1 && 'border-l border-rule/50',
+                index >= 2 && 'border-t border-rule/50 sm:border-t-0 sm:border-l',
               )}
-              title={target.spreadEvenly ? 'Target spread evenly across the day — no baseline shape available yet.' : undefined}
             >
-              <Target size={13} aria-hidden="true" />
-              {Math.round(target.progress * 100)}%<span className="sr-only"> of today&rsquo;s target</span>
-            </span>
-          )}
-        </div>
+              <dt className="text-xs text-muted-foreground">{stat.label}</dt>
+              <dd className="mt-0.5 text-base font-semibold tabular-nums text-foreground">
+                {loading ? <Bone className="my-0.5 h-5 w-16" /> : stat.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
       )}
 
-      <TodayCurve
-        day={day}
-        hourly={hourly}
-        baseline={baseline}
-        takenSoFar={takenSoFar}
-        pace={pace}
-        target={target}
-        showToday={day.state !== 'before-open' && day.state !== 'closed-today'}
-      />
-    </div>
+      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-rule/50 px-5 py-3">
+        <TrendLegend
+          comparison={!!series.typical}
+          seriesLabel={showToday ? 'Today' : typicalLabel}
+          previousLabel={typicalLabel}
+          target={!!series.target}
+        />
+        {!hasTypical && (
+          <span className="text-xs text-muted-foreground">
+            {baseline?.sampleCount ?? 0} of {MIN_BASELINE_SAMPLES} past {day.weekday}s for a typical day
+          </span>
+        )}
+      </footer>
+    </section>
   );
 }

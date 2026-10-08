@@ -24,6 +24,7 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { type AuditGroupsResponse, type AuditLog, getAuditGroups, getAuditLogs } from '@/lib/modules/audit/client';
 import { getStaff } from '@/lib/modules/identity/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { resolvedTimeZone } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -78,7 +79,7 @@ function AuditLogPageContent() {
 
   const tenantId = useWorkspaceStore((s) => s.tenantId);
   const wide = useWideLayout();
-  const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  const timeZone = useMemo(() => resolvedTimeZone(), []);
 
   const [search, setSearch] = useState(searchParams.get('q') ?? '');
   const q = useDebounced(search.trim(), SEARCH_DEBOUNCE_MS);

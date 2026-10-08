@@ -2350,6 +2350,154 @@
         ]
       }
     },
+    "/v1/customers/{id}/addresses": {
+      "get": {
+        "operationId": "getV1CustomersByIdAddresses",
+        "tags": [
+          "Customers"
+        ],
+        "summary": "A customer's saved delivery addresses",
+        "description": "Default first, then most recently added. Saved from website orders and from delivery details set on an order taken by hand.",
+        "responses": {
+          "200": {
+            "description": "CustomerAddress[]"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "post": {
+        "operationId": "postV1CustomersByIdAddresses",
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Add a saved address",
+        "description": "The first address, or one sent with isDefault, becomes the default.",
+        "responses": {
+          "201": {
+            "description": "CustomerAddress"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/customers/{id}/addresses/{addressId}": {
+      "patch": {
+        "operationId": "patchV1CustomersByIdAddressesByAddressId",
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Change a saved address",
+        "description": "Orders keep the address they were sent to; only future use changes. isDefault: true makes it the default.",
+        "responses": {
+          "200": {
+            "description": "CustomerAddress"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "addressId",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CustomersByIdAddressesByAddressId",
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Remove a saved address",
+        "description": "Orders already sent there keep their copy. Removing the default makes the newest remaining one the default.",
+        "responses": {
+          "200": {
+            "description": "{ deleted: true }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "addressId",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/customers/{id}/timeline": {
       "get": {
         "operationId": "getV1CustomersByIdTimeline",
@@ -7103,8 +7251,14 @@
                     "type": "string",
                     "enum": [
                       "pos",
-                      "mobile"
-                    ]
+                      "mobile",
+                      "manual"
+                    ],
+                    "description": "manual: taken by staff by hand (phone, email, wholesale)"
+                  },
+                  "paid": {
+                    "type": "boolean",
+                    "description": "manual only: already paid outside DUMA, by paymentMethod (cash, card, bank_transfer, custom)"
                   },
                   "notes": {
                     "type": "string"
@@ -7119,7 +7273,8 @@
                       "sumup",
                       "square",
                       "manual_terminal",
-                      "custom"
+                      "custom",
+                      "bank_transfer"
                     ],
                     "example": "card"
                   },
@@ -7390,6 +7545,123 @@
             "description": "Too many requests — rate limited"
           }
         }
+      }
+    },
+    "/v1/orders/{id}/details": {
+      "post": {
+        "operationId": "postV1OrdersByIdDetails",
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Set the customer and delivery of an order taken by hand",
+        "description": "Manual orders only, until they are completed or cancelled. A delivery address is also saved to the customer for next time.",
+        "responses": {
+          "200": {
+            "description": "The order"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Not an open manual order"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/orders/{id}/notes": {
+      "post": {
+        "operationId": "postV1OrdersByIdNotes",
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Set an order's note",
+        "description": "Replaces the note; an empty one clears it. Shown on the order and, while it is live, on the kitchen ticket.",
+        "responses": {
+          "200": {
+            "description": "The order"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/orders/{id}/mark-paid": {
+      "post": {
+        "operationId": "postV1OrdersByIdMarkPaid",
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Record payment for an order taken by hand",
+        "description": "For a manual order that is still unpaid: records how the customer paid outside DUMA (cash, card, bank transfer, other). Nothing is charged.",
+        "responses": {
+          "200": {
+            "description": "The order, now paid"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Not an unpaid manual order"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
       }
     },
     "/v1/orders/{id}/refunds": {

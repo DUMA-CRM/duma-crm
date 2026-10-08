@@ -35,6 +35,7 @@ import { getScheduledShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
 import { type LeaveContext, leaveContext } from '@/lib/utils/leave-review';
 import { daysBetween } from '@/lib/utils/staff-overview';
+import { zonedToInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
@@ -92,7 +93,11 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
     if (rows.length === 0) return null;
     const starts = rows.map((row) => row.startDate.slice(0, 10)).sort();
     const ends = rows.map((row) => row.endDate.slice(0, 10)).sort();
-    return { from: new Date(`${starts[0]}T00:00:00`).toISOString(), to: new Date(`${ends[ends.length - 1]}T23:59:59`).toISOString() };
+    // Whole leave days on the workspace clock, the days the shifts are worked on.
+    const from = zonedToInstant(starts[0], '00:00') ?? new Date(`${starts[0]}T00:00:00`);
+    const lastMinute = zonedToInstant(ends[ends.length - 1], '23:59');
+    const to = lastMinute ? new Date(lastMinute.getTime() + 59_000) : new Date(`${ends[ends.length - 1]}T23:59:59`);
+    return { from: from.toISOString(), to: to.toISOString() };
   }, [rows]);
   const shifts = useQuery({
     queryKey: moduleQueryKeys.workforce.key('scheduled-shifts', 'leave-review', dateSpan?.from, dateSpan?.to),

@@ -27,6 +27,7 @@ import { type StockMovement, getInventoryLedger } from '@/lib/modules/inventory/
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { type LedgerTone, type LedgerView, groupByDay, inLedgerView, movementTitle, netChange, sourceLabel } from '@/lib/utils/ledger';
+import { formatInstant } from '@/lib/utils/workspace-time';
 
 /*
  * The item's stock ledger at this location, in the audit log's shape: day
@@ -45,7 +46,7 @@ const TONE: Record<LedgerTone, { tile: string; text: string; icon: IconComponent
   transfer: { tile: 'bg-reference/8 text-reference', text: 'text-reference', icon: ArrowLeftRight },
 };
 
-const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const time = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 
 export function LedgerSection({ stockItemId, locationId, unit }: { stockItemId: string; locationId: string | null; unit: string }) {
   const [view, setView] = useState<LedgerView>('all');

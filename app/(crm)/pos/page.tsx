@@ -39,6 +39,7 @@ import {
   lineKey,
 } from '@/lib/utils/pos';
 import { validLoyaltyRewards } from '@/lib/utils/pos-loyalty';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { MAX_HELD, useHeldTicketsStore } from '@/stores/heldTicketsStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
@@ -359,7 +360,7 @@ export default function POSPage() {
       toast('error', `There are already ${MAX_HELD} tickets on hold. Charge or discard one first.`);
       return;
     }
-    const time = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const time = formatInstant(new Date(), { hour: '2-digit', minute: '2-digit' });
     const name = selectedCustomer
       ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}`.trim()
       : notes.trim().slice(0, 40) || `Ticket · ${time}`;
@@ -546,7 +547,7 @@ export default function POSPage() {
       setCheckoutError('The sale couldn’t be saved on this till because the account or workspace is missing.');
       return;
     }
-    const takenAt = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const takenAt = formatInstant(new Date(), { hour: '2-digit', minute: '2-digit' });
     const offlineNote = `Taken offline at ${takenAt}`;
     useOfflineOrdersStore.getState().enqueue(buildOrderPayload(method.provider, notes ? `${notes} · ${offlineNote}` : offlineNote), {
       idempotencyKey: session.current.key,

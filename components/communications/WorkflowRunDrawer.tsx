@@ -9,9 +9,11 @@ import { Badge } from '@/components/ui/badge';
 
 import { getEmailAutomationRun } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleString('en-GB') : '—');
+const formatDate = (value?: string | null) =>
+  formatInstant(value, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 export function WorkflowRunDrawer({ runId, onClose }: { runId: string; onClose: () => void }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);

@@ -10,7 +10,8 @@ import type { InventoryForecast } from '@/lib/modules/inventory/client';
 import type { RestockRequest } from '@/lib/modules/inventory/client';
 import type { Order } from '@/lib/modules/ordering/client';
 import type { AttendanceIssue, CoverGap } from '@/lib/utils/attendance';
-import { CRASH_MINS, ageState } from '@/lib/utils/kitchen-age';
+import { type Lateness, ageState, durationLabel } from '@/lib/utils/kitchen-age';
+import { formatInstant } from '@/lib/utils/workspace-time';
 
 /* The one live signal on a page that is otherwise a performance snapshot.
 
@@ -36,7 +37,7 @@ function formatHours(minutes: number) {
   return `${Math.floor(whole / 60)}h ${whole % 60}m`;
 }
 
-const clock = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const clock = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 const slotWindow = (slot: { startsAt: string; endsAt: string }) => `${clock(slot.startsAt)}–${clock(slot.endsAt)}`;
 
 const STAGE_LABEL: Record<string, string> = {
@@ -52,6 +53,8 @@ export function buildExceptions({
   coverGaps,
   attendanceIssues,
   now,
+  lateness,
+  kitchenScreen,
 }: {
   lateOrders: Order[];
   criticalStock: InventoryForecast[];
@@ -59,18 +62,25 @@ export function buildExceptions({
   coverGaps: CoverGap[];
   attendanceIssues: AttendanceIssue[];
   now: number;
+  /** The workspace's lateness; off (null) means no order is late. */
+  lateness: Lateness | null;
+  /** The kitchen display is on: a late order opens there, else on the Orders page. */
+  kitchenScreen: boolean;
 }): ExceptionItem[] {
   return [
-    ...lateOrders.map((order) => ({
-      key: `late-${order.id}`,
-      icon: Clock3,
-      // Same wording the kitchen sees: the stage clock, not time since ordering.
-      label: `Order #${order.id.slice(0, 6).toUpperCase()} is over ${CRASH_MINS} minutes`,
-      detail: `${Math.floor(ageState(order, now).mins)}m ${STAGE_LABEL[order.status] ?? 'in this stage'}`,
-      href: '/kds',
-      fixLabel: 'Open KDS',
-      tone: 'exception' as const,
-    })),
+    ...(lateness ? lateOrders : []).map((order) => {
+      const mins = Math.floor(ageState(order, now, lateness).mins);
+      return {
+        key: `late-${order.id}`,
+        icon: Clock3,
+        // Same wording the kitchen sees: the stage clock, not time since ordering.
+        label: `Order #${order.id.slice(0, 6).toUpperCase()} is over ${durationLabel(lateness!.lateMins)}`,
+        detail: `${mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`} ${STAGE_LABEL[order.status] ?? 'in this stage'}`,
+        href: kitchenScreen ? '/kds' : '/orders',
+        fixLabel: kitchenScreen ? 'Open KDS' : 'Open orders',
+        tone: 'exception' as const,
+      };
+    }),
     ...attendanceIssues.map((issue) => ({
       key: `attendance-${issue.shift.id}`,
       icon: issue.reason === 'after-close' ? Clock3 : Users,
@@ -182,7 +192,7 @@ export function ExceptionStrip({
         detail: item.detail,
         fix: { label: item.fixLabel, href: item.href },
       }))}
-      clear={{ title: 'Nothing needs you', detail: 'Orders, stock and shift cover all look clear.' }}
+      // No all-clear banner: when nothing needs anyone the strip steps aside and the figures lead.
     />
   );
 }

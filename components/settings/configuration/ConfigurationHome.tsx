@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 
-import { ArrowRight, ChefHat, LayoutDashboard, type IconComponent, Monitor } from '@/components/icons';
+import { ArrowRight, ChefHat, LayoutDashboard, type IconComponent, Monitor, Timer } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 
@@ -52,7 +52,7 @@ export function ConfigurationHome() {
       title: 'Dashboard',
       description: 'Choose the operational panels you see and arrange them around the way you work.',
       icon: LayoutDashboard,
-      module: 'analytics',
+      module: 'organization',
       summary: ['Show or hide panels', 'Set their order'],
     },
     {
@@ -71,11 +71,19 @@ export function ConfigurationHome() {
       ],
     },
     {
+      href: '/settings/configuration/orders',
+      title: 'Orders',
+      description: 'When an order counts as late — in minutes for food, in hours or days for parcels, or not at all.',
+      icon: Timer,
+      module: 'ordering',
+      summary: ['Late-order timing'],
+    },
+    {
       href: '/settings/configuration/kitchen',
       title: 'Kitchen screen',
       description: 'Lanes or tiles, ticket and text size, tap-to-strike, all-day count, the toolbar and the order sound.',
       icon: ChefHat,
-      module: 'ordering',
+      module: 'kds',
       capability: 'orders:status',
       summary: [
         kds.layout === 'tiles' ? 'Tiles' : 'Lanes',

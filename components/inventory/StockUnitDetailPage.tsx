@@ -56,6 +56,7 @@ import { type ContainerStatus, isActive } from '@/lib/utils/containers';
 import { groupByDay } from '@/lib/utils/ledger';
 import { containerPrice } from '@/lib/utils/stock-cost';
 import { daysUntil, expiryLabel } from '@/lib/utils/stock-item';
+import { formatCalendarDate, formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
@@ -91,7 +92,9 @@ const EXPIRY_SOURCE: Record<StockUnit['expirySource'], string> = {
   NOT_APPLICABLE: 'doesn’t expire',
 };
 
-const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const day = (iso: string) => formatInstant(iso, { day: 'numeric', month: 'short', year: 'numeric' });
+/** `expiryDate` is a calendar date, not a moment — shown as written, never shifted by a zone. */
+const calendarDay = (date: string) => formatCalendarDate(date, { day: 'numeric', month: 'short', year: 'numeric' });
 const precise = (n: number) => String(Math.round(n * 1000) / 1000);
 
 export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
@@ -328,7 +331,7 @@ function UnitBody({
               label="Use-by"
               value={expiry ?? '—'}
               tone={days === null || !active ? 'default' : days < 0 ? 'danger' : days <= 2 ? 'warning' : 'default'}
-              hint={unit.expiryDate ? `${day(unit.expiryDate)} · ${EXPIRY_SOURCE[unit.expirySource]}` : 'Doesn’t expire'}
+              hint={unit.expiryDate ? `${calendarDay(unit.expiryDate)} · ${EXPIRY_SOURCE[unit.expirySource]}` : 'Doesn’t expire'}
             />
             <Fact
               icon={PackageOpen}

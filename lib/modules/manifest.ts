@@ -9,6 +9,7 @@ export const MODULE_IDS = [
   'ordering',
   'pos',
   'qr-ordering',
+  'kds',
   'payments',
   'inventory',
   'purchasing',
@@ -54,6 +55,8 @@ export const CRM_MODULE_CAPABILITIES = {
   catalog: ['menu:write'],
   ordering: ['orders:create', 'orders:read', 'orders:status', 'orders:refund', 'orders:bulk'],
   pos: [],
+  // The kitchen screen works orders with ordering's capabilities (orders:status).
+  kds: [],
   'qr-ordering': ['qr-ordering:read', 'qr-ordering:write'],
   payments: ['payments.connections:write', 'cashups:read', 'cashups:write'],
   inventory: [
@@ -145,7 +148,16 @@ export interface ModuleManifest {
 const pages: Record<ModuleId, readonly string[]> = {
   core: ['/'],
   identity: ['/forgot-password', '/reset-password', '/sign-in', '/sign-up', '/settings/roles', '/settings/security'],
-  organization: ['/settings', '/settings/modules', '/settings/trading', '/settings/workspaces', '/settings/developers'],
+  // The dashboard belongs to every workspace; each widget on it follows its own module.
+  organization: [
+    '/dashboard',
+    '/settings',
+    '/settings/configuration/dashboard',
+    '/settings/modules',
+    '/settings/trading',
+    '/settings/workspaces',
+    '/settings/developers',
+  ],
   customers: ['/customers', '/customers/[id]', '/customers/duplicates', '/customers/loyalty'],
   catalog: [
     '/menu',
@@ -157,7 +169,8 @@ const pages: Record<ModuleId, readonly string[]> = {
     '/menu/modifiers/[id]',
     '/menu/modifiers/new',
   ],
-  ordering: ['/kds', '/orders', '/settings/configuration', '/settings/configuration/kitchen'],
+  ordering: ['/orders', '/settings/configuration', '/settings/configuration/orders'],
+  kds: ['/kds', '/settings/configuration/kitchen'],
   pos: ['/pos', '/settings/configuration/pos'],
   'qr-ordering': ['/order/[token]', '/settings/qr-ordering'],
   payments: ['/cash-up'],
@@ -170,8 +183,6 @@ const pages: Record<ModuleId, readonly string[]> = {
   compliance: ['/compliance'],
   audit: ['/audit-log'],
   analytics: [
-    '/dashboard',
-    '/settings/configuration/dashboard',
     '/reports',
     '/reports/[report]',
     '/reports/staff/[userId]',
@@ -189,6 +200,7 @@ const dependencies: Record<ModuleId, readonly ModuleId[]> = {
   catalog: ['organization'],
   ordering: ['catalog', 'customers', 'inventory', 'organization'],
   pos: ['ordering', 'payments'],
+  kds: ['ordering'],
   'qr-ordering': ['ordering'],
   payments: ['identity', 'ordering'],
   inventory: ['catalog', 'organization'],
@@ -211,8 +223,9 @@ const navigation: Record<ModuleId, readonly string[]> = {
   organization: ['/settings'],
   customers: ['/customers'],
   catalog: ['/menu'],
-  ordering: ['/kds', '/orders'],
+  ordering: ['/orders'],
   pos: ['/pos'],
+  kds: ['/kds'],
   'qr-ordering': [],
   payments: [],
   inventory: ['/inventory'],

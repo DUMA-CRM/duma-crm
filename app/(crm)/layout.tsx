@@ -6,6 +6,7 @@ import { LoginIntro } from '@/components/layout/LoginIntro';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AuthInitializer } from '@/components/providers/AuthInitializer';
 import { WorkspaceInitializer } from '@/components/providers/WorkspaceInitializer';
+import { WorkspaceSettingsSync } from '@/components/providers/WorkspaceSettingsSync';
 
 import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
 import { getSession } from '@/lib/modules/identity/client';
@@ -45,6 +46,8 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
       <WorkspaceInitializer
         profile={profile ? { tenantId: profile.tenantId, role: profile.role, locationIds: profile.locationIds } : null}
       />
+      {/* Before the pages: every time they show is read in this zone. */}
+      <WorkspaceSettingsSync timezone={profile?.workspace?.timezone ?? null} brand={profile?.workspace?.brand ?? null} />
 
       {/* Plays only when a sign-in armed it; renders nothing otherwise. */}
       <LoginIntro />

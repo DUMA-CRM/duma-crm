@@ -38,9 +38,10 @@ export function DailyTargetControl({ locationId, target }: { locationId: string;
           setValue(target != null ? String(target) : '');
           setEditing(true);
         }}
-        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-band hover:text-foreground"
+        // The height of the icon buttons beside it (`size="icon-sm"`), so their hovers line up.
+        className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-band hover:text-foreground"
       >
-        <Target size={13} aria-hidden="true" />
+        <Target size={15} aria-hidden="true" />
         {target != null ? `Target ${formatMoney(target)}` : 'Set a target'}
       </button>
     );

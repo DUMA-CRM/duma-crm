@@ -21,10 +21,11 @@ import {
   unpaidBreak,
   workedMinutes,
 } from '@/lib/utils/my-rota';
+import { formatInstant } from '@/lib/utils/workspace-time';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const fmtTime = (value: Date | string) => new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const fmtTime = (value: Date | string) => formatInstant(value, { hour: '2-digit', minute: '2-digit' });
 const fmtWindow = (mins: number) => `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 

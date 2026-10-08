@@ -36,6 +36,7 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { type Supplier, type SupplierPayload, createSupplier, deactivateSupplier, updateSupplier } from '@/lib/modules/purchasing/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import {
   type SupplierForm,
   type SupplierView,
@@ -322,7 +323,7 @@ function SupplierDrawer({
   );
 }
 
-const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const formatDay = (iso: string) => formatInstant(iso, { day: 'numeric', month: 'short', year: 'numeric' });
 
 /** The record as text for anyone who can't edit it — disabled inputs with leftover placeholders read as a broken form. */
 function ReadOnlyDetails({ supplier }: { supplier: Supplier }) {

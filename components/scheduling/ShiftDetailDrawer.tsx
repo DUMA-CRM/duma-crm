@@ -16,11 +16,12 @@ import {
   unpaidBreak,
   workedMinutes,
 } from '@/lib/utils/my-rota';
+import { formatInstant } from '@/lib/utils/workspace-time';
 
 import type { BreakRule } from './WeekSchedule';
 
-const fmtTime = (value: Date | string) => new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-const fmtDate = (value: Date | string) => new Date(value).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+const fmtTime = (value: Date | string) => formatInstant(value, { hour: '2-digit', minute: '2-digit' });
+const fmtDate = (value: Date | string) => formatInstant(value, { weekday: 'long', day: 'numeric', month: 'long' });
 
 const PILL = 'rounded-sm px-1.5 py-0.5 text-micro font-semibold';
 

@@ -47,6 +47,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { groupByDay } from '@/lib/utils/ledger';
 import { direction, itemLine, otherSide, quantityError, signedChange } from '@/lib/utils/transfers';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 
 const STATUS: Record<StockTransferStatus, { label: string; pill: string }> = {
@@ -56,8 +57,8 @@ const STATUS: Record<StockTransferStatus, { label: string; pill: string }> = {
 };
 
 const dateTime = (iso: string) =>
-  new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  formatInstant(iso, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const time = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 const signed = (n: number) => (n > 0 ? `+${fmtQty(n)}` : n < 0 ? `−${fmtQty(-n)}` : '0');
 
 function useInvalidateTransfers() {

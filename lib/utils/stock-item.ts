@@ -2,6 +2,7 @@
 // One stock item at one location: what needs someone, and how its expiry
 // reads. Pure and tested; the item page's Overview renders it.
 // ---------------------------------------------------------------------------
+import { formatCalendarDate, workspaceDateKey } from './workspace-time.ts';
 
 export type ItemAttentionSeverity = 'blocking' | 'attention' | 'info';
 export type ItemAttentionTarget = 'restock' | 'threshold' | 'available' | 'containers';
@@ -26,12 +27,9 @@ export interface ItemAttentionInput {
   now: Date;
 }
 
-const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-/** Whole days from today to a date (negative once past), by the local calendar. */
+/** Whole days from the workspace's today to a calendar date (negative once past). */
 export function daysUntil(date: string, now: Date): number {
-  const day = new Date(`${date.slice(0, 10)}T00:00:00`);
-  return Math.round((day.getTime() - startOfDay(now).getTime()) / 86_400_000);
+  return Math.round((Date.parse(`${date.slice(0, 10)}T00:00:00Z`) - Date.parse(`${workspaceDateKey(now)}T00:00:00Z`)) / 86_400_000);
 }
 
 /** "Expired", "Today", "Tomorrow", "In 5 days" — then the date past a fortnight. */
@@ -42,7 +40,7 @@ export function expiryLabel(date: string | null, now: Date): string | null {
   if (days === 0) return 'Today';
   if (days === 1) return 'Tomorrow';
   if (days <= 14) return `In ${days} days`;
-  return new Date(`${date.slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatCalendarDate(date, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 const daysText = (days: number) => {

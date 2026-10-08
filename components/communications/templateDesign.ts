@@ -10,7 +10,9 @@ export type TemplateLeafBlock =
   | { id: string; type: 'image'; url: string; alt: string; href: string; width: number; align: TemplateAlign }
   | { id: string; type: 'divider' }
   | { id: string; type: 'spacer'; height: number }
-  | { id: string; type: 'social'; links: Array<{ label: string; url: string }> };
+  | { id: string; type: 'social'; links: Array<{ label: string; url: string }> }
+  /** Hand-written markup, kept verbatim — how pasted HTML survives a trip back to Design. */
+  | { id: string; type: 'html'; html: string };
 
 export interface TemplateColumn {
   id: string;
@@ -47,7 +49,7 @@ export const isColumnsBlock = (block: TemplateBlock): block is TemplateColumnsBl
 
 const id = (prefix = 'block') => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
-export const LEAF_TYPES: TemplateLeafBlock['type'][] = ['heading', 'text', 'button', 'image', 'divider', 'spacer', 'social'];
+export const LEAF_TYPES: TemplateLeafBlock['type'][] = ['heading', 'text', 'button', 'image', 'divider', 'spacer', 'social', 'html'];
 
 export function newLeafBlock(type: TemplateLeafBlock['type']): TemplateLeafBlock {
   if (type === 'heading') return { id: id(), type, text: 'Write your title', align: 'center' };
@@ -56,6 +58,7 @@ export function newLeafBlock(type: TemplateLeafBlock['type']): TemplateLeafBlock
   if (type === 'image') return { id: id(), type, url: '', alt: '', href: '', width: 100, align: 'center' };
   if (type === 'divider') return { id: id(), type };
   if (type === 'spacer') return { id: id(), type, height: 24 };
+  if (type === 'html') return { id: id(), type, html: '<p>Your HTML here</p>' };
   return { id: id(), type, links: [{ label: 'Instagram', url: 'https://' }] };
 }
 
@@ -170,6 +173,32 @@ export function legacyHtmlToDesign(html: string): TemplateDesign {
   return design;
 }
 
+// The inbox preview line renderTemplateDesign writes. Stripped on import so a
+// round trip through the HTML tab does not stack a second one.
+const PREHEADER_OPEN = '<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">';
+const PREHEADER_PATTERN = /<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">[\s\S]*?<\/div>/;
+
+/**
+ * Hand-edited HTML coming back into the designer. A body the old simple editor
+ * wrote still converts to real blocks; anything else is kept whole in one HTML
+ * block, because turning arbitrary markup into blocks throws its styling away.
+ * Colours and preview text carry over from `base`.
+ */
+export function htmlToDesign(html: string, base: TemplateDesign = defaultTemplateDesign()): TemplateDesign {
+  if (readSimpleBody(html)) return { ...legacyHtmlToDesign(html), styles: base.styles, preheader: base.preheader };
+  return { ...base, blocks: [{ id: id(), type: 'html', html: html.replace(PREHEADER_PATTERN, '') }] };
+}
+
+/** The inside of <body> for a full document; a fragment is returned as it is. */
+function bodyOf(html: string) {
+  const match = /<body[^>]*>([\s\S]*)<\/body>/i.exec(html);
+  return match ? match[1] : html;
+}
+
+/** A design that is nothing but pasted HTML is sent as that HTML, untouched by our wrapper. */
+const soleHtmlBlock = (design: TemplateDesign) =>
+  design.blocks.length === 1 && design.blocks[0].type === 'html' ? design.blocks[0] : undefined;
+
 function escapeHtml(value: string) {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
@@ -204,6 +233,7 @@ function renderLeaf(block: TemplateLeafBlock, styles: Styles, compact = false): 
     return `<div style="padding:${pad(10)}px 0;text-align:${block.align}"><div style="display:inline-block;width:100%">${linked}</div></div>`;
   }
   if (block.type === 'divider') return `<hr style="border:0;border-top:1px solid #ded8cf;margin:${pad(18)}px 0" />`;
+  if (block.type === 'html') return bodyOf(block.html);
   if (block.type === 'spacer') {
     const height = Math.max(8, Math.min(120, block.height));
     return `<div style="height:${height}px;line-height:${height}px">&nbsp;</div>`;
@@ -236,13 +266,41 @@ function renderColumns(block: TemplateColumnsBlock, styles: Styles): string {
 
 export function renderTemplateDesign(design: TemplateDesign): string {
   const { styles } = design;
-  const blocks = design.blocks.map((block) => (isColumnsBlock(block) ? renderColumns(block, styles) : renderLeaf(block, styles))).join('');
   // Hidden in the body, read by the inbox as the preview line. The padding of
   // zero-width spaces stops clients pulling body text in after it.
   const preheader = design.preheader?.trim()
-    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">${escapeHtml(design.preheader.trim())}${'&#847;&zwnj;&nbsp;'.repeat(40)}</div>`
+    ? `${PREHEADER_OPEN}${escapeHtml(design.preheader.trim())}${'&#847;&zwnj;&nbsp;'.repeat(40)}</div>`
     : '';
+  const sole = soleHtmlBlock(design);
+  if (sole) {
+    if (!preheader) return sole.html;
+    return /<body[^>]*>/i.test(sole.html) ? sole.html.replace(/<body[^>]*>/i, (tag) => `${tag}${preheader}`) : `${preheader}${sole.html}`;
+  }
+  const blocks = design.blocks.map((block) => (isColumnsBlock(block) ? renderColumns(block, styles) : renderLeaf(block, styles))).join('');
   return `<div style="margin:0;padding:28px 12px;background:${styles.backgroundColor};font-family:${styles.fontFamily},Arial,sans-serif">${preheader}<div style="max-width:620px;margin:0 auto;padding:32px;background:${styles.contentColor};border-radius:16px">${blocks}</div></div>`;
+}
+
+/** Readable text from markup, for the plain-text part of the email. */
+function htmlToPlainText(html: string) {
+  return bodyOf(html)
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, '')
+    .replace(PREHEADER_PATTERN, '')
+    .replace(/<a[^>]*href="(https?:[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '$2 ($1)')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|tr|li|h[1-6]|table)>/gi, '\n\n')
+    .replace(/<[^>]*>/g, '')
+    .replaceAll('&nbsp;', ' ')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replaceAll('&amp;', '&')
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function leafToPlainText(block: TemplateLeafBlock): string[] {
@@ -250,6 +308,7 @@ function leafToPlainText(block: TemplateLeafBlock): string[] {
   if (block.type === 'spacer' || block.type === 'image') return [];
   if (block.type === 'button') return [`${block.text}: ${block.url}`];
   if (block.type === 'social') return block.links.map((link) => `${link.label}: ${link.url}`);
+  if (block.type === 'html') return [htmlToPlainText(block.html)];
   return [block.text];
 }
 
@@ -385,7 +444,11 @@ export function templateChecks(design: TemplateDesign, subject: string, variable
     checks.push({ key: 'subject', tone: 'exception', title: 'Add a subject line', detail: 'It’s what people see first in their inbox.' });
 
   const leaves = allLeaves(design);
-  const texts = [subject, design.preheader ?? '', ...leaves.flatMap((leaf) => ('text' in leaf ? [leaf.text] : []))];
+  const texts = [
+    subject,
+    design.preheader ?? '',
+    ...leaves.flatMap((leaf) => ('text' in leaf ? [leaf.text] : leaf.type === 'html' ? [leaf.html] : [])),
+  ];
   const unknown = new Set<string>();
   for (const text of texts) for (const match of text.matchAll(TOKEN)) if (variables.length && !known.has(match[1])) unknown.add(match[1]);
   for (const token of unknown)

@@ -11,6 +11,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { getMyScheduledShifts } from '@/lib/modules/workforce/client';
 import { getMyShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
+import { formatInstant, workspaceDateKey } from '@/lib/utils/workspace-time';
 
 import { fmt } from './shared';
 
@@ -21,12 +22,8 @@ import { fmt } from './shared';
  * here — reusing the cache keys the rota and the workspace already fill.
  */
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const localDate = (iso: string) => {
-  const date = new Date(iso);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-};
-const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const localDate = (iso: string) => workspaceDateKey(iso);
+const time = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 const hrs = (hours: number) => `${Math.round(hours * 10) / 10}h`;
 const toHours = (minutes: number) => (Number(minutes) || 0) / 60;
 const duration = (from: string, to: string) => hrs((new Date(to).getTime() - new Date(from).getTime()) / 3600000);

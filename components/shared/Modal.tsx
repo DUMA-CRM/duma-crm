@@ -131,7 +131,8 @@ export function Modal({ title, description, onClose, footer, illustration, actio
               <h2 className="text-base font-semibold text-foreground">{title}</h2>
               {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
             </div>
-            <div className="flex shrink-0 items-center gap-1">
+            {/* -mt-1.5: the 36px button centred on the 24px title line, not hanging below it. */}
+            <div className="-mt-1.5 flex shrink-0 items-center gap-1">
               {actions}
               <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog">
                 <X size={16} aria-hidden="true" />

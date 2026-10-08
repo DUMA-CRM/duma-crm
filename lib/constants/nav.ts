@@ -57,9 +57,11 @@ export interface NavItem {
   to open pages titled Till, Kitchen and Menu.
 */
 export const mainNavItems: NavItem[] = [
-  { module: 'analytics', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  // Every workspace has one: it builds itself from the modules switched on.
+  { module: 'organization', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { module: 'pos', label: 'Till', href: '/pos', icon: Monitor, capabilities: ['orders:create'] },
-  { module: 'ordering', label: 'Kitchen', href: '/kds', icon: ChefHat, capabilities: ['orders:status'], surface: 'fulfilment' },
+  // Its own module since 0101: a shop that ships parcels has no kitchen.
+  { module: 'kds', label: 'Kitchen', href: '/kds', icon: ChefHat, capabilities: ['orders:status'] },
   { module: 'ordering', label: 'Orders', href: '/orders', icon: ShoppingBag, capabilities: ['orders:read'] },
   // No End of day entry: opening and closing the trading day is done in the
   // till, at the drawer (2026-10-04). Reports keeps the read-only history.

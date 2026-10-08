@@ -152,3 +152,17 @@ export function tradingDayLabel(day: TradingDay): string {
       return 'Trading hours not set';
   }
 }
+
+const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+
+/**
+ * Open around the clock, every day — an online shop, or anywhere without fixed
+ * hours. Stored as 00:00–00:00 (a close at the open is the next midnight), so
+ * the trading day is the whole day and nothing nags that hours are missing.
+ */
+export const ALWAYS_OPEN_HOURS = Object.fromEntries(DAYS.map((day) => [day, { open: '00:00', close: '00:00' }])) as unknown as OpeningHours;
+
+/** True for hours that are open the whole of every day. */
+export function isAlwaysOpen(hours: OpeningHours | null | undefined): boolean {
+  return !!hours && DAYS.every((day) => hours[day]?.open === '00:00' && hours[day]?.close === '00:00');
+}

@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 
+import { CustomerAddresses } from '@/components/customers/CustomerAddresses';
 import { CustomerFormDrawer } from '@/components/customers/CustomerForm';
 import { CustomerLoyaltyCards } from '@/components/customers/CustomerLoyaltyCards';
 import { CustomerTimeline } from '@/components/customers/CustomerTimeline';
@@ -44,6 +45,7 @@ import { Button } from '@/components/ui/button';
 import { ApiError } from '@/lib/api/client';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { TIER_CONFIG } from '@/lib/constants/customers';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { getPrivacyRequests } from '@/lib/modules/compliance/client';
 import { getCustomer, getCustomerLedger, getCustomerLoyaltyWallet, unmergeCustomer } from '@/lib/modules/customers/client';
 import { getOrders } from '@/lib/modules/ordering/client';
@@ -51,7 +53,9 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { customerDisplayName } from '@/lib/utils/customer-card';
 import { formatDate } from '@/lib/utils/date';
+import { startOrderHref } from '@/lib/utils/start-order';
 import { type VisitSummary, summariseVisits } from '@/lib/utils/visit-pattern';
+import { formatInstant, workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import type { Customer } from '@/types/customers';
@@ -66,13 +70,10 @@ const VISIT_MONTHS = 6;
 
 const WEEKDAYS = ['Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays', 'Sundays'];
 
-/** Today as the guest's calendar sees it — local, not UTC. */
-function localToday(): string {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
+/** Today as the business's calendar sees it — the workspace zone, not UTC or the browser. */
+const localToday = (): string => workspaceDateKey();
 
-const monthYear = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+const monthYear = (iso: string) => formatInstant(iso, { month: 'long', year: 'numeric' });
 
 /**
  * A single customer.
@@ -101,8 +102,20 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
 
   // The open tab lives in the URL: a colleague can be sent straight to the
   // compliance history, and the back button steps out of it the way it should.
+  // What the workspace runs decides what this page asks for and shows: privacy
+  // requests are Compliance's, marketing consent and email are Communications',
+  // visits come from Orders. A disabled module's routes refuse even a capable
+  // role, so nothing here asks a module that's off.
+  const commsOn = useModuleEnabled('communications');
+  const complianceOn = useModuleEnabled('compliance');
+  const orderingOn = useModuleEnabled('ordering');
+  const posOn = useModuleEnabled('pos');
+  const hasComplianceTab = commsOn || complianceOn;
+
   const requested = searchParams.get('tab');
-  const section: Section = SECTION_VALUES.includes(requested as Section) ? (requested as Section) : 'guest';
+  const asked: Section = SECTION_VALUES.includes(requested as Section) ? (requested as Section) : 'guest';
+  // A link to a tab the workspace no longer has lands on Guest.
+  const section: Section = asked === 'compliance' && !hasComplianceTab ? 'guest' : asked;
 
   const setSection = useCallback(
     (next: Section) => {
@@ -126,7 +139,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const visitsQuery = useQuery({
     queryKey: moduleQueryKeys.customers.key('customer-visits', customerId),
     queryFn: () => getOrders({ customerId, limit: 200 }),
-    enabled: section === 'guest',
+    enabled: section === 'guest' && orderingOn,
   });
 
   // The ledger is read here purely to surface a drift warning: if the cached
@@ -148,6 +161,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const { data: privacyRequests } = useQuery({
     queryKey: moduleQueryKeys.compliance.key('privacy-requests', undefined, customerId),
     queryFn: () => getPrivacyRequests({ customerId }),
+    enabled: complianceOn && hasCapability(capabilities, 'privacy:read'),
   });
 
   const openPrivacy = useMemo(
@@ -190,6 +204,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const canEdit = hasCapability(capabilities, 'customers:write');
   const canAdjustPoints = hasCapability(capabilities, 'customers:points');
   const canMerge = hasCapability(capabilities, 'customers:merge');
+  // Loyalty is on when the workspace runs at least one programme; with none, points and rewards don't apply.
+  const loyaltyOn = (loyaltyWallet?.programmes.length ?? 0) > 0;
 
   function handleSaved() {
     void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer', customerId) });
@@ -199,21 +215,28 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const name = customer ? customerDisplayName(customer) : isLoading ? 'Loading…' : 'Customer';
   const tier = customer ? TIER_CONFIG[customer.tier] : null;
   const erased = Boolean(customer?.anonymisedAt);
+  // The Till when there is one, else New order on the Orders page with them picked; nothing if neither is theirs.
+  const startOrder =
+    customer && !erased
+      ? startOrderHref(customer.id, { pos: posOn, manual: orderingOn && hasCapability(capabilities, 'orders:create') })
+      : null;
   const hasAllergies = (customer?.allergies?.length ?? 0) > 0;
   const hasCriticalAlert = customer?.alerts?.some((alert) => alert.severity === 'critical') ?? false;
 
   const sections: SectionTab<Section>[] = [
     { value: 'guest', label: 'Guest', icon: UserCircle2 },
     { value: 'timeline', label: 'Timeline', icon: Activity },
-    {
+  ];
+  // Marketing consent and privacy requests, whichever of their modules the workspace runs.
+  if (hasComplianceTab)
+    sections.push({
       value: 'compliance',
-      label: 'Compliance',
+      label: complianceOn ? 'Compliance' : 'Marketing',
       icon: ShieldCheck,
       count: openPrivacy.length,
       countTone: overduePrivacy ? 'danger' : 'default',
       countLabel: `${openPrivacy.length} open privacy request${openPrivacy.length === 1 ? '' : 's'}${overduePrivacy ? ', one or more overdue' : ''}`,
-    },
-  ];
+    });
 
   return (
     <EditorShell
@@ -243,11 +266,11 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
         ) : undefined
       }
       actions={
-        customer && !erased ? (
+        startOrder ? (
           <Button
             className="h-9 gap-1.5"
-            onClick={() => router.push(`/pos?customer=${customer.id}`)}
-            aria-label="Start an order in the POS"
+            onClick={() => router.push(startOrder)}
+            aria-label={posOn ? 'Start an order at the Till' : 'Start an order for this customer'}
           >
             <ShoppingBag size={15} aria-hidden="true" />
             <span className="hidden md:inline">Start an order</span>
@@ -333,8 +356,37 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
               customer={customer}
               loyaltyProgrammes={loyaltyWallet?.programmes ?? []}
               canEdit={canEdit}
-              showConsent={section !== 'compliance'}
-              canAdjustPoints={canAdjustPoints}
+              showConsent={section !== 'compliance' && commsOn}
+              canEmail={commsOn}
+              canAdjustPoints={canAdjustPoints && loyaltyOn}
+              loyalty={
+                loyaltyOn ? (
+                  <>
+                    {/* The projection and the ledger disagreeing is a data-integrity
+                        problem, not a cosmetic one, so it is stated rather than hidden. */}
+                    {ledger && !ledger.reconciles && (
+                      <RecordNotice icon={AlertTriangle} tone="warning" title="The points balance doesn’t match the ledger">
+                        The balance shows {ledger.pointsBalance.toLocaleString()}; the loyalty ledger adds up to{' '}
+                        {ledger.ledgerTotal.toLocaleString()}. Points were changed outside the ledger, or the opening backfill has not been
+                        run.
+                      </RecordNotice>
+                    )}
+
+                    <SettingsSection title="Points">
+                      <LoyaltyProgress customer={customer} />
+                    </SettingsSection>
+
+                    <CustomerLoyaltyCards
+                      customerId={customer.id}
+                      customerName={`${customer.firstName} ${customer.lastName}`.trim()}
+                      programmes={loyaltyWallet?.programmes ?? []}
+                      canAdjust={canAdjustPoints && !erased}
+                      canOrder={!erased}
+                      stacked
+                    />
+                  </>
+                ) : undefined
+              }
               onAction={setModal}
               className="lg:col-start-2 lg:row-start-1"
             />
@@ -344,29 +396,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                 <>
                   <GlanceFacts customer={customer} avgTicket={avgTicket} summary={visitSummary} money={money} />
 
-                  {/* The projection and the ledger disagreeing is a data-integrity
-                      problem, not a cosmetic one, so it is stated rather than hidden. */}
-                  {ledger && !ledger.reconciles && (
-                    <RecordNotice icon={AlertTriangle} tone="warning" title="The points balance doesn’t match the ledger">
-                      The balance shows {ledger.pointsBalance.toLocaleString()}; the loyalty ledger adds up to{' '}
-                      {ledger.ledgerTotal.toLocaleString()}. Points were changed outside the ledger, or the opening backfill has not been
-                      run.
-                    </RecordNotice>
-                  )}
-
-                  <SettingsSection title="Points">
-                    <LoyaltyProgress customer={customer} />
-                  </SettingsSection>
-
-                  <CustomerLoyaltyCards
-                    customerId={customer.id}
-                    customerName={`${customer.firstName} ${customer.lastName}`.trim()}
-                    programmes={loyaltyWallet?.programmes ?? []}
-                    canAdjust={canAdjustPoints && !erased}
-                    canOrder={!erased}
-                  />
-
-                  {!visitsForbidden && (
+                  {orderingOn && !visitsForbidden && (
                     <SettingsSection
                       title="Visit pattern"
                       description={
@@ -393,6 +423,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                       )}
                     </SettingsSection>
                   )}
+
+                  {!erased && <CustomerAddresses customer={customer} canEdit={canEdit} />}
                 </>
               ) : section === 'timeline' ? (
                 <CustomerTimeline customerId={customer.id} />
@@ -400,8 +432,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                 // Two blocks headed on the page, as the staff record lays them
                 // out: more air between them than between panels.
                 <div className="space-y-8">
-                  <MarketingPreferencesPanel customerId={customer.id} email={customer.email} />
-                  <PrivacyRequestsPanel customerId={customer.id} tenantId={customer.tenantId} />
+                  {commsOn && <MarketingPreferencesPanel customerId={customer.id} email={customer.email} />}
+                  {complianceOn && <PrivacyRequestsPanel customerId={customer.id} tenantId={customer.tenantId} />}
                 </div>
               )}
             </div>

@@ -42,14 +42,22 @@ import { type Shift, clockIn, getActiveShifts, getMyShifts } from '@/lib/modules
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { formatDuration, localDateKey, paidMinutes, unpaidBreak, weekOffsetFor } from '@/lib/utils/my-rota';
+import { formatInstant, workspaceDateKey, zonedToInstant } from '@/lib/utils/workspace-time';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
 const WEEKDAY_KEY: Weekday[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
+// The week grid is calendar days: local-midnight Dates standing for days at the
+// business. Instants are placed on them by their workspace day, and API ranges
+// start at the workspace's midnight, not the device's.
+const calendarDay = (key: string) => new Date(`${key}T00:00:00`);
+const dayStartISO = (day: Date) => (zonedToInstant(localDateKey(day), '00:00') ?? day).toISOString();
+const onDay = (day: Date, iso: string) => localDateKey(day) === workspaceDateKey(iso);
+
 function startOfWeek(offsetWeeks: number): Date {
-  const d = new Date();
+  const d = calendarDay(workspaceDateKey());
   d.setHours(0, 0, 0, 0);
   const mondayIndex = (d.getDay() + 6) % 7;
   d.setDate(d.getDate() - mondayIndex + offsetWeeks * 7);
@@ -60,22 +68,21 @@ const addDays = (d: Date, n: number) => {
   x.setDate(x.getDate() + n);
   return x;
 };
-const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const durationMin = (a: Date, b: Date) => Math.max(0, (b.getTime() - a.getTime()) / 60000);
-const fmtTime = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-const fmtClock = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const fmtTime = (d: Date) => formatInstant(d, { hour: '2-digit', minute: '2-digit' });
+const fmtClock = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 const fmtHrs = formatDuration;
 /** How far ahead "Next shift" looks. */
 const UPCOMING_DAYS = 35;
 
-/** "Today", "Tomorrow", or "Mon 6 Oct". */
-const relativeDay = (date: Date, today: Date) => {
-  const key = localDateKey(date);
+/** "Today", "Tomorrow", or "Mon 6 Oct" — for an instant, on the workspace calendar. */
+const relativeDay = (iso: string, today: Date) => {
+  const key = workspaceDateKey(iso);
   if (key === localDateKey(today)) return 'Today';
   if (key === localDateKey(addDays(today, 1))) return 'Tomorrow';
-  return fmtShortDay(date);
+  return fmtShortDay(iso);
 };
-const fmtShortDay = (date: Date) => date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+const fmtShortDay = (iso: string) => formatInstant(iso, { weekday: 'short', day: 'numeric', month: 'short' });
 /** Countdown to a shift that has not started yet, or null once it has. */
 const fmtUntil = (startsAt: string, now: number) => {
   const mins = Math.round((new Date(startsAt).getTime() - now) / 60000);
@@ -219,7 +226,7 @@ export function MyRota() {
   const qc = useQueryClient();
   const reduceMotion = useReducedMotion();
   const [offset, setOffset] = useState(0);
-  const today = useMemo(() => new Date(), []);
+  const today = useMemo(() => calendarDay(workspaceDateKey()), []);
 
   // Tick every 30s so the "clocked in for" label stays fresh.
   const [now, setNow] = useState(() => Date.now());
@@ -240,7 +247,7 @@ export function MyRota() {
     refetch: refetchRota,
   } = useQuery({
     queryKey: moduleQueryKeys.workforce.key('my-rota', weekStart.toISOString()),
-    queryFn: () => getMyScheduledShifts({ from: weekStart.toISOString(), to: weekEndExclusive.toISOString() }),
+    queryFn: () => getMyScheduledShifts({ from: dayStartISO(weekStart), to: dayStartISO(weekEndExclusive) }),
   });
 
   const { data: locations = [] } = useQuery({ queryKey: moduleQueryKeys.organization.key('locations-all'), queryFn: getLocations });
@@ -260,10 +267,8 @@ export function MyRota() {
   const clockLocationId = myActive?.locationId ?? locationId;
   const activeDayRange = useMemo(() => {
     if (!myActive) return null;
-    const from = new Date(myActive.clockedIn);
-    from.setHours(0, 0, 0, 0);
-    const to = addDays(from, 1);
-    return { from: from.toISOString(), to: to.toISOString() };
+    const day = calendarDay(workspaceDateKey(myActive.clockedIn));
+    return { from: dayStartISO(day), to: dayStartISO(addDays(day, 1)) };
   }, [myActive]);
   // Shares a key shape with today's query below, so a shift started today costs
   // one request rather than two.
@@ -275,11 +280,7 @@ export function MyRota() {
 
   // Today's rota, independent of the week being browsed — clocking in and the
   // late warning must stay right while you are looking at next week.
-  const todayRange = useMemo(() => {
-    const from = new Date(today);
-    from.setHours(0, 0, 0, 0);
-    return { from: from.toISOString(), to: addDays(from, 1).toISOString() };
-  }, [today]);
+  const todayRange = useMemo(() => ({ from: dayStartISO(today), to: dayStartISO(addDays(today, 1)) }), [today]);
   const { data: todayShifts = [] } = useQuery({
     queryKey: moduleQueryKeys.workforce.key('my-rota-day', todayRange.from),
     queryFn: () => getMyScheduledShifts(todayRange),
@@ -305,8 +306,8 @@ export function MyRota() {
   // ── Worked time, to read the rota against ───────────────────────────────────
   const { data: myWorkedShifts = [] } = useQuery({ queryKey: moduleQueryKeys.workforce.key('shifts-my'), queryFn: getMyShifts });
   const workedThisWeek = useMemo(() => {
-    const from = weekStart.getTime();
-    const to = weekEndExclusive.getTime();
+    const from = Date.parse(dayStartISO(weekStart));
+    const to = Date.parse(dayStartISO(weekEndExclusive));
     return myWorkedShifts.filter((shift) => {
       const clockedIn = new Date(shift.clockedIn).getTime();
       return clockedIn >= from && clockedIn < to;
@@ -316,7 +317,7 @@ export function MyRota() {
   const workedByDay = useMemo(() => {
     const buckets: Shift[][] = Array.from({ length: 7 }, () => []);
     for (const shift of workedThisWeek) {
-      const idx = days.findIndex((day) => sameDay(day, new Date(shift.clockedIn)));
+      const idx = days.findIndex((day) => onDay(day, shift.clockedIn));
       if (idx >= 0) buckets[idx].push(shift);
     }
     return buckets;
@@ -394,7 +395,7 @@ export function MyRota() {
   const byDay = useMemo(() => {
     const buckets: ScheduledShift[][] = Array.from({ length: 7 }, () => []);
     for (const s of shifts) {
-      const idx = days.findIndex((d) => sameDay(d, new Date(s.startsAt)));
+      const idx = days.findIndex((d) => onDay(d, s.startsAt));
       if (idx >= 0) buckets[idx].push(s);
     }
     return buckets;
@@ -423,11 +424,7 @@ export function MyRota() {
   // ── Next shift ──────────────────────────────────────────────────────────────
   // Read across the coming five weeks, not the week on screen: on a Sunday the
   // week's last shift has passed, and "None this week" hid Monday's.
-  const upcomingRange = useMemo(() => {
-    const from = new Date(today);
-    from.setHours(0, 0, 0, 0);
-    return { from: from.toISOString(), to: addDays(from, UPCOMING_DAYS).toISOString() };
-  }, [today]);
+  const upcomingRange = useMemo(() => ({ from: dayStartISO(today), to: dayStartISO(addDays(today, UPCOMING_DAYS)) }), [today]);
   const upcoming = useQuery({
     queryKey: moduleQueryKeys.workforce.key('my-rota-upcoming', upcomingRange.from),
     queryFn: () => getMyScheduledShifts(upcomingRange),
@@ -675,7 +672,7 @@ export function MyRota() {
                 : upcoming.isError
                   ? '—'
                   : nextShift
-                    ? relativeDay(new Date(nextShift.startsAt), today)
+                    ? relativeDay(nextShift.startsAt, today)
                     : `None in ${UPCOMING_DAYS / 7} weeks`
             }
             hint={
@@ -687,7 +684,7 @@ export function MyRota() {
             }
             tone={upcoming.isError ? 'warning' : 'default'}
             // Takes you to its week — usually this one, sometimes the next.
-            onSelect={nextShift ? () => setOffset(weekOffsetFor(new Date(nextShift.startsAt), today)) : undefined}
+            onSelect={nextShift ? () => setOffset(weekOffsetFor(calendarDay(workspaceDateKey(nextShift.startsAt)), today)) : undefined}
           />
           <Fact
             surface="page"

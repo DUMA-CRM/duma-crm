@@ -13,6 +13,7 @@ import { getExceptionsAnalytics } from '@/lib/modules/analytics/client';
 import { getRefundReport } from '@/lib/modules/payments/client';
 import { REPORTS } from '@/lib/reports/catalogue';
 import { exportFileName, toCsv } from '@/lib/utils/report-filters';
+import { formatInstant } from '@/lib/utils/workspace-time';
 
 import { DrawerFacts, DrawerList, DrawerMark, DrawerNote, ReportDrawer } from '../kit/DetailDrawer';
 import { ReportFrame, downloadFile } from '../kit/ReportFrame';
@@ -23,7 +24,7 @@ import type { ReportFilterState } from '../kit/useReportFilters';
 const def = (id: string) => REPORTS.find((report) => report.id === id)!;
 const num = (value: string | number | null | undefined) => Number(value ?? 0) || 0;
 const count = (value: number) => value.toLocaleString('en-GB');
-const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const when = (iso: string) => formatInstant(iso, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 // ── Refunds ──────────────────────────────────────────────────────────────────
 

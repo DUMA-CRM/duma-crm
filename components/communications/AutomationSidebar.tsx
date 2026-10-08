@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/select';
 import type { EmailAutomation, EmailAutomationRun, EmailTemplate, EmailWorkflowNode } from '@/lib/modules/communications/client';
 import { cn } from '@/lib/utils/cn';
 import { timeAgo } from '@/lib/utils/communications';
+import { resolvedTimeZone } from '@/lib/utils/workspace-time';
 
 import { TRIGGER_HELP, TRIGGER_OPTIONS } from './shared';
 import { describeStep } from './stepSummary';
@@ -393,7 +394,7 @@ function StepPanel({
                 </Field>
                 <Field label="Time zone" hint="Whose midnight counts as the day.">
                   <TimezoneSelect
-                    value={node.config.timezone ?? 'Europe/London'}
+                    value={node.config.timezone ?? resolvedTimeZone()}
                     onChange={(timezone) => onChange({ ...node, config: { ...node.config, timezone } })}
                   />
                 </Field>

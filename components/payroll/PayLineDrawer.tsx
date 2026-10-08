@@ -13,11 +13,12 @@ import type { PayrollPeriod, PayrollPreviewLine } from '@/lib/modules/payroll/cl
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { explainPay, reconciles } from '@/lib/utils/payroll-explain';
 import { PERIOD_LABEL } from '@/lib/utils/payroll-periods';
+import { formatInstant } from '@/lib/utils/workspace-time';
 
 import { formatDate, formatRange, hours } from './shared';
 import { useMoney } from './usePayroll';
 
-const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—');
+const time = (iso: string | null) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 
 /**
  * How one person's gross pay was arrived at.

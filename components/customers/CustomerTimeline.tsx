@@ -3,36 +3,40 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { TimelineEntryDrawer } from '@/components/customers/TimelineEntryDrawer';
 import { PILL_TONE, TIMELINE_KINDS, TIMELINE_KIND_META } from '@/components/customers/timelineKinds';
 import { Activity, ChevronRight, Loader2 } from '@/components/icons';
+import { OrderDrawer } from '@/components/orders/OrderDrawer';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { LoadMore } from '@/components/shared/LoadMore';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
+import { Bone } from '@/components/shared/Skeleton';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
 import { retryEmailDelivery } from '@/lib/modules/communications/client';
 import { getCustomerTimeline } from '@/lib/modules/customers/client';
+import { getStaff } from '@/lib/modules/identity/client';
+import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { countTimelineKinds, groupTimelineByDay, timelineRowText } from '@/lib/utils/customer-timeline';
 import { formatDateTime } from '@/lib/utils/date';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { TimelineEntry, TimelineKind } from '@/types/customers';
 
 /**
  * One chronological feed of everything that happened with a guest — orders,
- * points, emails, consent and privacy — drawn exactly as the audit log draws
- * its history: a filter bar, then each day as one hairline list of rows with a
- * tinted tile, a bold lead, a muted detail line, a pill only when something
- * went wrong, and the time.
+ * points, emails, consent and privacy: a filter bar, then each day as a tinted
+ * panel of white rows — a kind-coloured tile, a bold lead, a muted detail
+ * line, a pill only when something went wrong, and the time. An order opens
+ * the Orders page's full drawer; anything else opens its own detail.
  *
  * No panel around it: the rows are boxed already, and the tab names the page.
  * The feed covers the *merged group* — a record folded into this one
@@ -41,7 +45,7 @@ import type { TimelineEntry, TimelineKind } from '@/types/customers';
 
 type Filter = 'all' | TimelineKind;
 
-const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const time = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 
 /** The first page, and the API's own ceiling — it has no cursor, only a capped `limit`. */
 const PAGE = 100;
@@ -85,7 +89,31 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
     onError: (error) => toast('error', error.message || 'Could not retry that email.'),
   });
 
+  // An order opens the Orders page's own drawer — everything about it, refunds and notes included —
+  // with the guest's record still underneath. Staff and sites name who took it and where.
+  const { data: staff = [] } = useQuery({
+    queryKey: moduleQueryKeys.identity.key('staff', tenantId),
+    queryFn: () => getStaff(tenantId ?? undefined),
+    enabled: !!tenantId && openEntry?.kind === 'order',
+  });
+  const { data: locations = [] } = useQuery({
+    queryKey: moduleQueryKeys.organization.key('locations', tenantId),
+    queryFn: () => getLocationsByTenant(tenantId!),
+    enabled: !!tenantId && openEntry?.kind === 'order',
+  });
+  const staffName = useCallback(
+    (userId: string | null | undefined) => {
+      const member = userId ? staff.find((entry) => entry.userId === userId) : undefined;
+      return member ? member.name || member.email || null : null;
+    },
+    [staff],
+  );
+  const locationName = useCallback((id: string) => locations.find((location) => location.id === id)?.name ?? null, [locations]);
+
   const entries = useMemo(() => data?.data ?? [], [data]);
+  // Previous / next in the drawer walk this guest's orders, in the feed's order.
+  const orderEntries = useMemo(() => entries.filter((entry) => entry.kind === 'order'), [entries]);
+  const orderIndex = openEntry?.kind === 'order' ? orderEntries.findIndex((entry) => entry.id === openEntry.id) : -1;
   const days = useMemo(() => groupTimelineByDay(entries, now), [entries, now]);
   const counts = useMemo(() => (everything.data ? countTimelineKinds(everything.data.data) : null), [everything.data]);
   const mergedIn = (data?.group.length ?? 1) > 1;
@@ -128,9 +156,9 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
         ) : isLoading ? (
           <div role="status" aria-busy="true" aria-label="Loading the timeline">
             <Bone className="mb-2 ml-1 h-4 w-24" />
-            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <div className="space-y-2 rounded-lg bg-band/50 p-2">
               {Array.from({ length: 6 }, (_, index) => (
-                <RowSkeleton key={index} index={index} />
+                <Bone key={index} className="h-[3.75rem] rounded-md" />
               ))}
             </div>
           </div>
@@ -150,15 +178,20 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
           <div className="space-y-6">
             {days.map((day) => (
               <section key={day.key} aria-labelledby={`timeline-day-${day.key}`}>
-                <h2 id={`timeline-day-${day.key}`} className="mb-2 flex items-baseline gap-2 px-1 text-sm font-semibold text-foreground">
+                <h2 id={`timeline-day-${day.key}`} className="mb-2 flex items-center gap-2 px-1 text-sm font-semibold text-foreground">
                   {day.label}
+                  <span className="rounded-full bg-band px-2 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
+                    {day.entries.length}
+                  </span>
                   {day.orders > 0 && (
-                    <span className="text-xs font-normal tabular-nums text-muted-foreground">
-                      {day.orders} {day.orders === 1 ? 'order' : 'orders'} · {money(day.spend)}
+                    <span className="ml-auto text-xs font-normal tabular-nums text-muted-foreground">
+                      {day.orders} {day.orders === 1 ? 'order' : 'orders'} ·{' '}
+                      <span className="font-semibold text-foreground">{money(day.spend)}</span>
                     </span>
                   )}
                 </h2>
-                <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                {/* Each day a tinted panel of white rows — the newer cards' shape. */}
+                <ul className="space-y-2 rounded-lg bg-band/50 p-2">
                   {day.entries.map((entry) => (
                     <EntryRow
                       key={`${entry.kind}-${entry.id}`}
@@ -199,7 +232,18 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
         )}
       </motion.div>
 
-      {openEntry && (
+      {openEntry?.kind === 'order' && (
+        <OrderDrawer
+          key={openEntry.id}
+          orderId={openEntry.id}
+          staffName={staffName}
+          locationName={locationName}
+          onClose={() => setOpenEntry(null)}
+          onPrev={orderIndex > 0 ? () => setOpenEntry(orderEntries[orderIndex - 1]) : undefined}
+          onNext={orderIndex >= 0 && orderIndex < orderEntries.length - 1 ? () => setOpenEntry(orderEntries[orderIndex + 1]) : undefined}
+        />
+      )}
+      {openEntry && openEntry.kind !== 'order' && (
         <TimelineEntryDrawer
           entry={openEntry}
           customerId={customerId}
@@ -232,17 +276,17 @@ function EntryRow({
   const row = timelineRowText(entry, money, now);
 
   return (
-    <li className="border-b border-rule/45 last:border-b-0">
+    <li>
       <button
         type="button"
         onClick={onOpen}
         className={cn(
-          'group flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-          selected ? 'bg-band' : 'hover:bg-band/40',
+          'group flex w-full items-center gap-3 rounded-md bg-card px-3 py-2.5 text-left shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+          selected ? 'ring-2 ring-primary/30' : 'hover:bg-background',
         )}
       >
-        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', meta.tile)}>
-          <Icon size={16} aria-hidden="true" />
+        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', meta.tile)}>
+          <Icon size={18} aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm text-foreground">
@@ -255,7 +299,11 @@ function EntryRow({
             {row.pill.label}
           </span>
         )}
-        <time className="shrink-0 text-xs tabular-nums text-muted-foreground" dateTime={entry.at} title={formatDateTime(entry.at)}>
+        <time
+          className="shrink-0 rounded-md bg-band/70 px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground"
+          dateTime={entry.at}
+          title={formatDateTime(entry.at)}
+        >
           {time(entry.at)}
         </time>
         <ChevronRight

@@ -46,8 +46,12 @@ interface Props {
   loyaltyProgrammes: CustomerLoyaltyProgram[];
   canEdit: boolean;
   canAdjustPoints: boolean;
-  /** False on the Compliance tab, where the full consent panel sits beside it. */
+  /** False on the Compliance tab, where the full consent panel sits beside it — and without Communications. */
   showConsent?: boolean;
+  /** Emailing a customer is Communications'; without it there's no Send email. */
+  canEmail?: boolean;
+  /** The loyalty cards, under Contact on every tab — absent when the workspace runs no programme. */
+  loyalty?: React.ReactNode;
   onAction: (action: WorkbenchAction) => void;
   className?: string;
 }
@@ -58,6 +62,8 @@ export function CustomerWorkbench({
   canEdit,
   canAdjustPoints,
   showConsent = true,
+  canEmail = true,
+  loyalty,
   onAction,
   className,
 }: Props) {
@@ -93,15 +99,17 @@ export function CustomerWorkbench({
       {/* ── What you can do ──────────────────────────────────────────────
           First, not last: on a phone this column sits above the figures, and
           someone holding a queue needs the verbs before the analytics. */}
-      {!erased && (
+      {/* Only what this workspace can do: no Send email without Communications, no points without a programme. */}
+      {!erased && (canEmail || canAdjustPoints || canEdit) && (
         <SettingsSection
           title="Actions"
           footnote={
             // The disabled Send button states the rule; this states the fix.
-            !customer.email ? 'No email address on this record, so nothing can be sent yet.' : undefined
+            canEmail && !customer.email ? 'No email address on this record, so nothing can be sent yet.' : undefined
           }
         >
           <div className="grid gap-2">
+            {canEmail && (
             <Button
               variant="outline"
               onClick={() => onAction('email')}
@@ -118,6 +126,7 @@ export function CustomerWorkbench({
               <Send data-icon="inline-start" />
               Send email
             </Button>
+            )}
 
             {canAdjustPoints && (
               <Button variant="outline" onClick={() => onAction('points')} className="w-full justify-start">
@@ -207,6 +216,8 @@ export function CustomerWorkbench({
         </ul>
       </SettingsSection>
 
+      {loyalty}
+
       {/* ── What the team should know ────────────────────────────────────
           In the column rather than the Guest tab, so a note can be written
           while reading the timeline that prompted it. */}
@@ -238,7 +249,6 @@ function MembershipCard({ customer }: { customer: Customer }) {
   return (
     <SettingsSection
       title="Loyalty card"
-      description="Scan at the till to attach an order."
       actions={
         <Button variant="outline" size="sm" onClick={() => setScanning(true)}>
           <QrCode data-icon="inline-start" />

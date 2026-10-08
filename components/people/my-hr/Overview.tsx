@@ -37,6 +37,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { getMyScheduledShifts } from '@/lib/modules/workforce/client';
 import { lengthOfService } from '@/lib/utils/employee-record';
 import { type ActionSeverity, type MyHrAction, leaveBalance } from '@/lib/utils/my-hr';
+import { formatInstant, workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 
 import type { BankVisibility, MyHrTab } from './shared';
@@ -288,8 +289,8 @@ function NextShift() {
     const at = new Date();
     return {
       now: at.getTime(),
-      from: at.toISOString().slice(0, 10),
-      to: new Date(at.getTime() + 28 * 86400000).toISOString().slice(0, 10),
+      from: workspaceDateKey(at),
+      to: workspaceDateKey(at.getTime() + 28 * 86400000),
     };
   });
   const {
@@ -303,7 +304,7 @@ function NextShift() {
   });
 
   const next = [...data].filter((shift) => new Date(shift.endsAt).getTime() > now).sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
-  const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const time = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 
   return (
     <Fact
@@ -316,7 +317,7 @@ function NextShift() {
           : isError
             ? '—'
             : next
-              ? new Date(next.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+              ? formatInstant(next.startsAt, { weekday: 'short', day: 'numeric', month: 'short' })
               : 'None planned'
       }
       hint={

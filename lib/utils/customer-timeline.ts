@@ -1,8 +1,9 @@
 /**
- * Bucketing a guest's timeline for display: one group per local calendar day,
+ * Bucketing a guest's timeline for display: one group per workspace calendar day,
  * newest first, each carrying what was spent that day, plus per-kind counts for
  * the filter chips. Pure, with `now` passed in, so "Today" is testable.
  */
+import { formatInstant, workspaceDateKey, zonedParts } from './workspace-time.ts';
 
 export type TimelineKindName = 'order' | 'points' | 'email' | 'consent' | 'privacy';
 
@@ -15,7 +16,7 @@ export interface TimelineItem {
 }
 
 export interface TimelineDay<T extends TimelineItem> {
-  /** `YYYY-MM-DD`, local. */
+  /** `YYYY-MM-DD`, in the workspace zone. */
   key: string;
   label: string;
   /** Sum of the day's orders that still stand — cancelled and fully refunded ones don't count. */
@@ -26,19 +27,21 @@ export interface TimelineDay<T extends TimelineItem> {
 
 const VOID_STATUSES = new Set(['cancelled', 'canceled', 'void', 'voided']);
 
-const localKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+/** The calendar day before a `YYYY-MM-DD` key. */
+const dayBefore = (key: string) => {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+};
 
 /** "Today", "Yesterday", "Mon 28 Sep" this year, "28 Sep 2025" before it. */
 export function timelineDayLabel(at: Date, now: Date): string {
-  const key = localKey(at);
-  if (key === localKey(now)) return 'Today';
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (key === localKey(yesterday)) return 'Yesterday';
-  return at.getFullYear() === now.getFullYear()
-    ? at.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-    : at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const day = zonedParts(at);
+  const today = zonedParts(now);
+  if (day.date === today.date) return 'Today';
+  if (day.date === dayBefore(today.date)) return 'Yesterday';
+  return day.year === today.year
+    ? formatInstant(at, { weekday: 'short', day: 'numeric', month: 'short' })
+    : formatInstant(at, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 /** An order that counts towards what they spent. */
@@ -51,7 +54,7 @@ export function groupTimelineByDay<T extends TimelineItem>(entries: T[], now: Da
   const days = new Map<string, TimelineDay<T>>();
   for (const entry of entries) {
     const at = new Date(entry.at);
-    const key = localKey(at);
+    const key = workspaceDateKey(at);
     let day = days.get(key);
     if (!day) {
       day = { key, label: timelineDayLabel(at, now), spend: 0, orders: 0, entries: [] };

@@ -16,7 +16,11 @@ interface UiSettingsStore {
    *  screen remembers how this device likes to read it. */
   listViews: Record<string, ListView>;
   setListView: (id: string, view: ListView) => void;
-  /** The brand colour this device paints the app in. BrandSync puts it on <html>. */
+  /**
+   * The workspace's brand colour, cached on this device so the next load paints
+   * it before the profile arrives. Set by WorkspaceSettingsSync; BrandSync puts
+   * it on <html>.
+   */
   brand: Brand;
   setBrand: (brand: Brand) => void;
 }

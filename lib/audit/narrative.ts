@@ -2,6 +2,7 @@ import type { AuditLog } from '../api/audit.service.ts';
 
 import { auditSubject, shortId } from './change.ts';
 import { type AuditDomain, actionPhrase, resourceMeta } from './vocabulary.ts';
+import { workspaceDateKey, workspaceFormatter } from '../utils/workspace-time.ts';
 
 export type { AuditDomain } from './vocabulary.ts';
 export { actionFilterLabel, resourceMeta } from './vocabulary.ts';
@@ -156,45 +157,46 @@ export function resourceLabel(resourceType: string): string {
 
 // ── Time ──────────────────────────────────────────────────────────────────────
 
-const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-const DAY_FORMAT = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-const FULL_FORMAT = new Intl.DateTimeFormat('en-GB', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: false,
-});
+const TIME_FORMAT = () => workspaceFormatter({ hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+const DAY_FORMAT = () => workspaceFormatter({ weekday: 'short', day: 'numeric', month: 'short' });
+const FULL_FORMAT = () =>
+  workspaceFormatter({
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
 
 /** Seconds are load-bearing in an audit log — two entries a second apart are a sequence. */
 export function timeOfDay(iso: string): string {
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '—' : TIME_FORMAT.format(date);
+  return Number.isNaN(date.getTime()) ? '—' : TIME_FORMAT().format(date);
 }
 
 export function fullTimestamp(iso: string): string {
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? 'Unknown time' : FULL_FORMAT.format(date);
+  return Number.isNaN(date.getTime()) ? 'Unknown time' : FULL_FORMAT().format(date);
 }
 
-/** Local calendar day, used to group the stream. */
+/** Workspace calendar day, used to group the stream. */
 export function dayKey(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return 'unknown';
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return workspaceDateKey(date);
 }
 
 export function dayLabel(iso: string, now: number): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return 'Undated';
-  if (dayKey(iso) === dayKey(new Date(now).toISOString())) return 'Today';
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (dayKey(iso) === dayKey(yesterday.toISOString())) return 'Yesterday';
-  return DAY_FORMAT.format(date);
+  const today = dayKey(new Date(now).toISOString());
+  if (dayKey(iso) === today) return 'Today';
+  const [year, month, day] = today.split('-').map(Number);
+  if (dayKey(iso) === new Date(Date.UTC(year, month - 1, day - 1)).toISOString().slice(0, 10)) return 'Yesterday';
+  return DAY_FORMAT().format(date);
 }
 
 /**

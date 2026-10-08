@@ -73,9 +73,8 @@ function statCards(source: string, file: string) {
  * query plumbing needs reading before an error state can be threaded through
  * honestly, and that is its own afternoon rather than a drive-by.
  */
-const UNGUARDED_BY_DESIGN: Record<string, number> = {
-  'components/dashboard/TodayKpiRow.tsx': 4,
-};
+// Empty: the dashboard's Today row, the last entry, moved to `Fact` tiles (2026-10-08).
+const UNGUARDED_BY_DESIGN: Record<string, number> = {};
 
 test('a StatCard that can load can also fail', () => {
   const counts: Record<string, number> = {};

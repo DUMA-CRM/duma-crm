@@ -927,17 +927,17 @@ Use **Settings → Profile → Install the app**. On iPad or iPhone, use the bro
       'A map of the Settings tabs — Workspace, Roles & access, Modules, Trading & tax, Connectors, Security — plus audit log, compliance and where each admin job lives.',
     category: 'Workspace',
     readMinutes: 7,
-    updated: '2026-10-05',
+    updated: '2026-10-08',
     body: `Administrative work is split so everyday managers can run service without automatically seeing payroll, private HR data or business-wide settings. Access comes from **permissions** attached to each role, not from a ranking of roles.
 
 ## Where each job lives
 
 | Job | Page |
 | --- | --- |
-| Your theme, brand colour, installing the app | Settings → Profile |
+| Your theme, installing the app | Settings → Profile |
 | Your email, password and signed-in devices | Settings → Security |
 | Till, Kitchen screen and Dashboard layout | Settings → Configuration |
-| Business name, locations, opening hours, order workflow, daily targets | Settings → Workspace |
+| Business name, timezone, brand colour, locations, opening hours, order workflow, daily targets | Settings → Workspace |
 | Roles and what each one may do | Settings → Roles & access |
 | Which tools the workspace uses | Settings → Modules |
 | Receipt details, VAT and menu prices | Settings → Trading & tax |

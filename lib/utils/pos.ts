@@ -3,6 +3,7 @@ import type { CartItem, MenuItem, MenuOption } from '@/types/pos';
 // Relative, not aliased: `node --experimental-strip-types` erases type-only
 // imports but resolves value ones, and the test runner has no path mapping.
 import { type ComboRule, toggleOption } from './combo.ts';
+import { formatCurrency } from './currencies.ts';
 
 /** Order-independent key for a set of chosen modifiers, used to merge identical cart lines. */
 export function selectionKey(selected: MenuOption[]): string {
@@ -40,8 +41,12 @@ export function cartSignature(cart: CartItem[], customerId: string | null | unde
   return JSON.stringify([lines, customerId ?? '', notes.trim()]);
 }
 
+/**
+ * A till price in pence (or kopecks, groszy…), with the currency's own sign —
+ * "₴12.50", not "UAH 12.50". The same formatter as every other figure in the app.
+ */
 export function formatPrice(cents: number, currency = 'GBP'): string {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100);
+  return formatCurrency(cents / 100, currency, 2);
 }
 
 // ── Finding items ────────────────────────────────────────────────────────────

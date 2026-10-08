@@ -33,7 +33,6 @@ import {
   inp,
   sel,
   shiftMinutes,
-  toDateInput,
   toShiftTimes,
   toTimeInput,
 } from '@/components/scheduling/shared';
@@ -60,6 +59,7 @@ import {
 import { type Shift, adjustShift, createManualShift, deleteShift } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
+import { workspaceDateKey, zonedToInstant } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 
 // ── Pay helpers ───────────────────────────────────────────────────────────────
@@ -134,7 +134,7 @@ function ClockEntryRow({
   onSaved: (shift: ClockResponse) => void;
   onDeleted: (id: string) => void;
 }) {
-  const originalDay = toDateInput(new Date(entry.clockedIn));
+  const originalDay = workspaceDateKey(entry.clockedIn);
   const [day, setDay] = useState(originalDay);
   const [inTime, setInTime] = useState(toTimeInput(new Date(entry.clockedIn)));
   const [outTime, setOutTime] = useState(entry.clockedOut ? toTimeInput(new Date(entry.clockedOut)) : '');
@@ -152,7 +152,7 @@ function ClockEntryRow({
       if (missingFinish) throw new Error('Enter a finish time. Use “Stop shift” for a shift that is still running.');
       const times = outTime ? toShiftTimes(day, inTime, outTime) : null;
       return adjustShift(entry.id, {
-        clockedIn: times ? times.startsAt : new Date(`${day}T${inTime}`).toISOString(),
+        clockedIn: times ? times.startsAt : (zonedToInstant(day, inTime) ?? new Date(NaN)).toISOString(),
         clockedOut: times ? times.endsAt : null,
       });
     },
@@ -560,7 +560,7 @@ function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftRecordD
 function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser, onClose }: ShiftRecordDrawerProps) {
   const qc = useQueryClient();
   const [locationId, setLocationId] = useState(defaultLocationId);
-  const [date, setDate] = useState(toDateInput(new Date()));
+  const [date, setDate] = useState(() => workspaceDateKey());
   const [userId, setUserId] = useState('');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('17:00');
@@ -708,7 +708,7 @@ function PlannedShiftDrawer({
       : null;
 
   const [locationId, setLocationId] = useState(prefill?.locationId ?? defaultLocationId);
-  const [date, setDate] = useState(target.date ?? (initialStart ? toDateInput(initialStart) : toDateInput(new Date())));
+  const [date, setDate] = useState(target.date ?? workspaceDateKey(initialStart ?? new Date()));
   const [startTime, setStartTime] = useState(initialStart ? toTimeInput(initialStart) : '09:00');
   const [endTime, setEndTime] = useState(initialEnd ? toTimeInput(initialEnd) : '17:00');
   // A shift is one person's — an empty value leaves it as an open slot.

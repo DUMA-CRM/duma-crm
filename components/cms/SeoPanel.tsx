@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { type CmsFieldDefinition, createCmsPreviewLink, getCmsAssets } from '@/lib/modules/cms/client';
 import { SERP_DESCRIPTION_MAX, SERP_TITLE_MAX, hasSeoBlock, seoChecklist, seoSnapshot, truncate } from '@/lib/utils/cms-seo';
 import { cn } from '@/lib/utils/cn';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -351,7 +352,7 @@ export function SharePreviewDialog({ entryId, onClose }: { entryId: string; onCl
           <p className="text-xs text-muted-foreground">
             Expires{' '}
             <span className="tabular-nums text-foreground">
-              {new Date(result.expiresAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+              {formatInstant(result.expiresAt, { dateStyle: 'medium', timeStyle: 'short' })}
             </span>
             . Your site reads the draft from <span className="font-mono">?duma_preview=</span> — see API docs → Preview links.
           </p>

@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from 'react';
 
 import {
   ArrowDown,
+  Code,
   Eye,
   FileText,
   Globe,
@@ -58,7 +59,7 @@ import {
   findTemplateBlock,
   insertTemplateBlock,
   isTemplateDesign,
-  legacyHtmlToDesign,
+  htmlToDesign,
   normalizeTemplateDesign,
   renderTemplateDesign,
   templateChecks,
@@ -86,6 +87,7 @@ const BLOCKS: Array<{ type: TemplateLeafBlock['type']; label: string; icon: Reac
   { type: 'divider', label: 'Divider', icon: Minus },
   { type: 'spacer', label: 'Spacer', icon: ArrowDown },
   { type: 'social', label: 'Social', icon: Globe },
+  { type: 'html', label: 'HTML', icon: Code },
 ];
 
 export function TemplateEditorPage({
@@ -109,7 +111,7 @@ export function TemplateEditorPage({
   const initialDesign = isTemplateDesign(source?.design)
     ? normalizeTemplateDesign(source.design)
     : source?.htmlBody
-      ? legacyHtmlToDesign(source.htmlBody)
+      ? htmlToDesign(source.htmlBody)
       : defaultTemplateDesign();
   const [name, setName] = useState(source?.name ?? '');
   const [category, setCategory] = useState(source?.category ?? DEFAULT_TEMPLATE_CATEGORY);
@@ -456,6 +458,10 @@ export function TemplateEditorPage({
                     if (next === 'html') {
                       setHtmlBody(renderTemplateDesign(design));
                       setTextBody(templateDesignToPlainText(design));
+                    } else if (htmlBody !== renderTemplateDesign(design)) {
+                      // The HTML was edited: bring it back rather than redraw the old blocks over it.
+                      setDesign(htmlToDesign(htmlBody, design));
+                      setSelectedId('');
                     }
                     setMode(next);
                   }}

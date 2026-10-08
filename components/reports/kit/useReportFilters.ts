@@ -16,6 +16,7 @@ import {
   resolveRange,
   writeFilters,
 } from '@/lib/utils/report-filters';
+import { resolvedTimeZone } from '@/lib/utils/workspace-time';
 
 /**
  * The filters, from the URL, resolved into ranges — the one source every report
@@ -36,7 +37,7 @@ export function useReportFilters() {
 
   const locations = useQuery({ queryKey: moduleQueryKeys.organization.key('locations-accessible'), queryFn: getLocations });
   const location = locations.data?.find((entry) => entry.id === filters.locationId);
-  const timezone = location?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'Europe/London';
+  const timezone = location?.timezone ?? resolvedTimeZone();
 
   const setFilters = useCallback(
     (next: Partial<ReportFilters>) => {
@@ -49,8 +50,8 @@ export function useReportFilters() {
 
   /** API parameters for a range, scoped to the chosen location. */
   const params = useCallback(
-    (which: DateRange) => ({ ...apiRange(which), ...(filters.locationId ? { locationId: filters.locationId } : {}) }),
-    [filters.locationId],
+    (which: DateRange) => ({ ...apiRange(which, timezone), ...(filters.locationId ? { locationId: filters.locationId } : {}) }),
+    [filters.locationId, timezone],
   );
 
   return {
@@ -62,6 +63,8 @@ export function useReportFilters() {
     params,
     timezone,
     locations: locations.data ?? [],
+    /** False until the locations are known — a count of none is not "one location". */
+    locationsLoaded: locations.isSuccess,
     locationName: location?.name ?? null,
     /** The query string to carry into a report link, so the filters travel with it. */
     query: writeFilters(filters).toString(),

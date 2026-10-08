@@ -1,10 +1,12 @@
 /**
- * The brand colours a user can pick. Each id has a matching `[data-brand]`
+ * The brand colours a workspace can pick. Each id has a matching `[data-brand]`
  * block in app/globals.css, which holds the actual values — this list is only
- * what the picker offers. Add an entry here and a block there together.
+ * what the picker offers. Add an entry here, a block there, and the id to the
+ * API's WORKSPACE_BRANDS (duma-api src/lib/workspace-settings.ts) together.
  *
- * Per device for now (uiSettingsStore). It will move to the workspace once the
- * API stores it, at which point it becomes a tenant setting, not a preference.
+ * A workspace setting (`tenants.brand`), read with the staff profile. The copy
+ * in uiSettingsStore is a per-device cache so the pre-paint script can colour
+ * the first frame before the profile arrives.
  */
 export const BRANDS = [
   { id: 'forest', label: 'Forest', detail: 'The DUMA green.' },

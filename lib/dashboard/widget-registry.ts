@@ -5,6 +5,8 @@ export interface DashboardWidgetDefinition {
   moduleId: ModuleId;
   label: string;
   requiredCapabilities: Capability[];
+  /** Modules its data also comes from; all must be on (mirrors the API registry). */
+  requiresModules?: ModuleId[];
   sensitive: 'none' | 'financial' | 'customer' | 'people';
   audiences: DashboardAudience[];
   freshness: 'live' | 'minute' | 'on_navigation';
@@ -116,7 +118,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDefinition[] = [
   }),
   widget({
     key: 'ordering.fulfilment-launch',
-    moduleId: 'ordering',
+    moduleId: 'kds',
     label: 'Run fulfilment',
     requiredCapabilities: ['orders:status'],
     sensitive: 'none',
@@ -160,7 +162,69 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDefinition[] = [
     audiences: ['owner'],
     deepLink: '/audit-log',
   }),
+  // One card per module that had none, so any combination of modules makes a
+  // dashboard. Mirrors duma-api/src/lib/dashboard-widgets.ts.
+  widget({
+    key: 'inventory.stock-health',
+    moduleId: 'inventory',
+    label: 'Stock health',
+    requiredCapabilities: ['inventory:read'],
+    sensitive: 'financial',
+    audiences: ['owner', 'location_manager', 'kitchen'],
+    freshness: 'minute',
+    deepLink: '/inventory',
+  }),
+  widget({
+    key: 'workforce.team-today',
+    moduleId: 'workforce',
+    label: 'Team today',
+    requiredCapabilities: ['scheduling:read'],
+    sensitive: 'people',
+    audiences: ['owner', 'location_manager', 'hr_manager'],
+    freshness: 'minute',
+    deepLink: '/staff/shifts',
+  }),
+  widget({
+    key: 'purchasing.overview',
+    moduleId: 'purchasing',
+    label: 'Purchasing',
+    requiredCapabilities: ['purchasing:read'],
+    sensitive: 'financial',
+    audiences: ['owner', 'location_manager'],
+    deepLink: '/inventory/purchasing',
+  }),
+  widget({
+    key: 'payments.tenders',
+    moduleId: 'payments',
+    label: 'Takings by tender',
+    requiredCapabilities: ['analytics:read'],
+    requiresModules: ['analytics'],
+    sensitive: 'financial',
+    audiences: ['owner', 'location_manager'],
+    freshness: 'minute',
+    deepLink: '/reports/payment-methods',
+  }),
+  widget({
+    key: 'customers.overview',
+    moduleId: 'customers',
+    label: 'Customers',
+    requiredCapabilities: ['customers:read'],
+    sensitive: 'customer',
+    audiences: ['owner', 'marketing_manager'],
+    deepLink: '/customers',
+  }),
+  widget({
+    key: 'cms.content',
+    moduleId: 'cms',
+    label: 'Website content',
+    requiredCapabilities: ['cms:read'],
+    sensitive: 'none',
+    audiences: ['owner', 'marketing_manager'],
+    deepLink: '/content',
+  }),
 ];
+
+export const widgetDefinition = (key: string) => DASHBOARD_WIDGETS.find((widget) => widget.key === key);
 
 export const ANALYTICS_WIDGET_KEYS = new Set(
   DASHBOARD_WIDGETS.filter((widget) => widget.moduleId === 'analytics').map((widget) => widget.key),

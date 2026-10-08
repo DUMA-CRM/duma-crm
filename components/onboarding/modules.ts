@@ -1,4 +1,5 @@
 import {
+  ChefHat,
   Bell,
   BookOpen,
   Boxes,
@@ -30,6 +31,7 @@ export const FOUNDATION_MODULES = new Set<WorkspaceModuleId>(['core', 'identity'
 export const MODULE_ORDER: readonly WorkspaceModuleId[] = [
   'ordering',
   'pos',
+  'kds',
   'qr-ordering',
   'catalog',
   'payments',
@@ -60,6 +62,7 @@ export const MODULE_COPY: Record<WorkspaceModuleId, { name: string; detail: stri
   catalog: { name: 'Products & menu', detail: 'Everything you sell, with prices and options.', icon: Tags },
   ordering: { name: 'Orders', detail: 'Manage orders and fulfilment across every sales channel.', icon: Receipt },
   pos: { name: 'POS terminal', detail: 'Take orders and payments at a counter or till.', icon: Monitor },
+  kds: { name: 'Kitchen display', detail: 'A live screen for the kitchen or packing bench — new, preparing, ready.', icon: ChefHat },
   'qr-ordering': { name: 'QR ordering', detail: 'Let guests scan, order and pay from their phone.', icon: QrCode },
   payments: { name: 'Payments', detail: 'Card, cash and invoice, reconciled daily.', icon: CreditCard },
   inventory: { name: 'Stock', detail: 'Know what’s on hand before you run out.', icon: Boxes },

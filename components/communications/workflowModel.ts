@@ -6,6 +6,8 @@ import type {
   EmailWorkflowNode,
 } from '@/lib/modules/communications/client';
 
+import { resolvedTimeZone } from '../../lib/utils/workspace-time.ts';
+
 const id = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
 export function defaultWorkflow(input?: {
@@ -23,7 +25,8 @@ export function defaultWorkflow(input?: {
       event: input?.trigger ?? 'order_created',
       locationId: input?.locationId ?? null,
       offsetDays: input?.offsetDays ?? 0,
-      timezone: input?.timezone ?? 'Europe/London',
+      // A new automation sends on the workspace's clock until someone picks another.
+      timezone: input?.timezone ?? resolvedTimeZone(),
     },
   };
   const email: EmailWorkflowNode = {

@@ -37,7 +37,8 @@ export function ChoiceCards<T extends string>({
 }: {
   value: T;
   onChange: (value: T) => void;
-  options: { value: T; label: string }[];
+  /** `icon`: a glyph before the label, for choices that read faster as pictures (how someone paid). */
+  options: { value: T; label: string; icon?: IconComponent }[];
   /** 3 for a set of three, so it doesn't leave one card alone on a second line. */
   columns?: 2 | 3 | 4;
 }) {
@@ -50,13 +51,16 @@ export function ChoiceCards<T extends string>({
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            'rounded-lg border px-3.5 py-2.5 text-left text-sm transition-colors',
+            'flex items-center gap-2 rounded-lg border px-3.5 py-2.5 text-left text-sm transition-colors',
             value === option.value
               ? 'border-primary bg-primary/5 font-semibold text-foreground'
               : 'border-rule/60 bg-background/60 font-medium text-foreground hover:bg-band/40',
           )}
         >
-          {option.label}
+          {option.icon && (
+            <option.icon size={15} className={cn('shrink-0', value === option.value ? 'text-primary' : 'text-muted-foreground')} aria-hidden="true" />
+          )}
+          <span className="min-w-0">{option.label}</span>
         </button>
       ))}
     </div>

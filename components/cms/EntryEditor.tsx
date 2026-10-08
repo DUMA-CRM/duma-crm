@@ -66,6 +66,7 @@ import { cleanEntryData, entryStatusMeta, issuesByField, previewUrlFor, sameEntr
 import { draftStorageKey, parseStoredDraft, recoveryFor } from '@/lib/utils/cms-draft';
 import { SEO_FIELD_KEY, seoChecklist, seoSnapshot } from '@/lib/utils/cms-seo';
 import { cn } from '@/lib/utils/cn';
+import { formatInstant, resolvedTimeZone, workspaceDateKey } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -847,8 +848,9 @@ function ScheduleSection({ entry }: { entry: CmsEntry }) {
   // Keyed by the saved schedule (see the call site), so these reset when it changes.
   const [publishAt, setPublishAt] = useState(entry.scheduledPublishAt ?? '');
   const [unpublishAt, setUnpublishAt] = useState(entry.scheduledUnpublishAt ?? '');
-  const today = new Date();
-  const minDay = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  // Today and the times below are the business's — the workspace zone, wherever the editor is.
+  const minDay = workspaceDateKey();
+  const zoneHint = `Times are in ${resolvedTimeZone()}.`;
 
   const schedule = useMutation({
     mutationFn: () => scheduleCmsEntry(entry.id, { publishAt: publishAt || null, unpublishAt: unpublishAt || null }, tenantId),
@@ -869,7 +871,7 @@ function ScheduleSection({ entry }: { entry: CmsEntry }) {
           side="top"
           align="end"
           wrap
-          label="A scheduled publish uses the draft as it is saved at that moment. Times are in your time zone."
+          label={`A scheduled publish uses the draft as it is saved at that moment. ${zoneHint}`}
         >
           <button
             type="button"
@@ -883,7 +885,7 @@ function ScheduleSection({ entry }: { entry: CmsEntry }) {
     >
       <div className="space-y-4">
         <ScheduleRow icon={Send} title="Publish" value={publishAt} saved={entry.scheduledPublishAt} onClear={() => setPublishAt('')}>
-          <DateTimeField label={<span className="sr-only">Publish at</span>} value={publishAt} min={minDay} onChange={setPublishAt} />
+          <DateTimeField label={<span className="sr-only">Publish at</span>} value={publishAt} min={minDay} hint={zoneHint} onChange={setPublishAt} />
         </ScheduleRow>
         <ScheduleRow
           icon={EyeOff}
@@ -897,6 +899,7 @@ function ScheduleSection({ entry }: { entry: CmsEntry }) {
             label={<span className="sr-only">Unpublish at</span>}
             value={unpublishAt}
             min={minDay}
+            hint={zoneHint}
             onChange={setUnpublishAt}
             error={order}
           />
@@ -917,7 +920,7 @@ function ScheduleSection({ entry }: { entry: CmsEntry }) {
  * picker pair is too wide to sit beside the title in the aside.
  */
 const scheduleLabel = (iso: string) =>
-  new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  formatInstant(iso, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /**
  * One schedule line: the time (or "Not set") is the button that opens its

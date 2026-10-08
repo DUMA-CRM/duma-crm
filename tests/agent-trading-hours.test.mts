@@ -65,3 +65,8 @@ test('calendar dates step across month and year boundaries', () => {
   assert.equal(addDays('2028-02-28', 1), '2028-02-29');
   assert.equal(addDays('2026-01-01', -1), '2025-12-31');
 });
+
+test('00:00 to 00:00 is open round the clock — the 24/7 setting', () => {
+  assert.equal(isWithinHours('02:30', '00:00', '00:00'), true);
+  assert.equal(isWithinHours('23:59', '00:00', '00:00'), true);
+});
