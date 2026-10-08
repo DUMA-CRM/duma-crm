@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import {
+  Coins,
   AlertTriangle,
   Barcode,
   Check,
@@ -17,13 +18,14 @@ import {
   Timer,
   TriangleAlert,
 } from '@/components/icons';
+import { useFormatUnitCost } from '@/components/inventory/item/ContainerCost';
 import { StockItemPhotoField } from '@/components/inventory/item/StockItemPhoto';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
 import { ChoiceCards, FormSection, NumberStepper } from '@/components/shared/FormParts';
 import { Pill } from '@/components/shared/Pill';
 import { TONE_TINT } from '@/components/shared/tone';
-import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
+import { useCurrencySymbol, useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,11 +51,14 @@ import { type CreateLossPayload, type LossCreateReason, createLossEntry } from '
 import { type CreateRestockRequestPayload, createRestockRequest } from '@/lib/modules/inventory/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
+import { type CatalogVocabulary, stockCategoriesFor, stockUnitPlaceholder } from '@/lib/utils/catalog-vocabulary';
 import { cn } from '@/lib/utils/cn';
+import { unitCostFromPrice } from '@/lib/utils/stock-cost';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { ParMeter, STATUS_LABEL, STATUS_TONE, type StockStatus, fmtQty, getStatus, selectClass, statusGlyph } from './shared';
+import { ParMeter, STATUS_LABEL, STATUS_TONE, type StockStatus, categoryMeta, fmtQty, getStatus, selectClass, statusGlyph } from './shared';
 
 // ── Nutrition fields (shared by create + edit item forms) ─────────────────────
 
@@ -63,12 +68,9 @@ const NUTRITION_BASES: { value: NutritionBasis; label: string }[] = [
   { value: 'per_piece', label: 'Per piece' },
 ];
 
-const STOCK_CATEGORY_OPTIONS = [
-  { value: 'FOOD', label: 'Food' },
-  { value: 'BEVERAGE', label: 'Drinks' },
-  { value: 'SUPPLY', label: 'Supplies' },
-  { value: 'MERCH', label: 'Retail' },
-];
+/** The categories this business files stock under — a shop has no Food or Drinks (see `stockCategoriesFor`). */
+const stockCategoryOptions = (vocabulary: CatalogVocabulary, current?: string | null) =>
+  stockCategoriesFor(vocabulary, current).map((value) => ({ value, label: categoryMeta(value).label }));
 
 export interface NutritionDraft {
   basis: NutritionBasis | '';
@@ -208,6 +210,8 @@ export function AddItemDrawer({
   const [newContainerQty, setNewContainerQty] = useState('');
   const [newNutrition, setNewNutrition] = useState<NutritionDraft>(emptyNutritionDraft);
   const [newAllergens, setNewAllergens] = useState<Allergen[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState<string | null>(null);
+  const { vocabulary, tools } = useCatalogWords();
   const [lowThreshold, setLowThreshold] = useState('');
   const [reorderQuantity, setReorderQuantity] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -231,8 +235,8 @@ export function AddItemDrawer({
           defaultContainerQuantity: newContainerQty ? Number(newContainerQty) : null,
           defaultReorderLevel: Number(lowThreshold),
           defaultReorderQuantity: reorderQuantity ? Number(reorderQuantity) : null,
-          ...nutritionPayload(newNutrition),
-          allergens: newAllergens.length > 0 ? newAllergens : null,
+          ...(tools.kitchen ? { ...nutritionPayload(newNutrition), allergens: newAllergens.length > 0 ? newAllergens : null } : {}),
+          imageUrl: newImageUrl,
         });
         itemId = created.id;
       }
@@ -306,6 +310,13 @@ export function AddItemDrawer({
         </div>
 
         {creatingNew && (
+          <div className="flex flex-col gap-1.5">
+            <Label uppercase>Photo</Label>
+            <StockItemPhotoField value={newImageUrl} onChange={setNewImageUrl} />
+          </div>
+        )}
+
+        {creatingNew && (
           <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3">
             <div className="min-w-0">
               <Input
@@ -328,7 +339,7 @@ export function AddItemDrawer({
                   setNewUnit(e.target.value);
                   setErrors((p) => ({ ...p, unit: '' }));
                 }}
-                placeholder="litre"
+                placeholder={vocabulary === 'retail' ? 'pcs' : 'litre'}
                 error={errors.unit}
               />
             </div>
@@ -354,7 +365,7 @@ export function AddItemDrawer({
               <Select
                 value={newCategory}
                 onValueChange={(value) => setNewCategory(value as StockItem['category'])}
-                options={STOCK_CATEGORY_OPTIONS}
+                options={stockCategoryOptions(vocabulary, newCategory)}
                 ariaLabel="Category"
                 className={selectClass}
               />
@@ -383,7 +394,7 @@ export function AddItemDrawer({
           </div>
         )}
 
-        {creatingNew && (
+        {creatingNew && tools.kitchen && (
           <NutritionFields draft={newNutrition} onChange={setNewNutrition} allergens={newAllergens} onAllergensChange={setNewAllergens} />
         )}
 
@@ -947,12 +958,20 @@ export function EditStockItemDrawer({
     | 'nutrition'
     | 'allergens'
     | 'imageUrl'
+    | 'costPerUnit'
   >;
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const [name, setName] = useState(item.name);
   const [imageUrl, setImageUrl] = useState<string | null>(item.imageUrl ?? null);
+  const [defaultCost, setDefaultCost] = useState(item.costPerUnit != null && item.costPerUnit !== '' ? String(Number(item.costPerUnit)) : '');
+  const currencySymbol = useCurrencySymbol();
+  const formatUnitCost = useFormatUnitCost();
+  // What the business sells (Settings → What you sell) decides what this drawer asks:
+  // nutrition and allergens only matter where stock goes into food.
+  const { vocabulary, tools } = useCatalogWords();
+  const categoryOptions = stockCategoryOptions(vocabulary, item.category);
   const [barcode, setBarcode] = useState(item.barcode ?? '');
   const [unit, setUnit] = useState(item.unit);
   const [category, setCategory] = useState(item.category);
@@ -976,6 +995,7 @@ export function EditStockItemDrawer({
     containerQuantity: !positive(containerQuantity, false) ? 'More than 0, or leave blank.' : null,
     reorderLevel: !positive(reorderLevel) ? '0 or more.' : null,
     reorderQuantity: !positive(reorderQuantity, false) ? 'More than 0, or leave blank.' : null,
+    defaultCost: unitCostFromPrice(defaultCost || '0', 1) === null ? '0 or more, or leave blank.' : null,
   };
   const valid = Object.values(errors).every((e) => e === null);
   const show = (key: keyof typeof errors) => (submitted ? (errors[key] ?? undefined) : undefined);
@@ -993,8 +1013,9 @@ export function EditStockItemDrawer({
         defaultContainerQuantity: containerQuantity ? Number(containerQuantity) : null,
         defaultReorderLevel: reorderLevel ? Number(reorderLevel) : null,
         defaultReorderQuantity: reorderQuantity ? Number(reorderQuantity) : null,
-        ...nutritionPayload(nutrition),
-        allergens: allergens.length > 0 ? allergens : null,
+        costPerUnit: defaultCost.trim() === '' ? null : unitCostFromPrice(defaultCost, 1),
+        // Left out, not cleared, when the section is hidden — a shop's edit never wipes them.
+        ...(tools.kitchen ? { ...nutritionPayload(nutrition), allergens: allergens.length > 0 ? allergens : null } : {}),
         imageUrl,
       }),
     onSuccess: () => {
@@ -1041,10 +1062,10 @@ export function EditStockItemDrawer({
           <div className="flex flex-col gap-1.5">
             <Label uppercase>Category</Label>
             <ChoiceCards
-              columns={4}
+              columns={categoryOptions.length === 2 ? 2 : categoryOptions.length === 3 ? 3 : 4}
               value={category}
               onChange={(value) => setCategory(value as StockItem['category'])}
-              options={STOCK_CATEGORY_OPTIONS}
+              options={categoryOptions}
             />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -1052,7 +1073,7 @@ export function EditStockItemDrawer({
               label="Unit"
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
-              placeholder="kg, l, pcs…"
+              placeholder={stockUnitPlaceholder(vocabulary)}
               required
               error={show('unit')}
             />
@@ -1108,6 +1129,27 @@ export function EditStockItemDrawer({
         </FormSection>
 
         <FormSection
+          icon={Coins}
+          title="Default cost"
+          note="For containers without a price of their own. Receiving a purchase order updates it to the price paid."
+        >
+          <Input
+            label={`Cost per ${unit.trim() || 'unit'}`}
+            value={defaultCost}
+            onChange={(e) => setDefaultCost(e.target.value)}
+            inputMode="decimal"
+            placeholder="—"
+            leftIcon={<span className="text-xs">{currencySymbol}</span>}
+            hint={
+              containerQuantity && Number(containerQuantity) > 0 && unitCostFromPrice(defaultCost, 1) !== null
+                ? `= ${formatUnitCost((unitCostFromPrice(defaultCost, 1) ?? 0) * Number(containerQuantity))} for a ${containerQuantity} ${unit.trim() || 'unit'} container`
+                : undefined
+            }
+            error={show('defaultCost')}
+          />
+        </FormSection>
+
+        <FormSection
           icon={PackagePlus}
           title="Reorder defaults"
           note="Used when a location starts stocking it. Each location can change its own par."
@@ -1134,9 +1176,11 @@ export function EditStockItemDrawer({
           </div>
         </FormSection>
 
-        <FormSection icon={Flame} title="Nutrition & allergens" note="Feeds the menu’s nutrition and allergen labels through recipes.">
-          <NutritionFields draft={nutrition} onChange={setNutrition} allergens={allergens} onAllergensChange={setAllergens} />
-        </FormSection>
+        {tools.kitchen && (
+          <FormSection icon={Flame} title="Nutrition & allergens" note="Feeds the menu’s nutrition and allergen labels through recipes.">
+            <NutritionFields draft={nutrition} onChange={setNutrition} allergens={allergens} onAllergensChange={setAllergens} />
+          </FormSection>
+        )}
       </form>
     </Drawer>
   );

@@ -31,6 +31,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { REPORTS } from '@/lib/reports/catalogue';
 import { cn } from '@/lib/utils/cn';
 import { exportFileName, toCsv, toDateKey } from '@/lib/utils/report-filters';
+import { movementValue } from '@/lib/utils/stock-cost';
 
 import { DrawerFacts, DrawerList, DrawerMark, DrawerNote, DrawerSection, ReportDrawer } from '../kit/DetailDrawer';
 import { ReportFrame, downloadFile } from '../kit/ReportFrame';
@@ -87,8 +88,23 @@ export function StockUsageReport({ filters }: { filters: ReportFilterState }) {
           adjust: 0,
           transfer: 0,
           movements: 0,
+          consumeValue: 0,
+          consumeUncosted: 0,
+          wasteValue: 0,
+          wasteUncosted: 0,
         };
         const amount = Math.abs(num(movement.totalQty));
+        // Value at the cost each movement was made at; what predates recorded
+        // costs is kept apart and valued at the item's cost below.
+        const recorded = num(movement.totalValue ?? 0);
+        const uncosted = movement.totalValue === undefined ? amount : num(movement.uncostedQty ?? 0);
+        if (movement.type === 'consume') {
+          row.consumeValue += recorded;
+          row.consumeUncosted += uncosted;
+        } else if (movement.type === 'waste') {
+          row.wasteValue += recorded;
+          row.wasteUncosted += uncosted;
+        }
         if (movement.type === 'consume') row.consume += amount;
         else if (movement.type === 'receive') row.receive += amount;
         else if (movement.type === 'waste') row.waste += amount;
@@ -97,17 +113,35 @@ export function StockUsageReport({ filters }: { filters: ReportFilterState }) {
         row.movements += movement.movementCount;
         map.set(movement.stockItemId, row);
         return map;
-      }, new Map<string, { id: string; consume: number; receive: number; waste: number; adjust: number; transfer: number; movements: number }>())
+      }, new Map<
+        string,
+        {
+          id: string;
+          consume: number;
+          receive: number;
+          waste: number;
+          adjust: number;
+          transfer: number;
+          movements: number;
+          consumeValue: number;
+          consumeUncosted: number;
+          wasteValue: number;
+          wasteUncosted: number;
+        }
+      >())
       .values(),
   ].map((row) => {
     const item = byId.get(row.id);
     const cost = item?.costPerUnit ? Number(item.costPerUnit) : null;
+    // Recorded value, plus anything without a recorded cost at the item's. Unknown
+    // only when part of it has no cost from either.
+    const valued = (recorded: number, uncosted: number) => (uncosted > 0 ? (cost === null ? null : recorded + uncosted * cost) : recorded);
     return {
       ...row,
       name: item?.name ?? 'Removed item',
       unit: item?.unit,
-      usageCost: cost === null ? null : row.consume * cost,
-      wasteCost: cost === null ? null : row.waste * cost,
+      usageCost: row.consume > 0 ? valued(row.consumeValue, row.consumeUncosted) : 0,
+      wasteCost: row.waste > 0 ? valued(row.wasteValue, row.wasteUncosted) : 0,
     };
   });
   const usageCost = rows.reduce((sum, row) => sum + (row.usageCost ?? 0), 0);
@@ -118,7 +152,8 @@ export function StockUsageReport({ filters }: { filters: ReportFilterState }) {
         .filter((movement) => movement.type === 'consume')
         .reduce((sum, movement) => {
           const cost = byId.get(movement.stockItemId)?.costPerUnit;
-          return sum + (cost ? Math.abs(num(movement.totalQty)) * Number(cost) : 0);
+          const uncosted = movement.totalValue === undefined ? Math.abs(num(movement.totalQty)) : num(movement.uncostedQty ?? 0);
+          return sum + num(movement.totalValue ?? 0) + (cost ? uncosted * Number(cost) : 0);
         }, 0)
     : null;
 
@@ -235,7 +270,8 @@ export function WasteReport({ filters }: { filters: ReportFilterState }) {
   const rows = (query.data?.rows ?? []).map((record) => {
     const item = byId.get(record.stockItemId);
     const amount = Math.abs(num(record.quantity));
-    const cost = item?.costPerUnit ? amount * Number(item.costPerUnit) : null;
+    // At what it cost when written off; older entries at the item's cost.
+    const cost = movementValue({ quantity: amount, unitCost: record.unitCost }, item?.costPerUnit);
     return {
       ...record,
       amount,

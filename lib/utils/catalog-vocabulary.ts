@@ -100,3 +100,21 @@ export const VOCABULARY_CHOICES: ReadonlyArray<{ value: CatalogVocabulary; label
   { value: 'retail', label: 'Products', detail: 'Sizes, colours, stock per SKU and photos.' },
   { value: 'mixed', label: 'Both', detail: 'Every tool — a café that also sells merch.' },
 ];
+
+export type StockCategory = 'FOOD' | 'BEVERAGE' | 'SUPPLY' | 'MERCH';
+
+/**
+ * The stock categories worth offering, in order. A shop stocks what it sells
+ * and what it packs it in — Food and Drinks are noise there. An item already
+ * filed under one keeps it on offer, so editing it never silently refiles it.
+ */
+export function stockCategoriesFor(vocabulary: CatalogVocabulary, current?: string | null): StockCategory[] {
+  const offered: StockCategory[] = vocabulary === 'retail' ? ['MERCH', 'SUPPLY'] : ['FOOD', 'BEVERAGE', 'SUPPLY', 'MERCH'];
+  const kept = current && !offered.includes(current as StockCategory) ? [current as StockCategory] : [];
+  return [...offered, ...kept];
+}
+
+/** Example units for a new or renamed stock item, in this catalogue's terms. */
+export function stockUnitPlaceholder(vocabulary: CatalogVocabulary): string {
+  return vocabulary === 'retail' ? 'pcs, pairs, boxes…' : 'kg, l, pcs…';
+}

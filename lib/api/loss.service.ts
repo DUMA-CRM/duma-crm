@@ -13,6 +13,8 @@ export interface LossRecord {
   type: 'waste';
   reason?: string | null;
   quantity: number; // negative (e.g. -100)
+  /** Cost per unit of measure when it was written off (the container's, else the item's). Null = none known then. */
+  unitCost?: string | null;
   quantityBefore: number;
   quantityAfter: number;
   orderId: string | null;

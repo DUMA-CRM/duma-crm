@@ -58,6 +58,7 @@ import {
 } from '@/lib/modules/inventory/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { cn } from '@/lib/utils/cn';
 import { timeAgo } from '@/lib/utils/format';
 import { type RestockJourneyStage, restockJourney } from '@/lib/utils/restock-journey';
@@ -140,10 +141,12 @@ export function RestockApprovals({
     queryFn: () => getInventoryOverview(locationId!),
     enabled: !!locationId,
   });
+  const forecasting = useModuleEnabled('analytics');
   const { data: rawForecast } = useQuery({
     queryKey: moduleQueryKeys.inventory.key('inventory-forecast', locationId),
     queryFn: () => getInventoryForecast(locationId!),
-    enabled: !!locationId,
+    // Analytics' route: refused while that module is off. Without it a request just omits "days left".
+    enabled: !!locationId && forecasting,
     ...serverCache('inventoryForecast'),
   });
   const context = useMemo(() => {

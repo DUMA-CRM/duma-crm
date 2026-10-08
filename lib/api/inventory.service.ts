@@ -90,6 +90,8 @@ export interface StockItemPayload {
   nutrition?: NutritionFacts | null;
   allergens?: Allergen[] | null;
   imageUrl?: string | null;
+  /** The item's default cost per unit of measure, for containers without their own. */
+  costPerUnit?: number | null;
 }
 
 export const getStockItems = () => apiFetch<StockItem[]>('/stock-items');
@@ -112,6 +114,12 @@ export interface StockMovement {
   type: string;
   /** Signed change for this movement (negative for outgoing), matching the loss log's `quantity`. */
   quantity: number;
+  /**
+   * Cost per unit of measure when the movement happened — the container's cost,
+   * else the item's (decimal string). Fixed at that moment, so a past report
+   * never shifts. Null = no cost was known then; value it at the item's cost.
+   */
+  unitCost?: string | null;
   quantityBefore?: number;
   quantityAfter?: number;
   stockUnitQuantityBefore?: number | null;
@@ -252,6 +260,12 @@ export interface InventoryOverviewRow {
   reorderLevel: string;
   reorderQuantity: string | null;
   needsReorder: boolean;
+  /** On-hand worth, each container at its own cost else the item's (decimal string). */
+  stockValue?: string;
+  /** On-hand quantity with no cost at all, left out of `stockValue`. */
+  unvaluedQuantity?: string;
+  /** Average cost per unit of what's on hand; null when none of it has a cost. */
+  averageUnitCost?: string | null;
 }
 
 export interface StockUnit {
@@ -268,6 +282,8 @@ export interface StockUnit {
   status: StockUnitStatus;
   expiryDate?: string | null;
   expirySource: 'SUPPLIER' | 'MANUAL' | 'DEFAULT_SHELF_LIFE' | 'NOT_APPLICABLE';
+  /** Cost per unit of measure for this container (decimal string); null = follows the item's cost. */
+  unitCost?: string | null;
   openedAt?: string | null;
   discardedAt?: string | null;
   createdAt: string;
@@ -305,9 +321,21 @@ export const getStockUnitLedger = (id: string) => apiFetch<StockMovement[]>(`/in
 export const receiveStockUnits = (data: {
   locationId: string;
   stockItemId: string;
-  units: Array<{ initialQuantity: number; expiryDate?: string | null; lotNumber?: string; label?: string; barcode?: string }>;
+  units: Array<{
+    initialQuantity: number;
+    expiryDate?: string | null;
+    lotNumber?: string;
+    label?: string;
+    barcode?: string;
+    /** Cost per unit of measure; omit to follow the item's cost. */
+    unitCost?: number | null;
+  }>;
   notes?: string;
 }) => apiFetch<StockUnit[]>('/inventory', { method: 'POST', body: JSON.stringify(data) });
+
+/** Set or clear one container's cost per unit of measure. Movements already made keep theirs. */
+export const setStockUnitCost = (id: string, unitCost: number | null) =>
+  apiFetch<StockUnit>(`/inventory/${id}/cost`, { method: 'POST', body: JSON.stringify({ unitCost }) });
 
 export const combineStockUnits = (data: { stockUnitIds: string[]; label?: string; notes?: string }) =>
   apiFetch<{ unit: StockUnit; sourceUnitIds: string[] }>('/inventory/combine', {

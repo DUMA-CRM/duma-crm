@@ -25,3 +25,13 @@ test('only a catalogue with food has a kitchen for orders to wait in', () => {
   assert.equal(catalogWords('menu').inQueue, 'In the kitchen');
   assert.equal(catalogWords('mixed').queue, 'the kitchen queue');
 });
+
+test('a shop is offered only the stock categories it uses, without refiling an item', async () => {
+  const { stockCategoriesFor, stockUnitPlaceholder } = await import('../lib/utils/catalog-vocabulary.ts');
+  assert.deepEqual(stockCategoriesFor('retail'), ['MERCH', 'SUPPLY']);
+  assert.deepEqual(stockCategoriesFor('retail', 'FOOD'), ['MERCH', 'SUPPLY', 'FOOD']);
+  assert.deepEqual(stockCategoriesFor('retail', 'SUPPLY'), ['MERCH', 'SUPPLY']);
+  assert.deepEqual(stockCategoriesFor('menu'), ['FOOD', 'BEVERAGE', 'SUPPLY', 'MERCH']);
+  assert.deepEqual(stockCategoriesFor('mixed', 'MERCH'), ['FOOD', 'BEVERAGE', 'SUPPLY', 'MERCH']);
+  assert.equal(stockUnitPlaceholder('retail'), 'pcs, pairs, boxes…');
+});

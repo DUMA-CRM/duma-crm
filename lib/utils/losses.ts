@@ -34,6 +34,8 @@ export interface LossLike {
   quantity: number | string;
   reason?: string | null;
   notes?: string | null;
+  /** Cost per unit when written off; absent on entries from before costs were recorded. */
+  unitCost?: string | null;
   createdAt: string;
 }
 
@@ -53,7 +55,7 @@ export interface LossSummary {
   /** Total written off, positive, to the thousandth. */
   quantity: number;
   count: number;
-  /** At the item's last cost; null when it has none. */
+  /** Each loss at the cost it was written off at, else the item's; null when any has neither. */
   valuePence: number | null;
   /** The reason with the most quantity lost, when there is one. */
   topKind: LossKind | null;
@@ -61,10 +63,15 @@ export interface LossSummary {
 
 export function summariseLosses(losses: LossLike[], cost: number | null): LossSummary {
   let thousandths = 0;
+  let value: number | null = 0;
   const byKind = new Map<LossKind, number>();
   for (const loss of losses) {
     const q = Math.round(Math.abs(Number(loss.quantity)) * 1000);
     thousandths += q;
+    // What this write-off cost when it happened; one made before costs were recorded, at the item's.
+    const own = loss.unitCost != null && loss.unitCost !== '' ? Number(loss.unitCost) : null;
+    const each = own ?? cost;
+    value = value === null || each === null ? null : value + (q / 1000) * each;
     const { kind } = readLoss(loss);
     byKind.set(kind, (byKind.get(kind) ?? 0) + q);
   }
@@ -73,7 +80,7 @@ export function summariseLosses(losses: LossLike[], cost: number | null): LossSu
   return {
     quantity,
     count: losses.length,
-    valuePence: cost == null ? null : Math.round(quantity * cost * 100),
+    valuePence: value === null ? null : Math.round(value * 100),
     topKind: top ? top[0] : null,
   };
 }

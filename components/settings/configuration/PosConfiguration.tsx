@@ -27,6 +27,7 @@ import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { getMenuCategories, getMenuItems } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
@@ -74,6 +75,7 @@ export function PosConfiguration() {
   const canReadStock =
     hasAnyCapability(capabilities, 'stock.locations:read', 'inventory:read') && hasCapability(capabilities, 'recipes:read');
   const canReadSales = hasCapability(capabilities, 'analytics:read');
+  const analyticsOn = useModuleEnabled('analytics');
   const set = (patch: Partial<PosLayout>) => settings.setLayout(patch);
   const pinned = (tenantId && settings.pinned[tenantId]) || [];
   const isDefault = (Object.keys(DEFAULT_POS_LAYOUT) as (keyof PosLayout)[]).every((key) => settings[key] === DEFAULT_POS_LAYOUT[key]);
@@ -143,9 +145,13 @@ export function PosConfiguration() {
           title="Favourites"
           description="A first tab (or tile) with the items sold most, so the busiest orders are one tap away."
           footnote={
-            settings.favourites === 'top' && !canReadSales
-              ? 'Best sellers need sales reporting access (analytics:read). Without it the till shows no favourites tab.'
-              : undefined
+            settings.favourites !== 'top'
+              ? undefined
+              : !analyticsOn
+                ? 'Best sellers come from Analytics, which is switched off. Turn it on in Settings → Modules — until then the till shows no favourites tab.'
+                : !canReadSales
+                  ? 'Best sellers need sales reporting access (analytics:read). Without it the till shows no favourites tab.'
+                  : undefined
           }
         >
           <ChoiceGrid<FavouritesMode>

@@ -7600,6 +7600,14 @@
                     "maxLength": 20,
                     "example": "ml",
                     "description": "e.g. ml, g, shots, units"
+                  },
+                  "imageUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 2000,
+                    "description": "Photo of the item (URL or /path), from the media library"
                   }
                 }
               }
@@ -7742,7 +7750,7 @@
           "Stock Items"
         ],
         "summary": "Update stock item",
-        "description": "Super admin only.",
+        "description": "Updates a stock item in the caller’s workspace (any workspace for a super admin).",
         "requestBody": {
           "required": true,
           "content": {
@@ -7764,6 +7772,14 @@
                   "unit": {
                     "type": "string",
                     "maxLength": 20
+                  },
+                  "imageUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 2000,
+                    "description": "Photo of the item (URL or /path); null removes it"
                   }
                 }
               }
@@ -7804,7 +7820,7 @@
           "Stock Items"
         ],
         "summary": "Delete stock item",
-        "description": "Retires the stock item while preserving units, recipes and ledger history. Super admin only.",
+        "description": "Retires the stock item while preserving units, recipes and ledger history. Caller’s workspace only (any for a super admin).",
         "responses": {
           "200": {
             "description": "Deleted successfully"
@@ -10029,6 +10045,43 @@
         ]
       }
     },
+    "/v1/inventory/{id}/cost": {
+      "post": {
+        "operationId": "postV1InventoryByIdCost",
+        "tags": [
+          "Stock Units"
+        ],
+        "summary": "Set or clear a stock unit cost",
+        "description": "Cost per unit of measure for this container; null makes it follow the item cost. Movements already recorded keep the cost they were made at.",
+        "responses": {
+          "200": {
+            "description": "Updated unit"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/inventory/{id}/adjust": {
       "post": {
         "operationId": "postV1InventoryByIdAdjust",
@@ -11296,7 +11349,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Array of { stockItemId, type, totalQty, movementCount }"
+            "description": "Array of { stockItemId, type, totalQty, movementCount, totalValue, uncostedQty } — totalValue at each movement’s recorded cost; uncostedQty has none recorded"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"

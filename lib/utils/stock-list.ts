@@ -17,6 +17,12 @@ export interface StockLine {
   isAvailable: boolean;
   /** Last known cost per unit, if any receipt has set one. */
   unitCost: number | null;
+  /**
+   * What's on the shelf is worth, each container at its own cost (from the
+   * API's overview). Null when part of it has no cost at all; absent before the
+   * overview loads, when the shelf is valued at `unitCost` instead.
+   */
+  onHandValue?: number | null;
   /** Days until it runs out at recent usage; null when there's no usage to go on. */
   coverDays: number | null;
   earliestExpiry: string | null;
@@ -25,6 +31,8 @@ export interface StockLine {
   /** The per-location reorder quantity, if one is set. */
   reorderQty: number | null;
   needsReorder: boolean;
+  /** The item's photo, if one was picked from Media. */
+  imageUrl?: string | null;
 }
 
 /** Same rule the rest of the app uses: out at zero, critical at half par, low at par. */
@@ -44,16 +52,26 @@ export const expiresWithin = (date: string | null, now: Date, days: number) =>
   !!date && new Date(date).getTime() <= now.getTime() + days * dayMs;
 export const isExpired = (date: string | null, now: Date) => !!date && new Date(date).getTime() < now.getTime();
 
-/** What the shelf is worth at last known cost, and how many items have no cost to count. */
+/**
+ * One line's shelf value: each container at its own cost when the overview
+ * has said so, else on-hand at the item's last cost. Null = can't be valued.
+ */
+export function lineValue(line: Pick<StockLine, 'qty' | 'unitCost' | 'onHandValue'>): number | null {
+  if (line.onHandValue !== undefined) return line.onHandValue;
+  return line.unitCost === null ? null : Math.max(0, line.qty) * line.unitCost;
+}
+
+/** What the shelf is worth, and how many items have stock with no cost to count. */
 export function stockValue(lines: StockLine[]): { value: number; unpriced: number } {
   let cents = 0;
   let unpriced = 0;
   for (const line of lines) {
-    if (line.unitCost === null) {
+    const value = lineValue(line);
+    if (value === null) {
       if (line.qty > 0) unpriced += 1;
       continue;
     }
-    cents += Math.round(Math.max(0, line.qty) * line.unitCost * 100);
+    cents += Math.round(value * 100);
   }
   return { value: cents / 100, unpriced };
 }
@@ -122,7 +140,7 @@ export function sortStock(lines: StockLine[], sort: StockSort): StockLine[] {
           byName(a, b),
       );
     case 'value':
-      return copy.sort((a, b) => Math.max(0, b.qty) * (b.unitCost ?? 0) - Math.max(0, a.qty) * (a.unitCost ?? 0) || byName(a, b));
+      return copy.sort((a, b) => (lineValue(b) ?? 0) - (lineValue(a) ?? 0) || byName(a, b));
     default:
       return copy.sort(byName);
   }

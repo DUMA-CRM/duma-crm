@@ -5,7 +5,8 @@ import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { Box, ChevronRight, Combine, type IconComponent, Loader2, PackageOpen, Plus, Scissors, X } from '@/components/icons';
+import { Box, ChevronRight, Coins, Combine, type IconComponent, Loader2, PackageOpen, Plus, Scissors, X } from '@/components/icons';
+import { ContainerPriceInput, SetContainerCostDrawer, priceError } from '@/components/inventory/item/ContainerCost';
 import { fmtQty, formatDate } from '@/components/inventory/stock/shared';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Drawer } from '@/components/shared/Drawer';
@@ -17,6 +18,7 @@ import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
+import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Select } from '@/components/ui/select';
 
 import { type StockItem, type StockUnit, combineStockUnits, receiveStockUnits, splitStockUnit } from '@/lib/modules/inventory/client';
@@ -31,6 +33,7 @@ import {
   splitParts,
   totalRemaining,
 } from '@/lib/utils/containers';
+import { containerPrice, unitCostFromPrice } from '@/lib/utils/stock-cost';
 import { daysUntil, expiryLabel } from '@/lib/utils/stock-item';
 import { toast } from '@/stores/toastStore';
 
@@ -73,7 +76,7 @@ export function ContainersSection({
 }) {
   const [view, setView] = useState<ContainerView>('active');
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const [drawer, setDrawer] = useState<'receive' | 'split' | 'combine' | null>(null);
+  const [drawer, setDrawer] = useState<'receive' | 'split' | 'combine' | 'cost' | null>(null);
   const [now] = useState(() => new Date());
 
   const ordered = byUseFirst(units);
@@ -213,6 +216,10 @@ export function ContainersSection({
           <Button variant="ghost" onClick={clear}>
             Clear
           </Button>
+          {/* Price older stock in one go — what each was bought for. */}
+          <Button type="button" variant="outline" onClick={() => setDrawer('cost')}>
+            <Coins aria-hidden="true" /> Set cost
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -239,6 +246,9 @@ export function ContainersSection({
       {drawer === 'split' && selectedUnits.length === 1 && (
         <SplitContainerDrawer unit={selectedUnits[0]!} onClose={() => setDrawer(null)} onDone={done} />
       )}
+      {drawer === 'cost' && selectedUnits.length > 0 && (
+        <SetContainerCostDrawer units={selectedUnits} item={item} onClose={() => setDrawer(null)} onDone={done} />
+      )}
       {drawer === 'combine' && selectedUnits.length >= 2 && (
         <CombineContainersDrawer units={selectedUnits} onClose={() => setDrawer(null)} onDone={done} />
       )}
@@ -261,6 +271,7 @@ function ContainerRow({
   selected: boolean;
   onToggle: () => void;
 }) {
+  const money = useWorkspaceMoney();
   const meta = STATUS[unit.status];
   const remaining = Number(unit.remainingQuantity);
   const initial = Number(unit.initialQuantity);
@@ -271,6 +282,8 @@ function ContainerRow({
   const detail = [
     unit.lotNumber ? `Lot ${unit.lotNumber}` : null,
     unit.status === 'IN_USE' && unit.openedAt ? `opened ${formatDate(unit.openedAt)}` : null,
+    // Its own price, as bought; a container without one follows the item's cost and says nothing.
+    unit.unitCost != null ? `${money(containerPrice(unit.unitCost, initial) ?? 0)} a container` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -411,13 +424,16 @@ function ReceiveContainersDrawer({
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   });
   const [lotNumber, setLotNumber] = useState('');
+  const [price, setPrice] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   const quantity = Number(perContainer);
   const quantityError = !(Number.isFinite(quantity) && quantity > 0) ? 'How much one container holds — more than 0.' : null;
   const countError = !Number.isInteger(count) || count < 1 || count > 500 ? 'From 1 to 500 containers.' : null;
   const expiryError = item.isPerishable && !expiryDate ? 'Perishable stock needs a use-by date.' : null;
-  const valid = !quantityError && !countError && !expiryError;
+  const costError = quantity > 0 ? priceError(price, quantity) : null;
+  const valid = !quantityError && !countError && !expiryError && !costError;
+  const unitCost = price.trim() === '' ? null : unitCostFromPrice(price, quantity);
 
   const receive = useMutation({
     mutationFn: () =>
@@ -428,6 +444,8 @@ function ReceiveContainersDrawer({
           initialQuantity: quantity,
           expiryDate: expiryDate || null,
           lotNumber: lotNumber.trim() || undefined,
+          // Blank follows the item's cost; a price makes these exactly what they cost.
+          unitCost,
         })),
       }),
     onSuccess: () => {
@@ -487,6 +505,17 @@ function ReceiveContainersDrawer({
               </span>
             </p>
           )}
+        </FormSection>
+
+        <FormSection icon={Coins} title="Cost" note="What one container cost on the invoice. Reports value what's used from it at this price.">
+          <ContainerPriceInput
+            price={price}
+            onChange={setPrice}
+            quantity={quantity > 0 ? quantity : 0}
+            unit={item.unit}
+            itemCost={item.costPerUnit}
+            error={submitted ? (costError ?? undefined) : undefined}
+          />
         </FormSection>
 
         <FormSection

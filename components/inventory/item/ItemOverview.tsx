@@ -34,11 +34,14 @@ import {
   TriangleAlert,
   Wheat,
 } from '@/components/icons';
+import { useFormatUnitCost } from '@/components/inventory/item/ContainerCost';
+import { StockItemPhotoButton } from '@/components/inventory/item/StockItemPhoto';
 import { STATUS_LABEL, STATUS_TONE, type StockStatus, categoryMeta, fmtQty, formatDate } from '@/components/inventory/stock/shared';
 import { CopyButton, RecordBlock, RecordList, RecordListRow } from '@/components/people/record/shared';
-import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact, SettingRow, SettingRows, Switch } from '@/components/settings/controls';
+import { NeedsAttention, type NeedsAttentionTone } from '@/components/shared/NeedsAttention';
 import { Pill } from '@/components/shared/Pill';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
@@ -82,10 +85,11 @@ const ALLERGEN_ICONS: Partial<Record<string, IconComponent>> = {
   sulphites: FlaskConical,
 };
 
-const SEVERITY_TILE: Record<ItemAttentionSeverity, string> = {
-  blocking: 'bg-exception/8 text-exception',
-  attention: 'bg-measured/10 text-measured',
-  info: 'bg-primary/8 text-primary',
+// The item's severities in the shared "needs you" card's tones.
+const SEVERITY_TONE: Record<ItemAttentionSeverity, NeedsAttentionTone> = {
+  blocking: 'exception',
+  attention: 'measured',
+  info: 'info',
 };
 const SEVERITY_ICON: Record<ItemAttentionSeverity, IconComponent> = { blocking: AlertTriangle, attention: Clock, info: InfoIcon };
 
@@ -108,10 +112,12 @@ export function ItemOverview({
   stock,
   status,
   onHand,
+  onHandValue,
   activeUnitCount,
   earliestExpiry,
   threshold,
   forecast,
+  forecasting,
   can,
   hasLocation,
   togglePending,
@@ -121,15 +127,23 @@ export function ItemOverview({
   onToggleAvailable,
   onRemove,
   onOpenContainers,
+  onPhotoSaved,
 }: {
   item: StockItem;
   stock: LocationStock | null;
   status: StockStatus | null;
   onHand: number;
+  /**
+   * The shelf at what each container cost (from the overview): the total, the
+   * quantity with no cost at all, and the average per unit. Absent until loaded.
+   */
+  onHandValue?: { value: number; unvalued: number; averageUnitCost: number | null };
   activeUnitCount: number;
   earliestExpiry?: string | null;
   threshold: number;
   forecast?: InventoryForecast;
+  /** Analytics is on, so a forecast exists to read: days left, use per day, suggested reorder. */
+  forecasting: boolean;
   can: ItemOverviewCan;
   /** False when "All locations" is picked — stock is per location, so there is none to show. */
   hasLocation: boolean;
@@ -140,14 +154,20 @@ export function ItemOverview({
   onToggleAvailable: () => void;
   onRemove: () => void;
   onOpenContainers: () => void;
+  /** Refresh whatever shows the item once a new photo is saved. */
+  onPhotoSaved: () => void;
 }) {
   const money = useWorkspaceMoney();
+  const unitCost = useFormatUnitCost();
   const { location } = useCurrentWorkspace();
   const [now] = useState(() => new Date());
   const unit = item.unit;
   const category = categoryMeta(item.category);
   const daysLeft = forecast?.daysOfStockRemaining ?? null;
-  const cost = item.costPerUnit != null && item.costPerUnit !== '' ? Number(item.costPerUnit) : null;
+  const itemCost = item.costPerUnit != null && item.costPerUnit !== '' ? Number(item.costPerUnit) : null;
+  // What a unit costs here: the average of what's on the shelf (each container at
+  // its own price), else the item's default.
+  const cost = onHandValue?.averageUnitCost ?? itemCost;
   const expiry = expiryLabel(earliestExpiry ?? null, now);
   const expiryDays = earliestExpiry ? daysUntil(earliestExpiry, now) : null;
   // The forecast sometimes has days left but no date; the date follows from the days.
@@ -163,7 +183,8 @@ export function ItemOverview({
         unit,
         daysLeft,
         earliestExpiry: earliestExpiry ?? null,
-        cost: item.costPerUnit,
+        // Priced containers count: an item with no default but costed stock isn't "without a cost".
+        cost: cost != null ? String(cost) : null,
         now,
       })
     : [];
@@ -184,41 +205,27 @@ export function ItemOverview({
 
   return (
     <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
-      {attention.length > 0 && (
-        <motion.section variants={SECTION_RISE} aria-label="Needs attention">
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-            {attention.map((entry) => {
-              const Icon = SEVERITY_ICON[entry.severity];
-              const action = entry.target ? act[entry.target] : null;
-              return (
-                <li key={entry.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
-                  <span
-                    className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', SEVERITY_TILE[entry.severity])}
-                    aria-hidden="true"
-                  >
-                    <Icon size={16} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-foreground">{entry.title}</span>
-                    <span className="block text-xs text-muted-foreground">{entry.detail}</span>
-                  </span>
-                  {action?.allowed && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={action.run}
-                      disabled={entry.target === 'available' && togglePending}
-                    >
-                      {action.label}
-                    </Button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </motion.section>
-      )}
+      <NeedsAttention
+        items={attention.map((entry) => {
+          const action = entry.target ? act[entry.target] : null;
+          return {
+            key: entry.id,
+            tone: SEVERITY_TONE[entry.severity],
+            icon: SEVERITY_ICON[entry.severity],
+            title: entry.title,
+            detail: entry.detail,
+            fix: action?.allowed
+              ? {
+                  label: action.label,
+                  // The availability toggle is in flight: a second press would flip it back.
+                  run: () => {
+                    if (!(entry.target === 'available' && togglePending)) action.run();
+                  },
+                }
+              : undefined,
+          };
+        })}
+      />
 
       <SettingsTabBody
         aside={
@@ -226,9 +233,11 @@ export function ItemOverview({
             {stock && (
               <RecordBlock
                 id="item-demand"
-                title="Demand"
-                note="From the last 30 days of use at this location."
+                // Without Analytics there is no demand to read — only what it last cost.
+                title={forecasting ? 'Demand' : 'Cost'}
+                note={forecasting ? 'From the last 30 days of use at this location.' : undefined}
                 action={
+                  forecasting &&
                   can.restock &&
                   forecast &&
                   forecast.recommendedReorderQuantity > 0 && (
@@ -239,31 +248,45 @@ export function ItemOverview({
                 }
               >
                 <RecordList>
-                  <RecordListRow
-                    icon={TrendingDown}
-                    tone="team"
-                    label="Average use per day"
-                    value={forecast && forecast.avgDailyConsumption > 0 ? `${fmtQty(forecast.avgDailyConsumption)} ${unit}` : undefined}
-                    placeholder="Not enough usage yet"
-                  />
-                  <RecordListRow
-                    icon={PackagePlus}
-                    tone="team"
-                    label="Suggested reorder"
-                    value={
-                      forecast && forecast.recommendedReorderQuantity > 0
-                        ? `${fmtQty(forecast.recommendedReorderQuantity)} ${unit}`
-                        : undefined
-                    }
-                    placeholder="Nothing to order"
-                    detail={stock.reorderQuantity ? `usual order ${fmtQty(Number(stock.reorderQuantity))} ${unit}` : undefined}
-                  />
+                  {forecasting && (
+                    <>
+                      <RecordListRow
+                        icon={TrendingDown}
+                        tone="team"
+                        label="Average use per day"
+                        value={forecast && forecast.avgDailyConsumption > 0 ? `${fmtQty(forecast.avgDailyConsumption)} ${unit}` : undefined}
+                        placeholder="Not enough usage yet"
+                      />
+                      <RecordListRow
+                        icon={PackagePlus}
+                        tone="team"
+                        label="Suggested reorder"
+                        value={
+                          forecast && forecast.recommendedReorderQuantity > 0
+                            ? `${fmtQty(forecast.recommendedReorderQuantity)} ${unit}`
+                            : undefined
+                        }
+                        placeholder="Nothing to order"
+                        detail={stock.reorderQuantity ? `usual order ${fmtQty(Number(stock.reorderQuantity))} ${unit}` : undefined}
+                      />
+                    </>
+                  )}
+                  {onHandValue?.averageUnitCost != null && (
+                    <RecordListRow
+                      icon={Coins}
+                      tone="money"
+                      label="Average cost on hand"
+                      value={`${unitCost(onHandValue.averageUnitCost)} per ${unit}`}
+                      detail="Each container at what it cost"
+                    />
+                  )}
                   <RecordListRow
                     icon={Coins}
                     tone="money"
-                    label="Last cost"
-                    value={cost != null ? `${money(cost)} per ${unit}` : undefined}
-                    placeholder="Set by the first priced delivery"
+                    label="Default cost"
+                    value={itemCost != null ? `${unitCost(itemCost)} per ${unit}` : undefined}
+                    detail={itemCost != null ? 'For containers without their own price' : undefined}
+                    placeholder="Set it in Edit item, or by a priced delivery"
                   />
                 </RecordList>
               </RecordBlock>
@@ -357,24 +380,36 @@ export function ItemOverview({
       >
         <SettingsSection>
           <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-            <span
-              className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary shadow-sm"
-              aria-hidden="true"
-            >
-              <category.icon size={34} />
-            </span>
+            {/* The item's photo when it has one; an editor changes it here with a click. */}
+            <StockItemPhotoButton
+              itemId={item.id}
+              itemName={item.name}
+              imageUrl={item.imageUrl}
+              canEdit={can.edit}
+              onSaved={onPhotoSaved}
+              className="size-20 rounded-xl shadow-sm"
+              fallback={
+                <span
+                  className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary shadow-sm"
+                  aria-hidden="true"
+                >
+                  <category.icon size={34} />
+                </span>
+              }
+            />
             <div className="min-w-0 flex-1">
               <p className="truncate text-2xl font-semibold tracking-headline text-foreground">{item.name}</p>
-              <p className="mt-1 truncate text-sm text-muted-foreground">
-                {category.label} · {unit}
-              </p>
-              <p className="mt-2 flex flex-wrap items-center justify-center gap-1.5 sm:justify-start">
+              {/* One line: what it is, then how it stands here. Wraps only when the card is too narrow. */}
+              <p className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-muted-foreground sm:justify-start">
+                <span>
+                  {category.label} · {unit}
+                </span>
                 {status ? (
                   <Pill tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Pill>
                 ) : hasLocation ? (
                   <Pill tone="muted">Not stocked here</Pill>
                 ) : null}
-                {hasLocation && location && <span className="text-xs text-muted-foreground">at {location.name}</span>}
+                {hasLocation && location && <span>at {location.name}</span>}
               </p>
             </div>
             {/* The catalogue record's one edit — name, unit, category, nutrition — on the card that shows it. */}
@@ -395,13 +430,27 @@ export function ItemOverview({
 
           {stock ? (
             <>
-              <dl className="mt-6 grid gap-3 sm:grid-cols-2">
+              <dl className={cn('mt-6 grid gap-3', forecasting ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
                 <Fact
                   icon={Package}
                   label="On hand"
                   value={`${fmtQty(onHand)} ${unit}`}
                   tone={onHand <= 0 ? 'danger' : threshold > 0 && onHand <= threshold ? 'warning' : 'default'}
-                  hint={cost == null ? 'No cost yet' : onHand > 0 ? `${money(onHand * cost)} at last cost` : 'Nothing to value'}
+                  hint={
+                    onHand <= 0
+                      ? cost == null
+                        ? 'No cost yet'
+                        : 'Nothing to value'
+                      : onHandValue
+                        ? onHandValue.unvalued > 0
+                          ? onHandValue.value > 0
+                            ? `${money(onHandValue.value)} · ${fmtQty(onHandValue.unvalued)} ${unit} without a cost`
+                            : 'No cost yet'
+                          : `${money(onHandValue.value)} at what it cost`
+                        : cost == null
+                          ? 'No cost yet'
+                          : `${money(onHand * cost)} at last cost`
+                  }
                 />
                 <Fact
                   icon={Box}
@@ -417,13 +466,15 @@ export function ItemOverview({
                   tone={expiryDays === null ? 'default' : expiryDays < 0 ? 'danger' : expiryDays <= 2 ? 'warning' : 'default'}
                   hint={earliestExpiry ? formatDate(earliestExpiry) : item.isPerishable ? 'No dated containers' : 'Doesn’t expire'}
                 />
-                <Fact
-                  icon={Gauge}
-                  label="Days left"
-                  value={daysLeft != null ? `${Math.round(daysLeft)} ${Math.round(daysLeft) === 1 ? 'day' : 'days'}` : '—'}
-                  tone={daysLeft == null ? 'default' : daysLeft <= 3 ? 'danger' : daysLeft <= 7 ? 'warning' : 'default'}
-                  hint={stockoutDate ? `Out around ${formatDate(stockoutDate)}` : 'Not enough usage yet'}
-                />
+                {forecasting && (
+                  <Fact
+                    icon={Gauge}
+                    label="Days left"
+                    value={daysLeft != null ? `${Math.round(daysLeft)} ${Math.round(daysLeft) === 1 ? 'day' : 'days'}` : '—'}
+                    tone={daysLeft == null ? 'default' : daysLeft <= 3 ? 'danger' : daysLeft <= 7 ? 'warning' : 'default'}
+                    hint={stockoutDate ? `Out around ${formatDate(stockoutDate)}` : 'Not enough usage yet'}
+                  />
+                )}
               </dl>
 
               {/* On hand against par: the marker is par, the fill is the shelf. */}

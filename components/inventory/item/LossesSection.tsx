@@ -21,6 +21,7 @@ import {
 import { fmtQty } from '@/components/inventory/stock/shared';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { LoadMore } from '@/components/shared/LoadMore';
 import { FactsSkeleton } from '@/components/shared/Skeleton';
@@ -34,6 +35,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { groupByDay } from '@/lib/utils/ledger';
 import { LOSS_LABEL, type LossKind, type LossPeriod, periodFrom, readLoss, summariseLosses } from '@/lib/utils/losses';
+import { movementValue } from '@/lib/utils/stock-cost';
 
 /*
  * What's been written off for this item here: a period summary (how much, what
@@ -74,7 +76,7 @@ export function LossesSection({
 }) {
   const money = useWorkspaceMoney();
   const { location } = useCurrentWorkspace();
-  const [period, setPeriod] = useState<LossPeriod>('30d');
+  const [period, setPeriod] = useState<LossPeriod>('all');
   const [kind, setKind] = useState<LossKind | 'all'>('all');
   const [now] = useState(() => new Date());
   const from = periodFrom(period, now);
@@ -119,8 +121,14 @@ export function LossesSection({
   const here = location?.name ?? 'this location';
 
   return (
-    <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
-      <motion.section variants={SECTION_RISE} aria-labelledby="losses-waste" className="space-y-4">
+    // A flex column, so an empty tab's message centres in the page — as Transfers does.
+    <motion.div className="flex flex-1 flex-col space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+      <motion.section
+        variants={SECTION_RISE}
+        aria-labelledby="losses-waste"
+        // Only an empty tab stretches: with entries, History follows right below.
+        className={cn('space-y-4', periodEmpty && 'flex flex-1 flex-col')}
+      >
         <div className="flex min-h-9 flex-wrap items-center gap-2">
           <h2 id="losses-waste" className="flex-1 text-base font-semibold tracking-title text-foreground">
             Waste
@@ -147,28 +155,24 @@ export function LossesSection({
           <FactsSkeleton count={3} surface="card" label="Loading losses" className="grid-cols-1 sm:grid-cols-3 lg:grid-cols-3" />
         ) : periodEmpty ? (
           lastEver ? (
-            <EmptyPanel
+            <EmptyState
+              className="flex-1"
               icon={CheckCircle2}
-              tone="good"
+              compact
+              kind="done"
               title={`Nothing written off in the ${PERIOD_LABEL[period].toLowerCase()}`}
-              detail={
-                <>
-                  The last was on <span className="font-semibold text-foreground">{formatDay(lastEver.createdAt)}</span> —{' '}
-                  {LOSS_LABEL[readLoss(lastEver).kind].toLowerCase()}, {fmtQty(Math.abs(Number(lastEver.quantity)))} {unit}.
-                </>
-              }
-              action={
-                <Button variant="outline" size="sm" onClick={() => setPeriod('all')}>
-                  <History aria-hidden="true" /> Show all time
-                </Button>
-              }
+              description={`The last was on ${formatDay(lastEver.createdAt)} — ${LOSS_LABEL[readLoss(lastEver).kind].toLowerCase()}, ${fmtQty(Math.abs(Number(lastEver.quantity)))} ${unit}.`}
+              action={{ label: 'Show all time', icon: History, onClick: () => setPeriod('all') }}
             />
           ) : (
-            <EmptyPanel
+            <EmptyState
+              className="flex-1"
               icon={PackageMinus}
-              tone="neutral"
+              compact
+              kind="start"
               title="No waste logged yet"
-              detail={`When something is thrown away — expired, spilt, damaged — log it so stock at ${here} stays true and you can see what waste costs.`}
+              description={`When something is thrown away — expired, spilt, damaged — log it so stock at ${here} stays true and you can see what waste costs.`}
+              action={canLog ? { label: 'Log waste', icon: PackageMinus, onClick: onLogWaste } : undefined}
             />
           )
         ) : (
@@ -187,7 +191,7 @@ export function LossesSection({
               label="Cost"
               value={summary.valuePence == null ? '—' : money(summary.valuePence / 100)}
               tone={summary.valuePence ? 'danger' : 'default'}
-              hint={summary.valuePence == null ? 'No cost for this item yet' : 'At last cost'}
+              hint={summary.valuePence == null ? 'No cost for this item yet' : 'At what it cost when written off'}
             />
             <Fact
               surface="card"
@@ -241,39 +245,6 @@ export function LossesSection({
 
 const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-/** An empty panel in the settings voice: a tile, what's true, and the one next step. */
-function EmptyPanel({
-  icon: Icon,
-  tone,
-  title,
-  detail,
-  action,
-}: {
-  icon: IconComponent;
-  tone: 'good' | 'neutral';
-  title: string;
-  detail: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col items-start gap-3 rounded-lg border border-rule/60 bg-card px-4 py-4 sm:flex-row sm:items-center">
-      <span
-        className={cn(
-          'flex size-10 shrink-0 items-center justify-center rounded-lg',
-          tone === 'good' ? 'bg-momentum/8 text-momentum' : 'bg-primary/8 text-primary',
-        )}
-        aria-hidden="true"
-      >
-        <Icon size={18} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{detail}</p>
-      </div>
-      {action && <div className="shrink-0">{action}</div>}
-    </div>
-  );
-}
 
 function LossRow({
   loss,
@@ -289,6 +260,7 @@ function LossRow({
   const { kind, note } = readLoss(loss);
   const meta = KIND[kind];
   const quantity = Math.abs(Number(loss.quantity));
+  const value = movementValue({ quantity, unitCost: loss.unitCost }, cost);
 
   return (
     <li className="flex items-start gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
@@ -309,8 +281,8 @@ function LossRow({
           −{fmtQty(quantity)} {unit}
         </span>
         <span className="flex items-center justify-end gap-1 text-xs tabular-nums text-muted-foreground">
-          {cost != null ? (
-            money(quantity * cost)
+          {value != null ? (
+            money(value)
           ) : (
             <>
               {fmtQty(Number(loss.quantityBefore))}

@@ -119,6 +119,10 @@ export interface StockSummaryAnalytics {
   type: string;
   totalQty: string | number | null;
   movementCount: number;
+  /** Positive value of these movements at the cost each was made at (decimal string). */
+  totalValue?: string;
+  /** Quantity among them with no cost recorded — value it at the item's cost. */
+  uncostedQty?: string;
 }
 
 function rangeQuery(params: AnalyticsRangeParams) {

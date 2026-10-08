@@ -26,3 +26,10 @@ test('periods start at local midnight', () => {
   assert.equal(periodFrom('all', now), undefined);
   assert.equal(new Date(periodFrom('30d', now)!).getDate(), 28);
 });
+
+test('each write-off is valued at what it cost then; older ones at the item cost', () => {
+  const at = (quantity: number, unitCost?: string | null) => ({ quantity, unitCost, reason: 'EXPIRED', createdAt: '2026-01-01' });
+  assert.equal(summariseLosses([at(-2, '0.5000'), at(-1)], 3).valuePence, 400);
+  assert.equal(summariseLosses([at(-2, '0.5000'), at(-1)], null).valuePence, null);
+  assert.equal(summariseLosses([at(-2, '0.5000')], null).valuePence, 100);
+});

@@ -12,7 +12,7 @@ import { LossesSection } from '@/components/inventory/item/LossesSection';
 import { RemoveItemDrawer } from '@/components/inventory/item/RemoveItemDrawer';
 import { EditStockItemDrawer, EditThresholdDrawer, LogLossDrawer, RestockDrawer } from '@/components/inventory/stock/StockDrawers';
 import { getStatus, normaliseArray } from '@/components/inventory/stock/shared';
-import { StockItemThumb } from '@/components/inventory/item/StockItemPhoto';
+import { StockItemPhotoButton } from '@/components/inventory/item/StockItemPhoto';
 import { ItemTransfersSection, TransferStockDrawer } from '@/components/inventory/transfers/TransferStock';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -21,7 +21,8 @@ import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { serverCache } from '@/lib/api/cache-policy';
-import { hasCapability } from '@/lib/auth/capabilities';
+import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
 import {
   type InventoryForecast,
@@ -71,7 +72,8 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
     loss: hasCapability(capabilities, 'loss:write'),
     transfer: hasCapability(capabilities, 'stock.transfers:write'),
     par: hasCapability(capabilities, 'stock.locations:write'),
-    edit: hasCapability(capabilities, 'stock:write'),
+    // As the API's PATCH /stock-items/:id: whoever may create items may edit their own.
+    edit: hasAnyCapability(capabilities, 'inventory:write', 'stock:write'),
     containers: hasCapability(capabilities, 'inventory:write'),
   };
 
@@ -108,11 +110,13 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
     queryFn: () => getInventoryOverview(locationId!),
     enabled: !!locationId,
   });
+  // The forecast is Analytics'; with that module off the API refuses it, so don't ask.
+  const forecasting = useModuleEnabled('analytics');
   const { data: rawForecast } = useQuery({
     queryKey: moduleQueryKeys.inventory.key('inventory-forecast', locationId),
     queryFn: () => getInventoryForecast(locationId!),
     ...serverCache('inventoryForecast'),
-    enabled: !!locationId,
+    enabled: !!locationId && forecasting,
   });
 
   const stock = useMemo(
@@ -151,6 +155,13 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
     void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('inventory-forecast', locationId) });
   }
 
+  /** The catalogue record changed (a new photo): the item, the item list and this location's stock all show it. */
+  function invalidateItem() {
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-item', stockItemId) });
+    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-items') });
+    invalidateStock();
+  }
+
   const toggleAvailable = useMutation({
     mutationFn: () => updateLocationStock(stock!.id, { isAvailable: !stock!.isAvailable }),
     onSuccess: () => {
@@ -178,7 +189,19 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
       eyebrow="Inventory item"
       title={item?.name ?? (itemLoading ? 'Loading…' : 'Inventory item')}
       // The item's photo when it has one, in the badge's place and size.
-      leading={item?.imageUrl ? <StockItemThumb imageUrl={item.imageUrl} className="size-9 rounded-md" /> : undefined}
+      // The photo, or a placeholder for one; for an editor it opens Media on click.
+      leading={
+        item ? (
+          <StockItemPhotoButton
+            itemId={item.id}
+            itemName={item.name}
+            imageUrl={item.imageUrl}
+            canEdit={can.edit}
+            onSaved={invalidateItem}
+            className="size-9 rounded-md"
+          />
+        ) : undefined
+      }
       icon={<Package size={20} aria-hidden="true" />}
       onClose={() => router.push('/inventory')}
       actions={
@@ -230,10 +253,20 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
               stock={stock}
               status={status}
               onHand={onHand}
+              onHandValue={
+                overview?.stockValue === undefined
+                  ? undefined
+                  : {
+                      value: Number(overview.stockValue),
+                      unvalued: Number(overview.unvaluedQuantity ?? 0),
+                      averageUnitCost: overview.averageUnitCost != null ? Number(overview.averageUnitCost) : null,
+                    }
+              }
               activeUnitCount={activeUnitCount}
               earliestExpiry={earliestExpiry}
               threshold={threshold}
               forecast={forecast}
+              forecasting={forecasting}
               can={can}
               hasLocation={!!locationId}
               togglePending={toggleAvailable.isPending}
@@ -243,6 +276,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
               onToggleAvailable={() => toggleAvailable.mutate()}
               onRemove={() => setRemoveOpen(true)}
               onOpenContainers={() => setSection('containers')}
+              onPhotoSaved={invalidateItem}
             />
           ) : itemError ? (
             <ErrorState title="Couldn’t load this item" onRetry={() => void refetchItem()} />

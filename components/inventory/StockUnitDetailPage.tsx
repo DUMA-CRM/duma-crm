@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import {
+  Coins,
   Barcode,
   Box,
   CalendarClock,
@@ -24,6 +25,7 @@ import {
   Trash2,
   X,
 } from '@/components/icons';
+import { SetContainerCostDrawer, useFormatUnitCost } from '@/components/inventory/item/ContainerCost';
 import { LedgerRow } from '@/components/inventory/item/LedgerSection';
 import { fmtQty } from '@/components/inventory/stock/shared';
 import { CopyButton, RecordBlock, RecordList, RecordListRow } from '@/components/people/record/shared';
@@ -35,6 +37,7 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards, FormSection } from '@/components/shared/FormParts';
 import { Bone, LoadingState, RowSkeleton } from '@/components/shared/Skeleton';
+import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -51,6 +54,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { type ContainerStatus, isActive } from '@/lib/utils/containers';
 import { groupByDay } from '@/lib/utils/ledger';
+import { containerPrice } from '@/lib/utils/stock-cost';
 import { daysUntil, expiryLabel } from '@/lib/utils/stock-item';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
@@ -95,7 +99,7 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
   const capabilities = useAuthStore((state) => state.capabilities);
   const canAdjust = hasCapability(capabilities, 'inventory:write');
   const canWaste = hasCapability(capabilities, 'inventory:waste');
-  const [drawer, setDrawer] = useState<'adjust' | 'waste' | 'discard' | null>(null);
+  const [drawer, setDrawer] = useState<'adjust' | 'waste' | 'discard' | 'cost' | null>(null);
   const [now] = useState(() => new Date());
 
   const unitQuery = useQuery({
@@ -136,6 +140,7 @@ export function StockUnitDetailPage({ stockUnitId }: { stockUnitId: string }) {
       {unit && drawer === 'adjust' && <AdjustDrawer unit={unit} onClose={() => setDrawer(null)} />}
       {unit && drawer === 'waste' && <WasteDrawer unit={unit} onClose={() => setDrawer(null)} />}
       {unit && drawer === 'discard' && <DiscardDrawer unit={unit} onClose={() => setDrawer(null)} />}
+      {unit && drawer === 'cost' && <CostDrawer unit={unit} onClose={() => setDrawer(null)} />}
     </EditorShell>
   );
 }
@@ -157,11 +162,15 @@ function UnitBody({
   now: Date;
   canAdjust: boolean;
   canWaste: boolean;
-  onAction: (action: 'adjust' | 'waste' | 'discard') => void;
+  onAction: (action: 'adjust' | 'waste' | 'discard' | 'cost') => void;
 }) {
+  const money = useWorkspaceMoney();
+  const unitCost = useFormatUnitCost();
   const meta = STATUS[unit.status];
   const remaining = Number(unit.remainingQuantity);
   const initial = Number(unit.initialQuantity);
+  const itemCost = unit.stockItem?.costPerUnit;
+  const ownPrice = containerPrice(unit.unitCost, initial);
   const share = initial > 0 ? Math.min(1, remaining / initial) : 0;
   const days = unit.expiryDate ? daysUntil(unit.expiryDate, now) : null;
   const expiry = expiryLabel(unit.expiryDate ?? null, now);
@@ -212,6 +221,28 @@ function UnitBody({
                 <RecordListRow icon={Tag} tone="reference" label="Lot" value={unit.lotNumber} placeholder="No lot number" />
                 <RecordListRow icon={Barcode} tone="reference" label="Barcode" value={unit.barcode} placeholder="No barcode" />
                 {unit.notes && <RecordListRow icon={FileText} tone="muted" label="Note" value={unit.notes} />}
+                {/* What this container was bought for; without its own, it follows the item's cost. */}
+                <RecordListRow
+                  icon={Coins}
+                  tone="money"
+                  label="Cost"
+                  value={ownPrice !== null ? `${money(ownPrice)} a container` : undefined}
+                  detail={
+                    unit.unitCost != null
+                      ? `${unitCost(Number(unit.unitCost))} per ${unit.unitOfMeasure}`
+                      : itemCost
+                        ? `Follows the item — ${unitCost(Number(itemCost))} per ${unit.unitOfMeasure}`
+                        : undefined
+                  }
+                  placeholder={itemCost ? 'Item’s cost' : 'No cost yet'}
+                  trailing={
+                    canAdjust && (
+                      <Button variant="outline" size="sm" onClick={() => onAction('cost')}>
+                        {unit.unitCost != null ? 'Change' : 'Set'}
+                      </Button>
+                    )
+                  }
+                />
                 <RecordListRow
                   icon={Tag}
                   tone="muted"
@@ -376,6 +407,21 @@ function UnitBody({
 }
 
 // ── Drawers ──────────────────────────────────────────────────────────────────
+
+function CostDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void }) {
+  const refresh = useRefresh(unit);
+  return (
+    <SetContainerCostDrawer
+      units={[unit]}
+      item={{ unit: unit.unitOfMeasure, costPerUnit: unit.stockItem?.costPerUnit ?? null }}
+      onClose={onClose}
+      onDone={() => {
+        refresh();
+        onClose();
+      }}
+    />
+  );
+}
 
 function useRefresh(unit: StockUnit) {
   const qc = useQueryClient();

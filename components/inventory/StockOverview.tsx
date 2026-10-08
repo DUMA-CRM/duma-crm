@@ -19,6 +19,7 @@ import {
   Wallet,
   X,
 } from '@/components/icons';
+import { StockItemThumb } from '@/components/inventory/item/StockItemPhoto';
 import { AddItemDrawer, EditThresholdDrawer, LogLossDrawer, RestockDrawer } from '@/components/inventory/stock/StockDrawers';
 import {
   ParMeter,
@@ -46,6 +47,7 @@ import { Select } from '@/components/ui/select';
 
 import { serverCache } from '@/lib/api/cache-policy';
 import { hasCapability } from '@/lib/auth/capabilities';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import {
   type InventoryForecast,
   type InventoryOverviewRow,
@@ -68,6 +70,7 @@ import {
   sortStock,
   stockCounts,
   stockHealth,
+  lineValue,
   stockValue,
   suggestedOrder,
 } from '@/lib/utils/stock-list';
@@ -128,6 +131,10 @@ export function StockOverview({
   const effectiveView = !purchasingEnabled && view === 'reorder' ? 'all' : view;
   const [category, setCategory] = useState('all');
   const [sort, setSort] = useState<StockSort>('name');
+  // The forecast (days left, runs out) is Analytics'. With it off the API
+  // refuses the call, so it isn't made and what reads from it is hidden.
+  const forecasting = useModuleEnabled('analytics');
+  const effectiveSort = !forecasting && sort === 'cover' ? 'name' : sort;
   const [action, setAction] = useState<Action | null>(null);
 
   function invalidateStock() {
@@ -144,6 +151,7 @@ export function StockOverview({
     queryKey: moduleQueryKeys.inventory.key('inventory-forecast', locationId),
     queryFn: () => getInventoryForecast(locationId),
     ...serverCache('inventoryForecast'),
+    enabled: forecasting,
   });
   const { data: rawOverview } = useQuery({
     queryKey: moduleQueryKeys.inventory.key('inventory-overview', locationId),
@@ -170,11 +178,15 @@ export function StockOverview({
         threshold: Number(row.lowThreshold) || 0,
         isAvailable: row.isAvailable,
         unitCost: row.stockItem?.costPerUnit != null ? Number(row.stockItem.costPerUnit) : null,
+        // Container by container, from the overview; stock with no cost at all leaves it unknown.
+        onHandValue:
+          projected?.stockValue === undefined ? undefined : Number(projected.unvaluedQuantity ?? 0) > 0 ? null : Number(projected.stockValue),
         coverDays: forecast?.daysOfStockRemaining ?? null,
         earliestExpiry: projected?.earliestExpiryDate ?? null,
         recommendedQty: forecast?.recommendedReorderQuantity ?? 0,
         reorderQty: row.reorderQuantity != null ? Number(row.reorderQuantity) : null,
         needsReorder: projected?.needsReorder ?? false,
+        imageUrl: row.stockItem?.imageUrl ?? null,
       };
     });
   }, [stock, rawForecast, rawOverview]);
@@ -182,8 +194,8 @@ export function StockOverview({
   const counts = useMemo(() => stockCounts(lines, now), [lines, now]);
   const value = useMemo(() => stockValue(lines), [lines]);
   const shown = useMemo(
-    () => sortStock(filterStock(lines, { view: effectiveView, category, search, now }), sort),
-    [lines, effectiveView, category, search, now, sort],
+    () => sortStock(filterStock(lines, { view: effectiveView, category, search, now }), effectiveSort),
+    [lines, effectiveView, category, search, now, effectiveSort],
   );
   const groups = useMemo(() => groupByCategory(shown), [shown]);
   const categories = useMemo(() => [...new Set(lines.map((line) => line.category).filter(Boolean))] as string[], [lines]);
@@ -210,7 +222,7 @@ export function StockOverview({
         clear={{ title: 'Nothing needs you', detail: 'Nothing is out, expired or about to run out.' }}
       />
 
-      <motion.dl variants={SECTION_RISE} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <motion.dl variants={SECTION_RISE} className={cn('grid gap-3', forecasting ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-3')}>
         <Fact
           surface="page"
           icon={Wallet}
@@ -241,15 +253,17 @@ export function StockOverview({
           hint={counts.expired > 0 ? `${counts.expired} already expired` : 'Use these first'}
           onSelect={() => setView('expiring')}
         />
-        <Fact
-          surface="page"
-          icon={Timer}
-          label="Runs out within a week"
-          value={counts.runningOut}
-          tone={counts.runningOut > 0 ? 'warning' : 'default'}
-          hint={counts.reorder > 0 ? `${counts.reorder} on the suggested order` : 'At the last 30 days’ usage'}
-          onSelect={() => setView('reorder')}
-        />
+        {forecasting && (
+          <Fact
+            surface="page"
+            icon={Timer}
+            label="Runs out within a week"
+            value={counts.runningOut}
+            tone={counts.runningOut > 0 ? 'warning' : 'default'}
+            hint={counts.reorder > 0 ? `${counts.reorder} on the suggested order` : 'At the last 30 days’ usage'}
+            onSelect={() => setView('reorder')}
+          />
+        )}
       </motion.dl>
 
       <motion.section variants={SECTION_RISE} className="space-y-3" aria-label="Stock">
@@ -294,7 +308,13 @@ export function StockOverview({
             className="w-40"
           />
           {effectiveView !== 'reorder' && (
-            <Select value={sort} onValueChange={(next) => setSort(next as StockSort)} options={SORTS} ariaLabel="Sort" className="w-48" />
+            <Select
+              value={effectiveSort}
+              onValueChange={(next) => setSort(next as StockSort)}
+              options={forecasting ? SORTS : SORTS.filter((option) => option.value !== 'cover')}
+              ariaLabel="Sort"
+              className="w-48"
+            />
           )}
           {hasFilters && (
             <button
@@ -378,7 +398,15 @@ export function StockOverview({
                 </div>
                 <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
                   {group.lines.map((line) => (
-                    <StockRow key={line.stockItemId} line={line} now={now} money={money} can={can} onAction={open} />
+                    <StockRow
+                      key={line.stockItemId}
+                      line={line}
+                      now={now}
+                      money={money}
+                      can={can}
+                      showCover={forecasting}
+                      onAction={open}
+                    />
                   ))}
                 </ul>
               </section>
@@ -425,12 +453,15 @@ function StockRow({
   now,
   money,
   can,
+  showCover,
   onAction,
 }: {
   line: StockLine;
   now: Date;
   money: (amount: number) => string;
   can: { restock: boolean; waste: boolean; par: boolean };
+  /** Days left comes from the forecast; without Analytics there is none to show. */
+  showCover: boolean;
   onAction: (kind: Action['kind'], stockItemId: string) => void;
 }) {
   const health = stockHealth(line);
@@ -444,9 +475,41 @@ function StockRow({
     onAction(kind, line.stockItemId);
   };
 
+  // The tinted tile carries the row's health. With a photo in its place, the
+  // health moves to a badge on the photo's corner — only when there is
+  // something to say; a healthy item's tile showed just its category.
+  const statusTile = (
+    <span
+      className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', TONE_TINT[STATUS_TONE[health]])}
+      title={glyph.label}
+      role="img"
+      aria-label={glyph.label}
+    >
+      <glyph.icon size={16} aria-hidden="true" />
+    </span>
+  );
+  const photoTile = line.imageUrl ? (
+    <span className="relative shrink-0">
+      <StockItemThumb imageUrl={line.imageUrl} className="size-9 rounded-md" fallback={statusTile} />
+      {health !== 'ok' && (
+        <span
+          className="absolute -right-1 -bottom-1 flex rounded-full bg-card ring-2 ring-card"
+          title={glyph.label}
+          role="img"
+          aria-label={glyph.label}
+        >
+          <span className={cn('flex size-4 items-center justify-center rounded-full', TONE_TINT[STATUS_TONE[health]])}>
+            <glyph.icon size={10} aria-hidden="true" />
+          </span>
+        </span>
+      )}
+    </span>
+  ) : undefined;
+
   return (
     <ListRow
       href={`/inventory/items/${line.stockItemId}`}
+      leading={photoTile}
       icon={glyph.icon}
       tone={STATUS_TONE[health]}
       iconLabel={glyph.label}
@@ -466,20 +529,22 @@ function StockRow({
       }
       trailing={
         <>
-          <span className="hidden w-28 text-right lg:block">
-            {cover === null ? (
-              <span className="text-xs text-muted-foreground">No recent use</span>
-            ) : (
-              <span
-                className={cn(
-                  'text-xs font-medium',
-                  cover <= 3 ? 'text-exception' : cover <= 7 ? 'text-measured' : 'text-muted-foreground',
-                )}
-              >
-                {daysLeft(cover)}
-              </span>
-            )}
-          </span>
+          {showCover && (
+            <span className="hidden w-28 text-right lg:block">
+              {cover === null ? (
+                <span className="text-xs text-muted-foreground">No recent use</span>
+              ) : (
+                <span
+                  className={cn(
+                    'text-xs font-medium',
+                    cover <= 3 ? 'text-exception' : cover <= 7 ? 'text-measured' : 'text-muted-foreground',
+                  )}
+                >
+                  {daysLeft(cover)}
+                </span>
+              )}
+            </span>
+          )}
           <span className="hidden w-32 md:flex md:justify-end">
             {expired ? (
               <Pill tone="exception">Expired</Pill>
@@ -488,8 +553,8 @@ function StockRow({
             ) : null}
           </span>
           <span className="w-20 text-right text-sm font-semibold text-foreground">
-            {line.unitCost !== null ? (
-              money(Math.max(0, line.qty) * line.unitCost)
+            {lineValue(line) !== null ? (
+              money(lineValue(line)!)
             ) : (
               <span className="text-xs font-normal text-muted-foreground">No cost</span>
             )}

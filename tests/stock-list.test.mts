@@ -88,3 +88,12 @@ test('views, sorting and grouping', () => {
   assert.equal(counts.runningOut, 1);
   assert.equal(counts.reorder, 1);
 });
+
+test('the shelf is valued container by container once the overview says so', async () => {
+  const { lineValue } = await import('../lib/utils/stock-list.ts');
+  const base = { qty: 10, unitCost: 2 };
+  assert.equal(lineValue({ ...base, onHandValue: undefined }), 20, 'before the overview: on hand at the item cost');
+  assert.equal(lineValue({ ...base, onHandValue: 13.5 }), 13.5, 'each container at what it cost');
+  assert.equal(lineValue({ ...base, onHandValue: null }), null, 'part of it has no cost at all');
+  assert.deepEqual(stockValue([line({ qty: 10, unitCost: 2, onHandValue: 13.5 }), line({ qty: 4, unitCost: 1, onHandValue: null })]), { value: 13.5, unpriced: 1 });
+});

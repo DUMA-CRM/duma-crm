@@ -4,6 +4,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { getTopItems } from '@/lib/modules/analytics/client';
 import { getLocationStock, getMenuItemRecipe } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -38,7 +39,10 @@ export function usePosMenuSignals({
 }) {
   const capabilities = useAuthStore((state) => state.capabilities);
   const canReadStock = hasAnyCapability(capabilities, 'stock.locations:read', 'inventory:read') && hasCapability(capabilities, 'recipes:read');
-  const canReadSales = hasCapability(capabilities, 'analytics:read');
+  // Top sellers come from Analytics: the capability alone isn't enough, the API
+  // refuses the route while that module is off.
+  const analyticsOn = useModuleEnabled('analytics');
+  const canReadSales = hasCapability(capabilities, 'analytics:read') && analyticsOn;
   const wantStock = stockHighlight && canReadStock && !!locationId;
 
   const stock = useQuery({
