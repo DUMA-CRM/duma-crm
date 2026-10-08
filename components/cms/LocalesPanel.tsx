@@ -10,6 +10,7 @@ import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { useWorkspaceCurrency } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ import { Select } from '@/components/ui/select';
 import { type CmsLocale, createCmsLocale, deleteCmsLocale, getCmsLocales, updateCmsLocale } from '@/lib/modules/cms/client';
 import { fallbackChain, localeDisplayName } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
+import { CURRENCIES } from '@/lib/utils/currencies';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -71,15 +73,22 @@ function LocaleList({ locales, canModel }: { locales: CmsLocale[]; canModel: boo
   const queryClient = useQueryClient();
   const reduceMotion = useReducedMotion();
   const [removing, setRemoving] = useState<CmsLocale | null>(null);
+  const base = useWorkspaceCurrency();
   // The default leads; the rest read alphabetically by name.
   const sorted = [...locales].sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name));
 
   const update = useMutation({
-    mutationFn: ({ locale, patch }: { locale: CmsLocale; patch: { isDefault?: boolean; fallbackCode?: string | null } }) =>
-      updateCmsLocale(locale.code, patch, tenantId),
+    mutationFn: ({
+      locale,
+      patch,
+    }: {
+      locale: CmsLocale;
+      patch: { isDefault?: boolean; fallbackCode?: string | null; currency?: string | null };
+    }) => updateCmsLocale(locale.code, patch, tenantId),
     onSuccess: (_, { locale, patch }) => {
       invalidateCms(queryClient);
       if (patch.isDefault) toast('success', `${locale.name} is now the default.`);
+      if (patch.currency !== undefined) toast('success', `${locale.name} shoppers now pay in ${patch.currency ?? base}.`);
     },
     onError: (error) => toast('error', error.message),
   });
@@ -143,6 +152,21 @@ function LocaleList({ locales, canModel }: { locales: CmsLocale[]; canModel: boo
                         ...sorted
                           .filter((other) => other.code !== locale.code)
                           .map((other) => ({ value: other.code, label: `Falls back to ${other.name}` })),
+                      ]}
+                    />
+                    {/* A shop abroad: Ukrainian readers pay in hryvnia while English stays in pounds. */}
+                    <Select
+                      ariaLabel={`${locale.name} prices in`}
+                      className="h-8 min-w-0 flex-1 text-xs sm:w-36 sm:flex-none"
+                      disabled={!canModel || pending}
+                      value={locale.currency ?? ''}
+                      onValueChange={(value) => update.mutate({ locale, patch: { currency: value || null } })}
+                      options={[
+                        { value: '', label: `Prices in ${base}` },
+                        ...CURRENCIES.filter((entry) => entry.code !== base).map((entry) => ({
+                          value: entry.code,
+                          label: `Prices in ${entry.code}`,
+                        })),
                       ]}
                     />
                     {canModel && (

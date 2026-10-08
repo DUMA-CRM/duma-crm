@@ -5,11 +5,11 @@ import { IngredientCombobox } from '@/components/menu/IngredientCombobox';
 import { inputClass } from '@/components/menu/shared';
 import { DEFAULT_COL, type RecipeRow, type SizeColumn } from '@/components/menu/useRecipeDraft';
 import { Bone } from '@/components/shared/Skeleton';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
 import type { StockItem } from '@/lib/modules/inventory/client';
 import { cn } from '@/lib/utils/cn';
-import { formatMoney } from '@/lib/utils/dashboard';
 
 /**
  * The ingredient rows, shared by the menu-item recipe and the modifier recipe.
@@ -42,6 +42,7 @@ export function RecipeIngredientEditor({
   sizes: SizeColumn[];
   emptyHint: React.ReactNode;
 }) {
+  const formatMoney = useFormatMoney();
   const patchRow = (index: number, changes: Partial<RecipeRow>) =>
     onChange(rows.map((row, i) => (i === index ? { ...row, ...changes } : row)));
 

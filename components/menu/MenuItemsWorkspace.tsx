@@ -20,10 +20,12 @@ import { IconTag } from '@/components/shared/IconTag';
 import { NeedsAttention } from '@/components/shared/NeedsAttention';
 import { Pill } from '@/components/shared/Pill';
 import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
+import { proxiedImage } from '@/lib/api/client';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { type MenuItemCost, useMenuItemCosts } from '@/lib/hooks/useMenuItemCosts';
@@ -31,7 +33,6 @@ import { getMenuCategories, getMenuItems, updateMenuItem } from '@/lib/modules/c
 import { getRecipeGaps } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { formatMoney } from '@/lib/utils/dashboard';
 import { filterMenuItems, groupByCategory, setupGaps } from '@/lib/utils/menu-list';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
@@ -70,7 +71,7 @@ export function MenuItemsWorkspace() {
   const gaps = useQuery({
     queryKey: moduleQueryKeys.inventory.key('menu-item-recipe-gaps', tenantId),
     queryFn: () => getRecipeGaps(tenantId!),
-    enabled: !!tenantId && canReadRecipes,
+    enabled: !!tenantId && canReadRecipes && words.tools.kitchen,
   });
 
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data]);
@@ -79,7 +80,8 @@ export function MenuItemsWorkspace() {
 
   // A request per item (cached, and shared with the item page) — fine for a café
   // menu, and the price of showing margin on every row.
-  const costs = useMenuItemCosts(filtered);
+  // Margins come from recipes — a shop's products have none, so nothing is costed.
+  const costs = useMenuItemCosts(words.tools.kitchen ? filtered : []);
 
   const availability = useMutation({
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => updateMenuItem(id, { isAvailable }),
@@ -118,7 +120,7 @@ export function MenuItemsWorkspace() {
         <ErrorState title="Couldn’t load the menu" onRetry={() => void itemsQuery.refetch()} />
       ) : itemsQuery.isPending ? (
         // The search and category row, then a category: its label and the card of items.
-        <div role="status" aria-busy="true" aria-label="Loading the menu" className="space-y-5">
+        <div role="status" aria-busy="true" aria-label={`Loading ${words.section.toLowerCase()}`} className="space-y-5">
           <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
             <Bone className="h-9 min-w-56 flex-1 lg:max-w-xs" />
             <Bone className="h-9 w-48" />
@@ -140,10 +142,10 @@ export function MenuItemsWorkspace() {
         )
       ) : (
         <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
-          {canReadRecipes && (
+          {canReadRecipes && words.tools.kitchen && (
             <RecipeGaps
               gaps={gaps.data}
-              images={new Map(items.map((i) => [i.id, i.imageUrl ?? null]))}
+              images={new Map(items.map((i) => [i.id, proxiedImage(i.imageUrl)]))}
               error={gaps.isError}
               onRetry={() => void gaps.refetch()}
             />
@@ -155,8 +157,8 @@ export function MenuItemsWorkspace() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 leftIcon={<Search size={14} />}
-                placeholder="Find an item"
-                aria-label="Find an item"
+                placeholder={`Find a ${words.item}`}
+                aria-label={`Find a ${words.item}`}
                 className="border-rule"
                 rightAction={
                   search ? (
@@ -184,16 +186,17 @@ export function MenuItemsWorkspace() {
             />
             <span className="ml-auto text-xs text-muted-foreground">
               {filtered.length !== items.length && `${filtered.length} of `}
-              {items.length} {items.length === 1 ? 'item' : 'items'} · {items.filter((i) => i.isAvailable).length} on the menu
+              {items.length} {items.length === 1 ? words.item : words.items} · {items.filter((i) => i.isAvailable).length}{' '}
+              {words.available.toLowerCase()}
             </span>
           </motion.div>
 
           {groups.length > 0 && (
             <div className="-mb-3 hidden items-center gap-3 px-3.5 text-label uppercase text-muted-foreground sm:flex" aria-hidden="true">
               <span className="flex-1" />
-              <span className="w-32 text-right">Margin</span>
+              {words.tools.kitchen && <span className="w-32 text-right">Margin</span>}
               <span className="w-20 text-right">Price</span>
-              <span className="w-24 text-right">On the menu</span>
+              <span className="w-24 text-right">{words.available}</span>
             </div>
           )}
 
@@ -224,6 +227,8 @@ export function MenuItemsWorkspace() {
                         key={item.id}
                         item={item}
                         cost={costs.get(item.id)}
+                        kitchen={words.tools.kitchen}
+                        availableLabel={words.available}
                         togglePending={availability.isPending && availability.variables?.id === item.id}
                         onToggle={(isAvailable) => availability.mutate({ id: item.id, isAvailable })}
                       />
@@ -289,32 +294,41 @@ function RecipeGaps({
 function ItemRow({
   item,
   cost,
+  kitchen,
+  availableLabel,
   togglePending,
   onToggle,
 }: {
   item: MenuItem;
   cost?: MenuItemCost;
+  /** Recipes and margins apply — off for a shop's products. */
+  kitchen: boolean;
+  availableLabel: string;
   togglePending: boolean;
   onToggle: (isAvailable: boolean) => void;
 }) {
-  const gaps = cost && !cost.loading ? setupGaps(item, cost) : [];
+  const formatMoney = useFormatMoney();
+  const gaps = kitchen && cost && !cost.loading ? setupGaps(item, cost) : [];
 
   return (
-    <li className="group flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40">
+    // The link stretches over the whole row (its ::after), so the padding,
+    // margin and price open the item too — the row highlights as one target.
+    // Only the switch sits above it, as its own control.
+    <li className="group relative flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40 has-[a:focus-visible]:bg-band/40">
       <Link
         href={`/menu/items/${item.id}`}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
+        className="flex min-w-0 flex-1 items-center gap-3 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ring"
       >
         {item.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={item.imageUrl}
+            src={proxiedImage(item.imageUrl) ?? undefined}
             alt=""
             className={cn('size-10 shrink-0 rounded-md bg-band object-cover', !item.isAvailable && 'opacity-50 grayscale')}
           />
         ) : (
           <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground" aria-hidden="true">
-            <UtensilsCrossed size={16} />
+            {kitchen ? <UtensilsCrossed size={16} /> : <Tag size={16} />}
           </span>
         )}
         <span className="min-w-0 flex-1">
@@ -340,12 +354,20 @@ function ItemRow({
         </span>
       </Link>
 
-      <Margin cost={cost} />
+      {kitchen && <Margin cost={cost} />}
       <span className="w-20 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
         {formatMoney(Number(item.price) || 0, 2)}
       </span>
       <span className="flex w-24 shrink-0 items-center justify-end">
-        <Switch label={`${item.name} on the menu`} checked={item.isAvailable} disabled={togglePending} onChange={onToggle} />
+        {/* Raised above the stretched link — just the switch, so the space around it still opens the item. */}
+        <span className="relative z-10 inline-flex">
+          <Switch
+            label={`${item.name} — ${availableLabel.toLowerCase()}`}
+            checked={item.isAvailable}
+            disabled={togglePending}
+            onChange={onToggle}
+          />
+        </span>
       </span>
     </li>
   );
@@ -354,6 +376,7 @@ function ItemRow({
 /** Margin and cost, or why there's none — an uncosted item never shows a flattering 100%.
     The chip's tone uses the same line the recipe screen does: in the red is a loss. */
 function Margin({ cost }: { cost?: MenuItemCost }) {
+  const formatMoney = useFormatMoney();
   if (!cost || cost.loading) return <Bone className="hidden h-8 w-32 shrink-0 rounded-sm sm:block" />;
   if (!cost.costComplete)
     return (

@@ -36,6 +36,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import {
   createMenuCategory,
   createModifierGroup,
@@ -78,6 +79,8 @@ export function CategoriesWorkspace() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const capabilities = useAuthStore((state) => state.capabilities);
   const canWrite = hasCapability(capabilities, 'menu:write');
+  const words = useCatalogWords();
+  const shop = !words.tools.kitchen;
   const [categoryDrawer, setCategoryDrawer] = useState<MenuCategoryRecord | 'new' | null>(null);
   const [groupDrawer, setGroupDrawer] = useState<ModifierGroup | 'new' | null>(null);
 
@@ -159,70 +162,86 @@ export function CategoriesWorkspace() {
   };
 
   return (
-    <EditorShell title="Menu" icon={<LayoutGrid size={20} aria-hidden="true" />} subheader={<MenuSectionTabs />}>
+    <EditorShell
+      title={words.section}
+      icon={<LayoutGrid size={20} aria-hidden="true" />}
+      subheader={<MenuSectionTabs />}
+      // The page's one primary action, so it lives in the header rather than over the list.
+      actions={
+        tenantId &&
+        canWrite && (
+          <Button className="h-9 gap-1.5" onClick={() => setCategoryDrawer('new')} aria-label={shop ? 'New category' : 'New section'}>
+            <Plus size={15} aria-hidden="true" />
+            <span className="hidden md:inline">{shop ? 'New category' : 'New section'}</span>
+          </Button>
+        )
+      }
+    >
       {!tenantId ? (
-        <EmptyState icon={LayoutGrid} title="No workspace selected" description="Choose a workspace to organise its menu." />
+        <EmptyState icon={LayoutGrid} title="No workspace selected" description={`Choose a workspace to organise its ${words.items}.`} />
       ) : (
         <motion.div initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
           <SettingsTabBody
             aside={
-              <ListSection
-                id="modifier-groups"
-                title="Modifier groups"
-                action={
-                  canWrite && (
-                    <Button size="sm" onClick={() => setGroupDrawer('new')}>
-                      <Plus aria-hidden="true" /> New group
-                    </Button>
-                  )
-                }
-                loading={groups.isPending}
-                error={groups.isError}
-                onRetry={() => void groups.refetch()}
-                empty={
-                  orderedGroups.length === 0
-                    ? {
-                        icon: SlidersHorizontal,
-                        title: 'No modifier groups yet',
-                        description: 'Create Size first if drinks come in sizes — recipes cost each size separately.',
-                        action: canWrite ? { label: 'New group', icon: Plus, onClick: () => setGroupDrawer('new') } : undefined,
+              // Modifier groups (milks, syrups) belong to a kitchen; a shop's options live on each product.
+              shop ? undefined : (
+                <ListSection
+                  id="modifier-groups"
+                  title="Modifier groups"
+                  action={
+                    canWrite && (
+                      <Button size="sm" onClick={() => setGroupDrawer('new')}>
+                        <Plus aria-hidden="true" /> New group
+                      </Button>
+                    )
+                  }
+                  loading={groups.isPending}
+                  error={groups.isError}
+                  onRetry={() => void groups.refetch()}
+                  empty={
+                    orderedGroups.length === 0
+                      ? {
+                          icon: SlidersHorizontal,
+                          title: 'No modifier groups yet',
+                          description: 'Create Size first if drinks come in sizes — recipes cost each size separately.',
+                          action: canWrite ? { label: 'New group', icon: Plus, onClick: () => setGroupDrawer('new') } : undefined,
+                        }
+                      : null
+                  }
+                >
+                  {orderedGroups.map((group, index) => (
+                    <OrderedRow
+                      key={group.id}
+                      icon={group.isSize ? Scale : SlidersHorizontal}
+                      tile={group.isSize ? 'bg-primary/8 text-primary' : 'bg-reference/8 text-reference'}
+                      title={group.name}
+                      detail={
+                        <Link href="/menu/modifiers" className="hover:underline">
+                          {group.modifierCount} {group.modifierCount === 1 ? 'modifier' : 'modifiers'}
+                        </Link>
                       }
-                    : null
-                }
-              >
-                {orderedGroups.map((group, index) => (
-                  <OrderedRow
-                    key={group.id}
-                    icon={group.isSize ? Scale : SlidersHorizontal}
-                    tile={group.isSize ? 'bg-primary/8 text-primary' : 'bg-reference/8 text-reference'}
-                    title={group.name}
-                    detail={
-                      <Link href="/menu/modifiers" className="hover:underline">
-                        {group.modifierCount} {group.modifierCount === 1 ? 'modifier' : 'modifiers'}
-                      </Link>
-                    }
-                    iconLabel={group.isSize ? 'Sizes' : undefined}
-                    canWrite={canWrite}
-                    first={index === 0}
-                    last={index === orderedGroups.length - 1}
-                    busy={reorderGroups.isPending}
-                    onMove={(direction) => moveGroup(index, direction)}
-                    onEdit={() => setGroupDrawer(group)}
-                  />
-                ))}
-              </ListSection>
+                      iconLabel={group.isSize ? 'Sizes' : undefined}
+                      canWrite={canWrite}
+                      first={index === 0}
+                      last={index === orderedGroups.length - 1}
+                      busy={reorderGroups.isPending}
+                      onMove={(direction) => moveGroup(index, direction)}
+                      onEdit={() => setGroupDrawer(group)}
+                    />
+                  ))}
+                </ListSection>
+              )
             }
           >
             <ListSection
               id="menu-sections"
-              title="Menu sections"
-              note="How the menu is split for guests and at the till. The order here is the order on the POS and the QR menu."
-              action={
-                canWrite && (
-                  <Button size="sm" onClick={() => setCategoryDrawer('new')}>
-                    <Plus aria-hidden="true" /> New section
-                  </Button>
-                )
+              title={shop ? 'Categories' : 'Menu sections'}
+              // The header already names the page and holds the add button.
+              hideTitle
+              note={
+                shop
+                  ? 'How your products are grouped — on your website and in reports. The order here is the order shoppers see.'
+                  : 'How the menu is split for guests and at the till. The order here is the order on the POS and the QR menu.'
               }
               loading={categories.isPending}
               error={categories.isError}
@@ -231,9 +250,13 @@ export function CategoriesWorkspace() {
                 orderedCategories.length === 0
                   ? {
                       icon: LayoutGrid,
-                      title: 'No sections yet',
-                      description: 'Start with how your board reads — Coffee, Tea, Bakery.',
-                      action: canWrite ? { label: 'New section', icon: Plus, onClick: () => setCategoryDrawer('new') } : undefined,
+                      title: shop ? 'No categories yet' : 'No sections yet',
+                      description: shop
+                        ? 'Start with how a shopper browses — T-shirts, Hoodies, Accessories.'
+                        : 'Start with how your board reads — Coffee, Tea, Bakery.',
+                      action: canWrite
+                        ? { label: shop ? 'New category' : 'New section', icon: Plus, onClick: () => setCategoryDrawer('new') }
+                        : undefined,
                     }
                   : null
               }
@@ -245,12 +268,16 @@ export function CategoriesWorkspace() {
                   tile={categoryTone(category.slug, category)}
                   title={category.name}
                   muted={!category.isActive}
-                  detail={[category.description, `${category.itemCount} ${category.itemCount === 1 ? 'item' : 'items'}`]
+                  detail={[category.description, `${category.itemCount} ${category.itemCount === 1 ? words.item : words.items}`]
                     .filter(Boolean)
                     .join(' · ')}
                   // The switch and the greyed name already say it; only a reader without
                   // the switch needs the mark.
-                  titleExtra={!category.isActive && !canWrite ? <IconTag icon={EyeOff} label="Hidden from the menu" /> : undefined}
+                  titleExtra={
+                    !category.isActive && !canWrite ? (
+                      <IconTag icon={EyeOff} label={shop ? 'Hidden from shoppers' : 'Hidden from the menu'} />
+                    ) : undefined
+                  }
                   canWrite={canWrite}
                   first={index === 0}
                   last={index === orderedCategories.length - 1}
@@ -260,7 +287,7 @@ export function CategoriesWorkspace() {
                   trailing={
                     canWrite ? (
                       <Switch
-                        label={`${category.name} shown on the menu`}
+                        label={`${category.name} shown ${shop ? 'to shoppers' : 'on the menu'}`}
                         checked={category.isActive}
                         disabled={toggleCategory.isPending && toggleCategory.variables?.id === category.id}
                         onChange={(isActive) => toggleCategory.mutate({ id: category.id, isActive })}
@@ -303,6 +330,7 @@ function countBy<T>(rows: T[] | undefined, key: (row: T) => string | null): Map<
 function ListSection({
   id,
   title,
+  hideTitle = false,
   note,
   action,
   loading,
@@ -313,6 +341,8 @@ function ListSection({
 }: {
   id: string;
   title: string;
+  /** Keep the heading for screen readers only — the section stays labelled. */
+  hideTitle?: boolean;
   note?: string;
   action?: React.ReactNode;
   loading: boolean;
@@ -323,12 +353,18 @@ function ListSection({
 }) {
   return (
     <motion.section variants={SECTION_RISE} aria-labelledby={`${id}-title`} className="space-y-3">
-      <div className="flex min-h-9 items-center gap-3">
-        <h2 id={`${id}-title`} className="flex-1 text-base font-semibold tracking-title text-foreground">
+      {hideTitle ? (
+        <h2 id={`${id}-title`} className="sr-only">
           {title}
         </h2>
-        {action}
-      </div>
+      ) : (
+        <div className="flex min-h-9 items-center gap-3">
+          <h2 id={`${id}-title`} className="flex-1 text-base font-semibold tracking-title text-foreground">
+            {title}
+          </h2>
+          {action}
+        </div>
+      )}
       {error ? (
         <ErrorState title={`Couldn’t load ${title.toLowerCase()}`} onRetry={onRetry} />
       ) : loading ? (

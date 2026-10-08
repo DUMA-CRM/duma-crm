@@ -477,9 +477,11 @@
 @theme inline {
   /* Fonts. Archivo is a grotesque with real tabular figures and genuine
      weights; Chivo Mono is its monospaced sibling and carries every figure,
-     timestamp and readout. Same family skeleton, so labels and data agree. */
-  --font-sans: var(--font-archivo, ui-sans-serif, system-ui, sans-serif);
-  --font-mono: var(--font-chivo-mono, ui-monospace, monospace);
+     timestamp and readout. Same family skeleton, so labels and data agree.
+     `--font-currency` comes first but covers only the ₴ sign, which neither
+     has — see app/layout.tsx. */
+  --font-sans: var(--font-currency, ui-sans-serif), var(--font-archivo, ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--font-currency, ui-monospace), var(--font-chivo-mono, ui-monospace, monospace);
 
   /* shadcn standard → Tailwind utilities */
   --color-background: var(--background);

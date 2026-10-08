@@ -69,6 +69,8 @@ export interface StockItem {
   nutrition?: NutritionFacts | null;
   /** FSA allergen slugs this ingredient contains. */
   allergens?: string[] | null;
+  /** A photo from the media library, as its delivery path (see `mediaImagePath`). Null = none. */
+  imageUrl?: string | null;
   createdAt: string;
 }
 
@@ -87,6 +89,7 @@ export interface StockItemPayload {
   nutritionBasis?: NutritionBasis | null;
   nutrition?: NutritionFacts | null;
   allergens?: Allergen[] | null;
+  imageUrl?: string | null;
 }
 
 export const getStockItems = () => apiFetch<StockItem[]>('/stock-items');

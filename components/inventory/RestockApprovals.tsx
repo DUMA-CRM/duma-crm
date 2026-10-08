@@ -249,7 +249,7 @@ export function RestockApprovals({
   ];
 
   return (
-    <motion.div className="space-y-4" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+    <motion.div className="flex flex-1 flex-col space-y-4" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
       {/* How many requests sit at each stage — and the way in: a tile filters to its stage, again to show all. */}
       <motion.dl variants={SECTION_RISE} className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {TILES.filter((tile) => tile.value !== 'all').map((tile) => (
@@ -320,7 +320,7 @@ export function RestockApprovals({
         </motion.div>
       )}
 
-      <motion.section variants={SECTION_RISE} aria-label="Requests">
+      <motion.section variants={SECTION_RISE} aria-label="Requests" className="flex flex-1 flex-col">
         {list.isError ? (
           <ErrorState
             title="Restock requests couldn’t be loaded"
@@ -331,6 +331,7 @@ export function RestockApprovals({
           <ListSkeleton rows={5} label="Loading restock requests" />
         ) : requests.length === 0 ? (
           <EmptyState
+            className="flex-1"
             icon={activeStatus === 'pending' ? CheckCircle2 : ClipboardList}
             kind={itemFilter !== 'all' ? 'search' : activeStatus === 'pending' ? 'done' : activeStatus === 'all' ? 'start' : 'search'}
             title={

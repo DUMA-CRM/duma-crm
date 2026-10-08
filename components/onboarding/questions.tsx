@@ -49,6 +49,7 @@ import {
   MIN_PASSWORD_LENGTH,
   type OnboardingDraft,
   type PaymentMethod,
+  type Sells,
   type StepId,
   type TeamNeed,
   hasPremises,
@@ -180,33 +181,35 @@ export function questionFor(step: StepId, ctx: QuestionContext): Question | null
 
     case 'food':
       return {
-        title: 'Do you serve food or drink?',
-        hint: 'This decides whether we set you up with recipes, a kitchen screen and allergen tracking.',
+        title: 'What do you sell?',
+        hint: 'Food gets recipes, modifiers and a kitchen screen; products get sizes, stock per SKU and photos.',
         body: (
-          <ChoiceGrid
-            label="Food or drink"
-            selected={asYesNo(draft.servesFood)}
-            onChange={(value) => {
-              const servesFood = value === 'yes';
+          <ChoiceGrid<Sells>
+            label="What you sell"
+            selected={draft.sells ? [draft.sells] : draft.servesFood === undefined ? [] : [draft.servesFood ? 'food' : 'products']}
+            onChange={(sells) => {
+              const servesFood = sells !== 'products';
               // Switching sides of the food line invalidates the business type picked on the other side.
               const kinds = servesFood ? FOOD_KINDS : OTHER_KINDS;
               const keepType = draft.businessType && kinds.some((kind) => kind.value === draft.businessType);
               choose({
+                sells,
                 servesFood,
                 businessType: keepType ? draft.businessType : !servesFood && draft.presence === 'online' ? 'online_retail' : undefined,
               });
             }}
-            choices={yesNo(
-              { value: 'yes', label: 'Yes', detail: 'Café, restaurant, bar, bakery…', icon: Coffee },
-              { value: 'no', label: 'No', detail: 'Products or services.', icon: Tags },
-            )}
+            choices={[
+              { value: 'food', label: 'Food & drink', detail: 'Café, restaurant, bar, bakery…', icon: Coffee },
+              { value: 'products', label: 'Products', detail: 'Clothing, goods, gifts — things in sizes and colours.', icon: ShoppingBag },
+              { value: 'both', label: 'Both', detail: 'A café that also sells merch, a deli with a shop.', icon: Package, wide: true },
+            ]}
           />
         ),
       };
 
     case 'kind':
       return {
-        title: draft.servesFood ? 'What kind of place is it?' : 'What do you sell?',
+        title: draft.servesFood ? 'What kind of place is it?' : 'What kind of business is it?',
         body: (
           <ChoiceGrid
             label="Business type"

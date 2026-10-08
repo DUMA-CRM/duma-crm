@@ -17,6 +17,7 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ChoiceCards } from '@/components/shared/FormParts';
 import { LoadingState } from '@/components/shared/Skeleton';
+import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,7 @@ const FORM_ID = 'modifier-detail-form';
  * leave with half the work committed.
  */
 export function ModifierDetail({ modifierId }: { modifierId?: string }) {
+  const symbol = useCurrencySymbol();
   const qc = useQueryClient();
   const router = useRouter();
   const { tenantId } = useWorkspaceStore();
@@ -248,7 +250,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
                   onChange={(e) => patch({ priceAdjust: e.target.value })}
                   inputMode="decimal"
                   placeholder="0.50"
-                  leftIcon={<span className="text-sm">£</span>}
+                  leftIcon={<span className="text-sm">{symbol}</span>}
                   className="tabular-nums"
                   error={submitted ? (priceError ?? undefined) : undefined}
                   hint={

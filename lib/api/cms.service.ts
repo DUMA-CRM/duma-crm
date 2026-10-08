@@ -250,6 +250,8 @@ export interface CmsLocale {
   name: string;
   isDefault: boolean;
   fallbackCode: string | null;
+  /** What a shop prices in for readers of this language; null is the workspace's currency. */
+  currency: string | null;
 }
 
 export type CmsApiKeyKind = 'delivery' | 'preview';
@@ -349,10 +351,15 @@ const qs = (tenantId?: string, params: Record<string, string | number | undefine
 export const getCmsOverview = (tenantId?: string) => apiFetch<CmsOverview>(`/cms/overview?${qs(tenantId)}`);
 
 export const getCmsLocales = (tenantId?: string) => apiFetch<{ data: CmsLocale[] }>(`/cms/locales?${qs(tenantId)}`).then((res) => res.data);
-export const createCmsLocale = (data: { code: string; name: string; isDefault?: boolean; fallbackCode?: string | null }, tenantId?: string) =>
-  apiFetch<CmsLocale>(`/cms/locales?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(data) });
-export const updateCmsLocale = (code: string, data: { name?: string; isDefault?: boolean; fallbackCode?: string | null }, tenantId?: string) =>
-  apiFetch<CmsLocale>(`/cms/locales/${encodeURIComponent(code)}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify(data) });
+export const createCmsLocale = (
+  data: { code: string; name: string; isDefault?: boolean; fallbackCode?: string | null },
+  tenantId?: string,
+) => apiFetch<CmsLocale>(`/cms/locales?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(data) });
+export const updateCmsLocale = (
+  code: string,
+  data: { name?: string; isDefault?: boolean; fallbackCode?: string | null; currency?: string | null },
+  tenantId?: string,
+) => apiFetch<CmsLocale>(`/cms/locales/${encodeURIComponent(code)}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const deleteCmsLocale = (code: string, tenantId?: string) =>
   apiFetch<void>(`/cms/locales/${encodeURIComponent(code)}?${qs(tenantId)}`, { method: 'DELETE' });
 
@@ -361,8 +368,11 @@ export const getCmsContentTypes = (tenantId?: string) =>
 export const getCmsContentType = (id: string, tenantId?: string) => apiFetch<CmsContentType>(`/cms/content-types/${id}?${qs(tenantId)}`);
 export const createCmsContentType = (data: CmsContentTypePayload, tenantId?: string) =>
   apiFetch<CmsContentType>(`/cms/content-types?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(data) });
-export const updateCmsContentType = (id: string, data: Partial<Omit<CmsContentTypePayload, 'key'>> & { expectedSchemaVersion?: number }, tenantId?: string) =>
-  apiFetch<CmsContentType>(`/cms/content-types/${id}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify(data) });
+export const updateCmsContentType = (
+  id: string,
+  data: Partial<Omit<CmsContentTypePayload, 'key'>> & { expectedSchemaVersion?: number },
+  tenantId?: string,
+) => apiFetch<CmsContentType>(`/cms/content-types/${id}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const previewCmsSchemaImpact = (id: string, fields: CmsFieldDefinition[], tenantId?: string) =>
   apiFetch<CmsSchemaImpact>(`/cms/content-types/${id}/impact?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify({ fields }) });
 export const deleteCmsContentType = (id: string, force: boolean, tenantId?: string) =>
@@ -371,21 +381,31 @@ export const deleteCmsContentType = (id: string, force: boolean, tenantId?: stri
 export const getCmsEntries = (filters: CmsEntryFilters, tenantId?: string) =>
   apiFetch<CmsPage<CmsEntrySummary>>(`/cms/entries?${qs(tenantId, { ...filters, limit: 25 })}`);
 export const getCmsEntry = (id: string, tenantId?: string) => apiFetch<CmsEntry>(`/cms/entries/${id}?${qs(tenantId)}`);
-export const createCmsEntry = (data: { contentTypeId: string; locale?: string; documentId?: string; data?: Record<string, unknown> }, tenantId?: string) =>
-  apiFetch<CmsEntry>(`/cms/entries?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(data) });
+export const createCmsEntry = (
+  data: { contentTypeId: string; locale?: string; documentId?: string; data?: Record<string, unknown> },
+  tenantId?: string,
+) => apiFetch<CmsEntry>(`/cms/entries?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(data) });
 export const saveCmsEntry = (id: string, data: Record<string, unknown>, expectedVersion: number, tenantId?: string) =>
   apiFetch<CmsEntry>(`/cms/entries/${id}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify({ data, expectedVersion }) });
-export const publishCmsEntry = (id: string, tenantId?: string) => apiFetch<CmsEntry>(`/cms/entries/${id}/publish?${qs(tenantId)}`, { method: 'POST' });
-export const unpublishCmsEntry = (id: string, tenantId?: string) => apiFetch<CmsEntry>(`/cms/entries/${id}/unpublish?${qs(tenantId)}`, { method: 'POST' });
+export const publishCmsEntry = (id: string, tenantId?: string) =>
+  apiFetch<CmsEntry>(`/cms/entries/${id}/publish?${qs(tenantId)}`, { method: 'POST' });
+export const unpublishCmsEntry = (id: string, tenantId?: string) =>
+  apiFetch<CmsEntry>(`/cms/entries/${id}/unpublish?${qs(tenantId)}`, { method: 'POST' });
 export const scheduleCmsEntry = (id: string, data: { publishAt?: string | null; unpublishAt?: string | null }, tenantId?: string) =>
   apiFetch<CmsEntry>(`/cms/entries/${id}/schedule?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(data) });
-export const archiveCmsEntry = (id: string, tenantId?: string) => apiFetch<CmsEntry>(`/cms/entries/${id}/archive?${qs(tenantId)}`, { method: 'POST' });
-export const restoreCmsEntry = (id: string, tenantId?: string) => apiFetch<CmsEntry>(`/cms/entries/${id}/restore?${qs(tenantId)}`, { method: 'POST' });
-export const duplicateCmsEntry = (id: string, tenantId?: string) => apiFetch<CmsEntry>(`/cms/entries/${id}/duplicate?${qs(tenantId)}`, { method: 'POST' });
+export const archiveCmsEntry = (id: string, tenantId?: string) =>
+  apiFetch<CmsEntry>(`/cms/entries/${id}/archive?${qs(tenantId)}`, { method: 'POST' });
+export const restoreCmsEntry = (id: string, tenantId?: string) =>
+  apiFetch<CmsEntry>(`/cms/entries/${id}/restore?${qs(tenantId)}`, { method: 'POST' });
+export const duplicateCmsEntry = (id: string, tenantId?: string) =>
+  apiFetch<CmsEntry>(`/cms/entries/${id}/duplicate?${qs(tenantId)}`, { method: 'POST' });
 export const deleteCmsEntry = (id: string, force: boolean, tenantId?: string) =>
   apiFetch<void>(`/cms/entries/${id}?${qs(tenantId, { force: force ? 'true' : undefined })}`, { method: 'DELETE' });
 export const bulkCmsEntries = (ids: string[], action: 'publish' | 'unpublish' | 'archive', tenantId?: string) =>
-  apiFetch<{ succeeded: string[]; failed: Array<{ id: string; error: string }> }>(`/cms/entries/bulk?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify({ ids, action }) });
+  apiFetch<{ succeeded: string[]; failed: Array<{ id: string; error: string }> }>(`/cms/entries/bulk?${qs(tenantId)}`, {
+    method: 'POST',
+    body: JSON.stringify({ ids, action }),
+  });
 export const getCmsEntryVersions = (id: string, tenantId?: string) =>
   apiFetch<{ data: CmsEntryVersion[] }>(`/cms/entries/${id}/versions?${qs(tenantId)}`).then((res) => res.data);
 export const getCmsEntryVersion = (id: string, versionId: string, tenantId?: string) =>
@@ -435,10 +455,16 @@ export const deleteCmsRenditions = (id: string, tenantId?: string) =>
   apiFetch<void>(`/cms/assets/${id}/renditions?${qs(tenantId)}`, { method: 'DELETE' });
 export const updateCmsAsset = (
   id: string,
-  data: { title?: string | null; altText?: string | null; folder?: string | null; tags?: string[]; fileName?: string; focalPoint?: { x: number; y: number } | null },
+  data: {
+    title?: string | null;
+    altText?: string | null;
+    folder?: string | null;
+    tags?: string[];
+    fileName?: string;
+    focalPoint?: { x: number; y: number } | null;
+  },
   tenantId?: string,
-) =>
-  apiFetch<CmsAsset>(`/cms/assets/${id}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify(data) });
+) => apiFetch<CmsAsset>(`/cms/assets/${id}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify(data) });
 export type CmsBulkAssetAction =
   | { action: 'delete'; ids: string[]; force?: boolean }
   | { action: 'move'; ids: string[]; folder: string | null }
@@ -452,19 +478,23 @@ export const bulkCmsAssets = (body: CmsBulkAssetAction, tenantId?: string) =>
 export const deleteCmsAsset = (id: string, force: boolean, tenantId?: string) =>
   apiFetch<void>(`/cms/assets/${id}?${qs(tenantId, { force: force ? 'true' : undefined })}`, { method: 'DELETE' });
 
-export const getCmsApiKeys = (tenantId?: string) => apiFetch<{ data: CmsApiKey[] }>(`/cms/api-keys?${qs(tenantId)}`).then((res) => res.data);
+export const getCmsApiKeys = (tenantId?: string) =>
+  apiFetch<{ data: CmsApiKey[] }>(`/cms/api-keys?${qs(tenantId)}`).then((res) => res.data);
 export const createCmsApiKey = (data: CmsApiKeyPayload, tenantId?: string) =>
   apiFetch<{ apiKey: CmsApiKey; token: string }>(`/cms/api-keys?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(data) });
 export const updateCmsApiKey = (id: string, data: Partial<Omit<CmsApiKeyPayload, 'kind'>>, tenantId?: string) =>
   apiFetch<CmsApiKey>(`/cms/api-keys/${id}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify(data) });
-export const revokeCmsApiKey = (id: string, tenantId?: string) => apiFetch<CmsApiKey>(`/cms/api-keys/${id}/revoke?${qs(tenantId)}`, { method: 'POST' });
+export const revokeCmsApiKey = (id: string, tenantId?: string) =>
+  apiFetch<CmsApiKey>(`/cms/api-keys/${id}/revoke?${qs(tenantId)}`, { method: 'POST' });
 
-export const getCmsWebhooks = (tenantId?: string) => apiFetch<{ data: CmsWebhook[] }>(`/cms/webhooks?${qs(tenantId)}`).then((res) => res.data);
+export const getCmsWebhooks = (tenantId?: string) =>
+  apiFetch<{ data: CmsWebhook[] }>(`/cms/webhooks?${qs(tenantId)}`).then((res) => res.data);
 export const createCmsWebhook = (data: CmsWebhookPayload, tenantId?: string) =>
   apiFetch<{ webhook: CmsWebhook; secret: string }>(`/cms/webhooks?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(data) });
 export const updateCmsWebhook = (id: string, data: Partial<CmsWebhookPayload>, tenantId?: string) =>
   apiFetch<CmsWebhook>(`/cms/webhooks/${id}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify(data) });
-export const deleteCmsWebhook = (id: string, tenantId?: string) => apiFetch<void>(`/cms/webhooks/${id}?${qs(tenantId)}`, { method: 'DELETE' });
+export const deleteCmsWebhook = (id: string, tenantId?: string) =>
+  apiFetch<void>(`/cms/webhooks/${id}?${qs(tenantId)}`, { method: 'DELETE' });
 export const rotateCmsWebhookSecret = (id: string, tenantId?: string) =>
   apiFetch<{ webhook: CmsWebhook; secret: string }>(`/cms/webhooks/${id}/rotate-secret?${qs(tenantId)}`, { method: 'POST' });
 export const testCmsWebhook = (id: string, tenantId?: string) =>
@@ -476,12 +506,21 @@ export const redeliverCmsWebhook = (id: string, deliveryId: string, tenantId?: s
 
 export const getCmsStorage = (tenantId?: string) => apiFetch<CmsStorage>(`/cms/storage?${qs(tenantId)}`);
 export const createCmsStorageConnection = (data: CmsStorageConnectionPayload, tenantId?: string) =>
-  apiFetch<CmsStorageConnection>(`/cms/storage/connections?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(data), timeoutMs: 60_000 });
+  apiFetch<CmsStorageConnection>(`/cms/storage/connections?${qs(tenantId)}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+    timeoutMs: 60_000,
+  });
 export const updateCmsStorageConnection = (
   id: string,
   data: { displayName?: string; quotaBytes?: number | null; configuration?: CmsStorageConfiguration; secret?: string },
   tenantId?: string,
-) => apiFetch<CmsStorageConnection>(`/cms/storage/connections/${id}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify(data), timeoutMs: 60_000 });
+) =>
+  apiFetch<CmsStorageConnection>(`/cms/storage/connections/${id}?${qs(tenantId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+    timeoutMs: 60_000,
+  });
 export const verifyCmsStorageConnection = (id: string, tenantId?: string) =>
   apiFetch<CmsStorageConnection>(`/cms/storage/connections/${id}/verify?${qs(tenantId)}`, { method: 'POST', timeoutMs: 60_000 });
 export const setCmsActiveStorage = (connectionId: string | null, tenantId?: string) =>
@@ -500,7 +539,8 @@ export const requestCmsReview = (id: string, note: string | undefined, tenantId?
   apiFetch<CmsEntry>(`/cms/entries/${id}/review?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(note ? { note } : {}) });
 export const requestCmsChanges = (id: string, note: string, tenantId?: string) =>
   apiFetch<CmsEntry>(`/cms/entries/${id}/review/changes?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify({ note }) });
-export const clearCmsReview = (id: string, tenantId?: string) => apiFetch<CmsEntry>(`/cms/entries/${id}/review?${qs(tenantId)}`, { method: 'DELETE' });
+export const clearCmsReview = (id: string, tenantId?: string) =>
+  apiFetch<CmsEntry>(`/cms/entries/${id}/review?${qs(tenantId)}`, { method: 'DELETE' });
 /** A signed, expiring link to this draft on the website (`url`), and the API address the site reads it from. */
 export const createCmsPreviewLink = (id: string, hours: number, tenantId?: string) =>
   apiFetch<{ token: string; url: string | null; apiUrl: string; expiresAt: string }>(`/cms/entries/${id}/preview-link?${qs(tenantId)}`, {
@@ -523,12 +563,14 @@ export const importCmsEntries = (
   body: { contentTypeId: string; locale?: string; publish?: boolean; entries: Array<Record<string, unknown>> },
   tenantId?: string,
 ) =>
-  apiFetch<{ created: Array<{ index: number; id: string }>; failed: Array<{ index: number; error: string; issues?: Array<{ field: string; message: string }> }> }>(
-    `/cms/import?${qs(tenantId)}`,
-    { method: 'POST', body: JSON.stringify(body), timeoutMs: 300_000 },
-  );
+  apiFetch<{
+    created: Array<{ index: number; id: string }>;
+    failed: Array<{ index: number; error: string; issues?: Array<{ field: string; message: string }> }>;
+  }>(`/cms/import?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(body), timeoutMs: 300_000 });
 /** Roles allowed to edit a type's entries; empty means every role that can edit content. */
 export const getCmsTypeRoles = (id: string, tenantId?: string) =>
   apiFetch<{ roles: string[] }>(`/cms/content-types/${id}/roles?${qs(tenantId)}`).then((res) => res.roles);
 export const setCmsTypeRoles = (id: string, roles: string[], tenantId?: string) =>
-  apiFetch<{ roles: string[] }>(`/cms/content-types/${id}/roles?${qs(tenantId)}`, { method: 'PUT', body: JSON.stringify({ roles }) }).then((res) => res.roles);
+  apiFetch<{ roles: string[] }>(`/cms/content-types/${id}/roles?${qs(tenantId)}`, { method: 'PUT', body: JSON.stringify({ roles }) }).then(
+    (res) => res.roles,
+  );

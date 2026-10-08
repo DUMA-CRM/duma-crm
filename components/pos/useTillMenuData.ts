@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { usePosMenuSignals } from '@/components/pos/usePosMenuSignals';
+
+import { proxiedImage } from '@/lib/api/client';
 import { getMenuCategories, getMenuItems } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { resolveFavourites } from '@/lib/utils/pos';
@@ -21,7 +23,7 @@ export const toPosItem = (api: ApiMenuItem): MenuItem => ({
   name: api.name,
   category: api.categoryId,
   price: pence(api.price),
-  image: api.imageUrl ?? '',
+  image: proxiedImage(api.imageUrl) ?? '',
   modifiers: [],
 });
 
@@ -30,7 +32,17 @@ export const toPosItem = (api: ApiMenuItem): MenuItem => ({
  * preview in Settings → Configuration — so the preview is the real menu, not
  * a drawing of one.
  */
-export function useTillMenuData({ tenantId, locationId, layout, pinned }: { tenantId: string | null; locationId: string | null; layout: PosLayout; pinned: string[] | undefined }) {
+export function useTillMenuData({
+  tenantId,
+  locationId,
+  layout,
+  pinned,
+}: {
+  tenantId: string | null;
+  locationId: string | null;
+  layout: PosLayout;
+  pinned: string[] | undefined;
+}) {
   const menu = useQuery({
     queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId),
     queryFn: () => getMenuItems(tenantId ?? undefined),

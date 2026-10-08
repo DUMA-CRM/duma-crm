@@ -259,7 +259,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
       }
     >
       {isLoading ? (
-        <LoadingState label="Loading the customer" className="py-24" />
+        <LoadingState label="Loading the customer" className="flex-1" />
       ) : isError || !customer ? (
         <div className="mx-auto max-w-md rounded-lg border border-rule/60 bg-field">
           {isError ? (

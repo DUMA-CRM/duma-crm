@@ -78,3 +78,25 @@ export const changeTenantModule = (tenantId: string, preview: ModuleChangePrevie
       reason,
     }),
   });
+
+/**
+ * Change one module's configuration without changing whether it is on — e.g.
+ * the catalog's `vocabulary` (menu, retail, mixed). Optimistic concurrency:
+ * a configuration changed elsewhere since it was read fails with 409.
+ */
+export const updateTenantModuleConfiguration = (
+  tenantId: string,
+  moduleId: ModuleId,
+  current: Pick<TenantModuleState, 'configuration' | 'configurationVersion'>,
+  patch: Record<string, unknown>,
+  reason: string,
+) =>
+  apiFetch<ModuleChangeResult>(`/modules/tenants/${tenantId}/${moduleId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      status: 'enabled',
+      configuration: { ...current.configuration, ...patch },
+      expectedConfigurationVersion: current.configurationVersion,
+      reason,
+    }),
+  });

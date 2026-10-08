@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { getTradingSettings } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { currencySymbol, formatCurrency } from '@/lib/utils/currencies';
 import { formatMoney } from '@/lib/utils/payroll-totals';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -20,7 +21,10 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 /** The workspace's trading currency code (GBP until the settings load or without `settings:read`). */
 export function useWorkspaceCurrency() {
   const { tenantId } = useWorkspaceStore();
-  const canRead = hasCapability(useAuthStore((state) => state.capabilities), 'settings:read');
+  const canRead = hasCapability(
+    useAuthStore((state) => state.capabilities),
+    'settings:read',
+  );
   const { data } = useQuery({
     queryKey: moduleQueryKeys.organization.key('trading', tenantId),
     queryFn: () => getTradingSettings(tenantId!),
@@ -32,4 +36,18 @@ export function useWorkspaceCurrency() {
 export function useWorkspaceMoney() {
   const currency = useWorkspaceCurrency();
   return useCallback((amount: string | number | null | undefined) => formatMoney(amount, currency), [currency]);
+}
+
+/** The workspace currency's sign — "₴", "£", "zł" — for a price field's prefix. */
+export function useCurrencySymbol() {
+  return currencySymbol(useWorkspaceCurrency());
+}
+
+/**
+ * A money formatter in the workspace currency, shaped like the dashboard's
+ * old GBP-only `formatMoney(value, digits)` so call sites read the same.
+ */
+export function useFormatMoney() {
+  const currency = useWorkspaceCurrency();
+  return useCallback((value: number, digits = 0) => formatCurrency(value, currency, digits), [currency]);
 }

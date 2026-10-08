@@ -5,16 +5,17 @@ import Link from 'next/link';
 import { ArrowUpRight, Coffee } from '@/components/icons';
 import { Bone } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
 import type { TopItemAnalytics } from '@/lib/modules/analytics/client';
-import { formatMoney } from '@/lib/utils/dashboard';
 
 /* What is actually selling today, ranked by quantity net of refunds. Lifted from
    the previous dashboard, which had this right — a ruled list with bar length as
    the second channel, not a pie chart. */
 
 export function TopItemsToday({ rows, loading }: { rows: TopItemAnalytics[]; loading: boolean }) {
+  const formatMoney = useFormatMoney();
   const max = Math.max(...rows.map((row) => Number(row.totalQuantity ?? 0)), 1);
 
   return (

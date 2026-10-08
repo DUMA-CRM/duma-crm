@@ -1,3 +1,5 @@
+import { viaApiProxy } from '@/lib/utils/image-src';
+
 // The deployed API lives on a DIFFERENT host than the app (e.g. api.dudych.cc
 // vs. localhost / the app's own domain). Cookies are scoped by host, so a
 // session cookie set directly by the API host can never be read by our app's
@@ -9,12 +11,20 @@
 //   • Server   → call the API host directly and forward the cookie value,
 //                which the API validates by token (host-independent).
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:7777';
+
 const isServer = typeof window === 'undefined';
 
 // Base prefix WITHOUT the `/v1` suffix — exported for callers that build their
 // own paths (e.g. the receipt download in the orders page).
 export const API_PREFIX = isServer ? API_ORIGIN : '/be';
 const API_BASE = `${API_PREFIX}/v1`;
+
+/**
+ * An image address this app's pages may load: an API one (a Media file, a
+ * product's main photo) through the `/be` proxy the CSP allows; anything else
+ * as it is. See lib/utils/image-src.ts.
+ */
+export const proxiedImage = (url: string | null | undefined) => viaApiProxy(url, API_ORIGIN, API_PREFIX);
 
 // ---------------------------------------------------------------------------
 // Low-level fetch wrapper used by service modules.

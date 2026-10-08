@@ -2,9 +2,10 @@
 
 import { ReceiptText, RotateCcw, ShoppingBag, Users } from '@/components/icons';
 import { StatCard, StatCardGrid, changeDelta } from '@/components/shared/StatCard';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 
 import type { DayBaseline, LabourAnalytics } from '@/lib/modules/analytics/client';
-import { formatCompact, formatMoney, percentageChange } from '@/lib/utils/dashboard';
+import { formatCompact, percentageChange } from '@/lib/utils/dashboard';
 import { MIN_BASELINE_SAMPLES, baselineByMinute } from '@/lib/utils/pace';
 import type { TradingDay } from '@/lib/utils/trading-day';
 
@@ -48,6 +49,7 @@ export function TodayKpiRow({
   labourLoading: boolean;
   labourError: boolean;
 }) {
+  const formatMoney = useFormatMoney();
   const comparable = (baseline?.sampleCount ?? 0) >= MIN_BASELINE_SAMPLES && day.state !== 'before-open' && day.state !== 'closed-today';
 
   const typicalOrders = baselineOrdersByMinute(baseline, day.nowMinutes);

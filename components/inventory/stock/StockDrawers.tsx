@@ -17,6 +17,7 @@ import {
   Timer,
   TriangleAlert,
 } from '@/components/icons';
+import { StockItemPhotoField } from '@/components/inventory/item/StockItemPhoto';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
 import { ChoiceCards, FormSection, NumberStepper } from '@/components/shared/FormParts';
@@ -945,11 +946,13 @@ export function EditStockItemDrawer({
     | 'nutritionBasis'
     | 'nutrition'
     | 'allergens'
+    | 'imageUrl'
   >;
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const [name, setName] = useState(item.name);
+  const [imageUrl, setImageUrl] = useState<string | null>(item.imageUrl ?? null);
   const [barcode, setBarcode] = useState(item.barcode ?? '');
   const [unit, setUnit] = useState(item.unit);
   const [category, setCategory] = useState(item.category);
@@ -992,6 +995,7 @@ export function EditStockItemDrawer({
         defaultReorderQuantity: reorderQuantity ? Number(reorderQuantity) : null,
         ...nutritionPayload(nutrition),
         allergens: allergens.length > 0 ? allergens : null,
+        imageUrl,
       }),
     onSuccess: () => {
       onSuccess();
@@ -1029,6 +1033,10 @@ export function EditStockItemDrawer({
         className="space-y-7"
       >
         <FormSection icon={Package} title="Item">
+          <div className="flex flex-col gap-1.5">
+            <Label uppercase>Photo</Label>
+            <StockItemPhotoField value={imageUrl} onChange={setImageUrl} />
+          </div>
           <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={255} error={show('name')} />
           <div className="flex flex-col gap-1.5">
             <Label uppercase>Category</Label>

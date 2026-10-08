@@ -76,6 +76,8 @@ export interface WorkspaceOnboardingAnswers {
     | 'services'
     | 'people_management'
     | 'other';
+  /** What the catalogue holds — sets its vocabulary and tools. */
+  sells?: 'food' | 'products' | 'both';
   locationCount?: number;
   salesChannels: Array<'counter' | 'online' | 'qr' | 'phone' | 'marketplace'>;
   /** `external`: the business's own website takes the payment. */

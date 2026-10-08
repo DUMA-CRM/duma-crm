@@ -203,7 +203,7 @@ export function StocktakePanel({ locationId }: { locationId: string }) {
   if (query.isError) return <ErrorState title="Couldn’t load stocktakes" onRetry={() => void query.refetch()} />;
   if (query.isPending || (activeId && active.isPending)) {
     // Either the open count sheet or the history lands here — the shape isn't known until it does.
-    return <LoadingState label={activeId ? 'Loading the count' : 'Loading stocktakes'} />;
+    return <LoadingState label={activeId ? 'Loading the count' : 'Loading stocktakes'} className="flex-1" />;
   }
   if (activeId && active.isError) return <ErrorState title="Couldn’t load the count" onRetry={() => void active.refetch()} />;
   if (activeId && active.data) return <CountSheet key={active.data.id} stocktake={active.data} catalogue={catalogue} canWrite={canWrite} />;
@@ -243,7 +243,7 @@ function History({
 
   if (stocktakes.length === 0) {
     return (
-      <div>
+      <div className="flex flex-1 flex-col justify-center">
         <EmptyState
           icon={ClipboardCheck}
           title="No stocktakes yet"

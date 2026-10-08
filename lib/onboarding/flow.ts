@@ -10,6 +10,8 @@ import type { WorkspaceModuleId } from '../api/workspace-composition.service';
 export type BusinessType = 'cafe' | 'restaurant' | 'bar' | 'bakery' | 'food_truck' | 'retail' | 'online_retail' | 'services' | 'other';
 
 export type Presence = 'in_person' | 'online' | 'both';
+/** What the catalogue holds — decides recipes and modifiers versus sizes, stock and photos. */
+export type Sells = 'food' | 'products' | 'both';
 export type ExtraChannel = 'phone' | 'marketplace';
 export type Fulfilment = 'table_service' | 'collection' | 'delivery' | 'pick_pack';
 /** `external`: the business's own website takes the money; DUMA records the paid order. */
@@ -24,6 +26,8 @@ export type Extra = 'analytics' | 'agent' | 'support' | 'compliance' | 'cms';
 export interface OnboardingDraft {
   businessName: string;
   presence?: Presence;
+  sells?: Sells;
+  /** Derived from `sells` (anything but products only); kept because the branching reads it. */
   servesFood?: boolean;
   businessType?: BusinessType;
   locationCount: number;
@@ -125,7 +129,7 @@ export const STEPS: readonly StepDefinition[] = [
 
   { id: 'name', section: 'business', complete: (d) => d.businessName.trim().length >= 2 },
   { id: 'presence', section: 'business', complete: (d) => d.presence !== undefined },
-  { id: 'food', section: 'business', complete: (d) => d.servesFood !== undefined },
+  { id: 'food', section: 'business', complete: (d) => d.sells !== undefined || d.servesFood !== undefined },
   { id: 'kind', section: 'business', complete: (d) => d.businessType !== undefined },
   { id: 'locations', section: 'business', visible: hasPremises, complete: (d) => d.locationCount >= 1 },
 

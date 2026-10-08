@@ -19,6 +19,7 @@ import {
   Loader2,
   RotateCcw,
   Search,
+  Package,
   ShoppingBag,
   SlidersHorizontal,
   User,
@@ -48,6 +49,7 @@ import { Input } from '@/components/ui/input';
 import { Select, type SelectOption } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { API_PREFIX } from '@/lib/modules/core/client';
 import { getStaff } from '@/lib/modules/identity/client';
 import { type Order, type OrderSource, type OrderStatus, approveCashOrder, getOrders } from '@/lib/modules/ordering/client';
@@ -228,6 +230,7 @@ function OrderRow({
 function OrdersPageContent() {
   const qc = useQueryClient();
   const money = useWorkspaceMoney();
+  const words = useCatalogWords();
   const searchParams = useSearchParams();
   const { locationId: headerLocationId, tenantId } = useWorkspaceStore();
   // A report's drill-down names its own scope — a site id, or `all` — which
@@ -373,7 +376,7 @@ function OrdersPageContent() {
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders') });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders-all') });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('kds-orders') });
-      toast('success', `Cash received. Order ${orderCode(order.id)} is in the kitchen queue.`);
+      toast('success', `Cash received. Order ${orderCode(order.id)} is in ${words.queue}.`);
     },
     onError: (error) => toast('error', error instanceof Error ? error.message : 'The cash order couldn’t be approved.'),
   });
@@ -542,7 +545,7 @@ function OrdersPageContent() {
         )
       }
     >
-      <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+      <motion.div className="flex flex-1 flex-col space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
         {/* Cash orders waiting at the counter — the one thing on this page that blocks a customer. */}
         {cashWaiting.length > 0 && (
           <motion.section
@@ -559,7 +562,7 @@ function OrdersPageContent() {
                   {cashWaiting.length} cash {cashWaiting.length === 1 ? 'order' : 'orders'} waiting at the counter
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Approve once the customer has paid — until then they stay out of the kitchen.
+                  Approve once the customer has paid — until then they stay out of {words.queue}.
                 </p>
               </div>
             </header>
@@ -638,8 +641,8 @@ function OrdersPageContent() {
           />
           <Fact
             surface="page"
-            icon={Flame}
-            label="In the kitchen"
+            icon={words.tools.kitchen ? Flame : Package}
+            label={words.inQueue}
             value={summary.kitchen}
             hint={summary.live.ready > 0 ? `${summary.live.ready} ready to collect` : 'Nothing waiting to collect'}
             onSelect={() => {
@@ -656,7 +659,8 @@ function OrdersPageContent() {
           />
         </motion.dl>
 
-        <motion.section variants={SECTION_RISE} className="space-y-3" aria-label="Orders">
+        {/* Flex down to the list, so an empty one centres in what is left of the page. */}
+        <motion.section variants={SECTION_RISE} className="flex flex-1 flex-col space-y-3" aria-label="Orders">
           {/* Filters. */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="min-w-56 flex-1 lg:max-w-xs">
@@ -864,6 +868,7 @@ function OrdersPageContent() {
               title="Check the dates"
               description="The end date must be on or after the start date."
               kind="search"
+              className="flex-1"
               action={{
                 label: 'Clear dates',
                 onClick: () => {
@@ -896,6 +901,7 @@ function OrdersPageContent() {
               }
               kind={hasFilters ? 'search' : 'start'}
               action={hasFilters ? { label: 'Clear filters', onClick: clearFilters } : undefined}
+              className="flex-1"
             />
           ) : (
             <div className="space-y-5">

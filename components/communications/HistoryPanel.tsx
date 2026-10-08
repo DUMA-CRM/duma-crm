@@ -161,6 +161,7 @@ export function HistoryPanel({
       <EmptyState
         icon={Send}
         title="No emails sent yet"
+        className="flex-1"
         description="Emails appear here once they’re sent — switch on an automation, or send one by hand from a customer record."
       />
     );

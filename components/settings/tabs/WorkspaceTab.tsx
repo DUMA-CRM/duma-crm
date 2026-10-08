@@ -8,6 +8,7 @@ import { Building2, CalendarDays, Loader2, Pencil, Tag } from '@/components/icon
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact } from '@/components/settings/controls';
+import { CatalogKindSetting } from '@/components/settings/workspaces/CatalogKindSetting';
 import { LocationList } from '@/components/settings/workspaces/LocationList';
 import { WorkspaceList } from '@/components/settings/workspaces/WorkspaceList';
 import { WorkspaceReadinessChecklist } from '@/components/settings/workspaces/WorkspaceReadinessChecklist';
@@ -36,6 +37,7 @@ export function WorkspaceTab() {
   return (
     <SettingsTabBody>
       <BusinessSection />
+      <CatalogKindSetting />
       <ReadinessSection />
       {isPlatform ? (
         // Pick the workspace on the left, its locations follow on the right.

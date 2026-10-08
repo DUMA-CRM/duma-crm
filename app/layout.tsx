@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { ThemeProvider } from 'next-themes';
 import { Archivo, Chivo_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import { headers } from 'next/headers';
 import Script from 'next/script';
 
@@ -28,6 +29,26 @@ const chivoMono = Chivo_Mono({
   subsets: ['latin'],
   variable: '--font-chivo-mono',
   display: 'swap',
+});
+
+// Neither Archivo nor Chivo Mono has a hryvnia sign (₴) in any subset, so a
+// Ukrainian price fell through to whatever system font had one — drawn visibly
+// larger than the figures beside it. This face holds that one glyph, cut from
+// Golos Text (a grotesque whose cap and x-heights match Archivo's to within 2%),
+// and `unicode-range` keeps it from touching any other character. Not
+// preloaded: the browser fetches its 1.3 KB only on a page that shows a ₴.
+const currencySigns = localFont({
+  src: './fonts/hryvnia.woff2',
+  variable: '--font-currency',
+  weight: '400 900',
+  display: 'swap',
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [
+    { prop: 'unicode-range', value: 'U+20B4' },
+    // Golos Text's caps stand at 0.700 em to Archivo's 0.686.
+    { prop: 'size-adjust', value: '98%' },
+  ],
 });
 
 export const metadata: Metadata = {
@@ -68,7 +89,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <html lang="en" suppressHydrationWarning className={`${archivo.variable} ${chivoMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${archivo.variable} ${chivoMono.variable} ${currencySigns.variable}`}>
       <body className="font-sans" suppressHydrationWarning>
         {/* The direction contract has to survive the production build so it can be
             audited, and a JSX comment is stripped at compile time — hence a real

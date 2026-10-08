@@ -248,7 +248,7 @@ export function CustomersWorkspace() {
       {!tenantId ? (
         <EmptyState icon={Users} title="No workspace selected" description="Choose a workspace to view its customers." />
       ) : (
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-1 flex-col gap-5">
           <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Fact surface="page" icon={Users} label="Customers" value={count(0)} hint="Everyone on your list" />
             <Fact surface="page" icon={Mail} label="Can be emailed" value={count(1)} hint="Opted in to marketing" />
@@ -330,7 +330,8 @@ export function CustomersWorkspace() {
           ) : isLoading ? (
             <CustomerListSkeleton />
           ) : customers.length === 0 ? (
-            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">{emptyState}</div>
+            // No card: the empty list sits on the page and centres in the space under the filters.
+            <div className="flex flex-1 flex-col justify-center">{emptyState}</div>
           ) : view === 'cards' ? (
             <CustomerCards
               customers={customers}

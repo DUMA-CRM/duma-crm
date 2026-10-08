@@ -135,11 +135,12 @@ export function AutomationsPanel({
 
   if (automations.length === 0)
     return (
-      <div className="space-y-5">
+      <div className="flex flex-1 flex-col space-y-5">
         <NeedsAttention items={attention} />
         <EmptyState
           icon={Zap}
           title="No automations yet"
+          className="flex-1"
           description={
             access.canWrite
               ? 'Automations you set up appear here, each sending an email when something happens — an order is ready, a birthday, a first visit.'

@@ -10,6 +10,7 @@ import { ChoiceCards } from '@/components/shared/FormParts';
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { type Order, type OrderStatus, type VoidReason, updateOrderStatus } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
@@ -143,10 +144,11 @@ export function VoidModal({ order, onClose }: { order: Pick<Order, 'id'>; onClos
   const [reason, setReason] = useState<VoidReason>('customer_request');
   const [notes, setNotes] = useState('');
   const change = useStatusChange(order, onClose);
+  const words = useCatalogWords();
   return (
     <Modal
       title={`Cancel order ${orderCode(order.id)}?`}
-      description="It leaves the kitchen queue, and the reason is kept in the audit trail."
+      description={`It leaves ${words.queue}, and the reason is kept in the audit trail.`}
       illustration={<MascotGlyph icon={XCircle} size={88} expression="triste" tint="text-exception" />}
       onClose={onClose}
       footer={

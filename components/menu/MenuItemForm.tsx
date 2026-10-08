@@ -4,19 +4,24 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { UtensilsCrossed } from '@/components/icons';
+import { RowTile } from '@/components/cms/rows';
+import { ArrowRight, Boxes, ImageIcon, Layers, Link2, Tag, UtensilsCrossed } from '@/components/icons';
 import { categoryTone } from '@/components/menu/shared';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
+import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
+import { proxiedImage } from '@/lib/api/client';
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { useVatContext } from '@/lib/hooks/useVatContext';
 import {
   attachModifier,
   createMenuItem,
   detachModifier,
+  getItemCatalog,
   getMenuCategories,
   getMenuItemModifierGroups,
   getMenuItemModifiers,
@@ -31,14 +36,15 @@ import { groupByCategory, modifierCategory, modifierLabel } from '@/lib/utils/mo
 import { toast } from '@/stores/toastStore';
 import type { MenuItem } from '@/types/menu';
 
-const adjust = (raw?: string) => {
+const adjust = (raw: string | undefined, symbol: string) => {
   const n = Number.parseFloat(raw ?? '0');
-  return n ? `${n > 0 ? '+' : '−'}£${Math.abs(n).toFixed(2)}` : '';
+  return n ? `${n > 0 ? '+' : '−'}${symbol}${Math.abs(n).toFixed(2)}` : '';
 };
 
 // ── Attached-modifiers editor (edit mode only) ────────────────────────────────
 
 function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; tenantId: string }) {
+  const symbol = useCurrencySymbol();
   const qc = useQueryClient();
   const { data: attached = [] } = useQuery({
     queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', menuItemId),
@@ -170,8 +176,8 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
                       <span className={cn('truncate text-sm', isAttached ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
                         {modifierLabel(m)}
                       </span>
-                      {adjust(m.priceAdjust) && (
-                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{adjust(m.priceAdjust)}</span>
+                      {adjust(m.priceAdjust, symbol) && (
+                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{adjust(m.priceAdjust, symbol)}</span>
                       )}
                     </label>
                     {isAttached && (
@@ -202,6 +208,101 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
   );
 }
 
+// ── A product at a glance (retail) ──────────────────────────────────────────
+
+function ProductSummary({
+  item,
+  catalog,
+  loading,
+  onOpenTab,
+}: {
+  item?: MenuItem;
+  catalog?: Awaited<ReturnType<typeof getItemCatalog>>;
+  loading: boolean;
+  onOpenTab?: (tab: 'sizes' | 'photos') => void;
+}) {
+  if (!item) {
+    return (
+      <SettingsSection title="After you create it">
+        <ol className="space-y-3 text-sm">
+          {[
+            { icon: Layers, title: 'Sizes & stock', body: 'S M L XL × colours — each with its own SKU and count.' },
+            { icon: ImageIcon, title: 'Photos', body: 'Upload them, or pick from Media. The first is the main one.' },
+          ].map((step) => (
+            <li key={step.title} className="flex items-start gap-3">
+              <RowTile icon={step.icon} />
+              <span className="min-w-0">
+                <span className="block font-semibold text-foreground">{step.title}</span>
+                <span className="block text-xs leading-relaxed text-muted-foreground">{step.body}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </SettingsSection>
+    );
+  }
+  const variants = catalog?.variants ?? [];
+  const onHand = variants.reduce((sum, variant) => sum + (variant.stock ?? []).reduce((total, row) => total + row.quantity, 0), 0);
+  const tracked = variants.some((variant) => variant.stock);
+  const soldOut = variants.filter((variant) => variant.stock && variant.stock.every((row) => row.quantity === 0)).length;
+  const rows: Array<{ icon: typeof Layers; title: string; value: string; tone?: 'warning'; tab?: 'sizes' | 'photos' }> = [
+    { icon: Layers, title: 'Sizes', value: loading ? '…' : variants.length === 0 ? 'One size' : `${variants.length}`, tab: 'sizes' },
+    {
+      icon: Boxes,
+      title: 'In stock',
+      value: loading ? '…' : tracked ? `${onHand}${soldOut > 0 ? ` · ${soldOut} sold out` : ''}` : 'Not tracked',
+      tone: soldOut > 0 ? 'warning' : undefined,
+      tab: 'sizes',
+    },
+    {
+      icon: ImageIcon,
+      title: 'Photos',
+      value: loading ? '…' : `${catalog?.images.length ?? 0}`,
+      tone: !loading && (catalog?.images.length ?? 0) === 0 ? 'warning' : undefined,
+      tab: 'photos',
+    },
+    { icon: Link2, title: 'Web address', value: item.slug ? `/${item.slug}` : 'Set on save' },
+  ];
+  return (
+    <SettingsSection title="At a glance">
+      <ul className="-mx-2 space-y-0.5">
+        {rows.map((row) => {
+          const content = (
+            <>
+              <RowTile icon={row.icon} tone={row.tone} />
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{row.title}</span>
+              <span
+                className={cn(
+                  'max-w-[50%] truncate text-sm tabular-nums',
+                  row.tone === 'warning' ? 'font-medium text-measured' : 'text-muted-foreground',
+                )}
+              >
+                {row.value}
+              </span>
+              {row.tab && onOpenTab && <ArrowRight size={13} className="shrink-0 text-muted-foreground" aria-hidden="true" />}
+            </>
+          );
+          return (
+            <li key={row.title}>
+              {row.tab && onOpenTab ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenTab(row.tab!)}
+                  className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-band/50"
+                >
+                  {content}
+                </button>
+              ) : (
+                <div className="flex items-center gap-3 px-2 py-1.5">{content}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </SettingsSection>
+  );
+}
+
 // ── Create / edit form ──────────────────────────────────────────────────────
 
 export function MenuItemForm({
@@ -212,9 +313,12 @@ export function MenuItemForm({
   formId,
   onPendingChange,
   onDirtyChange,
+  onOpenTab,
 }: {
   tenantId: string;
   item?: MenuItem;
+  /** Jump to the product's Sizes & stock or Photos tab. */
+  onOpenTab?: (tab: 'sizes' | 'photos') => void;
   /** Called with the new item so the pane can move to its own URL. */
   onCreated?: (created: MenuItem) => void;
   /** Called after an update to an existing item. */
@@ -226,8 +330,18 @@ export function MenuItemForm({
   /** Reports unsaved edits so the pane can flag them. */
   onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const symbol = useCurrencySymbol();
   const qc = useQueryClient();
   const { ctx: vat } = useVatContext();
+  const words = useCatalogWords();
+  const { tools } = words;
+  // A product's sizes, stock and photos, for its summary and its preview tile.
+  const catalogQuery = useQuery({
+    queryKey: moduleQueryKeys.catalog.key('item-catalog', tenantId, item?.id ?? ''),
+    queryFn: () => getItemCatalog(item!.id, tenantId),
+    enabled: Boolean(item && tools.retail),
+  });
+  const mainPhoto = proxiedImage(catalogQuery.data?.images[0]?.apiUrl ?? catalogQuery.data?.images[0]?.url);
   const [name, setName] = useState(item?.name ?? '');
   const [categoryId, setCategoryId] = useState(item?.categoryId ?? '');
   const [price, setPrice] = useState(item?.price ?? '');
@@ -265,11 +379,11 @@ export function MenuItemForm({
     onSuccess: (saved) => {
       qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-items') });
       if (!item && onCreated) {
-        toast('success', 'Item created — you can attach modifiers now.');
+        toast('success', words.created);
         onCreated(saved);
         return;
       }
-      toast('success', 'Menu item updated.');
+      toast('success', words.saved);
       onSaved?.(saved);
     },
     onError: (err) => toast('error', err.message || 'The item wasn’t saved. Check the fields and try again.'),
@@ -289,7 +403,7 @@ export function MenuItemForm({
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   const nameError = name.trim().length < 2 ? 'At least two characters.' : null;
-  const categoryError = !categoryId ? 'Choose a section.' : null;
+  const categoryError = !categoryId ? `${words.groupPlaceholder}.` : null;
   const priceError = !/^\d+(\.\d{1,2})?$/.test(price.trim()) ? 'A price like 3.20.' : null;
   // The API takes any string; links and inline data images are what's actually used.
   const imageError =
@@ -300,7 +414,10 @@ export function MenuItemForm({
       : null;
   const valid = !nameError && !categoryError && !priceError && !imageError && !slugError;
   const show = (error: string | null) => (submitted ? (error ?? undefined) : undefined);
-  const priceText = /^\d+(\.\d{1,2})?$/.test(price.trim()) ? `£${Number(price).toFixed(2)}` : '£—';
+  const priceText = /^\d+(\.\d{1,2})?$/.test(price.trim()) ? `${symbol}${Number(price).toFixed(2)}` : `${symbol}—`;
+  // A product shows its main photo; a menu item (or a mixed catalogue's) its image link.
+  const preview =
+    tools.retail && !tools.kitchen ? mainPhoto : imageUrl.trim() && !imageBroken && !imageError ? proxiedImage(imageUrl) : mainPhoto;
 
   return (
     <form
@@ -314,15 +431,27 @@ export function MenuItemForm({
     >
       <SettingsTabBody
         aside={
-          <SettingsSection title="Modifiers" description="Tick to offer, and set the default the till pre-selects.">
-            {item ? (
-              <ItemModifiersEditor menuItemId={item.id} tenantId={item.tenantId} />
-            ) : (
-              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">
-                Create the item first — sizes, milks and syrups can be attached straight after.
-              </p>
+          <>
+            {tools.retail && (
+              <ProductSummary
+                item={item}
+                catalog={catalogQuery.data}
+                loading={catalogQuery.isPending && Boolean(item)}
+                onOpenTab={onOpenTab}
+              />
             )}
-          </SettingsSection>
+            {tools.kitchen && (
+              <SettingsSection title="Modifiers" description="Tick to offer, and set the default the till pre-selects.">
+                {item ? (
+                  <ItemModifiersEditor menuItemId={item.id} tenantId={item.tenantId} />
+                ) : (
+                  <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">
+                    Create the item first — sizes, milks and syrups can be attached straight after.
+                  </p>
+                )}
+              </SettingsSection>
+            )}
+          </>
         }
       >
         {/* One card, the settings profile card's shape: the item as it reads at
@@ -331,18 +460,29 @@ export function MenuItemForm({
         <SettingsSection>
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
             <div className="relative size-28 shrink-0 overflow-hidden rounded-xl bg-linear-to-br from-primary/15 via-band to-band shadow-sm">
-              {imageUrl.trim() && !imageBroken && !imageError ? (
+              {preview ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={imageUrl}
+                  src={preview}
                   alt=""
                   onError={() => setImageBroken(true)}
                   className={cn('absolute inset-0 size-full object-cover', !isAvailable && 'opacity-60 grayscale')}
                 />
+              ) : tools.retail && item && onOpenTab ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenTab('photos')}
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <ImageIcon size={24} aria-hidden="true" />
+                  <span className="text-micro font-semibold">Add photos</span>
+                </button>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground/50 select-none">
-                  <UtensilsCrossed size={26} aria-hidden="true" />
-                  <span className="text-micro font-semibold">{imageBroken ? 'Didn’t load' : 'No image'}</span>
+                  {tools.retail && !tools.kitchen ? <Tag size={26} aria-hidden="true" /> : <UtensilsCrossed size={26} aria-hidden="true" />}
+                  <span className="text-micro font-semibold">
+                    {imageBroken ? 'Didn’t load' : tools.retail && !item ? 'Photos next' : 'No image'}
+                  </span>
                 </div>
               )}
             </div>
@@ -355,7 +495,7 @@ export function MenuItemForm({
                       name.trim() ? 'text-foreground' : 'text-muted-foreground/60',
                     )}
                   >
-                    {name.trim() || 'New item'}
+                    {name.trim() || words.newItem}
                   </p>
                   <p className="shrink-0 text-xl font-semibold tabular-nums text-foreground">{priceText}</p>
                 </div>
@@ -366,20 +506,29 @@ export function MenuItemForm({
                       categoryTone(currentCategory?.slug ?? '', currentCategory),
                     )}
                   >
-                    {currentCategory?.name ?? 'No section'}
+                    {currentCategory?.name ?? `No ${words.group.toLowerCase()}`}
                   </span>
                 </p>
               </div>
-              <Input
-                label="Image"
-                value={imageUrl}
-                onChange={(e) => {
-                  setImageUrl(e.target.value);
-                  setImageBroken(false);
-                }}
-                placeholder="https://… (optional)"
-                error={show(imageError)}
-              />
+              {tools.kitchen && (
+                <Input
+                  label="Image"
+                  value={imageUrl}
+                  onChange={(e) => {
+                    setImageUrl(e.target.value);
+                    setImageBroken(false);
+                  }}
+                  placeholder="https://… (optional)"
+                  error={show(imageError)}
+                />
+              )}
+              {tools.retail && !tools.kitchen && (
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {item
+                    ? 'Sizes, stock and photos have their own tabs above.'
+                    : 'Name it, price it and give it a category. Sizes, stock and photos come next.'}
+                </p>
+              )}
             </div>
           </div>
 
@@ -390,33 +539,35 @@ export function MenuItemForm({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={255}
-                placeholder="e.g. Flat white"
+                placeholder={words.namePlaceholder}
                 autoFocus={!item}
                 error={show(nameError)}
               />
-              <Input
-                label="Web address"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-                maxLength={160}
-                placeholder={item ? 'Made from the name when you save' : 'Made from the name'}
-                hint="Its address in your online shop, like /products/oversized-hoodie"
-                error={slugError ?? undefined}
-                className="font-mono"
-              />
+              {tools.retail && (
+                <Input
+                  label="Web address"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                  maxLength={160}
+                  placeholder={item ? 'Made from the name when you save' : 'Made from the name'}
+                  hint="Its address in your online shop, like /products/oversized-hoodie"
+                  error={slugError ?? undefined}
+                  className="font-mono"
+                />
+              )}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-label uppercase text-muted-foreground">Section</span>
+                  <span className="text-label uppercase text-muted-foreground">{words.group}</span>
                   <Select
                     value={categoryId}
                     onValueChange={setCategoryId}
                     options={[
-                      ...(categoryId ? [] : [{ value: '', label: 'Choose a section' }]),
+                      ...(categoryId ? [] : [{ value: '', label: words.groupPlaceholder }]),
                       ...categories
                         .filter((entry) => entry.isActive || entry.id === item?.categoryId)
                         .map((entry) => ({ value: entry.id, label: entry.name })),
                     ]}
-                    ariaLabel="Menu section"
+                    ariaLabel={words.group}
                     ariaInvalid={submitted && !!categoryError}
                     className="w-full"
                   />
@@ -427,8 +578,8 @@ export function MenuItemForm({
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   inputMode="decimal"
-                  placeholder="3.20"
-                  leftIcon={<span className="text-sm">£</span>}
+                  placeholder={tools.retail && !tools.kitchen ? '25.00' : '3.20'}
+                  leftIcon={<span className="text-sm">{symbol}</span>}
                   className="tabular-nums"
                   error={show(priceError)}
                 />
@@ -447,12 +598,13 @@ export function MenuItemForm({
                       { value: '5', label: 'Reduced — 5%' },
                       { value: '0', label: 'Zero-rated — 0%' },
                     ]}
-                    ariaLabel="VAT rate for this item"
+                    ariaLabel={`VAT rate for this ${words.item}`}
                     className="w-full"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Hot food and drink are standard-rated; most cold takeaway food is zero-rated. This changes the margin shown, not the
-                    price.
+                    {tools.kitchen
+                      ? 'Hot food and drink are standard-rated; most cold takeaway food is zero-rated. This changes the margin shown, not the price.'
+                      : 'Most goods are standard-rated; children’s clothing and shoes are zero-rated. This changes the VAT recorded, not the price.'}
                   </p>
                 </div>
               )}
@@ -461,8 +613,8 @@ export function MenuItemForm({
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  rows={2}
-                  placeholder="Optional — shown to staff and online"
+                  rows={tools.retail && !tools.kitchen ? 4 : 2}
+                  placeholder={words.descriptionPlaceholder}
                   aria-label="Description"
                   className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured sm:text-sm"
                 />
@@ -472,8 +624,8 @@ export function MenuItemForm({
 
           <div className="mt-6 border-t border-rule/45 pt-5">
             <SettingRows>
-              <SettingRow icon={UtensilsCrossed} title="On the menu">
-                <Switch label="On the menu" checked={isAvailable} onChange={setIsAvailable} />
+              <SettingRow icon={tools.retail && !tools.kitchen ? Tag : UtensilsCrossed} title={words.available}>
+                <Switch label={words.available} checked={isAvailable} onChange={setIsAvailable} />
               </SettingRow>
             </SettingRows>
           </div>

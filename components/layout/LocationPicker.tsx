@@ -14,6 +14,7 @@ import { TONE_TINT } from '@/components/shared/tone';
 import { type Location, getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { soleLocationToSelect } from '@/lib/utils/sole-location';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -53,6 +54,14 @@ export function LocationPicker() {
     queryFn: () => getLocationsByTenant(tenantId!),
     enabled: !!tenantId,
   });
+
+  // One active site is no choice at all — select it, so the screens that need
+  // a single location work without a trip to this menu. Lives here because the
+  // picker is always mounted in the sidebar.
+  const sole = soleLocationToSelect(locations, locationId);
+  useEffect(() => {
+    if (sole) setLocationId(sole);
+  }, [sole, setLocationId]);
 
   const current = locations.find((l) => l.id === locationId);
   const label = current ? current.name : 'All locations';

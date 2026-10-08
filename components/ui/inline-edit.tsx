@@ -231,12 +231,15 @@ export function InlineNumber({
   decimals = 2,
   disabled,
   className,
+  money = false,
 }: {
   value: number;
   onChange: (value: number) => void;
   ariaLabel: string;
   prefix?: string;
   suffix?: string;
+  /** A money amount: always two decimals, whatever the currency sign in `prefix`. */
+  money?: boolean;
   min?: number;
   max?: number;
   step?: number;
@@ -249,11 +252,11 @@ export function InlineNumber({
   const [draft, setDraft] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const display = prefix === '£' ? value.toFixed(2) : trimNumber(value, decimals);
+  const display = money || prefix === '£' ? value.toFixed(2) : trimNumber(value, decimals);
 
   const start = () => {
     if (disabled) return;
-    setDraft(prefix === '£' ? value.toFixed(2) : trimNumber(value, decimals));
+    setDraft(money || prefix === '£' ? value.toFixed(2) : trimNumber(value, decimals));
     setEditing(true);
   };
 
@@ -266,7 +269,7 @@ export function InlineNumber({
     setEditing(false);
     if (!Number.isFinite(parsed)) return;
     const clamped = Math.min(max ?? Number.MAX_SAFE_INTEGER, Math.max(min ?? -Number.MAX_SAFE_INTEGER, parsed));
-    if (clamped !== value) onChange(Number(clamped.toFixed(prefix === '£' ? 2 : 3)));
+    if (clamped !== value) onChange(Number(clamped.toFixed(money || prefix === '£' ? 2 : 3)));
   };
 
   if (editing) {

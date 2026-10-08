@@ -15,6 +15,7 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -23,7 +24,6 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { getModifierGroups, getModifiers, updateModifier } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { formatMoney } from '@/lib/utils/dashboard';
 import { groupModifiers } from '@/lib/utils/modifier-list';
 import { modifierLabel } from '@/lib/utils/modifiers';
 import { useAuthStore } from '@/stores/authStore';
@@ -31,7 +31,7 @@ import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { Modifier } from '@/types/menu';
 
-function formatAdjust(raw?: string): string {
+function formatAdjust(raw: string | undefined, formatMoney: (value: number, digits?: number) => string): string {
   const n = Number.parseFloat(raw ?? '0');
   if (!n) return 'No charge';
   // Sign is explicit: a modifier that takes money off should read that way.
@@ -263,6 +263,7 @@ function ModifierRow({
   togglePending: boolean;
   onToggle: (isAvailable: boolean) => void;
 }) {
+  const formatMoney = useFormatMoney();
   const adjust = Number.parseFloat(modifier.priceAdjust ?? '0') || 0;
 
   return (
@@ -295,7 +296,7 @@ function ModifierRow({
       <span
         className={cn('w-24 shrink-0 text-right text-sm tabular-nums', adjust ? 'font-semibold text-foreground' : 'text-muted-foreground')}
       >
-        {formatAdjust(modifier.priceAdjust)}
+        {formatAdjust(modifier.priceAdjust, formatMoney)}
       </span>
       <span className="flex w-24 shrink-0 items-center justify-end">
         <Switch

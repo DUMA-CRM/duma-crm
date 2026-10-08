@@ -125,6 +125,7 @@ export function TemplatesPanel({
   if (groups.length === 0)
     return (
       <EmptyState
+        className="flex-1"
         icon={Mail}
         title={canWrite ? 'Create your first email template' : 'No email templates yet'}
         description="A reusable email with your own content, brand styles, images and customer details. Automations send these."

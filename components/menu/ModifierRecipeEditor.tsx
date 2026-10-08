@@ -8,12 +8,12 @@ import { RecipeTotals } from '@/components/menu/RecipeTotals';
 import { type SizeColumn, useRecipeDraft } from '@/components/menu/useRecipeDraft';
 import { Drawer } from '@/components/shared/Drawer';
 import { FormSection } from '@/components/shared/FormParts';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
 import { getModifierRecipe, setModifierRecipe } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { formatMoney } from '@/lib/utils/dashboard';
 
 /**
  * What selecting a modifier ADDS to a drink — Oat Milk → 200 ml oat milk,
@@ -34,6 +34,7 @@ export function ModifierRecipeDrawer({
   defaultIsSize?: boolean;
   onClose: () => void;
 }) {
+  const formatMoney = useFormatMoney();
   const recipe = useRecipeDraft({
     queryKey: moduleQueryKeys.inventory.key('modifier-recipe', modifier.id),
     fetchLines: () => getModifierRecipe(modifier.id),

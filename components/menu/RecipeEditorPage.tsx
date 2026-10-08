@@ -13,6 +13,7 @@ import { DEFAULT_COL, type SizeColumn, computeRecipeTotals, mergeNutrition, useR
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { LoadingState } from '@/components/shared/Skeleton';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 
@@ -24,7 +25,6 @@ import { getMenuItemRecipe, getModifierRecipe, setMenuItemRecipe } from '@/lib/m
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { type ComboRule, FALLBACK_RULE, ruleLabel, satisfied, toggleOption } from '@/lib/utils/combo';
-import { formatMoney } from '@/lib/utils/dashboard';
 import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import type { AttachedModifier } from '@/types/menu';
 
@@ -65,6 +65,7 @@ interface RecipeEditorProps {
  * removes what used to be a fourth level of nesting to get here.
  */
 export function RecipeEditor({ menuItemId, price, vatRate }: RecipeEditorProps) {
+  const formatMoney = useFormatMoney();
   const { ctx: vat } = useVatContext();
   // Size columns = this item's attached modifiers in the "Size" category.
   const { data: attached = [] } = useQuery({

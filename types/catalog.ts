@@ -55,6 +55,38 @@ export interface CatalogImage {
   altText: string | null;
   focalPoint: { x: number; y: number } | null;
   sortOrder: number;
+  /** The Media file through the API's own delivery route — what the CRM shows, via the proxy. */
+  apiUrl: string | null;
+  /** The Media file behind it; null for an image linked from elsewhere. */
+  file: { title: string | null; fileName: string; mimeType: string; sizeBytes: number; width: number | null; height: number | null } | null;
+}
+
+/** A product's name and description in one language other than the default. */
+export interface CatalogItemTranslation {
+  id: string;
+  menuItemId: string;
+  locale: string;
+  name: string | null;
+  description: string | null;
+}
+
+/** An option's name ("Size" → "Розмір") or one value's label, in one language. */
+export interface CatalogOptionTranslation {
+  id: string;
+  optionId: string | null;
+  optionValueId: string | null;
+  locale: string;
+  label: string;
+}
+
+/** A price in a currency other than the workspace's: the product's (`variantId` null) or one size's. */
+export interface CatalogPrice {
+  id: string;
+  menuItemId: string;
+  variantId: string | null;
+  currency: string;
+  price: string;
+  compareAtPrice: string | null;
 }
 
 export interface ItemCatalog {
@@ -62,6 +94,25 @@ export interface ItemCatalog {
   options: CatalogOption[];
   variants: CatalogVariant[];
   images: CatalogImage[];
+  translations: { item: CatalogItemTranslation[]; options: CatalogOptionTranslation[] };
+  prices: CatalogPrice[];
+}
+
+/** One language's text for a product; a blank string removes that piece. */
+export interface CatalogTranslationPayload {
+  name?: string;
+  description?: string;
+  /** Option id → its name in this language. */
+  options?: Record<string, string>;
+  /** Option value id → its label in this language. */
+  values?: Record<string, string>;
+}
+
+/** Prices in one currency; `null` removes one, a size without its own uses the product's. */
+export interface CatalogPricesPayload {
+  price?: string | null;
+  compareAtPrice?: string | null;
+  variants?: Record<string, { price: string | null; compareAtPrice?: string | null }>;
 }
 
 export interface CatalogImportReport {

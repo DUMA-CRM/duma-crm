@@ -223,13 +223,15 @@ export function InventoryWorkspace() {
       {!tenantId ? (
         <EmptyState icon={Building2} title="No workspace selected" description="Select a workspace to manage inventory." />
       ) : (
-        <div className="space-y-5">
+        // A flex column, so a tab's empty or loading state can fill the page and centre.
+        <div className="flex flex-1 flex-col space-y-5">
           {tab === 'stock' ? (
             !locationId ? (
               <EmptyState
                 icon={Boxes}
                 title="No location selected"
                 description="Use the location picker to choose the stock you want to manage."
+                className="flex-1"
               />
             ) : (
               <StockOverview
@@ -265,6 +267,7 @@ export function InventoryWorkspace() {
                 icon={MapPin}
                 title="No location selected"
                 description="Use the location picker to choose the stock you want to count."
+                className="flex-1"
               />
             ) : (
               <StocktakePanel locationId={locationId} />
@@ -274,6 +277,7 @@ export function InventoryWorkspace() {
               icon={MapPin}
               title="No location selected"
               description="Use the location picker to view purchase orders for a location."
+              className="flex-1"
             />
           ) : (
             <PurchaseOrdersPanel

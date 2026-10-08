@@ -237,7 +237,8 @@ function CommunicationsView() {
         />
       }
     >
-      <div className="space-y-5">
+      {/* A flex column, so a tab's empty state can fill the page and centre. */}
+      <div className="flex flex-1 flex-col space-y-5">
         {tab === 'overview' && (
           <OverviewPanel
             onOpenAutomations={() => navigate({ tab: 'automations' }, 'replace')}
@@ -340,7 +341,7 @@ function ConnectionStatus({ state, onOpenConnection }: { state: ConnectionState;
 function LoadingShell({ label, onClose }: { label: string; onClose: () => void }) {
   return (
     <EditorShell title="Loading…" onClose={onClose}>
-      <LoadingState label={label} className="py-24" />
+      <LoadingState label={label} className="flex-1" />
     </EditorShell>
   );
 }

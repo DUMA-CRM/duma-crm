@@ -136,7 +136,7 @@ export function filterNavByCapability(
   };
 
   // A shop sees its own words — Products, not Menu.
-  const retail = catalogVocabulary(moduleState) === 'retail';
+  const retail = catalogVocabulary(moduleState) !== 'menu';
   const worded = <T extends Pick<NavItem, 'label' | 'icon' | 'retail'>>(item: T): T =>
     retail && item.retail ? { ...item, label: item.retail.label, icon: item.retail.icon } : item;
 

@@ -3,10 +3,10 @@
 import { Flame, TriangleAlert } from '@/components/icons';
 import { AllergenChip } from '@/components/menu/shared';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 
 import type { Costing } from '@/lib/menu/costing';
 import { cn } from '@/lib/utils/cn';
-import { formatMoney } from '@/lib/utils/dashboard';
 
 interface SummaryEntry {
   col: { id: string; label: string };
@@ -39,6 +39,7 @@ export function RecipeTotals({
   showMargin?: boolean;
   title?: string;
 }) {
+  const formatMoney = useFormatMoney();
   const missingData = summary.some((s) => s.missingCost > 0 || s.missingNutrition > 0);
 
   return (

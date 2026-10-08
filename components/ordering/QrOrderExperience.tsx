@@ -2,9 +2,8 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Dialog } from 'radix-ui';
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
-import { WheelPicker, WheelPickerWrapper } from '@/components/ui/wheel-picker';
 import {
   ArrowLeft,
   Banknote,
@@ -28,7 +27,9 @@ import { PublicMenuSkeleton, TrackedOrderSkeleton } from '@/components/ordering/
 import { Logo } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { WheelPicker, WheelPickerWrapper } from '@/components/ui/wheel-picker';
 
+import { proxiedImage } from '@/lib/api/client';
 import {
   type PublicMenuItem,
   type PublicModifierOption,
@@ -41,6 +42,7 @@ import {
 } from '@/lib/modules/qr-ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { formatCurrency } from '@/lib/utils/currencies';
 
 interface CartLine {
   key: string;
@@ -51,8 +53,8 @@ interface CartLine {
 
 type Stage = 'menu' | 'checkout' | 'tracking';
 
-const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
-const formatMoney = (value: string | number) => money.format(Number(value));
+// Prices in the workspace's own currency, from the menu; GBP until it loads.
+const MoneyContext = createContext((value: string | number) => formatCurrency(value, 'GBP'));
 
 function lineUnitTotal(line: CartLine) {
   return Number(line.item.price) + line.selected.reduce((total, option) => total + Number(option.priceAdjust), 0);
@@ -62,7 +64,7 @@ function ItemImage({ item, className }: { item: PublicMenuItem; className?: stri
   return item.imageUrl ? (
     // Menu imagery is supplied by each business and can use arbitrary hosts.
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={item.imageUrl} alt="" className={cn('object-cover', className)} />
+    <img src={proxiedImage(item.imageUrl) ?? undefined} alt="" className={cn('object-cover', className)} />
   ) : (
     <div className={cn('flex items-center justify-center bg-band text-muted-foreground', className)}>
       <Store size={22} aria-hidden="true" />
@@ -85,6 +87,7 @@ function OrderDocket({
   canCheckout: boolean;
   readOnly?: boolean;
 }) {
+  const formatMoney = useContext(MoneyContext);
   const total = cart.reduce((sum, line) => sum + lineUnitTotal(line) * line.quantity, 0);
   const minimumRemaining = Math.max(0, minimum - total);
 
@@ -160,6 +163,7 @@ function ItemCustomiser({
   onClose: () => void;
   onAdd: (selected: PublicModifierOption[]) => void;
 }) {
+  const formatMoney = useContext(MoneyContext);
   const defaults = Object.fromEntries(
     item.modifierGroups.map((group) => {
       const options = group.options.filter((option) => option.isDefault);
@@ -300,7 +304,7 @@ function ItemCustomiser({
   );
 }
 
-export function QrOrderExperience({
+function QrOrderExperienceInner({
   token,
   initialTrackingToken,
   paymentCancelled = false,
@@ -314,6 +318,7 @@ export function QrOrderExperience({
     queryFn: () => getPublicQrMenu(token),
     retry: false,
   });
+  const formatMoney = useContext(MoneyContext);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [selectedItem, setSelectedItem] = useState<PublicMenuItem | null>(null);
   const [basketOpen, setBasketOpen] = useState(false);
@@ -693,10 +698,15 @@ export function QrOrderExperience({
                       <WheelPicker
                         options={groupedSlots.map(([dateLabel]) => ({ value: dateLabel, label: dateLabel }))}
                         value={selectedDay}
-                        onValueChange={(day) => setCollectionTime(groupedSlots.find(([dateLabel]) => dateLabel === day)?.[1]?.[0]?.value ?? collectionTime)}
+                        onValueChange={(day) =>
+                          setCollectionTime(groupedSlots.find(([dateLabel]) => dateLabel === day)?.[1]?.[0]?.value ?? collectionTime)
+                        }
                       />
                       <WheelPicker
-                        options={(groupedSlots.find(([dateLabel]) => dateLabel === selectedDay)?.[1] ?? []).map((slot) => ({ value: slot.value, label: slot.label }))}
+                        options={(groupedSlots.find(([dateLabel]) => dateLabel === selectedDay)?.[1] ?? []).map((slot) => ({
+                          value: slot.value,
+                          label: slot.label,
+                        }))}
                         value={collectionTime}
                         onValueChange={setCollectionTime}
                       />
@@ -1043,5 +1053,21 @@ export function QrOrderExperience({
         />
       )}
     </main>
+  );
+}
+
+/** The guest QR page, with prices in the workspace's currency once the menu says what it is. */
+export function QrOrderExperience(props: { token: string; initialTrackingToken: string | null; paymentCancelled?: boolean }) {
+  const menu = useQuery({
+    queryKey: moduleQueryKeys.qrOrdering.key('public-qr-menu', props.token),
+    queryFn: () => getPublicQrMenu(props.token),
+    retry: false,
+  });
+  const currency = menu.data?.currency ?? 'GBP';
+  const formatMoney = useCallback((value: string | number) => formatCurrency(value, currency), [currency]);
+  return (
+    <MoneyContext.Provider value={formatMoney}>
+      <QrOrderExperienceInner {...props} />
+    </MoneyContext.Provider>
   );
 }

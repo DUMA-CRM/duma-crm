@@ -4,8 +4,13 @@ import type {
   CatalogDiscountPayload,
   CatalogImage,
   CatalogImportReport,
+  CatalogItemTranslation,
   CatalogOption,
+  CatalogOptionTranslation,
   CatalogOptionValue,
+  CatalogPrice,
+  CatalogPricesPayload,
+  CatalogTranslationPayload,
   CatalogVariant,
   CatalogVariantLocation,
   CatalogVariantPayload,
@@ -123,6 +128,30 @@ export const detachModifier = (menuItemId: string, modifierId: string) =>
 export const getItemCatalog = (menuItemId: string, tenantId?: string) =>
   apiFetch<ItemCatalog>(`/catalog/items/${menuItemId}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`);
 
+export const setCatalogTranslation = (menuItemId: string, locale: string, data: CatalogTranslationPayload, tenantId?: string) =>
+  apiFetch<{ item: CatalogItemTranslation | null; options: CatalogOptionTranslation[] }>(
+    `/catalog/items/${menuItemId}/translations/${encodeURIComponent(locale)}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`,
+    { method: 'PUT', body: JSON.stringify(data) },
+  );
+
+export const deleteCatalogTranslation = (menuItemId: string, locale: string, tenantId?: string) =>
+  apiFetch<{ deleted: true }>(
+    `/catalog/items/${menuItemId}/translations/${encodeURIComponent(locale)}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`,
+    { method: 'DELETE' },
+  );
+
+export const setCatalogPrices = (menuItemId: string, currency: string, data: CatalogPricesPayload, tenantId?: string) =>
+  apiFetch<{ data: CatalogPrice[] }>(
+    `/catalog/items/${menuItemId}/prices/${encodeURIComponent(currency)}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`,
+    { method: 'PUT', body: JSON.stringify(data) },
+  );
+
+export const deleteCatalogPrices = (menuItemId: string, currency: string, tenantId?: string) =>
+  apiFetch<{ deleted: true }>(
+    `/catalog/items/${menuItemId}/prices/${encodeURIComponent(currency)}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`,
+    { method: 'DELETE' },
+  );
+
 export const lookupCatalogBarcode = (barcode: string, locationId?: string, tenantId?: string) => {
   const query = new URLSearchParams();
   if (locationId) query.set('locationId', locationId);
@@ -145,8 +174,12 @@ export const updateCatalogOption = (id: string, data: Partial<Pick<CatalogOption
     body: JSON.stringify(data),
   });
 
+/** Removes the option and every variant made from it; says how many variants went. */
 export const deleteCatalogOption = (id: string, tenantId?: string) =>
-  apiFetch<{ deleted: true }>(`/catalog/options/${id}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`, { method: 'DELETE' });
+  apiFetch<{ deleted: true; variantsRemoved: number }>(
+    `/catalog/options/${id}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`,
+    { method: 'DELETE' },
+  );
 
 export const createCatalogOptionValue = (optionId: string, data: { label: string; sortOrder?: number }, tenantId?: string) =>
   apiFetch<CatalogOptionValue>(`/catalog/options/${optionId}/values${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`, {
@@ -160,10 +193,14 @@ export const updateCatalogOptionValue = (id: string, data: Partial<Pick<CatalogO
     body: JSON.stringify(data),
   });
 
+/** Removes the value and every variant that uses it; says how many variants went. */
 export const deleteCatalogOptionValue = (id: string, tenantId?: string) =>
-  apiFetch<{ deleted: true }>(`/catalog/option-values/${id}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`, {
-    method: 'DELETE',
-  });
+  apiFetch<{ deleted: true; variantsRemoved: number }>(
+    `/catalog/option-values/${id}${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`,
+    {
+      method: 'DELETE',
+    },
+  );
 
 export const createCatalogVariant = (data: CatalogVariantPayload, tenantId?: string) =>
   apiFetch<CatalogVariant>(`/catalog/variants${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`, {

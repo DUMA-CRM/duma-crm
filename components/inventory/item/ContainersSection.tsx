@@ -103,7 +103,8 @@ export function ContainersSection({
   if (!locationId) return null;
 
   return (
-    <motion.div className="space-y-4" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+    // Flex down to the list, so an empty one centres in what is left of the page.
+    <motion.div className="flex flex-1 flex-col space-y-4" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
       <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-2">
         <Select
           value={view}
@@ -152,7 +153,7 @@ export function ContainersSection({
         </motion.button>
       )}
 
-      <motion.section variants={SECTION_RISE} aria-label="Containers">
+      <motion.section variants={SECTION_RISE} aria-label="Containers" className="flex flex-1 flex-col">
         {error ? (
           <ErrorState title="Couldn’t load containers" onRetry={onRetry} />
         ) : loading ? (
@@ -161,6 +162,7 @@ export function ContainersSection({
           <EmptyState
             icon={Box}
             compact
+            className="flex-1"
             kind={view === 'expired' ? 'done' : 'start'}
             title={
               view === 'active'

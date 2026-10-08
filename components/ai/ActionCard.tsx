@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
 import { Check, Loader2, Plus, RotateCcw, ShieldCheck, Trash2, TriangleAlert } from '@/components/icons';
+import { useCurrencySymbol, useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { InlineChoice, InlineDate, InlineNumber, type InlineOption, InlineText } from '@/components/ui/inline-edit';
 
@@ -32,10 +33,6 @@ function asText(value: FieldValue) {
   return typeof value === 'string' ? value : value == null ? '' : String(value);
 }
 
-function money(value: number) {
-  return `£${value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 function toOptions(field: AgentField): InlineOption[] {
   return (field.options ?? []).map(({ value, label, hint }) => ({ value, label, ...(hint ? { hint } : {}) }));
 }
@@ -48,6 +45,7 @@ function isAnswered(field: AgentField, value: FieldValue) {
 }
 
 function FieldControl({ field, value, onChange }: { field: AgentField; value: FieldValue; onChange: (next: FieldValue) => void }) {
+  const symbol = useCurrencySymbol();
   if (field.readOnly) {
     const textValue = asText(value);
     const label = field.type === 'select' ? field.options?.find((option) => option.value === textValue)?.label : textValue;
@@ -71,7 +69,8 @@ function FieldControl({ field, value, onChange }: { field: AgentField; value: Fi
           value={asNumber(value)}
           onChange={onChange}
           ariaLabel={field.label}
-          prefix="£"
+          prefix={symbol}
+          money
           min={field.min}
           max={field.max}
           step={field.step ?? 0.01}
@@ -123,6 +122,7 @@ export function ActionCard({
   onConfirm: (submission: AgentActionSubmission) => void;
   onCancel: () => void;
 }) {
+  const formatMoney = useFormatMoney();
   const reduceMotion = useReducedMotion();
   const [draft, setDraft] = useState<Draft>(() => initialDraft(action));
   const [adding, setAdding] = useState(false);
@@ -218,7 +218,7 @@ export function ActionCard({
           {total != null && (
             <div className="rounded-md bg-background/70 px-2.5 py-2">
               <p className="font-mono text-base font-semibold tabular-nums text-foreground">
-                {group?.total?.format === 'currency' ? money(total) : total.toLocaleString('en-GB')}
+                {group?.total?.format === 'currency' ? formatMoney(total, 2) : total.toLocaleString('en-GB')}
               </p>
               <p className="mt-0.5 text-label uppercase tracking-label text-muted-foreground">{group?.total?.label}</p>
             </div>

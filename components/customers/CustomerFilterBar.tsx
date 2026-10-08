@@ -6,6 +6,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { Gift, Loader2, Search, SlidersHorizontal, X } from '@/components/icons';
 import { FilterChip } from '@/components/shared/FilterChip';
 import { SegmentedControl, type SegmentedOption } from '@/components/shared/SegmentedControl';
+import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/multi-select';
@@ -111,6 +112,7 @@ export function CustomerFilterBar({
   staleFilters,
   onDropSegment,
 }: Props) {
+  const symbol = useCurrencySymbol();
   // The search box is local state debounced into the URL — writing every
   // keystroke straight to the query string would refetch on each letter.
   const [search, setSearch] = useState(filters.search ?? '');
@@ -146,10 +148,10 @@ export function CustomerFilterBar({
 
   const spendLabel =
     filters.minTotalSpent !== undefined && filters.maxTotalSpent !== undefined
-      ? `£${filters.minTotalSpent}–£${filters.maxTotalSpent}`
+      ? `${symbol}${filters.minTotalSpent}–${symbol}${filters.maxTotalSpent}`
       : filters.minTotalSpent !== undefined
-        ? `over £${filters.minTotalSpent}`
-        : `under £${filters.maxTotalSpent}`;
+        ? `over ${symbol}${filters.minTotalSpent}`
+        : `under ${symbol}${filters.maxTotalSpent}`;
 
   const visitsLabel =
     filters.minTotalVisits !== undefined && filters.maxTotalVisits !== undefined
@@ -283,7 +285,9 @@ export function CustomerFilterBar({
                 </div>
 
                 <fieldset className="min-w-0">
-                  <legend className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Lifetime spend (£)</legend>
+                  <legend className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">
+                    Lifetime spend ({symbol})
+                  </legend>
                   <div className="mt-1.5 flex items-center gap-2">
                     <Input
                       type="number"

@@ -9,6 +9,7 @@ import { ChefHat, Eye, Loader2, Plus, Scale, SlidersHorizontal } from '@/compone
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
 import { ChoiceCards, FormSection } from '@/components/shared/FormParts';
+import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -35,6 +36,7 @@ export function NewModifierDrawer({
   defaultGroupId?: string;
   onClose: () => void;
 }) {
+  const symbol = useCurrencySymbol();
   const qc = useQueryClient();
   const router = useRouter();
   const ordered = [...groups].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
@@ -91,8 +93,18 @@ export function NewModifierDrawer({
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" className="flex-1" onClick={() => submit('recipe')} disabled={create.isPending || !groups.length}>
-            {create.isPending && then === 'recipe' ? <Loader2 className="animate-spin" aria-hidden="true" /> : <ChefHat aria-hidden="true" />}
+          <Button
+            variant="outline"
+            size="lg"
+            className="flex-1"
+            onClick={() => submit('recipe')}
+            disabled={create.isPending || !groups.length}
+          >
+            {create.isPending && then === 'recipe' ? (
+              <Loader2 className="animate-spin" aria-hidden="true" />
+            ) : (
+              <ChefHat aria-hidden="true" />
+            )}
             Create &amp; add recipe
           </Button>
           <Button type="submit" form={FORM_ID} size="lg" className="flex-1" disabled={create.isPending || !groups.length}>
@@ -112,17 +124,32 @@ export function NewModifierDrawer({
         }}
       >
         <FormSection icon={SlidersHorizontal} title="Modifier">
-          <Input label="Name" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Oat milk" autoFocus error={submitted ? (labelError ?? undefined) : undefined} />
+          <Input
+            label="Name"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="e.g. Oat milk"
+            autoFocus
+            error={submitted ? (labelError ?? undefined) : undefined}
+          />
           <Input
             label="Price change"
             value={priceAdjust}
             onChange={(e) => setPriceAdjust(e.target.value)}
             inputMode="decimal"
             placeholder="0.50"
-            leftIcon={<span className="text-sm">£</span>}
+            leftIcon={<span className="text-sm">{symbol}</span>}
             className="tabular-nums"
             error={submitted ? (priceError ?? undefined) : undefined}
-            hint={!priceError ? (Number(priceAdjust) === 0 ? 'No charge' : Number(priceAdjust) < 0 ? 'Takes money off the item' : 'Added to the item’s price') : undefined}
+            hint={
+              !priceError
+                ? Number(priceAdjust) === 0
+                  ? 'No charge'
+                  : Number(priceAdjust) < 0
+                    ? 'Takes money off the item'
+                    : 'Added to the item’s price'
+                : undefined
+            }
           />
         </FormSection>
 
@@ -153,7 +180,11 @@ export function NewModifierDrawer({
 
         <div className="rounded-lg border border-rule/60 bg-card px-4 py-3.5">
           <SettingRows>
-            <SettingRow icon={Scale} title="This is a size" description="Set from the group. Sizes get their own quantity column in every recipe.">
+            <SettingRow
+              icon={Scale}
+              title="This is a size"
+              description="Set from the group. Sizes get their own quantity column in every recipe."
+            >
               <Switch label="This is a size" checked={isSize} onChange={setIsSize} />
             </SettingRow>
             <SettingRow icon={Eye} title="Available at the till" description="Turn off to set it up now and offer it later.">

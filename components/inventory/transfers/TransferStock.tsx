@@ -313,7 +313,7 @@ export function ItemTransfersSection({
   const exhausted = !query.hasNextPage && !query.isFetchingNextPage;
 
   return (
-    <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+    <motion.div className="flex flex-1 flex-col space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
       <motion.div variants={SECTION_RISE} className="flex min-h-9 flex-wrap items-center gap-2">
         <h2 className="flex-1 text-base font-semibold tracking-title text-foreground">Transfers</h2>
         <Select
@@ -348,10 +348,11 @@ export function ItemTransfersSection({
           </div>
         </div>
       ) : transfers.length === 0 ? (
-        <motion.div variants={SECTION_RISE}>
+        <motion.div variants={SECTION_RISE} className="flex flex-1 flex-col">
           <EmptyState
             icon={ArrowLeftRight}
             compact
+            className="flex-1"
             kind={status === 'all' ? 'start' : status === 'pending' ? 'done' : 'search'}
             title={status === 'all' ? 'No transfers yet' : `Nothing ${STATUS[status].label.toLowerCase()}`}
             description={

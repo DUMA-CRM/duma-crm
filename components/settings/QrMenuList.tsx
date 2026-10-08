@@ -5,10 +5,11 @@ import { useState } from 'react';
 
 import { EyeOff, Search, Star, UtensilsCrossed } from '@/components/icons';
 import { Switch } from '@/components/settings/controls';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Input } from '@/components/ui/input';
 
+import { proxiedImage } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
-import { formatMoney } from '@/lib/utils/dashboard';
 import { MAX_FEATURED, groupQrMenu, toggleFeatured } from '@/lib/utils/qr-menu';
 import type { MenuCategoryRecord, MenuItem } from '@/types/menu';
 
@@ -36,6 +37,7 @@ export function QrMenuList({
   onVisibilityChange: (visibility: Record<string, boolean>) => void;
   onFeaturedChange: (featuredItemIds: string[]) => void;
 }) {
+  const formatMoney = useFormatMoney();
   const reduceMotion = useReducedMotion();
   const [search, setSearch] = useState('');
 
@@ -183,7 +185,7 @@ export function QrMenuList({
 /** The photo guests see, or a quiet placeholder so rows line up without one. */
 function ItemPhoto({ item, dimmed }: { item: MenuItem; dimmed: boolean }) {
   const [failed, setFailed] = useState(false);
-  const photo = item.imageUrl && !failed ? item.imageUrl : null;
+  const photo = item.imageUrl && !failed ? proxiedImage(item.imageUrl) : null;
   return (
     <span
       className={cn(

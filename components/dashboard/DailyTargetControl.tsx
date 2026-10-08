@@ -4,16 +4,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { Target } from '@/components/icons';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 
 import { setLocationDailyTarget } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { formatMoney } from '@/lib/utils/dashboard';
 
 /* Setting today's target from the page that judges you against it.
    The full location form is super_admin only, so without this a store manager
    could see a target but never own one. */
 
 export function DailyTargetControl({ locationId, target }: { locationId: string; target: number | null }) {
+  const formatMoney = useFormatMoney();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(target != null ? String(target) : '');

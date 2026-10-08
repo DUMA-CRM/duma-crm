@@ -525,7 +525,24 @@ function AssetThumb({ asset, className }: { asset: CmsAsset; className?: string 
   );
 }
 
-function AssetDrawer({ assetId, target, onClose }: { assetId: string; target: ReturnType<typeof uploadTarget>; onClose: () => void }) {
+/**
+ * One file's drawer. Media opens it from its grid; a product's Photos tab
+ * opens the same drawer with `extra` — the photo's place on that product —
+ * and hears every change through `onChanged`.
+ */
+export function AssetDrawer({
+  assetId,
+  target = null,
+  onClose,
+  extra,
+  onChanged,
+}: {
+  assetId: string;
+  target?: ReturnType<typeof uploadTarget> | null;
+  onClose: () => void;
+  extra?: React.ReactNode;
+  onChanged?: () => void;
+}) {
   const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
   const queryClient = useQueryClient();
   const access = useCmsAccess();
@@ -586,6 +603,7 @@ function AssetDrawer({ assetId, target, onClose }: { assetId: string; target: Re
       ),
     onSuccess: () => {
       invalidateCms(queryClient);
+      onChanged?.();
       // The button says "Saved"; a toast as well would say it twice.
       flashSaved();
     },
@@ -610,6 +628,7 @@ function AssetDrawer({ assetId, target, onClose }: { assetId: string; target: Re
     },
     onSuccess: ({ asset, focal }) => {
       invalidateCms(queryClient);
+      onChanged?.();
       setConverting(null);
       if (focal !== undefined) setForm((current) => (current ? { ...current, focal } : current));
       toast('success', `Replaced — now ${formatBytes(asset.sizeBytes)}.`);
@@ -623,6 +642,7 @@ function AssetDrawer({ assetId, target, onClose }: { assetId: string; target: Re
     },
     onSuccess: (made) => {
       invalidateCms(queryClient);
+      onChanged?.();
       toast(
         'success',
         made > 0
@@ -637,6 +657,7 @@ function AssetDrawer({ assetId, target, onClose }: { assetId: string; target: Re
     mutationFn: (focal: { x: number; y: number } | null) => updateCmsAsset(assetId, { focalPoint: focal }, tenantId).then(() => focal),
     onSuccess: (focal) => {
       invalidateCms(queryClient);
+      onChanged?.();
       setForm((current) => (current ? { ...current, focal } : current));
       setConverting(null);
       toast('success', focal ? 'Focus point saved.' : 'Focus point cleared.');
@@ -647,6 +668,7 @@ function AssetDrawer({ assetId, target, onClose }: { assetId: string; target: Re
     mutationFn: () => deleteCmsRenditions(assetId, tenantId),
     onSuccess: () => {
       invalidateCms(queryClient);
+      onChanged?.();
       toast('success', 'Website sizes removed — websites get the original file.');
     },
     onError: (error) => toast('error', error.message),
@@ -658,6 +680,7 @@ function AssetDrawer({ assetId, target, onClose }: { assetId: string; target: Re
     mutationFn: (force: boolean) => deleteCmsAsset(assetId, force, tenantId),
     onSuccess: () => {
       invalidateCms(queryClient);
+      onChanged?.();
       toast('success', 'File deleted.');
       onClose();
     },
@@ -695,6 +718,7 @@ function AssetDrawer({ assetId, target, onClose }: { assetId: string; target: Re
         <LoadingState label="Loading file" compact />
       ) : (
         <div className="space-y-6">
+          {extra}
           {/* The file itself: a clean stage, its facts in one line, and three things to do with it. */}
           <div className="space-y-3">
             <div className={STAGE_CLASS}>

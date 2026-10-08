@@ -5,12 +5,13 @@ import { useState } from 'react';
 import { AlertTriangle, Check } from '@/components/icons';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { Modal } from '@/components/shared/Modal';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import { TIER_CONFIG } from '@/lib/constants/customers';
-import { formatDate } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
+import { formatDate } from '@/lib/utils/date';
 import type { Customer } from '@/types/customers';
 
 /**
@@ -34,9 +35,10 @@ interface Props {
   onConfirm: (survivorId: string, loserId: string) => void;
 }
 
-const money = (value: number | string) => `£${Number(value).toFixed(0)}`;
-
 export function MergeCustomersModal({ a, b, isPending, error, onCancel, onConfirm }: Props) {
+  const formatMoney = useFormatMoney();
+  // Whole units: a list reads "₴412" or "£412"; the record has the pennies.
+  const money = (value: string | number) => formatMoney(Number(value), 0);
   // Default to the record with more history: it usually has the fuller picture,
   // and its contact details are the ones staff have been using.
   const richer = Number(b.totalSpent) > Number(a.totalSpent) || b.totalVisits > a.totalVisits ? b : a;
@@ -144,8 +146,8 @@ export function MergeCustomersModal({ a, b, isPending, error, onCancel, onConfir
           <p className="flex items-start gap-2 rounded-md border border-warning/20 bg-warning/6 px-3 py-2 text-xs text-warning">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
             <span>
-              {loser.firstName} has marketing consent and {survivor.firstName} does not. Consent is not transferred by a merge — ask
-              the guest again if you need it.
+              {loser.firstName} has marketing consent and {survivor.firstName} does not. Consent is not transferred by a merge — ask the
+              guest again if you need it.
             </span>
           </p>
         )}

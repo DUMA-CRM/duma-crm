@@ -5295,10 +5295,11 @@
         "tags": [
           "Catalog"
         ],
-        "summary": "Delete a variant option",
+        "summary": "Delete a variant option and the variants made from it",
+        "description": "Removing Colour removes every Black / M, White / L… variant. Returns how many variants went.",
         "responses": {
           "200": {
-            "description": "Deleted"
+            "description": "{ deleted, variantsRemoved }"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -5445,10 +5446,11 @@
         "tags": [
           "Catalog"
         ],
-        "summary": "Delete an option value",
+        "summary": "Delete an option value and the variants that use it",
+        "description": "Removing Black removes Black / S, Black / M… Returns how many variants went.",
         "responses": {
           "200": {
-            "description": "Deleted"
+            "description": "{ deleted, variantsRemoved }"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -6352,6 +6354,168 @@
         ]
       }
     },
+    "/v1/catalog/items/{menuItemId}/translations/{locale}": {
+      "put": {
+        "operationId": "putV1CatalogItemsByMenuItemIdTranslationsByLocale",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Set a product’s text in another language",
+        "description": "Name, description, and the names of its options and values. A blank value removes that translation, so the default text shows.",
+        "responses": {
+          "200": {
+            "description": "{ item, options }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Product not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "menuItemId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "locale",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CatalogItemsByMenuItemIdTranslationsByLocale",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Remove a product’s text in one language",
+        "responses": {
+          "200": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Product not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "menuItemId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "locale",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/catalog/items/{menuItemId}/prices/{currency}": {
+      "put": {
+        "operationId": "putV1CatalogItemsByMenuItemIdPricesByCurrency",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Set a product’s prices in another currency",
+        "description": "The product’s price, and any size that differs. null removes a price; a size without one uses the product’s price in this currency.",
+        "responses": {
+          "200": {
+            "description": "{ data: prices in this currency }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Product not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "menuItemId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "currency",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1CatalogItemsByMenuItemIdPricesByCurrency",
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Remove all of a product’s prices in one currency",
+        "responses": {
+          "200": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Product not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "menuItemId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "currency",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/catalog/import": {
       "post": {
         "operationId": "postV1CatalogImport",
@@ -6489,6 +6653,27 @@
         "responses": {
           "200": {
             "description": "Key kind, scopes, currency"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/store/locales": {
+      "get": {
+        "operationId": "getV1StoreLocales",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "List the languages the shop sells in",
+        "description": "Each with its currency (null: the workspace currency). Pass a `code` as `?locale=` on product reads.",
+        "responses": {
+          "200": {
+            "description": "Languages"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -6637,7 +6822,7 @@
             "description": "Unauthorized — missing or invalid bearer token"
           },
           "409": {
-            "description": "`out_of_stock`, `total_mismatch`, or `location_not_configured`"
+            "description": "`out_of_stock`, `total_mismatch`, `price_unavailable` or `location_not_configured`"
           },
           "429": {
             "description": "Too many requests — rate limited"

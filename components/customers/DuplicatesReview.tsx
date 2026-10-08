@@ -11,6 +11,7 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { RelativeTime } from '@/components/shared/RelativeTime';
 import { Bone } from '@/components/shared/Skeleton';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -30,8 +31,6 @@ import type { Customer, DuplicatePair } from '@/types/customers';
  * shared email, or the same first and last name. A false merge is expensive to
  * notice, so a human confirms every one, choosing which record survives.
  */
-
-const money = (value: string) => `£${Number(value).toFixed(0)}`;
 
 /** The pair rows arrive flattened from SQL; the merge modal wants customers. */
 function sideToCustomer(pair: DuplicatePair, side: 'a' | 'b'): Customer {
@@ -55,6 +54,9 @@ function sideToCustomer(pair: DuplicatePair, side: 'a' | 'b'): Customer {
 }
 
 export function DuplicatesReview() {
+  const formatMoney = useFormatMoney();
+  // Whole units: a list reads "₴412" or "£412"; the record has the pennies.
+  const money = (value: string | number) => formatMoney(Number(value), 0);
   const router = useRouter();
   const qc = useQueryClient();
   const [pair, setPair] = useState<{ a: Customer; b: Customer } | null>(null);

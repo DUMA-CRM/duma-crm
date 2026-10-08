@@ -6,11 +6,11 @@ import { DailyTargetControl } from '@/components/dashboard/DailyTargetControl';
 import { ArrowUpRight, Target, TrendingDown, TrendingUp } from '@/components/icons';
 import { Bone } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
 import type { DayBaseline, HourlyVolume } from '@/lib/modules/analytics/client';
 import { cn } from '@/lib/utils/cn';
-import { formatMoney } from '@/lib/utils/dashboard';
 import { MIN_BASELINE_SAMPLES, type Pace, type TargetProgress } from '@/lib/utils/pace';
 import { type TradingDay, axisHours, axisNowMinutes, axisRange } from '@/lib/utils/trading-day';
 
@@ -50,6 +50,7 @@ function TodayCurve({
   target: TargetProgress | null;
   showToday: boolean;
 }) {
+  const formatMoney = useFormatMoney();
   const hasTypical = (baseline?.sampleCount ?? 0) >= MIN_BASELINE_SAMPLES;
   const revenueByHour = new Map(hourly.map((row) => [row.hour, Number(row.totalRevenue ?? 0)]));
 
@@ -273,6 +274,7 @@ export function TakenTodayPanel({
   locationId: string | null;
   dailyTarget: number | null;
 }) {
+  const formatMoney = useFormatMoney();
   const trading = day.state === 'trading' || day.state === 'after-close' || day.state === 'no-hours';
   const ahead = pace.delta >= 0;
 

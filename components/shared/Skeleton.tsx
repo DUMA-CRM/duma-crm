@@ -124,7 +124,8 @@ export function FactsSkeleton({
 /**
  * A wait whose shape isn't known yet: the mascot scanning, and what it's
  * fetching ("Loading the pay run"). Sits on the page like `EmptyState` — no
- * card of its own.
+ * card of its own. As the whole body of an `EditorShell`, pass `flex-1` so it
+ * fills the body and centres instead of sitting at the top.
  */
 export function LoadingState({ label = 'Loading', compact = false, className }: { label?: string; compact?: boolean; className?: string }) {
   return (

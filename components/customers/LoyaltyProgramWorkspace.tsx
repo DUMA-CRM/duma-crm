@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { Slider } from '@/components/ui/slider';
 import { Award, Check, Gift, MapPin, Plus, Sparkles } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SaveBar, SettingRow, SettingRows } from '@/components/settings/controls';
@@ -13,8 +12,10 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
 import { StatusDot } from '@/components/shared/StatusDot';
+import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Slider } from '@/components/ui/slider';
 
 import {
   type LoyaltyProgram,
@@ -201,6 +202,7 @@ function validityLabel(validity: LoyaltyProgram['rewardRule']['validity']) {
 }
 
 export function LoyaltyProgramWorkspace() {
+  const symbol = useCurrencySymbol();
   const router = useRouter();
   const queryClient = useQueryClient();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
@@ -425,7 +427,8 @@ export function LoyaltyProgramWorkspace() {
                     {rewardsEnabled && <p className="mt-1 text-sm text-muted-foreground">{validityLabel(draft.rewardRule.validity)}</p>}
                     {rewardsEnabled && draft.rewardRule.maxDiscountCents !== null && (
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Reward value is capped at £{(draft.rewardRule.maxDiscountCents / 100).toFixed(2)}.
+                        Reward value is capped at {symbol}
+                        {(draft.rewardRule.maxDiscountCents / 100).toFixed(2)}.
                       </p>
                     )}
                   </div>
@@ -588,7 +591,7 @@ export function LoyaltyProgramWorkspace() {
                       rows={(itemsQuery.data ?? []).map((item) => ({
                         id: item.id,
                         name: item.name,
-                        hint: `£${Number(item.price).toFixed(2)}`,
+                        hint: `${symbol}${Number(item.price).toFixed(2)}`,
                       }))}
                       selected={draft.earnRule.menuItemIds}
                       onChange={(menuItemIds) => patch({ earnRule: { ...draft.earnRule, menuItemIds } })}
@@ -662,7 +665,7 @@ export function LoyaltyProgramWorkspace() {
                           Maximum reward value <span className="font-normal text-muted-foreground">optional</span>
                         </span>
                         <div className="relative">
-                          <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">£</span>
+                          <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">{symbol}</span>
                           <input
                             type="number"
                             min={0}
@@ -758,7 +761,7 @@ export function LoyaltyProgramWorkspace() {
                           rows={(itemsQuery.data ?? []).map((item) => ({
                             id: item.id,
                             name: item.name,
-                            hint: `£${Number(item.price).toFixed(2)}`,
+                            hint: `${symbol}${Number(item.price).toFixed(2)}`,
                           }))}
                           selected={draft.rewardRule.menuItemIds}
                           onChange={(menuItemIds) => patch({ rewardRule: { ...draft.rewardRule, menuItemIds } })}

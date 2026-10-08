@@ -35,6 +35,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
 import { SectionSkeleton, TileSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { CopyGlyph } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
@@ -51,7 +52,6 @@ import {
 } from '@/lib/modules/qr-ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { formatMoney } from '@/lib/utils/dashboard';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -444,6 +444,7 @@ export function QrOrderingSettings() {
  * Zero means no minimum, which is what most places want.
  */
 function MinimumOrderCard({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const formatMoney = useFormatMoney();
   const amount = Number(value);
   const set = amount > 0;
   return (

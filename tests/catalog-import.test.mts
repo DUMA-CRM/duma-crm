@@ -88,3 +88,14 @@ test('the grid counts sizes, and the ones a product lacks', () => {
     4,
   );
 });
+
+test('the wording follows the options a product has', async () => {
+  const { optionPlaceholder, variantNoun } = await import('../lib/utils/catalog-import.ts');
+  assert.equal(optionPlaceholder('Colour', false), 'Black, White, Navy — Enter to add');
+  assert.equal(optionPlaceholder('size', false), 'S, M, L, XL — Enter to add');
+  assert.equal(optionPlaceholder('Scent', false), 'Add values — Enter to add');
+  assert.equal(optionPlaceholder('Size', true), 'Add another…');
+  assert.deepEqual(variantNoun([{ name: 'Size' }]), { one: 'size', many: 'sizes', column: 'Size' });
+  assert.deepEqual(variantNoun([{ name: 'Colour' }]), { one: 'option', many: 'options', column: 'Colour' });
+  assert.deepEqual(variantNoun([{ name: 'Colour' }, { name: 'Size' }]), { one: 'variant', many: 'variants', column: 'Variant' });
+});

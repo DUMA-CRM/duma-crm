@@ -1,13 +1,27 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const { catalogVocabulary, catalogWords } = await import('../lib/utils/catalog-vocabulary.ts');
+const { catalogTools, catalogVocabulary, catalogWords } = await import('../lib/utils/catalog-vocabulary.ts');
 
-test('a shop reads Products; a café, and any older workspace, reads Menu', () => {
+test('the catalogue says what it is; older workspaces stay a menu', () => {
   assert.equal(catalogVocabulary([{ moduleId: 'catalog', configuration: { vocabulary: 'retail' } }]), 'retail');
-  assert.equal(catalogVocabulary([{ moduleId: 'catalog', configuration: { vocabulary: 'menu' } }]), 'menu');
-  assert.equal(catalogVocabulary([{ moduleId: 'catalog', configuration: {} }]), 'menu');
+  assert.equal(catalogVocabulary([{ moduleId: 'catalog', configuration: { vocabulary: 'mixed' } }]), 'mixed');
+  assert.equal(catalogVocabulary([{ moduleId: 'catalog', configuration: { vocabulary: 'nonsense' } }]), 'menu');
   assert.equal(catalogVocabulary([]), 'menu');
+});
+
+test('each kind of catalogue gets its own words and only the tools it needs', () => {
   assert.equal(catalogWords('retail').newItem, 'New product');
-  assert.equal(catalogWords('menu').section, 'Menu');
+  assert.equal(catalogWords('retail').group, 'Category');
+  assert.equal(catalogWords('menu').available, 'On the menu');
+  assert.deepEqual(catalogTools('retail'), { retail: true, kitchen: false });
+  assert.deepEqual(catalogTools('menu'), { retail: false, kitchen: true });
+  assert.deepEqual(catalogTools('mixed'), { retail: true, kitchen: true });
+});
+
+test('only a catalogue with food has a kitchen for orders to wait in', () => {
+  assert.equal(catalogWords('retail').inQueue, 'In progress');
+  assert.equal(catalogWords('retail').queue, 'the order queue');
+  assert.equal(catalogWords('menu').inQueue, 'In the kitchen');
+  assert.equal(catalogWords('mixed').queue, 'the kitchen queue');
 });

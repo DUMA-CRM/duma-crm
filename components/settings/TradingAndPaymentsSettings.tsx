@@ -10,9 +10,9 @@ import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SaveBar } from '@/components/settings/controls';
-import { SectionSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
+import { SectionSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -22,15 +22,12 @@ import { type TradingSettings, getTradingSettings, getWorkspaceSetup, saveTradin
 import { getPaymentConnections } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { CURRENCIES, currencyLabel, formatCurrency } from '@/lib/utils/currencies';
 import { type ReceiptLine, linePence, receiptTotals } from '@/lib/utils/receipt-preview';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-const CURRENCIES = [
-  { value: 'GBP', label: 'GBP — Pound sterling (£)' },
-  { value: 'EUR', label: 'EUR — Euro (€)' },
-  { value: 'USD', label: 'USD — US dollar ($)' },
-];
+const CURRENCY_OPTIONS = CURRENCIES.map((entry) => ({ value: entry.code, label: currencyLabel(entry.code) }));
 
 interface Form {
   legalName: string;
@@ -139,11 +136,11 @@ function TradingForm({
   // The rate only matters once VAT registered; a hidden bad value must not block saving.
   const rateValid = Number.isFinite(rate) && rate >= 0 && rate <= 100;
   const valid = /^[A-Z]{3}$/.test(form.currency) && (!form.vatRegistered || rateValid);
-  const money = (value: number) => new Intl.NumberFormat(undefined, { style: 'currency', currency: form.currency }).format(value);
+  const money = (value: number) => formatCurrency(value, form.currency);
   const example = 3.6;
-  const currencyOptions = CURRENCIES.some((option) => option.value === form.currency)
-    ? CURRENCIES
-    : [...CURRENCIES, { value: form.currency, label: form.currency }];
+  const currencyOptions = CURRENCY_OPTIONS.some((option) => option.value === form.currency)
+    ? CURRENCY_OPTIONS
+    : [...CURRENCY_OPTIONS, { value: form.currency, label: currencyLabel(form.currency) }];
 
   const readers = useQuery({
     queryKey: moduleQueryKeys.payments.key('payment-connections', locationId),
@@ -213,6 +210,9 @@ function TradingForm({
               options={currencyOptions}
               ariaLabel="Currency"
             />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Every price shows in it — products, orders, the till, reports and your website. Prices are not converted.
+            </p>
           </div>
 
           <p className="mt-6 mb-2 text-sm font-semibold text-foreground">Are you VAT registered?</p>

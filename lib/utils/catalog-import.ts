@@ -192,11 +192,10 @@ export interface GridOption {
   values: string[];
 }
 
-/** Ready-made option sets, one tap each. */
+/** Ready-made sizes, one tap each. Colours vary too much to guess — they're typed in. */
 export const OPTION_PRESETS: ReadonlyArray<{ label: string; option: GridOption }> = [
   { label: 'S–XL', option: { name: 'Size', values: ['S', 'M', 'L', 'XL'] } },
   { label: 'XS–XXL', option: { name: 'Size', values: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] } },
-  { label: 'Colours', option: { name: 'Colour', values: ['Black', 'White'] } },
 ];
 
 /** How many variants these options make, counting only options with a name and at least one value. */
@@ -234,4 +233,30 @@ export function missingCombinations(options: readonly GridOption[], existing: Re
     combos = combos.flatMap((combo) => values.map((value) => ({ ...combo, [option.name.trim()]: value })));
   }
   return combos.filter((combo) => !have.has(signature(combo))).length;
+}
+
+// ─── Wording that follows the options ────────────────────────────────────────
+
+const OPTION_EXAMPLES: Array<{ match: RegExp; examples: string }> = [
+  { match: /^sizes?$/i, examples: 'S, M, L, XL' },
+  { match: /^colou?rs?$/i, examples: 'Black, White, Navy' },
+  { match: /^fits?$/i, examples: 'Regular, Slim, Oversized' },
+  { match: /^materials?|fabrics?$/i, examples: 'Cotton, Linen' },
+  { match: /^lengths?$/i, examples: 'Short, Regular, Long' },
+  { match: /^styles?$/i, examples: 'Crew neck, V-neck' },
+];
+
+/** "Black, White, Navy — Enter to add" for a Colour option; a neutral prompt for one we don't know. */
+export function optionPlaceholder(optionName: string, hasValues: boolean): string {
+  if (hasValues) return 'Add another…';
+  const known = OPTION_EXAMPLES.find((entry) => entry.match.test(optionName.trim()));
+  return `${known ? known.examples : 'Add values'} — Enter to add`;
+}
+
+/** What one variant is called: the option's own name when there is one option ("Size"), "Variant" when several. */
+export function variantNoun(options: ReadonlyArray<{ name: string }>): { one: string; many: string; column: string } {
+  const named = options.map((option) => option.name.trim()).filter(Boolean);
+  if (named.length === 1 && /^sizes?$/i.test(named[0]!)) return { one: 'size', many: 'sizes', column: 'Size' };
+  if (named.length === 1) return { one: 'option', many: 'options', column: named[0]! };
+  return { one: 'variant', many: 'variants', column: 'Variant' };
 }

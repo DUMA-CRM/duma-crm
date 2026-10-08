@@ -12,6 +12,7 @@ import { LossesSection } from '@/components/inventory/item/LossesSection';
 import { RemoveItemDrawer } from '@/components/inventory/item/RemoveItemDrawer';
 import { EditStockItemDrawer, EditThresholdDrawer, LogLossDrawer, RestockDrawer } from '@/components/inventory/stock/StockDrawers';
 import { getStatus, normaliseArray } from '@/components/inventory/stock/shared';
+import { StockItemThumb } from '@/components/inventory/item/StockItemPhoto';
 import { ItemTransfersSection, TransferStockDrawer } from '@/components/inventory/transfers/TransferStock';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -176,6 +177,8 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
     <EditorShell
       eyebrow="Inventory item"
       title={item?.name ?? (itemLoading ? 'Loading…' : 'Inventory item')}
+      // The item's photo when it has one, in the badge's place and size.
+      leading={item?.imageUrl ? <StockItemThumb imageUrl={item.imageUrl} className="size-9 rounded-md" /> : undefined}
       icon={<Package size={20} aria-hidden="true" />}
       onClose={() => router.push('/inventory')}
       actions={
@@ -204,7 +207,8 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
       }
       subheader={<SectionTabs tabs={ITEM_SECTIONS} value={section} onChange={setSection} ariaLabel="Inventory item sections" />}
     >
-      <div className="space-y-4">
+      {/* A flex column, so a section's loading or empty state can fill the page and centre. */}
+      <div className="flex flex-1 flex-col space-y-4">
         {!locationId && (
           <div className="flex items-start gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3.5">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-measured/10 text-measured" aria-hidden="true">
@@ -243,7 +247,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
           ) : itemError ? (
             <ErrorState title="Couldn’t load this item" onRetry={() => void refetchItem()} />
           ) : (
-            <LoadingState label="Loading the item" />
+            <LoadingState label="Loading the item" className="flex-1" />
           ))}
 
         {section === 'containers' && item && (

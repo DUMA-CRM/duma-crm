@@ -35,6 +35,8 @@ export interface PublicMenuCategory {
 
 export interface PublicQrMenu {
   brand: { name: string };
+  /** The workspace's trading currency (GBP, EUR, UAH…); absent from older API versions. */
+  currency?: string;
   location: { name: string; address: string; phone: string | null; timeZone: string };
   content: {
     schemaVersion: 1;

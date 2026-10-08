@@ -36,6 +36,7 @@ export function toOnboardingAnswers(draft: OnboardingDraft): WorkspaceOnboarding
 
   return {
     businessType: draft.businessType,
+    sells: draft.sells ?? (draft.servesFood === undefined ? undefined : draft.servesFood ? 'food' : 'products'),
     locationCount: hasPremises(draft) ? Math.max(1, Math.round(draft.locationCount)) : 1,
     salesChannels: [...salesChannels].sort(),
     // Cash needs a counter to take it over; a website checkout needs a website.
