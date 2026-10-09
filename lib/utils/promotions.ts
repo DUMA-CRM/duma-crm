@@ -6,7 +6,7 @@
 // API works out every amount (ADR-016); the till asks it.
 // ---------------------------------------------------------------------------
 
-export type PromotionKind = 'percentage' | 'fixed_amount' | 'free_item';
+export type PromotionKind = 'percentage' | 'fixed_amount' | 'free_item' | 'free_delivery';
 export type PromotionScope = 'order' | 'items';
 export type PromotionStatus = 'active' | 'paused' | 'archived';
 export type PromotionChannel = 'pos' | 'mobile' | 'qr_code' | 'web' | 'manual';
@@ -125,6 +125,18 @@ const intOrNull = (value: string) => (value.trim() === '' ? null : Number.parseI
 /** The draft as the API takes it. Fields that don't apply to the kind are sent empty. */
 export function draftToFields(draft: PromotionDraft): PromotionFields {
   const freeItem = draft.kind === 'free_item';
+  // Off the delivery fee: no amount, and nothing to choose among the lines.
+  if (draft.kind === 'free_delivery') {
+    return {
+      ...draftToFields({ ...draft, kind: 'percentage' }),
+      kind: 'free_delivery',
+      value: null,
+      maxDiscount: null,
+      appliesTo: 'order',
+      menuItemIds: [],
+      categoryIds: [],
+    };
+  }
   return {
     name: draft.name.trim(),
     description: orNull(draft.description),
@@ -157,17 +169,21 @@ export type DraftField = keyof PromotionDraft;
 export function promotionDraftProblems(draft: PromotionDraft, isNew: boolean): Partial<Record<DraftField, string>> {
   const problems: Partial<Record<DraftField, string>> = {};
   if (!draft.name.trim()) problems.name = 'Give it a name your team will recognise';
-  if (draft.kind !== 'free_item') {
+  if (draft.kind === 'percentage' || draft.kind === 'fixed_amount') {
     if (!AMOUNT.test(draft.value.trim()) || Number(draft.value) <= 0) {
       problems.value = draft.kind === 'percentage' ? 'Enter a percentage' : 'Enter an amount, like 5 or 5.50';
     } else if (draft.kind === 'percentage' && Number(draft.value) > 100) {
       problems.value = 'A percentage can’t be more than 100';
     }
   }
-  if (draft.kind === 'percentage' && draft.maxDiscount.trim() && (!AMOUNT.test(draft.maxDiscount.trim()) || Number(draft.maxDiscount) <= 0)) {
+  if (
+    draft.kind === 'percentage' &&
+    draft.maxDiscount.trim() &&
+    (!AMOUNT.test(draft.maxDiscount.trim()) || Number(draft.maxDiscount) <= 0)
+  ) {
     problems.maxDiscount = 'Enter an amount, or leave it empty for no cap';
   }
-  const needsItems = draft.kind === 'free_item' || draft.appliesTo === 'items';
+  const needsItems = draft.kind === 'free_item' || (draft.kind !== 'free_delivery' && draft.appliesTo === 'items');
   if (needsItems && draft.menuItemIds.length === 0 && draft.categoryIds.length === 0) {
     problems.menuItemIds = draft.kind === 'free_item' ? 'Choose which items can be free' : 'Choose which items or categories it applies to';
   }
@@ -218,12 +234,13 @@ export function usageLabel(promotion: Pick<PromotionFields, 'maxRedemptions'> & 
 }
 
 /** The rules a till has to know about, in a line: who it needs, and what it won't combine with. */
-export function promotionConditions(promotion: Pick<
-  PromotionFields,
-  'minSubtotal' | 'maxRedemptionsPerCustomer' | 'firstOrderOnly' | 'combinesWithLoyalty'
->, symbol = '£'): string[] {
+export function promotionConditions(
+  promotion: Pick<PromotionFields, 'minSubtotal' | 'maxRedemptionsPerCustomer' | 'firstOrderOnly' | 'combinesWithLoyalty'>,
+  symbol = '£',
+): string[] {
   const conditions: string[] = [];
-  if (promotion.minSubtotal !== null && Number(promotion.minSubtotal) > 0) conditions.push(`Min. spend ${symbol}${Number(promotion.minSubtotal).toFixed(2)}`);
+  if (promotion.minSubtotal !== null && Number(promotion.minSubtotal) > 0)
+    conditions.push(`Min. spend ${symbol}${Number(promotion.minSubtotal).toFixed(2)}`);
   if (promotion.firstOrderOnly) conditions.push('First order only');
   if (promotion.maxRedemptionsPerCustomer === 1) conditions.push('Once per customer');
   else if (promotion.maxRedemptionsPerCustomer !== null) conditions.push(`${promotion.maxRedemptionsPerCustomer} per customer`);
@@ -232,7 +249,9 @@ export function promotionConditions(promotion: Pick<
 }
 
 /** The codes as a CSV file's text — for printing vouchers or loading into a mailing tool. */
-export function codesCsv(codes: readonly { code: string; maxRedemptions: number | null; redemptionCount: number; isActive: boolean }[]): string {
+export function codesCsv(
+  codes: readonly { code: string; maxRedemptions: number | null; redemptionCount: number; isActive: boolean }[],
+): string {
   const rows = codes.map((code) => [code.code, code.maxRedemptions ?? '', code.redemptionCount, code.isActive ? 'yes' : 'no'].join(','));
   return ['code,max_uses,uses,active', ...rows].join('\n');
 }

@@ -79,3 +79,13 @@ test('codes export as CSV with a header', () => {
     'code,max_uses,uses,active\nVIP-ABC,1,0,yes',
   );
 });
+
+test('free delivery needs no amount and sends none, nor any items', async () => {
+  const freeDelivery = draft({ kind: 'free_delivery', value: '', menuItemIds: ['x'], appliesTo: 'items' });
+  assert.deepEqual(promotionDraftProblems(freeDelivery, true), {});
+  const fields = draftToFields(freeDelivery);
+  assert.equal(fields.kind, 'free_delivery');
+  assert.equal(fields.value, null);
+  assert.deepEqual(fields.menuItemIds, []);
+  assert.equal(fields.appliesTo, 'order');
+});

@@ -83,6 +83,7 @@ const KINDS: { value: PromotionKind; label: string }[] = [
   { value: 'percentage', label: '% off' },
   { value: 'fixed_amount', label: 'Amount off' },
   { value: 'free_item', label: 'Free item' },
+  { value: 'free_delivery', label: 'Free delivery' },
 ];
 const CHANNEL_OPTIONS = (Object.keys(CHANNEL_LABELS) as PromotionChannel[]).map((value) => ({ value, label: CHANNEL_LABELS[value] }));
 
@@ -383,7 +384,12 @@ function PromotionForm({
                     className="w-full [&>button]:flex-1"
                   />
                 </FieldRow>
-                {draft.kind !== 'free_item' && (
+                {draft.kind === 'free_delivery' && (
+                  <p className="rounded-md border border-rule/55 bg-band/40 px-3 py-2.5 text-sm text-muted-foreground">
+                    Takes the delivery fee off a website order. The till has no delivery, so the code can’t be used there.
+                  </p>
+                )}
+                {(draft.kind === 'percentage' || draft.kind === 'fixed_amount') && (
                   <div className={cn('grid gap-3', draft.kind === 'percentage' && 'sm:grid-cols-2')}>
                     <Input
                       label={draft.kind === 'percentage' ? 'Percentage off' : 'Amount off'}
@@ -408,7 +414,7 @@ function PromotionForm({
                     )}
                   </div>
                 )}
-                {draft.kind !== 'free_item' && (
+                {(draft.kind === 'percentage' || draft.kind === 'fixed_amount') && (
                   <FieldRow icon={ShoppingBag} title="Applies to">
                     <SegmentedControl
                       options={[
@@ -422,7 +428,7 @@ function PromotionForm({
                     />
                   </FieldRow>
                 )}
-                {(draft.kind === 'free_item' || draft.appliesTo === 'items') && (
+                {(draft.kind === 'free_item' || (draft.kind !== 'free_delivery' && draft.appliesTo === 'items')) && (
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">
                       {draft.kind === 'free_item'
@@ -564,6 +570,7 @@ function PromotionForm({
 
 /** "10% off everything", "£5 off pastries", "A free item from coffee". */
 function offerSentence(fields: ReturnType<typeof draftToFields>, symbol: string) {
+  if (fields.kind === 'free_delivery') return 'Free delivery';
   const amount =
     fields.kind === 'free_item'
       ? 'A free item'

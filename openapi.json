@@ -7205,6 +7205,33 @@
         }
       }
     },
+    "/v1/store/orders/quote": {
+      "post": {
+        "operationId": "postV1StoreOrdersQuote",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Price a basket before payment",
+        "description": "Secret key only. Prices the basket exactly as the order will be — catalog prices, the promo code, VAT and delivery — and records nothing. Show the shopper `total`, charge it, then send it as the order’s `expectedTotal`. A promo code that can’t be used comes back in `promo` with the reason; the rest is priced without it. A code is only reserved when the order is placed, so it can still run out in between (409 `promo_unavailable`).",
+        "responses": {
+          "200": {
+            "description": "The priced basket"
+          },
+          "400": {
+            "description": "Unknown product or size, or a size not chosen"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "`unavailable` or `price_unavailable`"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/store/orders": {
       "post": {
         "operationId": "postV1StoreOrders",
@@ -7221,13 +7248,13 @@
             "description": "Order recorded"
           },
           "400": {
-            "description": "Unknown product or size, a size not chosen, or an invalid discount code"
+            "description": "Unknown product or size, a size not chosen, or a discount or promo code that can’t be used (`promo_invalid`)"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
           },
           "409": {
-            "description": "`out_of_stock`, `total_mismatch`, `price_unavailable` or `location_not_configured`"
+            "description": "`out_of_stock`, `total_mismatch`, `price_unavailable`, `promo_unavailable` (used up as the order was placed) or `location_not_configured`"
           },
           "429": {
             "description": "Too many requests — rate limited"

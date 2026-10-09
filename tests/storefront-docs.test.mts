@@ -17,6 +17,8 @@ test('the brief names the real address and every call, and carries no key', () =
     'total_mismatch',
     'GET /locales',
     'price_unavailable',
+    'POST /orders/quote',
+    'promo_unavailable',
   ]) {
     assert.ok(prompt.includes(call), call);
   }
@@ -34,6 +36,7 @@ test('every storefront call the docs promise is in openapi.json', () => {
   assert.ok(has('get', '/v1/store/categories'));
   assert.ok(has('get', '/v1/store/locales'));
   assert.ok(has('post', '/v1/store/orders'));
+  assert.ok(has('post', '/v1/store/orders/quote'));
   assert.ok(has('post', '/v1/store/newsletter'));
   assert.ok(has('post', '/v1/store/newsletter/unsubscribe'));
 });
