@@ -73,7 +73,9 @@
       "tags": [
         "Orders",
         "Payments",
-        "Refunds"
+        "Refunds",
+        "Promotions",
+        "Referrals"
       ]
     },
     {
@@ -1381,6 +1383,19 @@
                         "updatedAt": {
                           "type": "string",
                           "format": "date-time"
+                        }
+                      }
+                    },
+                    "workspace": {
+                      "type": "object",
+                      "nullable": true,
+                      "description": "The workspace's IANA timezone and brand colour id — every role needs both.",
+                      "properties": {
+                        "timezone": {
+                          "type": "string"
+                        },
+                        "brand": {
+                          "type": "string"
                         }
                       }
                     }
@@ -3029,6 +3044,362 @@
         ]
       }
     },
+    "/v1/promotions": {
+      "get": {
+        "operationId": "getV1Promotions",
+        "tags": [
+          "Promotions"
+        ],
+        "summary": "List promotions",
+        "responses": {
+          "200": {
+            "description": "Promotions with their code counts"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1Promotions",
+        "tags": [
+          "Promotions"
+        ],
+        "summary": "Create a promotion",
+        "description": "Creates the rule and, when `code` is given, its first shared code.",
+        "responses": {
+          "201": {
+            "description": "Promotion created"
+          },
+          "400": {
+            "description": "The rule is incomplete"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "The code is already used"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/promotions/check": {
+      "post": {
+        "operationId": "postV1PromotionsCheck",
+        "tags": [
+          "Promotions"
+        ],
+        "summary": "Check a code against a basket",
+        "description": "Whether a code can be used on this order and roughly what it takes off. Changes nothing — the order applies it for real, under lock. Line totals are the till’s own; the order is priced by the server.",
+        "responses": {
+          "200": {
+            "description": "Usable, with the estimated discount — or not, with the reason"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/promotions/{id}": {
+      "get": {
+        "operationId": "getV1PromotionsById",
+        "tags": [
+          "Promotions"
+        ],
+        "summary": "Get a promotion and its codes",
+        "responses": {
+          "200": {
+            "description": "The promotion"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1PromotionsById",
+        "tags": [
+          "Promotions"
+        ],
+        "summary": "Edit a promotion",
+        "description": "Archive with status `archived` — promotions are never deleted.",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/promotions/{id}/codes": {
+      "post": {
+        "operationId": "postV1PromotionsByIdCodes",
+        "tags": [
+          "Promotions"
+        ],
+        "summary": "Add codes",
+        "description": "One named code (`code`), or a batch of random single-use codes (`generate`, up to 1000).",
+        "responses": {
+          "201": {
+            "description": "Codes added"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "The code is already used"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/promotions/{id}/codes/{codeId}": {
+      "patch": {
+        "operationId": "patchV1PromotionsByIdCodesByCodeId",
+        "tags": [
+          "Promotions"
+        ],
+        "summary": "Switch a code on or off",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "codeId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/promotions/{id}/redemptions": {
+      "get": {
+        "operationId": "getV1PromotionsByIdRedemptions",
+        "tags": [
+          "Promotions"
+        ],
+        "summary": "Who used a promotion",
+        "responses": {
+          "200": {
+            "description": "Uses, newest first, paged"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/referrals/program": {
+      "get": {
+        "operationId": "getV1ReferralsProgram",
+        "tags": [
+          "Referrals"
+        ],
+        "summary": "Get the referral programme",
+        "responses": {
+          "200": {
+            "description": "The programme (null when not set up) and its counts"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1ReferralsProgram",
+        "tags": [
+          "Referrals"
+        ],
+        "summary": "Set up or change the referral programme",
+        "description": "One programme per workspace. The friend offer is an existing promotion — every customer’s referral code is a code of it, so its rules (first order only, minimum spend…) apply to the friend. The referrer’s reward is one loyalty reward or a single-use code of another promotion.",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "400": {
+            "description": "A promotion or programme that can’t be used"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/referrals": {
+      "get": {
+        "operationId": "getV1Referrals",
+        "tags": [
+          "Referrals"
+        ],
+        "summary": "List referrals",
+        "responses": {
+          "200": {
+            "description": "Referrals, newest first, paged"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/referrals/customers/{customerId}": {
+      "get": {
+        "operationId": "getV1ReferralsCustomersByCustomerId",
+        "tags": [
+          "Referrals"
+        ],
+        "summary": "A customer’s referral code and referrals",
+        "responses": {
+          "200": {
+            "description": "Null when the programme isn’t set up"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "customerId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/referrals/customers/{customerId}/code": {
+      "post": {
+        "operationId": "postV1ReferralsCustomersByCustomerIdCode",
+        "tags": [
+          "Referrals"
+        ],
+        "summary": "Give a customer their referral code",
+        "description": "Returns their code, issuing it the first time. 409 when the programme is paused or not set up.",
+        "responses": {
+          "200": {
+            "description": "The code"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "No active programme"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "customerId",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/tenants": {
       "post": {
         "operationId": "postV1Tenants",
@@ -3131,7 +3502,7 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "Rename the caller's own workspace",
+        "summary": "Update the caller's own workspace — name, timezone, brand colour",
         "responses": {
           "200": {
             "description": "Updated tenant"
@@ -3202,6 +3573,20 @@
                     "type": "string",
                     "minLength": 2,
                     "maxLength": 50
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "description": "IANA timezone"
+                  },
+                  "brand": {
+                    "type": "string",
+                    "enum": [
+                      "forest",
+                      "ocean",
+                      "plum",
+                      "espresso",
+                      "graphite"
+                    ]
                   }
                 }
               }
@@ -3799,7 +4184,6 @@
                 "required": [
                   "tenantId",
                   "name",
-                  "address",
                   "timezone"
                 ],
                 "properties": {
@@ -6906,6 +7290,33 @@
         ]
       }
     },
+    "/v1/store/referral-code": {
+      "post": {
+        "operationId": "postV1StoreReferralCode",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "A customer’s refer-a-friend code",
+        "description": "Secret key only — from your server, for a signed-in shopper. Returns their own code, issuing it the first time, for an \"invite a friend\" page. The customer must already exist (they have ordered or signed up): 404 `customer_not_found` otherwise. 409 `referrals_unavailable` when the programme is paused or not set up.",
+        "responses": {
+          "200": {
+            "description": "{ data: { code } }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "`customer_not_found`"
+          },
+          "409": {
+            "description": "`referrals_unavailable`"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/store/newsletter": {
       "post": {
         "operationId": "postV1StoreNewsletter",
@@ -6948,6 +7359,33 @@
         }
       }
     },
+    "/v1/store/orders/quote": {
+      "post": {
+        "operationId": "postV1StoreOrdersQuote",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Price a basket before payment",
+        "description": "Secret key only. Prices the basket exactly as the order will be — catalog prices, the promo code, VAT and delivery — and records nothing. Show the shopper `total`, charge it, then send it as the order’s `expectedTotal`. A promo code that can’t be used comes back in `promo` with the reason; the rest is priced without it. A code is only reserved when the order is placed, so it can still run out in between (409 `promo_unavailable`).",
+        "responses": {
+          "200": {
+            "description": "The priced basket"
+          },
+          "400": {
+            "description": "Unknown product or size, or a size not chosen"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "`unavailable` or `price_unavailable`"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/store/orders": {
       "post": {
         "operationId": "postV1StoreOrders",
@@ -6964,13 +7402,13 @@
             "description": "Order recorded"
           },
           "400": {
-            "description": "Unknown product or size, a size not chosen, or an invalid discount code"
+            "description": "Unknown product or size, a size not chosen, or a discount or promo code that can’t be used (`promo_invalid`)"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
           },
           "409": {
-            "description": "`out_of_stock`, `total_mismatch`, `price_unavailable` or `location_not_configured`"
+            "description": "`out_of_stock`, `total_mismatch`, `price_unavailable`, `promo_unavailable` (used up as the order was placed) or `location_not_configured`"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -7278,6 +7716,11 @@
                     ],
                     "example": "card"
                   },
+                  "promoCode": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "description": "A promo code for the whole order (promotions module). Applied after loyalty rewards, split across lines before VAT."
+                  },
                   "items": {
                     "type": "array",
                     "minItems": 1,
@@ -7351,7 +7794,7 @@
             "description": "Forbidden — wrong location or no tenant"
           },
           "409": {
-            "description": "Idempotency-Key was already used for a different order"
+            "description": "Idempotency-Key was already used for a different order, or the promo code was used up while the order was placed"
           },
           "429": {
             "description": "Too many requests — rate limited"

@@ -19,12 +19,14 @@ import { StatusDot } from '@/components/shared/StatusDot';
 import { SlideToClockIn } from '@/components/shifts/SlideToClockIn';
 import { Button } from '@/components/ui/button';
 
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { getMenuItemModifierGroups, getMenuItemModifiers } from '@/lib/modules/catalog/client';
 import { API_PREFIX } from '@/lib/modules/core/client';
 import { getCustomer, getCustomerLoyaltyWallet } from '@/lib/modules/customers/client';
 import { type CreateOrderPayload, createOrder, updateOrderStatus } from '@/lib/modules/ordering/client';
 import { getLocationsByTenant, getTradingSettings } from '@/lib/modules/organization/client';
 import { type PaymentAttempt, type PaymentMethod, confirmPayment, getPaymentMethods, startPayment } from '@/lib/modules/payments/client';
+import { checkPromotionCode } from '@/lib/modules/promotions/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
@@ -37,6 +39,7 @@ import {
   countByItem,
   isUnreachable,
   lineKey,
+  promoCheckLines,
 } from '@/lib/utils/pos';
 import { validLoyaltyRewards } from '@/lib/utils/pos-loyalty';
 import { formatInstant } from '@/lib/utils/workspace-time';
@@ -98,6 +101,8 @@ export default function POSPage() {
 
   const layout = usePosSettingsStore();
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [promoCode, setPromoCode] = useState<string | null>(null);
+  const promotionsOn = useModuleEnabled('promotions');
   const [customising, setCustomising] = useState<{ item: MenuItem; groups: OptionGroupRule[] | null } | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [chosenRewards, setChosenRewards] = useState<AppliedLoyaltyReward[]>([]);
@@ -343,6 +348,7 @@ export default function POSPage() {
     setSelectedCustomer(null);
     setNotes('');
     setChosenRewards([]);
+    setPromoCode(null);
     setRemoved(null);
     handleCancelItem();
   }
@@ -385,6 +391,7 @@ export default function POSPage() {
     source: 'pos',
     paymentMethod: provider,
     notes: orderNotes || undefined,
+    ...(promoCode ? { promoCode } : {}),
     ...(loyaltyRewards.length > 0
       ? {
           loyaltyRedemptions: loyaltyRewards.map((reward) => ({
@@ -404,7 +411,7 @@ export default function POSPage() {
   });
 
   function handleCharge() {
-    const signature = `${cartSignature(cart, selectedCustomer?.id, notes)}|${JSON.stringify(loyaltyRewards.map(({ programId, cartId, modifierId, quantity }) => ({ programId, cartId, modifierId, quantity })))}`;
+    const signature = `${cartSignature(cart, selectedCustomer?.id, notes)}|${JSON.stringify(loyaltyRewards.map(({ programId, cartId, modifierId, quantity }) => ({ programId, cartId, modifierId, quantity })))}|${promoCode ?? ''}`;
     const previous = session.current;
     if (!previous || previous.signature !== signature) {
       // The basket changed since an order was created for it: that order will never be paid, so void it.
@@ -418,7 +425,8 @@ export default function POSPage() {
     }
     setSnapshot({
       lines: cart,
-      total: Math.max(0, cartTotal(cart) - loyaltyRewards.reduce((sum, reward) => sum + reward.discountCents, 0)),
+      // An estimate until the order comes back with the server's own total.
+      total: Math.max(0, cartTotal(cart) - loyaltyRewards.reduce((sum, reward) => sum + reward.discountCents, 0) - promoDiscountCents),
       customerName: selectedCustomer ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}` : undefined,
       ...(loyaltyRewards.length > 0
         ? {
@@ -436,6 +444,38 @@ export default function POSPage() {
   }
 
   const online = useOnline();
+
+  // ── Promo code ──
+  // Checked against the basket as it stands (lines after loyalty rewards), the
+  // customer and whether a reward is used — re-asked whenever any of them
+  // changes. The order checks it again under lock and prices it for real.
+  const promoLines = useMemo(() => promoCheckLines(cart, loyaltyRewards), [cart, loyaltyRewards]);
+  const promoCheck = useQuery({
+    queryKey: moduleQueryKeys.promotions.key(
+      'check',
+      promoCode,
+      locationId,
+      selectedCustomer?.id ?? null,
+      loyaltyRewards.length > 0,
+      promoLines,
+    ),
+    queryFn: () =>
+      checkPromotionCode({
+        code: promoCode!,
+        locationId: locationId!,
+        source: 'pos',
+        customerId: selectedCustomer?.id ?? null,
+        usesLoyalty: loyaltyRewards.length > 0,
+        lines: promoLines,
+      }),
+    enabled: Boolean(promotionsOn && promoCode && locationId && cart.length > 0 && online),
+    placeholderData: (previous) => previous,
+    retry: false,
+  });
+  const promoDiscountCents =
+    promoCode && promoCheck.data?.valid && promoCheck.data.estimatedDiscount
+      ? Math.round(Number(promoCheck.data.estimatedDiscount) * 100)
+      : 0;
 
   const { mutate: submitOrder, isPending: isStarting } = useMutation({
     // CRITICAL: React Query's default networkMode 'online' PAUSES mutations
@@ -482,6 +522,12 @@ export default function POSPage() {
     onError: (err, method) => {
       const unreachable = isUnreachable(err);
       const orderExists = !!session.current?.orderId;
+      // A code can't be checked or its use reserved offline, and a queued sale
+      // that later fails its code would leave a discount nobody can account for.
+      if (unreachable && !orderExists && promoCode) {
+        setCheckoutError('Promo codes need a connection. Remove the code to take this sale offline, or try again when you’re back online.');
+        return;
+      }
       if (unreachable && !orderExists && (method.provider === 'cash' || method.provider === 'manual_terminal')) {
         setOfflinePayment(method);
         setPaymentMethod(method);
@@ -799,6 +845,20 @@ export default function POSPage() {
                 onDiscardHeld={(id) => useHeldTicketsStore.getState().discard(id)}
                 onCharge={handleCharge}
                 currency={currency}
+                promo={
+                  promotionsOn
+                    ? {
+                        code: promoCode,
+                        check: promoCheck.data,
+                        checking: promoCheck.isFetching,
+                        failed: promoCheck.isError,
+                        discountCents: promoDiscountCents,
+                        offline: !online,
+                        onApply: setPromoCode,
+                        onRemove: () => setPromoCode(null),
+                      }
+                    : undefined
+                }
               />
             </PageSidebar>
           )}

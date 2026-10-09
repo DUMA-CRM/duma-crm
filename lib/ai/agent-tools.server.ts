@@ -249,6 +249,8 @@ const MODULE_NAMES: Record<ModuleId, string> = {
   agent: 'Ask DUMA',
   support: 'Support & helpdesk',
   cms: 'Content (CMS)',
+  promotions: 'Promotions',
+  referrals: 'Refer a friend',
 };
 
 const getWorkspaceModules: ToolDefinition = {

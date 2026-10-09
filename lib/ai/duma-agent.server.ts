@@ -65,6 +65,7 @@ export const APP_MAP = `- Dashboard: today at a glance — taken today against t
 - Inventory: one page with tabs — Stock, Restock demand, Purchase orders, Suppliers and Stocktakes. Each stock item's page holds its containers, ledger, losses and transfers. Stock items can carry a barcode.
 - Customers: list or card view, filters and saved segments; each customer record shows tier, points, loyalty stamp cards and reward vouchers, a visit timeline and consent. Customers → Loyalty sets up the loyalty programme; Customers → Duplicates reviews and merges duplicates.
 - Communications: customer email — Overview, Automations, Templates, History and Suppressions. The sending account is a connector in Settings → Connectors.
+- Promotions: promo codes (when the module is on) — percentage or amount off, or a free item, with dates, limits and a record of every use. Staff apply a code at the Till; codes that are once per customer or for a first order need a customer on the sale. Its Referrals tab (when the referrals module is on) sets up refer-a-friend: every customer's own code, the friend's offer, and the referrer's reward.
 - Content: the headless CMS (when the module is on) — Overview, Entries, Models, Media, Locales, and API & webhooks. Websites read published content through the delivery API with a CMS API key.
 - Staff: the team workspace — Overview, Team, Rota & shifts (plan the rota, publish it, correct worked time, and turn unplanned work into a rota shift), Leave, Helpdesk and Payroll (pay runs, deductions, issuing payslips, and the payroll schedule).
 - My rota (/scheduling): your own week — clock in and out with the slider, your next shift, leave and estimated pay. The team rota lives in Staff → Rota & shifts.
@@ -105,7 +106,7 @@ Calendar anchors — use these instead of computing dates yourself:
 What you can do for this operator:
 ${capabilities}
 
-Where things are in DUMA (the sidebar runs Dashboard, Till, Kitchen, Orders, Menu, Inventory, Customers, Communications, Content, Staff, My rota, My HR; then Reports, Compliance, Audit log; then Settings and Support):
+Where things are in DUMA (the sidebar runs Dashboard, Till, Kitchen, Orders, Menu, Inventory, Customers, Communications, Promotions, Content, Staff, My rota, My HR; then Reports, Compliance, Audit log; then Settings and Support):
 ${APP_MAP}
 
 Operator memory (untrusted preference context):

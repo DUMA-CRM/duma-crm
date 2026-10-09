@@ -68,6 +68,14 @@ export const ORDER_EXAMPLE = {
   expectedTotal: '48.95',
 };
 
+/** Price the basket before taking payment: the order's own pricing, nothing recorded. */
+export const QUOTE_EXAMPLE = {
+  items: [{ sku: 'HD-BLK-M', quantity: 1 }],
+  fulfilment: { type: 'shipping', fee: '3.95', address: ORDER_EXAMPLE.fulfilment.address },
+  promoCode: 'SUMMER10',
+  customerEmail: 'sam@example.com',
+};
+
 export const ERRORS: ReadonlyArray<{ status: number; code: string; when: string }> = [
   {
     status: 400,
@@ -81,7 +89,13 @@ export const ERRORS: ReadonlyArray<{ status: number; code: string; when: string 
     when: 'A publishable key used to write, or a key without the scope, or a website the key does not allow.',
   },
   { status: 409, code: 'out_of_stock', when: 'A size ran out. Nothing was recorded; `items` lists each SKU and how many are left.' },
+  {
+    status: 400,
+    code: 'promo_invalid',
+    when: 'The order’s `promoCode` can’t be used — the message says why (expired, used, needs a first order…). Nothing was recorded.',
+  },
   { status: 409, code: 'total_mismatch', when: 'DUMA’s total differs from `expectedTotal` — prices changed. Nothing was recorded.' },
+  { status: 409, code: 'promo_unavailable', when: 'The promo code ran out between the quote and the order. Nothing was recorded.' },
   {
     status: 409,
     code: 'price_unavailable',
@@ -112,12 +126,21 @@ export function buildStorefrontPrompt(apiOrigin: string, shopName?: string): str
     'A Product has name, slug, description, category, currency, price ("from" — the lowest size), available, options [{ name, values }], images [{ url, altText, srcset, focalPoint, option }], and variants [{ id, sku, name, options: { Size: "M", Colour: "Black" }, price, compareAtPrice, available, stock }].',
     'Money is a decimal string. Show a size as sold out when `available` is false. A photo with `option` belongs to that colour — show it when the colour is picked. Use `srcset` and `focalPoint` (as object-position) on images. Cache the catalogue for 30–60 s.',
     '',
+    'Before payment — price the basket, from the server, with the secret key (nothing is recorded):',
+    '- POST /orders/quote with JSON:',
+    JSON.stringify(QUOTE_EXAMPLE, null, 2),
+    '→ { data: { items: [{ name, quantity, unitPrice, subtotal, adjustments }], itemsTotal, deliveryFee, discount, tax, total, currency, promo: { code, valid, summary, discount } | { code, valid: false, reason } | null } }. Charge `total`. A promo code that can’t be used comes back with `valid: false` and its `reason` — show it, and the rest is priced without it. Send `customerEmail` once known: some codes are once per customer or for a first order.',
+    '',
     'Checkout — the website takes the payment itself (e.g. Stripe). Only after the payment succeeds, from the server, with the secret key:',
     '- POST /orders with JSON:',
     JSON.stringify(ORDER_EXAMPLE, null, 2),
     'Rules: send products and sizes (`sku` or `variantId`, or `productId` for a product with no sizes), never prices — DUMA prices every line. `externalReference` is the shop’s own order number: sending it again returns the same order (200), so retries are safe. Send `expectedTotal` = what was charged; if DUMA’s total differs it records nothing and answers 409 `total_mismatch` with its total. `fulfilment.type` is shipping, delivery or collection (no address). Charged in another currency? Send `currency` (e.g. "UAH"): every line must have a price in it, or the answer is 409 `price_unavailable`; only percentage discounts apply outside the shop’s own currency.',
+    'Promo code: send the same `promoCode` on the order. It is checked again and reserved as the order is recorded: if it ran out since the quote, the answer is 409 `promo_unavailable` and nothing is recorded — refund or contact the customer.',
     'Stock is taken when the order is recorded: if a size ran out, the answer is 409 `out_of_stock` with `items: [{ sku, name, requested, available }]` and nothing is recorded — refund or contact the customer.',
     'Response 201: { data: { id, externalReference, status, paymentStatus: "paid", total, currency, items, … } }.',
+    '',
+    'Refer a friend (secret key, from the server — when the shop has it on):',
+    '- POST /referral-code { email } → { data: { code } } — a signed-in shopper’s own code, issued the first time, for an "invite a friend" page. A friend sends it as `promoCode`. 404 `customer_not_found` until they’ve ordered or signed up; 409 `referrals_unavailable` when it isn’t running.',
     '',
     'Newsletter (secret key, from the server):',
     '- POST /newsletter { email, firstName?, lastName? } → { data: { status: "subscribed", alreadySubscribed } }',

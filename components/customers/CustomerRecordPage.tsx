@@ -8,6 +8,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { CustomerAddresses } from '@/components/customers/CustomerAddresses';
 import { CustomerFormDrawer } from '@/components/customers/CustomerForm';
 import { CustomerLoyaltyCards } from '@/components/customers/CustomerLoyaltyCards';
+import { CustomerReferralCard } from '@/components/customers/CustomerReferralCard';
 import { CustomerTimeline } from '@/components/customers/CustomerTimeline';
 import { CustomerWorkbench, type WorkbenchAction } from '@/components/customers/CustomerWorkbench';
 import { GuestSafetyBlock } from '@/components/customers/GuestSafetyBlock';
@@ -107,6 +108,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   // visits come from Orders. A disabled module's routes refuse even a capable
   // role, so nothing here asks a module that's off.
   const commsOn = useModuleEnabled('communications');
+  const referralsOn = useModuleEnabled('referrals');
   const complianceOn = useModuleEnabled('compliance');
   const orderingOn = useModuleEnabled('ordering');
   const posOn = useModuleEnabled('pos');
@@ -395,6 +397,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
               {section === 'guest' ? (
                 <>
                   <GlanceFacts customer={customer} avgTicket={avgTicket} summary={visitSummary} money={money} />
+
+                  {referralsOn && !erased && <CustomerReferralCard customerId={customer.id} canIssue={canEdit} />}
 
                   {orderingOn && !visitsForbidden && (
                     <SettingsSection

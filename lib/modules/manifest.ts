@@ -23,6 +23,8 @@ export const MODULE_IDS = [
   'agent',
   'support',
   'cms',
+  'promotions',
+  'referrals',
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];
@@ -109,6 +111,10 @@ export const CRM_MODULE_CAPABILITIES = {
   agent: [],
   support: ['helpdesk:manage'],
   cms: ['cms:read', 'cms:write', 'cms:publish', 'cms.schema:write', 'cms.keys:write'],
+  // Managing promo codes; applying one at the till is orders:create.
+  promotions: ['promotions:read', 'promotions:write'],
+  // The refer-a-friend programme and who referred whom.
+  referrals: ['referrals:read', 'referrals:write'],
 } as const satisfies Record<ModuleId, readonly string[]>;
 
 type CrmCapabilityRegistry = typeof CRM_MODULE_CAPABILITIES;
@@ -190,6 +196,8 @@ const pages: Record<ModuleId, readonly string[]> = {
   agent: [],
   support: ['/staff/helpdesk', '/support', '/support/[slug]'],
   cms: ['/content'],
+  promotions: ['/promotions'],
+  referrals: ['/promotions/referrals'],
 };
 
 const dependencies: Record<ModuleId, readonly ModuleId[]> = {
@@ -215,6 +223,8 @@ const dependencies: Record<ModuleId, readonly ModuleId[]> = {
   agent: ['core', 'analytics', 'inventory', 'workforce'],
   support: ['identity', 'organization'],
   cms: ['organization'],
+  promotions: ['catalog', 'customers', 'ordering', 'organization'],
+  referrals: ['customers', 'ordering', 'organization', 'promotions'],
 };
 
 const navigation: Record<ModuleId, readonly string[]> = {
@@ -240,6 +250,9 @@ const navigation: Record<ModuleId, readonly string[]> = {
   agent: [],
   support: ['/support'],
   cms: ['/content'],
+  promotions: ['/promotions'],
+  // A tab of Promotions, not a sidebar entry of its own.
+  referrals: [],
 };
 
 export const CRM_MODULE_MANIFESTS: readonly ModuleManifest[] = MODULE_IDS.map((id) => ({

@@ -8,7 +8,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { CopyButton } from '@/components/ui/action-button';
 
 import { cn } from '@/lib/utils/cn';
-import { ERRORS, ORDER_EXAMPLE, PRODUCT_EXAMPLE, buildStorefrontPrompt } from '@/lib/utils/storefront-docs';
+import { ERRORS, ORDER_EXAMPLE, PRODUCT_EXAMPLE, QUOTE_EXAMPLE, buildStorefrontPrompt } from '@/lib/utils/storefront-docs';
 import { toast } from '@/stores/toastStore';
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:7777';
@@ -81,17 +81,38 @@ export function StorefrontDocs({ shopName }: { shopName?: string }) {
         )}
         {topic === 'orders' && (
           <div className="space-y-3">
+            <Call
+              method="POST"
+              path="/orders/quote"
+              note="Secret key, from your server — before payment. Prices the basket; records nothing."
+            />
+            <Code text={JSON.stringify(QUOTE_EXAMPLE, null, 2)} />
+            <Tip>
+              Charge the <C>total</C> it returns. A promo code that can’t be used comes back with <C>valid: false</C> and a <C>reason</C> to
+              show the shopper; the rest is priced without it.
+            </Tip>
             <Call method="POST" path="/orders" note="Secret key, from your server — after your checkout has taken the payment." />
             <Code text={JSON.stringify(ORDER_EXAMPLE, null, 2)} />
             <Tip>
               Send products and sizes, never prices — DUMA prices every line. Sending the same <C>externalReference</C> again returns the
-              same order, so a retry is safe. Stock comes off at once; a size that ran out fails the whole order with{' '}
+              same order, so a retry is safe. Send the same <C>promoCode</C> as the quote — it’s reserved now, and if it ran out in between
+              the answer is <C>409 promo_unavailable</C>. Stock comes off at once; a size that ran out fails the whole order with{' '}
               <C>409 out_of_stock</C> and nothing is recorded.
             </Tip>
           </div>
         )}
         {topic === 'newsletter' && (
           <div className="space-y-3">
+            <Call
+              method="POST"
+              path="/referral-code"
+              note="Secret key, from your server — a signed-in shopper’s own refer-a-friend code."
+            />
+            <Code text={JSON.stringify({ email: 'sam@example.com' }, null, 2)} />
+            <Tip>
+              Show it on an “invite a friend” page; a friend sends it as the order’s <C>promoCode</C>. Only when the shop has refer a friend
+              on — <C>409 referrals_unavailable</C> otherwise.
+            </Tip>
             <Call method="POST" path="/newsletter" note="Secret key, from your server — when someone signs up." />
             <Code text={JSON.stringify({ email: 'sam@example.com', firstName: 'Sam' }, null, 2)} />
             <Tip>

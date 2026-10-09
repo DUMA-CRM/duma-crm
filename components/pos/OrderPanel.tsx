@@ -21,6 +21,7 @@ import {
 import { CartRow } from '@/components/pos/CartRow';
 import { CustomerAttach, type CustomerView } from '@/components/pos/CustomerAttach';
 import { ItemCustomiser } from '@/components/pos/ItemCustomiser';
+import { PromoCodeEntry } from '@/components/pos/PromoCodeEntry';
 import { Avatar } from '@/components/shared/Avatar';
 import { RelativeTime } from '@/components/shared/RelativeTime';
 import { Bone } from '@/components/shared/Skeleton';
@@ -64,6 +65,8 @@ interface OrderPanelProps {
   onDiscardHeld: (id: string) => void;
   onCharge: () => void;
   currency?: string;
+  /** Present when the promotions module is on for this workspace. */
+  promo?: React.ComponentProps<typeof PromoCodeEntry> | undefined;
 }
 
 export function OrderPanel(props: OrderPanelProps) {
@@ -94,6 +97,7 @@ export function OrderPanel(props: OrderPanelProps) {
     onDiscardHeld,
     onCharge,
     currency,
+    promo,
   } = props;
   const [view, setView] = useState<'ticket' | 'customer' | 'held' | 'rewards'>('ticket');
   const [customerView, setCustomerView] = useState<CustomerView>('find');
@@ -111,7 +115,8 @@ export function OrderPanel(props: OrderPanelProps) {
 
   const count = cartCount(cart);
   const loyaltyDiscount = loyaltyRewards.reduce((sum, reward) => sum + reward.discountCents, 0);
-  const total = Math.max(0, cartTotal(cart) - loyaltyDiscount);
+  // The promo's saving is the API's estimate; the order's own total replaces it at Charge.
+  const total = Math.max(0, cartTotal(cart) - loyaltyDiscount - (promo?.discountCents ?? 0));
   const empty = cart.length === 0;
 
   let body: React.ReactNode;
@@ -277,8 +282,7 @@ export function OrderPanel(props: OrderPanelProps) {
                         </p>
                         {programme.nextRewardExpiresAt && (
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            Earliest reward expires{' '}
-                            {formatInstant(programme.nextRewardExpiresAt, { dateStyle: 'medium' })}
+                            Earliest reward expires {formatInstant(programme.nextRewardExpiresAt, { dateStyle: 'medium' })}
                           </p>
                         )}
                       </div>
@@ -560,6 +564,7 @@ export function OrderPanel(props: OrderPanelProps) {
               <span className="sr-only">{loyaltyRewards.length > 0 ? 'Change rewards' : 'View rewards'}</span>
             </button>
           )}
+          {promo && (!empty || promo.code) && <PromoCodeEntry {...promo} currency={currency} />}
           {noteOpen || notes ? (
             <div className="relative">
               <FileText size={16} aria-hidden="true" className="pointer-events-none absolute left-3.5 top-4 text-muted-foreground" />

@@ -269,6 +269,8 @@ export interface CreateOrderPayload {
     modifierId?: string;
     quantity: number;
   }>;
+  /** A promotions-module code for the whole order. The API checks it again, under lock, and prices it. */
+  promoCode?: string;
   items: CreateOrderItem[];
 }
 
