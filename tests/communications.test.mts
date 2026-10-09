@@ -30,7 +30,8 @@ test('rich template designs compile to safe email HTML and plain text', () => {
 });
 
 test('pasted HTML survives the trip back to the designer and sends verbatim', () => {
-  const pasted = '<html><body><table><tr><td style="color:red">Hi {{customer.firstName}}</td></tr></table><a href="https://x.test">Order</a></body></html>';
+  const pasted =
+    '<html><body><table><tr><td style="color:red">Hi {{customer.firstName}}</td></tr></table><a href="https://x.test">Order</a></body></html>';
   const base = { ...defaultTemplateDesign(), preheader: 'Fresh this week' };
   const design = htmlToDesign(pasted, base);
 
@@ -93,5 +94,80 @@ test('workflow display order follows graph connections rather than insertion ord
   assert.deepEqual(
     orderedWorkflowNodes(expanded).map((node) => node.type),
     ['trigger', 'delay', 'send_email', 'end'],
+  );
+});
+
+test('the HTML editor checks the HTML and plain text, not the blocks it is not sending', async () => {
+  const { templateChecks, defaultTemplateDesign } = await import('../components/communications/templateDesign.ts');
+  const html = { htmlBody: '<p>Hi {{customer_name}}, order {{order.number}}</p>', textBody: 'Total {{order_total}}' };
+  const checks = templateChecks(defaultTemplateDesign(), 'Hi', ['customer.firstName', 'order.number'], html);
+  assert.deepEqual(
+    checks.filter((check) => check.token).map((check) => check.token),
+    ['customer_name', 'order_total'],
+  );
+  // The preview text is read from the HTML there: none in it, so it's asked for…
+  assert.ok(checks.some((check) => check.key === 'preheader'));
+  // …and once the HTML carries one, it isn't.
+  const { setHtmlPreheader } = await import('../components/communications/templateDesign.ts');
+  const withPreview = { ...html, htmlBody: setHtmlPreheader(html.htmlBody, 'Fresh this week') };
+  assert.ok(!templateChecks(defaultTemplateDesign(), 'Hi', ['customer.firstName'], withPreview).some((check) => check.key === 'preheader'));
+});
+
+test('token segments mark only the fields we cannot fill, and keep every character', async () => {
+  const { tokenSegments } = await import('../components/communications/templateDesign.ts');
+  const text = 'Hi {{customer.firstName}}, see {{ nope }}.';
+  const segments = tokenSegments(text, ['customer.firstName']);
+  assert.equal(segments.map((segment) => segment.text).join(''), text);
+  assert.deepEqual(
+    segments.filter((segment) => segment.unknown).map((segment) => segment.text),
+    ['{{ nope }}'],
+  );
+  // Before the variables load, nothing is called wrong.
+  assert.ok(tokenSegments(text, []).every((segment) => !segment.unknown));
+});
+
+test('preview text round-trips through the HTML, and matches what the renderer writes', async () => {
+  const { readHtmlPreheader, setHtmlPreheader, renderTemplateDesign, htmlToDesign, defaultTemplateDesign } =
+    await import('../components/communications/templateDesign.ts');
+  const design = { ...defaultTemplateDesign(), preheader: 'Old line' };
+  const rendered = renderTemplateDesign(design);
+  // Replaced in place: the same bytes the renderer writes for the new text.
+  assert.equal(setHtmlPreheader(rendered, 'Fish & chips <today>'), renderTemplateDesign({ ...design, preheader: 'Fish & chips <today>' }));
+  assert.equal(readHtmlPreheader(setHtmlPreheader(rendered, 'Fish & chips <today>')), 'Fish & chips <today>');
+  // Cleared, then added back to HTML that never had one.
+  assert.equal(readHtmlPreheader(setHtmlPreheader(rendered, '')), null);
+  const page = '<html><body><p>Hi</p></body></html>';
+  assert.equal(readHtmlPreheader(setHtmlPreheader(page, 'New')), 'New');
+  // Opening HTML brings its preview text into the design.
+  assert.equal(htmlToDesign(setHtmlPreheader(page, 'From the HTML'), design).preheader, 'From the HTML');
+});
+
+test('a preview line written by hand, in another shape, is read and rewritten in place', async () => {
+  const { readHtmlPreheader, setHtmlPreheader } = await import('../components/communications/templateDesign.ts');
+  const byClass = '<body><span class="preheader" style="color:transparent">Your table is booked&nbsp;&zwnj;&#847;</span><p>Hi</p></body>';
+  assert.equal(readHtmlPreheader(byClass), 'Your table is booked');
+  const rewritten = setHtmlPreheader(byClass, 'See you at 7');
+  assert.equal(readHtmlPreheader(rewritten), 'See you at 7');
+  // Their markup is kept; only the words change.
+  assert.ok(rewritten.startsWith('<body><span class="preheader" style="color:transparent">See you at 7'));
+  assert.ok(rewritten.endsWith('</span><p>Hi</p></body>'));
+
+  const byStyle = '<div style="display: none; font-size:1px">Order &amp; pay ahead</div><p>Body</p>';
+  assert.equal(readHtmlPreheader(byStyle), 'Order & pay ahead');
+  assert.equal(setHtmlPreheader(byStyle, ''), '<p>Body</p>');
+  assert.equal(readHtmlPreheader('<p>No preview here</p>'), null);
+});
+
+test('the preview element holds just the words — no spacer entities — and old padded ones still read clean', async () => {
+  const { readHtmlPreheader, setHtmlPreheader, renderTemplateDesign, defaultTemplateDesign } =
+    await import('../components/communications/templateDesign.ts');
+  const html = renderTemplateDesign({ ...defaultTemplateDesign(), preheader: 'Ми вже почали його обробку' });
+  assert.ok(html.includes('mso-hide:all">Ми вже почали його обробку</div>'));
+  assert.ok(!/&#847;|&zwnj;|&nbsp;/.test(html.slice(0, html.indexOf('</div>') + 6)));
+  const padded = `<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">Old line${'&#847;&zwnj;&nbsp;'.repeat(40)}</div><p>Hi</p>`;
+  assert.equal(readHtmlPreheader(padded), 'Old line');
+  assert.equal(
+    setHtmlPreheader(padded, 'New line'),
+    '<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">New line</div><p>Hi</p>',
   );
 });

@@ -1,85 +1,123 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
+
+import { copyText } from '@/components/cms/shared';
+import { Check, Copy } from '@/components/icons';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Tooltip } from '@/components/shared/Tooltip';
+
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 
-import { labelClass } from './shared';
-
-/** Human-readable hints for the variable groups the API returns. */
+/** The variable groups the API returns, short enough to sit side by side. */
 const GROUP_LABELS: Record<string, string> = {
   customer: 'Customer',
   order: 'Order',
   location: 'Location',
-  brand: 'Your business',
+  brand: 'Business',
   other: 'Other',
 };
 
 const GROUP_ORDER = ['customer', 'order', 'location', 'brand', 'other'];
 
+/** `customer.firstName` → "First name"; `order.pickup_time` → "Pickup time". */
+export function variableLabel(variable: string): string {
+  const leaf = variable.includes('.') ? variable.split('.').slice(1).join(' ') : variable;
+  const words = leaf
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[._-]+/g, ' ')
+    .trim()
+    .toLowerCase();
+  return words ? words[0]!.toUpperCase() + words.slice(1) : variable;
+}
+
 /**
- * Clickable list of the variables a template can use. Clicking inserts the
- * variable into the field the user was last typing in; if they haven't clicked
- * into a field yet, it copies instead so nothing is lost.
+ * The variables a template can use: a switch between groups, the group's
+ * fields as chips. Clicking a chip copies its token, so it can be pasted
+ * exactly where it belongs — mid-sentence, in a link, in the HTML.
  */
-export function VariablePalette({
-  variables,
-  onInsert,
-  hideHeading = false,
-}: {
-  variables: string[];
-  onInsert: (token: string) => boolean;
-  /** Inside a titled section that already explains it. */
-  hideHeading?: boolean;
-}) {
+export function VariablePalette({ variables }: { variables: string[] }) {
   const groups = new Map<string, string[]>();
   for (const variable of variables) {
-    const group = variable.includes('.') ? variable.split('.')[0] : 'other';
+    const group = variable.includes('.') ? variable.split('.')[0]! : 'other';
     groups.set(group, [...(groups.get(group) ?? []), variable]);
   }
-  const ordered = [...groups.entries()].sort(
-    (a, b) => (GROUP_ORDER.indexOf(a[0]) + 1 || 99) - (GROUP_ORDER.indexOf(b[0]) + 1 || 99) || a[0].localeCompare(b[0]),
+  const ordered = [...groups.keys()].sort(
+    (a, b) => (GROUP_ORDER.indexOf(a) + 1 || 99) - (GROUP_ORDER.indexOf(b) + 1 || 99) || a.localeCompare(b),
   );
 
-  const handleClick = (variable: string) => {
+  const [picked, setPicked] = useState<string | null>(null);
+  const group = picked && groups.has(picked) ? picked : ordered[0];
+  const [copied, setCopied] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const copy = async (variable: string) => {
     const token = `{{${variable}}}`;
-    if (onInsert(token)) return;
-    navigator.clipboard?.writeText(token);
-    toast('success', `Copied ${token} — click into a field, then paste.`);
+    if (!(await copyText(token))) {
+      toast('error', `Copy failed — type ${token} instead.`);
+      return;
+    }
+    setCopied(variable);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(null), 1800);
   };
 
-  if (!variables.length) return null;
+  if (!group) return null;
 
   return (
-    <div>
-      {!hideHeading && (
-        <>
-          <p className={labelClass}>Personalise it</p>
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            Click a chip to drop it where your cursor is. Each one is replaced with real details when the email is sent.
-          </p>
-        </>
+    <div className="space-y-3">
+      {ordered.length > 1 && (
+        <SegmentedControl
+          options={ordered.map((value) => ({ value, label: GROUP_LABELS[value] ?? variableLabel(value) }))}
+          value={group}
+          onChange={setPicked}
+          ariaLabel="Variable group"
+          className="w-full [&>button]:flex-1"
+        />
       )}
-      <div className={cn('space-y-3', !hideHeading && 'mt-3')}>
-        {ordered.map(([group, items]) => (
-          <div key={group}>
-            <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground/70">{GROUP_LABELS[group] ?? group}</p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {items.map((variable) => (
+
+      <ul className="flex flex-wrap gap-1.5" aria-label={`${GROUP_LABELS[group] ?? variableLabel(group)} variables`}>
+        {(groups.get(group) ?? []).map((variable) => {
+          const done = copied === variable;
+          const token = `{{${variable}}}`;
+          return (
+            <li key={variable}>
+              <Tooltip side="top" label={done ? 'Copied' : token}>
                 <button
-                  key={variable}
                   type="button"
-                  onClick={() => handleClick(variable)}
-                  // Merge fields are accent-coloured wherever they appear, chips included.
-                  className="rounded-sm bg-band px-2 py-1 font-mono text-label text-primary transition-colors hover:bg-band"
-                  title={`Insert {{${variable}}}`}
+                  onClick={() => void copy(variable)}
+                  aria-label={done ? `Copied ${token}` : `Copy ${token}`}
+                  className={cn(
+                    'group inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring',
+                    done
+                      ? 'border-success/50 bg-success/8 text-success'
+                      : 'border-rule/60 bg-background text-foreground hover:border-primary/40 hover:bg-primary/6 hover:text-primary',
+                  )}
                 >
-                  {variable.includes('.') ? variable.split('.').slice(1).join('.') : variable}
+                  {variableLabel(variable)}
+                  {done ? (
+                    <Check size={13} aria-hidden="true" />
+                  ) : (
+                    <Copy size={13} className="text-muted-foreground transition-colors group-hover:text-primary" aria-hidden="true" />
+                  )}
                 </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+              </Tooltip>
+            </li>
+          );
+        })}
+      </ul>
+
+      <p className="text-xs text-muted-foreground" aria-live="polite">
+        {copied ? (
+          <>
+            Copied <span className="font-mono text-primary">{`{{${copied}}}`}</span> — paste it anywhere.
+          </>
+        ) : (
+          'Click to copy, then paste anywhere.'
+        )}
+      </p>
     </div>
   );
 }

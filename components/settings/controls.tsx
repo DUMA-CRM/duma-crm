@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { type IconComponent, Minus, Plus } from '@/components/icons';
+import { type IconComponent, Minus, Pencil, Plus } from '@/components/icons';
 import { ActionButton } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { DurationPicker } from '@/components/ui/duration-picker';
@@ -231,6 +231,7 @@ export function Fact({
   hint,
   href,
   onSelect,
+  action,
   selected = false,
   tone = 'default',
   surface = 'panel',
@@ -244,6 +245,11 @@ export function Fact({
   href?: string;
   /** Like `href`, for a tile that opens something in place (another tab, a drawer). */
   onSelect?: () => void;
+  /**
+   * With `onSelect`: a visible verb on the tile's right ("Change"), so a tile
+   * that edits something reads as a control, not just another figure.
+   */
+  action?: string;
   /** The tile is the current choice, when a set of tiles acts as a switch. */
   selected?: boolean;
   tone?: 'default' | 'warning' | 'danger';
@@ -280,6 +286,17 @@ export function Fact({
         </dd>
         {hint && <dd className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</dd>}
       </div>
+      {action && onSelect && (
+        <span
+          className={cn(
+            'mr-3 inline-flex shrink-0 items-center gap-1 self-center rounded-md border border-rule/70 bg-background px-2 py-1 text-xs font-semibold text-foreground',
+            'transition-colors group-hover:border-primary/40 group-hover:bg-primary/8 group-hover:text-primary',
+          )}
+        >
+          <Pencil size={12} aria-hidden="true" />
+          {action}
+        </span>
+      )}
     </>
   );
   const className = cn(
@@ -304,7 +321,12 @@ export function Fact({
     );
   if (onSelect)
     return (
-      <button type="button" onClick={onSelect} aria-pressed={selected || undefined} className={interactive}>
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected || undefined}
+        className={cn(interactive, 'group', action && 'cursor-pointer')}
+      >
         {body}
       </button>
     );

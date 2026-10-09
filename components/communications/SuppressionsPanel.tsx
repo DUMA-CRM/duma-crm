@@ -143,7 +143,12 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
     );
 
   return (
-    <motion.div className="flex flex-1 flex-col space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+    <motion.div
+      className="flex flex-1 flex-col space-y-5"
+      initial="hidden"
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
+    >
       <motion.p variants={SECTION_RISE} className="px-1 text-sm leading-relaxed text-muted-foreground">
         Marketing and lifecycle email never reaches these addresses. Receipts and “your order is ready” still go out — they aren’t
         marketing.

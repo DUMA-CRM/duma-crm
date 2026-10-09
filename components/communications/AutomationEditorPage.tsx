@@ -27,7 +27,7 @@ import { connectionState, hasUnpublishedChanges } from '@/lib/utils/communicatio
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { AutomationSidebar, type SidebarTab } from './AutomationSidebar';
+import { AutomationSidebar } from './AutomationSidebar';
 import { EmailPreviewDrawer } from './EmailPreviewDrawer';
 import { PublishDialog } from './PublishDialog';
 import { WorkflowRunDrawer } from './WorkflowRunDrawer';
@@ -71,7 +71,6 @@ export function AutomationEditorPage({
   const [previewing, setPreviewing] = useState(false);
   const [confirmingPublish, setConfirmingPublish] = useState(false);
   const [openedRunId, setOpenedRunId] = useState<string | null>(null);
-  const [panel, setPanel] = useState<SidebarTab>('step');
   const snapshot = JSON.stringify({ name, definition });
   const [initialSnapshot, setInitialSnapshot] = useState(snapshot);
 
@@ -307,10 +306,7 @@ export function AutomationEditorPage({
               <WorkflowTree
                 definition={definition}
                 selectedId={selectedId}
-                onSelect={(id) => {
-                  setSelectedId(id);
-                  setPanel('step');
-                }}
+                onSelect={setSelectedId}
                 onInsert={addNode}
                 onMove={moveNode}
                 onDuplicate={duplicateNode}
@@ -323,8 +319,6 @@ export function AutomationEditorPage({
         </main>
 
         <AutomationSidebar
-          tab={panel}
-          onTab={setPanel}
           node={selected}
           automation={automation}
           name={name}

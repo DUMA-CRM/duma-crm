@@ -1,18 +1,22 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { FileText, Plus, Trash2, TriangleAlert, Zap } from '@/components/icons';
-import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile, SectionInfo } from '@/components/cms/rows';
+import { ChevronRight, FileText, Plus, Search, Send, Trash2, TriangleAlert, XCircle, Zap } from '@/components/icons';
+import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
-import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 import {
   type EmailAutomation,
@@ -34,10 +38,10 @@ import { type EmailAccess, useEmailAccess } from './useEmailAccess';
 import { workflowForAutomation, workflowSummary } from './workflowModel';
 
 /**
- * The automations as the Menu lists its items: what needs fixing folded at the
- * top, then one bordered list per kind of trigger with a
- * row per automation — what it is and what's wrong, runs, when it last ran, and
- * the on/off switch.
+ * The automations in the Content lists' vocabulary: one card per kind of
+ * trigger, a row per automation — tile, what it is and what's wrong, its runs,
+ * the on/off switch — and the totals in the aside. "New automation" lives in
+ * the page header.
  */
 export function AutomationsPanel({
   onEdit,
@@ -49,7 +53,9 @@ export function AutomationsPanel({
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
   const access = useEmailAccess();
+  const reduceMotion = useReducedMotion();
   const [deleteTarget, setDeleteTarget] = useState<EmailAutomation | null>(null);
+  const [search, setSearch] = useState('');
   // Pinned on mount so "5 min ago" doesn't shift under a render.
   const [now] = useState(() => Date.now());
 
@@ -114,26 +120,18 @@ export function AutomationsPanel({
     return ids.size;
   }, [automations, now, templates]);
 
-  if (automationsQuery.isError)
-    return (
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-        <ErrorState title="Automations couldn’t be loaded" onRetry={() => void automationsQuery.refetch()} />
-      </div>
-    );
+  const needle = search.trim().toLowerCase();
+  const shownGroups = useMemo(
+    () =>
+      needle
+        ? groups
+            .map((group) => ({ ...group, items: group.items.filter((automation) => automation.name.toLowerCase().includes(needle)) }))
+            .filter((group) => group.items.length > 0)
+        : groups,
+    [groups, needle],
+  );
 
-  if (automationsQuery.isPending)
-    return (
-      <div role="status" aria-busy="true" aria-label="Loading automations">
-        <Bone className="mb-2 h-3 w-28" />
-        <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-          {Array.from({ length: 4 }, (_, index) => (
-            <RowSkeleton key={index} index={index} />
-          ))}
-        </div>
-      </div>
-    );
-
-  if (automations.length === 0)
+  if (automationsQuery.isSuccess && automations.length === 0)
     return (
       <div className="flex flex-1 flex-col space-y-5">
         <NeedsAttention items={attention} />
@@ -152,55 +150,76 @@ export function AutomationsPanel({
     );
 
   return (
-    <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
-      <NeedsAttention items={attention} />
-      {flagged > 0 && (
-        <motion.p
-          variants={SECTION_RISE}
-          className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3 text-sm font-semibold text-foreground"
-        >
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-measured/10 text-measured">
-            <TriangleAlert size={18} aria-hidden="true" />
-          </span>
-          {flagged} {flagged === 1 ? 'automation needs' : 'automations need'} a look — flagged below
-        </motion.p>
-      )}
+    <SettingsTabBody
+      narrowAside
+      aside={
+        <AutomationsAside
+          automations={automations}
+          templates={templates}
+          flagged={flagged}
+          loaded={automationsQuery.isSuccess}
+          onOpenTemplates={onOpenTemplates}
+        />
+      }
+    >
+      {attention.length > 0 && <NeedsAttention items={attention} />}
 
-      {groups.length > 0 && (
-        <div className="-mb-3 hidden items-center gap-3 px-3.5 text-label uppercase text-muted-foreground sm:flex" aria-hidden="true">
-          <span className="flex-1" />
-          <span className="w-24 text-right">Runs</span>
-          <span className="w-24 text-right">Last checked</span>
-          <span className="w-24 text-right">Sending</span>
-          {access.canWrite && <span className="w-8" />}
-        </div>
+      {automationsQuery.isPending ? (
+        <SettingsSection title="Automations">
+          <TilesSkeleton count={4} label="Loading automations" />
+        </SettingsSection>
+      ) : automationsQuery.isError ? (
+        <SettingsSection title="Automations">
+          <ErrorState title="Automations couldn’t be loaded" onRetry={() => void automationsQuery.refetch()} />
+        </SettingsSection>
+      ) : (
+        <>
+          {automations.length > 6 && (
+            <Input
+              aria-label="Find an automation"
+              placeholder="Find an automation"
+              value={search}
+              leftIcon={<Search size={14} aria-hidden="true" />}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          )}
+          {shownGroups.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground">No automation matches “{search.trim()}”.</p>
+          )}
+          {shownGroups.map((group) => (
+            <SettingsSection
+              key={group.group}
+              title={group.label}
+              actions={
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  <span className="font-semibold text-foreground">{group.sending}</span> of {group.items.length} sending
+                </span>
+              }
+            >
+              <ul className="space-y-2">
+                {group.items.map((automation, index) => (
+                  <motion.li
+                    key={automation.id}
+                    initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0, transition: { delay: reduceMotion ? 0 : Math.min(index, 8) * 0.03 } }}
+                  >
+                    <AutomationRow
+                      automation={automation}
+                      templates={templates}
+                      now={now}
+                      access={access}
+                      toggling={toggle.isPending && toggle.variables?.automation.id === automation.id}
+                      onToggle={(isEnabled) => toggle.mutate({ automation, isEnabled })}
+                      onEdit={() => onEdit({ automation })}
+                      onDelete={() => setDeleteTarget(automation)}
+                    />
+                  </motion.li>
+                ))}
+              </ul>
+            </SettingsSection>
+          ))}
+        </>
       )}
-
-      {groups.map((group) => (
-        <motion.section key={group.group} variants={SECTION_RISE} aria-label={group.label}>
-          <h2 className="mb-2 flex items-center gap-2 text-label uppercase text-muted-foreground">
-            {group.label}
-            <span className="normal-case tabular-nums">
-              {group.sending}/{group.items.length} sending
-            </span>
-          </h2>
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-            {group.items.map((automation) => (
-              <AutomationRow
-                key={automation.id}
-                automation={automation}
-                templates={templates}
-                now={now}
-                access={access}
-                toggling={toggle.isPending && toggle.variables?.automation.id === automation.id}
-                onToggle={(isEnabled) => toggle.mutate({ automation, isEnabled })}
-                onEdit={() => onEdit({ automation })}
-                onDelete={() => setDeleteTarget(automation)}
-              />
-            ))}
-          </ul>
-        </motion.section>
-      ))}
 
       {deleteTarget && (
         <ConfirmModal
@@ -217,11 +236,78 @@ export function AutomationsPanel({
           onClose={() => setDeleteTarget(null)}
         />
       )}
-    </motion.div>
+    </SettingsTabBody>
   );
 }
 
-/** One automation as a Menu item row: what it is and what's wrong, then runs, last checked and the switch. */
+/** The totals beside the list, in the Content asides' rows: what's live, what ran, what needs a look. */
+function AutomationsAside({
+  automations,
+  templates,
+  flagged,
+  loaded,
+  onOpenTemplates,
+}: {
+  automations: EmailAutomation[];
+  templates: EmailTemplate[];
+  flagged: number;
+  loaded: boolean;
+  onOpenTemplates: () => void;
+}) {
+  const sending = automations.filter((automation) => automation.isEnabled).length;
+  const runs = automations.reduce((sum, automation) => sum + (automation.runCount ?? 0), 0);
+  const failed = automations.reduce((sum, automation) => sum + (automation.failedRunCount ?? 0), 0);
+  const activeTemplates = templates.filter((template) => template.isActive).length;
+  const figure = (value: React.ReactNode) => <span className="text-sm tabular-nums text-muted-foreground">{loaded ? value : '—'}</span>;
+  return (
+    <>
+      <SettingsSection title="Overview">
+        <InfoRows>
+          <InfoRow icon={Zap} title="Sending">
+            {figure(
+              <>
+                <span className="text-foreground">{sending}</span> of {automations.length}
+              </>,
+            )}
+          </InfoRow>
+          <InfoRow icon={Send} title="Runs">
+            {figure(runs.toLocaleString())}
+          </InfoRow>
+          <InfoRow icon={XCircle} title="Failed runs">
+            {figure(failed > 0 ? <span className="font-semibold text-exception">{failed.toLocaleString()}</span> : 0)}
+          </InfoRow>
+          <InfoRow icon={TriangleAlert} title="Needs a look">
+            <Tooltip
+              side="top"
+              align="end"
+              wrap
+              label="A deleted template, failed runs or changes not yet published — flagged on the rows."
+            >
+              {figure(flagged > 0 ? <span className="font-semibold text-measured">{flagged}</span> : 'None')}
+            </Tooltip>
+          </InfoRow>
+        </InfoRows>
+      </SettingsSection>
+      <SettingsSection
+        title="Templates"
+        actions={
+          <SectionInfo label="Every automation sends a template. Change one there and every automation using it sends the new version." />
+        }
+      >
+        <div className="space-y-3">
+          <InfoRow icon={FileText} title="Ready to send">
+            <span className="text-sm tabular-nums text-muted-foreground">{templates.length ? activeTemplates : '—'}</span>
+          </InfoRow>
+          <ActionRows>
+            <ActionRow icon={FileText} label="Open templates" onClick={onOpenTemplates} />
+          </ActionRows>
+        </div>
+      </SettingsSection>
+    </>
+  );
+}
+
+/** One automation, in the Content list rows' shape: tile, name and what's wrong, its numbers, the switch. */
 function AutomationRow({
   automation,
   templates,
@@ -247,6 +333,7 @@ function AutomationRow({
   // A deleted template is only flagged inactive, so a step can still point at one.
   const missing = missingTemplateCount(definition, templates);
   const failed = automation.failedRunCount ?? 0;
+  const runs = automation.runCount ?? 0;
   // Only what's wrong or not live — a healthy automation says nothing extra.
   const flags: { label: string; tone: 'exception' | 'measured' }[] = [];
   if (missing > 0) flags.push({ label: 'Deleted template', tone: 'exception' });
@@ -256,22 +343,14 @@ function AutomationRow({
   const canToggle = !automation.isEnabled && draft ? access.canPublish : access.canWrite;
 
   return (
-    <li className="group flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40">
+    <div className="group flex items-center gap-2 rounded-lg border border-rule/50 bg-control pr-2 transition-colors hover:border-rule">
       <button
         type="button"
         onClick={onEdit}
         aria-label={`Open ${automation.name}`}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-ring"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-l-lg py-2.5 pl-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       >
-        <span
-          className={cn(
-            'flex size-10 shrink-0 items-center justify-center rounded-md',
-            automation.isEnabled ? 'bg-momentum/10 text-momentum' : 'bg-band text-muted-foreground',
-          )}
-          aria-hidden="true"
-        >
-          <Zap size={16} />
-        </span>
+        <RowTile icon={Zap} tone={missing > 0 ? 'danger' : automation.isEnabled ? 'success' : 'default'} />
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-2">
             <span className={cn('truncate text-sm font-semibold', automation.isEnabled ? 'text-foreground' : 'text-muted-foreground')}>
@@ -290,22 +369,23 @@ function AutomationRow({
             ))}
           </span>
           <span className="block truncate text-xs text-muted-foreground">
-            <Zap size={11} className="mr-1 inline-block -translate-y-px text-primary" aria-hidden="true" />
             <span className="sr-only">When: </span>
             {TRIGGER_LABELS[automation.trigger]}
             {automation.location && ` at ${automation.location.name}`} · {workflowSummary(definition, templateName)}
           </span>
         </span>
+        <span className="hidden shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:block">
+          <span className="block">
+            <span className="font-semibold text-foreground">{runs.toLocaleString()}</span> {runs === 1 ? 'run' : 'runs'}
+            {failed > 0 && <span className="font-semibold text-exception"> · {failed} failed</span>}
+          </span>
+          <span className="block" title={automation.lastEvaluatedAt ?? undefined}>
+            {automation.lastEvaluatedAt ? `Checked ${timeAgo(automation.lastEvaluatedAt, now)}` : 'Not checked yet'}
+          </span>
+        </span>
       </button>
 
-      <span className="w-24 shrink-0 text-right text-sm tabular-nums">
-        <span className="block font-semibold text-foreground">{(automation.runCount ?? 0).toLocaleString()}</span>
-        {failed > 0 && <span className="block text-micro font-semibold text-exception">{failed} failed</span>}
-      </span>
-      <span className="w-24 shrink-0 text-right text-xs tabular-nums text-muted-foreground" title={automation.lastEvaluatedAt ?? undefined}>
-        {automation.lastEvaluatedAt ? timeAgo(automation.lastEvaluatedAt, now) : '—'}
-      </span>
-      <span className="flex w-24 shrink-0 items-center justify-end gap-2">
+      <span className="ml-1 flex shrink-0 items-center">
         <Switch label={`${automation.name} sending`} checked={automation.isEnabled} disabled={toggling || !canToggle} onChange={onToggle} />
       </span>
       {access.canWrite && (
@@ -320,6 +400,11 @@ function AutomationRow({
           <Trash2 />
         </Button>
       )}
-    </li>
+      <ChevronRight
+        size={16}
+        className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+        aria-hidden="true"
+      />
+    </div>
   );
 }

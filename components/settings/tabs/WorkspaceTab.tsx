@@ -290,7 +290,7 @@ function TimezoneFact() {
         label="Timezone"
         value={timeZoneCity(zone)}
         hint={now ? `${timeZoneOffsetLabel(zone, now)} · ${clockIn(zone, now)} there now` : zone}
-        {...(canEdit ? { onSelect: () => setEditing(true) } : {})}
+        {...(canEdit ? { onSelect: () => setEditing(true), action: 'Change' } : {})}
       />
       {editing && <TimezoneDialog current={zone} onClose={() => setEditing(false)} />}
     </>

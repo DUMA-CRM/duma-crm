@@ -184,9 +184,96 @@ const PREHEADER_PATTERN = /<div style="display:none;max-height:0;overflow:hidden
  * block, because turning arbitrary markup into blocks throws its styling away.
  * Colours and preview text carry over from `base`.
  */
+/** The hidden preview-line element, as the renderer writes it; '' for no preview text. */
+function preheaderHtml(text: string) {
+  // Just the words. Older templates padded it with invisible spacer entities;
+  // reading still strips them, and the next save writes them out.
+  return text.trim() ? `${PREHEADER_OPEN}${escapeHtml(text.trim())}</div>` : '';
+}
+
+/**
+ * Where an email keeps its preview text. Ours first (exact, so a rendered
+ * email round-trips byte for byte); then the shapes hand-written and exported
+ * emails use — an element whose class says preheader/preview, or any div, span,
+ * p or td hidden with `display:none`.
+ */
+const FOREIGN_PREHEADER_PATTERNS = [
+  /<(div|span|p|td)\b[^>]*\bclass\s*=\s*["'][^"']*\b(?:preheader|pre-header|preview(?:-text)?)\b[^"']*["'][^>]*>([\s\S]*?)<\/\1>/i,
+  /<(div|span|p|td)\b[^>]*\bstyle\s*=\s*["'][^"']*display\s*:\s*none[^"']*["'][^>]*>([\s\S]*?)<\/\1>/i,
+];
+
+/** The preview element in the HTML: where it is, and its inner HTML. */
+function findPreheader(html: string): { start: number; end: number; inner: string; ours: boolean } | null {
+  const own = PREHEADER_PATTERN.exec(html);
+  if (own)
+    return {
+      start: own.index,
+      end: own.index + own[0].length,
+      inner: own[0].slice(PREHEADER_OPEN.length, -'</div>'.length),
+      ours: true,
+    };
+  for (const pattern of FOREIGN_PREHEADER_PATTERNS) {
+    const match = pattern.exec(html);
+    // A nested element of the same tag would cut the match short — not a preheader we can edit safely.
+    if (match && !new RegExp(`<${match[1]}\\b`, 'i').test(match[2]))
+      return { start: match.index, end: match.index + match[0].length, inner: match[2], ours: false };
+  }
+  return null;
+}
+
+/** Inner HTML as the words an inbox shows: tags, entities and the invisible spacer characters gone. */
+function preheaderText(inner: string): string {
+  return (
+    inner
+      .replace(/<[^>]*>/g, '')
+      .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+      .replace(/&#(\d+);/g, (_, dec: string) => String.fromCodePoint(Number(dec)))
+      .replaceAll('&zwnj;', '‌')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&apos;', "'")
+      .replaceAll('&amp;', '&')
+      // Combining grapheme joiner, zero-widths, soft hyphen, figure and no-break spaces — the filler after the line.
+      .replace(/[͏​-‍⁠﻿­  ]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+}
+
+/** The preview text an HTML email carries in its hidden preview element, or null when it has none. */
+export function readHtmlPreheader(html: string): string | null {
+  const found = findPreheader(html);
+  return found ? preheaderText(found.inner) : null;
+}
+
+/**
+ * The HTML with its preview text set. Our own element is rewritten whole, so a
+ * rendered email stays byte-for-byte what the renderer would write; someone
+ * else's keeps its markup and gets new words. With none, ours goes first in
+ * <body> (or first in a fragment). '' removes the element.
+ */
+export function setHtmlPreheader(html: string, text: string): string {
+  const element = preheaderHtml(text);
+  const found = findPreheader(html);
+  if (found) {
+    const outer = html.slice(found.start, found.end);
+    const close = outer.lastIndexOf('</');
+    const open = outer.slice(0, close - found.inner.length);
+    const replacement = found.ours || !element ? element : `${open}${escapeHtml(text.trim())}${outer.slice(close)}`;
+    return html.slice(0, found.start) + replacement + html.slice(found.end);
+  }
+  if (!element) return html;
+  return /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, (tag) => `${tag}${element}`) : `${element}${html}`;
+}
+
 export function htmlToDesign(html: string, base: TemplateDesign = defaultTemplateDesign()): TemplateDesign {
-  if (readSimpleBody(html)) return { ...legacyHtmlToDesign(html), styles: base.styles, preheader: base.preheader };
-  return { ...base, blocks: [{ id: id(), type: 'html', html: html.replace(PREHEADER_PATTERN, '') }] };
+  // The preview text travels with the HTML: whatever it carries wins over the base's.
+  const preheader = readHtmlPreheader(html) ?? base.preheader;
+  if (readSimpleBody(html)) return { ...legacyHtmlToDesign(html), styles: base.styles, preheader };
+  return { ...base, preheader, blocks: [{ id: id(), type: 'html', html: setHtmlPreheader(html, '') }] };
 }
 
 /** The inside of <body> for a full document; a fragment is returned as it is. */
@@ -266,11 +353,8 @@ function renderColumns(block: TemplateColumnsBlock, styles: Styles): string {
 
 export function renderTemplateDesign(design: TemplateDesign): string {
   const { styles } = design;
-  // Hidden in the body, read by the inbox as the preview line. The padding of
-  // zero-width spaces stops clients pulling body text in after it.
-  const preheader = design.preheader?.trim()
-    ? `${PREHEADER_OPEN}${escapeHtml(design.preheader.trim())}${'&#847;&zwnj;&nbsp;'.repeat(40)}</div>`
-    : '';
+  // Hidden in the body, read by the inbox as the preview line.
+  const preheader = preheaderHtml(design.preheader ?? '');
   const sole = soleHtmlBlock(design);
   if (sole) {
     if (!preheader) return sole.html;
@@ -282,10 +366,10 @@ export function renderTemplateDesign(design: TemplateDesign): string {
 
 /** Readable text from markup, for the plain-text part of the email. */
 function htmlToPlainText(html: string) {
-  return bodyOf(html)
+  // The preview line, whatever its shape, is for the inbox list — not the body text.
+  return bodyOf(setHtmlPreheader(html, ''))
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, '')
-    .replace(PREHEADER_PATTERN, '')
     .replace(/<a[^>]*href="(https?:[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '$2 ($1)')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|tr|li|h[1-6]|table)>/gi, '\n\n')
@@ -424,7 +508,15 @@ export function nudgeTemplateBlock(design: TemplateDesign, blockId: string, dire
 
 // ── Checks ────────────────────────────────────────────────────────────────────
 
-export type TemplateCheck = { key: string; tone: 'exception' | 'measured'; title: string; detail?: string; blockId?: string };
+export type TemplateCheck = {
+  key: string;
+  tone: 'exception' | 'measured';
+  title: string;
+  detail?: string;
+  blockId?: string;
+  /** An unknown merge field, so the HTML editor can find and select it. */
+  token?: string;
+};
 
 const allLeaves = (design: TemplateDesign): TemplateLeafBlock[] =>
   design.blocks.flatMap((block) => (isColumnsBlock(block) ? block.columns.flatMap((column) => column.blocks) : [block]));
@@ -437,26 +529,68 @@ const unfinishedUrl = (url: string) => !url.trim() || /^https?:\/\/?$/i.test(url
  * problems first (exception), then quality ones (measured). `variables` is the
  * API's allow-list — an unknown token makes the send throw.
  */
-export function templateChecks(design: TemplateDesign, subject: string, variables: readonly string[]): TemplateCheck[] {
-  const checks: TemplateCheck[] = [];
+/**
+ * Every merge field in the text that isn't one we can fill, once each. With
+ * no variables loaded yet nothing is flagged — unknown is not the same as wrong.
+ */
+export function unknownTokens(text: string, variables: readonly string[]): string[] {
+  if (!variables.length) return [];
   const known = new Set(variables);
+  const unknown = new Set<string>();
+  for (const match of text.matchAll(TOKEN)) if (!known.has(match[1]!)) unknown.add(match[1]!);
+  return [...unknown];
+}
+
+/**
+ * The text cut into plain runs and merge fields, each field marked known or
+ * not — what the HTML editor's highlight layer draws.
+ */
+export function tokenSegments(text: string, variables: readonly string[]): Array<{ text: string; unknown: boolean }> {
+  const known = new Set(variables);
+  const segments: Array<{ text: string; unknown: boolean }> = [];
+  let last = 0;
+  for (const match of text.matchAll(TOKEN)) {
+    const index = match.index ?? 0;
+    if (index > last) segments.push({ text: text.slice(last, index), unknown: false });
+    segments.push({ text: match[0], unknown: variables.length > 0 && !known.has(match[1]!) });
+    last = index + match[0].length;
+  }
+  if (last < text.length) segments.push({ text: text.slice(last), unknown: false });
+  return segments;
+}
+
+/**
+ * What would break or weaken a send. In the HTML editor pass `html`: the
+ * blocks are not what will be sent then, so the merge fields and the preview
+ * text are read from the HTML (and its plain text) instead.
+ */
+export function templateChecks(
+  design: TemplateDesign,
+  subject: string,
+  variables: readonly string[],
+  html?: { htmlBody: string; textBody: string },
+): TemplateCheck[] {
+  const checks: TemplateCheck[] = [];
   if (!subject.trim())
     checks.push({ key: 'subject', tone: 'exception', title: 'Add a subject line', detail: 'It’s what people see first in their inbox.' });
 
-  const leaves = allLeaves(design);
-  const texts = [
-    subject,
-    design.preheader ?? '',
-    ...leaves.flatMap((leaf) => ('text' in leaf ? [leaf.text] : leaf.type === 'html' ? [leaf.html] : [])),
-  ];
-  const unknown = new Set<string>();
-  for (const text of texts) for (const match of text.matchAll(TOKEN)) if (variables.length && !known.has(match[1])) unknown.add(match[1]);
-  for (const token of unknown)
+  const leaves = html ? [] : allLeaves(design);
+  const texts = html
+    ? [subject, html.htmlBody, html.textBody]
+    : [
+        subject,
+        design.preheader ?? '',
+        ...leaves.flatMap((leaf) => ('text' in leaf ? [leaf.text] : leaf.type === 'html' ? [leaf.html] : [])),
+      ];
+  for (const token of unknownTokens(texts.join('\n'), variables))
     checks.push({
       key: `var-${token}`,
       tone: 'exception',
       title: `{{${token}}} isn’t a detail we can fill in`,
-      detail: 'Sending would fail. Pick one from Personalise.',
+      detail: html
+        ? 'Sending would fail. It’s marked in red below — swap it for one from Personalise.'
+        : 'Sending would fail. Pick one from Personalise.',
+      token,
     });
 
   for (const leaf of leaves) {
@@ -484,7 +618,7 @@ export function templateChecks(design: TemplateDesign, subject: string, variable
         blockId: leaf.id,
       });
   }
-  if (!design.preheader?.trim())
+  if (!(html ? readHtmlPreheader(html.htmlBody) : design.preheader?.trim()))
     checks.push({
       key: 'preheader',
       tone: 'measured',
