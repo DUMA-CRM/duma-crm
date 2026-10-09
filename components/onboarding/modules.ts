@@ -10,6 +10,7 @@ import {
   LifeBuoy,
   LineChart,
   Monitor,
+  NotebookPen,
   QrCode,
   Receipt,
   ShieldCheck,
@@ -89,6 +90,11 @@ export const MODULE_COPY: Record<WorkspaceModuleId, { name: string; detail: stri
     name: 'Refer a friend',
     detail: 'Every customer gets their own code; a friend’s first order earns them a reward.',
     icon: Gift,
+  },
+  notes: {
+    name: 'Notes',
+    detail: 'Recipes, opening and closing checklists, SOPs and your own notes — shared by folder, searchable, and readable by Ask DUMA.',
+    icon: NotebookPen,
   },
 };
 

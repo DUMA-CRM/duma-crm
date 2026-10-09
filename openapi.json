@@ -132,7 +132,8 @@
       "name": "Content",
       "tags": [
         "CMS",
-        "CMS Delivery"
+        "CMS Delivery",
+        "Notes"
       ]
     },
     {
@@ -3395,6 +3396,525 @@
             },
             "in": "path",
             "name": "customerId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/notes/folders": {
+      "get": {
+        "operationId": "getV1NotesFolders",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Folders you can see, with counts",
+        "responses": {
+          "200": {
+            "description": "Folders and counts"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1NotesFolders",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Create a folder",
+        "description": "A private folder is yours. A shared top-level folder needs notes:manage and says who reads and edits; a subfolder takes its parent’s sharing.",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not allowed here"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/folders/{id}": {
+      "patch": {
+        "operationId": "patchV1NotesFoldersById",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Rename a folder",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1NotesFoldersById",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Delete a folder",
+        "description": "The folder and its subfolders go; their notes move to Recently Deleted for 30 days. A shared top-level folder needs notes:manage.",
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/notes/folders/{id}/sharing": {
+      "put": {
+        "operationId": "putV1NotesFoldersByIdSharing",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Change who reads and edits a shared folder",
+        "description": "A shared top-level folder only; its subfolders follow. Empty or null means everyone.",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/notes": {
+      "get": {
+        "operationId": "getV1Notes",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "List or search notes",
+        "description": "`view`: all (default), pinned, unfiled, shared (shared folders only — what Ask DUMA reads), or trash (the last 30 days). `q` searches title and body, best match first.",
+        "responses": {
+          "200": {
+            "description": "Note summaries with a snippet"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1Notes",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Create a note",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "You can’t write in that folder"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/tags": {
+      "get": {
+        "operationId": "getV1NotesTags",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Tags on the notes you can see",
+        "responses": {
+          "200": {
+            "description": "Tags with counts"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/{id}": {
+      "get": {
+        "operationId": "getV1NotesById",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Open a note",
+        "responses": {
+          "200": {
+            "description": "The note"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found, or not yours to read"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1NotesById",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Save a note",
+        "description": "Changing the title or content needs the `version` you loaded: if someone saved since, the answer is 409 with their copy — never a silent overwrite. Pinning, tags and moving folder need no version.",
+        "responses": {
+          "200": {
+            "description": "Saved, with the new version"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "`stale_version`, with `current`"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1NotesById",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Move a note to Recently Deleted",
+        "responses": {
+          "200": {
+            "description": "In Recently Deleted for 30 days"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/notes/{id}/restore": {
+      "post": {
+        "operationId": "postV1NotesByIdRestore",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Bring a note back from Recently Deleted",
+        "responses": {
+          "200": {
+            "description": "Restored"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/notes/{id}/versions": {
+      "get": {
+        "operationId": "getV1NotesByIdVersions",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "A note’s history",
+        "responses": {
+          "200": {
+            "description": "Earlier copies, newest first"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/notes/{id}/versions/{versionId}/restore": {
+      "post": {
+        "operationId": "postV1NotesByIdVersionsByVersionIdRestore",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Restore an earlier copy",
+        "description": "Saved as the newest version; the current one stays in history.",
+        "responses": {
+          "200": {
+            "description": "Restored"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "versionId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/notes/google/status": {
+      "get": {
+        "operationId": "getV1NotesGoogleStatus",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Your Google Drive connection",
+        "responses": {
+          "200": {
+            "description": "Configured, connected, and as whom"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/google/connect": {
+      "post": {
+        "operationId": "postV1NotesGoogleConnect",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Start connecting your Google Drive",
+        "responses": {
+          "200": {
+            "description": "{ url } — send the browser there"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/google/callback": {
+      "get": {
+        "operationId": "getV1NotesGoogleCallback",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Google’s redirect after consent",
+        "description": "Reached through the CRM’s /be proxy so the session comes with it; the signed state must name the same person. Redirects back to Notes.",
+        "responses": {
+          "302": {
+            "description": "Back to Notes, ?google=connected or ?google=error"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/google": {
+      "delete": {
+        "operationId": "deleteV1NotesGoogle",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Disconnect your Google Drive",
+        "description": "Revokes DUMA’s access at Google and forgets the token.",
+        "responses": {
+          "200": {
+            "description": "Disconnected"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/google/files": {
+      "get": {
+        "operationId": "getV1NotesGoogleFiles",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Search your Google Drive",
+        "responses": {
+          "200": {
+            "description": "Files, most recently changed first"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/google/files/{fileId}/markdown": {
+      "get": {
+        "operationId": "getV1NotesGoogleFilesByFileIdMarkdown",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "A Google Doc as Markdown",
+        "description": "For importing a Doc into a note, or updating one imported before. Other files can only be linked (400 `not_a_google_doc`).",
+        "responses": {
+          "200": {
+            "description": "{ file, markdown }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "fileId",
             "required": true
           }
         ]

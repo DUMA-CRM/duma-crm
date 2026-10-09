@@ -25,6 +25,7 @@ export const MODULE_IDS = [
   'cms',
   'promotions',
   'referrals',
+  'notes',
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];
@@ -115,6 +116,8 @@ export const CRM_MODULE_CAPABILITIES = {
   promotions: ['promotions:read', 'promotions:write'],
   // The refer-a-friend programme and who referred whom.
   referrals: ['referrals:read', 'referrals:write'],
+  // Everyone's own notes and the shared knowledge base; sharing is an administrator's.
+  notes: ['notes:read', 'notes:write', 'notes:manage'],
 } as const satisfies Record<ModuleId, readonly string[]>;
 
 type CrmCapabilityRegistry = typeof CRM_MODULE_CAPABILITIES;
@@ -198,6 +201,7 @@ const pages: Record<ModuleId, readonly string[]> = {
   cms: ['/content'],
   promotions: ['/promotions'],
   referrals: ['/promotions/referrals'],
+  notes: ['/notes'],
 };
 
 const dependencies: Record<ModuleId, readonly ModuleId[]> = {
@@ -225,6 +229,7 @@ const dependencies: Record<ModuleId, readonly ModuleId[]> = {
   cms: ['organization'],
   promotions: ['catalog', 'customers', 'ordering', 'organization'],
   referrals: ['customers', 'ordering', 'organization', 'promotions'],
+  notes: ['identity', 'organization'],
 };
 
 const navigation: Record<ModuleId, readonly string[]> = {
@@ -253,6 +258,7 @@ const navigation: Record<ModuleId, readonly string[]> = {
   promotions: ['/promotions'],
   // A tab of Promotions, not a sidebar entry of its own.
   referrals: [],
+  notes: ['/notes'],
 };
 
 export const CRM_MODULE_MANIFESTS: readonly ModuleManifest[] = MODULE_IDS.map((id) => ({
