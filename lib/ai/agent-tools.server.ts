@@ -250,6 +250,7 @@ const MODULE_NAMES: Record<ModuleId, string> = {
   support: 'Support & helpdesk',
   cms: 'Content (CMS)',
   promotions: 'Promotions',
+  referrals: 'Refer a friend',
 };
 
 const getWorkspaceModules: ToolDefinition = {

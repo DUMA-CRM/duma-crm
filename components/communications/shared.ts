@@ -17,6 +17,7 @@ export const TRIGGER_LABELS: Record<Trigger, string> = {
   order_completed: 'Order completed',
   order_cancelled: 'Order cancelled',
   promo_redeemed: 'Promo code used',
+  referral_completed: 'Referral rewarded',
   customer_created: 'New customer',
   customer_birthday: 'Customer birthday',
   customer_inactive: 'Customer inactive',
@@ -33,6 +34,7 @@ export const TRIGGER_OPTIONS: { value: Trigger; label: string }[] = [
   { value: 'order_completed', label: 'An order is completed' },
   { value: 'order_cancelled', label: 'An order is cancelled' },
   { value: 'promo_redeemed', label: 'An order uses a promo code' },
+  { value: 'referral_completed', label: 'A customer’s referral earns them a reward' },
   { value: 'customer_created', label: 'A new customer is added' },
   { value: 'customer_birthday', label: "It is a customer's birthday" },
   { value: 'customer_inactive', label: 'A customer has not visited for a while' },
@@ -50,6 +52,8 @@ export const TRIGGER_HELP: Record<Trigger, string> = {
   order_cancelled: 'Sent once per order, if the order is cancelled.',
   promo_redeemed:
     'Sent once per order that uses a promo code, as it’s placed. Use {{promotion.code}} and {{promotion.discount}} in the email.',
+  referral_completed:
+    'Sent to the referrer once per referral, when their friend’s first order is completed and their reward is given. {{referral.code}} is their own code, to share again.',
   customer_created: 'Sent once, when a customer profile is first created.',
   customer_birthday: 'Sent once a year to opted-in customers, on the day you choose.',
   customer_inactive: 'Sent once per inactive spell to opted-in customers. A new visit resets the clock.',

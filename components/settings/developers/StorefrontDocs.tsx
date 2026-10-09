@@ -103,6 +103,16 @@ export function StorefrontDocs({ shopName }: { shopName?: string }) {
         )}
         {topic === 'newsletter' && (
           <div className="space-y-3">
+            <Call
+              method="POST"
+              path="/referral-code"
+              note="Secret key, from your server — a signed-in shopper’s own refer-a-friend code."
+            />
+            <Code text={JSON.stringify({ email: 'sam@example.com' }, null, 2)} />
+            <Tip>
+              Show it on an “invite a friend” page; a friend sends it as the order’s <C>promoCode</C>. Only when the shop has refer a friend
+              on — <C>409 referrals_unavailable</C> otherwise.
+            </Tip>
             <Call method="POST" path="/newsletter" note="Secret key, from your server — when someone signs up." />
             <Code text={JSON.stringify({ email: 'sam@example.com', firstName: 'Sam' }, null, 2)} />
             <Tip>

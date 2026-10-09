@@ -8,6 +8,7 @@ export type EmailTrigger =
   | 'order_completed'
   | 'order_cancelled'
   | 'promo_redeemed'
+  | 'referral_completed'
   | 'customer_created'
   | 'customer_birthday'
   | 'customer_inactive'

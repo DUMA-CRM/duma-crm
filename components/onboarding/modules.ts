@@ -5,6 +5,7 @@ import {
   ChefHat,
   ClipboardCheck,
   CreditCard,
+  Gift,
   Layers,
   LifeBuoy,
   LineChart,
@@ -83,6 +84,11 @@ export const MODULE_COPY: Record<WorkspaceModuleId, { name: string; detail: stri
     name: 'Promotions',
     detail: 'Promo codes with limits and dates, honoured at the till — and a record of every use.',
     icon: TicketPercent,
+  },
+  referrals: {
+    name: 'Refer a friend',
+    detail: 'Every customer gets their own code; a friend’s first order earns them a reward.',
+    icon: Gift,
   },
 };
 

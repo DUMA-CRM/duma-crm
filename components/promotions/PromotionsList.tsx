@@ -25,6 +25,8 @@ import { type PromotionStanding, STANDING_LABELS, promotionStanding, usageLabel 
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { PromotionsTabs } from './PromotionsTabs';
+
 type Filter = 'current' | 'archived';
 
 export const STANDING_BADGE: Record<PromotionStanding, 'success' | 'reference' | 'warning' | 'muted'> = {
@@ -68,6 +70,7 @@ export function PromotionsList({ onOpen, onNew }: { onOpen: (id: string) => void
       eyebrow="Customer engagement"
       title="Promotions"
       icon={<TicketPercent size={20} aria-hidden="true" />}
+      subheader={<PromotionsTabs value="promotions" />}
       actions={
         canWrite && all.length > 0 ? (
           <Button className="h-9 gap-1.5" onClick={onNew}>

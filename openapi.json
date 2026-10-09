@@ -74,7 +74,8 @@
         "Orders",
         "Payments",
         "Refunds",
-        "Promotions"
+        "Promotions",
+        "Referrals"
       ]
     },
     {
@@ -3268,6 +3269,132 @@
             },
             "in": "path",
             "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/referrals/program": {
+      "get": {
+        "operationId": "getV1ReferralsProgram",
+        "tags": [
+          "Referrals"
+        ],
+        "summary": "Get the referral programme",
+        "responses": {
+          "200": {
+            "description": "The programme (null when not set up) and its counts"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1ReferralsProgram",
+        "tags": [
+          "Referrals"
+        ],
+        "summary": "Set up or change the referral programme",
+        "description": "One programme per workspace. The friend offer is an existing promotion — every customer’s referral code is a code of it, so its rules (first order only, minimum spend…) apply to the friend. The referrer’s reward is one loyalty reward or a single-use code of another promotion.",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "400": {
+            "description": "A promotion or programme that can’t be used"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/referrals": {
+      "get": {
+        "operationId": "getV1Referrals",
+        "tags": [
+          "Referrals"
+        ],
+        "summary": "List referrals",
+        "responses": {
+          "200": {
+            "description": "Referrals, newest first, paged"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/referrals/customers/{customerId}": {
+      "get": {
+        "operationId": "getV1ReferralsCustomersByCustomerId",
+        "tags": [
+          "Referrals"
+        ],
+        "summary": "A customer’s referral code and referrals",
+        "responses": {
+          "200": {
+            "description": "Null when the programme isn’t set up"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "customerId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/referrals/customers/{customerId}/code": {
+      "post": {
+        "operationId": "postV1ReferralsCustomersByCustomerIdCode",
+        "tags": [
+          "Referrals"
+        ],
+        "summary": "Give a customer their referral code",
+        "description": "Returns their code, issuing it the first time. 409 when the programme is paused or not set up.",
+        "responses": {
+          "200": {
+            "description": "The code"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "No active programme"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "customerId",
             "required": true
           }
         ]
@@ -7161,6 +7288,33 @@
             "required": true
           }
         ]
+      }
+    },
+    "/v1/store/referral-code": {
+      "post": {
+        "operationId": "postV1StoreReferralCode",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "A customer’s refer-a-friend code",
+        "description": "Secret key only — from your server, for a signed-in shopper. Returns their own code, issuing it the first time, for an \"invite a friend\" page. The customer must already exist (they have ordered or signed up): 404 `customer_not_found` otherwise. 409 `referrals_unavailable` when the programme is paused or not set up.",
+        "responses": {
+          "200": {
+            "description": "{ data: { code } }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "`customer_not_found`"
+          },
+          "409": {
+            "description": "`referrals_unavailable`"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
       }
     },
     "/v1/store/newsletter": {
