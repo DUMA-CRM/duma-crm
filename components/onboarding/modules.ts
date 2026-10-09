@@ -1,23 +1,24 @@
 import {
-  ChefHat,
   Bell,
   BookOpen,
   Boxes,
+  ChefHat,
   ClipboardCheck,
   CreditCard,
+  Layers,
   LifeBuoy,
   LineChart,
+  Monitor,
   QrCode,
   Receipt,
-  Monitor,
   ShieldCheck,
   Sparkles,
   Tags,
+  TicketPercent,
   Truck,
   UserRound,
   Users,
   Wallet,
-  Layers,
 } from '@/components/icons';
 
 import type { WorkspaceModuleId } from '@/lib/modules/organization/client';
@@ -78,6 +79,11 @@ export const MODULE_COPY: Record<WorkspaceModuleId, { name: string; detail: stri
   agent: { name: 'Ask DUMA', detail: 'An assistant that knows your operation.', icon: Sparkles },
   support: { name: 'Help centre', detail: 'Guides and a helpdesk for your staff.', icon: LifeBuoy },
   cms: { name: 'Content (CMS)', detail: 'Write your website and app content here; publish it over an API.', icon: Layers },
+  promotions: {
+    name: 'Promotions',
+    detail: 'Promo codes with limits and dates, honoured at the till — and a record of every use.',
+    icon: TicketPercent,
+  },
 };
 
 const readable = (id: string) =>

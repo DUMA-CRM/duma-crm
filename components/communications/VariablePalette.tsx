@@ -16,10 +16,11 @@ const GROUP_LABELS: Record<string, string> = {
   order: 'Order',
   location: 'Location',
   brand: 'Business',
+  promotion: 'Promo',
   other: 'Other',
 };
 
-const GROUP_ORDER = ['customer', 'order', 'location', 'brand', 'other'];
+const GROUP_ORDER = ['customer', 'order', 'promotion', 'location', 'brand', 'other'];
 
 /** `customer.firstName` → "First name"; `order.pickup_time` → "Pickup time". */
 export function variableLabel(variable: string): string {

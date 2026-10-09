@@ -22,6 +22,22 @@ export function cartItemTotal(c: CartItem): number {
 }
 
 export const cartTotal = (cart: CartItem[]) => cart.reduce((sum, c) => sum + cartItemTotal(c), 0);
+
+/**
+ * The basket as the promo-code check reads it: each line's total after any
+ * loyalty reward on it, as a decimal string. The API works out the discount
+ * from these — the same arithmetic the order uses — so the till never does.
+ */
+export function promoCheckLines(
+  cart: CartItem[],
+  loyaltyRewards: readonly { cartId: string; discountCents: number }[],
+): { menuItemId: string; quantity: number; lineTotal: string }[] {
+  return cart.map((line) => {
+    const rewardCents = loyaltyRewards.filter((reward) => reward.cartId === line.cartId).reduce((sum, reward) => sum + reward.discountCents, 0);
+    const cents = Math.max(0, cartItemTotal(line) - rewardCents);
+    return { menuItemId: line.item.id, quantity: line.quantity, lineTotal: (cents / 100).toFixed(2) };
+  });
+}
 export const cartCount = (cart: CartItem[]) => cart.reduce((sum, c) => sum + c.quantity, 0);
 
 /** How many of each menu item are already on the ticket — the badge on its tile. */

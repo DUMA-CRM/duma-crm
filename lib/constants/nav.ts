@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Tag,
+  TicketPercent,
   Users,
   UsersRound,
   UtensilsCrossed,
@@ -78,6 +79,8 @@ export const mainNavItems: NavItem[] = [
   // the role whose job it is.
   { module: 'customers', label: 'Customers', href: '/customers', icon: Users, capabilities: ['customers:read'] },
   { module: 'communications', label: 'Communications', href: '/communications', icon: Mail, capabilities: ['email:read'] },
+  // Promo codes the till and checkout honour, with their limits and usage.
+  { module: 'promotions', label: 'Promotions', href: '/promotions', icon: TicketPercent, capabilities: ['promotions:read'] },
   // Website and app content, served to the tenant's own sites over an API key.
   { module: 'cms', label: 'Content', href: '/content', icon: Layers, capabilities: ['cms:read'] },
   // One entry: team, rota, shifts, leave, helpdesk and payroll are tabs of

@@ -138,3 +138,17 @@ test('new customer is pre-filled from the search and checked like the API', asyn
   assert.deepEqual(Object.keys(newCustomerErrors({ firstName: '', lastName: 'D', phone: '123', email: 'nope' })).sort(), ['email', 'firstName', 'phone']);
   assert.deepEqual(newCustomerErrors({ firstName: 'J', lastName: 'D', phone: '07911 123456', email: '' }), {});
 });
+
+test('the promo check reads each line after its loyalty reward, as decimal strings', async () => {
+  const { promoCheckLines } = await import('../lib/utils/pos.ts');
+  const latte = { ...item('latte', 'Latte'), price: 350 };
+  const cart = [
+    { cartId: 'a', item: latte, selected: [{ id: 'oat', label: 'Oat', price: 50 }], quantity: 2, note: '' },
+    { cartId: 'b', item: item('cookie', 'Cookie'), selected: [], quantity: 1, note: '' },
+  ];
+  assert.deepEqual(promoCheckLines(cart as never, [{ cartId: 'a', discountCents: 400 }]), [
+    { menuItemId: 'latte', quantity: 2, lineTotal: '4.00' },
+    { menuItemId: 'cookie', quantity: 1, lineTotal: '3.00' },
+  ]);
+  assert.equal(promoCheckLines(cart as never, [{ cartId: 'b', discountCents: 999 }])[1]!.lineTotal, '0.00', 'never below zero');
+});

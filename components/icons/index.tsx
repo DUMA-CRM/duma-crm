@@ -83,6 +83,7 @@ import {
   CombineIcon,
   ComputerIcon,
   CopyIcon,
+  CouponPercentIcon,
   CreditCardIcon,
   CropIcon,
   CursorMove01Icon,
@@ -288,6 +289,7 @@ export const Croissant = /*#__PURE__*/ glyph(CroissantIcon, 'Croissant');
 export const Coins = /*#__PURE__*/ glyph(CoinsIcon, 'Coins');
 export const Combine = /*#__PURE__*/ glyph(CombineIcon, 'Combine');
 export const Copy = /*#__PURE__*/ glyph(CopyIcon, 'Copy');
+export const TicketPercent = /*#__PURE__*/ glyph(CouponPercentIcon, 'TicketPercent');
 export const CreditCard = /*#__PURE__*/ glyph(CreditCardIcon, 'CreditCard');
 export const Crop = /*#__PURE__*/ glyph(CropIcon, 'Crop');
 export const Share2 = /*#__PURE__*/ glyph(Share01Icon, 'Share2');
