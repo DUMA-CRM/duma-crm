@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 
 import { InfoRow, InfoRows } from '@/components/cms/rows';
 import { copyText } from '@/components/cms/shared';
@@ -11,16 +12,17 @@ import { Bone } from '@/components/shared/Skeleton';
 import { CopyButton } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 
-import { getCustomerReferrals, issueCustomerReferralCode } from '@/lib/modules/referrals/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { getCustomerReferrals, issueCustomerReferralCode } from '@/lib/modules/referrals/client';
 import { toast } from '@/stores/toastStore';
 
 /**
- * Refer a friend, on the customer's record: their own code (or a button to
- * give them one), and how their referrals stand. Nothing when the programme
- * isn't set up.
+ * Refer a friend, in the customer's profile column on every tab: their own
+ * code (or a button to give them one), and how their referrals stand. Before
+ * the programme is set up, whoever can set it up is pointed there; everyone
+ * else sees nothing.
  */
-export function CustomerReferralCard({ customerId, canIssue }: { customerId: string; canIssue: boolean }) {
+export function CustomerReferralCard({ customerId, canIssue, canSetUp }: { customerId: string; canIssue: boolean; canSetUp: boolean }) {
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: moduleQueryKeys.referrals.key('customer', customerId),
@@ -35,7 +37,20 @@ export function CustomerReferralCard({ customerId, canIssue }: { customerId: str
     onError: (error) => toast('error', error.message),
   });
 
-  if (query.isSuccess && query.data === null) return null;
+  if (query.isSuccess && query.data === null) {
+    if (!canSetUp) return null;
+    return (
+      <SettingsSection title="Refer a friend">
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Give every customer their own code: a friend who uses it gets your offer, and they’re rewarded when the friend’s first order is
+          done.
+        </p>
+        <Button asChild variant="outline" size="sm" className="mt-3">
+          <Link href="/promotions/referrals">Set up refer a friend</Link>
+        </Button>
+      </SettingsSection>
+    );
+  }
   return (
     <SettingsSection title="Refer a friend">
       {query.isPending ? (

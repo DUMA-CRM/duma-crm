@@ -189,6 +189,65 @@ function tradingHours(location: Location) {
   };
 }
 
+interface NotesSearchResponse {
+  data?: Array<{ id: string; title: string; folderId: string | null; snippet: string; updatedAt: string; tags: string[] }>;
+}
+interface NoteResponse {
+  data?: { id: string; title: string; markdown: string; updatedAt: string };
+}
+
+/**
+ * The team's knowledge base: shared notes only, never anyone's private ones
+ * (view=shared — the API checks the asker can read each folder). The best
+ * three come back in full so the answer can quote the actual procedure.
+ */
+const searchNotes: ToolDefinition = {
+  name: 'search_notes',
+  description:
+    'Search the team’s shared notes — SOPs, recipes, opening and closing checklists, how-tos — for how this business does something. Returns the best matches with the passage that matched, and the full text of the top three. Only shared folders the operator can read; private notes are never searched. Quote the note and link to it.',
+  capability: 'notes:read',
+  step: 'Searching the team’s notes',
+  parameters: schema({ query: { type: 'string', description: 'What to look for, in a few words — e.g. "close the till", "oat milk order".' } }),
+  async run(args, runtime) {
+    const search = optionalText(args.query, 120);
+    if (!search) return { output: { notes: [] }, evidence: 'No search words given' };
+    const query = new URLSearchParams({ view: 'shared', q: search, limit: '8' });
+    const response = await runtime.get<NotesSearchResponse>(`/notes?${query}`);
+    const found = response.data ?? [];
+    const full = await Promise.all(
+      found.slice(0, 3).map((note) => runtime.get<NoteResponse>(`/notes/${note.id}`).then((detail) => detail.data ?? null).catch(() => null)),
+    );
+    return {
+      output: {
+        notes: found.map((note, index) => ({
+          id: note.id,
+          title: note.title || 'Untitled note',
+          matched: note.snippet.replaceAll('[[', '').replaceAll(']]', ''),
+          updatedAt: note.updatedAt,
+          tags: note.tags,
+          // The note itself, for the best matches — trimmed so one long SOP can't crowd out the answer.
+          ...(full[index] ? { text: full[index]!.markdown.slice(0, 4000) } : {}),
+        })),
+      },
+      evidence: `${found.length} shared note${found.length === 1 ? '' : 's'} matching “${search}”`,
+      cards: [
+        {
+          kind: 'list',
+          title: `Notes about “${search}”`,
+          emptyTone: 'search' as const,
+          emptyLabel: `No shared note mentions “${search}”.`,
+          rows: found.slice(0, 5).map((note) => ({
+            label: note.title || 'Untitled note',
+            value: '',
+            meta: note.snippet.replaceAll('[[', '').replaceAll(']]', '').slice(0, 90),
+          })),
+        },
+      ],
+      shortcuts: found.slice(0, 3).map((note) => page(`Open “${note.title || 'note'}”`, `/notes?note=${note.id}`, 'Notes')),
+    };
+  },
+};
+
 const listLocations: ToolDefinition = {
   module: 'organization',
   name: 'list_locations',
@@ -251,6 +310,7 @@ const MODULE_NAMES: Record<ModuleId, string> = {
   cms: 'Content (CMS)',
   promotions: 'Promotions',
   referrals: 'Refer a friend',
+  notes: 'Notes',
 };
 
 const getWorkspaceModules: ToolDefinition = {
@@ -2775,6 +2835,7 @@ export const TOOLS: ToolDefinition[] = [
   listRecipeGaps,
   searchCustomers,
   getCustomer,
+  searchNotes,
   listCustomerSegments,
   getSchedule,
   getRotaVariance,

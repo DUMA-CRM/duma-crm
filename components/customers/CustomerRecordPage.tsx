@@ -389,6 +389,15 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                   </>
                 ) : undefined
               }
+              referral={
+                referralsOn && !erased ? (
+                  <CustomerReferralCard
+                    customerId={customer.id}
+                    canIssue={canEdit}
+                    canSetUp={hasCapability(capabilities, 'referrals:write')}
+                  />
+                ) : undefined
+              }
               onAction={setModal}
               className="lg:col-start-2 lg:row-start-1"
             />
@@ -397,8 +406,6 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
               {section === 'guest' ? (
                 <>
                   <GlanceFacts customer={customer} avgTicket={avgTicket} summary={visitSummary} money={money} />
-
-                  {referralsOn && !erased && <CustomerReferralCard customerId={customer.id} canIssue={canEdit} />}
 
                   {orderingOn && !visitsForbidden && (
                     <SettingsSection

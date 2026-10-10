@@ -50,6 +50,10 @@ export function setLineQuantity(lines: readonly BasketLine[], key: string, quant
 export const basketTotalPence = (lines: readonly BasketLine[]) => lines.reduce((sum, line) => sum + line.unitPence * line.quantity, 0);
 export const basketCount = (lines: readonly BasketLine[]) => lines.reduce((sum, line) => sum + line.quantity, 0);
 
+/** The basket as the promo-code check reads it: each line's total as a decimal string. The API works out the discount. */
+export const promoCheckLinesFor = (lines: readonly BasketLine[]) =>
+  lines.map((line) => ({ menuItemId: line.menuItemId, quantity: line.quantity, lineTotal: ((line.unitPence * line.quantity) / 100).toFixed(2) }));
+
 export type ManualPayment = { paid: true; method: RecordedPaymentMethod } | { paid: false };
 
 /** What POST /orders receives for an order taken by hand. */
@@ -59,6 +63,8 @@ export function manualOrderPayload(input: {
   lines: readonly BasketLine[];
   notes?: string;
   payment: ManualPayment;
+  /** A promo code for the whole order; the API checks it again and prices it. */
+  promoCode?: string | null;
 }): CreateOrderPayload {
   const notes = input.notes?.trim();
   return {
@@ -67,6 +73,7 @@ export function manualOrderPayload(input: {
     source: 'manual',
     ...(input.payment.paid ? { paid: true, paymentMethod: input.payment.method } : {}),
     ...(notes ? { notes } : {}),
+    ...(input.promoCode ? { promoCode: input.promoCode } : {}),
     items: input.lines.map((line) => ({
       menuItemId: line.menuItemId,
       ...(line.variantId ? { variantId: line.variantId } : {}),

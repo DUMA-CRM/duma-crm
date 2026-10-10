@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Mail,
   Monitor,
+  NotebookPen,
   Package,
   Settings,
   ShieldCheck,
@@ -83,6 +84,8 @@ export const mainNavItems: NavItem[] = [
   { module: 'promotions', label: 'Promotions', href: '/promotions', icon: TicketPercent, capabilities: ['promotions:read'] },
   // Website and app content, served to the tenant's own sites over an API key.
   { module: 'cms', label: 'Content', href: '/content', icon: Layers, capabilities: ['cms:read'] },
+  // The team's knowledge base and everyone's own notes.
+  { module: 'notes', label: 'Notes', href: '/notes', icon: NotebookPen, capabilities: ['notes:read'] },
   // One entry: team, rota, shifts, leave, helpdesk and payroll are tabs of
   // the staff workspace, each on its own route.
   { module: 'people', label: 'Staff', href: '/staff', icon: UsersRound, capabilities: ['staff:read', 'hr.people:read'] },
