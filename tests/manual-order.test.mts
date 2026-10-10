@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const { addToBasket, basketCount, basketTotalPence, manualOrderPayload, setLineNote, setLineQuantity } = await import('../lib/utils/manual-order.ts');
+const { addToBasket, basketCount, basketTotalPence, manualOrderPayload, promoCheckLinesFor, setLineNote, setLineQuantity } = await import(
+  '../lib/utils/manual-order.ts'
+);
 
 const tee = { menuItemId: 'tee', variantId: 'black-l', name: 'T-shirt', unitPence: 2500, quantity: 1, modifierIds: [] as string[] };
 const latte = { menuItemId: 'latte', name: 'Latte', unitPence: 380, quantity: 2, modifierIds: ['oat', 'shot'] };
@@ -59,4 +61,11 @@ test('till prices show the currency sign, not its code', async () => {
   assert.equal(formatPrice(1250, 'UAH'), '₴12.50');
   assert.equal(formatPrice(1250, 'GBP'), '£12.50');
   assert.equal(formatPrice(1250), '£12.50');
+});
+
+test('a promo code goes on the order only when one is applied, and the check reads line totals', () => {
+  const lines = addToBasket([], { menuItemId: 'latte', name: 'Latte', unitPence: 350, quantity: 2, modifierIds: [] });
+  assert.equal(manualOrderPayload({ locationId: 'loc', lines, payment: { paid: false }, promoCode: 'SUMMER10' }).promoCode, 'SUMMER10');
+  assert.equal('promoCode' in manualOrderPayload({ locationId: 'loc', lines, payment: { paid: false }, promoCode: null }), false);
+  assert.deepEqual(promoCheckLinesFor(lines), [{ menuItemId: 'latte', quantity: 2, lineTotal: '7.00' }]);
 });

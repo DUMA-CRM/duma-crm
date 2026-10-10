@@ -24,6 +24,7 @@ import {
 import { CartRow } from '@/components/pos/CartRow';
 import { CustomerAttach } from '@/components/pos/CustomerAttach';
 import { ItemCustomiser } from '@/components/pos/ItemCustomiser';
+import { PromoCodeEntry } from '@/components/pos/PromoCodeEntry';
 import { MENU_STALE_MS, pence, toPosItem } from '@/components/pos/useTillMenuData';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ChoiceCards } from '@/components/shared/FormParts';
@@ -34,8 +35,10 @@ import { SwipeRoot } from '@/components/swipe-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { getItemCatalog, getMenuItemModifierGroups, getMenuItemModifiers, getMenuItems } from '@/lib/modules/catalog/client';
 import { type Order, type RecordedPaymentMethod, createOrder } from '@/lib/modules/ordering/client';
+import { checkPromotionCode } from '@/lib/modules/promotions/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import {
   type BasketLine,
@@ -45,6 +48,7 @@ import {
   basketKey,
   basketTotalPence,
   manualOrderPayload,
+  promoCheckLinesFor,
   setLineNote,
   setLineQuantity,
 } from '@/lib/utils/manual-order';
@@ -148,6 +152,8 @@ export function NewOrderModal({
   const [customer, setCustomer] = useState<Customer | null>(initialCustomer);
   const [findingCustomer, setFindingCustomer] = useState(false);
   const [notes, setNotes] = useState('');
+  const [promoCode, setPromoCode] = useState<string | null>(null);
+  const promotionsOn = useModuleEnabled('promotions');
   const [paid, setPaid] = useState<'paid' | 'later'>('paid');
   const [method, setMethod] = useState<RecordedPaymentMethod>('card');
   // One key for this order, so a retried submit can't create it twice.
@@ -216,6 +222,29 @@ export function NewOrderModal({
   }
 
   const total = basketTotalPence(lines);
+
+  // The promo code, checked against the basket and customer as they change;
+  // the order checks it again under lock and prices it for real.
+  const promoLines = useMemo(() => promoCheckLinesFor(lines), [lines]);
+  const promoCheck = useQuery({
+    queryKey: moduleQueryKeys.promotions.key('check', promoCode, locationId, customer?.id ?? null, false, promoLines),
+    queryFn: () =>
+      checkPromotionCode({
+        code: promoCode!,
+        locationId: locationId!,
+        source: 'manual',
+        customerId: customer?.id ?? null,
+        lines: promoLines,
+      }),
+    enabled: Boolean(promotionsOn && promoCode && locationId && lines.length > 0),
+    placeholderData: (previous) => previous,
+    retry: false,
+  });
+  const promoCents =
+    promoCode && promoCheck.data?.valid && promoCheck.data.estimatedDiscount
+      ? Math.round(Number(promoCheck.data.estimatedDiscount) * 100)
+      : 0;
+
   const create = useMutation({
     mutationFn: () =>
       createOrder(
@@ -225,6 +254,7 @@ export function NewOrderModal({
           lines,
           notes,
           payment: paid === 'paid' ? { paid: true, method } : { paid: false },
+          promoCode,
         }),
         idempotencyKey,
       ),
@@ -239,9 +269,11 @@ export function NewOrderModal({
           <>
             {basketCount(lines)} {basketCount(lines) === 1 ? 'item' : 'items'} ·{' '}
             <span data-figure className="font-semibold text-foreground">
-              {money(total / 100, 2)}
+              {money((total - promoCents) / 100, 2)}
             </span>
-            <span className="text-xs"> before any discounts</span>
+            <span className="text-xs">
+              {promoCents > 0 ? ` with ${promoCode} (−${money(promoCents / 100, 2)}), before other discounts` : ' before any discounts'}
+            </span>
           </>
         ) : (
           'Add something to the order'
@@ -506,6 +538,19 @@ export function NewOrderModal({
                 )}
 
                 <div className="shrink-0 space-y-3 border-t border-rule/60 p-3">
+                  {promotionsOn && (lines.length > 0 || promoCode) && (
+                    <PromoCodeEntry
+                      code={promoCode}
+                      check={promoCheck.data}
+                      checking={promoCheck.isFetching}
+                      failed={promoCheck.isError}
+                      discountCents={promoCents}
+                      offline={false}
+                      onApply={setPromoCode}
+                      onRemove={() => setPromoCode(null)}
+                      currency={currency}
+                    />
+                  )}
                   <Input
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}

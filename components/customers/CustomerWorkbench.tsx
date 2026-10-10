@@ -52,6 +52,8 @@ interface Props {
   canEmail?: boolean;
   /** The loyalty cards, under Contact on every tab — absent when the workspace runs no programme. */
   loyalty?: React.ReactNode;
+  /** Their refer-a-friend code, under the loyalty cards — absent without the referrals module. */
+  referral?: React.ReactNode;
   onAction: (action: WorkbenchAction) => void;
   className?: string;
 }
@@ -64,6 +66,7 @@ export function CustomerWorkbench({
   showConsent = true,
   canEmail = true,
   loyalty,
+  referral,
   onAction,
   className,
 }: Props) {
@@ -110,22 +113,22 @@ export function CustomerWorkbench({
         >
           <div className="grid gap-2">
             {canEmail && (
-            <Button
-              variant="outline"
-              onClick={() => onAction('email')}
-              disabled={!customer.email || consent === 'suppressed'}
-              title={
-                !customer.email
-                  ? 'Add an email address first'
-                  : consent === 'suppressed'
-                    ? 'This address is suppressed and cannot be emailed'
-                    : undefined
-              }
-              className="w-full justify-start"
-            >
-              <Send data-icon="inline-start" />
-              Send email
-            </Button>
+              <Button
+                variant="outline"
+                onClick={() => onAction('email')}
+                disabled={!customer.email || consent === 'suppressed'}
+                title={
+                  !customer.email
+                    ? 'Add an email address first'
+                    : consent === 'suppressed'
+                      ? 'This address is suppressed and cannot be emailed'
+                      : undefined
+                }
+                className="w-full justify-start"
+              >
+                <Send data-icon="inline-start" />
+                Send email
+              </Button>
             )}
 
             {canAdjustPoints && (
@@ -217,6 +220,8 @@ export function CustomerWorkbench({
       </SettingsSection>
 
       {loyalty}
+
+      {referral}
 
       {/* ── What the team should know ────────────────────────────────────
           In the column rather than the Guest tab, so a note can be written
