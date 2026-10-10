@@ -155,7 +155,7 @@ export interface ModuleManifest {
 }
 
 const pages: Record<ModuleId, readonly string[]> = {
-  core: ['/'],
+  core: ['/', '/privacy', '/terms'],
   identity: ['/forgot-password', '/reset-password', '/sign-in', '/sign-up', '/settings/roles', '/settings/security'],
   // The dashboard belongs to every workspace; each widget on it follows its own module.
   organization: [

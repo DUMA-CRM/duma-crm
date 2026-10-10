@@ -3834,10 +3834,10 @@
           "Notes"
         ],
         "summary": "Google’s redirect after consent",
-        "description": "Reached through the CRM’s /be proxy so the session comes with it; the signed state must name the same person. Redirects back to Notes.",
+        "description": "Reached through the CRM’s /be proxy so the session comes with it; the signed state must name the same person. Redirects back to Settings → Connectors.",
         "responses": {
           "302": {
-            "description": "Back to Notes, ?google=connected or ?google=error"
+            "description": "Back to Settings → Connectors, ?google=connected or ?google=error"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -3855,7 +3855,7 @@
           "Notes"
         ],
         "summary": "Disconnect your Google Drive",
-        "description": "Revokes DUMA’s access at Google and forgets the token.",
+        "description": "Revokes DUMA’s access at Google, forgets the token and stops syncing your notes. The Docs already made stay in your Drive.",
         "responses": {
           "200": {
             "description": "Disconnected"
@@ -3869,37 +3869,17 @@
         }
       }
     },
-    "/v1/notes/google/files": {
+    "/v1/notes/{id}/drive-sync": {
       "get": {
-        "operationId": "getV1NotesGoogleFiles",
+        "operationId": "getV1NotesByIdDriveSync",
         "tags": [
           "Notes"
         ],
-        "summary": "Search your Google Drive",
+        "summary": "Whether this note syncs to your Google Drive",
+        "description": "`data` is null when it doesn’t. `pending`: changed since the last push, which follows shortly after editing stops.",
         "responses": {
           "200": {
-            "description": "Files, most recently changed first"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/notes/google/files/{fileId}/markdown": {
-      "get": {
-        "operationId": "getV1NotesGoogleFilesByFileIdMarkdown",
-        "tags": [
-          "Notes"
-        ],
-        "summary": "A Google Doc as Markdown",
-        "description": "For importing a Doc into a note, or updating one imported before. Other files can only be linked (400 `not_a_google_doc`).",
-        "responses": {
-          "200": {
-            "description": "{ file, markdown }"
+            "description": "The sync, or null"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -3914,7 +3894,102 @@
               "type": "string"
             },
             "in": "path",
-            "name": "fileId",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putV1NotesByIdDriveSync",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Keep this note as a Google Doc in your Drive",
+        "description": "Makes the Doc now, in DUMA Notes and a folder per DUMA folder; after that every change is pushed shortly after editing stops. One way: edits made in Google never come back.",
+        "responses": {
+          "200": {
+            "description": "The sync"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "google_not_configured, google_not_connected or google_reconnect"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1NotesByIdDriveSync",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Stop syncing this note to Google Docs",
+        "description": "The Doc stays in your Drive as it is.",
+        "responses": {
+          "200": {
+            "description": "Stopped"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/notes/{id}/drive-sync/push": {
+      "post": {
+        "operationId": "postV1NotesByIdDriveSyncPush",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Sync this note to Google Docs now",
+        "description": "Also how a stopped sync restarts. `overwrite: true` replaces a Doc that was edited in Google (status `conflict`), or makes a new one when it was deleted (`missing`).",
+        "responses": {
+          "200": {
+            "description": "The sync"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not synced, or not your note to read"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
             "required": true
           }
         ]

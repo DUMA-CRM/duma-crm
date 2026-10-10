@@ -1,20 +1,23 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
 
-import { Plug, Settings, Zap } from '@/components/icons';
+import { Plug, Power, Settings, Zap } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { getCmsStorage } from '@/lib/modules/cms/client';
 import { getEmailConnection } from '@/lib/modules/communications/client';
+import { disconnectGoogleDrive, getGoogleDriveStatus, startGoogleDriveConnect } from '@/lib/modules/notes/client';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { getPaymentConnections } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { formatBytes } from '@/lib/utils/cms';
 import { useAuthStore } from '@/stores/authStore';
+import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { type ConnectorAccount, type ConnectorAction, ConnectorCard } from './ConnectorCard';
@@ -67,12 +70,44 @@ export function ConnectorsGrid() {
     enabled: !!tenantId && storageVisible,
   });
 
+  // Google Drive is each person's own: connected from here, used from Notes.
+  const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const googleKey = moduleQueryKeys.notes.key('google-status');
+  const driveVisible = visible(CONNECTORS.find((definition) => definition.id === 'google-drive')!);
+  const { data: google } = useQuery({ queryKey: googleKey, queryFn: getGoogleDriveStatus, enabled: driveVisible, retry: false });
+  const connectGoogle = useMutation({
+    mutationFn: startGoogleDriveConnect,
+    onSuccess: ({ url }) => window.location.assign(url),
+    onError: (error) => toast('error', error.message),
+  });
+  const disconnectGoogle = useMutation({
+    mutationFn: disconnectGoogleDrive,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.notes.all });
+      toast('success', 'Google Drive disconnected. Your notes stopped syncing; the Docs stay in your Drive.');
+    },
+    onError: (error) => toast('error', error.message),
+  });
+  // Back from Google's consent screen (the API's callback redirects here).
+  useEffect(() => {
+    const outcome = searchParams.get('google');
+    if (!outcome) return;
+    if (outcome === 'connected') toast('success', 'Google Drive connected. Choose “Sync to Google Docs” on any note.');
+    else toast('error', searchParams.get('reason') ?? 'Google Drive didn’t connect.');
+    void queryClient.invalidateQueries({ queryKey: googleKey });
+    router.replace('/settings/connectors');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on the redirect
+  }, []);
+
   const open = (id: ConnectorId, mode?: 'connect') => router.push(`/settings/connectors?connector=${id}${mode ? `&mode=${mode}` : ''}`);
 
   const emailState = emailConnectorState(emailConnection);
   const paymentsState = paymentsConnectorState(paymentMethods);
 
-  const cards = CONNECTORS.filter(visible).map((definition) => {
+  const cards = CONNECTORS.filter(visible)
+    .filter((definition) => definition.id !== 'google-drive' || google?.configured === true)
+    .map((definition) => {
     if (definition.id === 'email') {
       const checked = relativeTime(emailConnection?.lastTestedAt);
       const accounts: ConnectorAccount[] = emailConnection
@@ -135,6 +170,35 @@ export function ConnectorsGrid() {
         extraAccountCount: Math.max(0, (storage?.connections.length ?? 0) - 1),
         action,
         alert: state === 'attention' ? { title: 'The last check failed', detail: active?.lastError ?? undefined } : undefined,
+      };
+    }
+
+    if (definition.id === 'google-drive') {
+      const canSync = google?.canSync === true;
+      // Connected before sync existed (read-only access), or Google stopped accepting it: reconnect.
+      const state: ConnectorState = !google?.status || google.status === 'revoked' ? 'disconnected' : canSync ? 'connected' : 'attention';
+      const accounts: ConnectorAccount[] = google?.email && state !== 'disconnected' ? [{ label: google.email, meta: 'Only you' }] : [];
+      const action: ConnectorAction =
+        state === 'connected'
+          ? { label: 'Disconnect', icon: Power, onClick: () => disconnectGoogle.mutate(), variant: 'outline', disabled: disconnectGoogle.isPending }
+          : {
+              label: state === 'attention' ? 'Re-connect' : 'Connect',
+              icon: state === 'attention' ? Zap : Plug,
+              onClick: () => connectGoogle.mutate(),
+              disabled: connectGoogle.isPending,
+            };
+      return {
+        definition,
+        state,
+        accounts,
+        action,
+        alert:
+          state === 'attention'
+            ? {
+                title: google?.status === 'error' ? 'Google stopped accepting the connection' : 'DUMA needs permission to save Docs',
+                detail: google?.lastError ?? 'Connect again and allow DUMA to create files in your Drive.',
+              }
+            : undefined,
       };
     }
 

@@ -45,8 +45,12 @@ export default function HomePage() {
       <footer className="flex items-center justify-center gap-4 px-4 pb-6 text-xs text-muted-foreground">
         <span>© 2026 DUMA</span>
         <span aria-hidden="true">·</span>
-        <Link href="/support" className="min-h-11 content-center hover:text-foreground">
-          Support
+        <Link href="/privacy" className="min-h-11 content-center hover:text-foreground">
+          Privacy Policy
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/terms" className="min-h-11 content-center hover:text-foreground">
+          Terms of Service
         </Link>
       </footer>
     </main>

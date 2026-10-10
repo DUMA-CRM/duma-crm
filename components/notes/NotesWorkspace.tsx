@@ -7,7 +7,6 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import {
   FolderIcon,
   FolderPlus,
-  GoogleDrive,
   Hash,
   Lock,
   MoreHorizontal,
@@ -43,12 +42,12 @@ import {
 } from '@/lib/modules/notes/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import type { NoteLength } from '@/lib/utils/note-editor';
 import { folderTree, groupNotesByDate, noteBodyAfterTitle, sharingSummary, snippetParts } from '@/lib/utils/notes';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
-import { DriveDialog } from './DriveDialog';
 import { FolderDialog, type FolderDialogMode } from './FolderDialog';
 import { NoteEditor } from './NoteEditor';
 
@@ -82,7 +81,7 @@ export function NotesWorkspace() {
   const q = useDeferredValue(search.trim());
   const [folderDialog, setFolderDialog] = useState<FolderDialogMode | null>(null);
   const [deleting, setDeleting] = useState<NoteFolder | null>(null);
-  const [drive, setDrive] = useState(false);
+  const [length, setLength] = useState<NoteLength | null>(null);
 
   const navigate = (patch: Record<string, string | null>, mode: 'push' | 'replace' = 'push') => {
     const next = new URLSearchParams(params.toString());
@@ -100,19 +99,6 @@ export function NotesWorkspace() {
       tag: place.tag ?? null,
       note: null,
     });
-
-  // Back from Google's consent screen.
-  useEffect(() => {
-    const outcome = params.get('google');
-    if (!outcome) return;
-    if (outcome === 'connected') {
-      toast('success', 'Google Drive connected.');
-      setDrive(true);
-    } else toast('error', params.get('reason') ?? 'Google Drive didn’t connect.');
-    void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.notes.key('google-status') });
-    navigate({ google: null, reason: null }, 'replace');
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on the redirect
-  }, []);
 
   const folders = useQuery({ queryKey: moduleQueryKeys.notes.key('folders'), queryFn: getNoteFolders });
   const tags = useQuery({ queryKey: moduleQueryKeys.notes.key('tags'), queryFn: getNoteTags });
@@ -165,12 +151,12 @@ export function NotesWorkspace() {
       flush
       actions={
         <div className="flex items-center gap-1.5 md:gap-2">
-          <Tooltip side="bottom" label="Google Drive">
-            <Button variant="outline" className="h-9 gap-1.5" onClick={() => setDrive(true)} aria-label="Google Drive">
-              <GoogleDrive size={15} aria-hidden="true" />
-              <span className="hidden md:inline">Drive</span>
-            </Button>
-          </Tooltip>
+          {noteId && length && length.words > 0 && (
+            <span className="mr-1 hidden whitespace-nowrap text-xs tabular-nums text-muted-foreground md:inline" aria-live="polite">
+              {length.words.toLocaleString()} {length.words === 1 ? 'word' : 'words'}
+              <span className="max-xl:hidden"> · {length.characters.toLocaleString()} characters</span> · {length.minutes} min read
+            </span>
+          )}
           {canWrite && (
             <Tooltip side="bottom" align="end" label="New note (⌘N)">
               <Button className="h-9 gap-1.5" disabled={create.isPending} onClick={() => create.mutate()}>
@@ -190,7 +176,7 @@ export function NotesWorkspace() {
           ) : folders.isError ? (
             <ErrorState title="Folders couldn’t be loaded" onRetry={() => void folders.refetch()} />
           ) : (
-            <nav className="space-y-5">
+            <nav className="flex min-h-full flex-col space-y-5">
               <ul className="space-y-0.5">
                 <Place
                   icon={StickyNote}
@@ -287,7 +273,7 @@ export function NotesWorkspace() {
                 </div>
               )}
 
-              <ul className="border-t border-rule/50 pt-3">
+              <ul className="mt-auto border-t border-rule/50 pt-3">
                 <Place
                   icon={Trash2}
                   label="Recently deleted"
@@ -381,6 +367,7 @@ export function NotesWorkspace() {
               folders={allFolders}
               onBack={() => navigate({ note: null })}
               onDeleted={() => navigate({ note: null }, 'replace')}
+              onLength={setLength}
             />
           ) : (
             <EmptyState
@@ -414,16 +401,6 @@ export function NotesWorkspace() {
           isPending={removeFolder.isPending}
           onConfirm={() => removeFolder.mutate(deleting)}
           onClose={() => setDeleting(null)}
-        />
-      )}
-      {drive && (
-        <DriveDialog
-          folderId={currentFolder?.canEdit ? currentFolder.id : null}
-          onClose={() => setDrive(false)}
-          onOpened={(note) => {
-            setDrive(false);
-            navigate({ note: note.id });
-          }}
         />
       )}
     </EditorShell>
@@ -585,9 +562,6 @@ function NoteList({
                 >
                   <span className="flex items-center gap-1.5">
                     {note.pinned && <Pin size={12} className="shrink-0 text-primary" aria-label="Pinned" />}
-                    {note.sourceProvider === 'google_drive' && (
-                      <GoogleDrive size={12} className="shrink-0 text-muted-foreground" aria-label="From Google Drive" />
-                    )}
                     <span className="truncate text-sm font-semibold text-foreground">{note.title || 'New note'}</span>
                   </span>
                   <span className="mt-0.5 flex gap-2 text-xs text-muted-foreground">

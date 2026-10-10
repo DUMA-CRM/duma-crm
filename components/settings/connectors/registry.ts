@@ -1,8 +1,16 @@
-import { Banknote, Calculator, CreditCard, Database, type IconComponent, Mail, Printer, Tags } from '@/components/icons';
+import { Banknote, Calculator, CreditCard, Database, GoogleDrive, type IconComponent, Mail, Printer, Tags } from '@/components/icons';
 import type { Capability } from '@/lib/auth/capabilities';
 import type { WorkspaceModuleId } from '@/lib/modules/organization/client';
 
-export type ConnectorId = 'email' | 'card-payments' | 'media-storage' | 'payroll' | 'accounting' | 'receipt-printer' | 'label-printer';
+export type ConnectorId =
+  | 'email'
+  | 'card-payments'
+  | 'media-storage'
+  | 'google-drive'
+  | 'payroll'
+  | 'accounting'
+  | 'receipt-printer'
+  | 'label-printer';
 
 /**
  * What the business sees on the card. `attention` covers anything that used to
@@ -45,6 +53,7 @@ export const CONNECTORS: ConnectorDefinition[] = [
       'An app password (Gmail and Microsoft 365 both require one)',
     ],
     available: true,
+    capability: 'email.connections:write',
   },
   {
     id: 'card-payments',
@@ -59,6 +68,7 @@ export const CONNECTORS: ConnectorDefinition[] = [
       'About two minutes',
     ],
     available: true,
+    capability: 'payments.connections:write',
   },
   {
     id: 'media-storage',
@@ -75,6 +85,19 @@ export const CONNECTORS: ConnectorDefinition[] = [
     available: true,
     capability: 'cms.keys:write',
     moduleId: 'cms',
+  },
+  {
+    id: 'google-drive',
+    name: 'Google Drive',
+    icon: GoogleDrive,
+    description: 'Keep the notes you choose as Google Docs in your own Drive, updated as you edit them.',
+    tags: ['Notes', 'Google Docs', 'Your own account'],
+    tagline: 'Your notes, kept as Google Docs in your Drive.',
+    requirements: [],
+    available: true,
+    capability: 'notes:write',
+    // Each person connects their own Google account; nobody else sees it.
+    moduleId: 'notes',
   },
   {
     id: 'payroll',

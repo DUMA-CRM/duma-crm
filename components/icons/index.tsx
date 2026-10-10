@@ -32,8 +32,8 @@ import {
   BookMarkedIcon,
   BookOpenCheckIcon,
   BookOpenIcon,
-  BoxesIcon,
   BoxIcon,
+  BoxesIcon,
   BuildingIcon,
   CalculatorIcon,
   CalendarCheckIcon,
@@ -53,8 +53,8 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ChevronsUpIcon,
   ChevronUpIcon,
+  ChevronsUpIcon,
   CircleCheckIcon,
   CircleDashedIcon,
   CircleDollarSignIcon,
@@ -79,6 +79,8 @@ import {
   DashboardSquare01Icon,
   Database01Icon,
   Delete02Icon,
+  DeleteColumnIcon,
+  DeleteRowIcon,
   DownloadIcon,
   DropletIcon,
   DropletsIcon,
@@ -104,6 +106,9 @@ import {
   GraduationCapIcon,
   Grid2X2Icon,
   HashtagIcon,
+  Heading01Icon,
+  Heading02Icon,
+  Heading03Icon,
   HeadingIcon,
   HeadphonesIcon,
   HeartHandshakeIcon,
@@ -114,6 +119,10 @@ import {
   Image01Icon,
   ImageAddIcon,
   InformationCircleIcon,
+  InsertColumnLeftIcon,
+  InsertColumnRightIcon,
+  InsertRowDownIcon,
+  InsertRowUpIcon,
   Invoice01Icon,
   KeyIcon,
   KitchenUtensilsIcon,
@@ -122,6 +131,8 @@ import {
   Layers01Icon,
   LayersIcon,
   LayoutGridIcon,
+  LayoutTable01Icon,
+  LayoutThreeColumnIcon,
   LayoutTwoColumnIcon,
   LeafIcon,
   LeftToRightListBulletIcon,
@@ -199,8 +210,12 @@ import {
   TagIcon,
   TagsIcon,
   TargetIcon,
+  TextAlignCenterIcon,
   TextAlignLeftIcon,
+  TextAlignRightIcon,
   TextBoldIcon,
+  TextClearIcon,
+  TextColorIcon,
   TextFontIcon,
   TextItalicIcon,
   TextStrikethroughIcon,
@@ -218,6 +233,7 @@ import {
   UserIcon,
   UserMinusIcon,
   UserMultipleIcon,
+  Video01Icon,
   VideoOffIcon,
   VolumeHighIcon,
   VolumeOffIcon,
@@ -474,3 +490,21 @@ export const Palette = /*#__PURE__*/ glyph(PaintBoardIcon, 'Palette');
 export const Pilcrow = /*#__PURE__*/ glyph(ParagraphIcon, 'Pilcrow');
 export const ToggleRight = /*#__PURE__*/ glyph(ToggleOnIcon, 'ToggleRight');
 export const Type = /*#__PURE__*/ glyph(TextFontIcon, 'Type');
+// Notes editor
+export const AlignCenter = /*#__PURE__*/ glyph(TextAlignCenterIcon, 'AlignCenter');
+export const AlignRight = /*#__PURE__*/ glyph(TextAlignRightIcon, 'AlignRight');
+export const CodeBlock = /*#__PURE__*/ glyph(SourceCodeIcon, 'CodeBlock');
+export const ColumnInsertLeft = /*#__PURE__*/ glyph(InsertColumnLeftIcon, 'ColumnInsertLeft');
+export const ColumnInsertRight = /*#__PURE__*/ glyph(InsertColumnRightIcon, 'ColumnInsertRight');
+export const ColumnRemove = /*#__PURE__*/ glyph(DeleteColumnIcon, 'ColumnRemove');
+export const Heading1 = /*#__PURE__*/ glyph(Heading01Icon, 'Heading1');
+export const Heading2 = /*#__PURE__*/ glyph(Heading02Icon, 'Heading2');
+export const Heading3 = /*#__PURE__*/ glyph(Heading03Icon, 'Heading3');
+export const RowInsertAbove = /*#__PURE__*/ glyph(InsertRowUpIcon, 'RowInsertAbove');
+export const RowInsertBelow = /*#__PURE__*/ glyph(InsertRowDownIcon, 'RowInsertBelow');
+export const RowRemove = /*#__PURE__*/ glyph(DeleteRowIcon, 'RowRemove');
+export const TableHeader = /*#__PURE__*/ glyph(LayoutTable01Icon, 'TableHeader');
+export const TextColor = /*#__PURE__*/ glyph(TextColorIcon, 'TextColor');
+export const TextClear = /*#__PURE__*/ glyph(TextClearIcon, 'TextClear');
+export const Columns3 = /*#__PURE__*/ glyph(LayoutThreeColumnIcon, 'Columns3');
+export const Video = /*#__PURE__*/ glyph(Video01Icon, 'Video');

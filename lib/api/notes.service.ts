@@ -80,19 +80,11 @@ export interface NoteContentFields {
   tags: string[];
 }
 
-export interface DriveFile {
-  id: string;
-  name: string;
-  mimeType: string;
-  modifiedTime: string;
-  webViewLink: string | null;
-  iconLink: string | null;
-  owner: string | null;
-}
-
 export interface GoogleDriveStatus {
   configured: boolean;
   connected: boolean;
+  /** Connected with the access saving Docs needs — a connection made before sync existed has only read access. */
+  canSync: boolean;
   status: 'connected' | 'error' | 'revoked' | null;
   email: string | null;
   lastError: string | null;
@@ -155,9 +147,30 @@ export const restoreNoteVersion = (id: string, versionId: string) =>
 export const getGoogleDriveStatus = () => apiFetch<{ data: GoogleDriveStatus }>('/notes/google/status').then((res) => res.data);
 export const startGoogleDriveConnect = () =>
   apiFetch<{ data: { url: string } }>('/notes/google/connect', { method: 'POST' }).then((res) => res.data);
+/** Also stops every note syncing; the Docs already made stay in the person's Drive. */
 export const disconnectGoogleDrive = () => apiFetch<{ data: { disconnected: boolean } }>('/notes/google', { method: 'DELETE' });
-export const searchGoogleDrive = (q: string) => apiFetch<{ data: DriveFile[] }>(`/notes/google/files?${qs({ q })}`).then((res) => res.data);
-export const getGoogleDocMarkdown = (fileId: string) =>
-  apiFetch<{ data: { file: DriveFile; markdown: string } }>(`/notes/google/files/${encodeURIComponent(fileId)}/markdown`).then(
+
+/**
+ * A note kept as a Google Doc in the viewer's own Drive — one way, DUMA → Google.
+ * `conflict`: the Doc was edited in Google, so pushing stopped; `missing`: the Doc
+ * was deleted in Drive; `error`: it gave up, or the connection can't write.
+ */
+export interface NoteDriveSync {
+  status: 'active' | 'conflict' | 'missing' | 'error';
+  url: string | null;
+  pushedAt: string | null;
+  lastError: string | null;
+  /** Changed since the last push; the push follows shortly after editing stops. */
+  pending: boolean;
+}
+
+export const getNoteDriveSync = (id: string) => apiFetch<{ data: NoteDriveSync | null }>(`/notes/${id}/drive-sync`).then((res) => res.data);
+export const startNoteDriveSync = (id: string) =>
+  apiFetch<{ data: NoteDriveSync }>(`/notes/${id}/drive-sync`, { method: 'PUT' }).then((res) => res.data);
+/** `overwrite` replaces a Doc edited in Google, or makes a new one if it was deleted. */
+export const pushNoteDriveSync = (id: string, overwrite = false) =>
+  apiFetch<{ data: NoteDriveSync | null }>(`/notes/${id}/drive-sync/push`, { method: 'POST', body: JSON.stringify({ overwrite }) }).then(
     (res) => res.data,
   );
+export const stopNoteDriveSync = (id: string) =>
+  apiFetch<{ data: { stopped: boolean } }>(`/notes/${id}/drive-sync`, { method: 'DELETE' }).then((res) => res.data);

@@ -4,42 +4,42 @@ import { Highlight } from '@tiptap/extension-highlight';
 import { Image } from '@tiptap/extension-image';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { TableKit } from '@tiptap/extension-table';
+import { TextAlign } from '@tiptap/extension-text-align';
+import { Color, TextStyle } from '@tiptap/extension-text-style';
 import { Placeholder } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';
-import { type Editor, EditorContent, useEditor, useEditorState } from '@tiptap/react';
+import { type Editor, EditorContent, Extension, useEditor, useEditorState } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
 import { StarterKit } from '@tiptap/starter-kit';
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import {
-  Bold,
-  Code,
-  Heading,
-  Highlighter,
-  ImagePlus,
-  Italic,
-  Link2,
-  ListBullet,
-  ListChecks,
-  ListOrdered,
-  Minus,
-  Quote,
-  Redo,
-  Strikethrough,
-  Table,
-  Type,
-  Underline,
-  Undo,
+  ColumnInsertLeft,
+  ColumnInsertRight,
+  ColumnRemove,
+  RowInsertAbove,
+  RowInsertBelow,
+  RowRemove,
+  TableHeader,
+  Trash2,
 } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { Tooltip } from '@/components/shared/Tooltip';
 
 import { cn } from '@/lib/utils/cn';
 
+import { NoteColumn, NoteColumns } from './noteColumns';
+import { NoteVideo } from './noteVideo';
+
 // ---------------------------------------------------------------------------
 // The live note editor (TipTap) — loaded only on the Notes page
 // (UI-ADR-031). It holds the document; the page around it saves. What it
 // reports on every change: the editor's own JSON (stored as the truth), and
 // Markdown and plain text derived from it (export, search, Ask DUMA).
+//
+// The formatting toolbar is `NoteToolbar`, rendered in the note's own bar by
+// `NoteEditor` — one row for where the note is, how to format it and whether
+// it's saved. Table editing lives here, on the table itself.
 // ---------------------------------------------------------------------------
 
 export interface EditorSnapshot {
@@ -59,6 +59,39 @@ export function snapshotOf(editor: Editor): EditorSnapshot {
 /** True for an empty stored document — a new note, or one imported as Markdown only. */
 const isEmptyDoc = (content: Record<string, unknown>) => !content || Object.keys(content).length === 0;
 
+/** Uploads put in a note: photos always, videos only where the upload goes to Content. */
+export const insertableFiles = (files: File[], videos: boolean) =>
+  files.filter((file) => file.type.startsWith('image/') || (videos && file.type.startsWith('video/')));
+
+/** Upload photos (and videos) and put them in the note — at a drop point, or at the caret. */
+export function insertMediaFiles(editor: Editor, files: File[], upload: (file: File) => Promise<string>, videos: boolean, at?: number) {
+  for (const file of insertableFiles(files, videos)) {
+    void upload(file)
+      .then((src) => {
+        const title = file.name.replace(/\.[^.]+$/, '');
+        const node = file.type.startsWith('video/')
+          ? { type: 'video', attrs: { src, title } }
+          : { type: 'image', attrs: { src, alt: title } };
+        const chain = editor.chain().focus();
+        (at !== undefined ? chain.insertContentAt(at, node) : chain.insertContent(node)).run();
+      })
+      // The upload has already said why; the note just doesn't get the image.
+      .catch(() => undefined);
+  }
+}
+
+/**
+ * ⇧⌘L is a checklist, as in Apple Notes. TextAlign claims the same keys for
+ * "align left", so this runs first and wins.
+ */
+const NoteShortcuts = Extension.create({
+  name: 'noteShortcuts',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    return { 'Mod-Shift-l': () => this.editor.commands.toggleTaskList() };
+  },
+});
+
 export function RichNoteEditor({
   content,
   markdown,
@@ -66,6 +99,7 @@ export function RichNoteEditor({
   onChange,
   onReady,
   onUploadImage,
+  acceptsVideo,
 }: {
   content: Record<string, unknown>;
   /** Used when `content` is empty: a Google Doc arrives as Markdown and becomes the document here. */
@@ -75,24 +109,17 @@ export function RichNoteEditor({
   onReady?: (editor: Editor) => void;
   /** Upload a pasted or dropped image; resolves to its URL. */
   onUploadImage: (file: File) => Promise<string>;
+  /** True when uploads go to Content, which keeps videos too. */
+  acceptsVideo: boolean;
 }) {
   const fromMarkdown = isEmptyDoc(content) && markdown.trim().length > 0;
   const changeRef = useRef(onChange);
   changeRef.current = onChange;
   const uploadRef = useRef(onUploadImage);
   uploadRef.current = onUploadImage;
-
-  const insertImages = (editor: Editor, files: File[], at?: number) => {
-    for (const file of files.filter((candidate) => candidate.type.startsWith('image/'))) {
-      void uploadRef.current(file).then((src) => {
-        const chain = editor.chain().focus();
-        (at !== undefined
-          ? chain.insertContentAt(at, { type: 'image', attrs: { src, alt: file.name } })
-          : chain.setImage({ src, alt: file.name })
-        ).run();
-      });
-    }
-  };
+  const videoRef = useRef(acceptsVideo);
+  videoRef.current = acceptsVideo;
+  const upload = (file: File) => uploadRef.current(file);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -101,9 +128,24 @@ export function RichNoteEditor({
       StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false, autolink: true, defaultProtocol: 'https' } }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      TableKit.configure({ table: { resizable: false } }),
-      Image.configure({ allowBase64: false }),
-      Highlight,
+      TableKit.configure({ table: { resizable: true, cellMinWidth: 60 } }),
+      Image.configure({
+        allowBase64: false,
+        resize: {
+          enabled: true,
+          directions: ['left', 'right', 'bottom-left', 'bottom-right'],
+          minWidth: 80,
+          alwaysPreserveAspectRatio: true,
+        },
+      }),
+      NoteVideo,
+      NoteColumns,
+      NoteColumn,
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      NoteShortcuts,
       Placeholder.configure({ placeholder: ({ pos }) => (pos === 0 ? 'Title' : 'Start writing…') }),
       Markdown,
     ],
@@ -113,15 +155,15 @@ export function RichNoteEditor({
       attributes: { class: 'focus:outline-none', 'aria-label': 'Note' },
       handlePaste: (view, event) => {
         const files = [...(event.clipboardData?.files ?? [])];
-        if (!files.some((file) => file.type.startsWith('image/')) || !editorRef.current) return false;
-        insertImages(editorRef.current, files);
+        if (insertableFiles(files, videoRef.current).length === 0 || !editorRef.current) return false;
+        insertMediaFiles(editorRef.current, files, upload, videoRef.current);
         return true;
       },
       handleDrop: (view, event) => {
         const files = [...(event.dataTransfer?.files ?? [])];
-        if (!files.some((file) => file.type.startsWith('image/')) || !editorRef.current) return false;
+        if (insertableFiles(files, videoRef.current).length === 0 || !editorRef.current) return false;
         const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
-        insertImages(editorRef.current, files, at);
+        insertMediaFiles(editorRef.current, files, upload, videoRef.current, at);
         return true;
       },
     },
@@ -139,160 +181,115 @@ export function RichNoteEditor({
   }, [editor]);
 
   useEffect(() => {
-    editor?.setEditable(editable);
+    // No update event: becoming editable is not an edit, and must not trigger a save.
+    editor?.setEditable(editable, false);
   }, [editor, editable]);
 
   if (!editor) return <div className="min-h-[60vh]" aria-busy="true" />;
   return (
     <div className="flex min-h-0 flex-col">
-      {editable && <Toolbar editor={editor} onPickImage={(files) => insertImages(editor, files)} />}
-      <div className="note-prose px-1 pt-4">
+      <div className="note-prose pt-6">
         <EditorContent editor={editor} />
       </div>
+      {editable && <TableMenu editor={editor} />}
     </div>
   );
 }
 
-function Toolbar({ editor, onPickImage }: { editor: Editor; onPickImage: (files: File[]) => void }) {
-  const fileInputId = useId();
-  // Re-render on selection and content, so the active states follow the caret.
+/** The table under the caret, as a DOM element the floating menu can sit on. */
+function tableElement(editor: Editor): HTMLElement | null {
+  const { $from } = editor.state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    if ($from.node(depth).type.name === 'table') {
+      const dom = editor.view.nodeDOM($from.before(depth));
+      return dom instanceof HTMLElement ? dom : null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Rows and columns, on the table itself: whenever the caret is in a table, a
+ * small bar sits above it. Columns resize by dragging their edges.
+ */
+function TableMenu({ editor }: { editor: Editor }) {
   const state = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
-      h1: current.isActive('heading', { level: 1 }),
-      h2: current.isActive('heading', { level: 2 }),
-      paragraph: current.isActive('paragraph'),
-      bold: current.isActive('bold'),
-      italic: current.isActive('italic'),
-      underline: current.isActive('underline'),
-      strike: current.isActive('strike'),
-      highlight: current.isActive('highlight'),
-      code: current.isActive('code'),
-      link: current.isActive('link'),
-      bullet: current.isActive('bulletList'),
-      ordered: current.isActive('orderedList'),
-      task: current.isActive('taskList'),
-      quote: current.isActive('blockquote'),
-      table: current.isActive('table'),
-      canUndo: current.can().undo(),
-      canRedo: current.can().redo(),
+      inTable: current.isActive('table'),
+      canMerge: current.can().mergeCells(),
+      canSplit: current.can().splitCell(),
+      canDeleteColumn: current.can().deleteColumn(),
+      canDeleteRow: current.can().deleteRow(),
     }),
   });
 
-  const setLink = () => {
-    const previous = editor.getAttributes('link').href as string | undefined;
-    const url = window.prompt('Link address', previous ?? 'https://');
-    if (url === null) return;
-    if (url.trim() === '' || url.trim() === 'https://') editor.chain().focus().extendMarkRange('link').unsetLink().run();
-    else editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run();
-  };
-
-  const groups: { label: string; icon: IconComponent; active?: boolean; disabled?: boolean; run: () => void; shortcut?: string }[][] = [
+  const groups: { label: string; icon: IconComponent; run: () => void; disabled?: boolean; danger?: boolean }[][] = [
     [
-      { label: 'Title', icon: Heading, active: state.h1, run: () => editor.chain().focus().toggleHeading({ level: 1 }).run() },
-      { label: 'Heading', icon: Type, active: state.h2, run: () => editor.chain().focus().toggleHeading({ level: 2 }).run() },
+      { label: 'Add a row above', icon: RowInsertAbove, run: () => editor.chain().focus().addRowBefore().run() },
+      { label: 'Add a row below', icon: RowInsertBelow, run: () => editor.chain().focus().addRowAfter().run() },
+      { label: 'Delete this row', icon: RowRemove, disabled: !state.canDeleteRow, run: () => editor.chain().focus().deleteRow().run() },
     ],
     [
-      { label: 'Bold', icon: Bold, active: state.bold, shortcut: '⌘B', run: () => editor.chain().focus().toggleBold().run() },
-      { label: 'Italic', icon: Italic, active: state.italic, shortcut: '⌘I', run: () => editor.chain().focus().toggleItalic().run() },
+      { label: 'Add a column to the left', icon: ColumnInsertLeft, run: () => editor.chain().focus().addColumnBefore().run() },
+      { label: 'Add a column to the right', icon: ColumnInsertRight, run: () => editor.chain().focus().addColumnAfter().run() },
       {
-        label: 'Underline',
-        icon: Underline,
-        active: state.underline,
-        shortcut: '⌘U',
-        run: () => editor.chain().focus().toggleUnderline().run(),
+        label: 'Delete this column',
+        icon: ColumnRemove,
+        disabled: !state.canDeleteColumn,
+        run: () => editor.chain().focus().deleteColumn().run(),
       },
-      { label: 'Strikethrough', icon: Strikethrough, active: state.strike, run: () => editor.chain().focus().toggleStrike().run() },
-      { label: 'Highlight', icon: Highlighter, active: state.highlight, run: () => editor.chain().focus().toggleHighlight().run() },
     ],
     [
-      {
-        label: 'Checklist',
-        icon: ListChecks,
-        active: state.task,
-        shortcut: '⇧⌘L',
-        run: () => editor.chain().focus().toggleTaskList().run(),
-      },
-      { label: 'Bulleted list', icon: ListBullet, active: state.bullet, run: () => editor.chain().focus().toggleBulletList().run() },
-      { label: 'Numbered list', icon: ListOrdered, active: state.ordered, run: () => editor.chain().focus().toggleOrderedList().run() },
-      { label: 'Quote', icon: Quote, active: state.quote, run: () => editor.chain().focus().toggleBlockquote().run() },
-      { label: 'Code', icon: Code, active: state.code, run: () => editor.chain().focus().toggleCode().run() },
-    ],
-    [
-      {
-        label: state.table ? 'Add a row' : 'Table',
-        icon: Table,
-        active: state.table,
-        run: () =>
-          state.table
-            ? editor.chain().focus().addRowAfter().run()
-            : editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
-      },
-      { label: 'Link', icon: Link2, active: state.link, shortcut: '⌘K', run: setLink },
-      { label: 'Image', icon: ImagePlus, run: () => document.getElementById(fileInputId)?.click() },
-      { label: 'Divider', icon: Minus, run: () => editor.chain().focus().setHorizontalRule().run() },
-    ],
-    [
-      { label: 'Undo', icon: Undo, disabled: !state.canUndo, shortcut: '⌘Z', run: () => editor.chain().focus().undo().run() },
-      { label: 'Redo', icon: Redo, disabled: !state.canRedo, shortcut: '⇧⌘Z', run: () => editor.chain().focus().redo().run() },
+      { label: 'Header row on or off', icon: TableHeader, run: () => editor.chain().focus().toggleHeaderRow().run() },
+      { label: 'Delete the table', icon: Trash2, danger: true, run: () => editor.chain().focus().deleteTable().run() },
     ],
   ];
 
-  // ⌘K for a link and ⇧⌘L for a checklist, as Notes does.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (!editor.isFocused || !(event.metaKey || event.ctrlKey)) return;
-      if (event.key.toLowerCase() === 'k' && !event.shiftKey) {
-        event.preventDefault();
-        setLink();
-      } else if (event.key.toLowerCase() === 'l' && event.shiftKey) {
-        event.preventDefault();
-        editor.chain().focus().toggleTaskList().run();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
-
   return (
-    <div
-      role="toolbar"
-      aria-label="Formatting"
-      className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center gap-1 border-b border-rule/50 bg-background/95 px-1 py-1.5 backdrop-blur"
+    <BubbleMenu
+      editor={editor}
+      pluginKey="noteTableMenu"
+      shouldShow={({ editor: current }) => current.isEditable && current.isActive('table')}
+      getReferencedVirtualElement={() => tableElement(editor)}
+      options={{ placement: 'top-start', offset: 8, flip: true, shift: { padding: 8 } }}
+      className="z-30"
     >
-      {groups.map((group, index) => (
-        <div key={index} className={cn('flex items-center gap-0.5', index > 0 && 'border-l border-rule/50 pl-1')}>
-          {group.map((tool) => (
-            <Tooltip key={tool.label} side="bottom" label={tool.shortcut ? `${tool.label} (${tool.shortcut})` : tool.label}>
-              <button
-                type="button"
-                aria-label={tool.label}
-                aria-pressed={tool.active ?? undefined}
-                disabled={tool.disabled}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={tool.run}
-                className={cn(
-                  'flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40',
-                  tool.active && 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary',
-                )}
-              >
-                <tool.icon size={16} aria-hidden="true" />
-              </button>
-            </Tooltip>
+      {state.inTable && (
+        <div role="toolbar" aria-label="Table" className="flex items-center gap-0.5 rounded-lg border border-rule/70 bg-card p-1 shadow-lg">
+          {groups.map((group, index) => (
+            <div key={index} className={cn('flex items-center gap-0.5', index > 0 && 'ml-0.5 border-l border-rule/50 pl-1')}>
+              {group.map((tool) => (
+                <Tooltip key={tool.label} side="top" label={tool.label}>
+                  <button
+                    type="button"
+                    aria-label={tool.label}
+                    disabled={tool.disabled}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={tool.run}
+                    className={cn(
+                      'flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-35',
+                      tool.danger && 'hover:bg-exception/8 hover:text-exception',
+                    )}
+                  >
+                    <tool.icon size={15} aria-hidden="true" />
+                  </button>
+                </Tooltip>
+              ))}
+            </div>
           ))}
+          {(state.canMerge || state.canSplit) && (
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => editor.chain().focus().mergeOrSplit().run()}
+              className="ml-0.5 h-7 rounded-md border-l border-rule/50 px-2 text-xs font-medium text-foreground transition-colors hover:bg-band"
+            >
+              {state.canMerge ? 'Merge cells' : 'Split cell'}
+            </button>
+          )}
         </div>
-      ))}
-      <input
-        id={fileInputId}
-        type="file"
-        accept="image/png,image/jpeg,image/webp,image/gif"
-        multiple
-        className="hidden"
-        onChange={(event) => {
-          onPickImage([...(event.target.files ?? [])]);
-          event.currentTarget.value = '';
-        }}
-      />
-    </div>
+      )}
+    </BubbleMenu>
   );
 }

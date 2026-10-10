@@ -6,13 +6,15 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { encodeImage } from '@/components/cms/imageEncode';
+import { createRenditions } from '@/components/cms/renditions';
+import { assetSrc, invalidateCms } from '@/components/cms/shared';
 import {
   ArrowLeft,
   Check,
-  FolderOpen,
-  GoogleDrive,
+  FolderIcon,
   History,
   Loader2,
+  Lock,
   MoreHorizontal,
   Pin,
   PinOff,
@@ -20,6 +22,7 @@ import {
   StickyNote,
   Trash2,
   TriangleAlert,
+  Users,
 } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -27,15 +30,22 @@ import { RelativeTime } from '@/components/shared/RelativeTime';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { ApiError } from '@/lib/api/client';
-import { type Note, type NoteFolder, deleteNote, getGoogleDocMarkdown, getNote, restoreNote, saveNote } from '@/lib/modules/notes/client';
+import { hasCapability } from '@/lib/auth/capabilities';
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
+import { uploadCmsAsset } from '@/lib/modules/cms/client';
+import { type Note, type NoteFolder, deleteNote, getNote, restoreNote, saveNote } from '@/lib/modules/notes/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { type NoteLength, noteLength } from '@/lib/utils/note-editor';
 import { folderTree, noteTitleFrom, tagsInText } from '@/lib/utils/notes';
+import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { DriveSyncBar, useNoteDriveSync } from './NoteDriveSync';
 import type { EditorSnapshot } from './RichNoteEditor';
 import { VersionsDrawer } from './VersionsDrawer';
 
@@ -44,14 +54,48 @@ const RichNoteEditor = dynamic(() => import('./RichNoteEditor').then((module) =>
   ssr: false,
   loading: () => <div className="min-h-[60vh]" aria-busy="true" />,
 });
+// Same chunk as the editor; it sits in the note's bar, so the bar is one row.
+const NoteToolbar = dynamic(() => import('./NoteToolbar').then((module) => module.NoteToolbar), { ssr: false });
 
 type SaveState = 'saved' | 'pending' | 'saving' | 'error' | 'conflict';
 const SAVE_DELAY_MS = 1200;
 
-async function uploadNoteImage(file: File): Promise<string> {
-  // Re-encoded in the browser first, as every image in DUMA is (UI-ADR-024).
+/** Re-encoded in the browser first, as every image in DUMA is (UI-ADR-024). Videos go as they are. */
+async function optimised(file: File): Promise<File> {
+  if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') return file;
   const encoded = await encodeImage(file, { format: 'image/webp', quality: 0.85, maxWidth: 2000 }).catch(() => null);
-  const upload = encoded?.file ?? file;
+  return encoded?.file ?? file;
+}
+
+/**
+ * Where a photo from this device goes. With Content on and `cms:write`, into
+ * Content's media library (folder "Notes", with its smaller copies), so it can
+ * be used anywhere afterwards; the note keeps the keyless delivery URL through
+ * `/be`. Null otherwise — the toolbar then offers no upload, and a pasted
+ * screenshot falls back to the note's own image store.
+ */
+function useContentUpload(): ((file: File) => Promise<string>) | null {
+  const queryClient = useQueryClient();
+  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const { contentEnabled } = useCatalogWords();
+  if (!contentEnabled || !hasCapability(capabilities, 'cms:write')) return null;
+  return async (file) => {
+    try {
+      const upload = await optimised(file);
+      const asset = await uploadCmsAsset(upload, { title: file.name.replace(/\.[^.]+$/, ''), folder: 'Notes' }, tenantId ?? undefined);
+      if (asset.mimeType.startsWith('image/')) await createRenditions(asset, tenantId ?? undefined, upload).catch(() => 0);
+      void invalidateCms(queryClient);
+      return assetSrc(asset.url);
+    } catch (error) {
+      toast('error', error instanceof Error && error.message ? error.message : `${file.name} couldn’t be uploaded.`);
+      throw error;
+    }
+  };
+}
+
+async function uploadNoteImage(file: File): Promise<string> {
+  const upload = await optimised(file);
   const response = await fetch(`/api/notes/images?filename=${encodeURIComponent(upload.name)}`, {
     method: 'POST',
     headers: { 'Content-Type': upload.type },
@@ -70,13 +114,18 @@ export function NoteEditor({
   folders,
   onBack,
   onDeleted,
+  onLength,
 }: {
   noteId: string;
   folders: NoteFolder[];
   onBack: () => void;
   onDeleted: () => void;
+  /** The open note's length as it changes, for the page header; null when no note is open. */
+  onLength: (length: NoteLength | null) => void;
 }) {
   const query = useQuery({ queryKey: moduleQueryKeys.notes.key('note', noteId), queryFn: () => getNote(noteId), staleTime: Infinity });
+  // Bumped to put a different copy in the editor on purpose: a restored version, or "use their copy".
+  const [reloads, setReloads] = useState(0);
 
   if (query.isPending) return <LoadingState label="Opening the note" />;
   if (query.isError) {
@@ -93,14 +142,17 @@ export function NoteEditor({
       <ErrorState title="The note couldn’t be opened" onRetry={() => void query.refetch()} />
     );
   }
-  // Keyed by the loaded copy: a restored version or "use theirs" remounts the editor on it.
+  // Not keyed by version: the cache follows every save, and a remount (coming back to
+  // the note) must start from the version last saved, never an older one.
   return (
     <LoadedNote
-      key={`${query.data.id}:${query.data.version}:${query.data.deletedAt ?? ''}`}
+      key={`${query.data.id}:${query.data.deletedAt ?? ''}:${reloads}`}
       note={query.data}
       folders={folders}
       onBack={onBack}
       onDeleted={onDeleted}
+      onReload={() => setReloads((count) => count + 1)}
+      onLength={onLength}
     />
   );
 }
@@ -110,11 +162,16 @@ function LoadedNote({
   folders,
   onBack,
   onDeleted,
+  onReload,
+  onLength,
 }: {
   note: Note;
   folders: NoteFolder[];
   onBack: () => void;
   onDeleted: () => void;
+  /** Remount the editor on the copy now in the cache. */
+  onReload: () => void;
+  onLength: (length: NoteLength | null) => void;
 }) {
   const queryClient = useQueryClient();
   const [saveState, setSaveState] = useState<SaveState>('saved');
@@ -126,6 +183,22 @@ function LoadedNote({
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const inFlight = useRef<Promise<void> | null>(null);
   const editorRef = useRef<Editor | null>(null);
+  // The same editor, as state: the toolbar renders once it exists.
+  const [editor, setEditor] = useState<Editor | null>(null);
+  const contentUpload = useContentUpload();
+  const drive = useNoteDriveSync(note);
+
+  // Words and reading time follow every edit, up to the page header.
+  useEffect(() => {
+    if (!editor) return;
+    const report = () => onLength(noteLength(editor.getText({ blockSeparator: '\n' })));
+    report();
+    editor.on('update', report);
+    return () => {
+      editor.off('update', report);
+      onLength(null);
+    };
+  }, [editor, onLength]);
   // Read by the save loop, which outlives the render that started it — so it
   // changes with the state, through one setter, never during render.
   const saveStateRef = useRef<SaveState>('saved');
@@ -164,7 +237,7 @@ function LoadedNote({
         versionRef.current = saved.version;
         setLastSaved(saved.updatedAt);
         queryClient.setQueryData(moduleQueryKeys.notes.key('note', note.id), (current: Note | undefined) =>
-          current ? { ...saved, version: current.version } : saved,
+          current ? { ...current, ...saved } : saved,
         );
         updateSaveState(pending.current ? 'pending' : 'saved');
         refreshLists();
@@ -223,6 +296,7 @@ function LoadedNote({
   const takeTheirs = async () => {
     pending.current = null;
     await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.notes.key('note', note.id) });
+    onReload();
   };
 
   const meta = useMutation({
@@ -256,41 +330,42 @@ function LoadedNote({
     },
     onError: (error) => toast('error', error.message),
   });
-  const updateFromDrive = useMutation({
-    mutationFn: async () => {
-      await flush();
-      const { markdown } = await getGoogleDocMarkdown(note.sourceFileId!);
-      const editor = editorRef.current;
-      if (!editor) throw new Error('The editor isn’t ready yet.');
-      editor.commands.setContent(markdown, { contentType: 'markdown', emitUpdate: true });
-    },
-    onSuccess: () => toast('success', 'Updated from Google Docs — the previous copy is in History.'),
-    onError: (error) => toast('error', error.message),
-  });
 
   const writable = folders.filter((folder) => folder.canEdit);
-  const moveOptions = [
-    { value: '', label: 'My notes (private)' },
+  // Where it can go: your private notes, or any folder you can write in.
+  const moveTargets = [
+    { id: null, name: 'My notes', depth: 0, shared: false, icon: Lock },
     ...folderTree(writable).map(({ folder, depth }) => ({
-      value: folder.id,
-      label: `${'  '.repeat(depth)}${folder.name}${folder.shared ? ' · shared' : ''}`,
+      id: folder.id as string | null,
+      name: folder.name,
+      depth,
+      shared: folder.shared,
+      icon: folder.shared ? Users : FolderIcon,
     })),
   ];
-  const folderName = note.folderId ? (folders.find((folder) => folder.id === note.folderId)?.name ?? 'A folder') : 'My notes';
+  /** A menu choice closes the menu, then does its thing. */
+  const act = (run: () => void) => {
+    setMenuOpen(false);
+    run();
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* The note's own bar: where it is, whether it's saved, what you can do with it. */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-divider px-3 py-2 md:px-5">
+      {/* The note's own bar, in one row: how to format it, whether it's saved, what you can do with it. */}
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-divider bg-card px-2 md:px-3">
         <Button variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Back to the list" onClick={onBack}>
           <ArrowLeft aria-hidden="true" />
         </Button>
-        <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-          <FolderOpen size={13} className="shrink-0" aria-hidden="true" />
-          <span className="truncate">{folderName}</span>
-          {!editable && !trashed && <span className="shrink-0 rounded-sm bg-band px-1.5 py-0.5 text-micro font-semibold">Read only</span>}
-        </span>
-        <span className="flex-1" />
+        {!editable && !trashed && (
+          <span className="shrink-0 rounded-sm bg-band px-1.5 py-0.5 text-micro font-semibold text-muted-foreground">Read only</span>
+        )}
+        {editable && editor ? (
+          <div className="flex min-w-0 flex-1 overflow-x-auto">
+            <NoteToolbar editor={editor} onUploadMedia={contentUpload} />
+          </div>
+        ) : (
+          <span className="flex-1" />
+        )}
         <SaveStatus state={saveState} lastSaved={lastSaved} />
         {!trashed && note.canEdit && (
           <Tooltip side="bottom" label={note.pinned ? 'Unpin' : 'Pin to the top'}>
@@ -304,49 +379,70 @@ function LoadedNote({
             </Button>
           </Tooltip>
         )}
-        <div className="relative">
-          <Button variant="ghost" size="icon-sm" aria-label="More" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
-            <MoreHorizontal aria-hidden="true" />
-          </Button>
-          {menuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 top-9 z-20 w-64 rounded-lg border border-rule/60 bg-card p-1.5 shadow-lg"
-              onMouseLeave={() => setMenuOpen(false)}
-            >
-              {trashed ? (
-                <MenuItem icon={RotateCcw} label="Restore" onClick={() => restore.mutate()} />
-              ) : (
-                <>
-                  <MenuItem icon={History} label="History" onClick={() => setHistory(true)} />
-                  {note.sourceProvider === 'google_drive' && note.sourceFileId && editable && (
-                    <MenuItem icon={GoogleDrive} label="Update from Google Docs" onClick={() => updateFromDrive.mutate()} />
-                  )}
-                  {note.sourceUrl && (
-                    <MenuItem
-                      icon={GoogleDrive}
-                      label="Open in Google Drive"
-                      onClick={() => window.open(note.sourceUrl!, '_blank', 'noopener')}
-                    />
-                  )}
-                  {note.canEdit && (
-                    <div className="border-t border-rule/50 px-2 pb-1 pt-2">
-                      <p className="mb-1 text-micro font-semibold uppercase text-muted-foreground">Move to</p>
-                      <Select
-                        value={note.folderId ?? ''}
-                        onValueChange={(folderId) => meta.mutate({ folderId: folderId || null })}
-                        options={moveOptions}
-                        ariaLabel="Move to folder"
-                        className="w-full"
-                      />
-                    </div>
-                  )}
-                  {note.canEdit && <MenuItem icon={Trash2} label="Delete" danger onClick={() => remove.mutate()} />}
-                </>
-              )}
-            </div>
-          )}
-        </div>
+        <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="More">
+              <MoreHorizontal aria-hidden="true" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 p-1.5" role="menu" aria-label="Note actions">
+            {trashed ? (
+              <MenuItem icon={RotateCcw} label="Restore" onClick={() => act(() => restore.mutate())} />
+            ) : (
+              <>
+                <MenuItem icon={History} label="History" onClick={() => act(() => setHistory(true))} />
+                {/* Only once Google Drive is connected (Settings → Connectors); each person's own Drive. */}
+                {drive.menuItems.map((item) => (
+                  <MenuItem key={item.key} icon={item.icon} label={item.label} onClick={() => act(item.onClick)} />
+                ))}
+                {note.canEdit && (
+                  <div className="mt-1.5 border-t border-rule/50 pt-2" role="group" aria-label="Move to">
+                    <p className="mb-1 px-2 text-label uppercase text-muted-foreground">Move to</p>
+                    <ul className="max-h-60 space-y-px overflow-y-auto">
+                      {moveTargets.map((target) => {
+                        const current = (note.folderId ?? null) === target.id;
+                        return (
+                          <li key={target.id ?? 'mine'}>
+                            <button
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={current}
+                              disabled={current || meta.isPending}
+                              onClick={() =>
+                                act(() =>
+                                  meta.mutate({ folderId: target.id }, { onSuccess: () => toast('success', `Moved to ${target.name}.`) }),
+                                )
+                              }
+                              style={{ paddingLeft: `${0.5 + target.depth * 0.875}rem` }}
+                              className={cn(
+                                'flex w-full items-center gap-2 rounded-md py-1.5 pr-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring',
+                                current ? 'bg-primary/8 font-medium text-primary' : 'text-foreground hover:bg-band/60 disabled:opacity-50',
+                              )}
+                            >
+                              <target.icon size={15} className={cn('shrink-0', !current && 'text-muted-foreground')} aria-hidden="true" />
+                              <span className="min-w-0 flex-1 truncate">{target.name}</span>
+                              {target.shared && (
+                                <span className="shrink-0 rounded-sm bg-band px-1.5 py-0.5 text-micro font-semibold text-muted-foreground">
+                                  Shared
+                                </span>
+                              )}
+                              {current && <Check size={14} className="shrink-0" aria-hidden="true" />}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {note.canEdit && (
+                  <div className="mt-1.5 border-t border-rule/50 pt-1.5">
+                    <MenuItem icon={Trash2} label="Delete" danger onClick={() => act(() => remove.mutate())} />
+                  </div>
+                )}
+              </>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
 
       {saveState === 'conflict' && (
@@ -371,31 +467,22 @@ function LoadedNote({
           )}
         </div>
       )}
-      {note.sourceProvider === 'google_drive' && !trashed && (
-        <div className="flex items-center gap-2 border-b border-rule/40 px-5 py-1.5 text-xs text-muted-foreground">
-          <GoogleDrive size={13} aria-hidden="true" />
-          From Google Docs
-          {note.sourceSyncedAt && (
-            <>
-              {' '}
-              · brought in <RelativeTime iso={note.sourceSyncedAt} />
-            </>
-          )}
-          {updateFromDrive.isPending && <Loader2 size={12} className="animate-spin" aria-label="Updating" />}
-        </div>
-      )}
+      {!trashed && <DriveSyncBar drive={drive} />}
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <div className="mx-auto w-full max-w-3xl px-4 pb-24 md:px-8">
+        {/* The full width of the pane. */}
+        <div className="w-full px-4 pb-24 md:px-5">
           <RichNoteEditor
             content={note.content}
             markdown={note.markdown}
             editable={editable}
             onChange={onChange}
-            onReady={(editor) => {
-              editorRef.current = editor;
+            onReady={(ready) => {
+              editorRef.current = ready;
+              setEditor(ready);
             }}
-            onUploadImage={uploadNoteImage}
+            onUploadImage={contentUpload ?? uploadNoteImage}
+            acceptsVideo={contentUpload !== null}
           />
         </div>
       </div>
@@ -410,6 +497,7 @@ function LoadedNote({
             setHistory(false);
             await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.notes.key('note', note.id) });
             refreshLists();
+            onReload();
           }}
         />
       )}
@@ -421,7 +509,7 @@ function SaveStatus({ state, lastSaved }: { state: SaveState; lastSaved: string 
   if (state === 'saving' || state === 'pending')
     return (
       <span className="flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite">
-        <Loader2 size={12} className="animate-spin" aria-hidden="true" /> Saving…
+        <Loader2 size={12} className="animate-spin" aria-hidden="true" /> <span className="max-xl:sr-only">Saving…</span>
       </span>
     );
   if (state === 'error')
@@ -432,9 +520,15 @@ function SaveStatus({ state, lastSaved }: { state: SaveState; lastSaved: string 
     );
   if (state === 'conflict') return <span className="text-xs font-medium text-measured">Not saved</span>;
   return (
-    <span className="flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite">
-      <Check size={12} aria-hidden="true" /> Saved <RelativeTime iso={lastSaved} />
-    </span>
+    <Tooltip side="bottom" align="end" label="Saved automatically as you type">
+      <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground" aria-live="polite">
+        <Check size={12} aria-hidden="true" />
+        {/* Next to the toolbar there is room for a tick; the words come back on a wide screen. */}
+        <span className="max-xl:sr-only">
+          Saved <RelativeTime iso={lastSaved} />
+        </span>
+      </span>
+    </Tooltip>
   );
 }
 

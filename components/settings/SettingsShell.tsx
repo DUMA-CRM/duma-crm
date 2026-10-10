@@ -88,7 +88,7 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
     href: '/settings/connectors',
     label: 'Connectors',
     icon: Plug,
-    anyOf: ['email.connections:write', 'payments.connections:write', 'cms.keys:write'],
+    anyOf: ['email.connections:write', 'payments.connections:write', 'cms.keys:write', 'notes:write'],
   },
   {
     // Storefront API keys: the business's own website selling through DUMA.

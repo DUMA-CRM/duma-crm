@@ -931,3 +931,139 @@
 .note-prose .ProseMirror .is-empty::before {
   content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: var(--color-muted-foreground); opacity: 0.6;
 }
+
+/* The notes palette (lib/utils/note-editor.ts). A coloured word stores the
+   variable, not a hex, so it follows the theme. Highlights are the same hue,
+   thinned — readable on oat and on charcoal alike. */
+:root {
+  --note-text-gray: #78736a;
+  --note-text-brown: #8c5a3c;
+  --note-text-orange: #c2610f;
+  --note-text-yellow: #a07a06;
+  --note-text-green: #3f7a52;
+  --note-text-blue: #2f6f9e;
+  --note-text-purple: #7f55a8;
+  --note-text-pink: #b2427e;
+  --note-text-red: #c23d38;
+}
+.dark {
+  --note-text-gray: #a9a39a;
+  --note-text-brown: #c69a7c;
+  --note-text-orange: #e6995a;
+  --note-text-yellow: #e2c35a;
+  --note-text-green: #7cc495;
+  --note-text-blue: #7fb3e0;
+  --note-text-purple: #bb9ae0;
+  --note-text-pink: #e68fbd;
+  --note-text-red: #ec8a85;
+}
+:root,
+.dark {
+  --note-mark-gray: color-mix(in oklab, var(--note-text-gray) 24%, transparent);
+  --note-mark-brown: color-mix(in oklab, var(--note-text-brown) 24%, transparent);
+  --note-mark-orange: color-mix(in oklab, var(--note-text-orange) 24%, transparent);
+  --note-mark-yellow: color-mix(in oklab, var(--note-text-yellow) 30%, transparent);
+  --note-mark-green: color-mix(in oklab, var(--note-text-green) 24%, transparent);
+  --note-mark-blue: color-mix(in oklab, var(--note-text-blue) 24%, transparent);
+  --note-mark-purple: color-mix(in oklab, var(--note-text-purple) 24%, transparent);
+  --note-mark-pink: color-mix(in oklab, var(--note-text-pink) 24%, transparent);
+  --note-mark-red: color-mix(in oklab, var(--note-text-red) 24%, transparent);
+}
+
+/* Video from Content. */
+.note-prose .ProseMirror video {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  border-radius: 0.5rem;
+  background: #000;
+}
+.note-prose .ProseMirror video.ProseMirror-selectednode {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+/* Images resize from their sides and bottom corners (TipTap's ResizableNodeView). */
+.note-prose .ProseMirror [data-resize-container] {
+  max-width: 100%;
+}
+.note-prose .ProseMirror [data-resize-wrapper] {
+  max-width: 100%;
+}
+.note-prose .ProseMirror [data-resize-handle] {
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.note-prose .ProseMirror [data-resize-wrapper]:hover [data-resize-handle],
+.note-prose .ProseMirror [data-resize-state='true'] [data-resize-handle] {
+  opacity: 1;
+}
+.note-prose .ProseMirror [data-resize-handle='left'],
+.note-prose .ProseMirror [data-resize-handle='right'] {
+  width: 14px;
+  cursor: ew-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.note-prose .ProseMirror [data-resize-handle='left']::after,
+.note-prose .ProseMirror [data-resize-handle='right']::after {
+  content: '';
+  width: 4px;
+  height: 2.5rem;
+  max-height: 50%;
+  border-radius: 9999px;
+  background: var(--color-card);
+  border: 1px solid color-mix(in oklab, var(--color-foreground) 35%, transparent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+}
+.note-prose .ProseMirror [data-resize-handle='bottom-left'],
+.note-prose .ProseMirror [data-resize-handle='bottom-right'] {
+  width: 12px;
+  height: 12px;
+  margin: 4px;
+  border-radius: 3px;
+  background: var(--color-card);
+  border: 1px solid color-mix(in oklab, var(--color-foreground) 35%, transparent);
+}
+.note-prose .ProseMirror [data-resize-handle='bottom-left'] {
+  cursor: nesw-resize;
+}
+.note-prose .ProseMirror [data-resize-handle='bottom-right'] {
+  cursor: nwse-resize;
+}
+
+/* Side by side (noteColumns.ts): 2 or 3 in a row, stacked on a phone. Each
+   column shows a faint outline while you write in the row, so it is clear where
+   a click lands. */
+.note-prose .ProseMirror [data-type='columns'] { display: grid; gap: 1.25rem; grid-template-columns: repeat(var(--note-columns, 2), minmax(0, 1fr)); }
+.note-prose .ProseMirror [data-type='columns'][data-count='3'] { --note-columns: 3; }
+.note-prose .ProseMirror [data-type='column'] { min-width: 0; border-radius: 0.375rem; outline: 1px dashed transparent; outline-offset: 0.375rem; transition: outline-color 120ms; }
+.note-prose .ProseMirror [data-type='column'] > * + * { margin-top: 0.75rem; }
+.note-prose .ProseMirror[contenteditable='true'] [data-type='columns']:hover > [data-type='column'],
+.note-prose .ProseMirror[contenteditable='true'] [data-type='columns']:focus-within > [data-type='column'] { outline-color: color-mix(in oklab, var(--color-rule) 70%, transparent); }
+@media (max-width: 640px) {
+  .note-prose .ProseMirror [data-type='columns'] { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Tables: columns resize by dragging their right edge. */
+.note-prose .ProseMirror .tableWrapper {
+  overflow-x: auto;
+}
+.note-prose .ProseMirror th,
+.note-prose .ProseMirror td {
+  position: relative;
+}
+.note-prose .ProseMirror .column-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: -1px;
+  right: -2px;
+  width: 3px;
+  background: var(--color-primary);
+  pointer-events: none;
+}
+.note-prose .ProseMirror.resize-cursor {
+  cursor: col-resize;
+}

@@ -10,3 +10,9 @@ test('every signed-out account-recovery page is public', () => {
     assert.match(proxySource, new RegExp(`['"]${route}['"]`), `${route} must be reachable without a session`);
   }
 });
+
+test('the privacy policy and terms are public', () => {
+  for (const route of ['/privacy', '/terms']) {
+    assert.match(proxySource, new RegExp(`['"]${route}['"]`), `${route} must be reachable without a session`);
+  }
+});
