@@ -2,8 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useRef, useState } from 'react';
-import QRCode from 'react-qr-code';
+import { useState } from 'react';
 
 import {
   Banknote,
@@ -12,8 +11,6 @@ import {
   Clock,
   Coins,
   CreditCard,
-  Download,
-  ExternalLink,
   ImagePlus,
   Loader2,
   MapPin,
@@ -34,10 +31,10 @@ import { StepperCard, Switch, ToggleCard } from '@/components/settings/controls'
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
+import { PublicQrCodeCard } from '@/components/shared/PublicQrCodeCard';
 import { SectionSkeleton, TileSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
-import { CopyGlyph } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -308,7 +305,7 @@ export function QrOrderingSettings() {
         stickyAside
         aside={
           <>
-            {publicUrl && <QrCodeCard url={publicUrl} locationName={location?.name ?? 'this location'} />}
+            {publicUrl && <PublicQrCodeCard url={publicUrl} locationName={location?.name ?? 'this location'} />}
             {config.data?.publicToken && (
               <PhonePreview
                 path={`/order/${config.data.publicToken}`}
@@ -583,73 +580,6 @@ function WelcomeFields({ content, onChange }: { content: QrOrderingContent; onCh
 
 // The guest page is laid out for a phone this wide; the frame scales it down to fit.
 const FRAME_WIDTH = 340;
-
-/**
- * The code itself, kept small: guests scan a printed copy, not this screen.
- * What the owner needs here is the file to print and the link to share.
- */
-function QrCodeCard({ url, locationName }: { url: string; locationName: string }) {
-  const [copied, setCopied] = useState(false);
-  const codeRef = useRef<HTMLDivElement>(null);
-
-  function copy() {
-    void navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
-    });
-  }
-
-  // Redraws the on-screen SVG at print size, so the download stays sharp on a table card.
-  function download() {
-    const svg = codeRef.current?.querySelector('svg');
-    if (!svg) return;
-    const size = 1024;
-    const margin = 64;
-    const image = new Image();
-    image.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = size + margin * 2;
-      canvas.height = size + margin * 2;
-      const context = canvas.getContext('2d');
-      if (!context) return;
-      context.fillStyle = '#ffffff';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, margin, margin, size, size);
-      const link = document.createElement('a');
-      link.download = `qr-${
-        locationName
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-|-$/g, '') || 'menu'
-      }.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    };
-    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(svg))}`;
-  }
-
-  return (
-    // The buttons stretch to the code's height, so the pair reads as one block.
-    <section aria-label="Your QR code" className="mx-auto flex w-fit max-w-full items-stretch gap-2">
-      <div ref={codeRef} className="shrink-0 rounded-lg border border-rule/50 bg-white p-3">
-        <QRCode value={url} size={208} aria-label={`QR code for ${locationName}`} />
-      </div>
-      <div className="flex w-[4.5rem] flex-col gap-2 [&>*]:h-auto [&>*]:flex-1 [&_svg]:size-5">
-        <Button type="button" variant="outline" onClick={copy} aria-label={copied ? 'Link copied' : 'Copy link'} title="Copy link">
-          <CopyGlyph copied={copied} size={16} className="text-primary" />
-        </Button>
-        <Button type="button" variant="outline" onClick={download} aria-label="Download QR code" title="Download to print">
-          <Download aria-hidden="true" />
-        </Button>
-        <Button asChild variant="outline">
-          <a href={url} target="_blank" rel="noreferrer" aria-label="Open the guest page" title="Open the guest page">
-            <ExternalLink aria-hidden="true" />
-          </a>
-        </Button>
-      </div>
-    </section>
-  );
-}
 
 /**
  * The real guest page, not a mock-up: the public /order page in an iframe,

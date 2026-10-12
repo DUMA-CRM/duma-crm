@@ -26,6 +26,7 @@ import { type DeliveryBucket, type HistoryWindow, deliveriesByDay, deliveryTime,
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { BOOKING_EMAIL_LABELS } from './shared';
 import { useEmailAccess } from './useEmailAccess';
 
 const STATUS_OPTIONS: SelectOption[] = [
@@ -301,7 +302,10 @@ function DeliveryRow({
   onOpen: () => void;
 }) {
   const state = DELIVERY_STATUS[delivery.status];
-  const detail = [delivery.template?.name ?? delivery.trigger.replaceAll('_', ' '), delivery.toName && delivery.toEmail]
+  const detail = [
+    delivery.template?.name ?? BOOKING_EMAIL_LABELS[delivery.trigger] ?? delivery.trigger.replaceAll('_', ' '),
+    delivery.toName && delivery.toEmail,
+  ]
     .filter(Boolean)
     .join(' · ');
 

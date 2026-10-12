@@ -1,5 +1,34 @@
 import { apiFetch } from './client';
 
+export type ExternalAnalyticsProvider = 'umami' | 'posthog';
+export interface AnalyticsConnection {
+  id: string;
+  provider: ExternalAnalyticsProvider;
+  displayName: string;
+  siteId: string;
+  apiUrl: string;
+  lastTestedAt: string | null;
+}
+export interface AnalyticsConnectionInput {
+  provider: ExternalAnalyticsProvider;
+  displayName: string;
+  siteId: string;
+  apiUrl?: string;
+  apiKey: string;
+}
+export type ExternalAnalyticsData = Record<string, unknown> & { provider: ExternalAnalyticsProvider };
+const tenantQuery = (tenantId?: string) => (tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '');
+export const getAnalyticsConnection = (tenantId?: string) => apiFetch<AnalyticsConnection | null>(`/analytics-connections${tenantQuery(tenantId)}`);
+export const saveAnalyticsConnection = (input: AnalyticsConnectionInput, tenantId?: string) =>
+  apiFetch<AnalyticsConnection>(`/analytics-connections${tenantQuery(tenantId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+export const deleteAnalyticsConnection = (tenantId?: string) =>
+  apiFetch<void>(`/analytics-connections${tenantQuery(tenantId)}`, { method: 'DELETE' });
+export const getExternalAnalyticsData = (tenantId?: string) =>
+  apiFetch<ExternalAnalyticsData>(`/analytics-connections/data${tenantQuery(tenantId)}`);
+
 export interface AnalyticsRangeParams {
   from: string;
   to: string;

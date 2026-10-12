@@ -25,6 +25,9 @@ export const TRIGGER_LABELS: Record<Trigger, string> = {
   staff_onboarded: 'Employee onboarded',
   staff_leave_approved: 'Employee leave approved',
   staff_document_expiring: 'Employee document expiring',
+  reservation_confirmed: 'Booking confirmed',
+  reservation_reminder: 'Booking reminder',
+  reservation_cancelled: 'Booking cancelled',
 };
 
 /** Sentence used in the trigger dropdown — reads as "send when…". */
@@ -42,6 +45,9 @@ export const TRIGGER_OPTIONS: { value: Trigger; label: string }[] = [
   { value: 'staff_onboarded', label: 'An employee is onboarded' },
   { value: 'staff_leave_approved', label: 'An employee’s leave is approved' },
   { value: 'staff_document_expiring', label: 'An employee document is nearing expiry' },
+  { value: 'reservation_confirmed', label: 'A table is booked' },
+  { value: 'reservation_reminder', label: 'A booking is coming up' },
+  { value: 'reservation_cancelled', label: 'A booking is cancelled' },
 ];
 
 /** Plain-language explanation shown under the trigger dropdown. */
@@ -62,12 +68,27 @@ export const TRIGGER_HELP: Record<Trigger, string> = {
   staff_onboarded: 'Sent once when an employee completes onboarding.',
   staff_leave_approved: 'Sent once when an employee’s leave request is approved.',
   staff_document_expiring: 'Checked hourly and sent once when an employee document enters its expiry reminder window.',
+  reservation_confirmed:
+    'Sent to the guest’s email on the booking — they needn’t be a customer — as it’s taken, online or by staff. Use {{booking.when}}, {{booking.partySize}} and {{booking.manageUrl}}.',
+  reservation_reminder:
+    'Sent to the guest the chosen hours before their booking. Skipped if it’s cancelled or moved — a moved booking gets a reminder for its new time.',
+  reservation_cancelled: 'Sent to the guest when their booking is cancelled, by staff or from their own link.',
+};
+
+/** Fallback names for booking emails in History that no template names. */
+export const BOOKING_EMAIL_LABELS: Record<string, string> = {
+  reservation_confirmed: 'Booking confirmation',
+  reservation_reminder: 'Booking reminder',
+  reservation_cancelled: 'Booking cancelled',
 };
 
 /** Which triggers need customers to have opted in to marketing email. */
 export const OPT_IN_TRIGGERS: Trigger[] = ['customer_birthday', 'customer_inactive'];
 
 export const isStaffTrigger = (trigger: Trigger) => trigger.startsWith('staff_');
+
+/** A booking's guest emails: to the address on the booking, and scoped to a location like order emails. */
+export const isBookingTrigger = (trigger: string) => trigger.startsWith('reservation_');
 
 export const deliveryBadge: Record<EmailDelivery['status'], 'muted' | 'primary' | 'success' | 'destructive' | 'warning'> = {
   queued: 'muted',
@@ -85,6 +106,7 @@ export function describeTiming(trigger: Trigger, offsetDays: number): string {
   }
   if (trigger === 'customer_inactive') return `after ${Math.max(1, offsetDays)} days without a visit`;
   if (trigger === 'staff_document_expiring') return 'when the document enters its reminder window';
+  if (trigger === 'reservation_reminder') return 'before the booking';
   return 'immediately';
 }
 
@@ -109,6 +131,12 @@ export function describeAutomation({
   }
   if (trigger === 'customer_inactive') {
     return `Emails ${template} to an opted-in customer once they have not visited for ${Math.max(1, offsetDays)} days.`;
+  }
+  if (isBookingTrigger(trigger)) {
+    const event = TRIGGER_OPTIONS.find((option) => option.value === trigger)?.label.toLowerCase() ?? 'the booking changes';
+    return trigger === 'reservation_reminder'
+      ? `Emails ${template} to the guest before their booking ${where}.`
+      : `Emails ${template} to the guest as soon as ${event} ${where}.`;
   }
   if (isStaffTrigger(trigger)) {
     const event = TRIGGER_OPTIONS.find((option) => option.value === trigger)?.label.toLowerCase() ?? 'the staff event happens';
@@ -138,6 +166,7 @@ export const TEMPLATE_CATEGORIES = [
   { value: 'loyalty', label: 'Loyalty', hint: 'Points awarded, tier changes' },
   { value: 'marketing', label: 'Marketing', hint: 'Campaigns, offers, win-backs' },
   { value: 'lifecycle', label: 'Lifecycle', hint: 'Welcome notes, birthdays' },
+  { value: 'reservations', label: 'Bookings', hint: 'Confirmations, reminders, cancellations' },
   { value: 'general', label: 'General', hint: 'Anything that does not fit the rest' },
 ] as const;
 

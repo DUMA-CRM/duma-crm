@@ -75,7 +75,8 @@
         "Payments",
         "Refunds",
         "Promotions",
-        "Referrals"
+        "Referrals",
+        "Reservations"
       ]
     },
     {
@@ -3401,6 +3402,839 @@
         ]
       }
     },
+    "/v1/reservations/floor": {
+      "get": {
+        "operationId": "getV1ReservationsFloor",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Get a location’s floor plan",
+        "description": "The areas in order, each with its active tables. Positions are in floor-plan units on a 1200 × 800 canvas.",
+        "responses": {
+          "200": {
+            "description": "Areas and their tables"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations/areas": {
+      "post": {
+        "operationId": "postV1ReservationsAreas",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Add a floor-plan area",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "An area with that name exists"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations/areas/{id}": {
+      "patch": {
+        "operationId": "patchV1ReservationsAreasById",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Rename or reorder a floor-plan area",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1ReservationsAreasById",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Delete a floor-plan area",
+        "description": "Only an area with no tables on the floor. Removed tables that never held a booking are deleted with it; one that did is kept for its bookings’ history, no longer in any area.",
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "It still has tables on the floor"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/tables": {
+      "post": {
+        "operationId": "postV1ReservationsTables",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Add a table to the floor plan",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "The name is taken"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations/tables/{id}": {
+      "patch": {
+        "operationId": "patchV1ReservationsTablesById",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Change a table",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "The name is taken"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1ReservationsTablesById",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Remove a table from the floor plan",
+        "description": "Deactivates it — past bookings keep pointing at it. Refused while a live booking still to come holds it.",
+        "responses": {
+          "200": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Upcoming bookings hold it"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/floor/layout": {
+      "put": {
+        "operationId": "putV1ReservationsFloorLayout",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Save table positions",
+        "description": "Where every moved table now sits, in one write — the floor-plan editor’s Save.",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "400": {
+            "description": "A table that isn’t on this floor plan"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations": {
+      "get": {
+        "operationId": "getV1Reservations",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "List bookings",
+        "description": "Bookings starting in [from, to) at one location, in time order, each with the tables it holds. At most 62 days at once.",
+        "responses": {
+          "200": {
+            "description": "Bookings"
+          },
+          "400": {
+            "description": "A range that runs backwards or is too long"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1Reservations",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Take a booking",
+        "description": "Optionally with the tables it holds. 409 with `clashes` when a live booking already holds one of them then, or within the turn buffer. `warnings` lists what is allowed but worth knowing (too few seats, outside opening hours). The guest is emailed a confirmation and later a reminder, when the location sends them.",
+        "responses": {
+          "201": {
+            "description": "Booked"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "A table is already booked then"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations/availability": {
+      "get": {
+        "operationId": "getV1ReservationsAvailability",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Which tables are free for a window",
+        "description": "Every active table at the location, with whether it seats the party and the live bookings that would clash. Pass excludeReservationId when moving an existing booking.",
+        "responses": {
+          "200": {
+            "description": "Tables and their clashes"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations/waitlist": {
+      "get": {
+        "operationId": "getV1ReservationsWaitlist",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "The waitlist",
+        "description": "Parties still waiting, longest wait first. With `recent=true`, also those who left the list in the last 12 hours.",
+        "responses": {
+          "200": {
+            "description": "Waitlist entries"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1ReservationsWaitlist",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Add a party to the waitlist",
+        "responses": {
+          "201": {
+            "description": "Added"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations/waitlist/{id}": {
+      "patch": {
+        "operationId": "patchV1ReservationsWaitlistById",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Change a waitlist entry",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "No longer on the list"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/waitlist/{id}/status": {
+      "post": {
+        "operationId": "postV1ReservationsWaitlistByIdStatus",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Move a waitlist entry on",
+        "description": "Notify, put back to waiting, mark left or cancelled — or bring a party that left back onto the list. Seating has its own endpoint.",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Not a step this entry can take"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/waitlist/{id}/seat": {
+      "post": {
+        "operationId": "postV1ReservationsWaitlistByIdSeat",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Seat a waiting party",
+        "description": "Records a seated walk-in booking from now for `durationMinutes` at the chosen tables, and takes the party off the list. 409 with `clashes` when a table is taken.",
+        "responses": {
+          "200": {
+            "description": "Seated; the booking made for them"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "No longer waiting, or a table is taken"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/settings": {
+      "get": {
+        "operationId": "getV1ReservationsSettings",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "A location’s booking rules",
+        "description": "Online booking and the turn buffer — with the defaults when nothing is saved yet, the guest page link, and whether email can be sent. The guest emails themselves are Communications automations: see /guest-emails.",
+        "responses": {
+          "200": {
+            "description": "The settings"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1ReservationsSettings",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Change a location’s booking rules",
+        "description": "Any of the fields; the rest keep their value. The first save creates the guest booking page link.",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations/settings/new-link": {
+      "post": {
+        "operationId": "postV1ReservationsSettingsNewLink",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Replace the guest booking page link",
+        "description": "Every link handed out so far stops working. Bookings already made are unaffected.",
+        "responses": {
+          "200": {
+            "description": "The settings, with the new link"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Nothing saved yet"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations/guest-emails": {
+      "get": {
+        "operationId": "getV1ReservationsGuestEmails",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "The automations that email booking guests",
+        "description": "The workspace’s Communications automations for each booking moment — confirmed, reminder, cancelled — and whether email can be sent. A moment with no enabled automation sends nothing.",
+        "responses": {
+          "200": {
+            "description": "The automations"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations/guest-emails/setup": {
+      "post": {
+        "operationId": "postV1ReservationsGuestEmailsSetup",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Create the starter booking emails",
+        "description": "A template and automation for each booking moment that has none, for every location: live (enabled and published) or as drafts to review in Communications. Needs `email:write`, and `email:publish` to go live.",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Missing an email capability"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations/customer/{customerId}": {
+      "get": {
+        "operationId": "getV1ReservationsCustomerByCustomerId",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "A customer’s bookings",
+        "description": "Their most recent 50, newest first, at the locations the caller can reach — with the location’s name and the tables.",
+        "responses": {
+          "200": {
+            "description": "Bookings"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No such customer here"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "customerId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/public/manage/{manageToken}": {
+      "get": {
+        "operationId": "getV1ReservationsPublicManageByManageToken",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "A guest’s own booking",
+        "description": "Public, addressed by the booking’s private link. What, when, where — and whether it can still be cancelled online.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The booking"
+          },
+          "404": {
+            "description": "No such booking"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "manageToken",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/public/manage/{manageToken}/cancel": {
+      "post": {
+        "operationId": "postV1ReservationsPublicManageByManageTokenCancel",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "A guest cancels their booking",
+        "description": "Only a booking that hasn’t started and isn’t seated. The guest is emailed a cancellation when the location sends them.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Cancelled"
+          },
+          "404": {
+            "description": "No such booking"
+          },
+          "409": {
+            "description": "Too late to cancel online"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "manageToken",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/public/{token}": {
+      "get": {
+        "operationId": "getV1ReservationsPublicByToken",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "A location’s guest booking page",
+        "description": "Public, token-addressed. The place, its booking rules and today’s date in its zone. 404 when online booking is off.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The page"
+          },
+          "404": {
+            "description": "Not taking online bookings"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "token",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/public/{token}/slots": {
+      "get": {
+        "operationId": "getV1ReservationsPublicByTokenSlots",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Open times for a party on a day",
+        "description": "Start times inside the opening hours, after the minimum notice and within the horizon, at which a single table that seats the party is free for the whole stay (and the turn buffer either side).",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The times, or why there are none"
+          },
+          "400": {
+            "description": "A party bigger than the page takes"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "token",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/public/{token}/bookings": {
+      "post": {
+        "operationId": "postV1ReservationsPublicByTokenBookings",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "A guest books a table",
+        "description": "At one of the open times. A free table that seats the party is chosen and held under lock; 409 when the time has just gone. The guest gets the booking’s private link, and a confirmation email when the location sends them. Linked to an existing customer with the same email.",
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Booked"
+          },
+          "400": {
+            "description": "Not an open time, or the party is too big"
+          },
+          "409": {
+            "description": "Just taken"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "token",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/{id}": {
+      "get": {
+        "operationId": "getV1ReservationsById",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Get a booking",
+        "responses": {
+          "200": {
+            "description": "The booking and its tables"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1ReservationsById",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Change a booking",
+        "description": "Guest, party, time, notes or tables, while the booking is still live. A new time or new tables is checked for clashes like a new booking; the guest’s reminder moves with the time.",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Not live any more, or a table is already booked then"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/reservations/{id}/status": {
+      "post": {
+        "operationId": "postV1ReservationsByIdStatus",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Move a booking on",
+        "description": "Confirm, seat, complete, cancel, mark a no-show — or restore a cancellation or no-show to booked, which checks its tables again. Completing early frees the tables from now. Cancelling emails the guest when the location sends cancellations.",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Not a step this booking can take, or its tables are taken"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/notes/folders": {
       "get": {
         "operationId": "getV1NotesFolders",
@@ -3533,6 +4367,88 @@
         ]
       }
     },
+    "/v1/notes/google/status": {
+      "get": {
+        "operationId": "getV1NotesGoogleStatus",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Your Google Drive connection",
+        "responses": {
+          "200": {
+            "description": "Configured, connected, and as whom"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/google/connect": {
+      "post": {
+        "operationId": "postV1NotesGoogleConnect",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Start connecting your Google Drive",
+        "responses": {
+          "200": {
+            "description": "{ url } — send the browser there"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/google/callback": {
+      "get": {
+        "operationId": "getV1NotesGoogleCallback",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Google’s redirect after consent",
+        "description": "Reached through the CRM’s /be proxy so the session comes with it; the signed state must name the same person. Redirects back to Settings → Connectors.",
+        "responses": {
+          "302": {
+            "description": "Back to Settings → Connectors, ?google=connected or ?google=error"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/google": {
+      "delete": {
+        "operationId": "deleteV1NotesGoogle",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Disconnect your Google Drive",
+        "description": "Revokes DUMA’s access at Google, forgets the token and stops syncing your notes. The Docs already made stay in your Drive.",
+        "responses": {
+          "200": {
+            "description": "Disconnected"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/notes": {
       "get": {
         "operationId": "getV1Notes",
@@ -3540,7 +4456,7 @@
           "Notes"
         ],
         "summary": "List or search notes",
-        "description": "`view`: all (default), pinned, unfiled, shared (shared folders only — what Ask DUMA reads), or trash (the last 30 days). `q` searches title and body, best match first.",
+        "description": "`view`: all (default), pinned, unfiled, shared (shared folders only — what Ask DUMA reads), or trash (the last 30 days). `q` searches title and body, best match first; each word matches the start of a word.",
         "responses": {
           "200": {
             "description": "Note summaries with a snippet"
@@ -3585,6 +4501,27 @@
         "responses": {
           "200": {
             "description": "Tags with counts"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/graph": {
+      "get": {
+        "operationId": "getV1NotesGraph",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Every note you can read, and the links between them",
+        "description": "For the graph view. `links` are note-to-note links found in the notes’ text, both ends readable by you. At most 1000 notes, most recently edited first.",
+        "responses": {
+          "200": {
+            "description": "{ nodes, links, truncated }"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -3718,6 +4655,71 @@
         ]
       }
     },
+    "/v1/notes/{id}/permanent": {
+      "delete": {
+        "operationId": "deleteV1NotesByIdPermanent",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Delete a note for good",
+        "description": "Only a note already in Recently Deleted, and only by someone who can edit it. Its history and any Google Docs sync go with it; a Doc already in someone’s Drive stays there. Cannot be undone.",
+        "responses": {
+          "200": {
+            "description": "Gone"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "`not_in_trash` — move it to Recently Deleted first"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/notes/{id}/backlinks": {
+      "get": {
+        "operationId": "getV1NotesByIdBacklinks",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Notes that link to this one",
+        "description": "Only notes you can read, not in Recently Deleted; most recently edited first.",
+        "responses": {
+          "200": {
+            "description": "Note summaries"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/notes/{id}/versions": {
       "get": {
         "operationId": "getV1NotesByIdVersions",
@@ -3727,7 +4729,7 @@
         "summary": "A note’s history",
         "responses": {
           "200": {
-            "description": "Earlier copies, newest first"
+            "description": "Earlier copies, newest first, each with who saved it (`createdByName`)"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -3785,88 +4787,6 @@
             "required": true
           }
         ]
-      }
-    },
-    "/v1/notes/google/status": {
-      "get": {
-        "operationId": "getV1NotesGoogleStatus",
-        "tags": [
-          "Notes"
-        ],
-        "summary": "Your Google Drive connection",
-        "responses": {
-          "200": {
-            "description": "Configured, connected, and as whom"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/notes/google/connect": {
-      "post": {
-        "operationId": "postV1NotesGoogleConnect",
-        "tags": [
-          "Notes"
-        ],
-        "summary": "Start connecting your Google Drive",
-        "responses": {
-          "200": {
-            "description": "{ url } — send the browser there"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/notes/google/callback": {
-      "get": {
-        "operationId": "getV1NotesGoogleCallback",
-        "tags": [
-          "Notes"
-        ],
-        "summary": "Google’s redirect after consent",
-        "description": "Reached through the CRM’s /be proxy so the session comes with it; the signed state must name the same person. Redirects back to Settings → Connectors.",
-        "responses": {
-          "302": {
-            "description": "Back to Settings → Connectors, ?google=connected or ?google=error"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/notes/google": {
-      "delete": {
-        "operationId": "deleteV1NotesGoogle",
-        "tags": [
-          "Notes"
-        ],
-        "summary": "Disconnect your Google Drive",
-        "description": "Revokes DUMA’s access at Google, forgets the token and stops syncing your notes. The Docs already made stay in your Drive.",
-        "responses": {
-          "200": {
-            "description": "Disconnected"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
       }
     },
     "/v1/notes/{id}/drive-sync": {
@@ -13319,6 +14239,82 @@
           },
           "403": {
             "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/analytics-connections": {
+      "get": {
+        "operationId": "getV1AnalyticsConnections",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Get the workspace analytics connector",
+        "responses": {
+          "200": {
+            "description": "Connection without credentials"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1AnalyticsConnections",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Connect or replace an analytics provider",
+        "responses": {
+          "200": {
+            "description": "Validated connection"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteV1AnalyticsConnections",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Disconnect the analytics provider",
+        "responses": {
+          "204": {
+            "description": "Disconnected"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/analytics-connections/data": {
+      "get": {
+        "operationId": "getV1AnalyticsConnectionsData",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Fetch external analytics data",
+        "responses": {
+          "200": {
+            "description": "Provider analytics data"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
           },
           "429": {
             "description": "Too many requests — rate limited"

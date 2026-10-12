@@ -38,4 +38,5 @@ export const moduleQueryKeys = {
   promotions: createModuleQueryKeys('promotions'),
   referrals: createModuleQueryKeys('referrals'),
   notes: createModuleQueryKeys('notes'),
+  reservations: createModuleQueryKeys('reservations'),
 } as const;

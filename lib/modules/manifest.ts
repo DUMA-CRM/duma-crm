@@ -26,6 +26,7 @@ export const MODULE_IDS = [
   'promotions',
   'referrals',
   'notes',
+  'reservations',
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];
@@ -118,6 +119,8 @@ export const CRM_MODULE_CAPABILITIES = {
   referrals: ['referrals:read', 'referrals:write'],
   // Everyone's own notes and the shared knowledge base; sharing is an administrator's.
   notes: ['notes:read', 'notes:write', 'notes:manage'],
+  // Bookings and the waitlist are the door's; the floor plan and the booking rules are a manager's.
+  reservations: ['reservations:read', 'reservations:write', 'reservations.floor:write', 'reservations.settings:write'],
 } as const satisfies Record<ModuleId, readonly string[]>;
 
 type CrmCapabilityRegistry = typeof CRM_MODULE_CAPABILITIES;
@@ -202,6 +205,8 @@ const pages: Record<ModuleId, readonly string[]> = {
   promotions: ['/promotions'],
   referrals: ['/promotions/referrals'],
   notes: ['/notes'],
+  // The guest's own booking pages are public, like the QR menu.
+  reservations: ['/reservations', '/book/[token]', '/book/manage/[token]'],
 };
 
 const dependencies: Record<ModuleId, readonly ModuleId[]> = {
@@ -230,6 +235,8 @@ const dependencies: Record<ModuleId, readonly ModuleId[]> = {
   promotions: ['catalog', 'customers', 'ordering', 'organization'],
   referrals: ['customers', 'ordering', 'organization', 'promotions'],
   notes: ['identity', 'organization'],
+  // Communications sends the guest emails when it's on; it isn't required.
+  reservations: ['communications', 'customers', 'organization'],
 };
 
 const navigation: Record<ModuleId, readonly string[]> = {
@@ -259,6 +266,7 @@ const navigation: Record<ModuleId, readonly string[]> = {
   // A tab of Promotions, not a sidebar entry of its own.
   referrals: [],
   notes: ['/notes'],
+  reservations: ['/reservations'],
 };
 
 export const CRM_MODULE_MANIFESTS: readonly ModuleManifest[] = MODULE_IDS.map((id) => ({

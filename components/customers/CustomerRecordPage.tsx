@@ -8,6 +8,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { CustomerAddresses } from '@/components/customers/CustomerAddresses';
 import { CustomerFormDrawer } from '@/components/customers/CustomerForm';
 import { CustomerLoyaltyCards } from '@/components/customers/CustomerLoyaltyCards';
+import { CustomerBookings } from '@/components/customers/CustomerBookings';
 import { CustomerReferralCard } from '@/components/customers/CustomerReferralCard';
 import { CustomerTimeline } from '@/components/customers/CustomerTimeline';
 import { CustomerWorkbench, type WorkbenchAction } from '@/components/customers/CustomerWorkbench';
@@ -112,6 +113,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const complianceOn = useModuleEnabled('compliance');
   const orderingOn = useModuleEnabled('ordering');
   const posOn = useModuleEnabled('pos');
+  const reservationsOn = useModuleEnabled('reservations');
   const hasComplianceTab = commsOn || complianceOn;
 
   const requested = searchParams.get('tab');
@@ -434,6 +436,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                       )}
                     </SettingsSection>
                   )}
+
+                  {reservationsOn && !erased && hasCapability(capabilities, 'reservations:read') && <CustomerBookings customerId={customer.id} />}
 
                   {!erased && <CustomerAddresses customer={customer} canEdit={canEdit} />}
                 </>

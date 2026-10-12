@@ -25,7 +25,7 @@ export function DumaSays({ line, busy, tone, cheer }: { line: string; busy: bool
       <p
         aria-live="polite"
         className={cn(
-          'relative min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm leading-5',
+          'relative min-w-0 flex-1 whitespace-pre-line rounded-lg border px-3 py-2 text-sm leading-5',
           'before:absolute before:-left-1.5 before:top-1/2 before:size-3 before:-translate-y-1/2 before:rotate-45 before:border-b before:border-l before:bg-inherit before:[border-color:inherit]',
           tone === 'error' ? 'border-exception/40 bg-exception/6 text-exception' : 'border-rule/60 bg-control text-foreground',
         )}

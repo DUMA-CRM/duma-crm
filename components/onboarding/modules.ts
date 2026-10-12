@@ -2,6 +2,7 @@ import {
   Bell,
   BookOpen,
   Boxes,
+  CalendarCheck,
   ChefHat,
   ClipboardCheck,
   CreditCard,
@@ -95,6 +96,11 @@ export const MODULE_COPY: Record<WorkspaceModuleId, { name: string; detail: stri
     name: 'Notes',
     detail: 'Recipes, opening and closing checklists, SOPs and your own notes — shared by folder, searchable, and readable by Ask DUMA.',
     icon: NotebookPen,
+  },
+  reservations: {
+    name: 'Reservations',
+    detail: 'Bookings, a floor plan of your tables and a walk-in waitlist — no table double-booked.',
+    icon: CalendarCheck,
   },
 };
 

@@ -15,8 +15,13 @@ export type EmailTrigger =
   | 'segment_entered'
   | 'staff_onboarded'
   | 'staff_leave_approved'
-  | 'staff_document_expiring';
+  | 'staff_document_expiring'
+  | 'reservation_confirmed'
+  | 'reservation_reminder'
+  | 'reservation_cancelled';
 export type EmailDeliveryStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'cancelled';
+/** A delivery's trigger — booking emails included, now that automations send them too. */
+export type EmailDeliveryTrigger = EmailTrigger;
 export type EmailWorkflowConditionField =
   | 'customer.marketingOptIn'
   | 'customer.tier'
@@ -36,6 +41,8 @@ export type EmailWorkflowNode =
         event: Exclude<EmailTrigger, 'manual'>;
         locationId?: string | null;
         offsetDays?: number;
+        /** `reservation_reminder` only: how many hours before the booking. */
+        offsetHours?: number;
         timezone?: string;
         /** Required by `segment_entered`, ignored by every other trigger. */
         segmentId?: string | null;
@@ -186,7 +193,7 @@ export interface EmailDelivery {
   staffUserId?: string | null;
   audience: 'customer' | 'staff';
   orderId?: string | null;
-  trigger: EmailTrigger;
+  trigger: EmailDeliveryTrigger;
   status: EmailDeliveryStatus;
   toEmail: string;
   toName?: string | null;

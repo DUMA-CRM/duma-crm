@@ -8,6 +8,7 @@ import { EmailConnectWizard, EmailConnectorPage } from './EmailConnector';
 import { PaymentsConnectWizard, PaymentsConnectorPage } from './PaymentsConnector';
 import { StorageConnectWizard } from './StorageConnector';
 import { StorageConnectorPage } from './StorageConnectorPage';
+import { AnalyticsConnectWizard, AnalyticsConnectorPage } from './AnalyticsConnector';
 import type { ConnectorId } from './registry';
 
 const LIST = '/settings/connectors';
@@ -50,6 +51,14 @@ export function ConnectorsRoute() {
       <StorageConnectWizard onClose={toList} onDone={() => toManage('media-storage')} />
     ) : (
       <StorageConnectorPage onClose={toList} onConnect={() => toConnect('media-storage')} />
+    );
+  }
+
+  if (connector === 'analytics') {
+    return connecting ? (
+      <AnalyticsConnectWizard onClose={toList} onDone={() => toManage('analytics')} />
+    ) : (
+      <AnalyticsConnectorPage onClose={toList} onConnect={() => toConnect('analytics')} />
     );
   }
 

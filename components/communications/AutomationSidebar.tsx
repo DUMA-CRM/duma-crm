@@ -94,6 +94,7 @@ export function AutomationSidebar({
   locations,
   segments,
   staffAudience,
+  bookingAudience = false,
   runs,
   now,
   readOnly,
@@ -112,6 +113,8 @@ export function AutomationSidebar({
   locations: Array<{ id: string; name: string }>;
   segments: Array<{ id: string; name: string }>;
   staffAudience: boolean;
+  /** A booking's guest email: steps speak of "the guest". */
+  bookingAudience?: boolean;
   runs: EmailAutomationRun[];
   now: number;
   readOnly: boolean;
@@ -142,7 +145,7 @@ export function AutomationSidebar({
             </fieldset>
             <InfoRows>
               <InfoRow icon={Users} title="Sends to">
-                <span className="text-sm text-muted-foreground">{staffAudience ? 'Employees' : 'Customers'}</span>
+                <span className="text-sm text-muted-foreground">{staffAudience ? 'Employees' : bookingAudience ? 'Booking guests' : 'Customers'}</span>
               </InfoRow>
               {automation && (
                 <>
@@ -174,6 +177,7 @@ export function AutomationSidebar({
             locations={locations}
             segments={segments}
             staffAudience={staffAudience}
+            bookingAudience={bookingAudience}
             readOnly={readOnly}
             templateName={templateName}
             onChange={onChange}
@@ -248,6 +252,7 @@ function StepPanel({
   locations,
   segments,
   staffAudience,
+  bookingAudience,
   readOnly,
   templateName,
   onChange,
@@ -260,6 +265,7 @@ function StepPanel({
   locations: Array<{ id: string; name: string }>;
   segments: Array<{ id: string; name: string }>;
   staffAudience: boolean;
+  bookingAudience: boolean;
   readOnly: boolean;
   templateName: (id: string) => string;
   onChange: (node: EmailWorkflowNode) => void;
@@ -276,7 +282,12 @@ function StepPanel({
   return (
     <>
       {/* One card for the step: who it is and what it does, then the how — every line the same row. */}
-      <SettingsSection title="Step" description={describeStep(node, { templateName, locationName, staff: staffAudience })}>
+      <SettingsSection title="Step" description={describeStep(node, {
+          templateName,
+          locationName,
+          staff: staffAudience,
+          booking: bookingAudience,
+        })}>
         <fieldset disabled={readOnly} className="min-w-0 space-y-4">
           <ExpandRow icon={meta.icon} title={meta.label} htmlFor="step-name" value={node.name}>
             <Input
@@ -373,7 +384,8 @@ function StepSettings({
                   ...node.config,
                   event: value as typeof node.config.event,
                   offsetDays: value === 'customer_inactive' ? 30 : 0,
-                  locationId: value.startsWith('order_') ? node.config.locationId : null,
+                  offsetHours: value === 'reservation_reminder' ? (node.config.offsetHours ?? 24) : undefined,
+                  locationId: value.startsWith('order_') || value.startsWith('reservation_') ? node.config.locationId : null,
                   // Dropped when the trigger stops being segment-driven, so a
                   // leftover id cannot silently scope a different trigger.
                   segmentId: value === 'segment_entered' ? node.config.segmentId : null,
@@ -405,7 +417,28 @@ function StepSettings({
             </p>
           </ExpandRow>
         )}
-        {event.startsWith('order_') && (
+        {event === 'reservation_reminder' && (
+          <ExpandRow
+            icon={CalendarDays}
+            title="Hours before"
+            htmlFor="trigger-hours"
+            value={`${node.config.offsetHours ?? 24} h before`}
+          >
+            <Input
+              id="trigger-hours"
+              type="number"
+              min={1}
+              max={168}
+              aria-label="Hours before the booking"
+              value={node.config.offsetHours ?? 24}
+              onChange={(change) =>
+                onChange({ ...node, config: { ...node.config, offsetHours: Math.min(168, Math.max(1, Number(change.target.value) || 1)) } })
+              }
+            />
+            <p className="text-xs text-muted-foreground">How long before the booking the reminder goes. Bookings made later than that get none.</p>
+          </ExpandRow>
+        )}
+        {(event.startsWith('order_') || event.startsWith('reservation_')) && (
           // "Any location" is a real answer, not a missing one — it starts folded.
           <ExpandRow icon={MapPin} title="At" value={locationName ?? 'Any location'}>
             <Select
