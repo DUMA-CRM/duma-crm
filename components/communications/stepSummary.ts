@@ -30,9 +30,14 @@ const FIELD_WORDS: Record<string, string> = {
  */
 export function describeStep(
   node: EmailWorkflowNode,
-  { templateName, locationName, staff }: { templateName: (id: string) => string; locationName?: string | null; staff: boolean },
+  {
+    templateName,
+    locationName,
+    staff,
+    booking = false,
+  }: { templateName: (id: string) => string; locationName?: string | null; staff: boolean; booking?: boolean },
 ): string {
-  const who = staff ? 'the employee' : 'the customer';
+  const who = staff ? 'the employee' : booking ? 'the guest' : 'the customer';
   switch (node.type) {
     case 'trigger': {
       const event = TRIGGER_OPTIONS.find((option) => option.value === node.config.event)?.label ?? 'Something happens';
@@ -43,7 +48,12 @@ export function describeStep(
           : `Starts ${days} day${days === 1 ? '' : 's'} before each opted-in customer’s birthday.`;
       if (node.config.event === 'customer_inactive')
         return `Starts when an opted-in customer hasn’t visited for ${Math.max(1, days)} days.`;
-      const where = node.config.event.startsWith('order_') ? (locationName ? ` at ${locationName}` : ' at any location') : '';
+      if (node.config.event === 'reservation_reminder') {
+        const hours = node.config.offsetHours ?? 24;
+        return `Starts ${hours} hour${hours === 1 ? '' : 's'} before each booking${locationName ? ` at ${locationName}` : ''}.`;
+      }
+      const scoped = node.config.event.startsWith('order_') || node.config.event.startsWith('reservation_');
+      const where = scoped ? (locationName ? ` at ${locationName}` : ' at any location') : '';
       return `Starts when ${event.charAt(0).toLowerCase()}${event.slice(1)}${where}.`;
     }
     case 'send_email':

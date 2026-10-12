@@ -311,6 +311,7 @@ const MODULE_NAMES: Record<ModuleId, string> = {
   promotions: 'Promotions',
   referrals: 'Refer a friend',
   notes: 'Notes',
+  reservations: 'Reservations',
 };
 
 const getWorkspaceModules: ToolDefinition = {

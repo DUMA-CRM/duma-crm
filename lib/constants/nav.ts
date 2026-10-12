@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CalendarCheck,
   CalendarDays,
   ChefHat,
   HeartHandshake,
@@ -65,6 +66,8 @@ export const mainNavItems: NavItem[] = [
   // Its own module since 0101: a shop that ships parcels has no kitchen.
   { module: 'kds', label: 'Kitchen', href: '/kds', icon: ChefHat, capabilities: ['orders:status'] },
   { module: 'ordering', label: 'Orders', href: '/orders', icon: ShoppingBag, capabilities: ['orders:read'] },
+  // Bookings, the floor and the waitlist — run at the door, beside the till.
+  { module: 'reservations', label: 'Reservations', href: '/reservations', icon: CalendarCheck, capabilities: ['reservations:read'] },
   // No End of day entry: opening and closing the trading day is done in the
   // till, at the drawer (2026-10-04). Reports keeps the read-only history.
   // A shop reads Products (see `retail`): setup records the catalog's vocabulary.

@@ -137,17 +137,18 @@ export const timeAgo = (iso: string, now: number): string => relativeTime(iso, n
 
 // ── Automations list ──────────────────────────────────────────────────────────
 
-export type AutomationGroup = 'orders' | 'customers' | 'staff';
+export type AutomationGroup = 'orders' | 'bookings' | 'customers' | 'staff';
 
 export const AUTOMATION_GROUPS: { value: AutomationGroup; label: string }[] = [
   { value: 'orders', label: 'Orders' },
+  { value: 'bookings', label: 'Bookings' },
   { value: 'customers', label: 'Customers' },
   { value: 'staff', label: 'Staff' },
 ];
 
 /** Which list heading an automation sits under — by what starts it. */
 export const automationGroup = (trigger: string): AutomationGroup =>
-  trigger.startsWith('order_') ? 'orders' : trigger.startsWith('staff_') ? 'staff' : 'customers';
+  trigger.startsWith('order_') ? 'orders' : trigger.startsWith('reservation_') ? 'bookings' : trigger.startsWith('staff_') ? 'staff' : 'customers';
 
 /** Grouped Orders → Customers → Staff, sending first, then by name; empty groups dropped. */
 export function groupAutomations<T extends { name: string; trigger: string; isEnabled: boolean }>(

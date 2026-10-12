@@ -23,6 +23,9 @@ interface UiSettingsStore {
    */
   brand: Brand;
   setBrand: (brand: Brand) => void;
+  /** Reservations' floor maps draw each table's chairs. */
+  showChairs: boolean;
+  setShowChairs: (show: boolean) => void;
 }
 
 export const useUiSettingsStore = create<UiSettingsStore>()(
@@ -34,17 +37,20 @@ export const useUiSettingsStore = create<UiSettingsStore>()(
       setListView: (id, view) => set((state) => ({ listViews: { ...state.listViews, [id]: view } })),
       brand: DEFAULT_BRAND,
       setBrand: (brand) => set({ brand }),
+      showChairs: true,
+      setShowChairs: (showChairs) => set({ showChairs }),
     }),
     {
       // The pre-paint script in app/layout.tsx reads `state.brand` under this key.
       name: UI_SETTINGS_STORAGE_KEY,
       version: 3,
       migrate: (persisted) => {
-        const previous = persisted as Partial<Pick<UiSettingsStore, 'dismissedTips' | 'listViews' | 'brand'>>;
+        const previous = persisted as Partial<Pick<UiSettingsStore, 'dismissedTips' | 'listViews' | 'brand' | 'showChairs'>>;
         return {
           dismissedTips: previous.dismissedTips ?? [],
           listViews: previous.listViews ?? {},
           brand: parseBrand(previous.brand),
+          showChairs: previous.showChairs ?? true,
         };
       },
     },

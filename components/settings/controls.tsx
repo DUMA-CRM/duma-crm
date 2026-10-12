@@ -94,8 +94,8 @@ export function SettingRow({
   );
 }
 
-export function SettingRows({ children }: { children: React.ReactNode }) {
-  return <div className="divide-y divide-rule/40">{children}</div>;
+export function SettingRows({ children, dividers = true }: { children: React.ReactNode; dividers?: boolean }) {
+  return <div className={cn(dividers && 'divide-y divide-rule/40')}>{children}</div>;
 }
 
 /**

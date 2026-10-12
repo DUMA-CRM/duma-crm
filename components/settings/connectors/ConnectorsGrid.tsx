@@ -14,6 +14,7 @@ import { getEmailConnection } from '@/lib/modules/communications/client';
 import { disconnectGoogleDrive, getGoogleDriveStatus, startGoogleDriveConnect } from '@/lib/modules/notes/client';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { getPaymentConnections } from '@/lib/modules/payments/client';
+import { getAnalyticsConnection } from '@/lib/modules/analytics/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { formatBytes } from '@/lib/utils/cms';
 import { useAuthStore } from '@/stores/authStore';
@@ -68,6 +69,13 @@ export function ConnectorsGrid() {
     queryKey: moduleQueryKeys.cms.key('storage', tenantId),
     queryFn: () => getCmsStorage(tenantId ?? undefined),
     enabled: !!tenantId && storageVisible,
+  });
+  const analyticsVisible = visible(CONNECTORS.find((definition) => definition.id === 'analytics')!);
+  const { data: analyticsConnection } = useQuery({
+    queryKey: moduleQueryKeys.analytics.key('external-connection', tenantId),
+    queryFn: () => getAnalyticsConnection(tenantId ?? undefined),
+    enabled: !!tenantId && analyticsVisible,
+    retry: false,
   });
 
   // Google Drive is each person's own: connected from here, used from Notes.
@@ -199,6 +207,20 @@ export function ConnectorsGrid() {
                 detail: google?.lastError ?? 'Connect again and allow DUMA to create files in your Drive.',
               }
             : undefined,
+      };
+    }
+
+    if (definition.id === 'analytics') {
+      const connected = Boolean(analyticsConnection);
+      return {
+        definition,
+        state: connected ? ('connected' as ConnectorState) : ('disconnected' as ConnectorState),
+        accounts: connected
+          ? [{ label: analyticsConnection!.displayName, meta: analyticsConnection!.provider === 'umami' ? 'Umami' : 'PostHog' }]
+          : [],
+        action: connected
+          ? { label: 'Manage', icon: Settings, onClick: () => open('analytics'), variant: 'outline' as const }
+          : { label: 'Connect', icon: Plug, onClick: () => open('analytics', 'connect') },
       };
     }
 

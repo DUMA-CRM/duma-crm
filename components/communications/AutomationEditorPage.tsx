@@ -118,6 +118,7 @@ export function AutomationEditorPage({
   const [now] = useState(() => Date.now());
   const triggerNode = definition.nodes.find((node) => node.type === 'trigger');
   const staffAudience = triggerNode?.type === 'trigger' && triggerNode.config.event.startsWith('staff_');
+  const bookingAudience = triggerNode?.type === 'trigger' && triggerNode.config.event.startsWith('reservation_');
 
   const persist = async (publish: boolean) => {
     if (errors.length) throw new Error(errors[0]);
@@ -327,6 +328,7 @@ export function AutomationEditorPage({
           locations={locations}
           segments={segments}
           staffAudience={staffAudience}
+          bookingAudience={bookingAudience}
           runs={runs.slice(0, 20)}
           now={now}
           readOnly={readOnly}

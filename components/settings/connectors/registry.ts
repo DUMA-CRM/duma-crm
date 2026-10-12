@@ -1,4 +1,4 @@
-import { Banknote, Calculator, CreditCard, Database, GoogleDrive, type IconComponent, Mail, Printer, Tags } from '@/components/icons';
+import { Banknote, BarChart3, Calculator, CreditCard, Database, GoogleDrive, type IconComponent, Mail, Printer, Tags } from '@/components/icons';
 import type { Capability } from '@/lib/auth/capabilities';
 import type { WorkspaceModuleId } from '@/lib/modules/organization/client';
 
@@ -7,6 +7,7 @@ export type ConnectorId =
   | 'card-payments'
   | 'media-storage'
   | 'google-drive'
+  | 'analytics'
   | 'payroll'
   | 'accounting'
   | 'receipt-printer'
@@ -40,6 +41,18 @@ export interface ConnectorDefinition {
 }
 
 export const CONNECTORS: ConnectorDefinition[] = [
+  {
+    id: 'analytics',
+    name: 'Web analytics',
+    icon: BarChart3,
+    description: 'Bring website traffic and product usage data from your analytics provider into DUMA.',
+    tags: ['Umami', 'PostHog', 'Traffic metrics'],
+    tagline: 'Connect your website analytics so DUMA can fetch its metrics.',
+    requirements: ['A website ID or project ID', 'A read-only API key from your provider'],
+    available: true,
+    capability: 'settings:write',
+    moduleId: 'analytics',
+  },
   {
     id: 'email',
     name: 'Email',
