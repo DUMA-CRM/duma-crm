@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { RichTextPreview } from '@/components/cms/RichTextPreview';
-import { History } from '@/components/icons';
+import { History, Loader2, RotateCcw } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -12,12 +12,21 @@ import { RelativeTime } from '@/components/shared/RelativeTime';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
-import { getNoteVersions, restoreNoteVersion } from '@/lib/modules/notes/client';
+import { type NoteVersion, getNoteVersions, restoreNoteVersion } from '@/lib/modules/notes/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { groupNotesByDate } from '@/lib/utils/notes';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 
-/** A note's earlier copies: pick one to read, restore it as the newest. The current copy stays in history. */
+const time = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
+const day = (iso: string) => formatInstant(iso, { weekday: 'short', day: 'numeric', month: 'short' });
+
+/**
+ * A note's earlier copies: the list on the left, grouped by day, with when and
+ * by whom; the copy you pick on the right, as a page. Restoring makes it the
+ * newest — the copy it replaces goes into history, so nothing is lost.
+ */
 export function VersionsDrawer({
   noteId,
   canRestore,
@@ -41,14 +50,39 @@ export function VersionsDrawer({
   });
   const versions = query.data ?? [];
   const shown = versions.find((version) => version.id === picked) ?? versions[0];
+  const count = versions.length;
 
   return (
-    <Drawer title="History" description="Earlier copies, kept as you write." onClose={onClose} className="sm:max-w-3xl">
+    <Drawer
+      title="History"
+      description={
+        count > 0
+          ? `${count} earlier ${count === 1 ? 'copy' : 'copies'} — one kept at most every ten minutes as you write.`
+          : 'Earlier copies, kept as you write.'
+      }
+      onClose={onClose}
+      className="sm:max-w-4xl"
+      // Two columns that scroll on their own, so a long note never pushes the list away.
+      bodyClassName={count > 0 ? 'flex flex-col overflow-hidden p-0 md:flex-row' : undefined}
+      footer={
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" size="lg" className="flex-1" onClick={onClose}>
+            Close
+          </Button>
+          {canRestore && shown && (
+            <Button type="button" size="lg" className="flex-1" disabled={restore.isPending} onClick={() => restore.mutate(shown.id)}>
+              {restore.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RotateCcw aria-hidden="true" />}
+              {restore.isPending ? 'Restoring…' : 'Restore this copy'}
+            </Button>
+          )}
+        </div>
+      }
+    >
       {query.isPending ? (
         <LoadingState label="Loading history" />
       ) : query.isError ? (
         <ErrorState title="History couldn’t be loaded" onRetry={() => void query.refetch()} />
-      ) : versions.length === 0 ? (
+      ) : count === 0 ? (
         <EmptyState
           icon={History}
           title="No earlier copies yet"
@@ -56,40 +90,66 @@ export function VersionsDrawer({
           compact
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-[12rem_minmax(0,1fr)]">
-          <ul className="space-y-1">
-            {versions.map((version) => (
-              <li key={version.id}>
-                <button
-                  type="button"
-                  onClick={() => setPicked(version.id)}
-                  className={cn(
-                    'w-full rounded-md px-2.5 py-2 text-left text-sm transition-colors',
-                    shown?.id === version.id ? 'bg-primary/8 text-foreground' : 'text-muted-foreground hover:bg-band/60',
-                  )}
-                >
-                  <span className="block font-medium text-foreground">
-                    <RelativeTime iso={version.createdAt} />
-                  </span>
-                  <span className="block truncate text-xs">{version.title || 'Untitled'}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+        <>
+          <VersionList versions={versions} shownId={shown?.id ?? null} onPick={setPicked} />
           {shown && (
-            <div className="min-w-0 space-y-3">
-              <div className="max-h-[60vh] overflow-auto rounded-lg border border-rule/60 bg-field px-5 py-4 text-sm">
-                <RichTextPreview markdown={shown.markdown || '_Empty_'} />
+            <article className="min-w-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8" aria-label="The copy you picked">
+              <p className="text-xs text-muted-foreground">
+                Saved {day(shown.createdAt)}, {time(shown.createdAt)}
+                {shown.createdByName && <> · by {shown.createdByName}</>} · <RelativeTime iso={shown.createdAt} />
+              </p>
+              <div className="mt-4 text-sm">
+                <RichTextPreview markdown={shown.markdown || '_This copy was empty._'} />
               </div>
-              {canRestore && (
-                <Button disabled={restore.isPending} onClick={() => restore.mutate(shown.id)}>
-                  {restore.isPending ? 'Restoring…' : 'Restore this copy'}
-                </Button>
-              )}
-            </div>
+            </article>
           )}
-        </div>
+        </>
       )}
     </Drawer>
+  );
+}
+
+function VersionList({ versions, shownId, onPick }: { versions: NoteVersion[]; shownId: string | null; onPick: (id: string) => void }) {
+  // Today, Yesterday, Previous 7 days … — the same days the notes list uses.
+  const groups = groupNotesByDate(versions.map((version) => ({ ...version, pinned: false, updatedAt: version.createdAt })));
+  return (
+    <nav
+      aria-label="Earlier copies"
+      className="max-h-56 shrink-0 overflow-y-auto border-b border-divider bg-card md:max-h-none md:w-64 md:border-b-0 md:border-r"
+    >
+      {groups.map((group) => (
+        <section key={group.group} aria-label={group.group}>
+          <h3 className="sticky top-0 z-1 bg-card/95 px-4 pb-1 pt-3 text-label uppercase text-muted-foreground backdrop-blur">
+            {group.group}
+          </h3>
+          <ul className="space-y-px px-2 pb-1">
+            {group.notes.map((version) => {
+              const current = version.id === shownId;
+              return (
+                <li key={version.id}>
+                  <button
+                    type="button"
+                    onClick={() => onPick(version.id)}
+                    aria-current={current ? 'true' : undefined}
+                    className={cn(
+                      'w-full rounded-md px-2.5 py-2 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-ring',
+                      current ? 'bg-primary/10' : 'hover:bg-band/60',
+                    )}
+                  >
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span className="truncate text-sm font-semibold text-foreground">{version.title || 'Untitled'}</span>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{time(version.createdAt)}</span>
+                    </span>
+                    {version.createdByName && (
+                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">{version.createdByName}</span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+    </nav>
   );
 }

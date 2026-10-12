@@ -63,7 +63,10 @@ export function useNoteDriveSync(note: Pick<Note, 'id' | 'version' | 'deletedAt'
     mutationFn: () => startNoteDriveSync(note.id),
     onSuccess: (data) => {
       settle(data);
-      toast(data.status === 'active' ? 'success' : 'error', data.status === 'active' ? 'Syncing to Google Docs.' : driveSyncSummary(data).message);
+      toast(
+        data.status === 'active' ? 'success' : 'error',
+        data.status === 'active' ? 'Syncing to Google Docs.' : driveSyncSummary(data).message,
+      );
     },
     onError: (error) => toast('error', error.message),
   });
@@ -95,7 +98,13 @@ export function useNoteDriveSync(note: Pick<Note, 'id' | 'version' | 'deletedAt'
       });
     } else if (sync.data) {
       const { url } = sync.data;
-      if (url) menuItems.push({ key: 'open', icon: ExternalLink, label: 'Open in Google Docs', onClick: () => window.open(url, '_blank', 'noopener') });
+      if (url)
+        menuItems.push({
+          key: 'open',
+          icon: ExternalLink,
+          label: 'Open in Google Docs',
+          onClick: () => window.open(url, '_blank', 'noopener'),
+        });
       menuItems.push(
         { key: 'push', icon: RefreshCw, label: 'Sync now', onClick: () => push.mutate(false) },
         { key: 'stop', icon: CloudOff, label: 'Stop syncing to Google Docs', onClick: () => stop.mutate() },
@@ -114,11 +123,16 @@ export function useNoteDriveSync(note: Pick<Note, 'id' | 'version' | 'deletedAt'
   };
 }
 
-/** Under the note's bar while it syncs: a quiet line, or the choice a stopped sync needs. */
-export function DriveSyncBar({ drive }: { drive: ReturnType<typeof useNoteDriveSync> }) {
+/**
+ * A note's sync state. `alert` is the choice a stopped sync needs, fixed under
+ * the note's bar; `line` is the quiet "synced just now", at the top of the
+ * note, scrolling away with it.
+ */
+export function DriveSyncBar({ drive, part }: { drive: ReturnType<typeof useNoteDriveSync>; part: 'alert' | 'line' }) {
   if (!drive.sync) return null;
   const summary = driveSyncSummary(drive.sync);
   const { url, pushedAt } = drive.sync;
+  if ((summary.tone === 'stopped') !== (part === 'alert')) return null;
 
   if (summary.tone === 'stopped') {
     return (
@@ -141,7 +155,7 @@ export function DriveSyncBar({ drive }: { drive: ReturnType<typeof useNoteDriveS
   }
 
   return (
-    <div className="flex items-center gap-2 border-b border-rule/40 px-5 py-1.5 text-xs text-muted-foreground" aria-live="polite">
+    <div className="flex items-center gap-2 pt-4 text-xs text-muted-foreground" aria-live="polite">
       <GoogleDrive size={13} aria-hidden="true" />
       <span>
         {summary.message}

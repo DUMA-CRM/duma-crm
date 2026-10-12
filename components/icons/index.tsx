@@ -81,6 +81,7 @@ import {
   Delete02Icon,
   DeleteColumnIcon,
   DeleteRowIcon,
+  DrawingModeIcon,
   DownloadIcon,
   DropletIcon,
   DropletsIcon,
@@ -97,7 +98,10 @@ import {
   FlaskConicalIcon,
   Folder01Icon,
   FolderAddIcon,
+  FolderLockedIcon,
   FolderOpenIcon,
+  FolderShared01Icon,
+  FolderTransferIcon,
   GaugeIcon,
   GiftIcon,
   GitCompareArrowsIcon,
@@ -114,6 +118,7 @@ import {
   HeartHandshakeIcon,
   HeartPulseIcon,
   HelpCircleIcon,
+  HierarchyCircle01Icon,
   HighlighterIcon,
   HistoryIcon,
   Image01Icon,
@@ -320,6 +325,11 @@ export const Combine = /*#__PURE__*/ glyph(CombineIcon, 'Combine');
 export const Copy = /*#__PURE__*/ glyph(CopyIcon, 'Copy');
 export const FolderPlus = /*#__PURE__*/ glyph(FolderAddIcon, 'FolderPlus');
 export const FolderOpen = /*#__PURE__*/ glyph(FolderOpenIcon, 'FolderOpen');
+export const FolderLocked = /*#__PURE__*/ glyph(FolderLockedIcon, 'FolderLocked');
+export const FolderShared = /*#__PURE__*/ glyph(FolderShared01Icon, 'FolderShared');
+export const FolderMove = /*#__PURE__*/ glyph(FolderTransferIcon, 'FolderMove');
+export const GraphView = /*#__PURE__*/ glyph(HierarchyCircle01Icon, 'GraphView');
+export const PenLine = /*#__PURE__*/ glyph(DrawingModeIcon, 'PenLine');
 export const GoogleDrive = /*#__PURE__*/ glyph(GoogleDriveIcon, 'GoogleDrive');
 export const Highlighter = /*#__PURE__*/ glyph(HighlighterIcon, 'Highlighter');
 export const NotebookPen = /*#__PURE__*/ glyph(Notebook01Icon, 'NotebookPen');

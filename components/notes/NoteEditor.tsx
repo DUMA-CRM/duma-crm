@@ -3,18 +3,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Editor } from '@tiptap/react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { encodeImage } from '@/components/cms/imageEncode';
-import { createRenditions } from '@/components/cms/renditions';
-import { assetSrc, invalidateCms } from '@/components/cms/shared';
 import {
   ArrowLeft,
   Check,
-  FolderIcon,
+  ChevronRight,
+  FolderMove,
+  GraphView,
   History,
   Loader2,
-  Lock,
   MoreHorizontal,
   Pin,
   PinOff,
@@ -22,8 +21,8 @@ import {
   StickyNote,
   Trash2,
   TriangleAlert,
-  Users,
 } from '@/components/icons';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { RelativeTime } from '@/components/shared/RelativeTime';
@@ -33,21 +32,20 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { ApiError } from '@/lib/api/client';
-import { hasCapability } from '@/lib/auth/capabilities';
-import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
-import { uploadCmsAsset } from '@/lib/modules/cms/client';
-import { type Note, type NoteFolder, deleteNote, getNote, restoreNote, saveNote } from '@/lib/modules/notes/client';
+import { type Note, type NoteFolder, deleteNote, getNote, purgeNote, restoreNote, saveNote } from '@/lib/modules/notes/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { isDrawingNote } from '@/lib/utils/note-drawing';
 import { type NoteLength, noteLength } from '@/lib/utils/note-editor';
-import { folderTree, noteTitleFrom, tagsInText } from '@/lib/utils/notes';
-import { useAuthStore } from '@/stores/authStore';
+import { noteTitleFrom, tagsInText } from '@/lib/utils/notes';
 import { toast } from '@/stores/toastStore';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { MoveToPage } from './MoveToPage';
+import { NoteBacklinks } from './NoteBacklinks';
 import { DriveSyncBar, useNoteDriveSync } from './NoteDriveSync';
 import type { EditorSnapshot } from './RichNoteEditor';
 import { VersionsDrawer } from './VersionsDrawer';
+import { uploadDrawingImage, uploadNoteImage, useContentUpload } from './noteUploads';
 
 // TipTap only ever loads on this page, and only in the browser (UI-ADR-031).
 const RichNoteEditor = dynamic(() => import('./RichNoteEditor').then((module) => module.RichNoteEditor), {
@@ -56,58 +54,14 @@ const RichNoteEditor = dynamic(() => import('./RichNoteEditor').then((module) =>
 });
 // Same chunk as the editor; it sits in the note's bar, so the bar is one row.
 const NoteToolbar = dynamic(() => import('./NoteToolbar').then((module) => module.NoteToolbar), { ssr: false });
+// A drawing note's canvas. Excalidraw is large: only fetched when one is opened (UI-ADR-033).
+const DrawingNote = dynamic(() => import('./DrawingNote'), {
+  ssr: false,
+  loading: () => <LoadingState label="Opening the drawing" />,
+});
 
 type SaveState = 'saved' | 'pending' | 'saving' | 'error' | 'conflict';
 const SAVE_DELAY_MS = 1200;
-
-/** Re-encoded in the browser first, as every image in DUMA is (UI-ADR-024). Videos go as they are. */
-async function optimised(file: File): Promise<File> {
-  if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.type === 'image/svg+xml') return file;
-  const encoded = await encodeImage(file, { format: 'image/webp', quality: 0.85, maxWidth: 2000 }).catch(() => null);
-  return encoded?.file ?? file;
-}
-
-/**
- * Where a photo from this device goes. With Content on and `cms:write`, into
- * Content's media library (folder "Notes", with its smaller copies), so it can
- * be used anywhere afterwards; the note keeps the keyless delivery URL through
- * `/be`. Null otherwise — the toolbar then offers no upload, and a pasted
- * screenshot falls back to the note's own image store.
- */
-function useContentUpload(): ((file: File) => Promise<string>) | null {
-  const queryClient = useQueryClient();
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
-  const capabilities = useAuthStore((state) => state.capabilities);
-  const { contentEnabled } = useCatalogWords();
-  if (!contentEnabled || !hasCapability(capabilities, 'cms:write')) return null;
-  return async (file) => {
-    try {
-      const upload = await optimised(file);
-      const asset = await uploadCmsAsset(upload, { title: file.name.replace(/\.[^.]+$/, ''), folder: 'Notes' }, tenantId ?? undefined);
-      if (asset.mimeType.startsWith('image/')) await createRenditions(asset, tenantId ?? undefined, upload).catch(() => 0);
-      void invalidateCms(queryClient);
-      return assetSrc(asset.url);
-    } catch (error) {
-      toast('error', error instanceof Error && error.message ? error.message : `${file.name} couldn’t be uploaded.`);
-      throw error;
-    }
-  };
-}
-
-async function uploadNoteImage(file: File): Promise<string> {
-  const upload = await optimised(file);
-  const response = await fetch(`/api/notes/images?filename=${encodeURIComponent(upload.name)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': upload.type },
-    body: upload,
-  });
-  const result = (await response.json().catch(() => ({}))) as { url?: string; error?: string };
-  if (!response.ok || !result.url) {
-    toast('error', result.error ?? 'The image couldn’t be added.');
-    throw new Error(result.error ?? 'upload failed');
-  }
-  return result.url;
-}
 
 export function NoteEditor({
   noteId,
@@ -115,11 +69,14 @@ export function NoteEditor({
   onBack,
   onDeleted,
   onLength,
+  onOpenNote,
 }: {
   noteId: string;
   folders: NoteFolder[];
   onBack: () => void;
   onDeleted: () => void;
+  /** Open another note — from a link in this one, or from "Linked from". */
+  onOpenNote: (id: string) => void;
   /** The open note's length as it changes, for the page header; null when no note is open. */
   onLength: (length: NoteLength | null) => void;
 }) {
@@ -153,6 +110,7 @@ export function NoteEditor({
       onDeleted={onDeleted}
       onReload={() => setReloads((count) => count + 1)}
       onLength={onLength}
+      onOpenNote={onOpenNote}
     />
   );
 }
@@ -164,6 +122,7 @@ function LoadedNote({
   onDeleted,
   onReload,
   onLength,
+  onOpenNote,
 }: {
   note: Note;
   folders: NoteFolder[];
@@ -172,12 +131,17 @@ function LoadedNote({
   /** Remount the editor on the copy now in the cache. */
   onReload: () => void;
   onLength: (length: NoteLength | null) => void;
+  onOpenNote: (id: string) => void;
 }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [lastSaved, setLastSaved] = useState(note.updatedAt);
   const [menuOpen, setMenuOpen] = useState(false);
+  // The menu's second page, for picking a folder.
+  const [menuPage, setMenuPage] = useState<'main' | 'move'>('main');
   const [history, setHistory] = useState(false);
+  const [purging, setPurging] = useState(false);
   const versionRef = useRef(note.version);
   const pending = useRef<EditorSnapshot | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -185,7 +149,11 @@ function LoadedNote({
   const editorRef = useRef<Editor | null>(null);
   // The same editor, as state: the toolbar renders once it exists.
   const [editor, setEditor] = useState<Editor | null>(null);
-  const contentUpload = useContentUpload();
+  const contentUpload = useContentUpload('note');
+  // A drawing's photos go to their own folder, compressed harder (see noteUploads).
+  const drawingUpload = useContentUpload('drawing');
+  // Where a drawing note puts its title and "Photo or video": this bar.
+  const [drawingBar, setDrawingBar] = useState<HTMLDivElement | null>(null);
   const drive = useNoteDriveSync(note);
 
   // Words and reading time follow every edit, up to the page header.
@@ -208,6 +176,7 @@ function LoadedNote({
   }, []);
   const trashed = note.deletedAt !== null;
   const editable = note.canEdit && !trashed;
+  const drawing = isDrawingNote(note.content);
 
   const refreshLists = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.notes.key('list') });
@@ -330,19 +299,19 @@ function LoadedNote({
     },
     onError: (error) => toast('error', error.message),
   });
+  const purge = useMutation({
+    mutationFn: () => purgeNote(note.id),
+    onSuccess: () => {
+      setPurging(false);
+      queryClient.removeQueries({ queryKey: moduleQueryKeys.notes.key('note', note.id) });
+      refreshLists();
+      toast('success', 'Deleted for good.');
+      onDeleted();
+    },
+    onError: (error) => toast('error', error.message),
+  });
 
-  const writable = folders.filter((folder) => folder.canEdit);
-  // Where it can go: your private notes, or any folder you can write in.
-  const moveTargets = [
-    { id: null, name: 'My notes', depth: 0, shared: false, icon: Lock },
-    ...folderTree(writable).map(({ folder, depth }) => ({
-      id: folder.id as string | null,
-      name: folder.name,
-      depth,
-      shared: folder.shared,
-      icon: folder.shared ? Users : FolderIcon,
-    })),
-  ];
+  const hereNow = note.folderId ? (folders.find((folder) => folder.id === note.folderId)?.name ?? 'a folder') : 'My notes';
   /** A menu choice closes the menu, then does its thing. */
   const act = (run: () => void) => {
     setMenuOpen(false);
@@ -359,7 +328,9 @@ function LoadedNote({
         {!editable && !trashed && (
           <span className="shrink-0 rounded-sm bg-band px-1.5 py-0.5 text-micro font-semibold text-muted-foreground">Read only</span>
         )}
-        {editable && editor ? (
+        {drawing ? (
+          <div ref={setDrawingBar} className="flex min-w-0 flex-1 items-center gap-1" />
+        ) : editable && editor ? (
           <div className="flex min-w-0 flex-1 overflow-x-auto">
             <NoteToolbar editor={editor} onUploadMedia={contentUpload} />
           </div>
@@ -379,60 +350,55 @@ function LoadedNote({
             </Button>
           </Tooltip>
         )}
-        <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+        <Popover
+          open={menuOpen}
+          onOpenChange={(open) => {
+            setMenuOpen(open);
+            if (!open) setMenuPage('main');
+          }}
+        >
           <PopoverTrigger asChild>
             <Button variant="ghost" size="icon-sm" aria-label="More">
               <MoreHorizontal aria-hidden="true" />
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-72 p-1.5" role="menu" aria-label="Note actions">
-            {trashed ? (
-              <MenuItem icon={RotateCcw} label="Restore" onClick={() => act(() => restore.mutate())} />
+            {menuPage === 'move' ? (
+              <MoveToPage
+                folders={folders}
+                currentFolderId={note.folderId ?? null}
+                pending={meta.isPending}
+                onBack={() => setMenuPage('main')}
+                onMove={(target) =>
+                  act(() => meta.mutate({ folderId: target.id }, { onSuccess: () => toast('success', `Moved to ${target.name}.`) }))
+                }
+              />
+            ) : trashed ? (
+              <>
+                <MenuItem icon={RotateCcw} label="Restore" onClick={() => act(() => restore.mutate())} />
+                {note.canEdit && <MenuItem icon={Trash2} label="Delete permanently" danger onClick={() => act(() => setPurging(true))} />}
+              </>
             ) : (
               <>
                 <MenuItem icon={History} label="History" onClick={() => act(() => setHistory(true))} />
+                <MenuItem icon={GraphView} label="Show in graph" onClick={() => act(() => router.push(`/notes/graph?focus=${note.id}`))} />
                 {/* Only once Google Drive is connected (Settings → Connectors); each person's own Drive. */}
                 {drive.menuItems.map((item) => (
                   <MenuItem key={item.key} icon={item.icon} label={item.label} onClick={() => act(item.onClick)} />
                 ))}
                 {note.canEdit && (
-                  <div className="mt-1.5 border-t border-rule/50 pt-2" role="group" aria-label="Move to">
-                    <p className="mb-1 px-2 text-label uppercase text-muted-foreground">Move to</p>
-                    <ul className="max-h-60 space-y-px overflow-y-auto">
-                      {moveTargets.map((target) => {
-                        const current = (note.folderId ?? null) === target.id;
-                        return (
-                          <li key={target.id ?? 'mine'}>
-                            <button
-                              type="button"
-                              role="menuitemradio"
-                              aria-checked={current}
-                              disabled={current || meta.isPending}
-                              onClick={() =>
-                                act(() =>
-                                  meta.mutate({ folderId: target.id }, { onSuccess: () => toast('success', `Moved to ${target.name}.`) }),
-                                )
-                              }
-                              style={{ paddingLeft: `${0.5 + target.depth * 0.875}rem` }}
-                              className={cn(
-                                'flex w-full items-center gap-2 rounded-md py-1.5 pr-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring',
-                                current ? 'bg-primary/8 font-medium text-primary' : 'text-foreground hover:bg-band/60 disabled:opacity-50',
-                              )}
-                            >
-                              <target.icon size={15} className={cn('shrink-0', !current && 'text-muted-foreground')} aria-hidden="true" />
-                              <span className="min-w-0 flex-1 truncate">{target.name}</span>
-                              {target.shared && (
-                                <span className="shrink-0 rounded-sm bg-band px-1.5 py-0.5 text-micro font-semibold text-muted-foreground">
-                                  Shared
-                                </span>
-                              )}
-                              {current && <Check size={14} className="shrink-0" aria-hidden="true" />}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    aria-haspopup="true"
+                    onClick={() => setMenuPage('move')}
+                    className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm text-foreground transition-colors duration-150 hover:bg-band/60 focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    <FolderMove size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <span className="min-w-0 flex-1">Move to…</span>
+                    <span className="max-w-[45%] truncate text-xs text-muted-foreground">{hereNow}</span>
+                    <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                  </button>
                 )}
                 {note.canEdit && (
                   <div className="mt-1.5 border-t border-rule/50 pt-1.5">
@@ -461,32 +427,70 @@ function LoadedNote({
         <div className="flex items-center gap-3 border-b border-rule/50 bg-band/60 px-5 py-2.5 text-sm text-muted-foreground">
           <span className="min-w-0 flex-1">In Recently Deleted. Restore it to edit.</span>
           {note.canEdit && (
-            <Button size="sm" variant="outline" onClick={() => restore.mutate()}>
-              Restore
-            </Button>
+            <>
+              <Button size="sm" variant="ghost" className="text-exception hover:text-exception" onClick={() => setPurging(true)}>
+                Delete permanently
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => restore.mutate()}>
+                Restore
+              </Button>
+            </>
           )}
         </div>
       )}
-      {!trashed && <DriveSyncBar drive={drive} />}
+      {!trashed && <DriveSyncBar drive={drive} part="alert" />}
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        {/* The full width of the pane. */}
-        <div className="w-full px-4 pb-24 md:px-5">
-          <RichNoteEditor
+      {drawing ? (
+        <>
+          {!trashed && (
+            <div className="shrink-0 px-4 pb-2 md:px-5 empty:hidden">
+              <DriveSyncBar drive={drive} part="line" />
+            </div>
+          )}
+          <DrawingNote
             content={note.content}
-            markdown={note.markdown}
             editable={editable}
             onChange={onChange}
-            onReady={(ready) => {
-              editorRef.current = ready;
-              setEditor(ready);
-            }}
-            onUploadImage={contentUpload ?? uploadNoteImage}
-            acceptsVideo={contentUpload !== null}
+            upload={drawingUpload ?? uploadDrawingImage}
+            uploadVideo={drawingUpload}
+            bar={drawingBar}
           />
+        </>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-auto">
+          {/* The full width of the pane. */}
+          <div className="w-full px-4 pb-24 md:px-5">
+            {!trashed && <DriveSyncBar drive={drive} part="line" />}
+            <RichNoteEditor
+              content={note.content}
+              markdown={note.markdown}
+              editable={editable}
+              onChange={onChange}
+              onReady={(ready) => {
+                editorRef.current = ready;
+                setEditor(ready);
+              }}
+              onUploadImage={contentUpload ?? uploadNoteImage}
+              acceptsVideo={contentUpload !== null}
+              noteId={note.id}
+              onOpenNote={onOpenNote}
+            />
+            {!trashed && <NoteBacklinks noteId={note.id} onOpen={onOpenNote} />}
+          </div>
         </div>
-      </div>
+      )}
 
+      {purging && (
+        <ConfirmModal
+          title={`Delete “${note.title || 'New note'}” for good?`}
+          message="It and its history are gone for everyone, and can’t be brought back. A copy already synced to Google Docs stays in that Drive."
+          confirmLabel="Delete permanently"
+          pendingLabel="Deleting…"
+          isPending={purge.isPending}
+          onConfirm={() => purge.mutate()}
+          onClose={() => setPurging(false)}
+        />
+      )}
       {history && (
         <VersionsDrawer
           noteId={note.id}

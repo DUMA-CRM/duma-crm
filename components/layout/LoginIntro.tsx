@@ -19,9 +19,12 @@ const PLAY_MS = TIMELINE_MS * 0.76;
 const FLIGHT_MS = 1000;
 /** The green clears over a slightly longer, gentler curve than the flight. */
 const FADE_MS = 820;
+const ANIMATED_MARK_URL = '/icon-animated.svg';
+/** The monogram colour baked into the animated file, swapped for the brand at play time. */
+const MARK_FOREST = '#174C38';
 
 /**
- * Post-sign-in intro. A forest curtain fills the viewport, the animated mark
+ * Post-sign-in intro. A brand-coloured curtain fills the viewport, the animated mark
  * plays its reveal centre-screen, then flies into the sidebar's brand slot as
  * the curtain lifts.
  *
@@ -65,10 +68,39 @@ function Curtain() {
    * *resource* — not per <img> element. Reuse the same URL and the browser hands
    * back the cached instance, which is already parked on its final frame: the
    * mark appears, static, and the reveal never runs. Signing out and back in is
-   * enough to hit this. The nonce forces a new SVG document, and with it a new
-   * animation from t=0.
+   * enough to hit this.
+   *
+   * The artwork is fetched and recoloured to the workspace brand: an <img> can't
+   * read our CSS variables, so the file's forest has to be swapped for
+   * --brand-shell by hand or a plum workspace lands a green mark on its plum
+   * sidebar. Each blob URL is new, which also gives the fresh resource above.
+   * If the fetch fails, the untinted file with a nonce still plays.
    */
-  const [nonce] = useState(() => Date.now());
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let blobUrl: string | null = null;
+    const fallback = `${ANIMATED_MARK_URL}?play=${Date.now()}`;
+    const brandShell = getComputedStyle(document.documentElement).getPropertyValue('--brand-shell').trim();
+
+    fetch(ANIMATED_MARK_URL)
+      .then((res) => (res.ok ? res.text() : Promise.reject(new Error(String(res.status)))))
+      .then((svg) => {
+        if (cancelled) return;
+        const tinted = brandShell ? svg.replaceAll(MARK_FOREST, brandShell) : svg;
+        blobUrl = URL.createObjectURL(new Blob([tinted], { type: 'image/svg+xml' }));
+        setSrc(blobUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc(fallback);
+      });
+
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, []);
 
   const land = useCallback(() => {
     if (landedRef.current) return;
@@ -130,28 +162,30 @@ function Curtain() {
         className={cn('absolute inset-0 bg-sidebar transition-opacity', leaving && 'opacity-0')}
         style={{ transitionDuration: `${FADE_MS}ms`, transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.5, 1)' }}
       />
-      {/* eslint-disable-next-line @next/next/no-img-element -- an <img> keeps the
-          SVG's own <style> scoped to it; inlining would leak .mark/.plate/.dot
-          and a bare `svg {}` rule into the document. */}
-      <img
-        src={`/icon-animated.svg?play=${nonce}`}
-        alt=""
-        width={MARK_SIZE}
-        height={MARK_SIZE}
-        onLoad={startClock}
-        className="fixed will-change-transform"
-        style={{
-          left: origin.left,
-          top: origin.top,
-          width: MARK_SIZE,
-          height: MARK_SIZE,
-          // Origin at the top-left so translate-then-scale puts the mark's
-          // corner exactly on the target's corner.
-          transformOrigin: '0 0',
-          transform: flight ? `translate(${flight.dx}px, ${flight.dy}px) scale(${flight.scale})` : undefined,
-          transition: flight ? `transform ${FLIGHT_MS}ms cubic-bezier(0.16, 1, 0.3, 1)` : undefined,
-        }}
-      />
+      {/* An <img> keeps the SVG's own <style> scoped to it; inlining would leak
+          .mark/.plate/.dot and a bare `svg {}` rule into the document. */}
+      {src && (
+        // eslint-disable-next-line @next/next/no-img-element -- see above
+        <img
+          src={src}
+          alt=""
+          width={MARK_SIZE}
+          height={MARK_SIZE}
+          onLoad={startClock}
+          className="fixed will-change-transform"
+          style={{
+            left: origin.left,
+            top: origin.top,
+            width: MARK_SIZE,
+            height: MARK_SIZE,
+            // Origin at the top-left so translate-then-scale puts the mark's
+            // corner exactly on the target's corner.
+            transformOrigin: '0 0',
+            transform: flight ? `translate(${flight.dx}px, ${flight.dy}px) scale(${flight.scale})` : undefined,
+            transition: flight ? `transform ${FLIGHT_MS}ms cubic-bezier(0.16, 1, 0.3, 1)` : undefined,
+          }}
+        />
+      )}
       <p role="status" className="sr-only">
         Signed in. Opening your workspace.
       </p>

@@ -3,10 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Lock, Users } from '@/components/icons';
-import { ChoiceCards } from '@/components/shared/FormParts';
+import { Eye, FolderIcon, FolderLocked, FolderShared, type IconComponent, Info, Pencil } from '@/components/icons';
+import { ChoiceCards, ModalActions } from '@/components/shared/FormParts';
 import { Modal } from '@/components/shared/Modal';
-import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/shared/Tooltip';
 import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/multi-select';
 
@@ -56,7 +56,7 @@ export function FolderDialog({
   const [shared, setShared] = useState(mode.kind === 'create' ? (mode.parent?.shared ?? false) : (existing?.shared ?? false));
   const [readerRoles, setReaderRoles] = useState<string[]>(existing?.readerRoles ?? []);
   const [readerLocationIds, setReaderLocationIds] = useState<string[]>(existing?.readerLocationIds ?? []);
-  const [editorRoles, setEditorRoles] = useState<string[]>(existing?.editorRoles ?? ['franchise_owner', 'store_manager']);
+  const [editorRoles, setEditorRoles] = useState<string[]>(existing?.editorRoles ?? []); // Empty: everyone who can read it (and can write notes).
   const showSharing = canManage && topLevel && (mode.kind === 'share' || (mode.kind === 'create' && shared));
 
   const roles = useQuery({
@@ -109,88 +109,128 @@ export function FolderDialog({
     <Modal
       title={title}
       onClose={onClose}
-      className="max-w-lg"
+      size="md"
       footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button disabled={!ready || save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? 'Saving…' : mode.kind === 'create' ? 'Create folder' : 'Save'}
-          </Button>
-        </div>
+        <ModalActions
+          form="note-folder-form"
+          submitLabel={mode.kind === 'create' ? 'Create folder' : 'Save'}
+          pendingLabel="Saving…"
+          pending={save.isPending}
+          disabled={!ready}
+          onCancel={onClose}
+        />
       }
     >
       <form
-        className="space-y-4"
+        id="note-folder-form"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
           if (ready) save.mutate();
         }}
       >
         {mode.kind !== 'share' && (
-          <Input
-            label="Name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            autoFocus
-            maxLength={120}
-            placeholder="Recipes"
-          />
+          <Section icon={FolderIcon} title="Name" info="What people look for it by — “Recipes”, “Opening”, “Training”.">
+            <Input
+              aria-label="Folder name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              autoFocus
+              maxLength={120}
+              placeholder="Recipes"
+            />
+          </Section>
         )}
 
         {mode.kind === 'create' && topLevel && canManage && (
-          <ChoiceCards
-            columns={2}
-            value={shared ? 'shared' : 'private'}
-            onChange={(next) => setShared(next === 'shared')}
-            options={[
-              { value: 'private', label: 'Just me', icon: Lock },
-              { value: 'shared', label: 'Shared with the team', icon: Users },
-            ]}
-          />
-        )}
-        {mode.kind === 'create' && !topLevel && (
-          <p className="text-xs text-muted-foreground">
-            {mode.parent?.shared ? 'Shared like the folder it’s in.' : 'Private, like the folder it’s in.'}
-          </p>
+          <Section
+            icon={shared ? FolderShared : FolderLocked}
+            title="Who it’s for"
+            info={shared ? 'The team sees it — you choose which roles and locations below.' : 'Only you see it and what’s in it.'}
+          >
+            <ChoiceCards
+              columns={2}
+              value={shared ? 'shared' : 'private'}
+              onChange={(next) => setShared(next === 'shared')}
+              options={[
+                { value: 'private', label: 'Just me', icon: FolderLocked },
+                { value: 'shared', label: 'The team', icon: FolderShared },
+              ]}
+            />
+          </Section>
         )}
 
         {showSharing && (
-          <div className="space-y-3 rounded-lg border border-rule/60 bg-field p-4">
-            <div className="space-y-1.5">
-              <p className="text-sm font-semibold text-foreground">Who can read it</p>
-              <MultiSelect
-                value={readerRoles}
-                onChange={setReaderRoles}
-                options={roleOptions}
-                placeholder="Every role"
-                ariaLabel="Roles that can read"
-              />
-              <MultiSelect
-                value={readerLocationIds}
-                onChange={setReaderLocationIds}
-                options={locationOptions}
-                placeholder="Every location"
-                ariaLabel="Locations that can read"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-sm font-semibold text-foreground">Who can edit it</p>
+          <>
+            <Section icon={Eye} title="Who can read it" info="Leave a list empty for everyone.">
+              {/* Roles and locations side by side; stacked on a phone. */}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <MultiSelect
+                  value={readerRoles}
+                  onChange={setReaderRoles}
+                  options={roleOptions}
+                  placeholder="Every role"
+                  ariaLabel="Roles that can read"
+                  className="w-full"
+                />
+                <MultiSelect
+                  value={readerLocationIds}
+                  onChange={setReaderLocationIds}
+                  options={locationOptions}
+                  placeholder="Every location"
+                  ariaLabel="Locations that can read"
+                  className="w-full"
+                />
+              </div>
+            </Section>
+            <Section
+              icon={Pencil}
+              title="Who can edit it"
+              info="Empty means everyone who can read it. Pick roles to narrow it — managers only, for SOPs."
+            >
               <MultiSelect
                 value={editorRoles}
                 onChange={setEditorRoles}
                 options={roleOptions}
                 placeholder="Everyone who can read it"
                 ariaLabel="Roles that can edit"
+                className="w-full"
               />
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Typical: everyone reads the SOPs, managers keep them up to date. Ask DUMA can answer from shared folders.
-              </p>
-            </div>
-          </div>
+            </Section>
+          </>
         )}
       </form>
     </Modal>
+  );
+}
+
+/** A part of the dialog: icon, title, and what it means behind an ⓘ — the fields sit straight below, with no panel. */
+function Section({ icon: Icon, title, info, children }: { icon: IconComponent; title: string; info: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-2.5">
+      <div className="flex items-center gap-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
+          <Icon size={16} aria-hidden="true" />
+        </span>
+        <h3 className="min-w-0 flex-1 text-sm font-semibold text-foreground">{title}</h3>
+        <InfoTip label={info} />
+      </div>
+      <div className="flex flex-col gap-2">{children}</div>
+    </section>
+  );
+}
+
+/** The explanation, on hover or focus. Its label is the text, so a screen reader hears it too. */
+function InfoTip({ label }: { label: string }) {
+  return (
+    <Tooltip side="bottom" align="end" wrap label={label}>
+      <button
+        type="button"
+        aria-label={label}
+        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        <Info size={15} aria-hidden="true" />
+      </button>
+    </Tooltip>
   );
 }

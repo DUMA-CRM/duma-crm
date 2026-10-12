@@ -1,0 +1,38 @@
+/* The tree's own names for the app's theme tokens (globals.css), so it follows light and dark mode. */
+.tree {
+  --surface: var(--card); --surface-muted: var(--band); --text-secondary: var(--muted-foreground); --text-muted: var(--muted-foreground);
+  --text-sm: 0.875rem; --duration-fast: 150ms; --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tree { display: block; width: 100%; min-width: 0; box-sizing: border-box; padding: 6px 8px 8px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); color: var(--foreground); overflow: hidden; }
+.row { position: relative; display: flow-root; min-width: 0; height: 38px; }
+.item { position: relative; display: flex; width: 100%; min-width: 0; height: 36px; margin-top: 2px; align-items: center; gap: 6px; padding: 0 8px; padding-left: calc(8px + (var(--tree-depth) - 1) * 12px); border: 0; border-radius: 10px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--text-sm); line-height: 1; text-align: left; cursor: pointer; outline: none; transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard); }
+/* Selection is a background, as in the app's sidebar. Color only — a heavier weight would reflow the label. */
+.item[aria-selected="true"] { background: var(--surface-muted); color: var(--foreground); }
+.branch { position: absolute; top: 4px; bottom: 4px; left: calc(14.5px + (var(--tree-depth) - 2) * 12px); z-index: 1; width: 1px; background: var(--border); pointer-events: none; }
+.disclosure, .icon, .label { position: relative; z-index: 1; }
+.disclosure { display: grid; width: 14px; height: 16px; flex: 0 0 14px; place-items: center; color: var(--text-muted); transition: transform var(--duration-fast) var(--ease-standard); }
+.item[aria-expanded="true"] .disclosure { transform: rotate(90deg); }
+.icon { display: grid; width: 16px; height: 16px; flex: 0 0 16px; place-items: center; color: var(--text-muted); transition: color var(--duration-fast) var(--ease-standard); }
+.folder { color: var(--text-secondary); }
+.item[aria-expanded="true"] .folder, .item[aria-selected="true"] .folder { color: var(--foreground); }
+.typescript { color: color-mix(in oklab, #3178c6 78%, var(--foreground)); }
+.stylesheet { color: color-mix(in oklab, #8b6ace 73%, var(--foreground)); }
+.markdown { color: color-mix(in oklab, #38896b 74%, var(--foreground)); }
+.json { color: color-mix(in oklab, #c48637 78%, var(--foreground)); }
+/* In a sidebar: no frame of its own. */
+.plain { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.meta { position: relative; z-index: 1; margin-left: auto; padding-left: 6px; color: var(--text-muted); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+/* Room for the controls, which sit over the row's right end and show on hover or focus. */
+.item[data-has-actions] { padding-right: 34px; }
+.actions { position: absolute; top: 2px; right: 4px; z-index: 2; display: flex; height: 36px; align-items: center; opacity: 0; transition: opacity var(--duration-fast) var(--ease-standard); }
+.row:hover .actions, .row:focus-within .actions, .actions:has([aria-expanded="true"]) { opacity: 1; }
+@media (hover: none) { .actions { opacity: 1; } }
+/* Its own line height: the row sets 1, and the clipped box (needed for the ellipsis) would cut descenders like g. */
+.label { flex: 1 1 auto; min-width: 0; overflow: hidden; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+@media (hover: hover) and (pointer: fine) { .item:hover { background: var(--surface-muted); color: var(--foreground); } }
+/* Drag and drop: the row being carried dims; the folder it would land in is outlined. */
+.row[data-dragging] .item { opacity: 0.45; }
+.row[data-drop-target] .item { background: color-mix(in oklab, var(--primary) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 45%, transparent); color: var(--foreground); }
+/* A row whose right-click menu is open keeps its highlight. */
+.row[data-state="open"] .item { background: var(--surface-muted); color: var(--foreground); }
+@media (prefers-reduced-motion: reduce) { .item, .icon, .disclosure, .actions { transition: none; } }

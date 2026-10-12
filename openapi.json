@@ -3533,6 +3533,88 @@
         ]
       }
     },
+    "/v1/notes/google/status": {
+      "get": {
+        "operationId": "getV1NotesGoogleStatus",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Your Google Drive connection",
+        "responses": {
+          "200": {
+            "description": "Configured, connected, and as whom"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/google/connect": {
+      "post": {
+        "operationId": "postV1NotesGoogleConnect",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Start connecting your Google Drive",
+        "responses": {
+          "200": {
+            "description": "{ url } — send the browser there"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/google/callback": {
+      "get": {
+        "operationId": "getV1NotesGoogleCallback",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Google’s redirect after consent",
+        "description": "Reached through the CRM’s /be proxy so the session comes with it; the signed state must name the same person. Redirects back to Settings → Connectors.",
+        "responses": {
+          "302": {
+            "description": "Back to Settings → Connectors, ?google=connected or ?google=error"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/google": {
+      "delete": {
+        "operationId": "deleteV1NotesGoogle",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Disconnect your Google Drive",
+        "description": "Revokes DUMA’s access at Google, forgets the token and stops syncing your notes. The Docs already made stay in your Drive.",
+        "responses": {
+          "200": {
+            "description": "Disconnected"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/notes": {
       "get": {
         "operationId": "getV1Notes",
@@ -3585,6 +3667,27 @@
         "responses": {
           "200": {
             "description": "Tags with counts"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/notes/graph": {
+      "get": {
+        "operationId": "getV1NotesGraph",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Every note you can read, and the links between them",
+        "description": "For the graph view. `links` are note-to-note links found in the notes’ text, both ends readable by you. At most 1000 notes, most recently edited first.",
+        "responses": {
+          "200": {
+            "description": "{ nodes, links, truncated }"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -3718,6 +3821,71 @@
         ]
       }
     },
+    "/v1/notes/{id}/permanent": {
+      "delete": {
+        "operationId": "deleteV1NotesByIdPermanent",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Delete a note for good",
+        "description": "Only a note already in Recently Deleted, and only by someone who can edit it. Its history and any Google Docs sync go with it; a Doc already in someone’s Drive stays there. Cannot be undone.",
+        "responses": {
+          "200": {
+            "description": "Gone"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "`not_in_trash` — move it to Recently Deleted first"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/notes/{id}/backlinks": {
+      "get": {
+        "operationId": "getV1NotesByIdBacklinks",
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Notes that link to this one",
+        "description": "Only notes you can read, not in Recently Deleted; most recently edited first.",
+        "responses": {
+          "200": {
+            "description": "Note summaries"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/notes/{id}/versions": {
       "get": {
         "operationId": "getV1NotesByIdVersions",
@@ -3727,7 +3895,7 @@
         "summary": "A note’s history",
         "responses": {
           "200": {
-            "description": "Earlier copies, newest first"
+            "description": "Earlier copies, newest first, each with who saved it (`createdByName`)"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -3785,88 +3953,6 @@
             "required": true
           }
         ]
-      }
-    },
-    "/v1/notes/google/status": {
-      "get": {
-        "operationId": "getV1NotesGoogleStatus",
-        "tags": [
-          "Notes"
-        ],
-        "summary": "Your Google Drive connection",
-        "responses": {
-          "200": {
-            "description": "Configured, connected, and as whom"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/notes/google/connect": {
-      "post": {
-        "operationId": "postV1NotesGoogleConnect",
-        "tags": [
-          "Notes"
-        ],
-        "summary": "Start connecting your Google Drive",
-        "responses": {
-          "200": {
-            "description": "{ url } — send the browser there"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/notes/google/callback": {
-      "get": {
-        "operationId": "getV1NotesGoogleCallback",
-        "tags": [
-          "Notes"
-        ],
-        "summary": "Google’s redirect after consent",
-        "description": "Reached through the CRM’s /be proxy so the session comes with it; the signed state must name the same person. Redirects back to Settings → Connectors.",
-        "responses": {
-          "302": {
-            "description": "Back to Settings → Connectors, ?google=connected or ?google=error"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/notes/google": {
-      "delete": {
-        "operationId": "deleteV1NotesGoogle",
-        "tags": [
-          "Notes"
-        ],
-        "summary": "Disconnect your Google Drive",
-        "description": "Revokes DUMA’s access at Google, forgets the token and stops syncing your notes. The Docs already made stay in your Drive.",
-        "responses": {
-          "200": {
-            "description": "Disconnected"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
       }
     },
     "/v1/notes/{id}/drive-sync": {

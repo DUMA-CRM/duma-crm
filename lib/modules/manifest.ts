@@ -201,7 +201,7 @@ const pages: Record<ModuleId, readonly string[]> = {
   cms: ['/content'],
   promotions: ['/promotions'],
   referrals: ['/promotions/referrals'],
-  notes: ['/notes'],
+  notes: ['/notes', '/notes/graph'],
 };
 
 const dependencies: Record<ModuleId, readonly ModuleId[]> = {

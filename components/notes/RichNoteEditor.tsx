@@ -27,8 +27,12 @@ import type { IconComponent } from '@/components/icons';
 import { Tooltip } from '@/components/shared/Tooltip';
 
 import { cn } from '@/lib/utils/cn';
+import { noteIdFromHref } from '@/lib/utils/note-links';
 
+import { NoteLinkPicker } from './NoteLinkPicker';
 import { NoteColumn, NoteColumns } from './noteColumns';
+import { NoteDrawing } from './noteDrawing';
+import { NoteLinkTitle, useNoteLinkTitles } from './noteLinkTitles';
 import { NoteVideo } from './noteVideo';
 
 // ---------------------------------------------------------------------------
@@ -100,6 +104,8 @@ export function RichNoteEditor({
   onReady,
   onUploadImage,
   acceptsVideo,
+  noteId,
+  onOpenNote,
 }: {
   content: Record<string, unknown>;
   /** Used when `content` is empty: a Google Doc arrives as Markdown and becomes the document here. */
@@ -111,6 +117,10 @@ export function RichNoteEditor({
   onUploadImage: (file: File) => Promise<string>;
   /** True when uploads go to Content, which keeps videos too. */
   acceptsVideo: boolean;
+  /** This note, so the [[ picker doesn't offer a link to itself. */
+  noteId?: string;
+  /** Open another note from a link to it — a click when reading, ⌘/Ctrl-click when editing. */
+  onOpenNote?: (id: string) => void;
 }) {
   const fromMarkdown = isEmptyDoc(content) && markdown.trim().length > 0;
   const changeRef = useRef(onChange);
@@ -120,6 +130,8 @@ export function RichNoteEditor({
   const videoRef = useRef(acceptsVideo);
   videoRef.current = acceptsVideo;
   const upload = (file: File) => uploadRef.current(file);
+  const openNoteRef = useRef(onOpenNote);
+  openNoteRef.current = onOpenNote;
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -139,6 +151,8 @@ export function RichNoteEditor({
         },
       }),
       NoteVideo,
+      // Its picture is saved the way a pasted photo is.
+      NoteDrawing.configure({ upload: (file) => uploadRef.current(file) }),
       NoteColumns,
       NoteColumn,
       TextStyle,
@@ -146,6 +160,7 @@ export function RichNoteEditor({
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       NoteShortcuts,
+      NoteLinkTitle,
       Placeholder.configure({ placeholder: ({ pos }) => (pos === 0 ? 'Title' : 'Start writing…') }),
       Markdown,
     ],
@@ -153,6 +168,14 @@ export function RichNoteEditor({
     ...(fromMarkdown ? { contentType: 'markdown' as const } : {}),
     editorProps: {
       attributes: { class: 'focus:outline-none', 'aria-label': 'Note' },
+      // A link to another note opens it: on a click when reading, on ⌘/Ctrl-click when editing (a plain click places the caret).
+      handleClick: (view, _pos, event) => {
+        const id = noteIdFromHref((event.target as HTMLElement | null)?.closest('a')?.getAttribute('href'));
+        if (!id || !openNoteRef.current || (view.editable && !(event.metaKey || event.ctrlKey))) return false;
+        event.preventDefault();
+        openNoteRef.current(id);
+        return true;
+      },
       handlePaste: (view, event) => {
         const files = [...(event.clipboardData?.files ?? [])];
         if (insertableFiles(files, videoRef.current).length === 0 || !editorRef.current) return false;
@@ -171,6 +194,8 @@ export function RichNoteEditor({
   });
   const editorRef = useRef<Editor | null>(null);
   editorRef.current = editor;
+  // Links to notes renamed since this one was last open say their new titles.
+  useNoteLinkTitles(editor);
 
   useEffect(() => {
     if (!editor) return;
@@ -192,6 +217,7 @@ export function RichNoteEditor({
         <EditorContent editor={editor} />
       </div>
       {editable && <TableMenu editor={editor} />}
+      {editable && noteId && <NoteLinkPicker editor={editor} currentNoteId={noteId} />}
     </div>
   );
 }

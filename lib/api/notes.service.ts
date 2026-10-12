@@ -40,6 +40,8 @@ export interface NoteSummary {
   snippet: string;
   canEdit: boolean;
   sourceProvider: 'google_drive' | null;
+  /** A drawing keeps an Excalidraw scene as its content. Absent from an API older than drawing notes. */
+  kind?: 'note' | 'drawing';
 }
 
 export interface Note {
@@ -69,6 +71,8 @@ export interface NoteVersion {
   title: string;
   markdown: string;
   createdBy: string | null;
+  /** Who saved it — null once their account is gone. */
+  createdByName: string | null;
   createdAt: string;
 }
 
@@ -118,7 +122,8 @@ export const shareNoteFolder = (
 export const deleteNoteFolder = (id: string) =>
   apiFetch<{ data: { deletedFolders: number } }>(`/notes/folders/${id}`, { method: 'DELETE' });
 
-export const getNotes = (params: { view?: NotesView; folderId?: string; tag?: string; q?: string }) =>
+/** `limit`: 1–200, default 100. `q` matches the start of each word typed, in the title and the text. */
+export const getNotes = (params: { view?: NotesView; folderId?: string; tag?: string; q?: string; limit?: number }) =>
   apiFetch<{ data: NoteSummary[] }>(`/notes?${qs(params)}`).then((res) => res.data);
 
 export const getNoteTags = () => apiFetch<{ data: { tag: string; count: number }[] }>('/notes/tags').then((res) => res.data);
@@ -139,6 +144,28 @@ export const saveNote = (id: string, data: Partial<NoteContentFields> & { versio
 export const deleteNote = (id: string) => apiFetch<{ data: { id: string } }>(`/notes/${id}`, { method: 'DELETE' });
 export const restoreNote = (id: string) =>
   apiFetch<{ data: { id: string; folderId: string | null } }>(`/notes/${id}/restore`, { method: 'POST' });
+/** For good — only a note already in Recently Deleted. Its history goes with it. */
+export const purgeNote = (id: string) => apiFetch<{ data: { id: string } }>(`/notes/${id}/permanent`, { method: 'DELETE' });
+
+/** Notes that link to this one (that you can read). */
+export const getNoteBacklinks = (id: string) => apiFetch<{ data: NoteSummary[] }>(`/notes/${id}/backlinks`).then((res) => res.data);
+
+export interface NoteGraphNode {
+  id: string;
+  title: string;
+  folderId: string | null;
+  tags: string[];
+  pinned: boolean;
+  updatedAt: string;
+}
+export interface NoteGraph {
+  nodes: NoteGraphNode[];
+  /** Note → note links found in the notes' text. */
+  links: { source: string; target: string }[];
+  /** More than 1000 notes: the most recently edited are shown. */
+  truncated: boolean;
+}
+export const getNoteGraph = () => apiFetch<{ data: NoteGraph }>('/notes/graph').then((res) => res.data);
 
 export const getNoteVersions = (id: string) => apiFetch<{ data: NoteVersion[] }>(`/notes/${id}/versions`).then((res) => res.data);
 export const restoreNoteVersion = (id: string, versionId: string) =>
