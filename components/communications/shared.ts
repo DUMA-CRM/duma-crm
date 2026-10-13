@@ -13,6 +13,7 @@ type Trigger = EmailAutomation['trigger'];
 /** Short label for lists and badges. */
 export const TRIGGER_LABELS: Record<Trigger, string> = {
   order_created: 'Order created',
+  order_paid: 'Order paid',
   order_ready: 'Order ready',
   order_completed: 'Order completed',
   order_cancelled: 'Order cancelled',
@@ -33,6 +34,7 @@ export const TRIGGER_LABELS: Record<Trigger, string> = {
 /** Sentence used in the trigger dropdown — reads as "send when…". */
 export const TRIGGER_OPTIONS: { value: Trigger; label: string }[] = [
   { value: 'order_created', label: 'An order is placed' },
+  { value: 'order_paid', label: 'An order is paid' },
   { value: 'order_ready', label: 'An order is ready for collection' },
   { value: 'order_completed', label: 'An order is completed' },
   { value: 'order_cancelled', label: 'An order is cancelled' },
@@ -53,6 +55,8 @@ export const TRIGGER_OPTIONS: { value: Trigger; label: string }[] = [
 /** Plain-language explanation shown under the trigger dropdown. */
 export const TRIGGER_HELP: Record<Trigger, string> = {
   order_created: 'Sent once per order, as soon as the order is created in the POS.',
+  order_paid:
+    'Sent once per order, when its payment is confirmed — at the till, on cash approval, when an order taken by hand is marked paid, or as an online order comes in paid.',
   order_ready: 'Sent once per order, the moment its status changes to ready.',
   order_completed: 'Sent once per order, when the order is marked completed.',
   order_cancelled: 'Sent once per order, if the order is cancelled.',

@@ -4,6 +4,7 @@ export type EmailSecurity = 'tls' | 'starttls' | 'none';
 export type EmailTrigger =
   | 'manual'
   | 'order_created'
+  | 'order_paid'
   | 'order_ready'
   | 'order_completed'
   | 'order_cancelled'
