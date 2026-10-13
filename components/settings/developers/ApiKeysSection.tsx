@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { type WorkspaceApiKey, getWorkspaceApiKeys, revokeWorkspaceApiKey } from '@/lib/api/api-keys.service';
 import { type CmsApiKey, getCmsApiKeys, revokeCmsApiKey } from '@/lib/api/cms.service';
 import { getLocations } from '@/lib/api/workspace.service';
-import { apisOf, canManageKey, grantableScopes, keyNeedsLocation } from '@/lib/developers/api-reference';
+import { SCOPES, apisOf, canManageKey, grantableScopes, isContentApi, keyNeedsLocation } from '@/lib/developers/api-reference';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -61,7 +61,7 @@ export function ApiKeysSection({ access }: { access: DeveloperAccess }) {
     onError: (error) => toast('error', error.message),
   });
 
-  const canCreate = grantableScopes('secret', access.capabilities).some((scope) => access.contentOn || !scope.startsWith('content:'));
+  const canCreate = grantableScopes('secret', access.capabilities).some((scope) => access.contentOn || !isContentApi(SCOPES[scope].api));
   // Live keys first, newest first; revoked and expired ones sink into a fold.
   const keys = [...(keysQuery.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const active = keys.filter((key) => key.state === 'active');
@@ -184,7 +184,9 @@ function KeyRow({ apiKey, location, onRevoke }: { apiKey: WorkspaceApiKey; locat
   const needsLocation = live && keyNeedsLocation(apiKey);
   const sellsFrom = apiKey.scopes.includes('catalog:read') || apiKey.scopes.includes('orders:write');
   const details = [
-    apiKey.scopes.includes('content:read') ? (apiKey.contentTypeKeys ? `Content: ${apiKey.contentTypeKeys.join(', ')}` : null) : null,
+    apiKey.contentTypeKeys ? `Content: ${apiKey.contentTypeKeys.join(', ')}` : null,
+    apiKey.scopes.includes('content:write') ? 'Creates draft entries' : null,
+    apiKey.scopes.includes('content:models') ? 'Creates models' : null,
     apiKey.scopes.includes('content:preview') ? 'Reads drafts' : null,
     apiKey.allowedOrigins ? `${apiKey.allowedOrigins.length} ${apiKey.allowedOrigins.length === 1 ? 'website' : 'websites'}` : null,
   ].filter(Boolean);

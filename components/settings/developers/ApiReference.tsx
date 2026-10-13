@@ -14,7 +14,16 @@ import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
-import { API_KEY_SCOPES, PUBLIC_APIS, type PublicApi, type PublicApiId, SCOPES, apiBase, publicApi } from '@/lib/developers/api-reference';
+import {
+  API_KEY_SCOPES,
+  PUBLIC_APIS,
+  type PublicApi,
+  type PublicApiId,
+  SCOPES,
+  apiBase,
+  isContentApi,
+  publicApi,
+} from '@/lib/developers/api-reference';
 import { getCmsContentTypes, getCmsLocales } from '@/lib/modules/cms/client';
 import { buildAiPrompt } from '@/lib/utils/cms-docs';
 import { buildStorefrontPrompt } from '@/lib/utils/storefront-docs';
@@ -22,6 +31,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { CONTENT_GUIDE_SECTIONS, ContentApiGuide, WEBHOOK_GUIDE_SECTIONS, WebhooksGuide } from './ContentApiGuide';
 import { DevelopersNav } from './DevelopersNav';
+import { MANAGE_GUIDE_SECTIONS, ManageApiGuide } from './ManageApiGuide';
 import { MCP_GUIDE_SECTIONS, McpGuide } from './McpGuide';
 import { STORE_GUIDE_SECTIONS, StoreApiGuide } from './StoreApiGuide';
 import { API_ORIGIN, C, CodeBlock, DocCopyButton, DocSection, DocTable, EndpointList, MethodBadge, Note, anchor } from './docs-blocks';
@@ -42,6 +52,7 @@ const GETTING_STARTED: Group = {
 /** Each API's prose after its endpoint list. A new API without one still gets its endpoints documented. */
 const GUIDE_SECTIONS: Partial<Record<PublicApiId, readonly Section[]>> = {
   content: CONTENT_GUIDE_SECTIONS,
+  manage: MANAGE_GUIDE_SECTIONS,
   store: STORE_GUIDE_SECTIONS,
 };
 
@@ -67,7 +78,7 @@ export function ApiReference() {
   const locales = useMemo(() => localesQuery.data ?? [], [localesQuery.data]);
 
   // Content is documented only where it can answer: the module on, and its models readable.
-  const apis = PUBLIC_APIS.filter((api) => api.id !== 'content' || access.canReadContent);
+  const apis = PUBLIC_APIS.filter((api) => !isContentApi(api.id) || access.canReadContent);
   const groups: Group[] = [
     GETTING_STARTED,
     { label: 'AI assistants', sections: MCP_GUIDE_SECTIONS },
@@ -343,6 +354,8 @@ export function ApiReference() {
           <ApiSections key={api.id} api={api}>
             {api.id === 'content' ? (
               <ContentApiGuide base={contentBase} types={types} locales={locales} />
+            ) : api.id === 'manage' ? (
+              <ManageApiGuide base={apiBase(API_ORIGIN, api)} />
             ) : api.id === 'store' ? (
               <StoreApiGuide base={storeBase} />
             ) : null}

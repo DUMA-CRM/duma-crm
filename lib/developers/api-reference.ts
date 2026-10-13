@@ -18,6 +18,8 @@ export type ApiKeyKind = 'publishable' | 'secret';
 export const API_KEY_SCOPES = [
   'content:read',
   'content:preview',
+  'content:write',
+  'content:models',
   'catalog:read',
   'orders:write',
   'customers:write',
@@ -25,53 +27,82 @@ export const API_KEY_SCOPES = [
 ] as const;
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
-export type PublicApiId = 'content' | 'store';
+export type PublicApiId = 'content' | 'manage' | 'store';
 
-/** Each scope, who may grant it, and whether a browser-safe key may hold it. */
+type GrantCapability = 'cms.keys:write' | 'cms:write' | 'cms.schema:write' | 'settings:write';
+
+/**
+ * Each scope, who may grant it, and whether a browser-safe key may hold it.
+ * Granting needs every listed capability, so nobody hands a key more than
+ * they could do themselves. `optIn` scopes are never ticked by default.
+ */
 export const SCOPES: Record<
   ApiKeyScope,
-  { api: PublicApiId; label: string; detail: string; capability: 'cms.keys:write' | 'settings:write'; publishable: boolean }
+  {
+    api: PublicApiId;
+    label: string;
+    detail: string;
+    capabilities: readonly GrantCapability[];
+    publishable: boolean;
+    optIn?: boolean;
+  }
 > = {
   'content:read': {
     api: 'content',
     label: 'Read content',
     detail: 'Published entries, models, languages and media',
-    capability: 'cms.keys:write',
+    capabilities: ['cms.keys:write'],
     publishable: true,
   },
   'content:preview': {
     api: 'content',
     label: 'Read drafts',
     detail: 'Unpublished entries, with status=draft',
-    capability: 'cms.keys:write',
+    capabilities: ['cms.keys:write'],
     publishable: false,
+  },
+  'content:write': {
+    api: 'manage',
+    label: 'Create entries',
+    detail: 'New entries, saved as drafts — an editor publishes them',
+    capabilities: ['cms.keys:write', 'cms:write'],
+    publishable: false,
+    optIn: true,
+  },
+  'content:models': {
+    api: 'manage',
+    label: 'Create models',
+    detail: 'New content types and their fields',
+    capabilities: ['cms.keys:write', 'cms.schema:write'],
+    publishable: false,
+    optIn: true,
   },
   'catalog:read': {
     api: 'store',
     label: 'Read the catalogue',
     detail: 'Products, sizes, prices and stock',
-    capability: 'settings:write',
+    capabilities: ['settings:write'],
     publishable: true,
   },
   'orders:write': {
     api: 'store',
     label: 'Record orders',
     detail: 'Quotes and paid orders',
-    capability: 'settings:write',
+    capabilities: ['settings:write'],
     publishable: false,
   },
   'customers:write': {
     api: 'store',
     label: 'Refer a friend',
     detail: 'A shopper’s own referral code',
-    capability: 'settings:write',
+    capabilities: ['settings:write'],
     publishable: false,
   },
   'newsletter:write': {
     api: 'store',
     label: 'Newsletter',
     detail: 'Sign-ups and unsubscribes',
-    capability: 'settings:write',
+    capabilities: ['settings:write'],
     publishable: false,
   },
 };
@@ -117,6 +148,17 @@ export const PUBLIC_APIS: readonly PublicApi[] = [
     ],
   },
   {
+    id: 'manage',
+    name: 'Content Management API',
+    basePath: '/v1/cms/manage',
+    summary: 'Write: create content models, and entries as drafts. Nothing is published — an editor does that in DUMA.',
+    moduleId: 'cms',
+    endpoints: [
+      { method: 'POST', path: '/content-types', summary: 'Create a model with its fields', scope: 'content:models' },
+      { method: 'POST', path: '/entries/{typeKey}', summary: 'Create an entry, as a draft', scope: 'content:write' },
+    ],
+  },
+  {
     id: 'store',
     name: 'Store API',
     basePath: '/v1/store',
@@ -138,6 +180,9 @@ export const PUBLIC_APIS: readonly PublicApi[] = [
 
 export const publicApi = (id: PublicApiId): PublicApi => PUBLIC_APIS.find((api) => api.id === id)!;
 
+/** APIs served by the Content module — documented and offered only while it is on. */
+export const isContentApi = (id: PublicApiId): boolean => publicApi(id).moduleId === 'cms';
+
 export const apiBase = (apiOrigin: string, api: PublicApi): string => `${apiOrigin.replace(/\/$/, '')}${api.basePath}`;
 
 /** Whether a key of this kind may ever hold the scope. */
@@ -148,12 +193,12 @@ export const kindAllows = (kind: ApiKeyKind, scope: ApiKeyScope): boolean => kin
  * rest (duma-api `grantableScopes`). Order follows `API_KEY_SCOPES`.
  */
 export function grantableScopes(kind: ApiKeyKind, capabilities: readonly string[]): ApiKeyScope[] {
-  return API_KEY_SCOPES.filter((scope) => kindAllows(kind, scope) && capabilities.includes(SCOPES[scope].capability));
+  return API_KEY_SCOPES.filter((scope) => kindAllows(kind, scope) && SCOPES[scope].capabilities.every((c) => capabilities.includes(c)));
 }
 
 /** Whether this person may change or revoke a key holding these scopes. */
 export const canManageKey = (scopes: readonly string[], capabilities: readonly string[]): boolean =>
-  scopes.every((scope) => scope in SCOPES && capabilities.includes(SCOPES[scope as ApiKeyScope].capability));
+  scopes.every((scope) => scope in SCOPES && SCOPES[scope as ApiKeyScope].capabilities.every((c) => capabilities.includes(c)));
 
 /** The APIs a key's scopes open, in registry order. */
 export const apisOf = (scopes: readonly string[]): PublicApi[] =>
@@ -171,8 +216,9 @@ export const scopesForKind = (kind: ApiKeyKind, scopes: readonly ApiKeyScope[]):
 //
 // The same key, for AI coding assistants: a remote MCP server (Streamable HTTP)
 // whose tools wrap the public REST endpoints above, so each answers exactly as
-// its endpoint would. Read-only by design — an assistant building a site must
-// not record real orders. Mirrors duma-api `routes/mcp.ts`.
+// its endpoint would. It writes only what an editor still reviews — models and
+// draft entries, with opt-in scopes — and never records orders or publishes.
+// Mirrors duma-api `lib/mcp-tools.ts`.
 
 export const MCP_PATH = '/v1/mcp';
 
@@ -181,6 +227,8 @@ export interface McpTool {
   summary: string;
   /** The scope a key needs for the tool to be listed. Null: any valid key. */
   scope: ApiKeyScope | null;
+  /** Creates something. Only ever drafts and models — never orders, never published content. */
+  writes?: boolean;
 }
 
 export const MCP_TOOLS: readonly McpTool[] = [
@@ -193,6 +241,8 @@ export const MCP_TOOLS: readonly McpTool[] = [
   { name: 'content_get_singleton', summary: 'A singleton’s one entry', scope: 'content:read' },
   { name: 'content_get_asset', summary: 'Media metadata and URLs', scope: 'content:read' },
   { name: 'content_sync', summary: 'What changed since a moment', scope: 'content:read' },
+  { name: 'content_create_type', summary: 'Create a model with its fields', scope: 'content:models', writes: true },
+  { name: 'content_create_entry', summary: 'Create an entry, as a draft', scope: 'content:write', writes: true },
   { name: 'store_list_products', summary: 'Products, sizes, prices and stock', scope: 'catalog:read' },
   { name: 'store_get_product', summary: 'One product', scope: 'catalog:read' },
   { name: 'store_list_categories', summary: 'Categories with products for sale', scope: 'catalog:read' },

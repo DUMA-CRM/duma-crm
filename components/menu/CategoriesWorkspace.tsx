@@ -523,6 +523,7 @@ function CategoryDrawer({
   const qc = useQueryClient();
   const [name, setName] = useState(category?.name ?? '');
   const [description, setDescription] = useState(category?.description ?? '');
+  const [slug, setSlug] = useState(category?.slug ?? '');
   const [imageUrl, setImageUrl] = useState(category?.imageUrl ?? '');
   const [colour, setColour] = useState<NonNullable<MenuCategoryRecord['colour']>>(category?.colour ?? 'muted');
   const [isActive, setIsActive] = useState(category?.isActive ?? true);
@@ -532,6 +533,15 @@ function CategoryDrawer({
 
   const nameError = name.trim().length < 1 ? 'A name is needed.' : name.trim().length > 50 ? 'Keep it under 50 characters.' : null;
   const urlError = imageUrl.trim() && !/^https?:\/\/\S+$/.test(imageUrl.trim()) ? 'A full web address, starting https://' : null;
+  // Same rule as the API (menu-categories `slug`). Blank on a new section: made from the name.
+  const slugError = !slug.trim()
+    ? category
+      ? 'An address is needed.'
+      : null
+    : !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.trim())
+      ? 'Lower-case letters, numbers and single dashes, like hot-drinks'
+      : null;
+  const slugChanged = Boolean(category) && slug.trim() !== category?.slug;
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-categories') });
     void qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-items') });
@@ -541,13 +551,14 @@ function CategoryDrawer({
     mutationFn: () => {
       const data = { name: name.trim(), description: description.trim() || null, imageUrl: imageUrl.trim() || null, colour, isActive };
       return category
-        ? updateMenuCategory(category.id, data)
+        ? updateMenuCategory(category.id, { ...data, ...(slugChanged ? { slug: slug.trim() } : {}) })
         : createMenuCategory({
             tenantId,
             name: data.name,
             description: data.description ?? undefined,
             imageUrl: data.imageUrl ?? undefined,
             colour,
+            slug: slug.trim() || undefined,
           });
     },
     onSuccess: () => {
@@ -632,7 +643,7 @@ function CategoryDrawer({
           onSubmit={(event) => {
             event.preventDefault();
             setSubmitted(true);
-            if (!nameError && !urlError) save.mutate();
+            if (!nameError && !urlError && !slugError) save.mutate();
           }}
         >
           <FormSection icon={LayoutGrid} title="Section">
@@ -651,6 +662,20 @@ function CategoryDrawer({
               onChange={(event) => setDescription(event.target.value)}
               maxLength={500}
               placeholder="Optional — shown under the heading online"
+            />
+            <Input
+              label="Web address"
+              value={slug}
+              onChange={(event) => setSlug(event.target.value.toLowerCase().replace(/\s+/g, '-'))}
+              maxLength={50}
+              placeholder={category ? undefined : 'Made from the name'}
+              className="font-mono"
+              hint={
+                slugChanged
+                  ? `Websites asking for ?category=${category!.slug} stop matching once you save — update their links too.`
+                  : 'How your online shop finds this section, like ?category=hot-drinks'
+              }
+              error={submitted ? (slugError ?? undefined) : undefined}
             />
           </FormSection>
           <FormSection icon={FileText} title="Look">

@@ -134,6 +134,7 @@
       "tags": [
         "CMS",
         "CMS Delivery",
+        "CMS Management",
         "Notes"
       ]
     },
@@ -6590,7 +6591,7 @@
           "Menu Categories"
         ],
         "summary": "Update menu category",
-        "description": "Renames or restyles a category. The slug remains the stable machine key.",
+        "description": "Renames, restyles or re-addresses a category. Changing `slug` changes its address in the Store API (`/v1/store/products?category=`), so links a website built on the old one stop matching; menu items are linked by id and are unaffected.",
         "requestBody": {
           "required": true,
           "content": {
@@ -6630,6 +6631,12 @@
                   "sortOrder": {
                     "type": "integer",
                     "minimum": 0
+                  },
+                  "slug": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$",
+                    "maxLength": 50,
+                    "example": "pastries"
                   }
                 }
               }
@@ -6650,7 +6657,7 @@
             "description": "Not found"
           },
           "409": {
-            "description": "Another category already has that name"
+            "description": "Another category already has that name or slug"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -8616,7 +8623,7 @@
           "API keys"
         ],
         "summary": "Create a workspace API key",
-        "description": "The response holds the token once, in `token`. Omit `scopes` for every scope the key's kind allows that you may grant (content scopes need `cms.keys:write`, commerce scopes `settings:write`); asking for one you cannot grant is a 403 naming the capability. A publishable key holds at most `catalog:read` and `content:read`. `contentTypeKeys` narrows `content:read`; it is kept only on a key with that scope.",
+        "description": "The response holds the token once, in `token`. Omit `scopes` for every scope the key's kind allows that you may grant, except `content:write` and `content:models`, which are only ever granted by name. Content scopes need `cms.keys:write` — `content:write` also `cms:write`, `content:models` also `cms.schema:write` — and commerce scopes `settings:write`; asking for one you cannot grant is a 403 naming the first capability you lack. A publishable key holds at most `catalog:read` and `content:read`. `contentTypeKeys` narrows `content:read` and `content:write`; it is kept only on a key with one of them, and a key with it cannot create content types.",
         "responses": {
           "201": {
             "description": "{ apiKey, token }"
@@ -8955,7 +8962,7 @@
           "MCP"
         ],
         "summary": "MCP server for AI coding assistants",
-        "description": "A remote [Model Context Protocol](https://modelcontextprotocol.io) server — Streamable HTTP, stateless, JSON responses — for an AI coding assistant (Claude Code, Cursor…) building a business's own website on DUMA.\n\nSend JSON-RPC 2.0 messages (`initialize`, `tools/list`, `tools/call`, `ping`) with `Accept: application/json, text/event-stream`. Authenticate with a workspace API key (`Authorization: Bearer dk_…` or `X-Api-Key`); legacy `dcms_…` keys are not accepted.\n\nTools wrap the Content API (`/v1/cms/delivery/*`, scope `content:read`) and the Store API (`/v1/store/*`, `catalog:read`; `store_quote_order` needs `orders:write`), and are listed only when the key holds their scope. Every tool is read-only — none records an order, a sign-up or a referral.\n\nGET and DELETE answer 405: there are no sessions.",
+        "description": "A remote [Model Context Protocol](https://modelcontextprotocol.io) server — Streamable HTTP, stateless, JSON responses — for an AI coding assistant (Claude Code, Cursor…) building a business's own website on DUMA.\n\nSend JSON-RPC 2.0 messages (`initialize`, `tools/list`, `tools/call`, `ping`) with `Accept: application/json, text/event-stream`. Authenticate with a workspace API key (`Authorization: Bearer dk_…` or `X-Api-Key`); legacy `dcms_…` keys are not accepted.\n\nTools wrap the Content API (`/v1/cms/delivery/*`, scope `content:read`), the content management API (`/v1/cms/manage/*`: `content_create_type` needs `content:models`, `content_create_entry` needs `content:write`) and the Store API (`/v1/store/*`, `catalog:read`; `store_quote_order` needs `orders:write`), and are listed only when the key holds their scope. The two content tools write — a content type, or an entry that is always a draft for an editor to publish — and are audit-logged with the key as the actor; every other tool only reads. None publishes, edits or deletes content, or records an order, a sign-up or a referral.\n\nGET and DELETE answer 405: there are no sessions.",
         "security": [
           {
             "cmsApiKey": []
@@ -17260,6 +17267,124 @@
             },
             "in": "path",
             "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/cms/manage/content-types": {
+      "post": {
+        "operationId": "postV1CmsManageContentTypes",
+        "tags": [
+          "CMS Management"
+        ],
+        "summary": "Create a content type",
+        "description": "Creates a content model with a secret workspace key holding `content:models`. The body is the one the DUMA admin sends: `key` (lowercase letters, numbers, `-` and `_`, starting with a letter; unique in the workspace), `name`, optional `description`, `kind` (`collection` — many entries — or `singleton` — exactly one; default `collection`), `fields` (field definitions; see the content model docs), optional `titleField` (a single text-like field) and optional `previewUrl`.\n\nA key limited to some content types (`contentTypeKeys`) cannot create new ones: 403. Validation, reference checks and key uniqueness are the admin's own.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "name"
+                ],
+                "description": "{ key, name, description?, kind?, fields?, titleField?, previewUrl? }"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "{ data: { id, key, name, description, kind, titleField, previewUrl, schemaVersion, fields, createdAt, updatedAt } } — `fields` includes private ones"
+          },
+          "400": {
+            "description": "Body failed schema validation — `{ error, code: \"validation_failed\", issues }`"
+          },
+          "401": {
+            "description": "Missing, unknown, revoked or expired key, or a legacy `dcms_…` key (`WWW-Authenticate: Bearer realm=\"cms\"`)"
+          },
+          "403": {
+            "description": "`missing_capability` (no content:models scope, a key limited to some content types, or a disallowed origin) or `module_disabled`"
+          },
+          "409": {
+            "description": "The key is already used by another content type — `{ error, code: \"conflict\" }`"
+          },
+          "422": {
+            "description": "Invalid field definitions — `{ error, code: \"validation_failed\", issues: [{ field, message }] }`"
+          },
+          "429": {
+            "description": "Rate limited (per key)"
+          }
+        }
+      }
+    },
+    "/v1/cms/manage/entries/{typeKey}": {
+      "post": {
+        "operationId": "postV1CmsManageEntriesByTypeKey",
+        "tags": [
+          "CMS Management"
+        ],
+        "summary": "Create a draft entry",
+        "description": "Creates an entry of `typeKey` as a **draft** with a secret workspace key holding `content:write`. It is never published: a person reviews and publishes it in DUMA. There is no publish, edit or delete endpoint for keys.\n\nBody: `data` — the field values, keyed by field key (read the type's fields with `GET /v1/cms/delivery/content-types/:typeKey`); optional `locale` (default: the workspace's default locale); optional `documentId` to add a locale to an existing entry instead of starting a new one.\n\nDrafts may be incomplete — required fields are enforced at publish — but every value given must be valid for its field, links must point at existing entries and assets, and slugs and unique fields must not clash. A type outside the key's `contentTypeKeys` answers 404.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data"
+                ],
+                "description": "{ data: object, locale?: string, documentId?: uuid }"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "{ data: { id, documentId, type, locale, status: \"draft\", version, slug, data } }"
+          },
+          "400": {
+            "description": "Body failed schema validation, or the locale is not configured — `{ error, code: \"validation_failed\" }`"
+          },
+          "401": {
+            "description": "Missing, unknown, revoked or expired key, or a legacy `dcms_…` key"
+          },
+          "403": {
+            "description": "`missing_capability` (no content:write scope, a type that limits editing to some roles, or a disallowed origin) or `module_disabled`"
+          },
+          "404": {
+            "description": "No such content type for this key, or `documentId` is not an entry of this type"
+          },
+          "409": {
+            "description": "The singleton already has its entry, the document already has that locale, or the slug is in use"
+          },
+          "422": {
+            "description": "Invalid data — `{ error, code: \"validation_failed\", issues: [{ field, message }] }`"
+          },
+          "429": {
+            "description": "Rate limited (per key)"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "typeKey",
             "required": true
           }
         ]

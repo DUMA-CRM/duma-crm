@@ -7,7 +7,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Button } from '@/components/ui/button';
 
-import { PUBLIC_APIS, apiBase, mcpUrl } from '@/lib/developers/api-reference';
+import { PUBLIC_APIS, apiBase, isContentApi, mcpUrl } from '@/lib/developers/api-reference';
 
 import { ApiKeysSection } from './ApiKeysSection';
 import { DevelopersNav } from './DevelopersNav';
@@ -49,7 +49,7 @@ function BuildSection({ contentOn }: { contentOn: boolean }) {
       description="Endpoints, examples, your content models as TypeScript, and briefs for an AI coding assistant — in the API reference."
     >
       <ul className="space-y-2">
-        {PUBLIC_APIS.filter((api) => api.id !== 'content' || contentOn).map((api) => {
+        {PUBLIC_APIS.filter((api) => !isContentApi(api.id) || contentOn).map((api) => {
           const base = apiBase(API_ORIGIN, api);
           return (
             <li key={api.id}>
@@ -77,7 +77,7 @@ function McpSection() {
   return (
     <SettingsSection
       title="Use with AI"
-      description="Connect Claude Code, Cursor or any MCP client with one of these keys. It can read your content and catalogue while it builds — never record orders."
+      description="Connect Claude Code, Cursor or any MCP client with one of these keys. It reads your content and catalogue while it builds, and — with opt-in scopes — adds models and draft entries. It never records orders or publishes."
     >
       <div className="flex items-center gap-2 rounded-md border border-rule/50 bg-background/60 py-1 pl-3 pr-1">
         <Sparkles size={13} className="shrink-0 text-primary" aria-hidden="true" />

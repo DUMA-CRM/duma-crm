@@ -55,10 +55,11 @@ export const createMenuCategory = (data: {
   description?: string;
   imageUrl?: string;
   colour?: MenuCategoryRecord['colour'];
+  slug?: string;
 }) => apiFetch<MenuCategoryRecord>('/menu-categories', { method: 'POST', body: JSON.stringify(data) });
 export const updateMenuCategory = (
   id: string,
-  data: Partial<Pick<MenuCategoryRecord, 'name' | 'description' | 'imageUrl' | 'colour' | 'isActive' | 'sortOrder'>>,
+  data: Partial<Pick<MenuCategoryRecord, 'name' | 'description' | 'imageUrl' | 'colour' | 'isActive' | 'sortOrder' | 'slug'>>,
 ) => apiFetch<MenuCategoryRecord>(`/menu-categories/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const reorderMenuCategories = (ids: string[]) =>
   apiFetch<{ success: true }>('/menu-categories/reorder', { method: 'PATCH', body: JSON.stringify({ ids }) });

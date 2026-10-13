@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { type ApiKeyKind, type ApiKeyScope, type WorkspaceApiKey, createWorkspaceApiKey } from '@/lib/api/api-keys.service';
-import { PUBLIC_APIS, SCOPES, grantableScopes, kindAllows } from '@/lib/developers/api-reference';
+import { PUBLIC_APIS, SCOPES, grantableScopes, isContentApi, kindAllows } from '@/lib/developers/api-reference';
 import { getCmsContentTypes } from '@/lib/modules/cms/client';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
@@ -49,10 +49,12 @@ export function NewApiKeyDialog({
   const reduceMotion = useReducedMotion();
   // Content scopes need the module on: the API would accept them, but nothing could answer.
   const offered = (kind: ApiKeyKind) =>
-    grantableScopes(kind, access.capabilities).filter((scope) => access.contentOn || SCOPES[scope].api !== 'content');
+    grantableScopes(kind, access.capabilities).filter((scope) => access.contentOn || !isContentApi(SCOPES[scope].api));
+  // Write scopes are opt-in: offered, never pre-ticked.
+  const initial = (kind: ApiKeyKind) => offered(kind).filter((scope) => !SCOPES[scope].optIn);
 
   const [kind, setKind] = useState<ApiKeyKind>('publishable');
-  const [scopes, setScopes] = useState<ApiKeyScope[]>(() => offered('publishable'));
+  const [scopes, setScopes] = useState<ApiKeyScope[]>(() => initial('publishable'));
   const [name, setName] = useState('Website');
   const [locationId, setLocationId] = useState(locations.length === 1 ? locations[0]!.id : '');
   const [types, setTypes] = useState<string[]>([]);
@@ -60,10 +62,13 @@ export function NewApiKeyDialog({
   const [expiresAt, setExpiresAt] = useState('');
   const [done, setDone] = useState(false);
 
+  // A content-type limit covers reading and writing entries alike.
+  const limitsTypes = scopes.includes('content:read') || scopes.includes('content:write');
+
   const typesQuery = useQuery({
     queryKey: cmsKeys.contentTypes(tenantId ?? null),
     queryFn: () => getCmsContentTypes(tenantId),
-    enabled: access.canReadContent && scopes.includes('content:read'),
+    enabled: access.canReadContent && limitsTypes,
   });
 
   const originList = origins
@@ -82,7 +87,7 @@ export function NewApiKeyDialog({
           kind,
           scopes,
           locationId: sellsFrom ? locationId || null : null,
-          contentTypeKeys: scopes.includes('content:read') && types.length > 0 ? types : null,
+          contentTypeKeys: limitsTypes && types.length > 0 ? types : null,
           allowedOrigins: originList.length > 0 ? originList : null,
           expiresAt: expiresAt ? new Date(`${expiresAt}T23:59:59`).toISOString() : null,
         },
@@ -137,7 +142,7 @@ export function NewApiKeyDialog({
             onChange={(next) => {
               setKind(next);
               // Each kind starts from everything this person may give it.
-              setScopes(offered(next));
+              setScopes(initial(next));
             }}
             options={[
               { value: 'publishable', label: 'Publishable', icon: Globe },
@@ -151,7 +156,7 @@ export function NewApiKeyDialog({
 
         <fieldset className="space-y-3">
           <legend className={FIELD_LABEL_CLASS}>Access</legend>
-          {PUBLIC_APIS.filter((api) => api.id !== 'content' || access.contentOn).map((api) => (
+          {PUBLIC_APIS.filter((api) => !isContentApi(api.id) || access.contentOn).map((api) => (
             <div key={api.id} className="overflow-hidden rounded-lg border border-rule/60">
               <p className="border-b border-rule/50 bg-band/40 px-3 py-1.5 text-xs font-semibold text-foreground">{api.name}</p>
               <ul className="divide-y divide-rule/40">
@@ -208,7 +213,7 @@ export function NewApiKeyDialog({
           </div>
         )}
 
-        {scopes.includes('content:read') && (typesQuery.data?.length ?? 0) > 0 && (
+        {limitsTypes && (typesQuery.data?.length ?? 0) > 0 && (
           <fieldset>
             <legend className={FIELD_LABEL_CLASS}>Content types</legend>
             <div className="mt-1.5 flex flex-wrap gap-1.5">

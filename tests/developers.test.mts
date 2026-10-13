@@ -35,12 +35,16 @@ test('every scope belongs to a registered API, and every endpoint scope is a rea
 test('a publishable key is offered only what is safe in a browser', () => {
   const everything = ['settings:write', 'cms.keys:write'];
   assert.deepEqual(grantableScopes('publishable', everything), ['content:read', 'catalog:read']);
-  assert.deepEqual(grantableScopes('secret', everything), [...API_KEY_SCOPES]);
+  assert.deepEqual(grantableScopes('publishable', [...everything, 'cms:write', 'cms.schema:write']), ['content:read', 'catalog:read']);
+  assert.deepEqual(grantableScopes('secret', [...everything, 'cms:write', 'cms.schema:write']), [...API_KEY_SCOPES]);
   assert.deepEqual(scopesForKind('publishable', ['content:preview', 'content:read', 'orders:write']), ['content:read']);
 });
 
 test('each person is offered only the scopes they may grant', () => {
   assert.deepEqual(grantableScopes('secret', ['cms.keys:write']), ['content:read', 'content:preview']);
+  // Writing needs the matching staff capability too — nobody grants more than they can do.
+  assert.deepEqual(grantableScopes('secret', ['cms.keys:write', 'cms:write']), ['content:read', 'content:preview', 'content:write']);
+  assert.deepEqual(grantableScopes('secret', ['cms:write', 'cms.schema:write']), []);
   assert.deepEqual(grantableScopes('publishable', ['settings:write']), ['catalog:read']);
   assert.deepEqual(grantableScopes('secret', ['cms:read']), []);
 });
@@ -77,12 +81,14 @@ test('the MCP endpoint the docs point at is in openapi.json', () => {
   assert.ok(spec.paths[MCP_PATH]?.post);
 });
 
-test('MCP tools are named once, need real scopes, and never write', () => {
+test('MCP tools are named once, need real scopes, and write only behind opt-in scopes', () => {
   const names = MCP_TOOLS.map((tool) => tool.name);
   assert.equal(new Set(names).size, names.length);
   for (const tool of MCP_TOOLS) {
     if (tool.scope) assert.ok(tool.scope in SCOPES, tool.name);
-    assert.doesNotMatch(tool.name, /create|delete|update|subscribe|record/, tool.name);
+    assert.doesNotMatch(tool.name, /delete|update|publish|subscribe|record|create_order/, tool.name);
+    if (tool.writes) assert.ok(tool.scope && SCOPES[tool.scope].optIn && !SCOPES[tool.scope].publishable, tool.name);
+    else assert.doesNotMatch(tool.name, /create/, tool.name);
   }
 });
 
