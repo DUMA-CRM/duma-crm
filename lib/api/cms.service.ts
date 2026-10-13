@@ -416,6 +416,8 @@ export const restoreCmsEntryVersion = (id: string, versionId: string, tenantId?:
 export type CmsAssetFilters = {
   q?: string;
   folder?: string;
+  /** Only files in no folder — the top level of the library. */
+  root?: 'true';
   kind?: CmsMediaGroup | '';
   page?: number;
   ids?: string;
@@ -428,7 +430,9 @@ export type CmsAssetFilters = {
 };
 
 export const getCmsAssets = (filters: CmsAssetFilters, tenantId?: string) =>
-  apiFetch<CmsPage<CmsAsset> & { folders: string[] }>(`/cms/assets?${qs(tenantId, filters)}`);
+  apiFetch<CmsPage<CmsAsset> & { folders: string[]; folderStats: Array<{ folder: string; files: number; bytes: number }> }>(
+    `/cms/assets?${qs(tenantId, filters)}`,
+  );
 export const getCmsAsset = (id: string, tenantId?: string) => apiFetch<CmsAsset>(`/cms/assets/${id}?${qs(tenantId)}`);
 export const uploadCmsAsset = (file: File, meta: { title?: string; altText?: string; folder?: string }, tenantId?: string) => {
   const body = new FormData();
@@ -473,6 +477,13 @@ export const bulkCmsAssets = (body: CmsBulkAssetAction, tenantId?: string) =>
   apiFetch<{ succeeded: string[]; failed: Array<{ id: string; error: string }> }>(`/cms/assets/bulk?${qs(tenantId)}`, {
     method: 'POST',
     body: JSON.stringify(body),
+    timeoutMs: 120_000,
+  });
+/** Rename or move a folder with everything below it; `to: null` removes it and keeps its files, a level up. */
+export const moveCmsFolder = (from: string, to: string | null, tenantId?: string) =>
+  apiFetch<{ moved: number }>(`/cms/assets/folders/move?${qs(tenantId)}`, {
+    method: 'POST',
+    body: JSON.stringify({ from, to }),
     timeoutMs: 120_000,
   });
 export const deleteCmsAsset = (id: string, force: boolean, tenantId?: string) =>

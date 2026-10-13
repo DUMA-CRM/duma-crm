@@ -26,10 +26,26 @@ type Dialog = null | 'move' | 'tag' | 'delete' | { forceIds: string[]; message: 
  * while anything is selected — the selection is the context, so the actions
  * come to it rather than living in a toolbar that is usually irrelevant.
  */
-export function MediaBulkBar({ selected, folders, onClear }: { selected: CmsAsset[]; folders: string[]; onClear: () => void }) {
+export function MediaBulkBar({
+  selected,
+  folders,
+  request = null,
+  onClear,
+}: {
+  selected: CmsAsset[];
+  folders: string[];
+  /** The right-click menu asks for one of these dialogs; a new object opens it again. */
+  request?: { dialog: 'tag' | 'delete' } | null;
+  onClear: () => void;
+}) {
   const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
   const queryClient = useQueryClient();
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [handled, setHandled] = useState(request);
+  if (request !== handled) {
+    setHandled(request);
+    if (request) setDialog(request.dialog);
+  }
   const [busy, setBusy] = useState<string | null>(null);
   const [folder, setFolder] = useState('');
   const [tags, setTags] = useState('');

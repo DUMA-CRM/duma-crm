@@ -155,7 +155,7 @@ function ContentView() {
         ) : undefined
       }
       subheader={
-        <SectionTabs tabs={tabs} value={tab} onChange={(value) => navigate({ tab: value }, 'replace')} ariaLabel="Content sections" />
+        <SectionTabs tabs={tabs} value={tab} onChange={(value) => navigate({ tab: value, folder: null }, 'replace')} ariaLabel="Content sections" />
       }
     >
       <div className="flex flex-1 flex-col gap-5">
@@ -182,7 +182,13 @@ function ContentView() {
           />
         )}
         {/* Storage is a connector (Settings → Connectors → Media storage); Media keeps the usage meter. */}
-        {tab === 'media' && <MediaPanel headerSlot={mediaActions} />}
+        {tab === 'media' && (
+          <MediaPanel
+            headerSlot={mediaActions}
+            folder={searchParams.get('folder') || null}
+            onOpenFolder={(path) => navigate({ folder: path })}
+          />
+        )}
         {tab === 'locales' && <LocalesPanel />}
         {tab === 'docs' && <DocsPanel onOpenKeys={() => navigate({ tab: 'developers' }, 'replace')} />}
         {tab === 'developers' && access.canManageKeys && <DevelopersPanel onOpenDocs={() => navigate({ tab: 'docs' }, 'replace')} />}

@@ -18429,9 +18429,10 @@
           "CMS"
         ],
         "summary": "List media assets",
+        "description": "`folders` is every folder path in the workspace; `folderStats` adds how many files sit directly in each and their bytes.",
         "responses": {
           "200": {
-            "description": "{ data, total, page, limit, pages, folders }"
+            "description": "{ data, total, page, limit, pages, folders, folderStats }"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -18699,6 +18700,30 @@
         "responses": {
           "200": {
             "description": "{ succeeded: string[], failed: { id, error }[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/assets/folders/move": {
+      "post": {
+        "operationId": "postV1CmsAssetsFoldersMove",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Rename, move or remove a media folder",
+        "description": "Rewrites the folder of every file in `from` and below it, in one transaction: `Menu` → `Food` also moves `Menu/Summer` to `Food/Summer`. `to: null` removes the folder and moves what it holds to the top level; pass the parent path to remove it and keep its files one level up. A folder that already exists at `to` is merged into. File URLs do not change.",
+        "responses": {
+          "200": {
+            "description": "{ moved: number }"
+          },
+          "400": {
+            "description": "Into itself, or a path over 120 characters"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
