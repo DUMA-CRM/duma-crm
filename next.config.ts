@@ -4,6 +4,13 @@ const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:7777';
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    // proxy.ts runs on /be as well, and Next buffers only this much of a request
+    // body there — silently truncating anything larger before the rewrite sends
+    // it on. The default 10 MB broke Media uploads between 10 and 25 MB. Matches
+    // the API's CMS upload limit (cmsUploadBodyLimit in duma-api src/app.ts).
+    proxyClientMaxBodySize: '26mb',
+  },
   // Baseline security headers. The CSP is not here: it needs a per-request
   // nonce, so it is set in proxy.ts where one can be generated.
   async headers() {
