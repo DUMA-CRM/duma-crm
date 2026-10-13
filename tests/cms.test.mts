@@ -67,7 +67,10 @@ test('editor blanks are not saved, numbers are numbers, groups are cleaned', () 
     { key: 'tags', label: 'Tags', type: 'select' as const, multiple: true, options: ['a'] },
     { key: 'seo', label: 'SEO', type: 'group' as const, fields: [{ key: 'meta', label: 'M', type: 'text' as const }] },
   ];
-  assert.deepEqual(cleanEntryData(fields, { title: 'Hi', price: '3.50', tags: [], seo: { meta: '' }, stray: 1 }), { title: 'Hi', price: 3.5 });
+  assert.deepEqual(cleanEntryData(fields, { title: 'Hi', price: '3.50', tags: [], seo: { meta: '' }, stray: 1 }), {
+    title: 'Hi',
+    price: 3.5,
+  });
   assert.equal(sameEntryData(fields, { title: 'Hi', tags: [] }, { title: 'Hi' }), true);
   assert.equal(sameEntryData(fields, { title: 'Hi' }, { title: 'Ho' }), false);
 });
@@ -85,7 +88,10 @@ test('preview URLs expand placeholders and refuse a missing slug', () => {
 });
 
 test('API issues group under their top-level field', () => {
-  const grouped = issuesByField([{ field: 'title', message: 'Required' }, { field: 'faq[1].q', message: 'Required' }]);
+  const grouped = issuesByField([
+    { field: 'title', message: 'Required' },
+    { field: 'faq[1].q', message: 'Required' },
+  ]);
   assert.deepEqual(grouped.get('title'), ['Required']);
   assert.deepEqual(grouped.get('faq'), ['[1].q: Required']);
 });
@@ -133,7 +139,13 @@ const docsTypes = [
       { key: 'author', label: 'Author', type: 'reference' as const, referenceTypes: ['author'] },
       { key: 'hero', label: 'Hero', type: 'media' as const },
       { key: 'margin', label: 'Margin', type: 'number' as const, private: true },
-      { key: 'faq', label: 'FAQ', type: 'group' as const, multiple: true, fields: [{ key: 'q', label: 'Q', type: 'text' as const, required: true }] },
+      {
+        key: 'faq',
+        label: 'FAQ',
+        type: 'group' as const,
+        multiple: true,
+        fields: [{ key: 'q', label: 'Q', type: 'text' as const, required: true }],
+      },
     ],
   },
 ];
@@ -161,7 +173,10 @@ test('the AI prompt is complete, specific to the workspace, and holds no key', (
   const prompt = buildAiPrompt({
     apiOrigin: 'https://api.example.com/',
     types: docsTypes,
-    locales: [{ code: 'en', name: 'English', isDefault: true, fallbackCode: null }, { code: 'fr', name: 'French', isDefault: false, fallbackCode: null }],
+    locales: [
+      { code: 'en', name: 'English', isDefault: true, fallbackCode: null },
+      { code: 'fr', name: 'French', isDefault: false, fallbackCode: null },
+    ],
   });
   assert.match(prompt, /Base URL: https:\/\/api\.example\.com\/v1\/cms\/delivery/);
   assert.match(prompt, /Blog post — key `blog-post`, collection \(GET \/entries\/blog-post\)/);
@@ -209,15 +224,43 @@ const { cmsAttention } = await import('../lib/utils/cms.ts');
 
 test('the overview attention list is worst first and respects who can act', () => {
   const overview = { entries: { live: 3, changed: 2, draft: 1, scheduled: 1 }, activeApiKeys: 0 };
-  assert.deepEqual(cmsAttention(overview, { canManageKeys: true }).map((item) => item.kind), ['no_api_key', 'unpublished_changes', 'never_published', 'scheduled']);
-  assert.equal(cmsAttention(overview, { canManageKeys: false }).some((item) => item.kind === 'no_api_key'), false);
-  assert.equal(cmsAttention({ ...overview, entries: { ...overview.entries, live: 0 } }, { canManageKeys: true }).some((item) => item.kind === 'no_api_key'), false, 'no key needed before anything is live');
-  assert.deepEqual(cmsAttention({ entries: { live: 1, changed: 0, draft: 0, scheduled: 0 }, activeApiKeys: 1 }, { canManageKeys: true }), []);
+  assert.deepEqual(
+    cmsAttention(overview, { canManageKeys: true }).map((item) => item.kind),
+    ['no_api_key', 'unpublished_changes', 'never_published', 'scheduled'],
+  );
+  assert.equal(
+    cmsAttention(overview, { canManageKeys: false }).some((item) => item.kind === 'no_api_key'),
+    false,
+  );
+  assert.equal(
+    cmsAttention({ ...overview, entries: { ...overview.entries, live: 0 } }, { canManageKeys: true }).some(
+      (item) => item.kind === 'no_api_key',
+    ),
+    false,
+    'no key needed before anything is live',
+  );
+  assert.deepEqual(
+    cmsAttention({ entries: { live: 1, changed: 0, draft: 0, scheduled: 0 }, activeApiKeys: 1 }, { canManageKeys: true }),
+    [],
+  );
 });
 
 test('a pending review needs attention only from someone who can publish', async () => {
   const { cmsAttention } = await import('../lib/utils/cms.ts');
   const overview = { entries: { live: 1, changed: 0, draft: 0, scheduled: 0, review: 2 }, activeApiKeys: 1 };
-  assert.deepEqual(cmsAttention(overview, { canManageKeys: false, canPublish: true }), [{ kind: 'awaiting_review', count: 2, tone: 'measured' }]);
+  assert.deepEqual(cmsAttention(overview, { canManageKeys: false, canPublish: true }), [
+    { kind: 'awaiting_review', count: 2, tone: 'measured' },
+  ]);
   assert.deepEqual(cmsAttention(overview, { canManageKeys: false, canPublish: false }), []);
+});
+
+test('a clip length reads like a player', async () => {
+  const { formatClipLength, isVideo } = await import('../lib/utils/cms.ts');
+  assert.equal(formatClipLength(7.4), '0:07');
+  assert.equal(formatClipLength(125), '2:05');
+  assert.equal(formatClipLength(3723), '1:02:03');
+  assert.equal(formatClipLength(Number.NaN), '');
+  assert.equal(formatClipLength(Number.POSITIVE_INFINITY), '');
+  assert.equal(isVideo('video/mp4'), true);
+  assert.equal(isVideo('image/png'), false);
 });

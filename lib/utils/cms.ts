@@ -223,6 +223,17 @@ export function formatBytes(bytes: number): string {
 }
 
 export const isImage = (mimeType: string) => mimeType.startsWith('image/');
+export const isVideo = (mimeType: string) => mimeType.startsWith('video/');
+
+/** A clip's length the way players show it: `0:07`, `2:05`, `1:02:03`. Blank when unknown. */
+export function formatClipLength(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '';
+  const total = Math.round(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+}
 
 // ─── Locales ─────────────────────────────────────────────────────────────────
 

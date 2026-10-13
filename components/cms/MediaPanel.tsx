@@ -54,7 +54,7 @@ import {
   updateCmsAsset,
   uploadCmsAsset,
 } from '@/lib/modules/cms/client';
-import { formatBytes, isImage } from '@/lib/utils/cms';
+import { formatBytes, isImage, isVideo } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
 import { isConvertibleImage, isConvertibleVideo, renditionWidths } from '@/lib/utils/media-storage';
 import { toast } from '@/stores/toastStore';
@@ -65,6 +65,7 @@ import { FocalMarker, ImageOptionsDialog } from './ImageOptionsDialog';
 import { MediaBulkBar } from './MediaBulkBar';
 import { StorageUsage, type UploadTarget } from './StorageUsage';
 import { VideoOptionsDialog } from './VideoOptionsDialog';
+import { VideoThumb } from './VideoThumb';
 import { createRenditions } from './renditions';
 import { RowTile } from './rows';
 import { PanelError, assetPreviewSrc, cmsKeys, copyText, invalidateCms } from './shared';
@@ -536,6 +537,7 @@ function AssetThumb({ asset, className }: { asset: CmsAsset; className?: string 
       />
     );
   }
+  if (isVideo(asset.mimeType)) return <VideoThumb src={assetPreviewSrc(asset)} variant="tile" className={className} />;
   return (
     <span className={cn('flex aspect-4/3 w-full flex-col items-center justify-center gap-1 bg-band/60 text-muted-foreground', className)}>
       <FileText size={24} aria-hidden="true" />
@@ -741,11 +743,15 @@ export function AssetDrawer({
           {/* The file itself: a clean stage, its facts in one line, and three things to do with it. */}
           <div className="space-y-3">
             <div className={STAGE_CLASS}>
-              {/* The focus point shows where it is; it is set in Edit image. */}
-              <span className="relative inline-block">
-                <AssetThumb asset={asset} className="aspect-auto max-h-80 w-auto bg-transparent object-contain" />
-                {form.focal && isImage(asset.mimeType) && <FocalMarker focal={form.focal} />}
-              </span>
+              {isVideo(asset.mimeType) ? (
+                <VideoThumb src={assetPreviewSrc(asset)} variant="player" />
+              ) : (
+                // The focus point shows where it is; it is set in Edit image.
+                <span className="relative inline-block">
+                  <AssetThumb asset={asset} className="aspect-auto max-h-80 w-auto bg-transparent object-contain" />
+                  {form.focal && isImage(asset.mimeType) && <FocalMarker focal={form.focal} />}
+                </span>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {[
