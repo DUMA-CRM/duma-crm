@@ -1,11 +1,12 @@
+import type { ApiKeyKind, ApiKeyScope } from '@/lib/developers/api-reference';
+
 import { apiFetch } from './client';
 
-// Workspace API keys — what a business's own website or app uses to read the
-// catalogue and send orders, customers and newsletter sign-ups to DUMA.
-// The storefront endpoints they open live under /v1/store (duma-api routes/store.ts).
+// Workspace API keys — the one key a business's own website or app uses for
+// every public API: Content (/v1/cms/delivery) and Store (/v1/store). Its
+// scopes say which (lib/developers/api-reference.ts; duma-api routes/api-keys.ts).
 
-export type ApiKeyKind = 'publishable' | 'secret';
-export type ApiKeyScope = 'catalog:read' | 'orders:write' | 'customers:write' | 'newsletter:write';
+export type { ApiKeyKind, ApiKeyScope };
 
 export interface WorkspaceApiKey {
   id: string;
@@ -16,6 +17,8 @@ export interface WorkspaceApiKey {
   tokenPrefix: string;
   scopes: ApiKeyScope[];
   locationId: string | null;
+  /** Content types a `content:read` key may read; null means all. */
+  contentTypeKeys: string[] | null;
   allowedOrigins: string[] | null;
   expiresAt: string | null;
   lastUsedAt: string | null;
@@ -30,6 +33,7 @@ export interface WorkspaceApiKeyPayload {
   kind: ApiKeyKind;
   scopes?: ApiKeyScope[];
   locationId?: string | null;
+  contentTypeKeys?: string[] | null;
   allowedOrigins?: string[] | null;
   expiresAt?: string | null;
 }

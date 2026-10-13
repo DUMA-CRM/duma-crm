@@ -185,6 +185,11 @@ test('the AI prompt is complete, specific to the workspace, and holds no key', (
   assert.match(prompt, /fr \(French\)/);
   assert.doesNotMatch(prompt, /margin/);
   assert.doesNotMatch(prompt, /dcms_(live|prev)_[A-Za-z0-9_-]{20,}/);
+  assert.doesNotMatch(prompt, /dk_(pub|sec)_[A-Za-z0-9_-]{20,}/);
+  // One workspace key for every API, created in one place.
+  assert.match(prompt, /DUMA_PUBLISHABLE_KEY=dk_pub_…/);
+  assert.match(prompt, /Settings → Developers/);
+  assert.doesNotMatch(prompt, /API & webhooks/);
 });
 
 const { isoToLocalParts, localPartsToIso } = await import('../lib/utils/cms.ts');

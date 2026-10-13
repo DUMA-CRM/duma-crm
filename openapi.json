@@ -21,7 +21,7 @@
       "cmsApiKey": {
         "type": "http",
         "scheme": "bearer",
-        "description": "CMS delivery key (`dcms_live_…` published only, `dcms_prev_…` adds drafts). Also accepted as `X-Api-Key`."
+        "description": "Workspace API key (`dk_pub_…` / `dk_sec_…`, created in Settings → Developers) with the `content:read` scope; a secret key with `content:preview` also reads drafts. Legacy `dcms_live_…` (published only) and `dcms_prev_…` (adds drafts) content keys still work. Also accepted as `X-Api-Key`."
       }
     }
   },
@@ -135,6 +135,12 @@
         "CMS",
         "CMS Delivery",
         "Notes"
+      ]
+    },
+    {
+      "name": "Developers",
+      "tags": [
+        "MCP"
       ]
     },
     {
@@ -8610,13 +8616,16 @@
           "API keys"
         ],
         "summary": "Create a workspace API key",
-        "description": "The response holds the token once, in `token`.",
+        "description": "The response holds the token once, in `token`. Omit `scopes` for every scope the key's kind allows that you may grant (content scopes need `cms.keys:write`, commerce scopes `settings:write`); asking for one you cannot grant is a 403 naming the capability. A publishable key holds at most `catalog:read` and `content:read`. `contentTypeKeys` narrows `content:read`; it is kept only on a key with that scope.",
         "responses": {
           "201": {
             "description": "{ apiKey, token }"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "{ error, code: \"missing_capability\", capability }"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -8631,12 +8640,16 @@
           "API keys"
         ],
         "summary": "Update a workspace API key",
+        "description": "Needs the capability for every scope the key holds and every scope it is given.",
         "responses": {
           "200": {
             "description": "ApiKey"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "{ error, code: \"missing_capability\", capability }"
           },
           "404": {
             "description": "Not found"
@@ -8664,12 +8677,16 @@
           "API keys"
         ],
         "summary": "Revoke a workspace API key",
+        "description": "Needs the capability for every scope the key holds.",
         "responses": {
           "200": {
             "description": "ApiKey"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "{ error, code: \"missing_capability\", capability }"
           },
           "404": {
             "description": "Not found"
@@ -8924,6 +8941,58 @@
           },
           "409": {
             "description": "`out_of_stock`, `total_mismatch`, `price_unavailable`, `promo_unavailable` (used up as the order was placed) or `location_not_configured`"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/mcp": {
+      "post": {
+        "operationId": "postV1Mcp",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "MCP server for AI coding assistants",
+        "description": "A remote [Model Context Protocol](https://modelcontextprotocol.io) server — Streamable HTTP, stateless, JSON responses — for an AI coding assistant (Claude Code, Cursor…) building a business's own website on DUMA.\n\nSend JSON-RPC 2.0 messages (`initialize`, `tools/list`, `tools/call`, `ping`) with `Accept: application/json, text/event-stream`. Authenticate with a workspace API key (`Authorization: Bearer dk_…` or `X-Api-Key`); legacy `dcms_…` keys are not accepted.\n\nTools wrap the Content API (`/v1/cms/delivery/*`, scope `content:read`) and the Store API (`/v1/store/*`, `catalog:read`; `store_quote_order` needs `orders:write`), and are listed only when the key holds their scope. Every tool is read-only — none records an order, a sign-up or a referral.\n\nGET and DELETE answer 405: there are no sessions.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "A JSON-RPC 2.0 request or notification, or a batch of them"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response"
+          },
+          "202": {
+            "description": "Accepted — the message was a notification"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Missing, unknown, revoked or expired key (`WWW-Authenticate: Bearer realm=\"mcp\"`)"
+          },
+          "403": {
+            "description": "The key may not be used from this origin"
+          },
+          "405": {
+            "description": "GET / DELETE — the server is stateless"
+          },
+          "406": {
+            "description": "The client does not accept application/json and text/event-stream"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -18759,14 +18828,15 @@
         "tags": [
           "CMS"
         ],
-        "summary": "Create a delivery API key",
-        "description": "The response holds the token once, in `token`. Store it; it cannot be shown again.",
+        "summary": "Create a delivery API key (retired)",
+        "description": "Retired: content is read with a workspace API key holding the `content:read` scope. Create one with `POST /v1/api-keys`. Existing `dcms_…` keys keep working and can still be listed, edited and revoked here.",
+        "deprecated": true,
         "responses": {
-          "201": {
-            "description": "{ apiKey, token }"
-          },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "410": {
+            "description": "{ error, code: \"gone\" }"
           },
           "429": {
             "description": "Too many requests — rate limited"

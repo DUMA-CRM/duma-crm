@@ -1,11 +1,10 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { CmsOverviewPanel } from '@/components/cms/CmsOverviewPanel';
-import { DevelopersPanel } from '@/components/cms/DevelopersPanel';
-import { DocsPanel } from '@/components/cms/DocsPanel';
+import { ContentSettingsPanel } from '@/components/cms/ContentSettingsPanel';
 import { EntriesPanel } from '@/components/cms/EntriesPanel';
 import { EntryEditor } from '@/components/cms/EntryEditor';
 import { ImportDialog } from '@/components/cms/ImportDialog';
@@ -15,7 +14,7 @@ import { ModelEditor } from '@/components/cms/ModelEditor';
 import { ModelsPanel } from '@/components/cms/ModelsPanel';
 import { NewEntryDialog } from '@/components/cms/NewEntryDialog';
 import { useCmsAccess } from '@/components/cms/useCmsAccess';
-import { Activity, BookOpen, Code, FileText, ImageIcon, Languages, Layers, Plus, UploadCloud } from '@/components/icons';
+import { Activity, FileText, ImageIcon, Languages, Layers, Plus, SlidersHorizontal, UploadCloud } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
@@ -23,8 +22,11 @@ import { Button } from '@/components/ui/button';
 
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-type Tab = 'overview' | 'entries' | 'models' | 'media' | 'locales' | 'docs' | 'developers';
-const TAB_VALUES: Tab[] = ['overview', 'entries', 'models', 'media', 'locales', 'docs', 'developers'];
+type Tab = 'overview' | 'entries' | 'models' | 'media' | 'locales' | 'settings';
+const TAB_VALUES: Tab[] = ['overview', 'entries', 'models', 'media', 'locales', 'settings'];
+
+/** The API docs and keys moved to Settings → Developers with every other public API; old links still land. */
+const MOVED_TABS: Record<string, string> = { docs: '/settings/developers/docs', developers: '/settings/developers' };
 
 export default function ContentPage() {
   // useSearchParams needs a Suspense boundary above it.
@@ -55,6 +57,11 @@ function ContentView() {
   const tab: Tab = TAB_VALUES.includes(requestedTab as Tab) ? (requestedTab as Tab) : 'overview';
   const entryParam = searchParams.get('entry');
   const modelParam = searchParams.get('model');
+  const movedTo = requestedTab ? MOVED_TABS[requestedTab] : undefined;
+
+  useEffect(() => {
+    if (movedTo) router.replace(movedTo);
+  }, [movedTo, router]);
 
   const navigate = (patch: Record<string, string | null>, mode: 'push' | 'replace' = 'push') => {
     const next = new URLSearchParams(searchParams.toString());
@@ -73,12 +80,9 @@ function ContentView() {
       { value: 'models', label: 'Models', icon: Layers },
       { value: 'media', label: 'Media', icon: ImageIcon },
       { value: 'locales', label: 'Locales', icon: Languages },
-      // Documentation holds no secrets, so everyone who can see content can
-      // read it — including the developer who builds the website.
-      { value: 'docs', label: 'API docs', icon: BookOpen },
-      // Keys and webhooks are credentials; people who cannot manage them get
-      // no tab rather than a tab of 403s.
-      ...(access.canManageKeys ? [{ value: 'developers' as const, label: 'API & webhooks', icon: Code }] : []),
+      // File privacy changes what the public can fetch — the API gates it on
+      // `cms.keys:write`, so people without it get no tab rather than a tab of 403s.
+      ...(access.canManageKeys ? [{ value: 'settings' as const, label: 'Settings', icon: SlidersHorizontal }] : []),
     ],
     [access.canManageKeys],
   );
@@ -162,7 +166,7 @@ function ContentView() {
         {tab === 'overview' && (
           <CmsOverviewPanel
             onOpenEntry={openEntry}
-            onOpenTab={(value) => navigate({ tab: value }, 'replace')}
+            onOpenTab={(value) => (value === 'developers' ? router.push('/settings/developers') : navigate({ tab: value }, 'replace'))}
             onNewModel={access.canModel ? () => navigate({ model: 'new' }) : undefined}
           />
         )}
@@ -190,8 +194,7 @@ function ContentView() {
           />
         )}
         {tab === 'locales' && <LocalesPanel />}
-        {tab === 'docs' && <DocsPanel onOpenKeys={() => navigate({ tab: 'developers' }, 'replace')} />}
-        {tab === 'developers' && access.canManageKeys && <DevelopersPanel onOpenDocs={() => navigate({ tab: 'docs' }, 'replace')} />}
+        {tab === 'settings' && access.canManageKeys && <ContentSettingsPanel />}
       </div>
 
       {importing && <ImportDialog initialTypeId={searchParams.get('type') || undefined} onClose={() => setImporting(false)} />}

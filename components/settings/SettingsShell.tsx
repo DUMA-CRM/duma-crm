@@ -91,11 +91,11 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
     anyOf: ['email.connections:write', 'payments.connections:write', 'cms.keys:write', 'notes:write'],
   },
   {
-    // Storefront API keys: the business's own website selling through DUMA.
+    // Every public API in one place: keys, webhooks and the API reference.
     href: '/settings/developers',
     label: 'Developers',
     icon: Code,
-    anyOf: ['settings:write'],
+    anyOf: ['settings:write', 'cms.keys:write'],
   },
   {
     href: '/settings/qr-ordering',
@@ -195,6 +195,7 @@ export function SettingsTabBody({
   aside,
   stickyAside = false,
   narrowAside = false,
+  asideLeft = false,
 }: {
   children: React.ReactNode;
   aside?: React.ReactNode;
@@ -202,6 +203,8 @@ export function SettingsTabBody({
   stickyAside?: boolean;
   /** A fixed, narrower aside for a summary rail, giving the main column the width (the recipe editor). */
   narrowAside?: boolean;
+  /** Put the aside on the left on wide screens (Developers). It still follows the main column when stacked. */
+  asideLeft?: boolean;
 }) {
   if (!aside) return <div className="flex flex-col gap-5">{children}</div>;
   return (
@@ -209,12 +212,16 @@ export function SettingsTabBody({
       className={cn(
         'grid items-start gap-5',
         narrowAside
-          ? 'lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]'
-          : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]',
+          ? asideLeft
+            ? 'lg:grid-cols-[22rem_minmax(0,1fr)] xl:grid-cols-[24rem_minmax(0,1fr)]'
+            : 'lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]'
+          : asideLeft
+            ? 'lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)]'
+            : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]',
       )}
     >
       <div className="flex min-w-0 flex-col gap-5">{children}</div>
-      <div className={cn('flex min-w-0 flex-col gap-5', stickyAside && 'lg:sticky lg:top-5')}>{aside}</div>
+      <div className={cn('flex min-w-0 flex-col gap-5', stickyAside && 'lg:sticky lg:top-5', asideLeft && 'lg:order-first')}>{aside}</div>
     </div>
   );
 }

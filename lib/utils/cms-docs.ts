@@ -213,12 +213,12 @@ Fetch published content from the DUMA Content delivery API and render it in this
 ## Connection
 - Base URL: ${base}
 - Auth: send \`Authorization: Bearer <key>\` on every request (the \`X-Api-Key: <key>\` header also works).
-- Keys (never hard-code them; read from environment variables):
+- Keys are DUMA workspace API keys — the same key works for every DUMA API its scopes allow. Never hard-code them; read from environment variables:
   - DUMA_CMS_URL=${base}
-  - DUMA_CMS_TOKEN=dcms_live_…   # delivery key: published content only; safe in a browser
-  - DUMA_CMS_PREVIEW_TOKEN=dcms_prev_…   # preview key: also reads drafts — SERVER-SIDE ONLY, never ship to the client
+  - DUMA_PUBLISHABLE_KEY=dk_pub_…   # with the content:read scope: published content only; safe in a browser
+  - DUMA_SECRET_KEY=dk_sec_…   # with content:preview it also reads drafts — SERVER-SIDE ONLY, never ship to the client
 - Add those names to .env.example (without real values) and document them in the README.
-- Keys are created in DUMA → Content → API & webhooks. A key may be limited to some content types and to listed browser origins; requests outside its scope get 404 (type) or 403 (origin).
+- Keys are created in DUMA → Settings → Developers. A key may be limited to some content types and to listed browser origins; requests outside its scope get 404 (type) or 403 (origin or missing scope).
 
 ## Endpoints (all GET, all JSON)
 - /content-types — the models this key can read (keys, fields)
@@ -247,7 +247,7 @@ Linked entries resolve to full Entry objects up to the include depth; beyond it,
 - include=0..3 — resolve media and references this many levels deep (default 1).
 - locale=${defaultLocale} and fallback=true|false — content is per language; with fallback (default true) a missing translation falls back along the chain to the default.
 - q=… — full-text search over published text fields.
-- status=draft — drafts instead of published content; preview keys only.
+- status=draft — drafts instead of published content; secret keys with the content:preview scope only.
 Unknown fields or unsupported operators return 400 with a message — fix the query rather than ignoring the error.
 
 ## This workspace's content models
@@ -260,7 +260,7 @@ ${modelOutline(types)}
 - Errors are JSON { "error": string, "code"?: string }. 400 invalid_filter · 401 unauthorized (missing/unknown/revoked/expired key) · 403 origin not allowed or module disabled · 404 not found or not published · 429 rate_limited.
 
 ## Webhooks (for rebuilds / cache revalidation)
-If the project prerenders or caches content, add an endpoint DUMA can POST to when content changes, and register its URL in DUMA → Content → API & webhooks.
+If the project prerenders or caches content, add an endpoint DUMA can POST to when content changes, and register its URL in DUMA → Settings → Developers.
 - Headers: X-Duma-Event, X-Duma-Delivery, X-Duma-Timestamp (unix seconds), X-Duma-Signature: v1=<hex>.
 - Verify: v1 = HMAC-SHA256(secret, \`\${timestamp}.\${rawBody}\`) in hex; compare in constant time; reject if |now - timestamp| > 300s. Use the RAW request body, before JSON parsing. Secret env var: DUMA_CMS_WEBHOOK_SECRET.
 - Body: { "id", "event", "createdAt", "data" }. Events: entry.published, entry.unpublished, entry.deleted (data.entry = { id, entryId, type, locale, slug, version }), asset.changed (data.asset = { id }, data.change), and ping (a test from the dashboard).
@@ -268,7 +268,7 @@ If the project prerenders or caches content, add an endpoint DUMA can POST to wh
 
 ## Implementation requirements
 1. A single client module (e.g. lib/duma-cms.ts) exposing typed helpers such as getEntries(type, params), getEntry(type, idOrSlug, params), getSingleton(type, params). Build query strings with URLSearchParams, including the bracketed filter keys.
-2. TypeScript types for each model above (the docs page in DUMA can generate them: Content → API docs).
+2. TypeScript types for each model above (the API reference in DUMA can generate them: Settings → Developers → API reference).
 3. Fetch on the server where the framework allows; use the preview key only server-side and only when preview mode is on.
 4. Rich-text fields are GitHub-flavoured Markdown (tables, task lists, strikethrough, fenced code, autolinks). Render them with a GFM-capable renderer that sanitises or drops raw HTML; always render images with their altText.
 5. Handle 404 as "not found" pages, and treat unresolved links ({ id } only) gracefully.

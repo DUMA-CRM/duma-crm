@@ -169,6 +169,7 @@ const pages: Record<ModuleId, readonly string[]> = {
     '/settings/trading',
     '/settings/workspaces',
     '/settings/developers',
+    '/settings/developers/docs',
   ],
   customers: ['/customers', '/customers/[id]', '/customers/duplicates', '/customers/loyalty'],
   catalog: [
