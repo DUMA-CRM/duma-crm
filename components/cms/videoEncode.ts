@@ -1,6 +1,13 @@
 'use client';
 
-import { type VideoOptions, preferConvertedVideo, renameForVideo, videoTargetSize } from '@/lib/utils/media-storage';
+import {
+  type VideoOptions,
+  isStorableVideo,
+  preferConvertedVideo,
+  renameForVideo,
+  videoBitrate,
+  videoTargetSize,
+} from '@/lib/utils/media-storage';
 
 // ---------------------------------------------------------------------------
 // Compress a video in the browser before it is uploaded, for the same reasons
@@ -22,6 +29,8 @@ export interface EncodedVideo {
   originalHeight: number;
   /** Seconds. */
   duration: number;
+  /** Roughly what the source's sound takes up; null when it has none. */
+  soundBytes: number | null;
 }
 
 export class VideoEncodeCanceled extends Error {
@@ -35,7 +44,9 @@ export async function encodeVideo(
   options: VideoOptions,
   { onProgress, signal }: { onProgress?: (progress: number) => void; signal?: AbortSignal } = {},
 ): Promise<EncodedVideo> {
-  if (typeof VideoEncoder === 'undefined')
+  // Original: the picture is copied as it is, which needs no encoder.
+  const untouched = options.quality === 'original';
+  if (!untouched && typeof VideoEncoder === 'undefined')
     throw new Error('This browser cannot compress video — upload the original or use Chrome, Edge or Safari');
   const { ALL_FORMATS, BlobSource, BufferTarget, Conversion, Input, Mp4OutputFormat, Output, Quality, canEncodeVideo } =
     await import('mediabunny');
@@ -45,18 +56,33 @@ export async function encodeVideo(
     const track = await input.getPrimaryVideoTrack();
     if (!track) throw new Error('No video found in this file');
     const original = { width: await track.getDisplayWidth(), height: await track.getDisplayHeight() };
-    const size = videoTargetSize(original.width, original.height, options.maxShortSide);
-    const quality = new Quality(options.quality);
-    if (!(await canEncodeVideo('avc', { ...size, quality }))) {
-      throw new Error(`This browser cannot create ${size.width}×${size.height} MP4 video — try a smaller size`);
-    }
+    const sound = await input.getPrimaryAudioTrack();
+    const duration = await input.computeDuration();
+    const soundBytes = sound ? Math.round(((await sound.computePacketStats()).averageBitrate * duration) / 8) : null;
+    const kept: EncodedVideo = {
+      file: source,
+      converted: false,
+      ...original,
+      originalWidth: original.width,
+      originalHeight: original.height,
+      duration,
+      soundBytes,
+    };
+    // Nothing to change: a storable file, its picture kept and its sound too.
+    if (untouched && (!sound || !options.removeSound) && isStorableVideo(source.type)) return kept;
 
-    const target = new BufferTarget();
-    const conversion = await Conversion.init({
-      input,
-      output: new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target }),
-      tracks: 'primary',
-      video: {
+    const size = untouched ? original : videoTargetSize(original.width, original.height, options.maxShortSide);
+    // Original: no video options, so the picture is copied packet for packet.
+    let video = {};
+    if (options.quality !== 'original') {
+      // An explicit bitrate below the source's, not a named level (see videoBitrate).
+      const { averageBitrate } = await track.computePacketStats();
+      const bitrate = videoBitrate(options.quality, { bitrate: averageBitrate, ...original }, size);
+      const quality = new Quality({ bitrate, bitrateMode: 'variable' });
+      if (!(await canEncodeVideo('avc', { ...size, quality }))) {
+        throw new Error(`This browser cannot create ${size.width}×${size.height} MP4 video — try a smaller size`);
+      }
+      video = {
         ...size,
         fit: 'contain',
         codec: 'avc',
@@ -64,16 +90,25 @@ export async function encodeVideo(
         forceTranscode: true,
         // Bake a phone's rotation into the frames, so the stored size is the size people see.
         allowTransformationMetadata: false,
-      },
+      };
+    }
+
+    const target = new BufferTarget();
+    const conversion = await Conversion.init({
+      input,
+      output: new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target }),
+      tracks: 'primary',
+      video,
       // AAC sound — nearly every MP4 and phone video — is copied untouched: no
       // quality loss, and no encoder needed (Firefox has no AAC encoder). Setting
       // a `quality` here would force a re-encode. Anything else is re-encoded to
       // the first codec MP4 holds that this browser can write (AAC, else Opus).
-      audio: async (audioTrack) => ((await audioTrack.getCodec()) === 'aac' ? { codec: 'aac' } : {}),
+      audio: async (audioTrack) =>
+        options.removeSound ? { discard: true } : (await audioTrack.getCodec()) === 'aac' ? { codec: 'aac' } : {},
       showWarnings: false,
     });
     // A dropped audio track would upload a silent video without a word — refuse instead.
-    const dropped = conversion.discardedTracks[0];
+    const dropped = conversion.discardedTracks.find((track) => track.reason !== 'discarded_by_user');
     if (!conversion.isValid || dropped) {
       throw new Error(
         dropped?.track.type === 'audio'
@@ -95,15 +130,14 @@ export async function encodeVideo(
       signal?.removeEventListener('abort', abort);
     }
 
-    const duration = await input.computeDuration();
     const candidate = new File([target.buffer!], renameForVideo(source.name), { type: 'video/mp4', lastModified: Date.now() });
     const keep = preferConvertedVideo(
       { size: source.size, type: source.type, width: original.width },
-      { size: candidate.size, width: size.width },
+      { size: candidate.size, width: size.width, droppedSound: options.removeSound && sound !== null },
     );
     return keep
-      ? { file: candidate, converted: true, ...size, originalWidth: original.width, originalHeight: original.height, duration }
-      : { file: source, converted: false, ...original, originalWidth: original.width, originalHeight: original.height, duration };
+      ? { file: candidate, converted: true, ...size, originalWidth: original.width, originalHeight: original.height, duration, soundBytes }
+      : kept;
   } finally {
     input.dispose();
   }

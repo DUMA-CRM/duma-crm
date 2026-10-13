@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
+import { Switch } from '@/components/settings/controls';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Tooltip } from '@/components/shared/Tooltip';
@@ -114,6 +115,13 @@ export function VideoOptionsDialog({
   // Replacing a video with itself would only churn its URL.
   const unchanged = mode === 'replace' && outputs.every((file, index) => file === videos[index]);
   const blocked = busy || isPending || overLimit || unchanged || unusable.length > 0 || tooLarge.length > 0;
+  // What the sound takes up, from the finished videos — the reason to remove it.
+  const done = videos.flatMap((file) => {
+    const result = results.get(file);
+    return result?.status === 'done' ? [result.video] : [];
+  });
+  const soundBytes = done.reduce((sum, video) => sum + (video.soundBytes ?? 0), 0);
+  const silent = done.length === videos.length && done.every((video) => video.soundBytes === null);
   const progress =
     videos.length === 0
       ? 1
@@ -212,7 +220,9 @@ export function VideoOptionsDialog({
                   {singleResult?.status === 'done'
                     ? singleResult.video.converted
                       ? 'Compare the two before uploading.'
-                      : 'Already well compressed — compressing again would not make it smaller, so the original is kept.'
+                      : options.quality === 'original'
+                        ? 'Nothing to change — the original is kept as it is.'
+                        : 'Already well compressed — compressing again would not make it smaller, so the original is kept.'
                     : singleResult?.status === 'failed'
                       ? singleResult.message
                       : 'The result plays here once it is ready.'}
@@ -237,7 +247,9 @@ export function VideoOptionsDialog({
                           {result?.status === 'done'
                             ? result.video.converted
                               ? `${result.video.originalWidth}×${result.video.originalHeight} → ${result.video.width}×${result.video.height}`
-                              : 'Already as small as it gets — kept as it is'
+                              : options.quality === 'original'
+                                ? 'Nothing to change — kept as it is'
+                                : 'Already as small as it gets — kept as it is'
                             : result?.status === 'failed'
                               ? result.message
                               : result?.status === 'working'
@@ -303,9 +315,30 @@ export function VideoOptionsDialog({
             <Select
               ariaLabel="Maximum size"
               className="w-full"
+              // Original keeps the picture, size included.
+              disabled={options.quality === 'original'}
               value={options.maxShortSide ? String(options.maxShortSide) : ''}
               onValueChange={(value) => setOptions({ ...options, maxShortSide: value ? Number(value) : null })}
               options={[...VIDEO_SIZE_OPTIONS]}
+            />
+          </div>
+
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Remove sound</p>
+              <p className="mt-0.5 text-[0.6875rem] leading-4 text-muted-foreground">
+                {silent
+                  ? 'This video has no sound.'
+                  : soundBytes > 0
+                    ? `The sound takes about ${formatBytes(soundBytes)}. Fine for backgrounds and loops that play muted.`
+                    : 'For backgrounds and loops that play muted.'}
+              </p>
+            </div>
+            <Switch
+              label="Remove sound"
+              checked={options.removeSound && !silent}
+              disabled={silent}
+              onChange={(removeSound) => setOptions({ ...options, removeSound })}
             />
           </div>
 

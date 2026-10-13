@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 
 import { ChevronRight, FileText, FolderIcon, FolderMove, FolderOpen, ImageIcon, X } from '@/components/icons';
 import { Modal } from '@/components/shared/Modal';
@@ -292,23 +293,59 @@ export type DetailsSubject =
   | { kind: 'here'; path: string | null; filesHere: number | null; subfolders: number };
 
 /**
- * What a file manager's details pane shows: the selected item's facts — or, with
- * nothing selected, the folder you are in. A column beside the grid on wide
- * screens, a sheet over it on narrow ones.
+ * A file manager's Properties window: the item's facts — or, with nothing
+ * selected, the folder you are in. It opens where you right-clicked, as on
+ * Windows, kept inside the viewport, and closes on Escape or a click elsewhere.
  */
 export function MediaDetailsPane({
   subject,
+  at,
   stats,
   folders,
   onOpenAsset,
   onClose,
 }: {
   subject: DetailsSubject;
+  /** The right-click point, in viewport pixels. */
+  at: { x: number; y: number };
   stats: readonly FolderStat[];
   folders: readonly string[];
   onOpenAsset: (id: string) => void;
   onClose: () => void;
 }) {
+  const ref = useRef<HTMLElement>(null);
+  const [position, setPosition] = useState(at);
+  // Keep the whole window on screen, again whenever it grows ("Used by" loads late).
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const place = () => {
+      const { width, height } = element.getBoundingClientRect();
+      setPosition({
+        x: Math.max(8, Math.min(at.x, window.innerWidth - width - 8)),
+        y: Math.max(8, Math.min(at.y, window.innerHeight - height - 8)),
+      });
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [at]);
+  useEffect(() => {
+    const onPointer = (event: PointerEvent) => {
+      if (!ref.current?.contains(event.target as Node)) onClose();
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
   const title =
     subject.kind === 'asset'
       ? (subject.asset.title ?? subject.asset.fileName)
@@ -319,10 +356,13 @@ export function MediaDetailsPane({
           : subject.path
             ? folderName(subject.path)
             : 'Media';
-  return (
+  return createPortal(
     <aside
-      aria-label="Details"
-      className="fixed inset-y-0 right-0 z-40 flex w-80 max-w-[90vw] flex-col border-l border-rule/60 bg-card shadow-xl lg:sticky lg:top-4 lg:z-auto lg:max-h-[calc(100dvh-2rem)] lg:w-72 lg:shrink-0 lg:self-start lg:rounded-lg lg:border lg:shadow-none"
+      ref={ref}
+      role="dialog"
+      aria-label={`${title} — details`}
+      style={{ left: position.x, top: position.y }}
+      className="fixed z-50 flex max-h-[calc(100dvh-1rem)] w-80 max-w-[calc(100vw-1rem)] flex-col rounded-lg border border-rule/60 bg-card shadow-xl"
     >
       <header className="flex items-center gap-2 border-b border-rule/50 px-4 py-3">
         {subject.kind === 'asset' ? (
@@ -341,9 +381,7 @@ export function MediaDetailsPane({
           <dl>
             <Fact label="Selected">{subject.assets.length} files</Fact>
             <Fact label="Total size">{formatBytes(subject.assets.reduce((sum, asset) => sum + asset.sizeBytes, 0))}</Fact>
-            <Fact label="Locations">
-              {[...new Set(subject.assets.map((asset) => placeName(asset.folder)))].join(', ')}
-            </Fact>
+            <Fact label="Locations">{[...new Set(subject.assets.map((asset) => placeName(asset.folder)))].join(', ')}</Fact>
           </dl>
         )}
         {subject.kind === 'folder' && <FolderFacts path={subject.path} pending={subject.pending} stats={stats} folders={folders} />}
@@ -358,7 +396,8 @@ export function MediaDetailsPane({
             </dl>
           ))}
       </div>
-    </aside>
+    </aside>,
+    document.body,
   );
 }
 
@@ -419,9 +458,7 @@ function AssetFacts({ asset, onOpen }: { asset: CmsAsset; onOpen: () => void }) 
         <Fact label="Uploaded">{formatDateTime(asset.createdAt)}</Fact>
         <Fact label="Modified">{formatDateTime(asset.updatedAt)}</Fact>
         <Fact label="Stored in">{BACKEND_LABEL[asset.storageBackend]}</Fact>
-        {isImage(asset.mimeType) && (
-          <Fact label="Alt text">{asset.altText ?? <span className="text-measured">Missing</span>}</Fact>
-        )}
+        {isImage(asset.mimeType) && <Fact label="Alt text">{asset.altText ?? <span className="text-measured">Missing</span>}</Fact>}
         {asset.tags.length > 0 && <Fact label="Tags">{asset.tags.join(', ')}</Fact>}
         {asset.renditions.length > 0 && <Fact label="Website sizes">{asset.renditions.map((r) => `${r.width}w`).join(', ')}</Fact>}
         <Fact label="Used by">

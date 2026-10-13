@@ -161,8 +161,23 @@ test('a focal point follows the crop, and one cut away moves to the nearest kept
   assert.deepEqual(focalAfterCrop({ x: 0.1, y: 0.9 }, { x: 250, y: 0, width: 500, height: 250 }, natural), { x: 0, y: 1 });
 });
 
-const { isConvertibleVideo, isStorableVideo, preferConvertedVideo, renameForVideo, videoTargetSize } =
+const { isConvertibleVideo, isStorableVideo, preferConvertedVideo, renameForVideo, videoBitrate, videoTargetSize } =
   await import('../lib/utils/media-storage.ts');
+
+test('a small, already-compressed video still gets a lower bitrate at every level', () => {
+  const source = { bitrate: 1_500_000, width: 464, height: 832 };
+  for (const quality of ['very-high', 'high', 'medium'] as const) {
+    assert.ok(videoBitrate(quality, source, { width: 464, height: 832 }) < source.bitrate, quality);
+  }
+  assert.ok(videoBitrate('medium', source, source) < videoBitrate('high', source, source));
+});
+
+test('a phone video bitrate is capped by the level, and by the smaller picture', () => {
+  const phone = { bitrate: 40_000_000, width: 3840, height: 2160 };
+  assert.equal(videoBitrate('high', phone, { width: 1920, height: 1080 }), 5_000_000);
+  assert.equal(videoBitrate('high', { ...phone, bitrate: 0 }, { width: 1920, height: 1080 }), 5_000_000);
+  assert.equal(videoBitrate('medium', { bitrate: 200_000, width: 320, height: 240 }, { width: 320, height: 240 }), 100_000);
+});
 
 test('a phone .mov is convertible but not storable as it is', () => {
   assert.equal(isConvertibleVideo('video/quicktime'), true);
@@ -190,6 +205,7 @@ test('a compressed video that grew is kept only when it had to change', () => {
   assert.equal(preferConvertedVideo(mp4, { size: 12, width: 1920 }), false);
   assert.equal(preferConvertedVideo(mp4, { size: 12, width: 1280 }), true);
   assert.equal(preferConvertedVideo({ ...mp4, type: 'video/quicktime' }, { size: 12, width: 1920 }), true);
+  assert.equal(preferConvertedVideo(mp4, { size: 12, width: 1920, droppedSound: true }), true);
 });
 
 test('a converted video is named .mp4', () => {

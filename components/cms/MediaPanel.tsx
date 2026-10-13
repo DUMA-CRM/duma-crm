@@ -22,7 +22,6 @@ import {
   Link2,
   Loader2,
   Monitor,
-  PanelRight,
   Pencil,
   Search,
   SlidersHorizontal,
@@ -97,7 +96,16 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { assist } from './AssistSection';
 import { FocalMarker, ImageOptionsDialog } from './ImageOptionsDialog';
 import { MediaBulkBar } from './MediaBulkBar';
-import { type DetailsSubject, FolderTile, FolderTrail, MediaDetailsPane, MoveToSub, NameDialog, setDragLabel, useLocalFolders } from './MediaFolders';
+import {
+  type DetailsSubject,
+  FolderTile,
+  FolderTrail,
+  MediaDetailsPane,
+  MoveToSub,
+  NameDialog,
+  setDragLabel,
+  useLocalFolders,
+} from './MediaFolders';
 import { StorageUsage, type UploadTarget } from './StorageUsage';
 import { VideoOptionsDialog } from './VideoOptionsDialog';
 import { VideoThumb } from './VideoThumb';
@@ -176,11 +184,11 @@ function downloadAsset(asset: CmsAsset) {
 /**
  * The library, browsed like a drive: folders above files, a trail to climb
  * back up, click to open (⌘/Ctrl/Shift-click or the checkbox to select), drag onto a folder (or a
- * step of the trail) to move, right-click for everything else, and a details
- * pane. Searching or filtering looks across every folder at once.
+ * step of the trail) to move, right-click for everything else — including a
+ * details window that opens where you clicked. Searching or filtering looks across every folder at once.
  *
- * `headerSlot` is an element in the page masthead: Upload and the storage
- * status are the tab's actions, so they sit where every other tab's primary
+ * `headerSlot` is an element in the page masthead: New folder, Upload and the
+ * storage status are the tab's actions, so they sit where every other tab's primary
  * action sits, while the upload logic stays here with the file input.
  */
 export function MediaPanel({
@@ -220,7 +228,9 @@ export function MediaPanel({
   const [selected, setSelected] = useState<Map<string, CmsAsset>>(new Map());
   const [anchor, setAnchor] = useState<string | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  // Where the details window opens: the last right-click.
+  const [detailsAt, setDetailsAt] = useState<{ x: number; y: number } | null>(null);
+  const menuPoint = useRef({ x: 0, y: 0 });
   const [bulkRequest, setBulkRequest] = useState<{ dialog: 'tag' | 'delete' } | null>(null);
   const [naming, setNaming] = useState<Naming>(null);
   const [removingFolder, setRemovingFolder] = useState<string | null>(null);
@@ -511,6 +521,7 @@ export function MediaPanel({
 
   // ── Right-click ──
   const onMenu = (event: React.MouseEvent) => {
+    menuPoint.current = { x: event.clientX, y: event.clientY };
     const item = (event.target as HTMLElement).closest<HTMLElement>('[data-media-item]');
     if (item?.dataset.mediaItem === 'folder' && item.dataset.path) {
       setMenuTarget({ kind: 'folder', path: item.dataset.path });
@@ -532,7 +543,7 @@ export function MediaPanel({
     setMenuTarget({ kind: 'here' });
   };
   const many = menuTarget.kind === 'asset' && selected.has(menuTarget.asset.id) && selected.size > 1;
-  const showDetails = () => setDetailsOpen(true);
+  const showDetails = () => setDetailsAt(menuPoint.current);
 
   const menu = () => {
     if (menuTarget.kind === 'folder') {
@@ -551,7 +562,11 @@ export function MediaPanel({
               <ContextMenuItem icon={Pencil} onSelect={() => setNaming({ kind: 'rename-folder', path })}>
                 Rename
               </ContextMenuItem>
-              <MoveToSub folders={folders} disabled={(into) => !canMoveFolderInto(path, into)} onMove={(into) => moveFolderInto(path, into)} />
+              <MoveToSub
+                folders={folders}
+                disabled={(into) => !canMoveFolderInto(path, into)}
+                onMove={(into) => moveFolderInto(path, into)}
+              />
             </>
           )}
           <ContextMenuItem icon={Info} onSelect={showDetails}>
@@ -692,7 +707,12 @@ export function MediaPanel({
       ? { kind: 'asset', asset: fresh([...selected.keys()][0]!) }
       : selected.size > 1
         ? { kind: 'assets', assets: [...selected.keys()].map(fresh) }
-        : { kind: 'here', path: browsing ? folder : null, filesHere: browsing ? (query.data?.total ?? null) : null, subfolders: here.length };
+        : {
+            kind: 'here',
+            path: browsing ? folder : null,
+            filesHere: browsing ? (query.data?.total ?? null) : null,
+            subfolders: here.length,
+          };
 
   const fileGrid = (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
@@ -714,7 +734,11 @@ export function MediaPanel({
                   setSelected(new Map([[asset.id, asset]]));
                   setSelectedFolder(null);
                 }
-                startDrag(event, { assetIds: ids, folder: null }, ids.length === 1 ? (asset.title ?? asset.fileName) : `${ids.length} files`);
+                startDrag(
+                  event,
+                  { assetIds: ids, folder: null },
+                  ids.length === 1 ? (asset.title ?? asset.fileName) : `${ids.length} files`,
+                );
               }}
               onDragEnd={endDrag}
               onClick={(event) => clickAsset(event, asset)}
@@ -785,7 +809,13 @@ export function MediaPanel({
         Page {page} of {pages}
       </span>
       <span className="flex gap-1">
-        <Button size="icon-sm" variant="ghost" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Previous page"
+          disabled={page <= 1}
+          onClick={() => setPage((value) => value - 1)}
+        >
           <ChevronLeft size={14} aria-hidden="true" />
         </Button>
         <Button
@@ -814,7 +844,9 @@ export function MediaPanel({
           className="flex-1"
           icon={FolderOpen}
           title="This folder is empty"
-          description={access.canWrite ? 'Drop files here, or drag files in from another folder.' : 'Nothing has been put in this folder yet.'}
+          description={
+            access.canWrite ? 'Drop files here, or drag files in from another folder.' : 'Nothing has been put in this folder yet.'
+          }
           action={access.canWrite ? { label: 'Upload here', onClick: () => pickFiles(folder), icon: UploadCloud } : undefined}
         />
       ) : (
@@ -871,7 +903,9 @@ export function MediaPanel({
         icon={view === 'unused' ? Check : Copy}
         title={view === 'unused' ? 'Every file is in use' : 'No duplicates'}
         description={
-          view === 'unused' ? 'Each file is used by at least one entry, so there’s nothing to clear out.' : 'No file has been uploaded twice.'
+          view === 'unused'
+            ? 'Each file is used by at least one entry, so there’s nothing to clear out.'
+            : 'No file has been uploaded twice.'
         }
       />
     ) : (
@@ -965,6 +999,12 @@ export function MediaPanel({
         createPortal(
           <>
             {target && <StorageUsage target={target} canManage={access.canManageKeys} />}
+            {access.canWrite && browsing && (
+              <Button variant="outline" className="h-9 gap-1.5" aria-label="New folder" onClick={() => setNaming({ kind: 'new-folder' })}>
+                <FolderPlus size={15} aria-hidden="true" />
+                <span className="hidden md:inline">New folder</span>
+              </Button>
+            )}
             {access.canWrite && (
               <Button className="h-9 gap-1.5" disabled={upload.isPending} onClick={() => pickFiles(folder)}>
                 <UploadCloud size={15} aria-hidden="true" />
@@ -1014,25 +1054,11 @@ export function MediaPanel({
           <FolderTrail folder={folder} dropTarget={dropTarget} dropProps={dropProps} onOpen={onOpenFolder} />
         ) : (
           <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-            {view === 'all' ? 'Results from every folder' : `${VIEW_OPTIONS.find((option) => option.value === view)?.label} in every folder`}
+            {view === 'all'
+              ? 'Results from every folder'
+              : `${VIEW_OPTIONS.find((option) => option.value === view)?.label} in every folder`}
           </p>
         )}
-        {access.canWrite && browsing && (
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setNaming({ kind: 'new-folder' })}>
-            <FolderPlus size={14} aria-hidden="true" /> New folder
-          </Button>
-        )}
-        <Tooltip side="top" align="end" label={detailsOpen ? 'Hide details' : 'Show details'}>
-          <Button
-            size="icon-sm"
-            variant={detailsOpen ? 'secondary' : 'ghost'}
-            aria-label="Details"
-            aria-pressed={detailsOpen}
-            onClick={() => setDetailsOpen((open) => !open)}
-          >
-            <PanelRight size={15} aria-hidden="true" />
-          </Button>
-        </Tooltip>
       </div>
 
       <div className="flex flex-1 items-start gap-4">
@@ -1050,8 +1076,15 @@ export function MediaPanel({
           </ContextMenuTrigger>
           <ContextMenuContent>{menu()}</ContextMenuContent>
         </ContextMenu>
-        {detailsOpen && (
-          <MediaDetailsPane subject={details} stats={stats} folders={folders} onOpenAsset={setOpenId} onClose={() => setDetailsOpen(false)} />
+        {detailsAt && (
+          <MediaDetailsPane
+            subject={details}
+            at={detailsAt}
+            stats={stats}
+            folders={folders}
+            onOpenAsset={setOpenId}
+            onClose={() => setDetailsAt(null)}
+          />
         )}
       </div>
 

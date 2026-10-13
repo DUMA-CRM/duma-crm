@@ -299,8 +299,7 @@ export const RENDITION_WIDTHS = [480, 960, 1600] as const;
  * meaningfully smaller (under 90%) than the original — a 1000px image gets
  * 480 and 960 is skipped, since a copy nearly the original's size saves nothing.
  */
-export const renditionWidths = (width: number | null) =>
-  width ? RENDITION_WIDTHS.filter((candidate) => candidate < width * 0.9) : [];
+export const renditionWidths = (width: number | null) => (width ? RENDITION_WIDTHS.filter((candidate) => candidate < width * 0.9) : []);
 
 /** A focal point from a click on the image, clamped to the picture and rounded to 3 places. */
 /**
@@ -338,12 +337,14 @@ export const isConvertibleVideo = (mimeType: string) => ['video/mp4', 'video/qui
 /** Video types the API stores as they are. */
 export const isStorableVideo = (mimeType: string) => mimeType === 'video/mp4' || mimeType === 'video/webm';
 
-export type VideoQuality = 'very-high' | 'high' | 'medium';
+/** `original` leaves the picture as it is — copied, not re-encoded — so only the sound (or a `.mov` wrapper) changes. */
+export type VideoQuality = 'original' | 'very-high' | 'high' | 'medium';
 
 /** Named levels, not a slider: a video encode takes seconds to minutes, so each choice costs a full run. */
 export const VIDEO_QUALITIES: ReadonlyArray<{ value: VideoQuality; label: string; hint: string }> = [
-  { value: 'very-high', label: 'Best', hint: 'Hard to tell from the original; the largest files' },
-  { value: 'high', label: 'High', hint: 'Recommended — sharp on any screen, often a third of a phone’s file' },
+  { value: 'original', label: 'Original', hint: 'Picture left exactly as it is' },
+  { value: 'very-high', label: 'Best', hint: 'Recommended — hard to tell from the original; the largest files' },
+  { value: 'high', label: 'High', hint: 'Sharp on any screen, often a third of a phone’s file' },
   { value: 'medium', label: 'Smaller', hint: 'Fine for backgrounds, loops and phones' },
 ];
 
@@ -351,9 +352,11 @@ export interface VideoOptions {
   quality: VideoQuality;
   /** The shorter side stays at or under this (1080 = "1080p" for landscape and portrait alike); null keeps the size. */
   maxShortSide: number | null;
+  /** Drop the sound track — for backgrounds and loops that play muted anyway. */
+  removeSound: boolean;
 }
 
-export const DEFAULT_VIDEO_OPTIONS: VideoOptions = { quality: 'high', maxShortSide: 1080 };
+export const DEFAULT_VIDEO_OPTIONS: VideoOptions = { quality: 'very-high', maxShortSide: 1080, removeSound: false };
 
 export const VIDEO_SIZE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: '', label: 'Original size' },
@@ -375,15 +378,45 @@ export function videoTargetSize(width: number, height: number, maxShortSide: num
 }
 
 /**
+ * Each level as a share of the source's own video bitrate, with a ceiling for
+ * a 1080p picture (scaled by pixel count). A fixed quantizer — mediabunny's
+ * default for a named level — is no good here: the browser's hardware H.264
+ * encoder at a constant QP makes a file larger than an already-compressed
+ * phone video, so the result was thrown away and nothing got smaller.
+ */
+const VIDEO_BITRATES: Record<Exclude<VideoQuality, 'original'>, { share: number; ceiling1080p: number }> = {
+  'very-high': { share: 0.75, ceiling1080p: 8_000_000 },
+  high: { share: 0.5, ceiling1080p: 5_000_000 },
+  medium: { share: 0.3, ceiling1080p: 2_500_000 },
+};
+
+/**
+ * Bits per second to encode the picture at. `sourceBitrate` is the source's
+ * video track alone (0 when unknown); a smaller picture gets a proportionally
+ * smaller share. Never under 100 kbps — below that H.264 falls apart.
+ */
+export function videoBitrate(
+  quality: Exclude<VideoQuality, 'original'>,
+  source: { bitrate: number; width: number; height: number },
+  target: { width: number; height: number },
+): number {
+  const { share, ceiling1080p } = VIDEO_BITRATES[quality];
+  const pixels = target.width * target.height;
+  const fromSource = source.bitrate > 0 ? source.bitrate * share * (pixels / (source.width * source.height)) : Infinity;
+  const ceiling = ceiling1080p * (pixels / (1920 * 1080));
+  return Math.max(100_000, Math.round(Math.min(fromSource, ceiling)));
+}
+
+/**
  * Use the compressed video, or keep the original? A smaller file wins. A
  * larger one is kept only when the original cannot be stored as it is (a
- * `.mov`) or the person asked for a smaller picture.
+ * `.mov`) or the person asked for a smaller picture or no sound.
  */
 export function preferConvertedVideo(
   original: { size: number; type: string; width: number },
-  converted: { size: number; width: number },
+  converted: { size: number; width: number; droppedSound?: boolean },
 ): boolean {
-  if (converted.size < original.size) return true;
+  if (converted.size < original.size || converted.droppedSound) return true;
   return !isStorableVideo(original.type) || converted.width < original.width;
 }
 
