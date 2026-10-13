@@ -68,7 +68,8 @@ function contentSecurityPolicy(nonce: string, allowEval: boolean, frameable = fa
     "connect-src 'self'",
     "worker-src 'self'",
     "manifest-src 'self'",
-    "media-src 'self'",
+    // blob: lets Media preview a video it compressed in the browser before uploading it.
+    "media-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

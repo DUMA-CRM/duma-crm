@@ -25,6 +25,7 @@ import {
   Trash2,
   Type,
   UploadCloud,
+  Video,
   X,
 } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -55,7 +56,7 @@ import {
 } from '@/lib/modules/cms/client';
 import { formatBytes, isImage } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
-import { isConvertibleImage, renditionWidths } from '@/lib/utils/media-storage';
+import { isConvertibleImage, isConvertibleVideo, renditionWidths } from '@/lib/utils/media-storage';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -63,6 +64,7 @@ import { assist } from './AssistSection';
 import { FocalMarker, ImageOptionsDialog } from './ImageOptionsDialog';
 import { MediaBulkBar } from './MediaBulkBar';
 import { StorageUsage, type UploadTarget } from './StorageUsage';
+import { VideoOptionsDialog } from './VideoOptionsDialog';
 import { createRenditions } from './renditions';
 import { RowTile } from './rows';
 import { PanelError, assetPreviewSrc, cmsKeys, copyText, invalidateCms } from './shared';
@@ -137,6 +139,8 @@ export function MediaPanel({ headerSlot }: { headerSlot?: HTMLElement | null }) 
   const [dragging, setDragging] = useState(false);
   // Files waiting on the optimise dialog — any upload with a convertible image goes through it.
   const [staged, setStaged] = useState<File[] | null>(null);
+  // Then the compress dialog, for any upload with a video — after the images are settled.
+  const [stagedVideos, setStagedVideos] = useState<File[] | null>(null);
   const [view, setView] = useState<View>('all');
   // Selection survives paging and filtering, so it holds the assets, not just ids.
   const [selected, setSelected] = useState<Map<string, CmsAsset>>(new Map());
@@ -201,14 +205,20 @@ export function MediaPanel({ headerSlot }: { headerSlot?: HTMLElement | null }) 
       if (uploaded > 0) toast('success', `Uploaded ${uploaded} ${uploaded === 1 ? 'file' : 'files'}.`);
       if (failures.length > 0) toast('error', failures.join(' · '));
       setStaged(null);
+      setStagedVideos(null);
     },
   });
 
+  const afterImages = (files: File[]) => {
+    setStaged(null);
+    if (files.some((file) => isConvertibleVideo(file.type))) setStagedVideos(files);
+    else upload.mutate(files);
+  };
   const onFiles = (list: FileList | null) => {
     const files = [...(list ?? [])];
     if (files.length === 0) return;
     if (files.some((file) => isConvertibleImage(file.type))) setStaged(files);
-    else upload.mutate(files);
+    else afterImages(files);
   };
 
   const assets = query.data?.data ?? [];
@@ -496,8 +506,18 @@ export function MediaPanel({ headerSlot }: { headerSlot?: HTMLElement | null }) 
           mode="upload"
           freeBytes={target?.freeBytes ?? null}
           isPending={upload.isPending}
-          onConfirm={(files) => upload.mutate(files)}
+          onConfirm={afterImages}
           onClose={() => setStaged(null)}
+        />
+      )}
+      {stagedVideos && (
+        <VideoOptionsDialog
+          files={stagedVideos}
+          mode="upload"
+          freeBytes={target?.freeBytes ?? null}
+          isPending={upload.isPending}
+          onConfirm={(files) => upload.mutate(files)}
+          onClose={() => setStagedVideos(null)}
         />
       )}
     </div>
@@ -743,7 +763,14 @@ export function AssetDrawer({
                   </span>
                 ))}
             </div>
-            <div className={cn('grid gap-2', access.canWrite && isConvertibleImage(asset.mimeType) ? 'grid-cols-3' : 'grid-cols-2')}>
+            <div
+              className={cn(
+                'grid gap-2',
+                access.canWrite && (isConvertibleImage(asset.mimeType) || isConvertibleVideo(asset.mimeType))
+                  ? 'grid-cols-3'
+                  : 'grid-cols-2',
+              )}
+            >
               {access.canWrite && isConvertibleImage(asset.mimeType) && (
                 <Button variant="outline" className="gap-1.5 bg-control" disabled={load.isPending} onClick={() => load.mutate(asset)}>
                   {load.isPending ? (
@@ -752,6 +779,16 @@ export function AssetDrawer({
                     <SlidersHorizontal size={14} aria-hidden="true" />
                   )}
                   Edit image
+                </Button>
+              )}
+              {access.canWrite && isConvertibleVideo(asset.mimeType) && (
+                <Button variant="outline" className="gap-1.5 bg-control" disabled={load.isPending} onClick={() => load.mutate(asset)}>
+                  {load.isPending ? (
+                    <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Video size={14} aria-hidden="true" />
+                  )}
+                  Compress
                 </Button>
               )}
               <CopyButton
@@ -945,7 +982,19 @@ export function AssetDrawer({
           </DrawerSection>
         </div>
       )}
-      {converting && asset && (
+      {converting && asset && isConvertibleVideo(converting.type) && (
+        <VideoOptionsDialog
+          files={[converting]}
+          mode="replace"
+          freeBytes={
+            target?.freeBytes == null ? null : target.freeBytes + (sharesAllowance(asset, target.connectionId) ? asset.sizeBytes : 0)
+          }
+          isPending={replace.isPending}
+          onConfirm={([file]) => file && replace.mutate({ file })}
+          onClose={() => setConverting(null)}
+        />
+      )}
+      {converting && asset && !isConvertibleVideo(converting.type) && (
         <ImageOptionsDialog
           files={[converting]}
           mode="replace"

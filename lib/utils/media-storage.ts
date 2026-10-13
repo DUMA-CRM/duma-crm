@@ -325,3 +325,73 @@ export function focalFromClick(clientX: number, clientY: number, rect: { left: n
   const clamp = (value: number) => Math.round(Math.min(1, Math.max(0, value)) * 1000) / 1000;
   return { x: clamp((clientX - rect.left) / rect.width), y: clamp((clientY - rect.top) / rect.height) };
 }
+
+// ─── Video ───────────────────────────────────────────────────────────────────
+
+/**
+ * What the browser can usually decode and re-encode (components/cms/videoEncode.ts
+ * checks the codec itself). QuickTime matters most: a phone's `.mov` is refused
+ * by the API as it is, but stores fine once it is an MP4.
+ */
+export const isConvertibleVideo = (mimeType: string) => ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v'].includes(mimeType);
+
+/** Video types the API stores as they are. */
+export const isStorableVideo = (mimeType: string) => mimeType === 'video/mp4' || mimeType === 'video/webm';
+
+export type VideoQuality = 'very-high' | 'high' | 'medium';
+
+/** Named levels, not a slider: a video encode takes seconds to minutes, so each choice costs a full run. */
+export const VIDEO_QUALITIES: ReadonlyArray<{ value: VideoQuality; label: string; hint: string }> = [
+  { value: 'very-high', label: 'Best', hint: 'Hard to tell from the original; the largest files' },
+  { value: 'high', label: 'High', hint: 'Recommended — sharp on any screen, often a third of a phone’s file' },
+  { value: 'medium', label: 'Smaller', hint: 'Fine for backgrounds, loops and phones' },
+];
+
+export interface VideoOptions {
+  quality: VideoQuality;
+  /** The shorter side stays at or under this (1080 = "1080p" for landscape and portrait alike); null keeps the size. */
+  maxShortSide: number | null;
+}
+
+export const DEFAULT_VIDEO_OPTIONS: VideoOptions = { quality: 'high', maxShortSide: 1080 };
+
+export const VIDEO_SIZE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: '', label: 'Original size' },
+  { value: '2160', label: '4K (2160p)' },
+  { value: '1440', label: '1440p' },
+  { value: '1080', label: 'Full HD (1080p)' },
+  { value: '720', label: 'HD (720p)' },
+];
+
+/**
+ * Scale down so the shorter side fits `maxShortSide`, never up. H.264 needs
+ * even dimensions, so both sides round down to an even number (at least 2).
+ */
+export function videoTargetSize(width: number, height: number, maxShortSide: number | null): { width: number; height: number } {
+  const even = (value: number) => Math.max(2, Math.floor(value / 2) * 2);
+  const short = Math.min(width, height);
+  const scale = maxShortSide && short > maxShortSide ? maxShortSide / short : 1;
+  return { width: even(width * scale), height: even(height * scale) };
+}
+
+/**
+ * Use the compressed video, or keep the original? A smaller file wins. A
+ * larger one is kept only when the original cannot be stored as it is (a
+ * `.mov`) or the person asked for a smaller picture.
+ */
+export function preferConvertedVideo(
+  original: { size: number; type: string; width: number },
+  converted: { size: number; width: number },
+): boolean {
+  if (converted.size < original.size) return true;
+  return !isStorableVideo(original.type) || converted.width < original.width;
+}
+
+/** `clip.MOV` → `clip.mp4`. */
+export function renameForVideo(fileName: string): string {
+  const base = fileName.replace(/\.[^./\\]+$/, '') || 'video';
+  return `${base}.mp4`;
+}
+
+/** The API's per-file ceiling (MAX_CMS_ASSET_BYTES in duma-api). */
+export const MAX_ASSET_BYTES = 25 * 1024 * 1024;

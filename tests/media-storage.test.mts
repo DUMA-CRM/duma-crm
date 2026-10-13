@@ -160,3 +160,39 @@ test('a focal point follows the crop, and one cut away moves to the nearest kept
   assert.deepEqual(focalAfterCrop({ x: 0.3, y: 0.2 }, { x: 250, y: 0, width: 500, height: 500 }, natural), { x: 0.1, y: 0.2 });
   assert.deepEqual(focalAfterCrop({ x: 0.1, y: 0.9 }, { x: 250, y: 0, width: 500, height: 250 }, natural), { x: 0, y: 1 });
 });
+
+const { isConvertibleVideo, isStorableVideo, preferConvertedVideo, renameForVideo, videoTargetSize } =
+  await import('../lib/utils/media-storage.ts');
+
+test('a phone .mov is convertible but not storable as it is', () => {
+  assert.equal(isConvertibleVideo('video/quicktime'), true);
+  assert.equal(isStorableVideo('video/quicktime'), false);
+  assert.equal(isStorableVideo('video/mp4'), true);
+  assert.equal(isConvertibleVideo('video/x-msvideo'), false);
+});
+
+test('video size caps the shorter side, for landscape and portrait alike', () => {
+  assert.deepEqual(videoTargetSize(3840, 2160, 1080), { width: 1920, height: 1080 });
+  assert.deepEqual(videoTargetSize(2160, 3840, 1080), { width: 1080, height: 1920 });
+  assert.deepEqual(videoTargetSize(1280, 720, 1080), { width: 1280, height: 720 });
+  assert.deepEqual(videoTargetSize(1920, 1080, null), { width: 1920, height: 1080 });
+});
+
+test('video dimensions are always even, as H.264 needs', () => {
+  assert.deepEqual(videoTargetSize(1921, 1081, null), { width: 1920, height: 1080 });
+  // The short side 1185 → 1080; the long side 2560 × 1080/1185 = 2333.3 → 2332
+  assert.deepEqual(videoTargetSize(2560, 1185, 1080), { width: 2332, height: 1080 });
+});
+
+test('a compressed video that grew is kept only when it had to change', () => {
+  const mp4 = { size: 10, type: 'video/mp4', width: 1920 };
+  assert.equal(preferConvertedVideo(mp4, { size: 6, width: 1920 }), true);
+  assert.equal(preferConvertedVideo(mp4, { size: 12, width: 1920 }), false);
+  assert.equal(preferConvertedVideo(mp4, { size: 12, width: 1280 }), true);
+  assert.equal(preferConvertedVideo({ ...mp4, type: 'video/quicktime' }, { size: 12, width: 1920 }), true);
+});
+
+test('a converted video is named .mp4', () => {
+  assert.equal(renameForVideo('IMG_0042.MOV'), 'IMG_0042.mp4');
+  assert.equal(renameForVideo('clip'), 'clip.mp4');
+});
