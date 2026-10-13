@@ -97,6 +97,8 @@ export function VideoOptionsDialog({
   const playing = single && showing === 'result' && singleResult?.status === 'done' ? singleResult.video.file : single;
   const playerSrc = useMemo(() => (playing ? URL.createObjectURL(playing) : null), [playing]);
   useEffect(() => () => void (playerSrc && URL.revokeObjectURL(playerSrc)), [playerSrc]);
+  // Which source the browser refused to play (Firefox cannot play an iPhone's HEVC, for one).
+  const [unplayable, setUnplayable] = useState<string | null>(null);
 
   const outputs = videos.map((file) => {
     const result = results.get(file);
@@ -178,15 +180,22 @@ export function VideoOptionsDialog({
           {single ? (
             <>
               <div className="flex min-h-72 items-center justify-center overflow-hidden rounded-lg bg-black">
-                {playerSrc && (
-                  <video
-                    key={playerSrc}
-                    src={playerSrc}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="block max-h-[min(56vh,32rem)] w-auto max-w-full"
-                  />
+                {playerSrc && unplayable === playerSrc ? (
+                  <p className="max-w-sm px-6 text-center text-sm text-white/70">
+                    This browser cannot play {playing === single ? 'the original' : 'this video'} — it can still be compressed and uploaded.
+                  </p>
+                ) : (
+                  playerSrc && (
+                    <video
+                      key={playerSrc}
+                      src={playerSrc}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      onError={() => setUnplayable(playerSrc)}
+                      className="block max-h-[min(56vh,32rem)] w-auto max-w-full"
+                    />
+                  )
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -201,7 +210,9 @@ export function VideoOptionsDialog({
                 />
                 <span className="text-xs text-muted-foreground">
                   {singleResult?.status === 'done'
-                    ? 'Compare the two before uploading.'
+                    ? singleResult.video.converted
+                      ? 'Compare the two before uploading.'
+                      : 'Already well compressed — compressing again would not make it smaller, so the original is kept.'
                     : singleResult?.status === 'failed'
                       ? singleResult.message
                       : 'The result plays here once it is ready.'}

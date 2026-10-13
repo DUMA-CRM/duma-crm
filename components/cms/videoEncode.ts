@@ -65,8 +65,11 @@ export async function encodeVideo(
         // Bake a phone's rotation into the frames, so the stored size is the size people see.
         allowTransformationMetadata: false,
       },
-      // AAC audio is copied as it is; anything else becomes AAC.
-      audio: { codec: 'aac', quality: new Quality('high') },
+      // AAC sound — nearly every MP4 and phone video — is copied untouched: no
+      // quality loss, and no encoder needed (Firefox has no AAC encoder). Setting
+      // a `quality` here would force a re-encode. Anything else is re-encoded to
+      // the first codec MP4 holds that this browser can write (AAC, else Opus).
+      audio: async (audioTrack) => ((await audioTrack.getCodec()) === 'aac' ? { codec: 'aac' } : {}),
       showWarnings: false,
     });
     // A dropped audio track would upload a silent video without a word — refuse instead.
@@ -74,7 +77,7 @@ export async function encodeVideo(
     if (!conversion.isValid || dropped) {
       throw new Error(
         dropped?.track.type === 'audio'
-          ? 'This browser cannot keep this video’s sound — upload the original or use Chrome, Edge or Safari'
+          ? 'This browser cannot convert this video’s sound — upload the original or use Chrome, Edge or Safari'
           : 'This browser cannot read this video — upload the original',
       );
     }
