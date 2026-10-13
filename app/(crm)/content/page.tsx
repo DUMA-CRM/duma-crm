@@ -172,10 +172,11 @@ function ContentView() {
         )}
         {tab === 'entries' && (
           <EntriesPanel
-            initialTypeId={searchParams.get('type') ?? ''}
-            onTypeChange={(id) => navigate({ type: id || null }, 'replace')}
+            typeId={searchParams.get('type') ?? ''}
+            onOpenType={(id) => navigate({ type: id || null })}
             onOpenEntry={openEntry}
             onNewEntry={(contentTypeId) => setCreating({ contentTypeId })}
+            onOpenModel={openModel}
           />
         )}
         {tab === 'models' && (

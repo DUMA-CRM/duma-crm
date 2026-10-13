@@ -26,6 +26,11 @@ function explicitPreference(request: string): LearnedPreference[] {
 
   const remembered = /\bremember\s+(?:that\s+)?(.{3,300})/i.exec(text)?.[1]?.trim().replace(/[\s.]+$/, '');
   if (remembered) preferences.push({ label: 'User note', value: remembered });
+
+  const statedPreference = /\b(?:i\s+prefer|i'd\s+prefer|i\s+would\s+prefer|please\s+always|in\s+future,?\s+(?:please\s+)?(?:always\s+)?)(.{3,300})/i.exec(text)?.[1]
+    ?.trim().replace(/[\s.]+$/, '');
+  if (statedPreference && preferences.length === 0)
+    preferences.push({ label: 'User preference', value: statedPreference });
   return preferences;
 }
 

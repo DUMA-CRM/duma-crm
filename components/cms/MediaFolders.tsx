@@ -79,12 +79,15 @@ export const DROP_TARGET_CLASS = 'border-primary bg-primary/10 ring-2 ring-prima
 
 export function FolderTile({
   path,
+  name,
   count,
   selected,
   dropTarget,
   ...props
 }: {
   path: string;
+  /** What to call it, when that is not the last step of `path` (Entries: a model's name). */
+  name?: string;
   /** Files in it and below; null for an empty folder made on this device. */
   count: number | null;
   selected: boolean;
@@ -111,7 +114,7 @@ export function FolderTile({
       ) : (
         <FolderIcon size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
       )}
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{folderName(path)}</span>
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{name ?? folderName(path)}</span>
       <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{count === null ? 'Empty' : count}</span>
     </button>
   );

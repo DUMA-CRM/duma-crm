@@ -246,13 +246,18 @@ export async function POST(request: Request) {
 
     const safe = safeContext(body.context);
     const memoryTenantId = safe.tenantId ?? profile.tenantId ?? null;
-    const storedMemory = memoryTenantId
-      ? await getAgentMemory(memoryTenantId, cookieHeader)
-          .then((value) => value.content)
-          .catch(() => '')
-      : '';
+    let storedMemory = '';
+    let memoryLoaded = false;
+    if (memoryTenantId) {
+      try {
+        storedMemory = (await getAgentMemory(memoryTenantId, cookieHeader)).content;
+        memoryLoaded = true;
+      } catch (error) {
+        console.warn('Ask DUMA could not load memory; skipping preference learning.', error);
+      }
+    }
     const latestRequest = body.messages.at(-1)!.content;
-    const learnedMemory = learnAgentMemory(storedMemory, latestRequest);
+    const learnedMemory = memoryLoaded ? learnAgentMemory(storedMemory, latestRequest) : null;
     const context = {
       ...safe,
       memory: learnedMemory ?? storedMemory,
@@ -294,7 +299,13 @@ export async function POST(request: Request) {
 
     // Preference learning is best-effort and cannot prevent the answer. The
     // stored text is loaded back only as untrusted context on a later turn.
-    if (learnedMemory !== null) await saveAgentMemory(learnedMemory, memoryTenantId, cookieHeader).catch(() => undefined);
+    if (learnedMemory !== null) {
+      try {
+        await saveAgentMemory(learnedMemory, memoryTenantId, cookieHeader);
+      } catch (error) {
+        console.warn('Ask DUMA could not save learned memory.', error);
+      }
+    }
 
     return streamTurn(messages, context, cookieHeader, profile, saved);
   } catch (error) {
