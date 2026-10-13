@@ -1,3 +1,4 @@
+import { emailImageUrl, previewImageSrc } from '@/lib/utils/email-images';
 import { viaApiProxy } from '@/lib/utils/image-src';
 
 // The deployed API lives on a DIFFERENT host than the app (e.g. api.dudych.cc
@@ -25,6 +26,15 @@ const API_BASE = `${API_PREFIX}/v1`;
  * as it is. See lib/utils/image-src.ts.
  */
 export const proxiedImage = (url: string | null | undefined) => viaApiProxy(url, API_ORIGIN, API_PREFIX);
+
+/**
+ * An email image the editor may load, or null when the CSP would refuse it
+ * (any outside host) and a placeholder should stand in. See lib/utils/email-images.ts.
+ */
+export const proxiedImageForEmail = (url: string | null | undefined) => previewImageSrc(url, API_ORIGIN, API_PREFIX);
+
+/** A Media file's address as an email must carry it: absolute, for the inbox. */
+export const absoluteMediaUrl = (url: string) => emailImageUrl(url, API_ORIGIN);
 
 // ---------------------------------------------------------------------------
 // Low-level fetch wrapper used by service modules.

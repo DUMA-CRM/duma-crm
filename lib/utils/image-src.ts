@@ -1,4 +1,10 @@
 /**
+ * The outside hosts this app's CSP lets images load from (proxy.ts `img-src`).
+ * Mirrors `images.remotePatterns` in next.config.ts — change both together.
+ */
+export const CSP_IMAGE_HOSTS: readonly string[] = ['mdm-assets.integration.costacoffee.com', 'duma-coffee.vercel.app'];
+
+/**
  * An image address the browser may load on this app's pages.
  *
  * The CSP allows images from this origin (and a fixed list), not from the

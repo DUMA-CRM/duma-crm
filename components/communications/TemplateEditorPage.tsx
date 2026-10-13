@@ -4,6 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Mascot } from '@/components/ai/Mascot';
+import { MediaPicker } from '@/components/cms/MediaPicker';
+import { createRenditions } from '@/components/cms/renditions';
+import { invalidateCms } from '@/components/cms/shared';
 import { RowTile } from '@/components/cms/rows';
 import {
   ArrowDown,
@@ -31,6 +34,10 @@ import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { absoluteMediaUrl, proxiedImageForEmail } from '@/lib/api/client';
+import { hasCapability } from '@/lib/auth/capabilities';
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
+import { type CmsAsset, uploadCmsAsset } from '@/lib/modules/cms/client';
 import {
   type EmailTemplate,
   type EmailTemplatePayload,
@@ -45,6 +52,7 @@ import {
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { connectionState } from '@/lib/utils/communications';
+import { previewEmailHtml } from '@/lib/utils/email-images';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -106,7 +114,13 @@ export function TemplateEditorPage({
   const access = useEmailAccess();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const user = useAuthStore((state) => state.user);
+  const capabilities = useAuthStore((state) => state.capabilities);
   const queryClient = useQueryClient();
+  // Content's media library: the module on, and Media readable / writable — as the API checks.
+  const { contentEnabled } = useCatalogWords();
+  const canBrowseMedia = contentEnabled && hasCapability(capabilities, 'cms:read');
+  const canUploadMedia = contentEnabled && hasCapability(capabilities, 'cms:write');
+  const [pickingFor, setPickingFor] = useState<string | null>(null);
   const source = template;
   // Stored designs may predate column rows, so everything is read through the
   // normaliser before it reaches the canvas.
@@ -183,6 +197,8 @@ export function TemplateEditorPage({
   const selected = findTemplateBlock(design, selectedId);
   const compiledHtml = mode === 'visual' ? renderTemplateDesign(design) : htmlBody;
   const compiledText = mode === 'visual' ? templateDesignToPlainText(design) : textBody;
+  // What the read-only frame draws: images our CSP refuses become placeholders.
+  const previewHtml = useMemo(() => previewEmailHtml(compiledHtml, proxiedImageForEmail), [compiledHtml]);
   const canSave = Boolean(name.trim() && subject.trim() && compiledHtml.trim());
   const connectionStatus = connectionState(connection, access.canReadConnection);
   const readOnly = !access.canWrite;
@@ -310,10 +326,36 @@ export function TemplateEditorPage({
   };
   const updateBlock = (next: TemplateBlock) => setDesign((current) => updateTemplateBlock(current, next));
 
+  /** Puts an image in a block, and its description too if the block has none yet. */
+  const fillImage = (blockId: string, url: string, alt?: string | null) =>
+    setDesign((current) => {
+      const target = findTemplateBlock(current, blockId);
+      return target?.type === 'image' ? updateTemplateBlock(current, { ...target, url, alt: target.alt || alt || '' }) : current;
+    });
+
+  /** A Media file into a block — at its absolute address, the only kind an inbox can load. */
+  const fillFromAsset = (blockId: string, asset: CmsAsset) => {
+    if (asset.mimeType === 'image/svg+xml') toast('error', 'Gmail and Outlook don’t show SVG images — use a PNG or JPG.');
+    fillImage(blockId, absoluteMediaUrl(asset.url), asset.altText ?? asset.title);
+  };
+
+  /**
+   * With Content on and `cms:write`, into Media (folder "Email"), so the image
+   * can be reused in other emails and on the website. Otherwise into the
+   * communications image store, as before Media existed.
+   */
   const uploadImage = async (file: File) => {
     const blockId = imageTargetRef.current;
     if (!tenantId || !blockId) return;
     try {
+      if (canUploadMedia) {
+        const asset = await uploadCmsAsset(file, { title: file.name.replace(/\.[^.]+$/, ''), folder: 'Email' }, tenantId);
+        await createRenditions(asset, tenantId, file).catch(() => 0);
+        void invalidateCms(queryClient);
+        fillFromAsset(blockId, asset);
+        toast('success', 'Image uploaded to Media.');
+        return;
+      }
       const query = new URLSearchParams({ tenantId, filename: file.name });
       const response = await fetch(`/api/communications/images?${query}`, {
         method: 'POST',
@@ -322,18 +364,21 @@ export function TemplateEditorPage({
       });
       const result = (await response.json()) as { url?: string; error?: string };
       if (!response.ok || !result.url) throw new Error(result.error ?? 'Upload failed.');
-      setDesign((current) => {
-        const target = findTemplateBlock(current, blockId);
-        return target?.type === 'image' ? updateTemplateBlock(current, { ...target, url: result.url! }) : current;
-      });
+      fillImage(blockId, result.url);
       toast('success', 'Image uploaded.');
     } catch (error) {
       toast('error', error instanceof Error ? error.message : 'Image upload failed.');
     }
   };
-  const requestImage = (blockId: string) => {
+  /** A file from this device. */
+  const uploadFor = (blockId: string) => {
     imageTargetRef.current = blockId;
     fileRef.current?.click();
+  };
+  /** The media library when there is one (it can upload too), else a file from this device. */
+  const requestImage = (blockId: string) => {
+    if (canBrowseMedia) setPickingFor(blockId);
+    else uploadFor(blockId);
   };
 
   // The checklist, plus the connection — the one problem that isn't in the email itself.
@@ -573,7 +618,7 @@ export function TemplateEditorPage({
             {readOnly ? (
               // Reading, not building: the email as it renders.
               <div className="overflow-hidden rounded-lg border border-rule/60 bg-white">
-                <iframe title="Email" sandbox="" srcDoc={compiledHtml} className="h-[calc(100dvh-16rem)] min-h-96 w-full border-0" />
+                <iframe title="Email" sandbox="" srcDoc={previewHtml} className="h-[calc(100dvh-16rem)] min-h-96 w-full border-0" />
               </div>
             ) : mode === 'html' ? (
               <div className="space-y-4 rounded-lg border border-rule/60 bg-field p-5">
@@ -658,7 +703,8 @@ export function TemplateEditorPage({
             selected={readOnly ? undefined : selected}
             onDeselect={() => setSelectedId('')}
             onBlockChange={updateBlock}
-            onChooseImage={requestImage}
+            onChooseImage={uploadFor}
+            onBrowseMedia={canBrowseMedia ? setPickingFor : undefined}
             name={name}
             onName={setName}
             category={category}
@@ -697,6 +743,17 @@ export function TemplateEditorPage({
         </aside>
       </form>
 
+      {pickingFor && (
+        <MediaPicker
+          multiple={false}
+          groups={['image']}
+          onClose={() => setPickingFor(null)}
+          onPick={(_, [asset]) => {
+            if (asset) fillFromAsset(pickingFor, asset);
+            setPickingFor(null);
+          }}
+        />
+      )}
       {previewing && (
         <EmailPreviewDrawer
           description="How it looks in an inbox"

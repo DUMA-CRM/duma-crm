@@ -29,10 +29,12 @@ import { AmountUnitPicker } from '@/components/ui/amount-unit-picker';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
+import { proxiedImageForEmail } from '@/lib/api/client';
 import type { EmailAutomation, EmailAutomationRun, EmailTemplate, EmailWorkflowNode } from '@/lib/modules/communications/client';
 import { cn } from '@/lib/utils/cn';
 import { timeAgo } from '@/lib/utils/communications';
 import { formatDelay } from '@/lib/utils/duration';
+import { previewEmailHtml } from '@/lib/utils/email-images';
 import { resolvedTimeZone } from '@/lib/utils/workspace-time';
 
 import { ExpandRow } from './ExpandRow';
@@ -321,7 +323,7 @@ function StepPanel({
                 title=""
                 sandbox=""
                 tabIndex={-1}
-                srcDoc={selectedTemplate.htmlBody}
+                srcDoc={previewEmailHtml(selectedTemplate.htmlBody, proxiedImageForEmail)}
                 className="pointer-events-none h-150 w-[200%] origin-top-left scale-50 border-0 bg-white"
               />
             </span>

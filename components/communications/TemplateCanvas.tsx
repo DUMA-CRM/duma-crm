@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUp, Copy, ImagePlus, LayoutGrid, Menu, Trash2 } from '@
 
 import { cn } from '@/lib/utils/cn';
 
+import { EmailImage } from './EmailImage';
 import {
   type ColumnsLayout,
   type DropContainer,
@@ -109,7 +110,7 @@ export function TemplateCanvas({
   onSelect: (id: string) => void;
   onChange: (design: TemplateDesign) => void;
   dnd: CanvasDnd;
-  /** Opens the file picker for an image block. */
+  /** Finds an image for an image block: the media library, or a file from this device. */
   onRequestImage: (blockId: string) => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -620,10 +621,7 @@ function LeafView({
     return (
       <div className={compact ? 'py-2' : 'py-3'} style={{ textAlign: block.align }}>
         {block.url ? (
-          // Email-builder images use arbitrary tenant-uploaded public URLs;
-          // next/image cannot know or safely proxy those hosts at build time.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={block.url} alt={block.alt} className="inline-block h-auto max-w-full rounded-sm" style={{ width: `${block.width}%` }} />
+          <EmailImage url={block.url} alt={block.alt} className="inline-block h-auto max-w-full rounded-sm" style={{ width: `${block.width}%` }} />
         ) : (
           <button
             type="button"

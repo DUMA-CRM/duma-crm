@@ -40,6 +40,7 @@ import { Slider } from '@/components/ui/slider';
 
 import { cn } from '@/lib/utils/cn';
 
+import { EmailImage } from './EmailImage';
 import { ExpandRow } from './ExpandRow';
 import { VariablePalette } from './VariablePalette';
 import { COLUMN_LAYOUTS, type TemplateBlock, type TemplateDesign, isColumnsBlock, relayoutColumns } from './templateDesign';
@@ -67,7 +68,7 @@ const BLOCK_META: Record<TemplateBlock['type'], { label: string; icon: IconCompo
   heading: { label: 'Heading', icon: Heading, about: 'Type straight on the email to change the words.' },
   text: { label: 'Text', icon: FileText, about: 'Type straight on the email to change the words.' },
   button: { label: 'Button', icon: Link2, about: 'The label is typed on the button itself. Its colour is your brand colour.' },
-  image: { label: 'Image', icon: ImageIcon, about: 'Upload a picture or link to one already online.' },
+  image: { label: 'Image', icon: ImageIcon, about: 'Pick one from Media, upload a picture, or link to one already online.' },
   divider: { label: 'Divider', icon: AlignLeft, about: 'A thin line between sections.' },
   spacer: { label: 'Spacer', icon: Maximize, about: 'Empty space between blocks.' },
   social: { label: 'Social links', icon: Share2, about: 'Where customers can find you.' },
@@ -103,6 +104,7 @@ export function TemplateSettingsPanel({
   onDeselect,
   onBlockChange,
   onChooseImage,
+  onBrowseMedia,
   name,
   onName,
   category,
@@ -130,7 +132,10 @@ export function TemplateSettingsPanel({
   selected?: TemplateBlock;
   onDeselect: () => void;
   onBlockChange: (block: TemplateBlock) => void;
+  /** Upload a file from this device into an image block. */
   onChooseImage: (blockId: string) => void;
+  /** Pick from the media library; absent without Content or `cms:read`. */
+  onBrowseMedia?: (blockId: string) => void;
   name: string;
   onName: (value: string) => void;
   category: string;
@@ -167,6 +172,7 @@ export function TemplateSettingsPanel({
             block={selected}
             onChange={onBlockChange}
             onChooseImage={() => onChooseImage(selected.id)}
+            onBrowseMedia={onBrowseMedia ? () => onBrowseMedia(selected.id) : undefined}
             onDeselect={onDeselect}
           />
         </fieldset>
@@ -342,11 +348,13 @@ function BlockSettings({
   block,
   onChange,
   onChooseImage,
+  onBrowseMedia,
   onDeselect,
 }: {
   block: TemplateBlock;
   onChange: (block: TemplateBlock) => void;
   onChooseImage: () => void;
+  onBrowseMedia?: () => void;
   onDeselect: () => void;
 }) {
   const meta = BLOCK_META[block.type];
@@ -419,15 +427,27 @@ function BlockSettings({
         <SettingsSection title="Image">
           <div className="space-y-4">
             {block.url && (
-              <div className="overflow-hidden rounded-md border border-rule/60 bg-band/40">
-                {/* eslint-disable-next-line @next/next/no-img-element -- any URL the sender pastes, not an optimisable asset */}
-                <img src={block.url} alt="" className="mx-auto max-h-36 object-contain" />
+              <div className="overflow-hidden rounded-md border border-rule/60 bg-band/40 text-muted-foreground">
+                <EmailImage url={block.url} alt="" className="mx-auto block max-h-36 w-full object-contain" />
               </div>
             )}
-            <Button type="button" variant="outline" className="w-full gap-2" onClick={onChooseImage}>
-              <ImagePlus aria-hidden="true" />
-              {block.url ? 'Replace image' : 'Upload image'}
-            </Button>
+            {onBrowseMedia ? (
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant="outline" className="gap-2" onClick={onBrowseMedia}>
+                  <ImageIcon aria-hidden="true" />
+                  Media library
+                </Button>
+                <Button type="button" variant="outline" className="gap-2" onClick={onChooseImage}>
+                  <ImagePlus aria-hidden="true" />
+                  Upload
+                </Button>
+              </div>
+            ) : (
+              <Button type="button" variant="outline" className="w-full gap-2" onClick={onChooseImage}>
+                <ImagePlus aria-hidden="true" />
+                {block.url ? 'Replace image' : 'Upload image'}
+              </Button>
+            )}
             <FieldRow icon={Link2} title="Image link" htmlFor="block-image-url" note="Or paste one">
               <Input
                 id="block-image-url"

@@ -2,7 +2,9 @@
 
 import { Drawer } from '@/components/shared/Drawer';
 
+import { proxiedImageForEmail } from '@/lib/api/client';
 import type { EmailDelivery } from '@/lib/modules/communications/client';
+import { previewEmailHtml } from '@/lib/utils/email-images';
 
 /**
  * Email preview slide-over — renders an email the way an inbox would. It docks
@@ -47,7 +49,8 @@ export function EmailPreviewDrawer({
             <p className="text-base font-semibold">{subject || 'Email subject'}</p>
             <p className="mt-1 text-xs text-gray-500">{recipient}</p>
           </div>
-          <iframe title="Email preview" sandbox="" srcDoc={htmlBody} className="h-[calc(100dvh-17rem)] min-h-80 w-full border-0 bg-white" />
+          {/* Images our CSP refuses (any outside host) are drawn as placeholders; the email keeps the real ones. */}
+          <iframe title="Email preview" sandbox="" srcDoc={previewEmailHtml(htmlBody, proxiedImageForEmail)} className="h-[calc(100dvh-17rem)] min-h-80 w-full border-0 bg-white" />
         </div>
 
         {note && <p className="text-center text-xs text-muted-foreground">{note}</p>}

@@ -9,6 +9,8 @@
 //   CRM layout = validates the session is still active/not expired.
 import { NextRequest, NextResponse } from 'next/server';
 
+import { CSP_IMAGE_HOSTS } from '@/lib/utils/image-src';
+
 // better-auth's session cookie. The exact name varies with configuration —
 // `better-auth.session_token` plain, `__Secure-better-auth.session_token` on
 // HTTPS, or a custom cookiePrefix — so match by suffix, not equality.
@@ -41,7 +43,7 @@ const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-passwo
  * down means rewriting them to classes for a far smaller prize than script
  * injection. Noted rather than quietly omitted.
  *
- * `img-src` mirrors the `remotePatterns` in next.config.ts; if one changes the
+ * `img-src` (`CSP_IMAGE_HOSTS`) mirrors the `remotePatterns` in next.config.ts; if one changes the
  * other must too, or images fail with no visible error.
  *
  * Set `CSP_REPORT_ONLY=true` to switch to the report-only header while
@@ -60,7 +62,7 @@ function contentSecurityPolicy(nonce: string, allowEval: boolean, frameable = fa
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${allowEval ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data: https://mdm-assets.integration.costacoffee.com https://duma-coffee.vercel.app",
+    `img-src 'self' blob: data: ${CSP_IMAGE_HOSTS.map((host) => `https://${host}`).join(' ')}`,
     "font-src 'self' data:",
     // Browser API calls go to /be on this origin; the service worker is ours.
     "connect-src 'self'",
