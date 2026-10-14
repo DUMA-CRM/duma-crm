@@ -10,7 +10,7 @@
  */
 export const BRANDS = [
   { id: 'forest', label: 'Forest', detail: 'The DUMA green.' },
-  { id: 'ocean', label: 'Ocean', detail: 'Deep harbour blue.' },
+  { id: 'ocean', label: 'Navy', detail: 'Old-money navy blue.' },
   { id: 'plum', label: 'Plum', detail: 'Rich and warm.' },
   { id: 'espresso', label: 'Espresso', detail: 'Roasted coffee brown.' },
   { id: 'graphite', label: 'Graphite', detail: 'Quiet, cool slate.' },

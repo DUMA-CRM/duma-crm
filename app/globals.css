@@ -241,19 +241,21 @@
    made every panel, trough and rule a shade of green, so the whole
    application read as one colour and the domain roles had nothing to sit
    against. Night keeps the warmth in the ink and drops the hue out of the
-   materials: a near-black warm charcoal ladder — ground → field → band —
-   with roles at full chroma over it.
+   materials: a near-black neutral graphite ladder — ground → field → band —
+   with roles at full chroma over it. (Warm charcoal until 2026-10: graphite
+   reads crisper and more premium, and lets every brand's night key sit on a
+   surface that has no hue of its own to argue with.)
 
    Green is therefore signal rather than the room: the action key, the
    mascot, team/success ink and healthy states. No SURFACE is green at night,
-   and that includes the navigation shell, which becomes the deepest charcoal.
+   and that includes the navigation shell, which becomes the deepest graphite.
    ════════════════════════════════════════════════════════════════ */
 .dark {
   /* Native controls, form widgets and scrollbars render in their dark variant. */
   color-scheme: dark;
 
-  /* Warm charcoal, not graphite: hue stays on the oat side of neutral, chroma
-     is low enough that the eye reads it as dark rather than as a colour.
+  /* Neutral graphite: a whisper of cool (hue ~260, chroma <0.006) so it reads
+     as engineered dark rather than as warm brown or as dead #000-grey.
 
      Lifted off near-black (was #121110 / #1c1b18 / #272521). A near-black
      ground under near-white ink measured 16.6:1 — past the point where
@@ -261,18 +263,19 @@
      dark around it for anyone with astigmatism, and the glare is worst in a
      dim room, which is exactly when night mode is on. The ladder keeps its
      spacing, so field still lifts off ground and band still reads as a trough. */
-  --ground: #181716;
-  --field: #1f1e1c;
+  --ground: #121316;
+  --field: #18191c;
   --control: var(--field);
-  --band: #292724;
+  --band: #1f2125;
 
-  /* Soft bone rather than paper white: 13.9 / 12.9 / 11.6:1 — still well over
-     7:1 body-ink, without the vibration. ink-2 stays ≥6:1 on every surface. */
-  --ink: #e8e2d8;
-  --ink-2: #aba497;
+  /* Cool off-white rather than paper white: ~14.3 / 15.1 / 13.1:1 on field /
+     ground / band — held under the 16.6:1 that caused halation. ink-2 is
+     ≥6.6:1 on every surface. */
+  --ink: #e2e4e8;
+  --ink-2: #a2a6ad;
 
-  --grid-minor: #252321;
-  --grid-major: #34312c;
+  --grid-minor: #1b1c20;
+  --grid-major: #2a2c31;
 
   /* Two border tiers at night, where one would do by day. Every hairline in
      the app at 3.2–3.9:1 is what made the room busy: a dark surface ruled in
@@ -280,12 +283,24 @@
      dividers) drop to a quiet seam; --rule, which still drives inputs and the
      plot field, stays ≥3:1 on ground and field so a control's edge still
      meets 1.4.11 where it has to be found. */
-  --rule: #726c62;
-  --border: #46423c;
+  --rule: #6c7079;
+  /* The seam is translucent ink rather than a fixed brown, so one hairline
+     reads the same on ground, field, band and an overlay instead of being
+     tuned for whichever surface it was picked on. 16% of bone lands at about
+     #343538 on field — quieter than the old #46423c, which was what made a
+     dense screen read as a wireframe. */
+  --border: color-mix(in oklab, var(--ink) 16%, transparent);
   --input: var(--rule);
 
+  /* Overlays sit one tier above field. At night a shadow barely registers, so
+     the surface itself has to get lighter as it comes forward — the way every
+     mature dark system (Material, Atlassian, Linear) expresses elevation.
+     Ink is 13.2:1 on it and ink-2 6.8:1. The shadow utilities below add the
+     same lift to anything that floats without being re-coloured. */
+  --popover: #1c1e21;
+
   /* Roles pulled ~10–15% toward the surface in chroma. Full-chroma pastels
-     vibrate on charcoal — the eye cannot settle on them — and in the old set
+     vibrate on graphite — the eye cannot settle on them — and in the old set
      exception (#ff9298) and reference (#a7b0ff) were the loudest things on
      screen even when nothing was wrong. Every role text is still ≥6.2:1 on
      field, ground and band, and hues are unchanged, so meaning is unchanged. */
@@ -301,24 +316,23 @@
      --brand, which the night brand blocks redefine. */
 
   /* Night success is a light green, so its label flips to the dark ink (8.55:1). */
-  --success-foreground: #171512;
+  --success-foreground: #111214;
 
-  /* At night the shell drops its forest and becomes the darkest charcoal in
-     the ladder, one step below --ground. Even at its deepest tier a green
-     column was the only coloured block on a neutral screen, so it pulled the
-     eye to the edge of the room. Most dark-mode apps do this: navigation is
-     the quietest surface, and it stays separate from the content through
-     its seam and a slight difference in value, not through hue. Brand green
-     still appears at night in the action key and the mascot. Active and
-     hover states step up to band. */
-  --sidebar: #141312;
-  --sidebar-foreground: #e3ddd1;
-  --sidebar-primary: #ece6da;
-  --sidebar-primary-foreground: #141312;
-  --sidebar-accent: #2a2825;
-  --sidebar-accent-foreground: #e8e2d8;
-  --sidebar-border: #34312c;
-  --sidebar-ring: #ece6da;
+  /* At night the shell drops its forest and is the same surface as the
+     header (--field), so the sidebar and the top bar read as one frame around
+     the page rather than a dark column bolted to a lighter bar. It is set off
+     from the content by the same --divider seam the header uses, not by hue or
+     a darker value. Brand colour still appears at night in the action key and
+     the mascot. Active and hover rows step up one tier. (Was the darkest
+     graphite with a 16% brand tint until 2026-10.) */
+  --sidebar: var(--field);
+  --sidebar-foreground: #dfe1e5;
+  --sidebar-primary: #eceef1;
+  --sidebar-primary-foreground: var(--field);
+  --sidebar-accent: #25272c;
+  --sidebar-accent-foreground: #e2e4e8;
+  --sidebar-border: var(--divider);
+  --sidebar-ring: #eceef1;
 
   --chart-5: oklch(0.68 0.018 250);
   --series-1: #3987e5;
@@ -326,9 +340,15 @@
   --series-3: #199e70;
   --series-4: #c98500;
 
-  /* Shadows barely register on charcoal, so overlays lean on a darker tint
+  /* Shadows barely register on graphite, so overlays lean on a darker tint
      and on field sitting a step above ground. */
-  --shadow-tint: oklch(0.08 0.005 60);
+  --shadow-tint: oklch(0.08 0.004 260);
+
+  /* Night depth is light, not shadow: a top edge catching the light, a lift
+     of the surface itself, and a hard contact ring so a floating panel has an
+     edge against the graphite. Applied by the .dark shadow utilities. */
+  --edge-light: rgb(255 255 255 / 0.055);
+  --edge-contact: rgb(0 0 0 / 0.38);
 
   /* The night tier of the same green, so the mascot is one character across both
      themes rather than a green one by day and a bone one by night.
@@ -345,7 +365,7 @@
    A brand is the action key (--primary), the day shell (--sidebar and its
    raised/seam tiers) and the mascot body. It never touches the data roles:
    momentum stays green under every brand, because "on track" is a meaning,
-   not a decoration. The night shell stays charcoal under every brand, for the
+   not a decoration. The night shell stays graphite under every brand, for the
    reason given in the night block.
 
    Brand blocks match ANY element, not only <html>, so a swatch can wear a
@@ -357,12 +377,12 @@
 
    Every palette is held to the bars forest set, measured:
                  day text field/ground/band   fill   shell fg   night text f/g/b   night fill
-     forest      7.18 / 6.46 / 5.81           7.08   8.79       5.97 / 6.41 / 5.34  6.53
-     ocean       7.55 / 6.79 / 6.10           7.44   9.66       6.22 / 6.69 / 5.56  6.81
-     plum        9.00 / 8.10 / 7.27           8.87   11.12      6.24 / 6.71 / 5.58  6.83
-     espresso    8.07 / 7.26 / 6.52           7.96   10.47      6.83 / 7.34 / 6.10  7.47
-     graphite    9.38 / 8.44 / 7.58           9.25   11.71      7.49 / 8.05 / 6.70  8.19
-   Keep them deep: ocean drifting light becomes periwinkle (reference), and
+     forest      7.18 / 6.46 / 5.81           7.08   8.79       6.30 / 6.66 / 5.78  6.71
+     ocean       11.22 / 10.10 / 9.07         11.06  12.72      6.92 / 7.31 / 6.34  7.37
+     plum        9.00 / 8.10 / 7.27           8.87   11.12      6.58 / 6.96 / 6.04  7.02
+     espresso    8.07 / 7.26 / 6.52           7.96   10.47      7.21 / 7.61 / 6.61  7.68
+     graphite    9.38 / 8.44 / 7.58           9.25   11.71      7.90 / 8.35 / 7.25  8.43
+   Keep them deep: ocean (navy) drifting light becomes periwinkle (reference), and
    espresso drifting warm becomes rust (measured) or saffron (stock).
 
    The selectable list is BRANDS in lib/utils/brand.ts — add a block here and
@@ -384,35 +404,36 @@
   --brand-shell-ink: #17382c;
   --brand-mascot: #1f6146;
 }
-/* The night key: carries #171512 as a fill and reads as text on all three
-   charcoals. Softer than the old #4fb187, still a step deeper than --momentum
+/* The night key: carries #111214 as a fill and reads as text on all three
+   graphites. Softer than the old #4fb187, still a step deeper than --momentum
    so the two greens stay tellable apart. */
 .dark,
 .dark[data-brand='forest'],
 .dark [data-brand='forest'] {
   --brand: #5aaa85;
   --brand-hover: #66b690;
-  --brand-on: #171512;
+  --brand-on: #111214;
   --brand-mascot: #5aaa85;
 }
 
-/* Deep harbour blue — held well below periwinkle in lightness and chroma. */
+/* Old-money navy — a deep, quiet blue-black with a little grey in it. Kept
+   low in chroma so it reads as tailoring, not as a link or as info data. */
 [data-brand='ocean'] {
-  --brand: #1d5878;
-  --brand-hover: #15415a;
+  --brand: #1f3a5f;
+  --brand-hover: #162b47;
   --brand-on: #fffaf4;
-  --brand-shell: #15415a;
-  --brand-shell-raised: #245f80;
-  --brand-shell-seam: #3a6a85;
-  --brand-shell-ink: #13303f;
-  --brand-mascot: #1d5878;
+  --brand-shell: #162b47;
+  --brand-shell-raised: #24406a;
+  --brand-shell-seam: #3b5175;
+  --brand-shell-ink: #101e33;
+  --brand-mascot: #1f3a5f;
 }
 .dark[data-brand='ocean'],
 .dark [data-brand='ocean'] {
-  --brand: #62a6cc;
-  --brand-hover: #72b2d6;
-  --brand-on: #171512;
-  --brand-mascot: #62a6cc;
+  --brand: #8aa4cc;
+  --brand-hover: #98b0d6;
+  --brand-on: #111214;
+  --brand-mascot: #8aa4cc;
 }
 
 [data-brand='plum'] {
@@ -429,7 +450,7 @@
 .dark [data-brand='plum'] {
   --brand: #c48dba;
   --brand-hover: #ce9cc5;
-  --brand-on: #171512;
+  --brand-on: #111214;
   --brand-mascot: #c48dba;
 }
 
@@ -448,7 +469,7 @@
 .dark [data-brand='espresso'] {
   --brand: #c99d7e;
   --brand-hover: #d3ab8f;
-  --brand-on: #171512;
+  --brand-on: #111214;
   --brand-mascot: #c99d7e;
 }
 
@@ -467,7 +488,7 @@
 .dark [data-brand='graphite'] {
   --brand: #a5afba;
   --brand-hover: #b3bcc6;
-  --brand-on: #171512;
+  --brand-on: #111214;
   --brand-mascot: #a5afba;
 }
 
@@ -886,6 +907,53 @@
       0 6px 12px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 14%, transparent)),
       0 36px 80px -24px var(--tw-shadow-color, color-mix(in oklab, var(--shadow-tint) 34%, transparent));
   }
+
+  /* Night. A soft drop is nearly invisible on graphite, so each tier is three
+     things: an inset top edge (light catching the lip of the panel), an inset
+     wash that lifts the surface a step brighter the higher it floats — painted
+     over the background, under the content, so it never replaces a fill or an
+     image — and, for overlays, a contact ring plus a deep black drop. */
+  .dark .shadow-2xs,
+  .dark .shadow-xs,
+  .dark .shadow-sm,
+  .dark .hover\:shadow-sm:hover {
+    --tw-shadow:
+      inset 0 1px 0 0 var(--edge-light),
+      0 1px 2px rgb(0 0 0 / 0.32);
+  }
+
+  .dark .shadow-md {
+    --tw-shadow:
+      inset 0 1px 0 0 var(--edge-light),
+      inset 0 0 0 100vmax rgb(255 255 255 / 0.012),
+      0 6px 16px -6px var(--tw-shadow-color, rgb(0 0 0 / 0.5));
+  }
+
+  .dark .shadow-lg {
+    --tw-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.065),
+      inset 0 0 0 100vmax rgb(255 255 255 / 0.022),
+      0 0 0 1px var(--edge-contact),
+      0 14px 32px -10px var(--tw-shadow-color, rgb(0 0 0 / 0.62));
+  }
+
+  .dark .shadow-xl,
+  .dark .shadow-2xl {
+    --tw-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.075),
+      inset 0 0 0 100vmax rgb(255 255 255 / 0.03),
+      0 0 0 1px var(--edge-contact),
+      0 28px 64px -16px var(--tw-shadow-color, rgb(0 0 0 / 0.72));
+  }
+  @media (width >= 48rem) {
+    .dark .md\:shadow-2xl {
+      --tw-shadow:
+        inset 0 1px 0 0 rgb(255 255 255 / 0.075),
+        inset 0 0 0 100vmax rgb(255 255 255 / 0.03),
+        0 0 0 1px var(--edge-contact),
+        0 28px 64px -16px var(--tw-shadow-color, rgb(0 0 0 / 0.72));
+    }
+  }
 }
 
 /* ── Notes editor (TipTap) ────────────────────────────────────────────────
@@ -937,7 +1005,7 @@
 
 /* The notes palette (lib/utils/note-editor.ts). A coloured word stores the
    variable, not a hex, so it follows the theme. Highlights are the same hue,
-   thinned — readable on oat and on charcoal alike. */
+   thinned — readable on oat and on graphite alike. */
 :root {
   --note-text-gray: #78736a;
   --note-text-brown: #8c5a3c;
