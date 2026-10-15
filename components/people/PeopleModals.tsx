@@ -120,7 +120,7 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
+          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
         >
           {isPending ? 'Creating…' : 'Create'}
         </button>
@@ -250,7 +250,7 @@ export function EditStaffModal({
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
+          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
         >
           {isPending ? 'Saving…' : 'Save'}
         </button>
@@ -361,7 +361,7 @@ export function EnrollEmployeeModal({
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
+          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
         >
           {isPending ? 'Creating…' : submitLabel}
         </button>
@@ -454,7 +454,7 @@ export function EditEmployeeModal({ employee, name, onClose }: { employee: HrEmp
           className={
             'h-10 px-3 rounded-sm text-sm font-medium transition-colors disabled:opacity-60 flex items-center gap-1.5 ' +
             (confirmOffboard
-              ? 'bg-destructive hover:bg-destructive/90 text-white font-semibold'
+              ? 'bg-destructive hover:bg-destructive/90 text-on-fill font-semibold'
               : 'border border-destructive/30 text-destructive hover:bg-band')
           }
         >
@@ -464,7 +464,7 @@ export function EditEmployeeModal({ employee, name, onClose }: { employee: HrEmp
         <button
           type="submit"
           disabled={save.isPending}
-          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
+          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
         >
           {save.isPending ? 'Saving…' : 'Save'}
         </button>

@@ -134,6 +134,12 @@
   /* `bg-success text-success-foreground` was already in use with no such token
      defined, so that button's label rendered uncoloured. Warm white, 5.49:1. */
   --success-foreground: #fffaf4;
+  /* The label on ANY solid role fill — exception, stock, measured, a success
+     chip. Warm white by day (4.86:1 on measured, ≥5.49:1 on the rest); the
+     night block flips it to graphite (≥7.87:1), because night roles are light
+     and a white label on them measured 1.9–2.3:1. Use `text-on-fill`, never
+     `text-white`. */
+  --on-fill: #fffaf4;
   /* Warning is "approaching the limit", which is the stock lane's own colour —
      running low IS the warning. Previously aliased to --measured, which made a
      warning badge pixel-identical to a primary button and to an order figure:
@@ -165,7 +171,7 @@
   /* Position marker: the active-nav rail and count badges. Warm white rather
      than the old apricot — 8.79:1 on forest instead of 4.78:1, and it keeps the
      shell free of the one hue that now means "order data" everywhere else. */
-  --sidebar-primary: #f8f1e5;
+  --sidebar-primary: var(--brand-shell-mark, #f8f1e5);
   --sidebar-primary-foreground: var(--brand-shell-ink);
   --sidebar-accent: var(--brand-shell-raised);
   --sidebar-accent-foreground: #fffaf2;
@@ -306,7 +312,10 @@
      field, ground and band, and hues are unchanged, so meaning is unchanged. */
   --measured: #e39574;
   --reference: #a4abe6;
-  --momentum: #7fbf9f;
+  /* Saturated emerald, not the old #7fbf9f: that sat ΔOKLab 0.027 from the
+     forest night key (sage), so a Save button and a "paid" state were one
+     colour. 7.71:1 on band, 8.97:1 under #111214. */
+  --momentum: #4ec98a;
   --exception: #e8959a;
   --stock: #d8b673;
 
@@ -317,6 +326,7 @@
 
   /* Night success is a light green, so its label flips to the dark ink (8.55:1). */
   --success-foreground: #111214;
+  --on-fill: #111214;
 
   /* At night the shell drops its forest and is the same surface as the
      header (--field), so the sidebar and the top bar read as one frame around
@@ -377,7 +387,7 @@
 
    Every palette is held to the bars forest set, measured:
                  day text field/ground/band   fill   shell fg   night text f/g/b   night fill
-     forest      7.18 / 6.46 / 5.81           7.08   8.79       6.30 / 6.66 / 5.78  6.71
+     forest      8.55 / 7.69 / 6.91           8.43   11.36      7.80 / 8.24 / 7.15  8.31
      ocean       11.22 / 10.10 / 9.07         11.06  12.72      6.92 / 7.31 / 6.34  7.37
      plum        9.00 / 8.10 / 7.27           8.87   11.12      6.58 / 6.96 / 6.04  7.02
      espresso    8.07 / 7.26 / 6.52           7.96   10.47      7.21 / 7.61 / 6.61  7.68
@@ -391,29 +401,37 @@
    ════════════════════════════════════════════════════════════════ */
 :root,
 [data-brand='forest'] {
-  /* Brand green, one step up from the forest shell (Δ0.069 from --sidebar, so it
-     reads as the same material). Legible as text on all three surfaces AND as a
-     fill under warm white, which is what `text-primary` and `bg-primary` both
-     being one token requires. Hover presses down onto the shell colour itself. */
-  --brand: #1f6146;
-  --brand-hover: #174c38;
+  /* Deep racing green over cream (2026-10; was #1f6146 on a #174c38 shell).
+     Darker and lower in chroma than before, so it reads as tailoring rather
+     than as an app green — and it now sits ΔOKLab 0.102 from --momentum by
+     day instead of 0.059, so the key and "on track" finally separate.
+
+     The brand is the mid emerald: 8.55 / 7.69 / 6.91:1 as text on field /
+     ground / band, 8.43:1 under warm white. Hover presses down onto the shell.
+     The two darkest greens of the palette (#0b2b26, #051f20) are luminance
+     0.02 and below — black at icon size — so they appear only as the shell's
+     ink, never as the mascot. The active marker is pale mint, 10.7:1 on the
+     shell, with the deep green as its count text (12.7:1). */
+  --brand: #235347;
+  --brand-hover: #163832;
   --brand-on: #fffaf4;
-  --brand-shell: #174c38;
-  --brand-shell-raised: #28624d;
-  --brand-shell-seam: #3d6d59;
-  --brand-shell-ink: #17382c;
-  --brand-mascot: #1f6146;
+  --brand-shell: #163832;
+  --brand-shell-raised: #214d42;
+  --brand-shell-seam: #355f53;
+  --brand-shell-ink: #0b2b26;
+  --brand-shell-mark: #daf1de;
+  --brand-mascot: #235347;
 }
-/* The night key: carries #111214 as a fill and reads as text on all three
-   graphites. Softer than the old #4fb187, still a step deeper than --momentum
-   so the two greens stay tellable apart. */
+/* The night key is sage: 7.80 / 8.24 / 7.15:1 on the three graphites and
+   8.31:1 under #111214. Grey-green on purpose — night --momentum was moved
+   to a saturated emerald so the two stay tellable apart (ΔOKLab 0.086). */
 .dark,
 .dark[data-brand='forest'],
 .dark [data-brand='forest'] {
-  --brand: #5aaa85;
-  --brand-hover: #66b690;
+  --brand: #8eb69b;
+  --brand-hover: #9cc4a8;
   --brand-on: #111214;
-  --brand-mascot: #5aaa85;
+  --brand-mascot: #8eb69b;
 }
 
 /* Old-money navy — a deep, quiet blue-black with a little grey in it. Kept
@@ -566,6 +584,7 @@
   /* Semantic */
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-on-fill: var(--on-fill);
   --color-success-highlight: var(--success-highlight);
   --color-warning: var(--warning);
   --color-warning-highlight: var(--warning-highlight);

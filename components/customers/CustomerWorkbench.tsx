@@ -289,7 +289,7 @@ function MembershipCard({ customer }: { customer: Customer }) {
             </p>
           </div>
           <div className="shrink-0 rounded-md bg-white p-1.5 shadow-sm">
-            <QRCode value={qrValue} size={76} bgColor="#ffffff" fgColor="#111a40" aria-label={`Loyalty QR code for ${name}`} />
+            <QRCode value={qrValue} size={76} bgColor="#ffffff" aria-label={`Loyalty QR code for ${name}`} />
           </div>
         </div>
       </article>
@@ -298,7 +298,7 @@ function MembershipCard({ customer }: { customer: Customer }) {
         <Modal title="Scan this code" description={`${name} · member ${memberNumber}`} onClose={() => setScanning(false)}>
           <div className="flex flex-col items-center gap-4 py-2">
             <div className="rounded-lg border border-rule/60 bg-white p-4">
-              <QRCode value={qrValue} size={240} bgColor="#ffffff" fgColor="#111a40" aria-label={`Loyalty QR code for ${name}`} />
+              <QRCode value={qrValue} size={240} bgColor="#ffffff" aria-label={`Loyalty QR code for ${name}`} />
             </div>
             <p className="max-w-xs text-center text-sm text-muted-foreground">
               Hold the till’s scanner up to the screen. Turn the brightness up if it doesn’t read first time.

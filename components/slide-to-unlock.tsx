@@ -209,7 +209,7 @@ export function SlideToUnlockHandle({
     <motion.div
       data-slot="handle"
       className={cn(
-        "absolute top-0 left-0 flex h-10 cursor-grab items-center justify-center rounded-lg bg-white text-zinc-400 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing",
+        "absolute top-0 left-0 flex h-10 cursor-grab items-center justify-center rounded-lg bg-field text-muted-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing",
         disabled && "cursor-not-allowed active:cursor-not-allowed",
         "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-6",
         className

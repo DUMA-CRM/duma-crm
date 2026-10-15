@@ -36,7 +36,7 @@ export const LANE_LABEL: Record<KdsLane, string> = {
 const TONE = {
   ok: { band: 'bg-band/70 text-foreground', bar: 'bg-momentum', card: 'border-rule/70' },
   approaching: { band: 'bg-measured/15 text-foreground', bar: 'bg-measured', card: 'border-measured' },
-  crashed: { band: 'bg-exception text-white dark:text-background', bar: 'bg-white/80 dark:bg-background/70', card: 'border-exception' },
+  crashed: { band: 'bg-exception text-on-fill', bar: 'bg-on-fill/75', card: 'border-exception' },
 } as const;
 
 /**
@@ -131,7 +131,7 @@ export function KdsTicket({
           className={cn(
             'mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold',
             compact ? 'pb-1.5' : 'pb-2.5',
-            age.tone === 'crashed' ? 'text-white/85 dark:text-background/80' : 'text-muted-foreground',
+            age.tone === 'crashed' ? 'text-on-fill/85' : 'text-muted-foreground',
           )}
         >
           <span className="flex items-center gap-1.5">

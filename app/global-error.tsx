@@ -15,7 +15,7 @@ import { useEffect } from 'react';
 const GROUND = '#f4f0e7';
 const INK = '#20372d';
 const INK_2 = '#5c6c63';
-const PRIMARY = '#1f6146';
+const PRIMARY = '#235347';
 const PRIMARY_FG = '#fffaf4';
 
 export default function GlobalError({ error, unstable_retry }: { error: Error & { digest?: string }; unstable_retry: () => void }) {

@@ -467,7 +467,7 @@ function TodayRoster({ roster, now }: { roster: ReturnType<typeof buildRoster>; 
                 ))}
               {window.now !== null && (
                 <span
-                  className="absolute -translate-x-1/2 rounded-sm bg-exception px-1.5 font-sans text-xs font-semibold text-white"
+                  className="absolute -translate-x-1/2 rounded-sm bg-exception px-1.5 font-sans text-xs font-semibold text-on-fill"
                   style={{ left: `${window.now}%` }}
                 >
                   Now

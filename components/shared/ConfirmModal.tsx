@@ -36,7 +36,7 @@ export function ConfirmModal({
           <button
             onClick={onConfirm}
             disabled={isPending}
-            className="flex-1 h-10 bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
+            className="flex-1 h-10 bg-destructive hover:bg-destructive/90 text-on-fill text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
           >
             {isPending ? pendingLabel : confirmLabel}
           </button>

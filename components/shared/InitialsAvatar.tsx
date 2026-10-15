@@ -23,7 +23,7 @@ export function InitialsAvatar({
   const fallback = (
     <div
       className={cn(
-        'rounded-sm bg-linear-to-br from-primary to-primary-hover flex items-center justify-center text-white font-bold shrink-0 select-none',
+        'rounded-sm bg-linear-to-br from-primary to-primary-hover flex items-center justify-center text-primary-foreground font-bold shrink-0 select-none',
         sizeClasses,
         className,
       )}

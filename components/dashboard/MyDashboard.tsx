@@ -197,7 +197,7 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
               <button
                 onClick={() => setClockOutOpen(true)}
                 disabled={busy}
-                className="relative flex h-11 items-center gap-2 rounded-sm bg-destructive px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-destructive/90 active:translate-y-px disabled:opacity-60"
+                className="relative flex h-11 items-center gap-2 rounded-sm bg-destructive px-5 text-sm font-bold text-on-fill shadow-sm transition-colors hover:bg-destructive/90 active:translate-y-px disabled:opacity-60"
               >
                 <LogOut size={20} />
                 Clock Out

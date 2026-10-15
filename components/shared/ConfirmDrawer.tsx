@@ -45,7 +45,7 @@ export function ConfirmDrawer({
             type="button"
             onClick={onConfirm}
             disabled={isPending}
-            className="h-10 flex-1 rounded-sm bg-destructive text-sm font-semibold text-white transition-colors hover:bg-destructive/90 disabled:opacity-60"
+            className="h-10 flex-1 rounded-sm bg-destructive text-sm font-semibold text-on-fill transition-colors hover:bg-destructive/90 disabled:opacity-60"
           >
             {isPending ? pendingLabel : confirmLabel}
           </button>
