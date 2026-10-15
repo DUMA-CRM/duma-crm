@@ -767,7 +767,7 @@ export function MediaPanel({
               <span
                 className={cn(
                   'pointer-events-none absolute right-2 top-2 rounded-sm px-1.5 py-0.5 text-[0.6875rem] font-medium',
-                  copy === 0 ? 'bg-momentum text-white' : 'bg-black/60 text-white',
+                  copy === 0 ? 'bg-momentum text-on-fill' : 'bg-black/60 text-white',
                 )}
               >
                 {copy === 0 ? 'Original' : `Copy ${copy}`}

@@ -28,10 +28,10 @@ export type StatAccent = 'primary' | 'success' | 'warning' | 'danger' | 'info' |
  */
 const ACCENT_CHIP: Record<StatAccent, string> = {
   primary: 'border border-foreground bg-foreground text-background',
-  success: 'border border-momentum bg-momentum text-background',
-  warning: 'border border-measured bg-measured text-background',
-  danger: 'border border-exception bg-exception text-background',
-  info: 'border border-reference bg-reference text-background',
+  success: 'border border-momentum bg-momentum text-on-fill',
+  warning: 'border border-measured bg-measured text-on-fill',
+  danger: 'border border-exception bg-exception text-on-fill',
+  info: 'border border-reference bg-reference text-on-fill',
   purple: 'border border-chart-5 bg-chart-5 text-background',
   neutral: 'border border-muted-foreground bg-muted-foreground text-background',
 };

@@ -119,7 +119,7 @@ export function CartRow({
         }
       >
         <SwipeActions side="right" fullSwipe>
-          <SwipeAction onClick={onRemove} className="bg-destructive text-sm font-semibold text-white" aria-label={`Remove ${cartItem.item.name}`}>
+          <SwipeAction onClick={onRemove} className="bg-destructive text-sm font-semibold text-on-fill" aria-label={`Remove ${cartItem.item.name}`}>
             <Trash2 size={18} aria-hidden="true" />
             Remove
           </SwipeAction>

@@ -111,7 +111,7 @@ function ChoiceGroup<T extends string>({
           <span
             className={cn(
               'flex size-4 items-center justify-center rounded-full border',
-              value === option.value ? 'border-primary bg-primary text-white' : 'border-rule',
+              value === option.value ? 'border-primary bg-primary text-primary-foreground' : 'border-rule',
             )}
           >
             {value === option.value && <Check size={11} aria-hidden="true" />}
@@ -402,7 +402,7 @@ export function LoyaltyProgramWorkspace() {
             <div className="mx-auto max-w-4xl space-y-4 px-3 py-4 md:px-6 md:py-6 lg:py-8">
               <section className="rounded-lg border border-primary/30 bg-primary/[0.045] px-5 py-4" aria-label="Programme summary">
                 <div className="flex gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary text-white">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
                     <Sparkles size={17} />
                   </span>
                   <div>

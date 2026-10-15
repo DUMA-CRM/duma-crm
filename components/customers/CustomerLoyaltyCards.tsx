@@ -183,7 +183,7 @@ function RewardVoucher({ programme, onOpen }: { programme: CustomerLoyaltyProgra
       onClick={onOpen}
       className="group relative flex w-full items-stretch overflow-hidden rounded-lg border border-stock/40 bg-stock/8 text-left transition-colors hover:border-stock/60 hover:bg-stock/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
-      <span className="flex w-16 shrink-0 items-center justify-center bg-stock text-white">
+      <span className="flex w-16 shrink-0 items-center justify-center bg-stock text-on-fill">
         <Sparkles size={20} aria-hidden="true" />
       </span>
       {/* The stub's tear line, with a notch punched top and bottom. */}
@@ -284,7 +284,7 @@ function RewardDrawer({
       <div className="space-y-6">
         {/* The voucher itself, large. */}
         <div className="relative overflow-hidden rounded-xl border border-stock/40 bg-stock/8 p-5 text-center">
-          <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-stock text-white shadow-sm">
+          <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-stock text-on-fill shadow-sm">
             <Gift size={24} aria-hidden="true" />
           </span>
           <p className="mt-3 text-micro font-semibold uppercase tracking-micro text-stock">Ready to use</p>

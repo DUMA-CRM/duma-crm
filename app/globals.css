@@ -134,6 +134,12 @@
   /* `bg-success text-success-foreground` was already in use with no such token
      defined, so that button's label rendered uncoloured. Warm white, 5.49:1. */
   --success-foreground: #fffaf4;
+  /* The label on ANY solid role fill — exception, stock, measured, a success
+     chip. Warm white by day (4.86:1 on measured, ≥5.49:1 on the rest); the
+     night block flips it to graphite (≥7.87:1), because night roles are light
+     and a white label on them measured 1.9–2.3:1. Use `text-on-fill`, never
+     `text-white`. */
+  --on-fill: #fffaf4;
   /* Warning is "approaching the limit", which is the stock lane's own colour —
      running low IS the warning. Previously aliased to --measured, which made a
      warning badge pixel-identical to a primary button and to an order figure:
@@ -320,6 +326,7 @@
 
   /* Night success is a light green, so its label flips to the dark ink (8.55:1). */
   --success-foreground: #111214;
+  --on-fill: #111214;
 
   /* At night the shell drops its forest and is the same surface as the
      header (--field), so the sidebar and the top bar read as one frame around
@@ -577,6 +584,7 @@
   /* Semantic */
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-on-fill: var(--on-fill);
   --color-success-highlight: var(--success-highlight);
   --color-warning: var(--warning);
   --color-warning-highlight: var(--warning-highlight);

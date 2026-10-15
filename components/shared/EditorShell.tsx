@@ -107,7 +107,7 @@ export function EditorShell({
         </Button>
       )}
       {leading ??
-        (icon && <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/80 text-white">{icon}</div>)}
+        (icon && <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/80 text-primary-foreground">{icon}</div>)}
 
       <div className="flex min-w-0 items-center gap-2.5">
         <h1
