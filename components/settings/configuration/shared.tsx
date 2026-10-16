@@ -1,11 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useSyncExternalStore } from 'react';
 
-import { ArrowLeft } from '@/components/icons';
-import { SectionSkeleton, TileSkeleton } from '@/components/shared/TileSkeleton';
 import { Bone } from '@/components/shared/Skeleton';
+import { SectionSkeleton, TileSkeleton } from '@/components/shared/TileSkeleton';
 
 /**
  * These settings live in this device's localStorage, so the server render
@@ -31,16 +29,10 @@ export function ConfigurationHeader({
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <Link
-          href="/settings/configuration"
-          className="inline-flex h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft size={16} aria-hidden="true" /> Configuration
-        </Link>
         <h2 className="text-2xl font-semibold tracking-headline text-foreground">{title}</h2>
         <p className="mt-1 max-w-[62ch] text-sm text-muted-foreground">{description}</p>
       </div>
-      <p className="rounded-full bg-band px-3 py-1 text-xs font-medium text-muted-foreground">{storageLabel}</p>
+      <p className="rounded-md border border-rule/60 bg-field px-2.5 py-1.5 text-xs font-medium text-muted-foreground">{storageLabel}</p>
     </div>
   );
 }

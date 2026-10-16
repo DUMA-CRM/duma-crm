@@ -2,24 +2,21 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
-import Link from 'next/link';
 import { useState } from 'react';
 
-import { ArrowRight, Calculator, CreditCard, Landmark, Plus, Receipt, Tags } from '@/components/icons';
+import { Calculator, Landmark, Receipt, Tags } from '@/components/icons';
 import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SaveBar } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
-import { SectionSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
-import { Button } from '@/components/ui/button';
+import { SectionSkeleton } from '@/components/shared/TileSkeleton';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
 import { type TradingSettings, getTradingSettings, getWorkspaceSetup, saveTradingSettings } from '@/lib/modules/organization/client';
-import { getPaymentConnections } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { CURRENCIES, currencyLabel, formatCurrency } from '@/lib/utils/currencies';
@@ -117,7 +114,6 @@ function TradingForm({
   onlineOnly: boolean;
 }) {
   const qc = useQueryClient();
-  const locationId = useWorkspaceStore((state) => state.locationId);
   const saved = formFrom(settings);
   // Empty fields start from the workspace's own name and address, so an owner confirms rather than retypes.
   const [initial] = useState<Form>(() => ({
@@ -141,12 +137,6 @@ function TradingForm({
   const currencyOptions = CURRENCY_OPTIONS.some((option) => option.value === form.currency)
     ? CURRENCY_OPTIONS
     : [...CURRENCY_OPTIONS, { value: form.currency, label: currencyLabel(form.currency) }];
-
-  const readers = useQuery({
-    queryKey: moduleQueryKeys.payments.key('payment-connections', locationId),
-    queryFn: () => getPaymentConnections(locationId!),
-    enabled: Boolean(locationId),
-  });
 
   const save = useMutation({
     mutationFn: () =>
@@ -281,61 +271,6 @@ function TradingForm({
           </AnimatePresence>
         </SettingsSection>
 
-        <SettingsSection
-          title="Card readers"
-          actions={
-            <Button asChild variant="outline" size="sm">
-              <Link href="/settings/connectors?connector=card-payments">
-                Manage <ArrowRight aria-hidden="true" />
-              </Link>
-            </Button>
-          }
-        >
-          {!locationId ? (
-            <p className="text-sm text-muted-foreground">Choose a location to see its readers.</p>
-          ) : readers.isPending ? (
-            <TilesSkeleton count={1} label="Loading readers" tile="size-9" trailing="h-4 w-14" tileClassName="py-2.5" />
-          ) : readers.isError ? (
-            <p className="text-sm text-muted-foreground">Couldn’t load readers right now.</p>
-          ) : (readers.data ?? []).length === 0 ? (
-            <Link
-              href="/settings/connectors?connector=card-payments&mode=connect"
-              className="flex items-center gap-3 rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground transition-colors hover:border-rule hover:bg-band/45 hover:text-foreground"
-            >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-band">
-                <Plus size={18} aria-hidden="true" />
-              </span>
-              No readers yet — add one to take card payments
-            </Link>
-          ) : (
-            // A glance, not a manager: names and whether each can take money. Changes happen in Connectors.
-            <ul className="space-y-2">
-              {(readers.data ?? []).slice(0, 3).map((reader) => {
-                const active = reader.isActive !== false;
-                return (
-                  <li key={reader.id} className="flex items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-2.5">
-                    <span
-                      className={cn(
-                        'flex size-9 shrink-0 items-center justify-center rounded-md',
-                        active ? 'bg-primary/8 text-primary' : 'bg-band text-muted-foreground',
-                      )}
-                    >
-                      <CreditCard size={16} aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{reader.displayName}</span>
-                    <span className={cn('flex items-center gap-1.5 text-xs', active ? 'text-success' : 'text-muted-foreground')}>
-                      <span className={cn('size-1.5 rounded-full', active ? 'bg-success' : 'bg-muted-foreground/60')} aria-hidden="true" />
-                      {active ? 'Taking payments' : 'Paused'}
-                    </span>
-                  </li>
-                );
-              })}
-              {(readers.data ?? []).length > 3 && (
-                <li className="px-1 text-xs text-muted-foreground">and {(readers.data ?? []).length - 3} more</li>
-              )}
-            </ul>
-          )}
-        </SettingsSection>
       </SettingsTabBody>
 
       <SaveBar

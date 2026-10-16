@@ -196,9 +196,11 @@ export function LocationList({ tenant }: { tenant?: Tenant }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: reduceMotion ? 0 : index * 0.04, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 className={cn(
-                  'relative flex items-center gap-3 rounded-lg border px-3.5 py-3 transition-colors',
+                  'relative flex items-center gap-3 rounded-lg border px-3.5 py-3 transition-[border-color,background-color,box-shadow] duration-150',
                   row.isActive && !selected && 'hover:border-rule hover:bg-band/45',
-                  selected ? 'border-primary/40 bg-primary/5' : 'border-rule/50 bg-background/60',
+                  selected
+                    ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
+                    : 'border-rule/70 bg-background/60',
                 )}
               >
                 <button
@@ -212,9 +214,13 @@ export function LocationList({ tenant }: { tenant?: Tenant }) {
                 >
                   <span
                     className={cn(
-                      'flex size-10 shrink-0 items-center justify-center rounded-md transition-colors',
+                      'flex size-10 shrink-0 items-center justify-center rounded-md border transition-colors duration-150',
                       // Light green like every other icon tile; a closed site goes grey.
-                      row.isActive ? 'bg-primary/8 text-primary' : 'bg-band text-muted-foreground opacity-60',
+                      selected
+                        ? 'border-primary/40 bg-primary text-primary-foreground'
+                        : row.isActive
+                          ? 'border-rule/55 bg-primary/8 text-primary'
+                          : 'border-rule/55 bg-band text-muted-foreground opacity-60',
                     )}
                   >
                     {selected ? <Check size={17} aria-hidden="true" /> : <MapPin size={17} aria-hidden="true" />}
@@ -505,6 +511,7 @@ function LocationForm({
             columns={2}
             value={hoursMode}
             onChange={(next) => setHoursMode(next as 'set' | 'always')}
+            appearance="settings"
             options={[
               { value: 'set', label: 'Set opening hours', icon: Clock },
               { value: 'always', label: 'Open 24/7', icon: Globe },

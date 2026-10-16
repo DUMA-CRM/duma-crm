@@ -48,13 +48,14 @@ export function SecurityTab() {
   const toggle = (row: 'email' | 'password') => setOpen((current) => (current === row ? null : row));
 
   return (
-    <SettingsTabBody aside={<DevicesSection />}>
+    <SettingsTabBody>
       <SettingsSection title="Sign-in">
         <div className="divide-y divide-rule/40">
           <EmailRow open={open === 'email'} onToggle={() => toggle('email')} onDone={() => setOpen(null)} />
           <PasswordRow open={open === 'password'} onToggle={() => toggle('password')} onDone={() => setOpen(null)} />
         </div>
       </SettingsSection>
+      <ActiveSessionsSection />
     </SettingsTabBody>
   );
 }
@@ -296,7 +297,7 @@ function describeDevice(ua?: string | null): { label: string; icon: IconComponen
   return { label: [browser, os].filter(Boolean).join(' · '), icon: isMobile ? Smartphone : Monitor };
 }
 
-function DevicesSection() {
+function ActiveSessionsSection() {
   const qc = useQueryClient();
   const reduceMotion = useReducedMotion();
   const sessionsKey = moduleQueryKeys.identity.key('auth', 'sessions');
@@ -330,15 +331,15 @@ function DevicesSection() {
 
   return (
     <SettingsSection
-      title="Devices"
+      title="Active sessions"
       actions={
         sessions.isSuccess ? <span className="text-xs tabular-nums text-muted-foreground">{sorted.length} signed in</span> : undefined
       }
     >
       {sessions.isPending ? (
-        <TilesSkeleton count={2} label="Loading devices" />
+        <TilesSkeleton count={2} label="Loading active sessions" />
       ) : sessions.isError ? (
-        <ErrorState title="Couldn’t load your devices" onRetry={() => void sessions.refetch()} />
+        <ErrorState title="Couldn’t load your active sessions" onRetry={() => void sessions.refetch()} />
       ) : sorted.length === 0 ? (
         <p className="text-sm text-muted-foreground">No active sessions were returned.</p>
       ) : (
@@ -360,13 +361,17 @@ function DevicesSection() {
                     aria-current={isCurrent || undefined}
                     className={cn(
                       'flex items-center gap-3 rounded-lg border px-3.5 py-3',
-                      isCurrent ? 'border-primary/40 bg-primary/5' : 'border-rule/50 bg-background/60',
+                      isCurrent
+                        ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
+                        : 'border-rule/50 bg-background/60',
                     )}
                   >
                     <span
                       className={cn(
-                        'flex size-10 shrink-0 items-center justify-center rounded-md',
-                        isCurrent ? 'bg-primary text-primary-foreground' : 'bg-band text-muted-foreground',
+                        'flex size-10 shrink-0 items-center justify-center rounded-md border transition-colors duration-150',
+                        isCurrent
+                          ? 'border-primary/40 bg-primary text-primary-foreground'
+                          : 'border-rule/55 bg-band text-muted-foreground',
                       )}
                     >
                       <Icon size={18} aria-hidden="true" />

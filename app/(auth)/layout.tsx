@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { BrandBackdrop } from '@/components/shared/BrandBackdrop';
 import { Logo } from '@/components/shared/Logo';
+import { PublicFooter } from '@/components/shared/PublicFooter';
 
 /**
  * Sign-in, password reset and activation share the landing page's ground: one
@@ -25,13 +26,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </main>
       </div>
 
-      <footer className="flex items-center justify-center gap-4 px-4 pb-6 text-xs text-muted-foreground">
-        <span>© 2026 DUMA</span>
-        <span aria-hidden="true">·</span>
-        <Link href="/support" className="min-h-11 content-center hover:text-foreground">
-          Support
-        </Link>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

@@ -27,6 +27,7 @@ export function SettingsSection({
   children,
   className,
   bodyClassName,
+  descriptionClassName,
   alignActionsToTitle = false,
 }: {
   /** Omit for a panel whose content introduces itself (the profile card). */
@@ -40,6 +41,7 @@ export function SettingsSection({
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
+  descriptionClassName?: string;
   /** Centre the actions on the title line, the description running beneath both — for a control the height of a field (a time picker). */
   alignActionsToTitle?: boolean;
 }) {
@@ -51,16 +53,22 @@ export function SettingsSection({
             <h2 className="min-w-0 flex-1 text-base font-semibold tracking-title text-foreground">{title}</h2>
             {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
           </div>
-          {description && <p className="mt-1 max-w-[68ch] text-sm leading-relaxed text-muted-foreground">{description}</p>}
+          {description && (
+            <p className={cn('mt-1 max-w-[68ch] text-sm leading-relaxed text-muted-foreground', descriptionClassName)}>{description}</p>
+          )}
         </header>
-      ) : (title || description || actions) && (
-        <header className="flex items-start gap-4 px-5 pt-5">
-          <div className="min-w-0 flex-1">
-            {title && <h2 className="text-base font-semibold tracking-title text-foreground">{title}</h2>}
-            {description && <p className="mt-1 max-w-[68ch] text-sm leading-relaxed text-muted-foreground">{description}</p>}
-          </div>
-          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
-        </header>
+      ) : (
+        (title || description || actions) && (
+          <header className="flex items-start gap-4 px-5 pt-5">
+            <div className="min-w-0 flex-1">
+              {title && <h2 className="text-base font-semibold tracking-title text-foreground">{title}</h2>}
+              {description && (
+                <p className={cn('mt-1 max-w-[68ch] text-sm leading-relaxed text-muted-foreground', descriptionClassName)}>{description}</p>
+              )}
+            </div>
+            {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+          </header>
+        )
       )}
 
       <div className={cn('px-5 pb-5', title || description || actions ? 'pt-4' : 'pt-5', bodyClassName)}>{children}</div>

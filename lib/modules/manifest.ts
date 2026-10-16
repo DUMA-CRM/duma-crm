@@ -62,7 +62,7 @@ export const CRM_MODULE_CAPABILITIES = {
   // The kitchen screen works orders with ordering's capabilities (orders:status).
   kds: [],
   'qr-ordering': ['qr-ordering:read', 'qr-ordering:write'],
-  payments: ['payments.connections:write', 'cashups:read', 'cashups:write'],
+  payments: ['payments.connections:read', 'payments.connections:write', 'cashups:read', 'cashups:write'],
   inventory: [
     'recipes:read',
     'recipes:write',

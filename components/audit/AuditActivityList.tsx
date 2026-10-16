@@ -195,9 +195,12 @@ function GroupEntries({
       className="overflow-hidden bg-band/25"
     >
       {entries.isPending ? (
-        <div className="py-1" role="status" aria-busy="true" aria-label={`Loading ${group.count} entries`}>
+        <div role="status" aria-busy="true" aria-label={`Loading ${group.count} entries`}>
           {Array.from({ length: Math.min(group.entryIds.length, 4) || 1 }, (_, index) => (
-            <div key={index} className="flex items-center gap-3 py-2 pl-15 pr-3.5" aria-hidden="true">
+            <div key={index} className="flex min-h-9 items-center gap-3 px-3.5" aria-hidden="true">
+              <span className="flex size-9 shrink-0 items-center justify-center">
+                <Bone className="size-6 rounded-md" />
+              </span>
               <Bone className={cn('h-3.5', index % 2 === 0 ? 'w-56' : 'w-40', 'max-w-full')} />
               <Bone className="ml-auto h-3 w-10 shrink-0" />
             </div>
@@ -211,17 +214,22 @@ function GroupEntries({
           </button>
         </p>
       ) : (
-        <ol className="py-1">
-          {entries.data.map((entry) => (
+        <ol>
+          {entries.data.map((entry, index) => (
             <li key={entry.id}>
               <button
                 type="button"
                 onClick={() => onSelect(entry)}
                 className={cn(
-                  'flex w-full items-center gap-3 py-2 pl-15 pr-3.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+                  'flex min-h-9 w-full items-center gap-3 px-3.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
                   entry.id === selectedId ? 'bg-band' : 'hover:bg-band/60',
                 )}
               >
+                <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden="true">
+                  <span className="flex size-6 items-center justify-center rounded-md border border-rule/50 bg-field text-xs font-medium tabular-nums text-muted-foreground">
+                    {index + 1}.
+                  </span>
+                </span>
                 <span className="min-w-0 flex-1 truncate text-foreground">{auditPhrase(entry)}</span>
                 <AuditStatusPill severity={auditSeverity(entry)} code={entry.statusCode} />
                 <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{timeOfDay(entry.createdAt)}</span>

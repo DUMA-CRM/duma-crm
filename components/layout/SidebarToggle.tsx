@@ -5,7 +5,7 @@ import { Menu } from '@/components/icons';
 import { useSidebarStore } from '@/stores/sidebarStore';
 
 export function SidebarToggle() {
-  const { toggleCollapsed, toggleMobile } = useSidebarStore();
+  const { toggleCollapsed, toggleMobile, mobileOpen } = useSidebarStore();
 
   function handleClick() {
     if (window.innerWidth < 1024) {
@@ -19,6 +19,8 @@ export function SidebarToggle() {
     <button
       onClick={handleClick}
       aria-label="Toggle sidebar"
+      aria-controls="primary-navigation"
+      aria-expanded={mobileOpen}
       className="w-9 h-9 rounded-sm flex items-center justify-center shrink-0 hover:bg-band hover:text-foreground transition-colors"
     >
       <Menu size={18} strokeWidth={2.5} aria-hidden="true" />

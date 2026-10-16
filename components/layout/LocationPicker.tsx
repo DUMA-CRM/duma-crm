@@ -38,7 +38,8 @@ interface MenuPosition {
  */
 export function LocationPicker() {
   const { tenantId, locationId, setLocationId } = useWorkspaceStore();
-  const { collapsed } = useSidebarStore();
+  const { collapsed, mobileOpen } = useSidebarStore();
+  const isCollapsed = collapsed && !mobileOpen;
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -124,7 +125,7 @@ export function LocationPicker() {
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [open, collapsed, measure]);
+  }, [open, isCollapsed, measure]);
 
   // Move focus into the menu so the arrow keys land somewhere sensible.
   useEffect(() => {
@@ -173,7 +174,7 @@ export function LocationPicker() {
 
   return (
     <>
-      {collapsed ? (
+      {isCollapsed ? (
         <Tooltip label={`Location: ${label}`} className="mx-auto">
           <button
             ref={triggerRef}
@@ -206,7 +207,7 @@ export function LocationPicker() {
           aria-expanded={open}
           aria-label={`Location: ${label}`}
           className={cn(
-            'w-[calc(100%-24px)] mx-3 flex items-center gap-2.5 px-3 py-1.75 rounded-md border text-left',
+            cn('w-[calc(100%-24px)] mx-3 flex items-center gap-2.5 px-3 rounded-md border text-left', mobileOpen ? 'py-3' : 'py-1.75'),
             'transition-colors duration-150',
             open
               ? 'border-sidebar-ring/60 bg-sidebar-accent text-sidebar-foreground'

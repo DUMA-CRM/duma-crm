@@ -379,7 +379,7 @@
    reason given in the night block.
 
    Brand blocks match ANY element, not only <html>, so a swatch can wear a
-   brand it is not the page's (`<span data-brand="plum" class="bg-(--brand)">`)
+   brand it is not the page's (`<span data-brand="ocean" class="bg-(--brand)">`)
    and the picker reads its colours from here — this is the only place the
    values live. Alias through --brand-* rather than redefining --primary: a
    custom property resolves where it is declared, so a nested data-brand can
@@ -388,12 +388,9 @@
    Every palette is held to the bars forest set, measured:
                  day text field/ground/band   fill   shell fg   night text f/g/b   night fill
      forest      8.55 / 7.69 / 6.91           8.43   11.36      7.80 / 8.24 / 7.15  8.31
-     ocean       11.22 / 10.10 / 9.07         11.06  12.72      6.92 / 7.31 / 6.34  7.37
-     plum        9.00 / 8.10 / 7.27           8.87   11.12      6.58 / 6.96 / 6.04  7.02
-     espresso    8.07 / 7.26 / 6.52           7.96   10.47      7.21 / 7.61 / 6.61  7.68
-     graphite    9.38 / 8.44 / 7.58           9.25   11.71      7.90 / 8.35 / 7.25  8.43
-   Keep them deep: ocean (navy) drifting light becomes periwinkle (reference), and
-   espresso drifting warm becomes rust (measured) or saffron (stock).
+     ocean       13.00 / 11.70 / 10.51        12.82  14.83      9.51 / 10.05 / 8.72 10.14
+   Keep them deep: ocean (navy) drifting light becomes periwinkle (reference).
+   Peach and tan are shell markers only — as a key they would be night --measured.
 
    The selectable list is BRANDS in lib/utils/brand.ts — add a block here and
    an entry there together. Persisted per device for now (uiSettingsStore);
@@ -434,80 +431,31 @@
   --brand-mascot: #8eb69b;
 }
 
-/* Old-money navy — a deep, quiet blue-black with a little grey in it. Kept
-   low in chroma so it reads as tailoring, not as a link or as info data. */
+/* Navy with a peach marker (2026-10; was #1f3a5f on a #162b47 shell). Deep
+   navy key over a very dark navy shell, slate seams; the active marker is soft
+   peach (8.71:1 on the shell) with burgundy count text (7.02:1). The palette's
+   crimson is left out on purpose: ΔOKLab 0.043 from --exception, so a crimson
+   button would read as an error. */
 [data-brand='ocean'] {
-  --brand: #1f3a5f;
-  --brand-hover: #162b47;
+  --brand: #242f49;
+  --brand-hover: #161e2f;
   --brand-on: #fffaf4;
-  --brand-shell: #162b47;
-  --brand-shell-raised: #24406a;
-  --brand-shell-seam: #3b5175;
-  --brand-shell-ink: #101e33;
-  --brand-mascot: #1f3a5f;
+  --brand-shell: #161e2f;
+  --brand-shell-raised: #242f49;
+  --brand-shell-seam: #384358;
+  --brand-shell-ink: #541a2e;
+  --brand-shell-mark: #ffa586;
+  --brand-mascot: #242f49;
 }
+/* Light slate rather than peach: peach sits ΔOKLab 0.065 from night
+   --measured. This also clears periwinkle further than the old #8aa4cc (0.081
+   vs 0.054). */
 .dark[data-brand='ocean'],
 .dark [data-brand='ocean'] {
-  --brand: #8aa4cc;
-  --brand-hover: #98b0d6;
+  --brand: #b8bfcc;
+  --brand-hover: #c6ccd7;
   --brand-on: #111214;
-  --brand-mascot: #8aa4cc;
-}
-
-[data-brand='plum'] {
-  --brand: #6a3462;
-  --brand-hover: #4e2548;
-  --brand-on: #fffaf4;
-  --brand-shell: #4e2548;
-  --brand-shell-raised: #683a61;
-  --brand-shell-seam: #7a5573;
-  --brand-shell-ink: #3a1c35;
-  --brand-mascot: #6a3462;
-}
-.dark[data-brand='plum'],
-.dark [data-brand='plum'] {
-  --brand: #c48dba;
-  --brand-hover: #ce9cc5;
-  --brand-on: #111214;
-  --brand-mascot: #c48dba;
-}
-
-/* Roasted coffee — browner and darker than rust, so it is not order data. */
-[data-brand='espresso'] {
-  --brand: #6d452f;
-  --brand-hover: #4e3122;
-  --brand-on: #fffaf4;
-  --brand-shell: #4e3122;
-  --brand-shell-raised: #6a4835;
-  --brand-shell-seam: #7f6150;
-  --brand-shell-ink: #3a2418;
-  --brand-mascot: #6d452f;
-}
-.dark[data-brand='espresso'],
-.dark [data-brand='espresso'] {
-  --brand: #c99d7e;
-  --brand-hover: #d3ab8f;
-  --brand-on: #111214;
-  --brand-mascot: #c99d7e;
-}
-
-/* Cool slate — the quiet option; every role colour reads loudest against it. */
-[data-brand='graphite'] {
-  --brand: #3c4651;
-  --brand-hover: #2a3139;
-  --brand-on: #fffaf4;
-  --brand-shell: #2a3139;
-  --brand-shell-raised: #434d58;
-  --brand-shell-seam: #5a636e;
-  --brand-shell-ink: #20262c;
-  --brand-mascot: #3c4651;
-}
-.dark[data-brand='graphite'],
-.dark [data-brand='graphite'] {
-  --brand: #a5afba;
-  --brand-hover: #b3bcc6;
-  --brand-on: #111214;
-  --brand-mascot: #a5afba;
+  --brand-mascot: #b8bfcc;
 }
 
 /* ════════════════════════════════════════════════════════════════

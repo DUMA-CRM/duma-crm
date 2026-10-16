@@ -22,10 +22,6 @@ export interface SavedAgentTurn {
 export interface AgentConversationDetail extends AgentConversation {
   turns: SavedAgentTurn[];
 }
-export interface AgentMemory {
-  content: string;
-  updatedAt: string | null;
-}
 export function listAgentConversations(tenantId: string | null, locationId: string | null) {
   const query = new URLSearchParams();
   if (tenantId) query.set('tenantId', tenantId);
@@ -49,21 +45,6 @@ export function saveAgentTurn(id: string, turn: SavedAgentTurn, cookieHeader?: s
     cookieHeader,
     body: JSON.stringify(turn),
   });
-}
-export function getAgentMemory(tenantId: string | null, cookieHeader?: string) {
-  const query = new URLSearchParams();
-  if (tenantId) query.set('tenantId', tenantId);
-  return apiFetch<AgentMemory>(`/agent/conversations/memory?${query}`, { cookieHeader, cache: 'no-store' });
-}
-export function saveAgentMemory(content: string, tenantId: string | null, cookieHeader?: string) {
-  return apiFetch<AgentMemory>('/agent/conversations/memory', {
-    method: 'PUT', cookieHeader, body: JSON.stringify({ content, tenantId: tenantId ?? undefined }),
-  });
-}
-export function clearAgentMemory(tenantId: string | null) {
-  const query = new URLSearchParams();
-  if (tenantId) query.set('tenantId', tenantId);
-  return apiFetch<void>(`/agent/conversations/memory?${query}`, { method: 'DELETE' });
 }
 export function deleteAgentConversation(id: string) {
   return apiFetch<void>(`/agent/conversations/${encodeURIComponent(id)}`, { method: 'DELETE' });

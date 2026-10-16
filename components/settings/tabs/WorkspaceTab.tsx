@@ -31,7 +31,7 @@ import {
   updateTenant,
 } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { type Brand, parseBrand } from '@/lib/utils/brand';
+import { BRANDS, parseBrand } from '@/lib/utils/brand';
 import {
   formatInstant,
   isValidTimeZone,
@@ -57,8 +57,6 @@ export function WorkspaceTab() {
   return (
     <SettingsTabBody>
       <BusinessSection />
-      <BrandSection />
-      <CatalogKindSetting />
       <ReadinessSection />
       {isPlatform ? (
         // Pick the workspace on the left, its locations follow on the right.
@@ -117,7 +115,7 @@ function BusinessSection() {
 
   if (isLoading)
     return (
-      // The business card as it lands: the big tile, the name, then three facts.
+      // The business card as it lands: the big tile, the name, then four facts.
       <div role="status" aria-busy="true" aria-label="Loading workspace" className="rounded-lg border border-rule/60 bg-field p-5">
         <div className="flex items-center gap-4" aria-hidden="true">
           <Bone className="size-24 shrink-0 rounded-xl" />
@@ -126,8 +124,8 @@ function BusinessSection() {
             <Bone className="h-3.5 w-36" />
           </span>
         </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {[0, 1, 2].map((index) => (
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+          {[0, 1, 2, 3].map((index) => (
             <FactSkeleton key={index} surface="panel" />
           ))}
         </div>
@@ -192,6 +190,7 @@ function BusinessSection() {
               </motion.div>
             )}
           </AnimatePresence>
+          <div className="mt-2"><BrandControl /></div>
         </div>
         {canRename && !editing && (
           <Button
@@ -207,7 +206,7 @@ function BusinessSection() {
           </Button>
         )}
       </div>
-      <dl className="mt-6 grid gap-3 sm:grid-cols-3">
+      <dl className="mt-6 grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         <Fact
           icon={CalendarDays}
           label="Created"
@@ -216,6 +215,7 @@ function BusinessSection() {
         {/* The only place an owner can read their workspace ID. */}
         <Fact icon={Tag} label="Workspace ID" value={<span className="font-mono text-xs">{tenant.slug}</span>} />
         <TimezoneFact />
+        <CatalogKindSetting />
       </dl>
       {tenant.status !== 'active' && tenant.statusReason && (
         <p className="mt-3 text-xs text-muted-foreground">Status note: {tenant.statusReason}</p>
@@ -302,27 +302,33 @@ function TimezoneDialog({ current, onClose }: { current: string; onClose: () => 
   const now = useNow() ?? new Date();
   const [zone, setZone] = useState(current);
   const valid = isValidTimeZone(zone);
-  const changed = valid && zone !== current;
 
   return (
     <Modal
       title="Workspace timezone"
-      description="Every time in DUMA is shown in this zone, wherever you are. Reports and scheduled posts follow it too."
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button disabled={!changed || save.isPending} onClick={() => save.mutate({ timezone: zone })}>
-            {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
-            Save timezone
-          </Button>
-        </>
-      }
+      onClose={() => !save.isPending && onClose()}
     >
       <div className="space-y-4">
-        <TimezoneSelect value={zone} onChange={setZone} required />
+        <fieldset disabled={save.isPending} className="disabled:opacity-60">
+          <legend className="sr-only">Timezone</legend>
+          <TimezoneSelect
+            value={zone}
+            onChange={(next) => {
+              if (save.isPending || next === current || !isValidTimeZone(next)) return;
+              setZone(next);
+              save.mutate({ timezone: next }, {
+                onSuccess: () => onClose(),
+                onError: () => setZone(current),
+              });
+            }}
+            required
+          />
+        </fieldset>
+        {save.isPending && (
+          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 size={14} className="animate-spin" aria-hidden="true" /> Saving…
+          </p>
+        )}
 
         {valid && (
           // The answer to "is this right?": the time it is there, against the time here.
@@ -340,29 +346,40 @@ function TimezoneDialog({ current, onClose }: { current: string; onClose: () => 
           </div>
         )}
 
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Each location keeps its own zone for its trading day and opening hours. Saving reloads DUMA so every time is redrawn.
-        </p>
       </div>
     </Modal>
   );
 }
 
-function BrandSection() {
+function BrandControl() {
   const { tenant, canEdit, save } = useWorkspaceAppearance();
+  const [editing, setEditing] = useState(false);
   if (!tenant) return null;
-  const brand: Brand | undefined = tenant.brand ? parseBrand(tenant.brand) : undefined;
+  const brand = parseBrand(tenant.brand);
+  const label = BRANDS.find((choice) => choice.id === brand)!.label;
 
   return (
-    <SettingsSection
-      title="Brand colour"
-      description="Buttons, links, the navigation bar and the DUMA assistant take this colour, for everyone in the workspace. Status colours keep their meaning whichever you pick."
-    >
-      <BrandPicker
-        value={save.isPending && save.variables?.brand ? parseBrand(save.variables.brand) : brand}
-        onChange={(next) => next !== brand && save.mutate({ brand: next })}
-        disabled={!canEdit || save.isPending}
-      />
-    </SettingsSection>
+    <>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        disabled={!canEdit}
+        aria-label={`Brand colour: ${label}. Change brand colour`}
+        className="inline-flex min-h-9 items-center gap-2 rounded-md border border-rule/60 bg-field px-2.5 text-sm text-muted-foreground transition-colors hover:border-rule hover:bg-band/45 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default"
+      >
+        <span data-brand={brand} className="size-3.5 shrink-0 rounded-[3px] border border-rule/30 bg-(--brand)" aria-hidden="true" />
+        <span>Brand colour: <span className="font-medium text-foreground">{label}</span></span>
+        {canEdit && <Pencil size={13} aria-hidden="true" />}
+      </button>
+      {editing && (
+        <Modal title="Brand colour" size="sm" onClose={() => !save.isPending && setEditing(false)}>
+          <BrandPicker
+            value={save.isPending && save.variables?.brand ? parseBrand(save.variables.brand) : brand}
+            onChange={(next) => next !== brand && save.mutate({ brand: next }, { onSuccess: () => setEditing(false) })}
+            disabled={!canEdit || save.isPending}
+          />
+        </Modal>
+      )}
+    </>
   );
 }

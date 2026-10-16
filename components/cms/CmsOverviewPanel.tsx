@@ -9,7 +9,7 @@ import { ListRow } from '@/components/shared/ListRow';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
 import { Pill } from '@/components/shared/Pill';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 
 import { getCmsContentTypes, getCmsOverview } from '@/lib/modules/cms/client';
 import { type CmsAttention, cmsAttention, formatBytes } from '@/lib/utils/cms';
@@ -159,23 +159,10 @@ export function CmsOverviewPanel({
         />
       </dl>
 
-      {loading || !overview ? (
-        <div
-          className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5"
-          role="status"
-          aria-busy="true"
-          aria-label="Checking what needs attention"
-        >
-          <Bone className="size-10 shrink-0" />
-          <span className="min-w-0 flex-1 space-y-1.5">
-            <Bone className="h-3.5 w-36" />
-            <Bone className="h-3 w-72 max-w-full" />
-          </span>
-        </div>
-      ) : (
+      {/* Shown only when something needs you — no skeleton, no all-clear card. */}
+      {overview && (
         <NeedsAttention
           items={cmsAttention(overview, { canManageKeys: access.canManageKeys, canPublish: access.canPublish }).map(toItem)}
-          clear={{ title: 'Nothing needs you', detail: 'Everything written is live and up to date.' }}
         />
       )}
 

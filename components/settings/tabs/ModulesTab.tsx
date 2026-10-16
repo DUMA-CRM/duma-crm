@@ -13,7 +13,6 @@ import { Switch } from '@/components/settings/controls';
 import { TileSkeleton } from '@/components/shared/TileSkeleton';
 import { ModuleChangeDialog } from '@/components/settings/workspaces/ModuleChangeDialog';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -155,7 +154,6 @@ function ModuleOverview({
 
   const all = (Object.keys(MODULE_COPY) as WorkspaceModuleId[]).filter((id) => !FOUNDATION_MODULES.has(id)).sort(byModuleOrder);
   const ordered = [...all.filter((id) => enabled.has(id)), ...all.filter((id) => !enabled.has(id))];
-  const onCount = all.filter((id) => enabled.has(id)).length;
 
   return (
     <SettingsSection
@@ -169,11 +167,6 @@ function ModuleOverview({
     >
       {modules.isPending ? (
         <div role="status" aria-busy="true" aria-label="Loading modules">
-          {/* The meter, then the module cards two across — as they land. */}
-          <div className="mb-4 flex items-center gap-3" aria-hidden="true">
-            <Bone className="h-1.5 flex-1 rounded-full" />
-            <Bone className="h-3 w-14 shrink-0" />
-          </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {Array.from({ length: 6 }, (_, index) => (
               <TileSkeleton key={index} index={index} trailing="h-5 w-9 rounded-full" />
@@ -184,19 +177,6 @@ function ModuleOverview({
         <ErrorState title="Couldn’t load this workspace’s modules" onRetry={() => void modules.refetch()} />
       ) : (
         <>
-          <div className="mb-4 flex items-center gap-3">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-band" aria-hidden="true">
-              <motion.div
-                className="h-full rounded-full bg-primary"
-                initial={reduceMotion ? false : { width: 0 }}
-                animate={{ width: `${(onCount / all.length) * 100}%` }}
-                transition={{ duration: 0.7, ease: EASE }}
-              />
-            </div>
-            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-              {onCount} of {all.length} on
-            </span>
-          </div>
           <ul className="grid gap-2 sm:grid-cols-2">
             {ordered.map((id, index) => {
               const on = enabled.has(id);

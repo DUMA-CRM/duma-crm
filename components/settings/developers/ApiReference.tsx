@@ -9,7 +9,6 @@ import { cmsKeys } from '@/components/cms/shared';
 import { Gauge, KeyRound, Plug, RefreshCw, ShieldCheck, Sparkles } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { LineNav } from '@/components/line-nav';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -158,7 +157,8 @@ export function ApiReference() {
       aside={
         <>
           <DevelopersNav className="hidden lg:flex" />
-          <SettingsSection title="On this page" className="hidden lg:block">
+          <div className="hidden lg:block">
+            <h2 className="mb-4 text-base font-semibold tracking-title text-foreground">On this page</h2>
             <nav aria-label="On this page" className="max-h-[calc(100vh-16rem)] space-y-5 overflow-y-auto">
               {groups.map((group) => (
                 <div key={group.label}>
@@ -176,7 +176,7 @@ export function ApiReference() {
                 </div>
               ))}
             </nav>
-          </SettingsSection>
+          </div>
         </>
       }
     >

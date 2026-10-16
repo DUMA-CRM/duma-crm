@@ -14,6 +14,8 @@ import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { hasCapability } from '@/lib/auth/capabilities';
+import { useAuthStore } from '@/stores/authStore';
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
 import {
   type PaymentMethod,
@@ -519,6 +521,7 @@ function ReaderCard({
 }
 
 export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void; onAdd: () => void }) {
+  const capabilities = useAuthStore((state) => state.capabilities);
   const queryClient = useQueryClient();
   const locationId = useWorkspaceStore((state) => state.locationId);
   const [deleting, setDeleting] = useState<PaymentMethod | null>(null);
@@ -527,7 +530,7 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
   const readers = useQuery({
     queryKey: moduleQueryKeys.payments.key('payment-connections', locationId),
     queryFn: () => getPaymentConnections(locationId!),
-    enabled: !!locationId,
+    enabled: !!locationId && hasCapability(capabilities, 'payments.connections:read'),
   });
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-connections') });

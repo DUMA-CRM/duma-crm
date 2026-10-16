@@ -27,10 +27,21 @@ export function useAuth() {
       // Armed before navigating so the intro is already up when the CRM layout
       // paints — it doubles as cover for the dashboard's first data fetches.
       useLoginIntroStore.getState().start();
-      // Honour ?next= from the auth guard — internal paths only (a value like
-      // "//evil.com" would be treated as protocol-relative and open-redirect).
+      // Honour ?next= from the auth guard only when it resolves to this origin.
       const next = new URLSearchParams(window.location.search).get('next');
-      router.push(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
+      let destination = '/dashboard';
+      if (next?.startsWith('/')) {
+        try {
+          const target = new URL(next, window.location.origin);
+          if (target.origin === window.location.origin) destination = `${target.pathname}${target.search}${target.hash}`;
+        } catch {
+          // Keep the dashboard as the safe fallback for malformed destinations.
+        }
+      }
+      // The session cookie is set by the API response. A full document
+      // navigation makes the dashboard's server-side session guard read that
+      // newly stored cookie, instead of racing an App Router transition.
+      window.location.replace(destination);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed. Check your credentials.');
     } finally {

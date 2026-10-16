@@ -262,12 +262,12 @@ export function Fact({
     <>
       <span
         className={cn(
-          'flex w-12 shrink-0 items-center justify-center border-r',
+          'flex w-12 shrink-0 items-center justify-center',
           tone === 'danger'
-            ? 'border-exception/25 bg-exception/14 text-exception'
+            ? 'bg-exception/14 text-exception'
             : tone === 'warning'
-              ? 'border-measured/30 bg-measured/18 text-measured'
-              : 'border-primary/22 bg-primary/14 text-primary',
+              ? 'bg-measured/18 text-measured'
+              : 'bg-primary/14 text-primary',
         )}
       >
         <Icon size={18} aria-hidden="true" />
@@ -306,8 +306,8 @@ export function Fact({
       : surface === 'page'
         ? 'border-rule/60 bg-field'
         : surface === 'card'
-          ? 'border-rule/60 bg-card'
-          : 'border-rule/50 bg-background/60',
+        ? 'border-rule/60 bg-card'
+          : 'border-rule/50 bg-band/35',
   );
   const interactive = cn(
     className,

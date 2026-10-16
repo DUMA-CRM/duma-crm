@@ -9,7 +9,11 @@ import { PaymentsConnectWizard, PaymentsConnectorPage } from './PaymentsConnecto
 import { StorageConnectWizard } from './StorageConnector';
 import { StorageConnectorPage } from './StorageConnectorPage';
 import { AnalyticsConnectWizard, AnalyticsConnectorPage } from './AnalyticsConnector';
-import type { ConnectorId } from './registry';
+import { CONNECTORS_BY_ID, type ConnectorId } from './registry';
+import { hasCapability } from '@/lib/auth/capabilities';
+import { useAuthStore } from '@/stores/authStore';
+import { EditorShell } from '@/components/shared/EditorShell';
+import { ErrorState } from '@/components/shared/ErrorState';
 
 const LIST = '/settings/connectors';
 
@@ -22,6 +26,7 @@ const LIST = '/settings/connectors';
  */
 export function ConnectorsRoute() {
   const router = useRouter();
+  const capabilities = useAuthStore((state) => state.capabilities);
   const searchParams = useSearchParams();
   const connector = searchParams.get('connector') as ConnectorId | null;
   const connecting = searchParams.get('mode') === 'connect';
@@ -29,6 +34,18 @@ export function ConnectorsRoute() {
   const toList = () => router.push(LIST);
   const toManage = (id: ConnectorId) => router.replace(`${LIST}?connector=${id}`);
   const toConnect = (id: ConnectorId) => router.push(`${LIST}?connector=${id}&mode=connect`);
+
+  const definition = connector ? CONNECTORS_BY_ID[connector] : undefined;
+  if (definition && (
+    (definition.capability && !hasCapability(capabilities, definition.capability)) ||
+    (definition.readCapability && !hasCapability(capabilities, definition.readCapability))
+  )) {
+    return (
+      <EditorShell title={definition.name} onClose={toList}>
+        <ErrorState title="You don’t have access to this connection" description="Ask a workspace administrator for access, or return to Connections." />
+      </EditorShell>
+    );
+  }
 
   if (connector === 'email') {
     return connecting ? (

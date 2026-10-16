@@ -111,7 +111,10 @@ function WorkspaceLifecycleForm({ tenant, onClose }: { tenant: Tenant; onClose: 
               className={cn(
                 'flex gap-3 rounded-md border px-3 py-3',
                 canSelect ? 'cursor-pointer' : 'cursor-not-allowed opacity-50',
-                status === value ? 'border-primary bg-band' : 'border-rule/65 bg-card hover:bg-band/45',
+                'transition-[border-color,background-color,box-shadow] duration-150 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring',
+                status === value
+                  ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
+                  : 'border-rule/70 bg-card hover:border-rule hover:bg-band/45',
               )}
             >
               <input
@@ -263,14 +266,21 @@ export function WorkspaceList() {
                 }}
                 // Same row as a location, so picking a workspace and picking a site read alike.
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors duration-150',
+                  'flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-[border-color,background-color,box-shadow] duration-150',
                   'outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                   isSelected
-                    ? 'cursor-default border-primary/40 bg-primary/5'
-                    : 'cursor-pointer border-rule/50 bg-background/60 hover:border-rule hover:bg-band/45',
+                    ? 'cursor-default border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
+                    : 'cursor-pointer border-rule/70 bg-background/60 hover:border-rule hover:bg-band/45',
                 )}
               >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
+                <span
+                  className={cn(
+                    'flex size-10 shrink-0 items-center justify-center rounded-md border transition-colors duration-150',
+                    isSelected
+                      ? 'border-primary/40 bg-primary text-primary-foreground'
+                      : 'border-rule/55 bg-background text-muted-foreground',
+                  )}
+                >
                   {isSelected ? <Check size={17} aria-hidden="true" /> : <Building2 size={17} aria-hidden="true" />}
                 </span>
                 <div className="min-w-0 flex-1">

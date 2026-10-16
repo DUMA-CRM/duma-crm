@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowRight, UserPlus } from '@/components/icons';
 import { BrandBackdrop } from '@/components/shared/BrandBackdrop';
 import { Logo } from '@/components/shared/Logo';
+import { PublicFooter } from '@/components/shared/PublicFooter';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -42,17 +43,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="flex items-center justify-center gap-4 px-4 pb-6 text-xs text-muted-foreground">
-        <span>© 2026 DUMA</span>
-        <span aria-hidden="true">·</span>
-        <Link href="/privacy" className="min-h-11 content-center hover:text-foreground">
-          Privacy Policy
-        </Link>
-        <span aria-hidden="true">·</span>
-        <Link href="/terms" className="min-h-11 content-center hover:text-foreground">
-          Terms of Service
-        </Link>
-      </footer>
+      <PublicFooter />
     </main>
   );
 }

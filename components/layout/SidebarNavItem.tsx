@@ -13,7 +13,7 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-type NavItemProps = NavItem & { badge?: number };
+type NavItemProps = NavItem & { badge?: number; mobileMenu?: boolean };
 
 function AccentBar({ className }: { className?: string }) {
   return (
@@ -96,7 +96,7 @@ function CollapsedNavItem({ href, label, icon: Icon, children, badge }: NavItemP
   );
 }
 
-function ExpandedNavItem({ href, label, icon: Icon, children, badge }: NavItemProps) {
+function ExpandedNavItem({ href, label, icon: Icon, children, badge, mobileMenu = false }: NavItemProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { closeMobile } = useSidebarStore();
@@ -119,7 +119,7 @@ function ExpandedNavItem({ href, label, icon: Icon, children, badge }: NavItemPr
           onClick={closeMobile}
           aria-current={parentHighlighted || leafHighlighted ? 'page' : undefined}
           className={cn(
-            'flex items-center gap-2.5 px-3 py-[9px] mx-3 rounded-md',
+            cn('flex items-center gap-2.5 px-3 mx-3 rounded-md', mobileMenu ? 'py-3' : 'py-[9px]'),
             'text-sm font-medium transition-colors duration-100',
             !parentHighlighted && !childActive && 'text-sidebar-foreground/68 hover:bg-sidebar-accent hover:text-sidebar-foreground',
             // Position is the crosshair: achromatic. Where you are is a marked
@@ -162,7 +162,7 @@ function ExpandedNavItem({ href, label, icon: Icon, children, badge }: NavItemPr
                   onClick={closeMobile}
                   aria-current={isChildActive ? 'page' : undefined}
                   className={cn(
-                    'flex items-center gap-2.5 px-3 py-[9px] rounded-none',
+                    cn('flex items-center gap-2.5 px-3 rounded-none', mobileMenu ? 'py-3' : 'py-[9px]'),
                     'text-sm font-medium transition-colors duration-150',
                     isLast && 'rounded-b-md',
                     !isChildActive && 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground',
@@ -183,7 +183,7 @@ function ExpandedNavItem({ href, label, icon: Icon, children, badge }: NavItemPr
   );
 }
 
-export function SidebarNavItem(props: NavItemProps) {
+export function SidebarNavItem({ mobileMenu = false, ...props }: NavItemProps) {
   const { collapsed } = useSidebarStore();
-  return collapsed ? <CollapsedNavItem {...props} /> : <ExpandedNavItem {...props} />;
+  return collapsed && !mobileMenu ? <CollapsedNavItem {...props} /> : <ExpandedNavItem {...props} mobileMenu={mobileMenu} />;
 }

@@ -6,7 +6,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { AuditActivityList } from '@/components/audit/AuditActivityList';
 import { AuditCopyButton, AuditInspector, type AuditPivot } from '@/components/audit/AuditInspector';
-import { History, Loader2, Search, User, X } from '@/components/icons';
+import { History, Layers3, Loader2, Search, User, X } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -211,37 +211,54 @@ function AuditLogPageContent() {
   }
 
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="min-w-56 flex-1 lg:max-w-sm">
-        <Input
-          type="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          aria-label="Search the audit log"
-          placeholder="Search people, records, details…"
-          leftIcon={<Search size={14} />}
-          rightAction={
-            search ? (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                aria-label="Clear search"
-                className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <X size={13} aria-hidden="true" />
-              </button>
-            ) : undefined
-          }
-        />
+    <div className="shrink-0 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-56 flex-1 lg:max-w-sm">
+          <Input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            aria-label="Search the audit log"
+            placeholder="Search people, records, details…"
+            leftIcon={<Search size={14} />}
+            rightAction={
+              search ? (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              ) : undefined
+            }
+          />
+        </div>
+        <Select value={actorId} onValueChange={setActorId} options={actorOptions} ariaLabel="Who" icon={<User />} className="w-44" />
+        <Select value={resourceType} onValueChange={setResourceType} options={RECORD_OPTIONS} ariaLabel="What" className="w-44" />
+        {action && <FilterChip label={`Only “${actionFilterLabel(action)}”`} onRemove={() => setAction('')} />}
+        {filtered && (
+          <button type="button" onClick={clearFilters} className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+            Clear
+          </button>
+        )}
       </div>
-      <Select value={actorId} onValueChange={setActorId} options={actorOptions} ariaLabel="Who" icon={<User />} className="w-44" />
-      <Select value={resourceType} onValueChange={setResourceType} options={RECORD_OPTIONS} ariaLabel="What" className="w-44" />
-      {action && <FilterChip label={`Only “${actionFilterLabel(action)}”`} onRemove={() => setAction('')} />}
-      {resourceId && <FilterChip label="One record" onRemove={() => setResourceId('')} />}
-      {filtered && (
-        <button type="button" onClick={clearFilters} className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-          Clear
-        </button>
+      {resourceId && (
+        <div aria-label="Active record filter" className="flex items-center">
+          <span className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-md border border-primary/25 bg-primary/5 pl-2.5 pr-1 text-xs font-medium text-primary">
+            <Layers3 size={14} aria-hidden="true" className="shrink-0" />
+            <span>One record</span>
+            <button
+              type="button"
+              onClick={() => setResourceId('')}
+              aria-label="Remove One record filter"
+              className="flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <X size={13} aria-hidden="true" />
+            </button>
+          </span>
+        </div>
       )}
     </div>
   );
@@ -255,6 +272,7 @@ function AuditLogPageContent() {
     <ErrorState title="The audit log could not be loaded" onRetry={() => void activity.refetch()} />
   ) : groups.length === 0 ? (
     <EmptyState
+      className="min-h-72 flex-1"
       icon={filtered ? Search : History}
       title={filtered ? 'Nothing matches' : 'No activity yet'}
       description={
@@ -292,7 +310,7 @@ function AuditLogPageContent() {
   return (
     <EditorShell title="Audit log" icon={<History size={20} aria-hidden="true" />} meta={meta} flush>
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 min-w-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 md:px-6 md:py-6">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-y-auto px-3 py-4 md:px-6 md:py-6">
           {toolbar}
           {body}
         </div>

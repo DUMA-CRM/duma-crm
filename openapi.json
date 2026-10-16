@@ -406,62 +406,6 @@
         }
       }
     },
-    "/v1/agent/conversations/memory": {
-      "get": {
-        "operationId": "getV1AgentConversationsMemory",
-        "tags": [
-          "Agent"
-        ],
-        "summary": "Read your Ask DUMA memory",
-        "responses": {
-          "200": {
-            "description": "Memory"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      },
-      "put": {
-        "operationId": "putV1AgentConversationsMemory",
-        "tags": [
-          "Agent"
-        ],
-        "summary": "Replace your Ask DUMA memory",
-        "responses": {
-          "200": {
-            "description": "Memory saved"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      },
-      "delete": {
-        "operationId": "deleteV1AgentConversationsMemory",
-        "tags": [
-          "Agent"
-        ],
-        "summary": "Clear your Ask DUMA memory",
-        "responses": {
-          "204": {
-            "description": "Memory cleared"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
     "/v1/agent/conversations": {
       "get": {
         "operationId": "getV1AgentConversations",
@@ -5104,10 +5048,7 @@
                     "type": "string",
                     "enum": [
                       "forest",
-                      "ocean",
-                      "plum",
-                      "espresso",
-                      "graphite"
+                      "ocean"
                     ]
                   }
                 }

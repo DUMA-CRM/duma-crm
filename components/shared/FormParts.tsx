@@ -34,6 +34,7 @@ export function ChoiceCards<T extends string>({
   onChange,
   options,
   columns = 2,
+  appearance = 'default',
 }: {
   value: T;
   onChange: (value: T) => void;
@@ -41,6 +42,8 @@ export function ChoiceCards<T extends string>({
   options: { value: T; label: string; icon?: IconComponent }[];
   /** 3 for a set of three, so it doesn't leave one card alone on a second line. */
   columns?: 2 | 3 | 4;
+  /** Match the selected cards used in Settings without changing other form flows. */
+  appearance?: 'default' | 'settings';
 }) {
   return (
     <div className={cn('grid gap-2', columns === 2 ? 'grid-cols-2' : columns === 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4')}>
@@ -51,10 +54,17 @@ export function ChoiceCards<T extends string>({
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            'flex items-center gap-2 rounded-lg border px-3.5 py-2.5 text-left text-sm transition-colors',
+            'flex items-center gap-2 rounded-lg border px-3.5 py-2.5 text-left text-sm',
+            appearance === 'settings'
+              ? 'transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+              : 'transition-colors',
             value === option.value
-              ? 'border-primary bg-primary/5 font-semibold text-foreground'
-              : 'border-rule/60 bg-background/60 font-medium text-foreground hover:bg-band/40',
+              ? appearance === 'settings'
+                ? 'border-primary bg-primary/5 font-semibold text-foreground shadow-[inset_0_0_0_1px_var(--primary)]'
+                : 'border-primary bg-primary/5 font-semibold text-foreground'
+              : appearance === 'settings'
+                ? 'border-rule/70 bg-control font-medium text-foreground hover:border-rule hover:bg-band/45'
+                : 'border-rule/60 bg-background/60 font-medium text-foreground hover:bg-band/40',
           )}
         >
           {option.icon && (

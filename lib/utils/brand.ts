@@ -9,11 +9,8 @@
  * the first frame before the profile arrives.
  */
 export const BRANDS = [
-  { id: 'forest', label: 'Forest', detail: 'The DUMA green.' },
-  { id: 'ocean', label: 'Navy', detail: 'Old-money navy blue.' },
-  { id: 'plum', label: 'Plum', detail: 'Rich and warm.' },
-  { id: 'espresso', label: 'Espresso', detail: 'Roasted coffee brown.' },
-  { id: 'graphite', label: 'Graphite', detail: 'Quiet, cool slate.' },
+  { id: 'forest', label: 'Forest' },
+  { id: 'ocean', label: 'Navy' },
 ] as const;
 
 export type Brand = (typeof BRANDS)[number]['id'];
@@ -33,7 +30,7 @@ export function parseBrand(value: unknown): Brand {
 export const UI_SETTINGS_STORAGE_KEY = 'ui-settings';
 
 /**
- * Applies the stored brand to <html> before first paint, so a plum workspace
+ * Applies the stored brand to <html> before first paint, so a navy workspace
  * does not flash green on every load. It reads zustand's persisted JSON
  * directly because the store has not hydrated yet. Self-contained on purpose:
  * it is stringified into an inline script and cannot import anything.

@@ -1,10 +1,9 @@
 import { ApprovalError } from '@/lib/ai/action-seal';
-import { learnAgentMemory } from '@/lib/ai/agent-memory';
 import type { AgentActionSubmission, AgentChatMessage, AgentStreamEvent } from '@/lib/ai/agent-types';
 import type { AgentContext } from '@/lib/ai/duma-agent.server';
 import { CapabilityError, executeConfirmedAction, runDumaAgent } from '@/lib/ai/duma-agent.server';
 import { isAgentProviderPreference } from '@/lib/ai/provider-chain';
-import { getAgentConversation, getAgentMemory, saveAgentMemory, saveAgentTurn } from '@/lib/api/agent-conversations.service';
+import { getAgentConversation, saveAgentTurn } from '@/lib/api/agent-conversations.service';
 import { consumeAgentBudget, recordAgentTurn } from '@/lib/modules/agent/client';
 import type { StaffProfile } from '@/lib/modules/identity/client';
 import { getMyStaffProfile } from '@/lib/modules/identity/client';
@@ -245,22 +244,8 @@ export async function POST(request: Request) {
     }
 
     const safe = safeContext(body.context);
-    const memoryTenantId = safe.tenantId ?? profile.tenantId ?? null;
-    let storedMemory = '';
-    let memoryLoaded = false;
-    if (memoryTenantId) {
-      try {
-        storedMemory = (await getAgentMemory(memoryTenantId, cookieHeader)).content;
-        memoryLoaded = true;
-      } catch (error) {
-        console.warn('Ask DUMA could not load memory; skipping preference learning.', error);
-      }
-    }
-    const latestRequest = body.messages.at(-1)!.content;
-    const learnedMemory = memoryLoaded ? learnAgentMemory(storedMemory, latestRequest) : null;
     const context = {
       ...safe,
-      memory: learnedMemory ?? storedMemory,
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(150_000)]),
     };
     let messages = body.messages.slice(-MAX_HISTORY);
@@ -295,16 +280,6 @@ export async function POST(request: Request) {
         },
         { status: 429, headers: { 'Retry-After': String(minutes * 60) } },
       );
-    }
-
-    // Preference learning is best-effort and cannot prevent the answer. The
-    // stored text is loaded back only as untrusted context on a later turn.
-    if (learnedMemory !== null) {
-      try {
-        await saveAgentMemory(learnedMemory, memoryTenantId, cookieHeader);
-      } catch (error) {
-        console.warn('Ask DUMA could not save learned memory.', error);
-      }
     }
 
     return streamTurn(messages, context, cookieHeader, profile, saved);

@@ -36,6 +36,8 @@ export interface ConnectorDefinition {
   available: boolean;
   /** Shown only to someone holding this — the capability the API checks for it. */
   capability?: Capability;
+  /** Required to fetch connection details; write access does not imply read access. */
+  readCapability?: Capability;
   /** Shown only while this module is enabled for the workspace. */
   moduleId?: WorkspaceModuleId;
 }
@@ -67,6 +69,7 @@ export const CONNECTORS: ConnectorDefinition[] = [
     ],
     available: true,
     capability: 'email.connections:write',
+    readCapability: 'email.connections:read',
   },
   {
     id: 'card-payments',
@@ -82,6 +85,7 @@ export const CONNECTORS: ConnectorDefinition[] = [
     ],
     available: true,
     capability: 'payments.connections:write',
+    readCapability: 'payments.connections:read',
   },
   {
     id: 'media-storage',

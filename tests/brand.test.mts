@@ -10,7 +10,7 @@ test('forest is the default brand', () => {
 });
 
 test('an unknown or missing brand falls back to the default', () => {
-  assert.equal(parseBrand('plum'), 'plum');
+  assert.equal(parseBrand('plum'), 'forest');
   assert.equal(parseBrand('magenta'), 'forest');
   assert.equal(parseBrand(undefined), 'forest');
   assert.equal(parseBrand(42), 'forest');
@@ -40,10 +40,11 @@ function runPrePaint(stored: string | null, { throws = false } = {}) {
 }
 
 test('the pre-paint script applies the persisted brand', () => {
-  assert.equal(runPrePaint(JSON.stringify({ state: { brand: 'espresso' }, version: 3 })), 'espresso');
+  assert.equal(runPrePaint(JSON.stringify({ state: { brand: 'ocean' }, version: 3 })), 'ocean');
 });
 
 test('the pre-paint script falls back to forest on anything unexpected', () => {
+  assert.equal(runPrePaint(JSON.stringify({ state: { brand: 'plum' } })), 'forest');
   assert.equal(runPrePaint(null), 'forest');
   assert.equal(runPrePaint('not json'), 'forest');
   assert.equal(runPrePaint(JSON.stringify({ state: { brand: 'magenta' } })), 'forest');

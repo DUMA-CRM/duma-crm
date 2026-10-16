@@ -21,6 +21,7 @@ import {
   saveEmailConnection,
   testEmailConnection,
 } from '@/lib/modules/communications/client';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
@@ -79,12 +80,13 @@ export function emailConnectorState(connection: EmailConnection | null | undefin
  * share the form rather than each keeping their own copy of the rules.
  */
 function useEmailConnectionForm() {
+  const capabilities = useAuthStore((state) => state.capabilities);
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
   const { data: connection, isLoading } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
-    enabled: !!tenantId,
+    enabled: !!tenantId && hasCapability(capabilities, 'email.connections:read'),
     retry: false,
   });
 

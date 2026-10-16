@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
 import { Plug, Power, Settings, Zap } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -37,11 +36,12 @@ import { storageConnectorState, storageProviderLabel } from './StorageConnector'
 export function ConnectorsGrid() {
   const router = useRouter();
   const { tenantId, locationId } = useWorkspaceStore();
+  const capabilities = useAuthStore((state) => state.capabilities);
 
   const { data: emailConnection } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
-    enabled: !!tenantId,
+    enabled: !!tenantId && hasCapability(capabilities, 'email.connections:read') && hasCapability(capabilities, 'email.connections:write'),
     retry: false,
   });
   // Every reader, paused ones included: the till list (payment-methods) hides
@@ -50,10 +50,9 @@ export function ConnectorsGrid() {
   const { data: paymentMethods } = useQuery({
     queryKey: moduleQueryKeys.payments.key('payment-connections', locationId),
     queryFn: () => getPaymentConnections(locationId!),
-    enabled: !!locationId,
+    enabled: !!locationId && hasCapability(capabilities, 'payments.connections:read') && hasCapability(capabilities, 'payments.connections:write'),
   });
 
-  const capabilities = useAuthStore((state) => state.capabilities);
   // Same key as the settings shell, so this is the shell's cached answer.
   const modules = useQuery({
     queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
@@ -62,6 +61,7 @@ export function ConnectorsGrid() {
   });
   const visible = (definition: (typeof CONNECTORS)[number]) =>
     (!definition.capability || hasCapability(capabilities, definition.capability)) &&
+    (!definition.readCapability || hasCapability(capabilities, definition.readCapability)) &&
     (!definition.moduleId ||
       (modules.data?.modules.some((module) => module.moduleId === definition.moduleId && module.status === 'enabled') ?? false));
   const storageVisible = visible(CONNECTORS.find((definition) => definition.id === 'media-storage')!);
@@ -130,7 +130,7 @@ export function ConnectorsGrid() {
         ? emailState === 'attention'
           ? { label: 'Re-connect', icon: Zap, onClick: () => open('email', 'connect') }
           : { label: 'Manage', icon: Settings, onClick: () => open('email'), variant: 'outline' }
-        : { label: 'Connect', icon: Plug, onClick: () => open('email', 'connect') };
+        : { label: 'Choose a provider', icon: Plug, onClick: () => open('email', 'connect') };
       return {
         definition,
         state: emailState,
@@ -153,7 +153,7 @@ export function ConnectorsGrid() {
       const accounts: ConnectorAccount[] = first ? [{ label: first.displayName, meta: PROVIDER_LABELS[first.provider] }] : [];
       const action: ConnectorAction = first
         ? { label: 'Manage', icon: Settings, onClick: () => open('card-payments'), variant: 'outline' }
-        : { label: 'Connect', icon: Plug, onClick: () => open('card-payments', 'connect'), disabled: !locationId };
+        : { label: 'Choose a provider', icon: Plug, onClick: () => open('card-payments', 'connect'), disabled: !locationId };
       return { definition, state: paymentsState, accounts, extraAccountCount: rest.length, action };
     }
 
@@ -170,7 +170,7 @@ export function ConnectorsGrid() {
           ? { label: 'Fix', icon: Zap, onClick: () => open('media-storage') }
           : (storage?.connections.length ?? 0) > 0
             ? { label: 'Manage', icon: Settings, onClick: () => open('media-storage'), variant: 'outline' }
-            : { label: 'Connect', icon: Plug, onClick: () => open('media-storage', 'connect') };
+            : { label: 'Choose a provider', icon: Plug, onClick: () => open('media-storage', 'connect') };
       return {
         definition,
         state,
@@ -220,7 +220,7 @@ export function ConnectorsGrid() {
           : [],
         action: connected
           ? { label: 'Manage', icon: Settings, onClick: () => open('analytics'), variant: 'outline' as const }
-          : { label: 'Connect', icon: Plug, onClick: () => open('analytics', 'connect') },
+          : { label: 'Choose a provider', icon: Plug, onClick: () => open('analytics', 'connect') },
       };
     }
 
@@ -230,7 +230,6 @@ export function ConnectorsGrid() {
   // One grid, most urgent first: broken, then working, then not set up. The status line tells them apart.
   const rank = (state: ConnectorState) => ({ attention: 0, connected: 1, paused: 2, disconnected: 3, unavailable: 4 })[state];
   const live = cards.filter((card) => card.definition.available).sort((a, b) => rank(a.state) - rank(b.state));
-  const upcoming = cards.filter((card) => !card.definition.available);
 
   return (
     <SettingsTabBody>
@@ -241,26 +240,6 @@ export function ConnectorsGrid() {
         ))}
       </div>
 
-      {upcoming.length > 0 && (
-        <SettingsSection title="Coming soon">
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {upcoming.map(({ definition }) => {
-              const Icon = definition.icon;
-              return (
-                <li key={definition.id} className="flex items-center gap-3 rounded-lg border border-dashed border-rule/60 px-3.5 py-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground">
-                    <Icon size={17} aria-hidden="true" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-muted-foreground">{definition.name}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{definition.tags.slice(0, 2).join(' · ')}</span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </SettingsSection>
-      )}
     </SettingsTabBody>
   );
 }

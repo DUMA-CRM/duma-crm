@@ -72,7 +72,7 @@ function Curtain() {
    *
    * The artwork is fetched and recoloured to the workspace brand: an <img> can't
    * read our CSS variables, so the file's forest has to be swapped for
-   * --brand-shell by hand or a plum workspace lands a green mark on its plum
+   * --brand-shell by hand or a navy workspace lands a green mark on its navy
    * sidebar. Each blob URL is new, which also gives the fresh resource above.
    * If the fetch fails, the untinted file with a nonce still plays.
    */

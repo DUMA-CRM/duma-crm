@@ -1,7 +1,6 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import Link from 'next/link';
 import { useState, useSyncExternalStore } from 'react';
 
 import {
@@ -9,22 +8,24 @@ import {
   CalendarDays,
   CheckCircle2,
   Download,
+  Globe,
   Mail,
   MapPin,
   Monitor,
   Moon,
+  Plus,
   ShieldCheck,
   ShieldOff,
-  SlidersHorizontal,
+  Smartphone,
   Sun,
 } from '@/components/icons';
-import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
-import { AgentModelSettings } from '@/components/settings/AgentModelSettings';
+import { SettingsChoice } from '@/components/settings/SettingsChoice';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact, SettingRow, SettingRows } from '@/components/settings/controls';
 import { IconTag } from '@/components/shared/IconTag';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
+import { Logo } from '@/components/shared/Logo';
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 
@@ -33,12 +34,10 @@ import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { usePwaStore } from '@/stores/pwaStore';
 
-type Theme = 'light' | 'dark' | 'system';
-
 const THEMES = [
-  { value: 'light', label: 'Light', detail: 'Warm, bright surfaces for daytime.', icon: Sun },
-  { value: 'dark', label: 'Dark', detail: 'Easier on the eyes in low light.', icon: Moon },
-  { value: 'system', label: 'System', detail: 'Follows this device’s setting.', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
 ] as const;
 
 const humanise = (role: string) => role.charAt(0).toUpperCase() + role.slice(1).replaceAll('_', ' ');
@@ -64,18 +63,7 @@ export function ProfileTab() {
   const [firstName = '', lastName = ''] = (user?.name ?? '').split(' ');
 
   return (
-    <SettingsTabBody
-      aside={
-        <>
-          <SettingsSection>
-            <SettingRows>
-              <InstallRow />
-            </SettingRows>
-          </SettingsSection>
-          <AgentModelSettings />
-        </>
-      }
-    >
+    <SettingsTabBody>
       <SettingsSection>
         <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
           <InitialsAvatar
@@ -103,23 +91,17 @@ export function ProfileTab() {
           <Fact icon={ShieldCheck} label="Role" value={role ? humanise(role) : '—'} />
           <Fact icon={Building2} label="Workspace" value={tenant?.name ?? '—'} />
           <Fact icon={MapPin} label="Location" value={location?.name ?? 'None selected'} />
-          <Fact
-            icon={CalendarDays}
-            label="Member since"
-            value={formatInstant(user?.createdAt, { month: 'long', year: 'numeric' })}
-          />
+          <Fact icon={CalendarDays} label="Member since" value={formatInstant(user?.createdAt, { month: 'long', year: 'numeric' })} />
         </dl>
       </SettingsSection>
 
-      <SettingsSection title="Appearance">
-        <ChoiceGrid<Theme>
-          label="Colour theme"
-          shortcuts={false}
-          columns={3}
-          selected={mounted && theme ? [theme as Theme] : []}
-          onChange={setTheme}
-          choices={THEMES}
-        />
+      <SettingsSection>
+        <SettingsChoice label="Colour theme" value={mounted ? theme : undefined} onChange={setTheme} options={THEMES} />
+      </SettingsSection>
+      <SettingsSection>
+        <SettingRows>
+          <InstallRow />
+        </SettingRows>
       </SettingsSection>
     </SettingsTabBody>
   );
@@ -151,6 +133,12 @@ const INSTALL_STEPS: Record<Platform, { title: string; steps: string[] }> = {
   other: { title: 'In your browser', steps: ['Look for “Install app” or “Add to Home Screen” in the browser menu.'] },
 };
 
+function InstallDeviceIcon({ platform, size = 18 }: { platform: Platform; size?: number }) {
+  const DeviceIcon =
+    platform === 'ios' || platform === 'android' ? Smartphone : platform === 'other' || platform === 'firefox' ? Globe : Monitor;
+  return <DeviceIcon size={size} aria-hidden="true" />;
+}
+
 function InstallRow() {
   const installPrompt = usePwaStore((state) => state.installPrompt);
   const installed = usePwaStore((state) => state.installed);
@@ -176,10 +164,7 @@ function InstallRow() {
 
   return (
     <>
-      <SettingRow
-        icon={Download}
-        title="Install the app"
-      >
+      <SettingRow icon={Download} title="Install the app">
         {done ? (
           <span className="flex items-center gap-1.5 text-sm font-semibold text-success">
             <CheckCircle2 size={16} aria-hidden="true" /> Installed
@@ -191,22 +176,76 @@ function InstallRow() {
         )}
       </SettingRow>
       {showSteps && (
-        <Modal title="Install DUMA" description={guide.title} onClose={() => setShowSteps(false)}>
-          <ol className="space-y-3">
-            {guide.steps.map((step, index) => (
-              <li key={step} className="flex items-start gap-3 text-sm text-foreground">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold tabular-nums text-primary-foreground">
-                  {index + 1}
-                </span>
-                <span className="pt-0.5">{step}</span>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-6 flex justify-end">
-            <Button variant="outline" onClick={() => setShowSteps(false)}>
+        <Modal
+          title="Install DUMA"
+          size="lg"
+          onClose={() => setShowSteps(false)}
+          illustration={
+            <div className="relative flex h-28 w-full max-w-[18rem] items-center justify-center" aria-hidden="true">
+              <div className="w-full overflow-hidden rounded-xl border border-rule bg-field shadow-sm">
+                <div className="flex h-8 items-center gap-1.5 border-b border-rule/70 bg-band/65 px-3">
+                  <span className="size-1.5 rounded-full bg-muted-foreground/35" />
+                  <span className="size-1.5 rounded-full bg-muted-foreground/35" />
+                  <span className="size-1.5 rounded-full bg-muted-foreground/35" />
+                  <span className="ml-2 flex h-5 min-w-0 flex-1 items-center justify-center rounded-md border border-rule/60 bg-card px-2 text-[10px] font-medium text-muted-foreground">
+                    Your DUMA workspace
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 px-4 py-3.5">
+                  <Logo size={40} className="rounded-[19.4%] shadow-sm" />
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="text-sm font-semibold text-foreground">DUMA</p>
+                    <p className="text-xs text-muted-foreground">Your workspace, ready</p>
+                  </div>
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-rule bg-card text-primary">
+                    <InstallDeviceIcon platform={platform} />
+                  </span>
+                </div>
+              </div>
+              <span className="absolute -right-2 -top-1 flex size-8 items-center justify-center rounded-full border border-rule bg-card text-primary shadow-sm">
+                <Plus size={16} />
+              </span>
+            </div>
+          }
+          footer={
+            <Button className="w-full" onClick={() => setShowSteps(false)}>
               Got it
             </Button>
-          </div>
+          }
+        >
+          {platform !== 'firefox' && (
+            <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <InstallDeviceIcon platform={platform} />
+              </span>
+              <span>{guide.title}</span>
+            </div>
+          )}
+          {platform === 'firefox' ? (
+            <div role="note" className="flex items-start gap-3 rounded-lg border border-rule/70 bg-band/45 px-4 py-4">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-field text-muted-foreground">
+                <Globe size={20} aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Firefox doesn’t support app installation</p>
+                <p className="mt-1 text-sm leading-5 text-muted-foreground">Open DUMA in Chrome, Edge or Safari to install it.</p>
+              </div>
+            </div>
+          ) : (
+            <ol className="space-y-2.5">
+              {guide.steps.map((step, index) => (
+                <li
+                  key={step}
+                  className="flex items-start gap-3 rounded-lg border border-rule/70 bg-field/60 px-3.5 py-3 text-sm leading-5 text-foreground"
+                >
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold tabular-nums text-primary">
+                    {index + 1}
+                  </span>
+                  <span className="pt-0.5">{step}</span>
+                </li>
+              ))}
+            </ol>
+          )}
         </Modal>
       )}
     </>
