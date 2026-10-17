@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
 import { ChevronDown } from '@/components/icons';
+import { ListRowGroup } from '@/components/shared/ListRow';
 import { LoadMore } from '@/components/shared/LoadMore';
 import { RelativeTime } from '@/components/shared/RelativeTime';
 import { Bone } from '@/components/shared/Skeleton';
@@ -72,7 +73,7 @@ export function AuditActivityList({
           <h2 id={`audit-day-${day.day}`} className="mb-2 px-1 text-sm font-semibold text-foreground">
             {dayHeading(day.day, now)}
           </h2>
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <ListRowGroup>
             {day.groups.map((group) => (
               <GroupRow
                 key={group.key}
@@ -84,7 +85,7 @@ export function AuditActivityList({
                 onSelect={onSelect}
               />
             ))}
-          </ul>
+          </ListRowGroup>
         </section>
       ))}
 

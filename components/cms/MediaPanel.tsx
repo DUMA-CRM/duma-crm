@@ -56,7 +56,6 @@ import { ApiError } from '@/lib/api/client';
 import {
   type CmsAsset,
   type CmsMediaGroup,
-  type CmsStorage,
   bulkCmsAssets,
   deleteCmsAsset,
   deleteCmsRenditions,
@@ -106,7 +105,7 @@ import {
   setDragLabel,
   useLocalFolders,
 } from './MediaFolders';
-import { StorageUsage, type UploadTarget } from './StorageUsage';
+import { StorageUsage, uploadTarget } from './StorageUsage';
 import { VideoOptionsDialog } from './VideoOptionsDialog';
 import { VideoThumb } from './VideoThumb';
 import { createRenditions } from './renditions';
@@ -128,33 +127,6 @@ const KIND_OPTIONS = [
   { value: 'audio', label: 'Audio' },
   { value: 'document', label: 'Documents' },
 ];
-
-/** Where new uploads go, how full it is, and what is free there (null: no limit). */
-function uploadTarget(storage: CmsStorage | undefined) {
-  if (!storage) return null;
-  const connection =
-    storage.active.kind === 'connection' ? storage.connections.find((row) => row.id === storage.active.connectionId) : undefined;
-  const place = connection
-    ? {
-        name: connection.displayName,
-        byKind: connection.byKind,
-        usedBytes: connection.usedBytes,
-        quotaBytes: connection.quotaBytes,
-        connectionId: connection.id,
-      }
-    : {
-        name: 'DUMA storage',
-        byKind: storage.builtIn.byKind,
-        usedBytes: storage.builtIn.usedBytes,
-        quotaBytes: storage.builtIn.quotaBytes,
-        connectionId: null,
-      };
-  return {
-    ...place,
-    builtIn: !connection,
-    freeBytes: place.quotaBytes === null ? null : Math.max(0, place.quotaBytes - place.usedBytes),
-  } satisfies UploadTarget & { connectionId: string | null };
-}
 
 /** The preview stage: a soft checkerboard, so transparent images read as transparent. */
 const STAGE_CLASS =
@@ -1048,19 +1020,6 @@ export function MediaPanel({
         />
       </div>
 
-      {/* Where you are, and what you can do here. */}
-      <div className="flex min-h-9 items-center gap-2">
-        {browsing ? (
-          <FolderTrail folder={folder} dropTarget={dropTarget} dropProps={dropProps} onOpen={onOpenFolder} />
-        ) : (
-          <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-            {view === 'all'
-              ? 'Results from every folder'
-              : `${VIEW_OPTIONS.find((option) => option.value === view)?.label} in every folder`}
-          </p>
-        )}
-      </div>
-
       <div className="flex flex-1 items-start gap-4">
         <ContextMenu>
           <ContextMenuTrigger asChild onContextMenu={onMenu}>
@@ -1101,6 +1060,19 @@ export function MediaPanel({
       {selecting && access.canWrite && (
         <MediaBulkBar selected={[...selected.values()]} folders={folders} request={bulkRequest} onClear={clearSelection} />
       )}
+
+      {/* The breadcrumb footer stays available as navigation and a drag target. */}
+      <div className="sticky bottom-0 z-10 mt-auto flex min-h-11 shrink-0 items-center gap-2 border-t border-rule/60 bg-background py-1">
+        {browsing ? (
+          <FolderTrail folder={folder} dropTarget={dropTarget} dropProps={dropProps} onOpen={onOpenFolder} />
+        ) : (
+          <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+            {view === 'all'
+              ? 'Results from every folder'
+              : `${VIEW_OPTIONS.find((option) => option.value === view)?.label} in every folder`}
+          </p>
+        )}
+      </div>
 
       {naming?.kind === 'new-folder' && (
         <NameDialog

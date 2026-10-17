@@ -2,30 +2,26 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { Clock, FileText, ImageIcon, KeyRound, Layers, Pencil, Send, Users } from '@/components/icons';
-import { Fact } from '@/components/settings/controls';
+import { Clock, FileText, KeyRound, Languages, Layers, Pencil, Send, Users } from '@/components/icons';
+import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { ListRow } from '@/components/shared/ListRow';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
-import { Pill } from '@/components/shared/Pill';
 import { RelativeTime } from '@/components/shared/RelativeTime';
 import { ListSkeleton } from '@/components/shared/Skeleton';
 
-import { getCmsContentTypes, getCmsOverview } from '@/lib/modules/cms/client';
-import { type CmsAttention, cmsAttention, formatBytes } from '@/lib/utils/cms';
+import { getCmsOverview } from '@/lib/modules/cms/client';
+import { type CmsAttention, cmsAttention } from '@/lib/utils/cms';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { LanguageChips, PanelError, cmsKeys } from './shared';
+import { InfoRow, InfoRows } from './rows';
+import { EntryStatusBadge, PanelError, cmsKeys } from './shared';
 import { useCmsAccess } from './useCmsAccess';
 
 type OverviewTab = 'entries' | 'models' | 'media' | 'developers';
 
-/**
- * The Content front door, laid out as Communications' is: four fact tiles,
- * the folded "needs you" card, then two activity lists side by side — what was
- * edited, and the models it was written against. Counts are per entry, and
- * each entry appears once whatever languages it is written in.
- */
+/** Resume recent work and surface publishing issues; configuration lives under Configure. */
 export function CmsOverviewPanel({
   onOpenEntry,
   onOpenTab,
@@ -42,11 +38,6 @@ export function CmsOverviewPanel({
     queryFn: () => getCmsOverview(tenantId ?? undefined),
     enabled: !!tenantId,
   });
-  const typesQuery = useQuery({
-    queryKey: cmsKeys.contentTypes(tenantId),
-    queryFn: () => getCmsContentTypes(tenantId ?? undefined),
-    enabled: !!tenantId,
-  });
 
   if (query.isError) return <PanelError title="The content overview couldn’t be loaded" onRetry={() => void query.refetch()} />;
 
@@ -56,9 +47,9 @@ export function CmsOverviewPanel({
       <EmptyState
         className="flex-1"
         icon={Layers}
-        title={onNewModel ? 'Model your first content type' : 'No content model yet'}
-        description="A content type is the shape of something your website shows — a blog post, a menu section, an opening-hours banner. Define its fields once, then write as many entries as you like and fetch them over the delivery API."
-        action={onNewModel ? { label: 'Create a content type', onClick: onNewModel, icon: Layers } : undefined}
+        title={onNewModel ? 'Create your first model' : 'No content models yet'}
+        description="Define a model, then add the content your website will use."
+        action={onNewModel ? { label: 'New model', onClick: onNewModel, icon: Layers } : undefined}
       />
     );
   }
@@ -118,171 +109,82 @@ export function CmsOverviewPanel({
     }
   };
 
-  const models = [...(typesQuery.data ?? [])].sort((a, b) => (b.entryCount ?? 0) - (a.entryCount ?? 0));
-
   return (
     <div className="space-y-5">
-      {/* The same four-tile row as Communications and Inventory — facts to read. */}
-      <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Fact
-          surface="page"
-          icon={Send}
-          label="Live entries"
-          value={count(entries?.live)}
-          hint={entries ? (entries.total === 0 ? 'Nothing written yet' : `of ${entries.total.toLocaleString()} entries`) : undefined}
-          onSelect={() => onOpenTab('entries')}
-        />
-        <Fact
-          surface="page"
-          icon={Pencil}
-          label="Unpublished changes"
-          value={count(entries?.changed)}
-          tone={entries && entries.changed > 0 ? 'warning' : 'default'}
-          hint={entries && entries.changed > 0 ? 'Edits websites can’t see yet' : 'Everything live is up to date'}
-          onSelect={entries && entries.changed > 0 ? () => onOpenTab('entries') : undefined}
-        />
-        <Fact
-          surface="page"
-          icon={Layers}
-          label="Content models"
-          value={count(overview?.contentTypes)}
-          hint={overview ? `${overview.locales} ${overview.locales === 1 ? 'language' : 'languages'}` : undefined}
-          onSelect={() => onOpenTab('models')}
-        />
-        <Fact
-          surface="page"
-          icon={ImageIcon}
-          label="Media"
-          value={count(overview?.assets.count)}
-          hint={overview ? formatBytes(overview.assets.bytes) : undefined}
-          onSelect={() => onOpenTab('media')}
-        />
-      </dl>
-
-      {/* Shown only when something needs you — no skeleton, no all-clear card. */}
       {overview && (
         <NeedsAttention
           items={cmsAttention(overview, { canManageKeys: access.canManageKeys, canPublish: access.canPublish }).map(toItem)}
         />
       )}
-
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <ActivitySection title="Recently edited" actionLabel="All entries" onAction={() => onOpenTab('entries')} loading={loading}>
-          {!overview || overview.recentEntries.length === 0 ? (
-            <Quiet>Nothing written yet.</Quiet>
+      <SettingsTabBody
+        narrowAside
+        aside={
+          <SettingsSection title="Publishing">
+            <InfoRows>
+              <InfoRow icon={Send} title="Live">
+                <span className="text-sm font-semibold tabular-nums text-foreground">{count(entries?.live)}</span>
+              </InfoRow>
+              <InfoRow icon={FileText} title="Drafts">
+                <span className="text-sm font-semibold tabular-nums text-foreground">{count(entries?.draft)}</span>
+              </InfoRow>
+              <InfoRow icon={Layers} title="Entries">
+                <span className="text-sm font-semibold tabular-nums text-foreground">{count(entries?.total)}</span>
+              </InfoRow>
+              <InfoRow icon={Languages} title="Languages">
+                <span className="text-sm font-semibold tabular-nums text-foreground">{count(overview?.locales)}</span>
+              </InfoRow>
+              {!!entries?.changed && (
+                <InfoRow icon={Pencil} title="Unpublished changes">
+                  <span className="text-sm font-semibold tabular-nums text-measured">{count(entries.changed)}</span>
+                </InfoRow>
+              )}
+              {!!entries?.review && (
+                <InfoRow icon={Users} title="Awaiting review">
+                  <span className="text-sm font-semibold tabular-nums text-measured">{count(entries.review)}</span>
+                </InfoRow>
+              )}
+              {!!entries?.scheduled && (
+                <InfoRow icon={Clock} title="Scheduled">
+                  <span className="text-sm font-semibold tabular-nums text-foreground">{count(entries.scheduled)}</span>
+                </InfoRow>
+              )}
+            </InfoRows>
+          </SettingsSection>
+        }
+      >
+        <section aria-labelledby="cms-recent-heading" className="min-w-0">
+          <h2 id="cms-recent-heading" className="mb-4 px-3.5 text-base font-semibold tracking-title text-foreground">
+            Recently edited
+          </h2>
+          {loading ? (
+            <div className="px-4 pb-4">
+              <ListSkeleton rows={3} label="Loading recent entries" />
+            </div>
+          ) : !overview?.recentEntries.length ? (
+            <p className="px-3.5 pb-6 pt-2 text-sm text-muted-foreground">Nothing written yet. Create an entry to get started.</p>
           ) : (
-            overview.recentEntries.slice(0, 6).map((entry) => (
-              <ListRow
-                key={entry.documentId}
-                icon={FileText}
-                tone={entry.status === 'published' ? 'success' : entry.status === 'changed' ? 'warning' : 'info'}
-                title={entry.title ?? 'Untitled'}
-                meta={
-                  <>
-                    {entry.contentType.name}
-                    {entry.localizations.length > 1 ? ` · edited in ${entry.locale}` : ''}
-                  </>
-                }
-                trailing={
-                  <>
-                    <span className="hidden sm:inline-flex">
-                      <LanguageChips
-                        versions={
-                          entry.localizations.length > 0
-                            ? entry.localizations
-                            : [{ id: entry.id, locale: entry.locale, status: entry.status }]
-                        }
-                      />
-                    </span>
-                    <span className="text-xs tabular-nums text-muted-foreground">
-                      <RelativeTime iso={entry.updatedAt} />
-                    </span>
-                  </>
-                }
-                chevron={false}
-                onClick={() => onOpenEntry(entry.id)}
-              />
-            ))
-          )}
-        </ActivitySection>
-
-        <ActivitySection
-          title="Content models"
-          actionLabel="All models"
-          onAction={() => onOpenTab('models')}
-          loading={loading || typesQuery.isPending}
-        >
-          {typesQuery.isError ? (
-            <Quiet>Models couldn’t be loaded.</Quiet>
-          ) : models.length === 0 ? (
-            <Quiet>No models yet.</Quiet>
-          ) : (
-            models.slice(0, 6).map((type) => {
-              const total = type.entryCount ?? 0;
-              const live = type.publishedCount ?? 0;
-              return (
+            <ListRowGroup>
+              {overview.recentEntries.slice(0, 6).map((entry) => (
                 <ListRow
-                  key={type.id}
-                  icon={Layers}
-                  tone="primary"
-                  title={type.name}
-                  meta={`${type.kind === 'singleton' ? 'Singleton' : 'Collection'} · ${type.fields.length} ${type.fields.length === 1 ? 'field' : 'fields'}`}
+                  key={entry.documentId}
+                  icon={FileText}
+                  tone={entry.status === 'published' ? 'success' : entry.status === 'changed' ? 'warning' : 'info'}
+                  title={entry.title ?? 'Untitled'}
+                  meta={entry.contentType.name}
                   trailing={
-                    total === 0 ? (
-                      <Pill tone="muted">Empty</Pill>
-                    ) : (
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {live} live of {total}
-                      </span>
-                    )
+                    <>
+                      <EntryStatusBadge status={entry.status} />
+                      <RelativeTime iso={entry.updatedAt} className="shrink-0 text-xs tabular-nums text-muted-foreground" />
+                    </>
                   }
                   chevron={false}
-                  onClick={() => onOpenTab('models')}
+                  onClick={() => onOpenEntry(entry.id)}
                 />
-              );
-            })
+              ))}
+            </ListRowGroup>
           )}
-        </ActivitySection>
-      </div>
+        </section>
+      </SettingsTabBody>
     </div>
   );
-}
-
-/** The titled list Communications' overview uses, so the two pages read alike. */
-function ActivitySection({
-  title,
-  actionLabel,
-  onAction,
-  loading,
-  children,
-}: {
-  title: string;
-  actionLabel: string;
-  onAction: () => void;
-  loading: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <section aria-label={title}>
-      <div className="mb-2 flex items-center justify-between gap-3 px-1">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        <button
-          type="button"
-          onClick={onAction}
-          className="text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
-        >
-          {actionLabel}
-        </button>
-      </div>
-      {loading ? (
-        <ListSkeleton rows={6} label={`Loading ${title.toLowerCase()}`} />
-      ) : (
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">{children}</ul>
-      )}
-    </section>
-  );
-}
-
-function Quiet({ children }: { children: React.ReactNode }) {
-  return <li className="px-3.5 py-8 text-center text-sm text-muted-foreground">{children}</li>;
 }

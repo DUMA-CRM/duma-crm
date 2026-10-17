@@ -246,18 +246,7 @@ function AuditLogPageContent() {
       </div>
       {resourceId && (
         <div aria-label="Active record filter" className="flex items-center">
-          <span className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-md border border-primary/25 bg-primary/5 pl-2.5 pr-1 text-xs font-medium text-primary">
-            <Layers3 size={14} aria-hidden="true" className="shrink-0" />
-            <span>One record</span>
-            <button
-              type="button"
-              onClick={() => setResourceId('')}
-              aria-label="Remove One record filter"
-              className="flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <X size={13} aria-hidden="true" />
-            </button>
-          </span>
+          <FilterChip label="One record" icon={Layers3} variant="tag" onRemove={() => setResourceId('')} />
         </div>
       )}
     </div>

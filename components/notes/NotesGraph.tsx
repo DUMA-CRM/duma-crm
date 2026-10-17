@@ -13,7 +13,7 @@ import {
   forceY,
 } from 'd3-force';
 import { useReducedMotion } from 'motion/react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 
 import { type GraphNode, type NoteGraphModel, orbRadius } from '@/lib/utils/notes-graph';
 
@@ -81,6 +81,8 @@ export function NotesGraph({
   onOpen: (node: GraphNode) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const minimapHelpId = useId();
+  const minimapRef = useRef<HTMLCanvasElement>(null);
   const reduced = useReducedMotion() ?? false;
   // The latest props, for handlers that live as long as the simulation.
   const live = useRef({ highlight, onOpen, focusId });
@@ -94,7 +96,12 @@ export function NotesGraph({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const context = canvas.getContext('2d');
-    if (!context) return;
+    const minimap = minimapRef.current;
+    const mini = minimap?.getContext('2d');
+    if (!context || !minimap || !mini) return;
+    let map = { k: 1, x: 0, y: 0 };
+    let miniWidth = minimap.clientWidth;
+    let miniHeight = minimap.clientHeight;
 
     let palette = readPalette();
     let width = canvas.clientWidth;
@@ -128,11 +135,18 @@ export function NotesGraph({
 
     const resize = () => {
       const ratio = window.devicePixelRatio || 1;
+      view.x += (canvas.clientWidth - width) / 2;
+      view.y += (canvas.clientHeight - height) / 2;
       width = canvas.clientWidth;
       height = canvas.clientHeight;
       canvas.width = Math.round(width * ratio);
       canvas.height = Math.round(height * ratio);
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      miniWidth = minimap.clientWidth;
+      miniHeight = minimap.clientHeight;
+      minimap.width = Math.round(miniWidth * ratio);
+      minimap.height = Math.round(miniHeight * ratio);
+      mini.setTransform(ratio, 0, 0, ratio, 0, 0);
       draw();
     };
 
@@ -212,6 +226,56 @@ export function NotesGraph({
         context!.fillText(label, node.x ?? 0, y);
       }
       context!.restore();
+      drawMinimap();
+    }
+
+    function drawMinimap() {
+      const left = -view.x / view.k;
+      const top = -view.y / view.k;
+      const viewWidth = width / view.k;
+      const viewHeight = height / view.k;
+      // Include the viewport, so the overview stays useful when panned past the graph.
+      let minX = left,
+        minY = top,
+        maxX = left + viewWidth,
+        maxY = top + viewHeight;
+      for (const node of nodes) {
+        minX = Math.min(minX, (node.x ?? 0) - node.r);
+        minY = Math.min(minY, (node.y ?? 0) - node.r);
+        maxX = Math.max(maxX, (node.x ?? 0) + node.r);
+        maxY = Math.max(maxY, (node.y ?? 0) + node.r);
+      }
+      const k = Math.min((miniWidth - 20) / Math.max(1, maxX - minX), (miniHeight - 20) / Math.max(1, maxY - minY));
+      map = { k, x: (miniWidth - (maxX + minX) * k) / 2, y: (miniHeight - (maxY + minY) * k) / 2 };
+      mini!.clearRect(0, 0, miniWidth, miniHeight);
+      mini!.save();
+      mini!.translate(map.x, map.y);
+      mini!.scale(k, k);
+      mini!.strokeStyle = palette.link;
+      mini!.lineWidth = 1 / k;
+      for (const link of links) {
+        const a = link.source as SimNode,
+          b = link.target as SimNode;
+        mini!.beginPath();
+        mini!.moveTo(a.x ?? 0, a.y ?? 0);
+        mini!.lineTo(b.x ?? 0, b.y ?? 0);
+        mini!.stroke();
+      }
+      for (const node of nodes) {
+        mini!.fillStyle =
+          node.pinned || node.id === live.current.focusId || live.current.highlight?.has(node.id) ? palette.pinned : palette.note;
+        mini!.beginPath();
+        mini!.arc(node.x ?? 0, node.y ?? 0, Math.max(node.r, 2 / k), 0, Math.PI * 2);
+        mini!.fill();
+      }
+      mini!.strokeStyle = palette.halo;
+      mini!.fillStyle = palette.halo;
+      mini!.globalAlpha = 0.08;
+      mini!.fillRect(left, top, viewWidth, viewHeight);
+      mini!.globalAlpha = 0.8;
+      mini!.lineWidth = 1 / k;
+      mini!.strokeRect(left, top, viewWidth, viewHeight);
+      mini!.restore();
     }
     redrawRef.current = draw;
 
@@ -319,6 +383,48 @@ export function NotesGraph({
       draw();
     };
 
+    // The overview navigates the viewport without opening or moving any notes.
+    let miniDrag: { pointerId: number; projection: typeof map } | null = null;
+    const moveFromMinimap = (event: PointerEvent) => {
+      if (!miniDrag) return;
+      const box = minimap.getBoundingClientRect();
+      const projection = miniDrag.projection;
+      view.x = width / 2 - ((event.clientX - box.left - projection.x) / projection.k) * view.k;
+      view.y = height / 2 - ((event.clientY - box.top - projection.y) / projection.k) * view.k;
+      draw();
+    };
+    const onMiniDown = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      minimap.focus({ preventScroll: true });
+      minimap.setPointerCapture(event.pointerId);
+      miniDrag = { pointerId: event.pointerId, projection: { ...map } };
+      moveFromMinimap(event);
+    };
+    const onMiniUp = (event: PointerEvent) => {
+      if (miniDrag?.pointerId !== event.pointerId) return;
+      miniDrag = null;
+      if (minimap.hasPointerCapture(event.pointerId)) minimap.releasePointerCapture(event.pointerId);
+    };
+    const onMiniKey = (event: KeyboardEvent) => {
+      const step = event.shiftKey ? 160 : 40;
+      if (event.key === 'ArrowLeft') view.x += step;
+      else if (event.key === 'ArrowRight') view.x -= step;
+      else if (event.key === 'ArrowUp') view.y += step;
+      else if (event.key === 'ArrowDown') view.y -= step;
+      else if (event.key === 'Home') {
+        view.x = width / 2;
+        view.y = height / 2;
+      } else return;
+      event.preventDefault();
+      draw();
+    };
+    minimap.addEventListener('pointerdown', onMiniDown);
+    minimap.addEventListener('pointermove', moveFromMinimap);
+    minimap.addEventListener('pointerup', onMiniUp);
+    minimap.addEventListener('pointercancel', onMiniUp);
+    minimap.addEventListener('keydown', onMiniKey);
+
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);
@@ -326,6 +432,7 @@ export function NotesGraph({
     canvas.addEventListener('wheel', onWheel, { passive: false });
     const resizer = new ResizeObserver(resize);
     resizer.observe(canvas);
+    resizer.observe(minimap);
     // Light ↔ dark: the theme sets a class or attribute on <html>.
     const themeWatch = new MutationObserver(() => {
       palette = readPalette();
@@ -336,6 +443,12 @@ export function NotesGraph({
 
     return () => {
       simulation.stop();
+      redrawRef.current = () => undefined;
+      minimap.removeEventListener('pointerdown', onMiniDown);
+      minimap.removeEventListener('pointermove', moveFromMinimap);
+      minimap.removeEventListener('pointerup', onMiniUp);
+      minimap.removeEventListener('pointercancel', onMiniUp);
+      minimap.removeEventListener('keydown', onMiniKey);
       resizer.disconnect();
       themeWatch.disconnect();
       canvas.removeEventListener('pointerdown', onPointerDown);
@@ -354,6 +467,20 @@ export function NotesGraph({
         role="img"
         aria-label={`Graph of ${model.nodes.length} notes and ${model.links.length} links. The list below has the same notes.`}
       />
+      <div className="absolute bottom-3 right-3 overflow-hidden rounded-md border border-rule/70 bg-card shadow-sm">
+        <canvas
+          ref={minimapRef}
+          className="block h-24 w-36 touch-none cursor-crosshair focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring md:h-28 md:w-44"
+          role="group"
+          tabIndex={0}
+          aria-label="Graph minimap"
+          aria-describedby={minimapHelpId}
+          title="Click or drag to move the view"
+        />
+        <span id={minimapHelpId} className="sr-only">
+          Click or drag to move the view. Use arrow keys to pan, or Home to recenter.
+        </span>
+      </div>
       {/* The same notes for a screen reader or keyboard: the canvas itself can't be navigated. */}
       <ul className="sr-only">
         {model.nodes.map((node) => (

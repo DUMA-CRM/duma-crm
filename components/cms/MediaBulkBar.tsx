@@ -133,7 +133,7 @@ export function MediaBulkBar({
       <div
         role="region"
         aria-label="Selected files"
-        className="sticky bottom-4 z-20 mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2 rounded-xl border border-rule bg-card px-3 py-2 shadow-lg"
+        className="sticky bottom-16 z-20 mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2 rounded-xl border border-rule bg-card px-3 py-2 shadow-lg"
       >
         <span className="mr-auto pl-1 text-sm">
           <span className="font-semibold tabular-nums text-foreground">{selected.length}</span>{' '}

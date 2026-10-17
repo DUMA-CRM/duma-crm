@@ -41,7 +41,6 @@ import { noteTitleFrom, tagsInText } from '@/lib/utils/notes';
 import { toast } from '@/stores/toastStore';
 
 import { MoveToPage } from './MoveToPage';
-import { NoteBacklinks } from './NoteBacklinks';
 import { DriveSyncBar, useNoteDriveSync } from './NoteDriveSync';
 import type { EditorSnapshot } from './RichNoteEditor';
 import { VersionsDrawer } from './VersionsDrawer';
@@ -75,7 +74,7 @@ export function NoteEditor({
   folders: NoteFolder[];
   onBack: () => void;
   onDeleted: () => void;
-  /** Open another note — from a link in this one, or from "Linked from". */
+  /** Open another note from a link in this one. */
   onOpenNote: (id: string) => void;
   /** The open note's length as it changes, for the page header; null when no note is open. */
   onLength: (length: NoteLength | null) => void;
@@ -318,11 +317,33 @@ function LoadedNote({
     run();
   };
 
+  const paneRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const pane = paneRef.current;
+    if (!viewport || !pane) return;
+    const update = () => {
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        const available = viewport.height + viewport.offsetTop - pane.getBoundingClientRect().top;
+        pane.style.setProperty('--note-visible-height', `${Math.max(0, available)}px`);
+      } else pane.style.removeProperty('--note-visible-height');
+    };
+    update();
+    viewport.addEventListener('resize', update);
+    viewport.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    return () => {
+      viewport.removeEventListener('resize', update);
+      viewport.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div ref={paneRef} className="flex min-h-0 max-h-[var(--note-visible-height,none)] flex-1 flex-col">
       {/* The note's own bar, in one row: how to format it, whether it's saved, what you can do with it. */}
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-divider bg-card px-2 md:px-3">
-        <Button variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Back to the list" onClick={onBack}>
+      <div className="flex shrink-0 flex-wrap items-center gap-x-2 border-b border-divider bg-card px-2 py-1 md:h-12 md:flex-nowrap md:px-3 md:py-0">
+        <Button variant="ghost" size="icon-sm" className="max-md:size-11 lg:hidden" aria-label="Back to the list" onClick={onBack}>
           <ArrowLeft aria-hidden="true" />
         </Button>
         {!editable && !trashed && (
@@ -331,18 +352,20 @@ function LoadedNote({
         {drawing ? (
           <div ref={setDrawingBar} className="flex min-w-0 flex-1 items-center gap-1" />
         ) : editable && editor ? (
-          <div className="flex min-w-0 flex-1 overflow-x-auto">
+          <div className="order-last flex w-full min-w-0 border-t border-divider pt-1 md:order-none md:w-auto md:flex-1 md:overflow-x-auto md:border-0 md:pt-0">
             <NoteToolbar editor={editor} onUploadMedia={contentUpload} />
           </div>
         ) : (
           <span className="flex-1" />
         )}
+        {!drawing && <span className="flex-1 md:hidden" />}
         <SaveStatus state={saveState} lastSaved={lastSaved} />
         {!trashed && note.canEdit && (
           <Tooltip side="bottom" label={note.pinned ? 'Unpin' : 'Pin to the top'}>
             <Button
               variant="ghost"
               size="icon-sm"
+              className="hidden md:inline-flex"
               aria-label={note.pinned ? 'Unpin' : 'Pin'}
               onClick={() => meta.mutate({ pinned: !note.pinned })}
             >
@@ -358,7 +381,7 @@ function LoadedNote({
           }}
         >
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="More">
+            <Button variant="ghost" size="icon-sm" className="max-md:size-11" aria-label="Note actions">
               <MoreHorizontal aria-hidden="true" />
             </Button>
           </PopoverTrigger>
@@ -380,6 +403,15 @@ function LoadedNote({
               </>
             ) : (
               <>
+                {note.canEdit && (
+                  <div className="md:hidden">
+                    <MenuItem
+                      icon={note.pinned ? PinOff : Pin}
+                      label={note.pinned ? 'Unpin' : 'Pin to the top'}
+                      onClick={() => act(() => meta.mutate({ pinned: !note.pinned }))}
+                    />
+                  </div>
+                )}
                 <MenuItem icon={History} label="History" onClick={() => act(() => setHistory(true))} />
                 <MenuItem icon={GraphView} label="Show in graph" onClick={() => act(() => router.push(`/notes/graph?focus=${note.id}`))} />
                 {/* Only once Google Drive is connected (Settings → Connectors); each person's own Drive. */}
@@ -475,7 +507,6 @@ function LoadedNote({
               noteId={note.id}
               onOpenNote={onOpenNote}
             />
-            {!trashed && <NoteBacklinks noteId={note.id} onOpen={onOpenNote} />}
           </div>
         </div>
       )}
@@ -513,13 +544,13 @@ function SaveStatus({ state, lastSaved }: { state: SaveState; lastSaved: string 
   if (state === 'saving' || state === 'pending')
     return (
       <span className="flex items-center gap-1 text-xs text-muted-foreground" aria-live="polite">
-        <Loader2 size={12} className="animate-spin" aria-hidden="true" /> <span className="max-xl:sr-only">Saving…</span>
+        <Loader2 size={12} className="animate-spin" aria-hidden="true" /> <span>Saving…</span>
       </span>
     );
   if (state === 'error')
     return (
       <span className="text-xs font-medium text-exception" aria-live="polite">
-        Couldn’t save — retrying
+        Couldn’t save
       </span>
     );
   if (state === 'conflict') return <span className="text-xs font-medium text-measured">Not saved</span>;

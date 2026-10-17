@@ -1,7 +1,7 @@
 'use client';
 
 import { type Editor, useEditorState } from '@tiptap/react';
-import { type ComponentProps, useEffect, useId, useState } from 'react';
+import { type ComponentProps, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 import { MediaPicker } from '@/components/cms/MediaPicker';
 import { assetSrc } from '@/components/cms/shared';
@@ -20,14 +20,15 @@ import {
   Heading2,
   Heading3,
   ImageIcon,
-  ImagePlus,
   Italic,
   Link2,
   ListBullet,
   ListChecks,
   ListOrdered,
   Minus,
+  MoreHorizontal,
   Pilcrow,
+  Plus,
   Quote,
   Redo,
   Strikethrough,
@@ -42,7 +43,7 @@ import type { IconComponent } from '@/components/icons';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
@@ -56,7 +57,7 @@ import { insertMediaFiles } from './RichNoteEditor';
 // ---------------------------------------------------------------------------
 // The note's formatting, in one row inside the note's own bar. Block style,
 // alignment, colour, link and media are small menus, so everything fits on
-// one line; a narrow screen scrolls the row rather than wrapping it.
+// one line; smaller screens use grouped menus with full touch targets.
 // Every control keeps the editor's focus (mousedown is prevented, menus don't
 // take focus), so the selection being formatted never disappears.
 // ---------------------------------------------------------------------------
@@ -93,6 +94,7 @@ export function NoteToolbar({
   onUploadMedia: ((file: File) => Promise<string>) | null;
 }) {
   const fileInputId = useId();
+  const [blockOpen, setBlockOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [picking, setPicking] = useState(false);
   const capabilities = useAuthStore((store) => store.capabilities);
@@ -154,17 +156,16 @@ export function NoteToolbar({
   };
 
   const block = BLOCKS.find((entry) => entry.key === state.block) ?? BLOCKS[0];
-  const align = ALIGNS.find((entry) => entry.key === state.align) ?? ALIGNS[0]!;
 
   return (
-    <div role="toolbar" aria-label="Formatting" className="flex w-max items-center gap-0.5">
-      <Popover>
+    <div role="toolbar" aria-label="Formatting" className="flex min-w-0 items-center gap-0.5 [&_button]:max-md:min-h-11">
+      <Popover open={blockOpen} onOpenChange={setBlockOpen}>
         <Tooltip side="bottom" label="Text style">
           <PopoverTrigger asChild>
             <button
               type="button"
               onMouseDown={keepFocus}
-              className="flex h-8 w-30 items-center justify-between gap-1 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:bg-band"
+              className="flex h-11 w-16 md:h-8 md:w-24 items-center justify-between gap-1 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:bg-band"
             >
               <span className="truncate">{block.label}</span>
               <ChevronDown size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -178,7 +179,10 @@ export function NoteToolbar({
               icon={entry.icon}
               label={entry.label}
               selected={entry.key === state.block}
-              onSelect={() => setBlock(entry.key)}
+              onSelect={() => {
+                setBlock(entry.key);
+                setBlockOpen(false);
+              }}
               className={cn(entry.key === 'h1' && 'text-base font-bold', (entry.key === 'h2' || entry.key === 'h3') && 'font-semibold')}
             />
           ))}
@@ -194,35 +198,16 @@ export function NoteToolbar({
         active={state.italic}
         onClick={() => editor.chain().focus().toggleItalic().run()}
       />
-      <ToolButton
-        label="Underline"
-        shortcut="⌘U"
-        icon={Underline}
-        active={state.underline}
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-      />
-      <ToolButton
-        label="Strikethrough"
-        shortcut="⇧⌘S"
-        icon={Strikethrough}
-        active={state.strike}
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-      />
-      <ToolButton
-        label="Inline code"
-        shortcut="⌘E"
-        icon={Code}
-        active={state.code}
-        onClick={() => editor.chain().focus().toggleCode().run()}
-      />
-      <ToolButton
-        label="Code block"
-        shortcut="⌥⌘C"
-        icon={CodeBlock}
-        active={state.codeBlock}
-        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-      />
-      <ColourMenu editor={editor} textColour={state.textColour} markColour={state.markColour} />
+      <div className="hidden items-center gap-0.5 md:flex">
+        <ToolButton
+          label="Underline"
+          shortcut="⌘U"
+          icon={Underline}
+          active={state.underline}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+        />
+        <ColourMenu editor={editor} textColour={state.textColour} markColour={state.markColour} />
+      </div>
 
       <Separator />
       <ToolButton
@@ -232,119 +217,170 @@ export function NoteToolbar({
         active={state.task}
         onClick={() => editor.chain().focus().toggleTaskList().run()}
       />
-      <ToolButton
-        label="Bulleted list"
-        shortcut="⇧⌘8"
-        icon={ListBullet}
-        active={state.bullet}
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-      />
-      <ToolButton
-        label="Numbered list"
-        shortcut="⇧⌘7"
-        icon={ListOrdered}
-        active={state.ordered}
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-      />
-      <Popover>
-        <Tooltip side="bottom" label="Alignment">
-          <PopoverTrigger asChild>
-            <ToolButton label="Alignment" icon={align.icon} active={state.align !== 'left'} menu />
-          </PopoverTrigger>
-        </Tooltip>
-        <PopoverContent className="flex w-auto gap-0.5 p-1" onOpenAutoFocus={noAutoFocus} onCloseAutoFocus={noAutoFocus}>
-          {ALIGNS.map((entry) => (
-            <ToolButton
-              key={entry.key}
-              label={entry.label}
-              icon={entry.icon}
-              active={state.align === entry.key}
-              onClick={() =>
-                entry.key === 'left' ? editor.chain().focus().unsetTextAlign().run() : editor.chain().focus().setTextAlign(entry.key).run()
-              }
-            />
-          ))}
-        </PopoverContent>
-      </Popover>
-
-      <Separator />
-      <LinkMenu editor={editor} open={linkOpen} onOpenChange={setLinkOpen} active={state.link} />
-      <ToolButton
-        label={state.table ? 'Edit the table from the bar above it' : 'Table'}
-        icon={Table}
-        active={state.table}
-        onClick={() => {
-          if (state.table) editor.chain().focus().run();
-          else editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
-        }}
-      />
-      {(onUploadMedia || canUseContent) && (
-        <Popover>
-          <Tooltip side="bottom" label="Photo or video">
-            <PopoverTrigger asChild>
-              <ToolButton label="Photo or video" icon={ImagePlus} menu />
-            </PopoverTrigger>
-          </Tooltip>
-          <PopoverContent className="w-60 p-1" onOpenAutoFocus={noAutoFocus} onCloseAutoFocus={noAutoFocus}>
-            {onUploadMedia && (
+      <div className="hidden md:block">
+        <ToolbarMenu label="Lists" icon={state.ordered ? ListOrdered : ListBullet} active={state.bullet || state.ordered || state.task}>
+          {(choose) => (
+            <>
               <MenuOption
-                icon={UploadCloud}
-                label="Upload from this device"
-                hint="Saved to Content → Media, in Notes"
-                onSelect={() => document.getElementById(fileInputId)?.click()}
+                label="Checklist"
+                icon={ListChecks}
+                selected={state.task}
+                onSelect={() => choose(() => editor.chain().focus().toggleTaskList().run())}
               />
-            )}
-            {canUseContent && (
               <MenuOption
-                icon={ImageIcon}
-                label="From Content"
-                hint="Photos and videos in your media library"
-                onSelect={() => setPicking(true)}
+                label="Bulleted list"
+                icon={ListBullet}
+                selected={state.bullet}
+                onSelect={() => choose(() => editor.chain().focus().toggleBulletList().run())}
               />
-            )}
-          </PopoverContent>
-        </Popover>
-      )}
-      <Popover>
-        <Tooltip side="bottom" label="Side by side">
-          <PopoverTrigger asChild>
-            <ToolButton label="Side by side" icon={Columns2} active={state.columns > 0} menu />
-          </PopoverTrigger>
-        </Tooltip>
-        <PopoverContent className="w-56 p-1" onOpenAutoFocus={noAutoFocus} onCloseAutoFocus={noAutoFocus}>
-          <MenuOption
-            icon={Columns2}
-            label="2 in a row"
-            hint={state.columns ? undefined : 'This paragraph goes in the first'}
-            selected={state.columns === 2}
-            onSelect={() => editor.chain().focus().setColumns(2).run()}
-          />
-          <MenuOption
-            icon={Columns3}
-            label="3 in a row"
-            selected={state.columns === 3}
-            onSelect={() => editor.chain().focus().setColumns(3).run()}
-          />
-          {state.columns > 0 && (
-            <MenuOption
-              icon={Pilcrow}
-              label="One column"
-              hint="Stack everything again"
-              onSelect={() => editor.chain().focus().unsetColumns().run()}
-            />
+              <MenuOption
+                label="Numbered list"
+                icon={ListOrdered}
+                selected={state.ordered}
+                onSelect={() => choose(() => editor.chain().focus().toggleOrderedList().run())}
+              />
+            </>
           )}
-        </PopoverContent>
-      </Popover>
-      <ToolButton label="Divider" icon={Minus} onClick={() => editor.chain().focus().setHorizontalRule().run()} />
-
+        </ToolbarMenu>
+      </div>
       <Separator />
-      <ToolButton
-        label="Clear formatting"
-        icon={TextClear}
-        onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().unsetTextAlign().run()}
-      />
-      <ToolButton label="Undo" shortcut="⌘Z" icon={Undo} disabled={!state.canUndo} onClick={() => editor.chain().focus().undo().run()} />
-      <ToolButton label="Redo" shortcut="⇧⌘Z" icon={Redo} disabled={!state.canRedo} onClick={() => editor.chain().focus().redo().run()} />
+      <LinkMenu editor={editor} open={linkOpen} onOpenChange={setLinkOpen} active={state.link}>
+        <ToolbarMenu label="Insert" icon={Plus}>
+          {(choose) => (
+            <>
+              <MenuOption label="Link" icon={Link2} selected={state.link} onSelect={() => choose(() => setLinkOpen(true))} />
+              {onUploadMedia && (
+                <MenuOption
+                  label="Upload photo or video"
+                  icon={UploadCloud}
+                  onSelect={() => choose(() => document.getElementById(fileInputId)?.click())}
+                />
+              )}
+              {canUseContent && <MenuOption label="From Content" icon={ImageIcon} onSelect={() => choose(() => setPicking(true))} />}
+              <MenuOption
+                label={state.table ? 'Edit current table' : 'Table'}
+                icon={Table}
+                selected={state.table}
+                onSelect={() =>
+                  choose(() =>
+                    state.table
+                      ? editor.chain().focus().run()
+                      : editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+                  )
+                }
+              />
+              <div className="my-1 h-px bg-rule/50" />
+              <MenuOption
+                label="2 columns"
+                icon={Columns2}
+                selected={state.columns === 2}
+                onSelect={() => choose(() => editor.chain().focus().setColumns(2).run())}
+              />
+              <MenuOption
+                label="3 columns"
+                icon={Columns3}
+                selected={state.columns === 3}
+                onSelect={() => choose(() => editor.chain().focus().setColumns(3).run())}
+              />
+              {state.columns > 0 && (
+                <MenuOption label="One column" icon={Pilcrow} onSelect={() => choose(() => editor.chain().focus().unsetColumns().run())} />
+              )}
+              <MenuOption label="Divider" icon={Minus} onSelect={() => choose(() => editor.chain().focus().setHorizontalRule().run())} />
+            </>
+          )}
+        </ToolbarMenu>
+      </LinkMenu>
+      <ToolbarMenu
+        label="More formatting"
+        icon={MoreHorizontal}
+        active={state.strike || state.code || state.codeBlock || state.align !== 'left'}
+        compact
+      >
+        {(choose) => (
+          <>
+            <div className="flex items-center gap-1 border-b border-rule/50 p-1 md:hidden">
+              <ToolButton
+                label="Underline"
+                icon={Underline}
+                active={state.underline}
+                onClick={() => editor.chain().focus().toggleUnderline().run()}
+              />
+              <ColourMenu editor={editor} textColour={state.textColour} markColour={state.markColour} />
+              <ToolButton
+                label="Undo"
+                icon={Undo}
+                disabled={!state.canUndo}
+                onClick={() => choose(() => editor.chain().focus().undo().run())}
+              />
+              <ToolButton
+                label="Redo"
+                icon={Redo}
+                disabled={!state.canRedo}
+                onClick={() => choose(() => editor.chain().focus().redo().run())}
+              />
+            </div>
+            <div className="border-b border-rule/50 py-1 md:hidden">
+              <MenuOption
+                label="Bulleted list"
+                icon={ListBullet}
+                selected={state.bullet}
+                onSelect={() => choose(() => editor.chain().focus().toggleBulletList().run())}
+              />
+              <MenuOption
+                label="Numbered list"
+                icon={ListOrdered}
+                selected={state.ordered}
+                onSelect={() => choose(() => editor.chain().focus().toggleOrderedList().run())}
+              />
+            </div>
+            <MenuOption
+              label="Strikethrough"
+              icon={Strikethrough}
+              selected={state.strike}
+              onSelect={() => choose(() => editor.chain().focus().toggleStrike().run())}
+            />
+            <MenuOption
+              label="Inline code"
+              icon={Code}
+              selected={state.code}
+              onSelect={() => choose(() => editor.chain().focus().toggleCode().run())}
+            />
+            <MenuOption
+              label="Code block"
+              icon={CodeBlock}
+              selected={state.codeBlock}
+              onSelect={() => choose(() => editor.chain().focus().toggleCodeBlock().run())}
+            />
+            <div className="my-1 h-px bg-rule/50" />
+            {ALIGNS.map((entry) => (
+              <MenuOption
+                key={entry.key}
+                label={entry.label}
+                icon={entry.icon}
+                selected={state.align === entry.key}
+                onSelect={() =>
+                  choose(() =>
+                    entry.key === 'left'
+                      ? editor.chain().focus().unsetTextAlign().run()
+                      : editor.chain().focus().setTextAlign(entry.key).run(),
+                  )
+                }
+              />
+            ))}
+            <div className="my-1 h-px bg-rule/50" />
+            <MenuOption
+              label="Clear formatting"
+              icon={TextClear}
+              onSelect={() => choose(() => editor.chain().focus().unsetAllMarks().clearNodes().unsetTextAlign().run())}
+            />
+          </>
+        )}
+      </ToolbarMenu>
+      <div className="hidden items-center gap-0.5 md:flex">
+        <Separator />
+        <ToolButton label="Undo" shortcut="⌘Z" icon={Undo} disabled={!state.canUndo} onClick={() => editor.chain().focus().undo().run()} />
+        <ToolButton label="Redo" shortcut="⇧⌘Z" icon={Redo} disabled={!state.canRedo} onClick={() => editor.chain().focus().redo().run()} />
+      </div>
 
       <input
         id={fileInputId}
@@ -381,8 +417,79 @@ export function NoteToolbar({
   );
 }
 
+function ToolbarMenu({
+  label,
+  icon: Icon,
+  active,
+  compact = false,
+  children,
+}: {
+  label: string;
+  icon: IconComponent;
+  active?: boolean;
+  compact?: boolean;
+  children: (choose: (run: () => unknown) => void) => ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [chosen, setChosen] = useState(false);
+  const pointerOpen = useRef(false);
+  const choose = (run: () => unknown) => {
+    setChosen(true);
+    setOpen(false);
+    run();
+  };
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) setChosen(false);
+        setOpen(next);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          onPointerDown={() => {
+            pointerOpen.current = true;
+          }}
+          onKeyDown={() => {
+            pointerOpen.current = false;
+          }}
+          onMouseDown={keepFocus}
+          className={cn(
+            'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:bg-band md:h-8',
+            active && 'bg-primary/10 text-primary',
+            compact ? 'w-11 px-0 md:w-8' : 'min-w-11',
+          )}
+        >
+          <Icon size={16} aria-hidden="true" />
+          {!compact && (
+            <>
+              <span className="hidden md:inline">{label}</span>
+              <ChevronDown size={12} aria-hidden="true" className="hidden md:block" />
+            </>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        aria-label={label}
+        className="max-h-[min(32rem,var(--radix-popover-content-available-height))] w-60 overflow-y-auto p-1 [&_button]:max-md:min-h-11"
+        onOpenAutoFocus={(event) => {
+          if (pointerOpen.current || document.activeElement?.closest('[contenteditable="true"]')) event.preventDefault();
+        }}
+        onCloseAutoFocus={(event) => {
+          if (chosen || pointerOpen.current) event.preventDefault();
+        }}
+      >
+        {children(choose)}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function Separator() {
-  return <span className="mx-1 h-5 w-px shrink-0 bg-rule/60" aria-hidden="true" />;
+  return <span className="mx-1 hidden h-5 w-px shrink-0 bg-rule/60 md:block" aria-hidden="true" />;
 }
 
 /** One icon control. Spreads the rest so it can be a popover's trigger. */
@@ -409,7 +516,7 @@ function ToolButton({
       aria-pressed={menu ? undefined : (active ?? undefined)}
       onMouseDown={keepFocus}
       className={cn(
-        'flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-35 data-[state=open]:bg-band data-[state=open]:text-foreground',
+        'flex size-11 shrink-0 md:size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-35 data-[state=open]:bg-band data-[state=open]:text-foreground',
         active && 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary',
         className,
       )}
@@ -440,7 +547,7 @@ function ColourMenu({ editor, textColour, markColour }: { editor: Editor; textCo
             aria-label="Text colour and highlight"
             onMouseDown={keepFocus}
             className={cn(
-              'flex size-8 shrink-0 flex-col items-center justify-center gap-0.5 rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:bg-band',
+              'flex size-11 shrink-0 md:size-8 flex-col items-center justify-center gap-0.5 rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:bg-band',
               (textColour || markColour) && 'text-foreground',
             )}
           >
@@ -454,7 +561,7 @@ function ColourMenu({ editor, textColour, markColour }: { editor: Editor; textCo
           </button>
         </PopoverTrigger>
       </Tooltip>
-      <PopoverContent className="w-64 p-3" onOpenAutoFocus={noAutoFocus} onCloseAutoFocus={noAutoFocus}>
+      <PopoverContent className="w-72 p-3 md:w-64" onOpenAutoFocus={noAutoFocus} onCloseAutoFocus={noAutoFocus}>
         <p className="mb-2 text-label uppercase text-muted-foreground">Text</p>
         <div className="grid grid-cols-5 gap-1.5">
           <Swatch label="Default" selected={!textColour} onSelect={() => editor.chain().focus().unsetColor().run()}>
@@ -522,7 +629,7 @@ function Swatch({
         onClick={onSelect}
         style={style}
         className={cn(
-          'flex size-9 items-center justify-center rounded-md border border-rule/60 bg-card transition-[box-shadow,border-color] hover:border-rule focus-visible:outline-2 focus-visible:outline-ring',
+          'flex size-11 items-center justify-center rounded-md border md:size-9 border-rule/60 bg-card transition-[box-shadow,border-color] hover:border-rule focus-visible:outline-2 focus-visible:outline-ring',
           selected && 'border-primary ring-2 ring-primary/35',
         )}
       >
@@ -538,7 +645,9 @@ function LinkMenu({
   open,
   onOpenChange,
   active,
+  children,
 }: {
+  children: ReactNode;
   editor: Editor;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -546,11 +655,9 @@ function LinkMenu({
 }) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      <Tooltip side="bottom" label="Link (⌘K)">
-        <PopoverTrigger asChild>
-          <ToolButton label="Link" icon={Link2} active={active} menu />
-        </PopoverTrigger>
-      </Tooltip>
+      <PopoverAnchor asChild>
+        <div className="shrink-0">{children}</div>
+      </PopoverAnchor>
       <PopoverContent className="w-80 p-2" onCloseAutoFocus={noAutoFocus}>
         <LinkForm editor={editor} active={active} onDone={() => onOpenChange(false)} />
       </PopoverContent>
@@ -607,7 +714,7 @@ function LinkForm({ editor, active, onDone }: { editor: Editor; active: boolean;
             className="h-8"
           />
         </div>
-        <Button type="submit" size="sm">
+        <Button type="submit" size="sm" className="max-md:h-11">
           {active ? 'Save' : 'Add'}
         </Button>
       </form>

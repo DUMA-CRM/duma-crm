@@ -145,3 +145,8 @@ export function ListRow({
     </As>
   );
 }
+
+/** The grouped white list surface shared by activity lists and content rows. */
+export function ListRowGroup({ className, ...props }: React.ComponentProps<'ul'>) {
+  return <ul className={cn('overflow-hidden rounded-lg border border-rule/60 bg-card', className)} {...props} />;
+}

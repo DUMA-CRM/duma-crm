@@ -24,9 +24,10 @@ export function MenuOption({
   return (
     <button
       type="button"
+      aria-pressed={selected}
       onMouseDown={keepFocus}
       onClick={onSelect}
-      className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-ring"
+      className="flex min-h-11 w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-ring md:min-h-0"
     >
       <Icon size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
       <span className="min-w-0 flex-1">

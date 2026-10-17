@@ -850,15 +850,17 @@ function OrdersPageContent() {
           </div>
 
           {hasFilters && (
-            <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
+            <div className="flex flex-wrap items-center gap-2" aria-label="Active filters">
               {reportScope !== null && (
                 <FilterChip
+                  variant="tag"
                   label={reportScope === 'all' ? 'Every location' : (locationName(reportScope) ?? 'One location')}
                   onRemove={() => setReportScope(null)}
                 />
               )}
               {datePreset !== 'all' && (
                 <FilterChip
+                  variant="tag"
                   label={
                     singleDay
                       ? DAY_LABEL.format(new Date(`${from}T12:00:00`))
@@ -871,21 +873,23 @@ function OrdersPageContent() {
               )}
               {statusFilter !== 'all' && (
                 <FilterChip
+                  variant="tag"
                   label={STATUS_TABS.find((tab) => tab.value === statusFilter)?.label ?? statusFilter}
                   onRemove={() => setStatusFilter('all')}
                 />
               )}
               {sourceFilter !== 'all' && (
-                <FilterChip label={optionLabel(SOURCE_FILTERS, sourceFilter)} onRemove={() => setSourceFilter('all')} />
+                <FilterChip variant="tag" label={optionLabel(SOURCE_FILTERS, sourceFilter)} onRemove={() => setSourceFilter('all')} />
               )}
               {paymentFilter !== 'all' && (
-                <FilterChip label={optionLabel(PAYMENT_FILTERS, paymentFilter)} onRemove={() => setPaymentFilter('all')} />
+                <FilterChip variant="tag" label={optionLabel(PAYMENT_FILTERS, paymentFilter)} onRemove={() => setPaymentFilter('all')} />
               )}
               {createdBy !== 'all' && (
-                <FilterChip label={`Taken by ${optionLabel(staffOptions, createdBy)}`} onRemove={() => setCreatedBy('all')} />
+                <FilterChip variant="tag" label={`Taken by ${optionLabel(staffOptions, createdBy)}`} onRemove={() => setCreatedBy('all')} />
               )}
               {debouncedSearch && (
                 <FilterChip
+                  variant="tag"
                   label={`${isUuid(debouncedSearch) ? 'Customer' : 'Phone'}: ${debouncedSearch}`}
                   onRemove={() => {
                     setCustomerSearch('');
@@ -896,7 +900,7 @@ function OrdersPageContent() {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="ml-1 h-7 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+                className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
               >
                 Clear all
               </button>

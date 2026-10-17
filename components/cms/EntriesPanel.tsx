@@ -693,13 +693,8 @@ export function EntriesPanel({
         )}
       </div>
 
-      {/* Where you are — or, once something is selected, what to do with it. */}
-      <div
-        className="flex min-h-9 flex-wrap items-center gap-2"
-        role={selecting ? 'region' : undefined}
-        aria-label={selecting ? 'Bulk actions' : undefined}
-      >
-        {selecting ? (
+      {selecting && (
+        <div className="flex min-h-9 flex-wrap items-center gap-2" role="region" aria-label="Bulk actions">
           <>
             <span className="mr-auto text-sm font-semibold tabular-nums text-foreground">{selected.size} selected</span>
             <Button
@@ -734,7 +729,27 @@ export function EntriesPanel({
               </Button>
             </Tooltip>
           </>
-        ) : atRoot || typeId ? (
+        </div>
+      )}
+
+      <ContextMenu>
+        <ContextMenuTrigger asChild onContextMenu={onMenu}>
+          <div
+            className="flex min-h-[50vh] min-w-0 flex-1 flex-col gap-4"
+            // A click on empty space clears the selection.
+            onClick={(event) => {
+              if (!(event.target as HTMLElement).closest('[data-media-item], [data-entry-item], button, input, label, a')) clearSelection();
+            }}
+          >
+            {body}
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>{menu()}</ContextMenuContent>
+      </ContextMenu>
+
+      {/* Location stays at the foot of the browser, separate from filtering and selection. */}
+      <div className="sticky bottom-0 z-10 mt-auto flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-t border-rule/60 bg-background py-1">
+        {atRoot || typeId ? (
           <>
             <nav aria-label="Folder" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
               {crumbs.map((step, index) => {
@@ -772,21 +787,6 @@ export function EntriesPanel({
           </>
         )}
       </div>
-
-      <ContextMenu>
-        <ContextMenuTrigger asChild onContextMenu={onMenu}>
-          <div
-            className="flex min-h-[50vh] min-w-0 flex-1 flex-col gap-4"
-            // A click on empty space clears the selection.
-            onClick={(event) => {
-              if (!(event.target as HTMLElement).closest('[data-media-item], [data-entry-item], button, input, label, a')) clearSelection();
-            }}
-          >
-            {body}
-          </div>
-        </ContextMenuTrigger>
-        <ContextMenuContent>{menu()}</ContextMenuContent>
-      </ContextMenu>
 
       {deleting && (
         <ConfirmModal
