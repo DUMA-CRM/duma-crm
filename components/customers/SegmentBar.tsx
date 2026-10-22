@@ -4,8 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Popover } from 'radix-ui';
 import { useState } from 'react';
 
+import { Modal } from '@/components/customers/CustomerDialogs';
 import { Check, Tags, Trash2, X } from '@/components/icons';
-import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -87,7 +87,7 @@ export function SegmentBar({ filters, appliedSegmentId, segments, onApply, canWr
             align="start"
             sideOffset={8}
             collisionPadding={16}
-            className="z-90 w-[calc(100vw-2rem)] max-w-xs rounded-sm border border-rule bg-surface p-2 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
+            className="z-90 w-[calc(100vw-2rem)] max-w-xs rounded-lg border border-rule/60 bg-field p-2 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
           >
             <p className="px-2 pb-1.5 pt-1 text-micro font-semibold uppercase tracking-micro text-muted-foreground">Saved segments</p>
 
@@ -167,8 +167,22 @@ export function SegmentBar({ filters, appliedSegmentId, segments, onApply, canWr
       </Popover.Root>
 
       {showSave && (
-        <Modal title="Save segment" onClose={() => setShowSave(false)}>
+        <Modal
+          title="Save segment"
+          onClose={() => setShowSave(false)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setShowSave(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" form="customer-segment-form" disabled={!name.trim() || save.isPending}>
+                {save.isPending ? 'Saving…' : 'Save segment'}
+              </Button>
+            </div>
+          }
+        >
           <form
+            id="customer-segment-form"
             onSubmit={(event) => {
               event.preventDefault();
               if (name.trim()) save.mutate();
@@ -198,15 +212,6 @@ export function SegmentBar({ filters, appliedSegmentId, segments, onApply, canWr
                 {error}
               </p>
             )}
-
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setShowSave(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!name.trim() || save.isPending}>
-                {save.isPending ? 'Saving…' : 'Save segment'}
-              </Button>
-            </div>
           </form>
         </Modal>
       )}

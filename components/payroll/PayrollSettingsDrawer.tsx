@@ -4,9 +4,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { Globe, Loader2 } from '@/components/icons';
+import { Banknote, Globe, Loader2 } from '@/components/icons';
 import { Switch } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
+import { FormSection } from '@/components/shared/FormParts';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
@@ -30,6 +31,9 @@ export function PayrollSettingsDrawer({ settings, onClose }: { settings: Payroll
   const [payDay, setPayDay] = useState(settings.payrollPayDayOfMonth);
   const [weekday, setWeekday] = useState(settings.payrollPayWeekday);
   const [auto, setAuto] = useState(settings.payrollAutoFinalise);
+  const snapshot = JSON.stringify([country, period, payDay, weekday, auto]);
+  const [initialSnapshot] = useState(snapshot);
+  const dirty = snapshot !== initialSnapshot;
   const preset = countryByCode(country);
 
   const save = useMutation({
@@ -51,24 +55,90 @@ export function PayrollSettingsDrawer({ settings, onClose }: { settings: Payroll
 
   return (
     <Drawer
+      icon={Banknote}
       title="Payroll settings"
-      description="Where you run payroll and how often."
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={save.isPending}>
+          <Button variant="outline" size="default" className="flex-1" onClick={onClose} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button size="lg" className="flex-1" onClick={() => save.mutate()} disabled={save.isPending}>
+          <Button
+            size="default"
+            className="flex-1"
+            onClick={() => {
+              if (dirty) save.mutate();
+            }}
+            disabled={save.isPending || !dirty}
+          >
             {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
             Save
           </Button>
         </div>
       }
     >
-      <div className="space-y-7">
-        <section>
-          <h3 className="text-sm font-semibold text-foreground">Country</h3>
+      <div className="space-y-5">
+        <FormSection title="Pay schedule" framed={false}>
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
+            {PAYROLL_PERIODS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={period === value}
+                onClick={() => setPeriod(value)}
+                className={
+                  period === value
+                    ? 'rounded-lg border border-primary bg-primary/5 px-3.5 py-3 text-left text-sm font-semibold text-foreground'
+                    : 'rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-left text-sm font-medium text-foreground hover:bg-band/40'
+                }
+              >
+                {PERIOD_LABEL[value].name}
+                {preset?.commonPeriod === value && (
+                  <span className="block text-xs font-normal text-muted-foreground">Common in {preset.name}</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="pt-2">
+            <h4 className="text-sm font-medium text-foreground">Pay day</h4>
+            {period === 'monthly' ? (
+              <Select
+                value={String(payDay)}
+                onValueChange={(value) => setPayDay(Number(value))}
+                options={Array.from({ length: 31 }, (_, index) => ({ value: String(index + 1), label: `Day ${index + 1} of the month` }))}
+                ariaLabel="Pay day of the month"
+                className="mt-2.5 w-full"
+              />
+            ) : period === 'semi_monthly' ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                The 16th (for the 1st–15th) and the 1st (for the rest of the month before).
+              </p>
+            ) : (
+              <Select
+                value={String(weekday)}
+                onValueChange={(value) => setWeekday(Number(value))}
+                options={WEEKDAYS.map((label, index) => ({
+                  value: String(index + 1),
+                  label: `Every ${period === 'fortnightly' ? 'other ' : ''}${label}`,
+                }))}
+                ariaLabel="Pay weekday"
+                className="mt-2.5 w-full"
+              />
+            )}
+          </div>
+        </FormSection>
+
+        <section className="flex items-start gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5">
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-foreground">Finalise automatically on pay day</span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+              Freezes the period’s hours and gross pay. Payslips are never sent automatically — someone still enters each person’s
+              deductions first.
+            </span>
+          </span>
+          <Switch label="Finalise automatically" checked={auto} onChange={setAuto} />
+        </section>
+        <FormSection icon={Globe} title="Country & payslip defaults" collapsible>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Suggests the names of the lines on each payslip. Nothing is calculated from it.
           </p>
@@ -98,70 +168,7 @@ export function PayrollSettingsDrawer({ settings, onClose }: { settings: Payroll
               Change in Trading & tax
             </Link>
           </p>
-        </section>
-
-        <section>
-          <h3 className="text-sm font-semibold text-foreground">Pay period</h3>
-          <div className="mt-2.5 grid grid-cols-2 gap-2">
-            {PAYROLL_PERIODS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={period === value}
-                onClick={() => setPeriod(value)}
-                className={
-                  period === value
-                    ? 'rounded-lg border border-primary bg-primary/5 px-3.5 py-3 text-left text-sm font-semibold text-foreground'
-                    : 'rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-left text-sm font-medium text-foreground hover:bg-band/40'
-                }
-              >
-                {PERIOD_LABEL[value].name}
-                {preset?.commonPeriod === value && (
-                  <span className="block text-xs font-normal text-muted-foreground">Common in {preset.name}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <h3 className="text-sm font-semibold text-foreground">Pay day</h3>
-          {period === 'monthly' ? (
-            <Select
-              value={String(payDay)}
-              onValueChange={(value) => setPayDay(Number(value))}
-              options={Array.from({ length: 31 }, (_, index) => ({ value: String(index + 1), label: `Day ${index + 1} of the month` }))}
-              ariaLabel="Pay day of the month"
-              className="mt-2.5 w-full"
-            />
-          ) : period === 'semi_monthly' ? (
-            <p className="mt-1 text-sm text-muted-foreground">
-              The 16th (for the 1st–15th) and the 1st (for the rest of the month before).
-            </p>
-          ) : (
-            <Select
-              value={String(weekday)}
-              onValueChange={(value) => setWeekday(Number(value))}
-              options={WEEKDAYS.map((label, index) => ({
-                value: String(index + 1),
-                label: `Every ${period === 'fortnightly' ? 'other ' : ''}${label}`,
-              }))}
-              ariaLabel="Pay weekday"
-              className="mt-2.5 w-full"
-            />
-          )}
-        </section>
-
-        <section className="flex items-start gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5">
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-foreground">Finalise automatically on pay day</span>
-            <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-              Freezes the period’s hours and gross pay. Payslips are never sent automatically — someone still enters each person’s
-              deductions first.
-            </span>
-          </span>
-          <Switch label="Finalise automatically" checked={auto} onChange={setAuto} />
-        </section>
+        </FormSection>
       </div>
     </Drawer>
   );

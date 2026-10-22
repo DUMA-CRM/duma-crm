@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 
+import { Modal } from '@/components/customers/CustomerDialogs';
 import { AlertTriangle, ArrowRight, type IconComponent, Minus, Plus } from '@/components/icons';
 import { ModalActions } from '@/components/shared/FormParts';
-import { Modal } from '@/components/shared/Modal';
 import { Input } from '@/components/ui/input';
 
 import { type AdjustDirection, planAdjustment } from '@/lib/utils/balance-adjust';

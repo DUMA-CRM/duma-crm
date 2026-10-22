@@ -10,12 +10,10 @@ import {
   CalendarDays,
   CircleHelp,
   FileText,
-  HeartHandshake,
   Landmark,
-  MapPin,
-  MessageSquarePlus,
   Monitor,
   Sun,
+  UserRound,
 } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { AddressFields } from '@/components/people/AddressFields';
@@ -23,6 +21,7 @@ import { Drawer } from '@/components/shared/Drawer';
 import { ChoiceCards, FormSection, ModalActions } from '@/components/shared/FormParts';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { type HrEmployee, updateMyEmployee } from '@/lib/modules/people/client';
@@ -36,7 +35,6 @@ import {
 } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { workspaceDateKey } from '@/lib/utils/workspace-time';
 import {
   formatNiNumber,
   formatSortCode,
@@ -47,6 +45,7 @@ import {
   normaliseNiNumber,
   normaliseSortCode,
 } from '@/lib/utils/my-hr';
+import { workspaceDateKey } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 
 // ── Shared form furniture ─────────────────────────────────────────────────────
@@ -72,7 +71,9 @@ function Labelled({
   return (
     <Tag className={cn('block', grow && 'flex min-h-0 flex-1 flex-col')}>
       {/* The `Input` label exactly, so a labelled control and an `Input` with its own label line up. */}
-      <span className="block text-label uppercase text-muted-foreground">{label}</span>
+      <FieldLabel as="span" required={['Details', 'Day length', 'How urgent is it?'].includes(label)}>
+        {label}
+      </FieldLabel>
       <div className={cn('mt-1.5', grow && 'min-h-0 flex-1')}>{children}</div>
       {error ? (
         <span className="mt-1 block text-xs text-exception">{error}</span>
@@ -138,6 +139,8 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
     bankAccountNumber: '',
     nationalInsuranceNumber: '',
   });
+  const [initialForm] = useState(() => JSON.stringify(form));
+  const dirty = JSON.stringify(form) !== initialForm;
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const blur = (key: string) => () => setTouched((t) => ({ ...t, [key]: true }));
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: e.target.value });
@@ -198,8 +201,8 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
 
   return (
     <Drawer
+      icon={UserRound}
       title="Edit your details"
-      description="Changes go straight to your HR record."
       onClose={onClose}
       footer={
         <ModalActions
@@ -207,7 +210,7 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
           submitLabel="Save changes"
           pending={mutation.isPending}
           pendingLabel="Saving…"
-          disabled={blocked}
+          disabled={blocked || !dirty}
           onCancel={onClose}
         />
       }
@@ -217,12 +220,12 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
         className="space-y-6"
         onSubmit={(e) => {
           e.preventDefault();
-          mutation.mutate();
+          if (dirty && !blocked) mutation.mutate();
         }}
       >
         {/* The staff record's edit drawer layout: each section an icon tile,
             its title and why, then its fields on the porcelain panel. */}
-        <FormSection icon={MapPin} title="Home address" note="Where HR and payroll write to you.">
+        <FormSection framed={false} title="Home address" note="Where HR and payroll write to you.">
           {/* The record stores one address line, so the four fields compose into
               it and parse back out — the same component the HR-side forms use,
               so both sides write the address the same way round. */}
@@ -234,7 +237,7 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
           />
         </FormSection>
 
-        <FormSection icon={HeartHandshake} title="Emergency contact" note="Who we call if something happens to you at work.">
+        <FormSection framed={false} title="Emergency contact" note="Who we call if something happens to you at work.">
           <div className="grid gap-3 sm:grid-cols-2">
             <Labelled label="Name">
               <Input value={form.emergencyContactName} onChange={set('emergencyContactName')} />
@@ -265,6 +268,8 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
         <FormSection
           icon={Landmark}
           title="Pay details"
+          collapsible
+          defaultOpen={(bankTouched && !bankComplete) || !niValid}
           note="Stored details are never shown back to you. Leave these blank to keep what’s on file; fill them in only to set or replace them."
         >
           <Labelled label="Account holder">
@@ -362,8 +367,9 @@ export function LeaveRequestDrawer({ onClose, onDone }: { onClose: () => void; o
 
   return (
     <Drawer
+      icon={CalendarDays}
       title="Request time off"
-      description="Your manager reviews it, and you’ll see the outcome under Time off."
+      guidance="Your manager reviews it, and you’ll see the outcome under Time off."
       onClose={onClose}
       footer={
         <ModalActions
@@ -386,7 +392,7 @@ export function LeaveRequestDrawer({ onClose, onDone }: { onClose: () => void; o
       >
         {/* The type as tiles with what you have left — the figure people check
             before they ask, so it sits on the choice itself. */}
-        <FormSection icon={Sun} title="Type of leave" note="What you have left is shown on each.">
+        <FormSection framed={false} title="Type of leave" note="What you have left is shown on each.">
           {types.length === 0 ? (
             <p className="text-sm text-muted-foreground">No leave types are set up yet. Ask HR to add one.</p>
           ) : (
@@ -429,10 +435,17 @@ export function LeaveRequestDrawer({ onClose, onDone }: { onClose: () => void; o
           )}
         </FormSection>
 
-        <FormSection icon={CalendarDays} title="When">
+        <FormSection framed={false} title="When">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input label="First day" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
             <Input
+              required
+              label="First day"
+              type="date"
+              value={form.startDate}
+              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+            />
+            <Input
+              required
               label="Last day"
               type="date"
               value={form.endDate}
@@ -461,8 +474,10 @@ export function LeaveRequestDrawer({ onClose, onDone }: { onClose: () => void; o
           </Labelled>
         </FormSection>
 
-        <FormSection icon={FileText} title="Anything to add" note="Optional — your manager sees it with the request.">
+        <FormSection icon={FileText} title="Anything to add" collapsible note="Optional — your manager sees it with the request.">
+          <FieldLabel htmlFor="leave-request-note">Note for your manager</FieldLabel>
           <textarea
+            id="leave-request-note"
             className={`${textarea} min-h-28`}
             aria-label="Note for your manager"
             placeholder="e.g. covering childcare during half term"
@@ -535,8 +550,9 @@ export function NewTicketDrawer({
 
   return (
     <Drawer
+      icon={CircleHelp}
       title={preset?.title ?? 'Ask HR for something'}
-      description="HR replies in Requests, and you’re notified when they do."
+      guidance="HR replies in Requests, and you’re notified when they do."
       onClose={onClose}
       footer={
         <ModalActions
@@ -559,7 +575,7 @@ export function NewTicketDrawer({
       >
         {/* The topic as tiles rather than a dropdown of long labels: seven
             choices read at a glance, and the hint says what each covers. */}
-        <FormSection icon={CircleHelp} title="What it’s about" note="It decides who at HR picks it up first.">
+        <FormSection framed={false} title="What it’s about" note="It decides who at HR picks it up first.">
           <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Topic">
             {CATEGORIES.map((category) => {
               const topic = TOPIC[category];
@@ -595,8 +611,9 @@ export function NewTicketDrawer({
           </div>
         </FormSection>
 
-        <FormSection icon={MessageSquarePlus} title="Your request" note="Include dates or amounts if they help — HR can act on it sooner.">
+        <FormSection framed={false} title="Your request" note="Include dates or amounts if they help — HR can act on it sooner.">
           <Input
+            required
             label="Subject"
             value={form.subject}
             onChange={(e) => setForm({ ...form, subject: e.target.value })}

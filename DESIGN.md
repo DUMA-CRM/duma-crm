@@ -320,13 +320,21 @@ One-pixel borders do most of the structural work. Section tabs attach to their c
 - **Destructive:** porcelain field with exception border/text, never a solid red slab.
 - **States:** 150ms colour/edge/lift transitions, a one-pixel press, and a hard two-pixel brand-green focus outline. Disabled controls retain their shape at reduced opacity.
 
+### Drawers
+
+Use the shared `Drawer` frame for record details and forms: an inset panel on desktop, full-width on phones, a pinned header, a scrolling body and a pinned action footer. Every modal drawer has a meaningful 40px header icon tile or existing avatar/status mark. Keep identifying metadata in the header; put task guidance beside the fields and omit repeated explanations. Titles and descriptions wrap; actions use compact 36px controls with room for longer labels and the mobile safe area.
+
+Detail drawers follow Orders: a summary first, grouped rows next, then secondary history or technical details. Form drawers follow Edit customer: essential fields first, compact labelled sections, optional notes and preferences behind disclosures. Keep existing safety information and validation visible. Edit-only forms disable Save until values change; creation and operational actions retain their existing validation.
+
+Drawer section headings use the same direct `h3` style as Orders (`text-sm font-semibold text-foreground`, 8px before the content). Plain headings are text only. Collapsible form cards use a 32px icon tile, matching Edit customer’s Preferences card, without changing the background on hover. New transfer and Edit item set the shared pattern. Omit a heading when the drawer title and visible field labels already explain the group, such as From/To in New transfer. Use icons for actions, status, field rows and meaningful disclosure cards. Use `FormSection` for grouped fields and its collapsible option for secondary inputs. Keep collapsed fields mounted so entered values survive. Field labels use Edit customer’s uppercase annotation style: required fields show `*`, optional inputs show `(optional)` once. Label wording follows the field’s validation, with shared drawer context covering input, date and time controls. Keyboard focus skips hidden fields; only the top dialog handles Escape and traps focus.
+
 ### Segmented Controls & Section Tabs
 
 Segmented controls sit in a Board Band tray with zero gaps; the selected label is porcelain, lightly lifted, and rectangular. Section tabs attach to the content edge with a shared rule and a porcelain active tab. Both stay horizontally scrollable and preserve their labels; they never become floating pills.
 
 ### Panels & Context Workbench
 
-Common panels use a porcelain field, 7–8px corners, a soft one-pixel rule, and 16–24px padding. The right context workbench uses a Board Band tint to remain visibly attached to the main board. Attention rows are smaller porcelain magnetic labels; the healthy state is equally explicit and quiet.
+Common panels use a porcelain field, 7–8px corners, a soft one-pixel rule, and 16–24px padding. The right context workbench uses a Board Band tint to remain visibly attached to the main board. Attention rows are smaller porcelain magnetic labels and appear only when there is something to act on.
 
 ### Fields
 
@@ -362,7 +370,7 @@ Loading tiles use stable skeleton geometry, failures remain visible in place, an
 
 ### Exception Strip
 
-Live problems collapse into one row at the top of an operational surface: a count in plain words, the first few items truncated to a single line, and a disclosure. Opened, it becomes a ruled ledger of rows that each carry a glyph, what happened, how long it has been happening, and a link to the workspace that fixes it. Domain colour marks the glyph only; the row itself stays porcelain. The healthy state is a full row of equal weight — a tick, "Nothing needs you", and what was checked — never an absence.
+Live problems collapse into one row at the top of an operational surface: a count in plain words, the first few items truncated to a single line, and a disclosure. Opened, it becomes a ruled ledger of rows that each carry a glyph, what happened, how long it has been happening, and a link to the workspace that fixes it. Domain colour marks the glyph only; the row itself stays porcelain. When no items need attention, hide the strip entirely. Loading and failed checks remain visible; an unavailable check must never be treated as an empty result.
 
 ### Ruled Ledger
 

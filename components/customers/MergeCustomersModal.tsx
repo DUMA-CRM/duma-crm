@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 
+import { Modal } from '@/components/customers/CustomerDialogs';
 import { AlertTriangle, Check } from '@/components/icons';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
-import { Modal } from '@/components/shared/Modal';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -98,7 +98,21 @@ export function MergeCustomersModal({ a, b, isPending, error, onCancel, onConfir
   };
 
   return (
-    <Modal title="Merge duplicate records" onClose={onCancel}>
+    <Modal
+      title="Merge duplicate records"
+      size="lg"
+      onClose={onCancel}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onCancel} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button onClick={() => onConfirm(survivor.id, loser.id)} disabled={isPending}>
+            {isPending ? 'Merging…' : 'Merge records'}
+          </Button>
+        </div>
+      }
+    >
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
           Choose the record to keep. The other is kept too — hidden from lists and pointed at this one — so this can be undone later.
@@ -157,15 +171,6 @@ export function MergeCustomersModal({ a, b, isPending, error, onCancel, onConfir
             {error}
           </p>
         )}
-
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onCancel} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button onClick={() => onConfirm(survivor.id, loser.id)} disabled={isPending}>
-            {isPending ? 'Merging…' : `Keep ${survivor.firstName}, merge ${loser.firstName}`}
-          </Button>
-        </div>
       </div>
     </Modal>
   );

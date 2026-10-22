@@ -25,10 +25,10 @@ import { RecordBlock, RecordList, RecordListRow } from '@/components/people/reco
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact } from '@/components/settings/controls';
-import { FramedRows, TileSkeleton } from '@/components/shared/TileSkeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { NeedsAttention, type NeedsAttentionTone } from '@/components/shared/NeedsAttention';
 import { Bone, FactSkeleton } from '@/components/shared/Skeleton';
+import { FramedRows, TileSkeleton } from '@/components/shared/TileSkeleton';
 
 import type { Payslip } from '@/lib/modules/payroll/client';
 import type { HrEmployee } from '@/lib/modules/people/client';
@@ -162,7 +162,6 @@ export function Overview({
           detail: action.detail,
           fix: { label: action.actionLabel, run: () => onAction(action) },
         }))}
-        clear={{ title: 'Nothing needs you', detail: 'Your record is complete and no requests are waiting on a reply.' }}
       />
 
       {/* Where you stand — each tile a way into the tab that explains it. */}

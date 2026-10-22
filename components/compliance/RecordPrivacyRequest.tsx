@@ -3,12 +3,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
-import { Check, Loader2, Search, User, Users } from '@/components/icons';
+import { Check, FileText, Loader2, Search, ShieldCheck, User, Users } from '@/components/icons';
 import { type Choice, ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { Drawer } from '@/components/shared/Drawer';
+import { FormSection } from '@/components/shared/FormParts';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { type PrivacyRequestType, createPrivacyRequest } from '@/lib/modules/compliance/client';
@@ -83,15 +85,16 @@ export function RecordPrivacyRequest({
 
   return (
     <Drawer
+      icon={ShieldCheck}
       title="Record a privacy request"
-      description="Note it the day it arrives — the deadline runs from then."
+      guidance="Note it the day it arrives — the deadline runs from then."
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" onClick={onClose} disabled={create.isPending} className="flex-1">
+          <Button variant="outline" size="default" onClick={onClose} disabled={create.isPending} className="flex-1">
             Cancel
           </Button>
-          <Button size="lg" type="submit" form={FORM_ID} disabled={!ready} className="flex-1">
+          <Button size="default" type="submit" form={FORM_ID} disabled={!ready} className="flex-1">
             {create.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
             {create.isPending ? 'Recording…' : 'Record request'}
           </Button>
@@ -100,7 +103,7 @@ export function RecordPrivacyRequest({
     >
       <form
         id={FORM_ID}
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
           if (ready) create.mutate();
@@ -138,17 +141,24 @@ export function RecordPrivacyRequest({
           <Select value={channel} onValueChange={setChannel} options={CHANNELS} ariaLabel="How it arrived" className="w-full" />
         </Question>
 
-        <Question title="In their words" hint="Optional — what they asked for, as close to how they put it as you can.">
+        <FormSection
+          icon={FileText}
+          title="In their words"
+          collapsible
+          note="Optional — what they asked for, as close to how they put it as you can."
+        >
+          <FieldLabel htmlFor="privacy-request-details">Their request</FieldLabel>
           <textarea
+            id="privacy-request-details"
             value={details}
             onChange={(event) => setDetails(event.target.value)}
             maxLength={2000}
             rows={4}
             aria-label="Their request, in their words"
             placeholder="e.g. “Please delete my account and stop emailing me.”"
-            className="w-full rounded-md border border-input bg-control p-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-ring/30"
+            className="w-full rounded-md border border-input bg-control p-3 text-base sm:text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-ring/30"
           />
-        </Question>
+        </FormSection>
 
         <p className="rounded-lg bg-band/60 px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
           The law gives you one month to respond, so this will be due on{' '}

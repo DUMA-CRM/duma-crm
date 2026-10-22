@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { BalanceAdjustModal } from '@/components/customers/BalanceAdjustModal';
-import { AlertTriangle, ChevronRight, Coffee, Gift, Minus, Plus, ShoppingBag, Sparkles, Tag } from '@/components/icons';
+import { Drawer } from '@/components/customers/CustomerDialogs';
+import { Modal } from '@/components/customers/CustomerDialogs';
+import { AlertTriangle, ChevronRight, Coffee, Gift, Minus, Plus, ShoppingBag, Sparkles, Tag, TicketPercent } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { Drawer } from '@/components/shared/Drawer';
-import { Modal } from '@/components/shared/Modal';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,9 +18,9 @@ import { getMenuCategories, getMenuItems, getModifierGroups } from '@/lib/api/me
 import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { rewardsCompleted } from '@/lib/utils/balance-adjust';
-import { formatInstant } from '@/lib/utils/workspace-time';
 import { cn } from '@/lib/utils/cn';
 import { describeRewardScope, getLoyaltyCardProgress, stampColumns } from '@/lib/utils/loyalty-card';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -264,16 +264,17 @@ function RewardDrawer({
 
   return (
     <Drawer
+      icon={TicketPercent}
       title={rewardLabel(programme)}
       description={programme.name}
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" onClick={onClose} className="flex-1">
+          <Button variant="outline" size="default" onClick={onClose} className="flex-1">
             Close
           </Button>
           {canOrder && posOn && (
-            <Button size="lg" onClick={() => router.push(`/pos?customer=${encodeURIComponent(customerId)}`)} className="flex-1">
+            <Button size="default" onClick={() => router.push(`/pos?customer=${encodeURIComponent(customerId)}`)} className="flex-1">
               <ShoppingBag data-icon="inline-start" />
               Use in an order
             </Button>
@@ -308,7 +309,7 @@ function RewardDrawer({
           ) : (
             <ul className="mt-2 flex flex-wrap gap-1.5">
               {scope.map((line) => (
-                <li key={line} className="rounded-md border border-rule/60 bg-background/60 px-2.5 py-1 text-sm text-foreground">
+                <li key={line} className="rounded-md border border-rule/60 bg-field px-2.5 py-1 text-sm text-foreground">
                   {line}
                 </li>
               ))}
@@ -319,7 +320,7 @@ function RewardDrawer({
         {wallet.length > 0 && (
           <section>
             <h3 className="text-sm font-semibold text-foreground">In their wallet</h3>
-            <ul className="mt-2 overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <ul className="mt-2 overflow-hidden rounded-lg border border-rule/60 bg-field">
               {wallet.map((reward, index) => (
                 <li key={reward.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-stock/10 text-stock">

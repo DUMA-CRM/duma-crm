@@ -4,7 +4,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { Check, Loader2, Lock } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Button } from '@/components/ui/button';
 
 import { updateCustomer } from '@/lib/modules/customers/client';
@@ -12,6 +11,8 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { toast } from '@/stores/toastStore';
 import type { Customer } from '@/types/customers';
+
+import { CustomerSection as SettingsSection } from './CustomerSection';
 
 const MAX = 2000;
 
@@ -115,7 +116,7 @@ export function CustomerNotesPanel({ customer, canEdit }: { customer: Customer; 
         placeholder="How they take their coffee, who they come in with, a complaint you smoothed over…"
         className={cn(
           // Grows with what is written, between a few lines and a screenful.
-          'block min-h-24 max-h-96 w-full resize-none [field-sizing:content] rounded-md border border-input bg-card px-3 py-2.5 text-sm leading-relaxed text-foreground shadow-sm outline-none',
+          'block min-h-24 max-h-96 w-full resize-none [field-sizing:content] rounded-md border border-input bg-field px-3 py-2.5 text-sm leading-relaxed text-foreground shadow-sm outline-none',
           'placeholder:text-muted-foreground transition-[border-color,outline-color]',
           'focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-ring/30',
         )}
@@ -163,7 +164,7 @@ function Pill({ className, children, role }: { className: string; children: Reac
 
 function Panel({ children, status }: { children: React.ReactNode; status?: React.ReactNode }) {
   return (
-    <SettingsSection title="Notes" actions={status}>
+    <SettingsSection collapsible defaultOpen title="Notes" actions={status}>
       {children}
     </SettingsSection>
   );

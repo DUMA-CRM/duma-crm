@@ -34,6 +34,8 @@ export interface Session {
 export interface AuthSession {
   user: User;
   session: Session;
+  /** Recent-sign-in policy returned by get-session; null means no freshness limit. */
+  security?: { sessionFreshUntil: string | null };
 }
 
 // ---------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import { RowTile } from '@/components/cms/rows';
 import { ChevronDown, Info } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { Tooltip } from '@/components/shared/Tooltip';
+import { FieldLabel } from '@/components/ui/label';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -35,7 +36,7 @@ export function DrawerSection({
         </h3>
         {action}
       </div>
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-control">{children}</div>
+      <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">{children}</div>
     </section>
   );
 }
@@ -74,7 +75,7 @@ export function DetailRow({
         className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       >
         <RowTile icon={icon} tone={tone} />
-        <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-foreground">
+        <span className="flex min-w-0 items-center gap-1 text-sm font-semibold text-foreground">
           {title}
           {info && (
             <Tooltip side="top" wrap label={info}>
@@ -113,21 +114,23 @@ export function FieldLine({
   title,
   htmlFor,
   error,
+  required = false,
   children,
 }: {
   icon: IconComponent;
   title: string;
   htmlFor: string;
   error?: string;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3 border-b border-rule/45 px-4 py-2.5 last:border-b-0">
+    <div className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 border-b border-rule/45 px-3 py-3 last:border-b-0 sm:flex sm:px-4">
       <RowTile icon={icon} tone={error ? 'danger' : 'default'} />
-      <label htmlFor={htmlFor} className="w-24 shrink-0 pt-1.5 text-sm font-semibold text-foreground sm:w-28">
+      <FieldLabel htmlFor={htmlFor} required={required} className="col-start-2 min-w-0 pt-1 sm:w-28 sm:shrink-0 sm:pt-1.5">
         {title}
-      </label>
-      <div className="min-w-0 flex-1">
+      </FieldLabel>
+      <div className="col-start-2 min-w-0 sm:flex-1">
         {children}
         {error && <p className="mt-1 text-xs text-exception">{error}</p>}
       </div>

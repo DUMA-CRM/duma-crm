@@ -82,56 +82,59 @@ export function StockUsageReport({ filters }: { filters: ReportFilterState }) {
 
   const rows = [
     ...(query.data ?? [])
-      .reduce((map, movement) => {
-        const row = map.get(movement.stockItemId) ?? {
-          id: movement.stockItemId,
-          consume: 0,
-          receive: 0,
-          waste: 0,
-          adjust: 0,
-          transfer: 0,
-          movements: 0,
-          consumeValue: 0,
-          consumeUncosted: 0,
-          wasteValue: 0,
-          wasteUncosted: 0,
-        };
-        const amount = Math.abs(num(movement.totalQty));
-        // Value at the cost each movement was made at; what predates recorded
-        // costs is kept apart and valued at the item's cost below.
-        const recorded = num(movement.totalValue ?? 0);
-        const uncosted = movement.totalValue === undefined ? amount : num(movement.uncostedQty ?? 0);
-        if (movement.type === 'consume') {
-          row.consumeValue += recorded;
-          row.consumeUncosted += uncosted;
-        } else if (movement.type === 'waste') {
-          row.wasteValue += recorded;
-          row.wasteUncosted += uncosted;
-        }
-        if (movement.type === 'consume') row.consume += amount;
-        else if (movement.type === 'receive') row.receive += amount;
-        else if (movement.type === 'waste') row.waste += amount;
-        else if (movement.type === 'adjust') row.adjust += amount;
-        else if (movement.type === 'transfer') row.transfer += amount;
-        row.movements += movement.movementCount;
-        map.set(movement.stockItemId, row);
-        return map;
-      }, new Map<
-        string,
-        {
-          id: string;
-          consume: number;
-          receive: number;
-          waste: number;
-          adjust: number;
-          transfer: number;
-          movements: number;
-          consumeValue: number;
-          consumeUncosted: number;
-          wasteValue: number;
-          wasteUncosted: number;
-        }
-      >())
+      .reduce(
+        (map, movement) => {
+          const row = map.get(movement.stockItemId) ?? {
+            id: movement.stockItemId,
+            consume: 0,
+            receive: 0,
+            waste: 0,
+            adjust: 0,
+            transfer: 0,
+            movements: 0,
+            consumeValue: 0,
+            consumeUncosted: 0,
+            wasteValue: 0,
+            wasteUncosted: 0,
+          };
+          const amount = Math.abs(num(movement.totalQty));
+          // Value at the cost each movement was made at; what predates recorded
+          // costs is kept apart and valued at the item's cost below.
+          const recorded = num(movement.totalValue ?? 0);
+          const uncosted = movement.totalValue === undefined ? amount : num(movement.uncostedQty ?? 0);
+          if (movement.type === 'consume') {
+            row.consumeValue += recorded;
+            row.consumeUncosted += uncosted;
+          } else if (movement.type === 'waste') {
+            row.wasteValue += recorded;
+            row.wasteUncosted += uncosted;
+          }
+          if (movement.type === 'consume') row.consume += amount;
+          else if (movement.type === 'receive') row.receive += amount;
+          else if (movement.type === 'waste') row.waste += amount;
+          else if (movement.type === 'adjust') row.adjust += amount;
+          else if (movement.type === 'transfer') row.transfer += amount;
+          row.movements += movement.movementCount;
+          map.set(movement.stockItemId, row);
+          return map;
+        },
+        new Map<
+          string,
+          {
+            id: string;
+            consume: number;
+            receive: number;
+            waste: number;
+            adjust: number;
+            transfer: number;
+            movements: number;
+            consumeValue: number;
+            consumeUncosted: number;
+            wasteValue: number;
+            wasteUncosted: number;
+          }
+        >(),
+      )
       .values(),
   ].map((row) => {
     const item = byId.get(row.id);
@@ -870,7 +873,7 @@ function PurchaseOrderDrawer({ order, onClose }: { order: PurchaseOrder; onClose
             No lines on this order.
           </p>
         ) : (
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
             {lines.map((line) => {
               const wanted = num(line.quantityOrdered);
               const got = num(line.quantityReceived);

@@ -1,29 +1,77 @@
 'use client';
 
-import { type IconComponent, Loader2, Minus, Plus } from '@/components/icons';
+import { useEffect, useRef } from 'react';
+
+import { ChevronDown, type IconComponent, Loader2, Minus, Plus } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
 
 /* Small form parts shared by the back office's modals and edit states. */
 
-/**
- * A drawer section in the settings style: icon tile, title, a line of why, then
- * the fields on a panel. Edit details, the supplier and stock-item drawers.
- */
-export function FormSection({ icon: Icon, title, note, children }: { icon: IconComponent; title: string; note?: React.ReactNode; children: React.ReactNode }) {
-  return (
+/** Text-only section headings match the Orders and customer drawer reference. */
+export function FormSection({
+  title,
+  icon: Icon,
+  invalid = false,
+  note,
+  children,
+  collapsible = false,
+  defaultOpen = false,
+  framed = true,
+}: {
+  title: string;
+  /** Icons belong to disclosure cards; plain section headings stay text-only. */
+  icon?: IconComponent;
+  invalid?: boolean;
+  note?: React.ReactNode;
+  children: React.ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  /** Leave essential fields on the drawer surface instead of nesting another card. */
+  framed?: boolean;
+}) {
+  const disclosureRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (invalid && disclosureRef.current) disclosureRef.current.open = true;
+  });
+  const content = (
+    <>
+      {note && <p className="mb-3 text-xs leading-relaxed text-muted-foreground">{note}</p>}
+      {children}
+    </>
+  );
+  return collapsible ? (
+    <details
+      ref={disclosureRef}
+      onToggle={(event) => {
+        if (invalid && !event.currentTarget.open) event.currentTarget.open = true;
+      }}
+      onInvalidCapture={(event) => {
+        event.currentTarget.open = true;
+      }}
+      open={defaultOpen}
+      className="group/form-section rounded-lg border border-rule/60 bg-field"
+    >
+      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+        {Icon && (
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
+            <Icon size={16} aria-hidden="true" />
+          </span>
+        )}
+        <span className="min-w-0 flex-1">{title}</span>
+        <ChevronDown
+          size={15}
+          aria-hidden="true"
+          className="shrink-0 text-muted-foreground transition-transform group-open/form-section:rotate-180"
+        />
+      </summary>
+      <div className="space-y-3 px-4 pb-4">{content}</div>
+    </details>
+  ) : (
     <section>
-      <div className="flex items-start gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
-          <Icon size={16} aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          {note && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{note}</p>}
-        </div>
-      </div>
-      <div className="mt-3 space-y-3 rounded-lg border border-rule/60 bg-field p-4">{children}</div>
+      <h3 className="mb-2 text-sm font-semibold text-foreground">{title}</h3>
+      <div className={cn('space-y-3', framed && 'rounded-lg border border-rule/60 bg-field p-3 sm:p-4')}>{content}</div>
     </section>
   );
 }
@@ -68,7 +116,11 @@ export function ChoiceCards<T extends string>({
           )}
         >
           {option.icon && (
-            <option.icon size={15} className={cn('shrink-0', value === option.value ? 'text-primary' : 'text-muted-foreground')} aria-hidden="true" />
+            <option.icon
+              size={15}
+              className={cn('shrink-0', value === option.value ? 'text-primary' : 'text-muted-foreground')}
+              aria-hidden="true"
+            />
           )}
           <span className="min-w-0">{option.label}</span>
         </button>
@@ -90,6 +142,7 @@ export function NumberStepper({
   step = 1,
   unit,
   label,
+  size = 'default',
 }: {
   value: number;
   onChange: (value: number) => void;
@@ -98,16 +151,25 @@ export function NumberStepper({
   step?: number;
   unit?: string;
   label: string;
+  size?: 'default' | 'compact';
 }) {
   const clamp = (next: number) => Math.min(max ?? Infinity, Math.max(min, Math.round(next / step) * step));
   return (
-    <div className="flex h-11 items-stretch overflow-hidden rounded-lg border border-input bg-background focus-within:border-ring">
+    <div
+      className={cn(
+        'flex items-stretch overflow-hidden rounded-lg border border-input bg-background focus-within:border-ring',
+        size === 'compact' ? 'h-9' : 'h-11',
+      )}
+    >
       <button
         type="button"
         onClick={() => onChange(clamp(value - step))}
         disabled={value <= min}
         aria-label={`Less ${label.toLowerCase()}`}
-        className="flex w-11 items-center justify-center text-muted-foreground transition-colors hover:bg-band hover:text-foreground disabled:opacity-40"
+        className={cn(
+          'flex items-center justify-center text-muted-foreground transition-colors hover:bg-band hover:text-foreground disabled:opacity-40',
+          size === 'compact' ? 'w-9' : 'w-11',
+        )}
       >
         <Minus size={16} />
       </button>
@@ -131,7 +193,10 @@ export function NumberStepper({
         onClick={() => onChange(clamp(value + step))}
         disabled={max !== undefined && value >= max}
         aria-label={`More ${label.toLowerCase()}`}
-        className="flex w-11 items-center justify-center text-muted-foreground transition-colors hover:bg-band hover:text-foreground disabled:opacity-40"
+        className={cn(
+          'flex items-center justify-center text-muted-foreground transition-colors hover:bg-band hover:text-foreground disabled:opacity-40',
+          size === 'compact' ? 'w-9' : 'w-11',
+        )}
       >
         <Plus size={16} />
       </button>

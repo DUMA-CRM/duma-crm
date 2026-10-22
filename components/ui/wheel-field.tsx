@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 
 import { type IconComponent, X } from '@/components/icons';
+import { FieldLabel } from '@/components/ui/label';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -65,14 +66,9 @@ export function WheelField({
   return (
     <div className="flex w-full flex-col gap-1.5">
       {label && (
-        <label htmlFor={triggerId} className="block text-label uppercase text-muted-foreground">
+        <FieldLabel htmlFor={triggerId} required={required}>
           {label}
-          {required && (
-            <span className="ml-1 text-exception" aria-hidden="true">
-              *
-            </span>
-          )}
-        </label>
+        </FieldLabel>
       )}
       <Popover open={open && !disabled} onOpenChange={setOpen}>
         <div className="relative flex items-center">

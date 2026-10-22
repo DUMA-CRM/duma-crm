@@ -3,9 +3,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { FileText, MailX, Send, TriangleAlert, Zap } from '@/components/icons';
+import { ArrowUpRight, FileText, MailX, Send, TriangleAlert, Zap } from '@/components/icons';
 import { Fact } from '@/components/settings/controls';
 import { Avatar } from '@/components/shared/Avatar';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ListRow } from '@/components/shared/ListRow';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
@@ -139,16 +140,16 @@ export function OverviewPanel({
   return (
     <div className="space-y-5">
       {/* The same four-tile row as Inventory — facts to read, not buttons. */}
-      <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Fact
-          surface="page"
+          surface="card"
           icon={Send}
           label="Sent · 7 days"
           value={loading ? '—' : week.sent.toLocaleString()}
           hint={week.total === 0 ? 'Nothing sent yet' : `of ${week.total.toLocaleString()} queued`}
         />
         <Fact
-          surface="page"
+          surface="card"
           icon={MailX}
           label="Failed · 7 days"
           value={loading ? '—' : week.failed.toLocaleString()}
@@ -157,14 +158,15 @@ export function OverviewPanel({
           onSelect={week.failed > 0 ? onOpenFailures : undefined}
         />
         <Fact
-          surface="page"
+          surface="card"
           icon={Zap}
           label="Automations live"
           value={loading ? '—' : live.length.toLocaleString()}
-          hint={drafts > 0 ? `${drafts} switched off` : 'All switched on'}
+          hint={automations.length === 0 ? 'None set up' : drafts > 0 ? `${drafts} switched off` : 'All switched on'}
+          onSelect={onOpenAutomations}
         />
         <Fact
-          surface="page"
+          surface="card"
           icon={FileText}
           label="Templates"
           value={loading ? '—' : activeTemplates.length.toLocaleString()}
@@ -186,20 +188,20 @@ export function OverviewPanel({
           </span>
         </div>
       ) : (
-        <NeedsAttention
-          items={issues.map(toItem)}
-          clear={
-            week.failed > 0
-              ? undefined
-              : { title: 'Nothing needs you', detail: 'Everything is sending — no failures, broken steps or unpublished changes.' }
-          }
-        />
+        <NeedsAttention items={issues.map(toItem)} />
       )}
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <ActivitySection title="Live automations" actionLabel="All automations" onAction={onOpenAutomations} loading={loading}>
           {live.length === 0 ? (
-            <Quiet>Nothing is switched on yet.</Quiet>
+            <li>
+              <EmptyState
+                compact
+                icon={Zap}
+                title="No live automations"
+                description="Set up an automation to send emails when something happens."
+              />
+            </li>
           ) : (
             live.slice(0, 6).map((automation) => {
               const failed = automation.failedRunCount ?? 0;
@@ -228,7 +230,9 @@ export function OverviewPanel({
 
         <ActivitySection title="Latest emails" actionLabel="All history" onAction={onOpenHistory} loading={loading}>
           {deliveries.length === 0 ? (
-            <Quiet>No emails have gone out yet.</Quiet>
+            <li>
+              <EmptyState compact icon={Send} title="No emails sent yet" description="Your latest deliveries will appear here." />
+            </li>
           ) : (
             deliveries.slice(0, 6).map((delivery) => (
               <ListRow
@@ -283,20 +287,19 @@ function ActivitySection({
         <button
           type="button"
           onClick={onAction}
-          className="text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         >
           {actionLabel}
+          <ArrowUpRight size={14} aria-hidden="true" />
         </button>
       </div>
       {loading ? (
         <ListSkeleton rows={6} label={`Loading ${title.toLowerCase()}`} />
       ) : (
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">{children}</ul>
+        <ul className="space-y-2 [&>li]:rounded-lg [&>li]:border [&>li]:border-rule/60 [&>li]:bg-field [&>li:last-child]:border-b">
+          {children}
+        </ul>
       )}
     </section>
   );
-}
-
-function Quiet({ children }: { children: React.ReactNode }) {
-  return <li className="px-3.5 py-8 text-center text-sm text-muted-foreground">{children}</li>;
 }

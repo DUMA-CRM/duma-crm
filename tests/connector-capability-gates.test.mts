@@ -15,7 +15,14 @@ for (const [service, capability, files] of [
       assert.ok(start >= 0, `${file}: missing connection query`);
       const query = source.slice(start, source.indexOf('});', start));
       assert.match(query, /enabled:/);
-      assert.ok(query.includes(`hasCapability(capabilities, '${capability}')`), `${file}: missing API read capability`);
+      if (file === 'ConnectorsGrid') {
+        assert.match(query, /enabled:.*visible\(CONNECTORS\.find/);
+        assert.match(source, /canAccessConnector\(capabilities, definition, modules\.data\?\.modules\)/);
+        const registry = readFileSync(new URL('../components/settings/connectors/registry.ts', import.meta.url), 'utf8');
+        assert.ok(registry.includes(`readCapability: '${capability}'`), 'connector registry must require the API read capability');
+      } else {
+        assert.ok(query.includes(`hasCapability(capabilities, '${capability}')`), `${file}: missing API read capability`);
+      }
     }
   });
 }
@@ -25,6 +32,5 @@ test('direct connector links check read and write access before mounting detail 
   const gate = source.indexOf('if (definition &&');
   assert.ok(gate > 0 && gate < source.indexOf("if (connector === 'email')"));
   assert.ok(gate < source.indexOf("if (connector === 'card-payments')"));
-  assert.match(source, /!hasCapability\(capabilities, definition\.capability\)/);
-  assert.match(source, /!hasCapability\(capabilities, definition\.readCapability\)/);
+  assert.match(source, /!canAccessConnector\(capabilities, definition, modules\.data\?\.modules\)/);
 });

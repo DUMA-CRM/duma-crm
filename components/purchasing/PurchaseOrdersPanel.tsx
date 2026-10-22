@@ -26,7 +26,7 @@ import { ConfirmDrawer } from '@/components/shared/ConfirmDrawer';
 import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { ModalActions } from '@/components/shared/FormParts';
+import { FormSection, ModalActions } from '@/components/shared/FormParts';
 import { IconTag } from '@/components/shared/IconTag';
 import { ListRow } from '@/components/shared/ListRow';
 import { LoadMore } from '@/components/shared/LoadMore';
@@ -37,6 +37,8 @@ import { TONE_TINT, type Tone } from '@/components/shared/tone';
 import { useWorkspaceCurrency, useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -181,8 +183,8 @@ function CreatePoDrawer({
 
   return (
     <Drawer
+      icon={ReceiptText}
       title="New purchase order"
-      description={draft?.notes ?? 'Pick a supplier, list what you’re ordering, and save it as a draft.'}
       onClose={onClose}
       footer={
         <div className="space-y-3">
@@ -192,13 +194,15 @@ function CreatePoDrawer({
             </span>
             <span className="text-lg font-semibold text-foreground">{money(total)}</span>
           </div>
-          <ModalActions
-            form="create-po"
-            submitLabel="Create purchase order"
-            pending={create.isPending}
-            disabled={!supplierId || validLines.length === 0}
-            onCancel={onClose}
-          />
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={create.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" form="create-po" className="flex-1" disabled={create.isPending || !supplierId || validLines.length === 0}>
+              {create.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+              {create.isPending ? 'Creating…' : 'Create order'}
+            </Button>
+          </div>
         </div>
       }
     >
@@ -211,10 +215,11 @@ function CreatePoDrawer({
         }}
       >
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Supplier and delivery</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <p className="mb-1.5 text-label uppercase text-muted-foreground">Supplier</p>
+              <FieldLabel required className="mb-1.5">
+                Supplier
+              </FieldLabel>
               <Select
                 value={supplierId}
                 onValueChange={setSupplierId}
@@ -240,30 +245,31 @@ function CreatePoDrawer({
           )}
         </section>
 
-        <section>
-          <div className="mb-2 flex items-baseline justify-between">
-            <h3 className="text-sm font-semibold text-foreground">What you’re ordering</h3>
-            <span className="text-xs text-muted-foreground">Cost per unit in {currency}</span>
-          </div>
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+        <FormSection icon={Package} title="Items" collapsible defaultOpen>
+          <ul>
             {lines.map((line, index) => {
               const item = itemMap.get(line.stockItemId);
               const lineTotal = Number(line.quantity) * Number(line.unitCost);
               return (
-                <li key={index} className="border-b border-rule/45 px-3.5 py-3 last:border-b-0">
-                  <div className="flex items-center gap-2">
-                    <Select
-                      value={line.stockItemId}
-                      onValueChange={(value) =>
-                        setLine(index, { stockItemId: value, unitCost: line.unitCost || itemMap.get(value)?.costPerUnit || '' })
-                      }
-                      options={[
-                        { value: '', label: 'Choose an item' },
-                        ...stockItems.map((option) => ({ value: option.id, label: option.name })),
-                      ]}
-                      ariaLabel={`Item on line ${index + 1}`}
-                      className="min-w-0 flex-1"
-                    />
+                <li key={index} className="space-y-3 border-b border-rule/45 py-3 first:pt-0 last:border-b-0">
+                  <div className="flex items-end gap-2">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <FieldLabel as="span" required>
+                        Item
+                      </FieldLabel>
+                      <Select
+                        value={line.stockItemId}
+                        onValueChange={(value) =>
+                          setLine(index, { stockItemId: value, unitCost: line.unitCost || itemMap.get(value)?.costPerUnit || '' })
+                        }
+                        options={[
+                          { value: '', label: 'Choose an item' },
+                          ...stockItems.map((option) => ({ value: option.id, label: option.name })),
+                        ]}
+                        ariaLabel={`Item on line ${index + 1}`}
+                        className="w-full"
+                      />
+                    </div>
                     <Button
                       type="button"
                       variant="ghost"
@@ -275,26 +281,30 @@ function CreatePoDrawer({
                       <Trash2 />
                     </Button>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <input
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      required
+                      label="Quantity"
                       value={line.quantity}
                       onChange={(event) => setLine(index, { quantity: event.target.value })}
                       inputMode="decimal"
-                      placeholder="Qty"
+                      placeholder="0"
+                      rightIcon={<span className="text-xs">{item?.unit ?? 'units'}</span>}
                       aria-label={`Quantity on line ${index + 1}`}
-                      className="h-8 w-20 rounded-md border border-input bg-background px-2 text-right text-sm text-foreground outline-none focus:border-ring"
                     />
-                    <span className="w-12 truncate">{item?.unit ?? 'units'}</span>
-                    <span>×</span>
-                    <input
+                    <Input
+                      label="Unit cost"
                       value={line.unitCost}
                       onChange={(event) => setLine(index, { unitCost: event.target.value })}
                       inputMode="decimal"
                       placeholder="0.00"
+                      rightIcon={<span className="text-xs">{currency}</span>}
                       aria-label={`Cost per unit on line ${index + 1}`}
-                      className="h-8 w-24 rounded-md border border-input bg-background px-2 text-right text-sm text-foreground outline-none focus:border-ring"
                     />
-                    <span className="ml-auto text-sm font-semibold text-foreground">
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Line total</span>
+                    <span className="font-semibold tabular-nums text-foreground">
                       {Number.isFinite(lineTotal) && lineTotal > 0 ? money(lineTotal) : '—'}
                     </span>
                   </div>
@@ -310,20 +320,21 @@ function CreatePoDrawer({
             onClick={() => setLines([...lines, { stockItemId: '', quantity: '', unitCost: '' }])}
           >
             <Plus data-icon="inline-start" />
-            Add line
+            Add item
           </Button>
-        </section>
+        </FormSection>
 
-        <section>
-          <h3 className="mb-2 text-sm font-semibold text-foreground">Note</h3>
+        <FormSection icon={FileText} title="Note" collapsible>
+          <FieldLabel htmlFor="purchase-order-note">Note</FieldLabel>
           <textarea
+            id="purchase-order-note"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             rows={2}
-            placeholder="Delivery instructions, account number… (optional)"
-            className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
+            placeholder="Delivery instructions, account number…"
+            className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-base sm:text-sm outline-none focus:border-ring"
           />
-        </section>
+        </FormSection>
       </form>
     </Drawer>
   );
@@ -414,7 +425,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
 
   if (isPending || isError || !po)
     return (
-      <Drawer title="Purchase order" onClose={onClose}>
+      <Drawer icon={ReceiptText} title="Purchase order" onClose={onClose}>
         {isError ? (
           <ErrorState title="This purchase order couldn’t be loaded" onRetry={() => void refetch()} />
         ) : (
@@ -438,6 +449,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
 
   return (
     <Drawer
+      icon={ReceiptText}
       title={receiving ? `Receive ${po.reference}` : po.reference}
       description={`${po.supplier?.name ?? 'Supplier'} → ${po.location?.name ?? 'location'}`}
       onClose={onClose}
@@ -492,7 +504,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
             {(po.lines ?? [])
               .filter((l) => outstanding(l) > 0)
               .map((l) => (
-                <li key={l.id} className="rounded-lg border border-rule/60 bg-card p-3.5">
+                <li key={l.id} className="rounded-lg border border-rule/60 bg-field p-3.5">
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="text-sm font-semibold text-foreground">{l.stockItem?.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -501,7 +513,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
                   </div>
                   <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <label className="block">
-                      <span className="mb-1 block text-label uppercase text-muted-foreground">Received</span>
+                      <FieldLabel as="span">Received</FieldLabel>
                       <input
                         value={receiveQty[l.id] ?? String(outstanding(l))}
                         onChange={(event) => setReceiveQty((prev) => ({ ...prev, [l.id]: event.target.value }))}
@@ -511,7 +523,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-1 block text-label uppercase text-muted-foreground">Containers</span>
+                      <FieldLabel as="span">Containers</FieldLabel>
                       <input
                         value={receiveContainers[l.id] ?? ''}
                         onChange={(event) => setReceiveContainers((prev) => ({ ...prev, [l.id]: event.target.value }))}
@@ -529,7 +541,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
                       required={l.stockItem?.isPerishable}
                     />
                     <label className="block">
-                      <span className="mb-1 block text-label uppercase text-muted-foreground">Lot</span>
+                      <FieldLabel as="span">Lot</FieldLabel>
                       <input
                         value={receiveLot[l.id] ?? ''}
                         onChange={(event) => setReceiveLot((prev) => ({ ...prev, [l.id]: event.target.value }))}
@@ -580,7 +592,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
 
           <section>
             <h3 className="mb-2 text-sm font-semibold text-foreground">Lines</h3>
-            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
               {(po.lines ?? []).map((l) => {
                 const ordered = Number(l.quantityOrdered) || 0;
                 const got = Math.min(ordered, Number(l.quantityReceived) || 0);
@@ -613,10 +625,10 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
           {po.status !== 'draft' && po.status !== 'cancelled' && (
             <section>
               <h3 className="mb-2 text-sm font-semibold text-foreground">Invoice</h3>
-              <div className="space-y-3 rounded-lg border border-rule/60 bg-card p-3.5">
+              <div className="space-y-3 rounded-lg border border-rule/60 bg-field p-3.5">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-1 block text-label uppercase text-muted-foreground">Invoice number</span>
+                    <FieldLabel as="span">Invoice number</FieldLabel>
                     <input
                       value={invoiceNumValue}
                       onChange={(event) => setInvoiceNumber(event.target.value)}
@@ -625,7 +637,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-label uppercase text-muted-foreground">Amount</span>
+                    <FieldLabel as="span">Amount</FieldLabel>
                     <input
                       value={invoiceValue}
                       onChange={(event) => setInvoiceAmount(event.target.value)}

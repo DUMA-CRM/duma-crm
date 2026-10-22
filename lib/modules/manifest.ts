@@ -110,7 +110,7 @@ export const CRM_MODULE_CAPABILITIES = {
   compliance: ['privacy:read', 'privacy:write', 'privacy:export'],
   audit: ['audit:read'],
   analytics: ['analytics:read'],
-  agent: [],
+  agent: ['/settings/assistant', '/settings/advanced'],
   support: ['helpdesk:manage'],
   cms: ['cms:read', 'cms:write', 'cms:publish', 'cms.schema:write', 'cms.keys:write'],
   // Managing promo codes; applying one at the till is orders:create.
@@ -159,7 +159,16 @@ export interface ModuleManifest {
 
 const pages: Record<ModuleId, readonly string[]> = {
   core: ['/', '/privacy', '/terms'],
-  identity: ['/forgot-password', '/reset-password', '/sign-in', '/sign-up', '/settings/roles', '/settings/security'],
+  identity: [
+    '/forgot-password',
+    '/reset-password',
+    '/sign-in',
+    '/sign-up',
+    '/settings/roles',
+    '/settings/security',
+    '/settings/account',
+    '/settings/profile',
+  ],
   // The dashboard belongs to every workspace; each widget on it follows its own module.
   organization: [
     '/dashboard',
@@ -195,12 +204,8 @@ const pages: Record<ModuleId, readonly string[]> = {
   communications: ['/communications', '/settings/connectors'],
   compliance: ['/compliance'],
   audit: ['/audit-log'],
-  analytics: [
-    '/reports',
-    '/reports/[report]',
-    '/reports/staff/[userId]',
-  ],
-  agent: [],
+  analytics: ['/reports', '/reports/[report]', '/reports/staff/[userId]'],
+  agent: ['/settings/assistant', '/settings/advanced'],
   support: ['/staff/helpdesk', '/support', '/support/[slug]'],
   cms: ['/content'],
   promotions: ['/promotions'],
@@ -260,7 +265,7 @@ const navigation: Record<ModuleId, readonly string[]> = {
   compliance: ['/compliance'],
   audit: ['/audit-log'],
   analytics: ['/dashboard', '/reports'],
-  agent: [],
+  agent: ['/settings/assistant', '/settings/advanced'],
   support: ['/support'],
   cms: ['/content'],
   promotions: ['/promotions'],

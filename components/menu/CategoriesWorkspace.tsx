@@ -9,10 +9,11 @@ import {
   ArrowDown,
   ArrowUp,
   EyeOff,
-  FileText,
   type IconComponent,
+  Layers3,
   LayoutGrid,
   Loader2,
+  Palette,
   Pencil,
   Plus,
   Scale,
@@ -33,6 +34,7 @@ import { IconTag } from '@/components/shared/IconTag';
 import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -580,19 +582,19 @@ function CategoryDrawer({
 
   return (
     <Drawer
+      icon={LayoutGrid}
       title={category ? 'Edit section' : 'New section'}
-      description="A heading on the menu — at the till and online."
       onClose={onClose}
       footer={
         confirmDelete && category ? (
           <div className="flex gap-2">
-            <Button variant="outline" size="lg" className="flex-1" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>
+            <Button variant="outline" size="default" className="flex-1" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>
               Keep it
             </Button>
             <Button
               type="button"
               variant="destructive"
-              size="lg"
+              size="default"
               className="flex-1"
               onClick={() => remove.mutate()}
               disabled={remove.isPending || (category.itemCount > 0 && !reassignTo)}
@@ -620,7 +622,7 @@ function CategoryDrawer({
               : `${category.name} has no items, so nothing else changes.`}
           </p>
           {category.itemCount > 0 && (
-            <FormSection icon={LayoutGrid} title="Move its items to">
+            <FormSection framed={false} title="Move its items to">
               {others.length ? (
                 <Select
                   value={reassignTo}
@@ -639,15 +641,16 @@ function CategoryDrawer({
         <form
           id="category-form"
           noValidate
-          className="space-y-7"
+          className="space-y-5"
           onSubmit={(event) => {
             event.preventDefault();
             setSubmitted(true);
             if (!nameError && !urlError && !slugError) save.mutate();
           }}
         >
-          <FormSection icon={LayoutGrid} title="Section">
+          <section aria-label="Section" className="space-y-3">
             <Input
+              required
               label="Name"
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -677,10 +680,10 @@ function CategoryDrawer({
               }
               error={submitted ? (slugError ?? undefined) : undefined}
             />
-          </FormSection>
-          <FormSection icon={FileText} title="Look">
+          </section>
+          <FormSection icon={Palette} title="Look" collapsible defaultOpen={Boolean(imageUrl || description)}>
             <div className="flex flex-col gap-1.5">
-              <span className="text-label uppercase text-muted-foreground">Colour</span>
+              <FieldLabel as="span">Colour</FieldLabel>
               <ChoiceCards columns={3} value={colour} onChange={setColour} options={COLOURS} />
             </div>
             <Input
@@ -692,7 +695,7 @@ function CategoryDrawer({
               error={submitted ? (urlError ?? undefined) : undefined}
             />
           </FormSection>
-          <div className="rounded-lg border border-rule/60 bg-card px-4 py-3.5">
+          <div className="rounded-lg border border-rule/60 bg-field px-4 py-3.5">
             <SettingRows>
               <SettingRow
                 icon={LayoutGrid}
@@ -743,8 +746,9 @@ function GroupDrawer({ tenantId, group, onClose }: { tenantId: string; group?: M
 
   return (
     <Drawer
+      icon={Layers3}
       title={group ? 'Edit group' : 'New modifier group'}
-      description="A set of choices, like Size or Milk. Add the choices themselves on the Modifiers tab."
+      guidance="A set of choices, like Size or Milk. Add the choices themselves on the Modifiers tab."
       onClose={onClose}
       footer={
         <Footer
@@ -760,15 +764,16 @@ function GroupDrawer({ tenantId, group, onClose }: { tenantId: string; group?: M
       <form
         id="group-form"
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
           setSubmitted(true);
           if (!nameError) save.mutate();
         }}
       >
-        <FormSection icon={SlidersHorizontal} title="Group">
+        <section aria-label="Group" className="space-y-3">
           <Input
+            required
             label="Name"
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -777,8 +782,8 @@ function GroupDrawer({ tenantId, group, onClose }: { tenantId: string; group?: M
             placeholder="e.g. Milk"
             error={submitted ? (nameError ?? undefined) : undefined}
           />
-        </FormSection>
-        <div className="rounded-lg border border-rule/60 bg-card px-4 py-3.5">
+        </section>
+        <div className="rounded-lg border border-rule/60 bg-field px-4 py-3.5">
           <SettingRows>
             <SettingRow
               icon={Scale}

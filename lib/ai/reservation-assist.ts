@@ -5,10 +5,9 @@
 // facts' clean-up and the answer's clean-up live here, pure and tested; the
 // provider call is app/api/reservations/assist/route.ts. Nothing is saved.
 // ---------------------------------------------------------------------------
-
 // Relative, not aliased: `node --experimental-strip-types` resolves value
 // imports for real and does not know `@/`.
-import { SOURCE_LABELS, STATUS_LABELS, type BookingSource, type ReservationStatus, minutesBetween, slotOf } from '../utils/reservations.ts';
+import { type BookingSource, type ReservationStatus, SOURCE_LABELS, STATUS_LABELS, minutesBetween, slotOf } from '../utils/reservations.ts';
 import { formatCalendarDate, workspaceDateKey } from '../utils/workspace-time.ts';
 
 export interface ReservationAssistMessage {
@@ -41,14 +40,6 @@ export const QUESTION_MIN = 3;
 export const QUESTION_MAX = 300;
 const MAX_ANSWER = 1200;
 
-/** Quick questions offered as chips — one tap asks. */
-export const QUICK_QUESTIONS = [
-  'Summarise this booking',
-  'Anything to prepare?',
-  'Do the tables fit the party?',
-  'Draft a confirmation text',
-] as const;
-
 /** The booking the drawer holds, as the facts the model reads. */
 export function bookingFacts(
   booking: {
@@ -75,7 +66,9 @@ export function bookingFacts(
   const { timeZone, now } = context;
   const day = (instant: string) =>
     formatCalendarDate(workspaceDateKey(instant, timeZone), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const contact = [booking.guestPhone && `phone ${booking.guestPhone}`, booking.guestEmail && `email ${booking.guestEmail}`].filter(Boolean);
+  const contact = [booking.guestPhone && `phone ${booking.guestPhone}`, booking.guestEmail && `email ${booking.guestEmail}`].filter(
+    Boolean,
+  );
   return {
     guest: booking.guestName,
     party: `${booking.partySize} ${booking.partySize === 1 ? 'guest' : 'guests'}`,
@@ -116,7 +109,8 @@ export function cleanFacts(raw: unknown): ReservationFacts | null {
   const facts = {} as ReservationFacts;
   for (const key of Object.keys(FACT_LABELS) as (keyof ReservationFacts)[]) {
     const value = source[key];
-    facts[key] = (typeof value === 'string' || typeof value === 'number' ? String(value) : '').replace(/\s+/g, ' ').trim().slice(0, MAX_FACT) || '—';
+    facts[key] =
+      (typeof value === 'string' || typeof value === 'number' ? String(value) : '').replace(/\s+/g, ' ').trim().slice(0, MAX_FACT) || '—';
   }
   return facts;
 }

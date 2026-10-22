@@ -8,10 +8,10 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock, Info } from '@/components/icons';
 import { usePayrollSettings } from '@/components/payroll/usePayroll';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Avatar } from '@/components/shared/Avatar';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Badge } from '@/components/ui/badge';
 
 import { getStaff } from '@/lib/modules/identity/client';
@@ -202,105 +202,98 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
 
   return (
     <motion.div className="space-y-7" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
-      <motion.section variants={SECTION_RISE} aria-label="Needs you">
-        {loading ? (
-          // The folded "needs you" card is one line until opened, so is its placeholder.
-          <TilesSkeleton count={1} label="Checking the team" tileClassName="border-rule/60 bg-field px-4 py-3.5" />
-        ) : error ? (
-          <ErrorState
-            title="The team checks couldn’t run"
-            description="Some of this page’s data didn’t load, so nothing here is a complete picture."
-            onRetry={retry}
-          />
-        ) : items.length === 0 ? (
-          <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-momentum/10 text-momentum">
-              <CheckCircle2 size={18} aria-hidden="true" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-foreground">Nothing needs you</span>
-              <span className="block text-xs text-muted-foreground">
-                The rota is published, the queues are clear and every record is complete.
-              </span>
-            </span>
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-            {/* Folded by default: one line that says how much and what, opened on demand. */}
-            <button
-              type="button"
-              aria-expanded={needsOpen}
-              onClick={() => setNeedsOpen((open) => !open)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-            >
-              <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', SEVERITY_TILE[worst])}>
-                <AlertTriangle size={18} aria-hidden="true" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-foreground">
-                  {items.length} {items.length === 1 ? 'thing needs' : 'things need'} you
+      {(loading || error || items.length > 0) && (
+        <motion.section variants={SECTION_RISE} aria-label="Needs you">
+          {loading ? (
+            // The folded "needs you" card is one line until opened, so is its placeholder.
+            <TilesSkeleton count={1} label="Checking the team" tileClassName="border-rule/60 bg-field px-4 py-3.5" />
+          ) : error ? (
+            <ErrorState
+              title="The team checks couldn’t run"
+              description="Some of this page’s data didn’t load, so nothing here is a complete picture."
+              onRetry={retry}
+            />
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+              {/* Folded by default: one line that says how much and what, opened on demand. */}
+              <button
+                type="button"
+                aria-expanded={needsOpen}
+                onClick={() => setNeedsOpen((open) => !open)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+              >
+                <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', SEVERITY_TILE[worst])}>
+                  <AlertTriangle size={18} aria-hidden="true" />
                 </span>
-                <span className="mt-0.5 block truncate text-xs text-muted-foreground">{items.map((item) => item.title).join(' · ')}</span>
-              </span>
-              <span className="shrink-0 text-xs font-semibold text-muted-foreground">{needsOpen ? 'Hide' : 'Show'}</span>
-              <ChevronDown
-                size={15}
-                aria-hidden="true"
-                className={cn('shrink-0 text-muted-foreground transition-transform duration-200', needsOpen && 'rotate-180')}
-              />
-            </button>
-            <AnimatePresence initial={false}>
-              {needsOpen && (
-                <motion.div
-                  initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-                  animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
-                  exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-                  transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-                  className="overflow-hidden border-t border-rule/50"
-                >
-                  <div className="p-2">
-                    <ul className="space-y-2">
-                      {items.map((item) => {
-                        const Icon = SEVERITY_ICON[item.severity];
-                        return (
-                          <li key={item.id}>
-                            <Link
-                              href={item.href}
-                              className={cn(
-                                'group flex items-center gap-3 rounded-lg border bg-background/60 px-3.5 py-3 transition-colors hover:bg-band/40',
-                                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                                item.severity === 'blocking' ? 'border-exception/35' : 'border-rule/60',
-                              )}
-                            >
-                              <span
-                                className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', SEVERITY_TILE[item.severity])}
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-foreground">
+                    {items.length} {items.length === 1 ? 'thing needs' : 'things need'} you
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">{items.map((item) => item.title).join(' · ')}</span>
+                </span>
+                <span className="shrink-0 text-xs font-semibold text-muted-foreground">{needsOpen ? 'Hide' : 'Show'}</span>
+                <ChevronDown
+                  size={15}
+                  aria-hidden="true"
+                  className={cn('shrink-0 text-muted-foreground transition-transform duration-200', needsOpen && 'rotate-180')}
+                />
+              </button>
+              <AnimatePresence initial={false}>
+                {needsOpen && (
+                  <motion.div
+                    initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                    animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
+                    exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                    transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden border-t border-rule/50"
+                  >
+                    <div className="p-2">
+                      <ul className="space-y-2">
+                        {items.map((item) => {
+                          const Icon = SEVERITY_ICON[item.severity];
+                          return (
+                            <li key={item.id}>
+                              <Link
+                                href={item.href}
+                                className={cn(
+                                  'group flex items-center gap-3 rounded-lg border bg-background/60 px-3.5 py-3 transition-colors hover:bg-band/40',
+                                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                                  item.severity === 'blocking' ? 'border-exception/35' : 'border-rule/60',
+                                )}
                               >
-                                <Icon size={18} aria-hidden="true" />
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block text-sm font-semibold text-foreground">{item.title}</span>
-                                <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{item.detail}</span>
-                              </span>
-                              <span className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-foreground sm:flex">
-                                {item.actionLabel}
-                                <ChevronRight
-                                  size={14}
-                                  className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                                  aria-hidden="true"
-                                />
-                              </span>
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
-      </motion.section>
+                                <span
+                                  className={cn(
+                                    'flex size-10 shrink-0 items-center justify-center rounded-md',
+                                    SEVERITY_TILE[item.severity],
+                                  )}
+                                >
+                                  <Icon size={18} aria-hidden="true" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-sm font-semibold text-foreground">{item.title}</span>
+                                  <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{item.detail}</span>
+                                </span>
+                                <span className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-foreground sm:flex">
+                                  {item.actionLabel}
+                                  <ChevronRight
+                                    size={14}
+                                    className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                                    aria-hidden="true"
+                                  />
+                                </span>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+        </motion.section>
+      )}
 
       {access.rota && (
         <motion.section variants={SECTION_RISE} aria-labelledby="staff-today">

@@ -38,7 +38,7 @@ export function DeliveryAddressFields({
     return (
       <div className="space-y-6">
         <DrawerSection id={`${id}-who`} title="Who it’s for">
-          <FieldLine icon={User} title="Recipient" htmlFor={`${id}-name`} error={errors?.recipientName}>
+          <FieldLine icon={User} title="Recipient" required htmlFor={`${id}-name`} error={errors?.recipientName}>
             <Input
               id={`${id}-name`}
               value={value.recipientName}
@@ -59,7 +59,7 @@ export function DeliveryAddressFields({
         </DrawerSection>
 
         <DrawerSection id={`${id}-where`} title="Where it goes">
-          <FieldLine icon={MapPin} title="Address" htmlFor={`${id}-line1`} error={errors?.line1}>
+          <FieldLine icon={MapPin} title="Address" required htmlFor={`${id}-line1`} error={errors?.line1}>
             <div className="space-y-2">
               <Input
                 id={`${id}-line1`}
@@ -76,7 +76,7 @@ export function DeliveryAddressFields({
               />
             </div>
           </FieldLine>
-          <FieldLine icon={Landmark} title="Town or city" htmlFor={`${id}-city`} error={errors?.city}>
+          <FieldLine icon={Landmark} title="Town or city" required htmlFor={`${id}-city`} error={errors?.city}>
             <Input
               id={`${id}-city`}
               value={value.city}
@@ -84,7 +84,7 @@ export function DeliveryAddressFields({
               aria-invalid={Boolean(errors?.city) || undefined}
             />
           </FieldLine>
-          <FieldLine icon={Hash} title="Postcode" htmlFor={`${id}-postcode`} error={errors?.postcode}>
+          <FieldLine icon={Hash} title="Postcode" required htmlFor={`${id}-postcode`} error={errors?.postcode}>
             <Input
               id={`${id}-postcode`}
               value={value.postcode}
@@ -93,7 +93,7 @@ export function DeliveryAddressFields({
               aria-invalid={Boolean(errors?.postcode) || undefined}
             />
           </FieldLine>
-          <FieldLine icon={Globe} title="Country" htmlFor={`${id}-country`}>
+          <FieldLine icon={Globe} title="Country" required htmlFor={`${id}-country`}>
             <Select
               value={value.country}
               onValueChange={(country) => onChange({ country })}

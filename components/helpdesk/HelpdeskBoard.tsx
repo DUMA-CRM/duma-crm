@@ -489,6 +489,7 @@ function TicketPanel({
 
   return (
     <Drawer
+      icon={CircleHelp}
       title={ticket?.subject ?? 'Request'}
       description={
         ticket
@@ -611,7 +612,7 @@ function TicketPanel({
                     </span>
                     {index === 0 && <span className="text-xs text-muted-foreground">· raised the request</span>}
                     {message.internal && (
-                      <span className="inline-flex items-center gap-1 rounded-sm bg-measured/10 px-1.5 py-0.5 font-sans text-xs font-semibold text-measured">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-measured/10 px-1.5 py-0.5 font-sans text-xs font-semibold text-measured">
                         <Lock size={10} aria-hidden="true" /> Private note
                       </span>
                     )}

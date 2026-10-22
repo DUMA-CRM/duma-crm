@@ -4,23 +4,23 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import {
-  Coins,
   AlertTriangle,
   Barcode,
   Check,
+  Coins,
   FileText,
   Flame,
   Gauge,
+  ImageIcon,
   Loader2,
   Package,
   PackageMinus,
   PackagePlus,
   Timer,
-  TriangleAlert,
 } from '@/components/icons';
 import { useFormatUnitCost } from '@/components/inventory/item/ContainerCost';
 import { StockItemPhotoField } from '@/components/inventory/item/StockItemPhoto';
-import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
+import { Switch } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
 import { ChoiceCards, FormSection, NumberStepper } from '@/components/shared/FormParts';
 import { Pill } from '@/components/shared/Pill';
@@ -28,9 +28,10 @@ import { TONE_TINT } from '@/components/shared/tone';
 import { useCurrencySymbol, useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FieldLabel, Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import {
   type Allergen,
   FSA_ALLERGENS,
@@ -51,7 +52,6 @@ import { type CreateLossPayload, type LossCreateReason, createLossEntry } from '
 import { type CreateRestockRequestPayload, createRestockRequest } from '@/lib/modules/inventory/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { type CatalogVocabulary, stockCategoriesFor, stockUnitPlaceholder } from '@/lib/utils/catalog-vocabulary';
 import { cn } from '@/lib/utils/cn';
 import { unitCostFromPrice } from '@/lib/utils/stock-cost';
@@ -274,8 +274,9 @@ export function AddItemDrawer({
 
   return (
     <Drawer
+      icon={Package}
       title="Add Item"
-      description="Track an existing catalogue item at this location, or create a new one as you go."
+      guidance="Track an existing catalogue item at this location, or create a new one as you go."
       onClose={onClose}
       footer={
         <div className="flex gap-2">
@@ -290,7 +291,9 @@ export function AddItemDrawer({
     >
       <form id={ADD_ITEM_FORM} onSubmit={handleSubmit} className="space-y-4">
         <div className="flex flex-col gap-1.5">
-          <Label uppercase>Item</Label>
+          <Label required uppercase>
+            Item
+          </Label>
           <Select
             value={stockItemId}
             onValueChange={(value) => {
@@ -310,16 +313,10 @@ export function AddItemDrawer({
         </div>
 
         {creatingNew && (
-          <div className="flex flex-col gap-1.5">
-            <Label uppercase>Photo</Label>
-            <StockItemPhotoField value={newImageUrl} onChange={setNewImageUrl} />
-          </div>
-        )}
-
-        {creatingNew && (
           <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3">
             <div className="min-w-0">
               <Input
+                required
                 label="NAME"
                 value={newName}
                 onChange={(e) => {
@@ -333,6 +330,7 @@ export function AddItemDrawer({
             </div>
             <div className="w-24">
               <Input
+                required
                 label="UNIT"
                 value={newUnit}
                 onChange={(e) => {
@@ -359,9 +357,11 @@ export function AddItemDrawer({
         )}
 
         {creatingNew && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-4">
             <div className="flex flex-col gap-1.5">
-              <Label uppercase>Category</Label>
+              <Label required uppercase>
+                Category
+              </Label>
               <Select
                 value={newCategory}
                 onValueChange={(value) => setNewCategory(value as StockItem['category'])}
@@ -370,50 +370,54 @@ export function AddItemDrawer({
                 className={selectClass}
               />
             </div>
-            <label className="flex items-center gap-2 self-end h-9 rounded-sm bg-band px-3 text-sm text-foreground">
-              <input type="checkbox" checked={newPerishable} onChange={(e) => setNewPerishable(e.target.checked)} /> Perishable
-            </label>
-            <Input
-              label="CONTAINER QUANTITY"
-              value={newContainerQty}
-              onChange={(e) => setNewContainerQty(e.target.value)}
-              placeholder="e.g. 1000"
-              type="number"
-              min={0}
-            />
-            {newPerishable && (
-              <Input
-                label="SHELF LIFE (DAYS)"
-                value={newShelfLife}
-                onChange={(e) => setNewShelfLife(e.target.value)}
-                placeholder="e.g. 7"
-                type="number"
-                min={1}
-              />
-            )}
+            <FormSection icon={Timer} title="Storage" collapsible>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium">Perishable</span>
+                <Switch label="Perishable" checked={newPerishable} onChange={setNewPerishable} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="CONTAINER QUANTITY"
+                  value={newContainerQty}
+                  onChange={(e) => setNewContainerQty(e.target.value)}
+                  placeholder="e.g. 1000"
+                  type="number"
+                  min={0}
+                />
+                {newPerishable && (
+                  <Input
+                    label="SHELF LIFE (DAYS)"
+                    value={newShelfLife}
+                    onChange={(e) => setNewShelfLife(e.target.value)}
+                    placeholder="e.g. 7"
+                    type="number"
+                    min={1}
+                  />
+                )}
+              </div>
+            </FormSection>
           </div>
         )}
 
         {creatingNew && tools.kitchen && (
-          <NutritionFields draft={newNutrition} onChange={setNewNutrition} allergens={newAllergens} onAllergensChange={setNewAllergens} />
+          <FormSection icon={Flame} title="Nutrition & allergens" collapsible defaultOpen={newAllergens.length > 0}>
+            <NutritionFields draft={newNutrition} onChange={setNewNutrition} allergens={newAllergens} onAllergensChange={setNewAllergens} />
+          </FormSection>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label uppercase>Reorder qty</Label>
-            <input
+        <FormSection icon={PackagePlus} title="Reorder defaults" collapsible defaultOpen={Boolean(errors.threshold)}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input
+              label="Reorder quantity"
               type="number"
               min={0}
               step="any"
               placeholder="e.g. 500"
               value={reorderQuantity}
               onChange={(e) => setReorderQuantity(e.target.value)}
-              className={selectClass}
             />
-          </div>
-          <div className="flex flex-col gap-1.5 flex-1">
-            <Label uppercase>Par</Label>
-            <input
+            <Input
+              label="Par"
               type="number"
               min={0}
               step="any"
@@ -423,11 +427,15 @@ export function AddItemDrawer({
                 setLowThreshold(e.target.value);
                 setErrors((p) => ({ ...p, threshold: '' }));
               }}
-              className={cn(selectClass, errors.threshold && 'border-destructive/60')}
+              error={errors.threshold}
             />
-            {errors.threshold && <p className="text-xs text-destructive">{errors.threshold}</p>}
           </div>
-        </div>
+        </FormSection>
+        {creatingNew && (
+          <FormSection icon={ImageIcon} title="Photo" collapsible>
+            <StockItemPhotoField value={newImageUrl} onChange={setNewImageUrl} />
+          </FormSection>
+        )}
       </form>
     </Drawer>
   );
@@ -442,6 +450,9 @@ export function EditThresholdDrawer({ item, onClose, onSuccess }: { item: Locati
     const value = item.reorderQuantity ?? item.stockItem?.defaultReorderQuantity;
     return value ? String(Number(value)) : '';
   });
+  const snapshot = JSON.stringify([threshold, reorderQuantity]);
+  const [initialSnapshot] = useState(snapshot);
+  const dirty = snapshot !== initialSnapshot;
   const [submitted, setSubmitted] = useState(false);
 
   const thresholdNumber = Number(threshold);
@@ -470,19 +481,16 @@ export function EditThresholdDrawer({ item, onClose, onSuccess }: { item: Locati
 
   return (
     <Drawer
+      icon={Gauge}
       title="Par level"
-      description={
-        item.stockItem?.name
-          ? `${item.stockItem.name} — when it counts as low here, and how much to order.`
-          : 'When it counts as low here, and how much to order.'
-      }
+      description={item.stockItem?.name}
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={isPending}>
+          <Button type="button" variant="outline" size="default" className="flex-1" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
-          <Button type="submit" form={THRESHOLD_FORM} size="lg" className="flex-1" disabled={isPending}>
+          <Button type="submit" form={THRESHOLD_FORM} size="default" className="flex-1" disabled={isPending || !dirty}>
             {isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
             Save
           </Button>
@@ -492,14 +500,14 @@ export function EditThresholdDrawer({ item, onClose, onSuccess }: { item: Locati
       <form
         id={THRESHOLD_FORM}
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
           setSubmitted(true);
-          if (!thresholdError && !reorderError) mutate();
+          if (dirty && !thresholdError && !reorderError) mutate();
         }}
       >
-        <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3.5">
+        <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary" aria-hidden="true">
             <Gauge size={18} />
           </span>
@@ -514,12 +522,9 @@ export function EditThresholdDrawer({ item, onClose, onSuccess }: { item: Locati
           {preview && <Pill tone={STATUS_TONE[preview]}>{STATUS_LABEL[preview]}</Pill>}
         </div>
 
-        <FormSection
-          icon={Gauge}
-          title="Low at"
-          note="At or below this it shows as low, joins the suggested order and raises the low-stock alert. Half of it counts as critical."
-        >
+        <div className="space-y-3">
           <Input
+            required
             label="Par"
             value={threshold}
             onChange={(e) => setThreshold(e.target.value)}
@@ -527,13 +532,18 @@ export function EditThresholdDrawer({ item, onClose, onSuccess }: { item: Locati
             autoFocus
             rightIcon={<span className="text-xs">{unit}</span>}
             error={submitted ? (thresholdError ?? undefined) : undefined}
-            hint={thresholdNumber === 0 && !thresholdError ? 'At 0 it never shows as low.' : undefined}
+            hint={
+              thresholdNumber === 0 && !thresholdError ? 'At 0 it never shows as low.' : 'At or below this level, stock is flagged as low.'
+            }
           />
-        </FormSection>
+        </div>
 
         <FormSection
           icon={PackagePlus}
-          title="Order"
+          collapsible
+          defaultOpen={Boolean(reorderQuantity)}
+          invalid={submitted && Boolean(reorderError)}
+          title="Reorder quantity"
           note="What the suggested order proposes when it runs low. Leave blank to let the forecast decide."
         >
           <Input
@@ -597,15 +607,15 @@ export function RestockDrawer({
 
   return (
     <Drawer
+      icon={PackagePlus}
       title="Request restock"
-      description="Ask for more — a manager approves it in Restock demand before it’s ordered."
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={isPending}>
+          <Button type="button" variant="outline" size="default" className="flex-1" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
-          <Button type="submit" form={RESTOCK_FORM} size="lg" className="flex-1" disabled={isPending || !!qtyError}>
+          <Button type="submit" form={RESTOCK_FORM} size="default" className="flex-1" disabled={isPending || !!qtyError}>
             {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <PackagePlus aria-hidden="true" />}
             Request {qtyError ? '' : `${qty} ${unit}`}
           </Button>
@@ -615,7 +625,7 @@ export function RestockDrawer({
       <form
         id={RESTOCK_FORM}
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
           if (!qtyError)
@@ -624,8 +634,13 @@ export function RestockDrawer({
       >
         <ItemCard name={itemName} status={status} qty={onHand} par={threshold} unit={unit} category={item.stockItem?.category} />
 
-        <FormSection icon={PackagePlus} title="How much">
-          <NumberStepper value={qty} onChange={setQty} min={1} max={999_999} unit={unit} label="Quantity" />
+        <section aria-label="How much" className="space-y-3">
+          <div className="space-y-1.5">
+            <FieldLabel as="span" required>
+              Quantity
+            </FieldLabel>
+            <NumberStepper value={qty} onChange={setQty} min={1} max={999_999} unit={unit} label="Quantity" size="compact" />
+          </div>
           {chips.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {chips.map((chip) => (
@@ -657,13 +672,19 @@ export function RestockDrawer({
               once delivered. Requests are in whole units.
             </p>
           )}
-        </FormSection>
+        </section>
 
-        <FormSection icon={FileText} title="Note">
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          A manager approves the request in Restock demand before it’s ordered.
+        </p>
+
+        <FormSection icon={FileText} title="Note" collapsible>
+          <FieldLabel htmlFor="restock-note">Note</FieldLabel>
           <textarea
+            id="restock-note"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Optional — how urgent, or a preferred supplier"
+            placeholder="How urgent, or a preferred supplier"
             maxLength={1000}
             rows={3}
             aria-label="Note"
@@ -752,15 +773,15 @@ export function LogLossDrawer({
 
   return (
     <Drawer
+      icon={PackageMinus}
       title="Log waste"
-      description="Write off stock that expired, broke or went missing — it comes off what’s on hand straight away."
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={isPending}>
+          <Button type="button" variant="outline" size="default" className="flex-1" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
-          <Button type="submit" form={LOG_LOSS_FORM} variant="destructive" size="lg" className="flex-1" disabled={isPending}>
+          <Button type="submit" form={LOG_LOSS_FORM} variant="destructive" size="default" className="flex-1" disabled={isPending}>
             {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <PackageMinus aria-hidden="true" />}
             Write off{!errors.qty && selected ? ` ${fmtQty(n)} ${unit}` : ''}
           </Button>
@@ -770,7 +791,7 @@ export function LogLossDrawer({
       <form
         id={LOG_LOSS_FORM}
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
           setSubmitted(true);
@@ -787,9 +808,11 @@ export function LogLossDrawer({
             category={selected.stockItem?.category}
           />
         ) : (
-          <FormSection icon={Package} title="What">
+          <div className="space-y-3">
             <div className="flex flex-col gap-1.5">
-              <Label uppercase>Location</Label>
+              <Label required uppercase>
+                Location
+              </Label>
               <Select
                 value={locationId}
                 onValueChange={(value) => {
@@ -807,7 +830,9 @@ export function LogLossDrawer({
               {submitted && errors.location && <p className="text-xs text-destructive">{errors.location}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label uppercase>Item</Label>
+              <Label required uppercase>
+                Item
+              </Label>
               <Select
                 value={stockItemId}
                 onValueChange={setStockItemId}
@@ -831,11 +856,12 @@ export function LogLossDrawer({
               />
               {submitted && errors.item && <p className="text-xs text-destructive">{errors.item}</p>}
             </div>
-          </FormSection>
+          </div>
         )}
 
-        <FormSection icon={PackageMinus} title="How much">
+        <section aria-label="Quantity" className="space-y-3">
           <Input
+            required
             label="Quantity lost"
             value={qty}
             onChange={(e) => setQty(e.target.value)}
@@ -870,14 +896,25 @@ export function LogLossDrawer({
               </button>
             </div>
           )}
-        </FormSection>
+        </section>
 
-        <FormSection icon={TriangleAlert} title="Why">
-          <ChoiceCards columns={4} value={reason} onChange={setReason} options={LOSS_REASONS} />
+        <fieldset className="space-y-1.5">
+          <legend className="mb-1.5">
+            <FieldLabel as="span" required>
+              Reason
+            </FieldLabel>
+          </legend>
+          <ChoiceCards columns={2} value={reason} onChange={setReason} options={LOSS_REASONS} />
+        </fieldset>
+        <p className="text-xs leading-relaxed text-muted-foreground">Written-off stock comes off what’s on hand straight away.</p>
+
+        <FormSection icon={FileText} title="Note" collapsible>
+          <FieldLabel htmlFor="waste-note">Note</FieldLabel>
           <textarea
+            id="waste-note"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Optional — what happened, e.g. found at the back of the fridge"
+            placeholder="What happened, e.g. found at the back of the fridge"
             maxLength={500}
             rows={2}
             aria-label="Note"
@@ -965,7 +1002,9 @@ export function EditStockItemDrawer({
 }) {
   const [name, setName] = useState(item.name);
   const [imageUrl, setImageUrl] = useState<string | null>(item.imageUrl ?? null);
-  const [defaultCost, setDefaultCost] = useState(item.costPerUnit != null && item.costPerUnit !== '' ? String(Number(item.costPerUnit)) : '');
+  const [defaultCost, setDefaultCost] = useState(
+    item.costPerUnit != null && item.costPerUnit !== '' ? String(Number(item.costPerUnit)) : '',
+  );
   const currencySymbol = useCurrencySymbol();
   const formatUnitCost = useFormatUnitCost();
   // What the business sells (Settings → What you sell) decides what this drawer asks:
@@ -984,6 +1023,23 @@ export function EditStockItemDrawer({
   const [reorderQuantity, setReorderQuantity] = useState(item.defaultReorderQuantity ? String(Number(item.defaultReorderQuantity)) : '');
   const [nutrition, setNutrition] = useState<NutritionDraft>(() => nutritionDraftFrom(item.nutritionBasis, item.nutrition));
   const [allergens, setAllergens] = useState<Allergen[]>((item.allergens ?? []) as Allergen[]);
+  const snapshot = JSON.stringify([
+    name,
+    imageUrl,
+    defaultCost,
+    barcode,
+    unit,
+    category,
+    isPerishable,
+    shelfLife,
+    containerQuantity,
+    reorderLevel,
+    reorderQuantity,
+    nutrition,
+    allergens,
+  ]);
+  const [initialSnapshot] = useState(snapshot);
+  const dirty = snapshot !== initialSnapshot;
   const [submitted, setSubmitted] = useState(false);
 
   const positive = (value: string, allowZero = true) =>
@@ -1029,14 +1085,18 @@ export function EditStockItemDrawer({
   return (
     <Drawer
       title="Edit item"
-      description="The catalogue record — shared by every location that stocks it."
+      leading={
+        <span className="flex size-10 items-center justify-center rounded-md bg-primary/8 text-primary">
+          <Package size={20} aria-hidden="true" />
+        </span>
+      }
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={isPending}>
+          <Button type="button" variant="outline" size="default" className="flex-1" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
-          <Button type="submit" form={EDIT_ITEM_FORM} size="lg" className="flex-1" disabled={isPending}>
+          <Button type="submit" form={EDIT_ITEM_FORM} size="default" className="flex-1" disabled={isPending || !dirty}>
             {isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
             Save changes
           </Button>
@@ -1049,22 +1109,22 @@ export function EditStockItemDrawer({
         onSubmit={(e) => {
           e.preventDefault();
           setSubmitted(true);
-          if (valid) mutate();
+          if (valid && dirty) mutate();
         }}
-        className="space-y-7"
+        className="space-y-5"
       >
-        <FormSection icon={Package} title="Item">
-          <div className="flex flex-col gap-1.5">
-            <Label uppercase>Photo</Label>
-            <StockItemPhotoField value={imageUrl} onChange={setImageUrl} />
-          </div>
+        <section aria-label="Item details" className="space-y-4">
           <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={255} error={show('name')} />
           <div className="flex flex-col gap-1.5">
-            <Label uppercase>Category</Label>
-            <ChoiceCards
-              columns={categoryOptions.length === 2 ? 2 : categoryOptions.length === 3 ? 3 : 4}
+            <FieldLabel htmlFor="edit-item-category" required>
+              Category
+            </FieldLabel>
+            <Select
+              id="edit-item-category"
+              required
+              ariaLabel="Item category"
               value={category}
-              onChange={(value) => setCategory(value as StockItem['category'])}
+              onValueChange={(value) => setCategory(value as StockItem['category'])}
               options={categoryOptions}
             />
           </div>
@@ -1094,14 +1154,13 @@ export function EditStockItemDrawer({
               Changing the unit relabels stock at every location — quantities aren’t converted. Only change it to fix a mistake.
             </p>
           )}
-        </FormSection>
+        </section>
 
-        <FormSection icon={Timer} title="Storage">
-          <SettingRows>
-            <SettingRow title="Perishable" description="Containers get a use-by date and expiring stock is flagged.">
-              <Switch label="Perishable" checked={isPerishable} onChange={setIsPerishable} />
-            </SettingRow>
-          </SettingRows>
+        <FormSection title="Storage" icon={Timer} collapsible invalid={submitted && Boolean(errors.shelfLife || errors.containerQuantity)}>
+          <div className="flex items-center justify-between gap-3 py-1">
+            <span className="text-sm font-medium">Perishable</span>
+            <Switch label="Perishable" checked={isPerishable} onChange={setIsPerishable} />
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {isPerishable && (
               <Input
@@ -1129,9 +1188,10 @@ export function EditStockItemDrawer({
         </FormSection>
 
         <FormSection
+          title="Cost & reordering"
           icon={Coins}
-          title="Default cost"
-          note="For containers without a price of their own. Receiving a purchase order updates it to the price paid."
+          collapsible
+          invalid={submitted && Boolean(errors.defaultCost || errors.reorderLevel || errors.reorderQuantity)}
         >
           <Input
             label={`Cost per ${unit.trim() || 'unit'}`}
@@ -1147,13 +1207,10 @@ export function EditStockItemDrawer({
             }
             error={show('defaultCost')}
           />
-        </FormSection>
-
-        <FormSection
-          icon={PackagePlus}
-          title="Reorder defaults"
-          note="Used when a location starts stocking it. Each location can change its own par."
-        >
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Default cost applies to unpriced containers; receiving a purchase order updates it. Reorder defaults apply when a location
+            starts stocking this item.
+          </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
               label="Par"
@@ -1176,8 +1233,18 @@ export function EditStockItemDrawer({
           </div>
         </FormSection>
 
+        <FormSection title="Photo" icon={ImageIcon} collapsible>
+          <StockItemPhotoField value={imageUrl} onChange={setImageUrl} />
+        </FormSection>
+
         {tools.kitchen && (
-          <FormSection icon={Flame} title="Nutrition & allergens" note="Feeds the menu’s nutrition and allergen labels through recipes.">
+          <FormSection
+            title="Nutrition & allergens"
+            icon={Flame}
+            collapsible
+            defaultOpen={Boolean(allergens.length || nutrition.basis || Object.values(nutrition.values).some(Boolean))}
+            note="Feeds the menu’s nutrition and allergen labels through recipes."
+          >
             <NutritionFields draft={nutrition} onChange={setNutrition} allergens={allergens} onAllergensChange={setAllergens} />
           </FormSection>
         )}

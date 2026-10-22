@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { RotateCcw, Search, ShieldOff, X } from '@/components/icons';
+import { RotateCcw, Search, ShieldOff } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Avatar } from '@/components/shared/Avatar';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -29,6 +29,7 @@ import { SUPPRESSION_REASONS, groupSuppressions, suppressionSourceLabel } from '
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { CommunicationsToolbar } from './CommunicationsToolbar';
 import { useEmailAccess } from './useEmailAccess';
 
 // Erasure entries come from a privacy request, never from this form.
@@ -144,16 +145,11 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
 
   return (
     <motion.div
-      className="flex flex-1 flex-col space-y-5"
+      className="flex flex-1 flex-col gap-5"
       initial="hidden"
       animate="shown"
       variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
     >
-      <motion.p variants={SECTION_RISE} className="px-1 text-sm leading-relaxed text-muted-foreground">
-        Marketing and lifecycle email never reaches these addresses. Receipts and “your order is ready” still go out — they aren’t
-        marketing.
-      </motion.p>
-
       {list.length === 0 ? (
         <EmptyState
           icon={ShieldOff}
@@ -163,38 +159,23 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
         />
       ) : (
         <>
-          <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-2">
-            <div className="min-w-56 flex-1 lg:max-w-sm">
-              <Input
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                aria-label="Search suppressions"
-                placeholder="Search name, address or reason…"
-                leftIcon={<Search size={14} />}
-                rightAction={
-                  search ? (
-                    <button
-                      type="button"
-                      onClick={() => setSearch('')}
-                      aria-label="Clear search"
-                      className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      <X size={13} aria-hidden="true" />
-                    </button>
-                  ) : undefined
-                }
-              />
-            </div>
-            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-              {shown !== list.length && `${shown} of `}
-              {list.length} {list.length === 1 ? 'address' : 'addresses'}
-            </span>
-          </motion.div>
+          <CommunicationsToolbar
+            search={search}
+            onSearch={setSearch}
+            placeholder="Search name, address or reason…"
+            onClear={() => setSearch('')}
+            count={
+              <>
+                {shown !== list.length && `${shown} of `}
+                {list.length} {list.length === 1 ? 'address' : 'addresses'}
+              </>
+            }
+          />
 
           {groups.length === 0 ? (
-            <motion.div variants={SECTION_RISE}>
+            <motion.div variants={SECTION_RISE} className="flex flex-1 flex-col">
               <EmptyState
+                className="flex-1"
                 icon={Search}
                 kind="search"
                 title="Nothing matches"
@@ -205,11 +186,11 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
           ) : (
             groups.map((group) => (
               <motion.section key={group.reason} variants={SECTION_RISE} aria-label={group.label}>
-                <h2 className="mb-2 flex items-center gap-2 text-label uppercase text-muted-foreground">
+                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                   {group.label}
-                  <span className="normal-case tabular-nums">{group.items.length}</span>
+                  <span className="text-xs font-normal text-muted-foreground tabular-nums">{group.items.length}</span>
                 </h2>
-                <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                <ul className="space-y-2">
                   {group.items.map((item) => (
                     <SuppressionRow key={item.id} item={item} canLift={canSuppress} onLift={() => setLiftTarget(item)} />
                   ))}
@@ -219,6 +200,10 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
           )}
         </>
       )}
+
+      <motion.p variants={SECTION_RISE} className="text-xs leading-relaxed text-muted-foreground">
+        These addresses won’t receive marketing emails. Receipts and order updates still go out.
+      </motion.p>
 
       {addModal}
 
@@ -247,6 +232,7 @@ function SuppressionRow({ item, canLift, onLift }: { item: MarketingSuppression;
   const name = item.customer ? `${item.customer.firstName} ${item.customer.lastName}` : null;
   return (
     <ListRow
+      className="rounded-lg border border-rule/60 bg-field [&:last-child]:border-b"
       icon={name ? undefined : ShieldOff}
       tone="muted"
       leading={name ? <Avatar name={name} /> : undefined}
@@ -258,7 +244,7 @@ function SuppressionRow({ item, canLift, onLift }: { item: MarketingSuppression;
         </>
       }
       trailing={<RelativeTime iso={item.createdAt} className="text-xs tabular-nums text-muted-foreground" />}
-      actions={
+      control={
         canLift ? (
           <Button
             type="button"

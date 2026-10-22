@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { AlertTriangle, CircleAlert, Clock } from '@/components/icons';
+import { AlertTriangle, Banknote, CircleAlert, Clock } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
@@ -51,10 +51,10 @@ export function PayLineDrawer({
   const balances = reconciles(line);
 
   return (
-    <Drawer title={line.name} description={`${line.jobTitle} · ${formatRange(from, to)}`} onClose={onClose}>
+    <Drawer icon={Banknote} title={line.name} description={`${line.jobTitle} · ${formatRange(from, to)}`} onClose={onClose}>
       <div className="space-y-5">
         {/* The sum itself, stated once, before any of the detail. */}
-        <section className="rounded-md border border-rule bg-card p-4">
+        <section className="rounded-md border border-rule bg-field p-4">
           {explanation.basis === 'salaried' ? (
             <>
               <p className="text-sm text-muted-foreground">
@@ -85,7 +85,7 @@ export function PayLineDrawer({
               </p>
               <p className="mt-2 text-xs text-muted-foreground">Payable hours at the recorded rate, before tax and National Insurance.</p>
               {!balances && (
-                <p className="mt-3 flex gap-2 rounded-sm border border-exception/40 bg-card p-2.5 text-xs text-muted-foreground">
+                <p className="mt-3 flex gap-2 rounded-md border border-exception/40 bg-field p-2.5 text-xs text-muted-foreground">
                   <AlertTriangle size={14} className="mt-0.5 shrink-0 text-exception" aria-hidden="true" />
                   <span>
                     This does not come to the gross the server returned. Treat the server&rsquo;s figure as correct and report the
@@ -122,7 +122,7 @@ export function PayLineDrawer({
         )}
 
         {explanation.unrosteredShifts > 0 && (
-          <p className="flex gap-2 rounded-md border border-measured/40 bg-card p-3 text-sm text-muted-foreground" role="note">
+          <p className="flex gap-2 rounded-md border border-measured/40 bg-field p-3 text-sm text-muted-foreground" role="note">
             <AlertTriangle size={15} className="mt-0.5 shrink-0 text-measured" aria-hidden="true" />
             <span>
               <span className="font-semibold text-foreground">
@@ -139,7 +139,7 @@ export function PayLineDrawer({
         <section>
           <h3 className="mb-2 text-sm font-semibold text-foreground">Shifts in this period</h3>
           {isError ? (
-            <div className="rounded-md border border-rule bg-card">
+            <div className="rounded-md border border-rule bg-field">
               <ErrorState
                 icon={Clock}
                 title="The timesheet couldn’t be loaded"
@@ -154,7 +154,7 @@ export function PayLineDrawer({
               role="status"
               aria-busy="true"
               aria-label="Loading the timesheet"
-              className="divide-y divide-rule overflow-hidden rounded-md border border-rule bg-card"
+              className="divide-y divide-rule overflow-hidden rounded-md border border-rule bg-field"
             >
               {[0, 1, 2].map((index) => (
                 <div key={index} className="flex items-center gap-3 px-4 py-3" aria-hidden="true">
@@ -167,9 +167,9 @@ export function PayLineDrawer({
               ))}
             </div>
           ) : explanation.shifts.length === 0 ? (
-            <p className="rounded-md border border-rule bg-card p-4 text-sm text-muted-foreground">No shifts clocked in this period.</p>
+            <p className="rounded-md border border-rule bg-field p-4 text-sm text-muted-foreground">No shifts clocked in this period.</p>
           ) : (
-            <ul className="divide-y divide-rule overflow-hidden rounded-md border border-rule bg-card">
+            <ul className="divide-y divide-rule overflow-hidden rounded-md border border-rule bg-field">
               {explanation.shifts.map(({ shift, overtimeHours, breakHours, unrostered }) => (
                 <li key={shift.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
                   <div className="min-w-0 flex-1">

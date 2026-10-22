@@ -16,6 +16,7 @@ import {
   Mail,
   MapPin,
   Receipt,
+  ReceiptText,
   RotateCcw,
   Timer,
   Truck,
@@ -53,9 +54,9 @@ import {
 import { workspaceDateKey, workspaceFormatter } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 
+import { OrderDeliveryEditor } from './OrderDeliveryEditor';
 import { OrderNote } from './OrderNote';
 import { PaymentDueCard } from './PaymentDueCard';
-import { OrderDeliveryEditor } from './OrderDeliveryEditor';
 import { RefundBody, RefundFooter, useRefundDraft } from './RefundPanel';
 import { StatusMenu, useStatusChange } from './StatusMenu';
 import { REFUND_REASON_OPTIONS, SOURCE_META, STATUS_META, VOID_REASON_OPTIONS, optionLabel } from './orderMeta';
@@ -167,7 +168,7 @@ export function OrderDrawer({
 
   if (isPending || isError || !data) {
     return (
-      <Drawer title={orderCode(orderId)} onClose={onClose} actions={nav}>
+      <Drawer icon={ReceiptText} title={orderCode(orderId)} onClose={onClose} actions={nav}>
         {isError ? (
           <ErrorState title="This order couldn’t be loaded" onRetry={() => void refetch()} />
         ) : (
@@ -198,6 +199,7 @@ export function OrderDrawer({
 
   return (
     <Drawer
+      icon={ReceiptText}
       title={refunding ? `Refund order ${orderCode(data.id)}` : `Order ${orderCode(data.id)}`}
       description={refunding ? undefined : `${source.label} · ${formatDateTime(data.createdAt)}`}
       onClose={onClose}
@@ -290,7 +292,7 @@ export function OrderDrawer({
             <h3 id="order-items" className="mb-2 text-sm font-semibold text-foreground">
               Items
             </h3>
-            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
               <ul>
                 {data.items.map((item) => {
                   const refundedLine = item.refundStatus && item.refundStatus !== 'none';
@@ -323,7 +325,7 @@ export function OrderDrawer({
                           <span className="mt-1 flex flex-wrap items-center gap-1.5">
                             {item.quantity > 1 && <span className="text-xs text-muted-foreground">{money(item.unitPrice)} each</span>}
                             {refundedLine && (
-                              <span className="rounded-sm bg-exception/8 px-1.5 py-0.5 text-micro font-semibold text-exception">
+                              <span className="rounded-md bg-exception/8 px-1.5 py-0.5 text-micro font-semibold text-exception">
                                 {item.refundStatus === 'refunded' ? 'Refunded' : 'Part refunded'}
                               </span>
                             )}
@@ -378,7 +380,7 @@ export function OrderDrawer({
                 </span>
                 <div className="min-w-0 flex-1">
                   <h3 id="order-delivery" className="truncate text-sm font-semibold text-foreground">
-                    {data.customerId ? (data.customerName || linkedCustomerName || 'Customer') : 'No customer yet'}
+                    {data.customerId ? data.customerName || linkedCustomerName || 'Customer' : 'No customer yet'}
                   </h3>
                   <p className="truncate text-xs text-muted-foreground">
                     {data.fulfilmentType === 'delivery'
@@ -398,9 +400,10 @@ export function OrderDrawer({
           )}
 
           {/* Taken by hand and still to be paid — gone once it is. */}
-          {data.source === 'manual' && data.paymentStatus === 'unpaid' && !['cancelled', 'expired'].includes(data.status) && canTakeOrders && (
-            <PaymentDueCard orderId={data.id} amountDue={Number(data.totalAmount)} />
-          )}
+          {data.source === 'manual' &&
+            data.paymentStatus === 'unpaid' &&
+            !['cancelled', 'expired'].includes(data.status) &&
+            canTakeOrders && <PaymentDueCard orderId={data.id} amountDue={Number(data.totalAmount)} />}
 
           {/* The order's note: added or changed whenever there's something worth keeping. */}
           <OrderNote key={data.notes ?? ''} orderId={data.id} notes={data.notes} canEdit={canNote} />
@@ -463,7 +466,7 @@ export function OrderDrawer({
                 No history recorded.
               </p>
             ) : (
-              <ol className="rounded-lg border border-rule/60 bg-card px-4 py-3">
+              <ol className="rounded-lg border border-rule/60 bg-field px-4 py-3">
                 {activity.map((event, index) => (
                   <ActivityItem
                     key={event.kind === 'status' ? `s-${event.entry.id}` : `r-${event.refund.id}`}

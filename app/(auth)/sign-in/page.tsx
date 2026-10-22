@@ -17,6 +17,7 @@ function SignInForm() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const sessionExpired = searchParams.get('reason') === 'session-expired';
+  const recentSignIn = searchParams.get('reason') === 'recent-sign-in';
 
   useEffect(() => {
     if (!sessionExpired) return;
@@ -53,6 +54,11 @@ function SignInForm() {
         {sessionExpired && (
           <p role="status" className="rounded-md border border-rule bg-band px-3 py-2 text-sm text-foreground">
             Your session expired. Sign in again to continue.
+          </p>
+        )}
+        {recentSignIn && (
+          <p role="status" className="rounded-md border border-rule bg-band px-3 py-2 text-sm text-foreground">
+            Sign in again to view your active sessions. You’ll return to Account settings.
           </p>
         )}
         {error && (

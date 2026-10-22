@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
+import { hasCapability } from '@/lib/auth/capabilities';
 import {
   type EmailConnection,
   type EmailConnectionPayload,
@@ -21,7 +22,6 @@ import {
   saveEmailConnection,
   testEmailConnection,
 } from '@/lib/modules/communications/client';
-import { hasCapability } from '@/lib/auth/capabilities';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
@@ -88,6 +88,7 @@ function useEmailConnectionForm() {
     queryFn: () => getEmailConnection(tenantId ?? undefined),
     enabled: !!tenantId && hasCapability(capabilities, 'email.connections:read'),
     retry: false,
+    meta: { silentForbidden: true },
   });
 
   const [overrides, setOverrides] = useState<Partial<EmailConnectionPayload>>({});

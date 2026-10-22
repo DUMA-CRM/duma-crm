@@ -1,4 +1,16 @@
-import { Banknote, BarChart3, Calculator, CreditCard, Database, GoogleDrive, type IconComponent, Mail, Printer, Tags } from '@/components/icons';
+import {
+  Banknote,
+  BarChart3,
+  Calculator,
+  CreditCard,
+  Database,
+  GoogleDrive,
+  type IconComponent,
+  Mail,
+  Printer,
+  Tags,
+} from '@/components/icons';
+
 import type { Capability } from '@/lib/auth/capabilities';
 import type { WorkspaceModuleId } from '@/lib/modules/organization/client';
 
@@ -70,6 +82,7 @@ export const CONNECTORS: ConnectorDefinition[] = [
     available: true,
     capability: 'email.connections:write',
     readCapability: 'email.connections:read',
+    moduleId: 'communications',
   },
   {
     id: 'card-payments',
@@ -86,6 +99,7 @@ export const CONNECTORS: ConnectorDefinition[] = [
     available: true,
     capability: 'payments.connections:write',
     readCapability: 'payments.connections:read',
+    moduleId: 'payments',
   },
   {
     id: 'media-storage',

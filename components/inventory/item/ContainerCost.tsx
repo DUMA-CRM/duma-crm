@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Coins, Loader2 } from '@/components/icons';
 import { fmtQty } from '@/components/inventory/stock/shared';
 import { Drawer } from '@/components/shared/Drawer';
-import { ChoiceCards, FormSection } from '@/components/shared/FormParts';
+import { ChoiceCards } from '@/components/shared/FormParts';
 import { useCurrencySymbol, useWorkspaceCurrency, useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -130,15 +130,16 @@ export function SetContainerCostDrawer({
   const title = units.length === 1 ? `Cost of ${units[0]!.label}` : `Cost of ${units.length} containers`;
   return (
     <Drawer
+      icon={Coins}
       title={title}
-      description="What it was bought for. Stock already used keeps the cost it was used at."
+      guidance="What it was bought for. Stock already used keeps the cost it was used at."
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={save.isPending}>
+          <Button type="button" variant="outline" size="default" className="flex-1" onClick={onClose} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form="container-cost" size="lg" className="flex-1" disabled={save.isPending}>
+          <Button type="submit" form="container-cost" size="default" className="flex-1" disabled={save.isPending}>
             {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
             Save cost
           </Button>
@@ -148,14 +149,14 @@ export function SetContainerCostDrawer({
       <form
         id="container-cost"
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
           setSubmitted(true);
           if (!error) save.mutate();
         }}
       >
-        <FormSection icon={Coins} title="Cost">
+        <section aria-label="Cost" className="space-y-3">
           {sameSize && (
             <ChoiceCards
               columns={2}
@@ -184,13 +185,14 @@ export function SetContainerCostDrawer({
           )}
           {units.length > 1 && price.trim() !== '' && !error && (
             <p className="rounded-md bg-band/60 px-3 py-2 text-xs tabular-nums text-muted-foreground">
-              Applies to all {units.length} — {fmtQty(units.reduce((sum, unit) => sum + Number(unit.remainingQuantity), 0))} {item.unit} left, worth{' '}
+              Applies to all {units.length} — {fmtQty(units.reduce((sum, unit) => sum + Number(unit.remainingQuantity), 0))} {item.unit}{' '}
+              left, worth{' '}
               <span className="font-semibold text-foreground">
                 {money(units.reduce((sum, unit) => sum + Number(unit.remainingQuantity), 0) * (unitCostFromPrice(price, quantity) ?? 0))}
               </span>
             </p>
           )}
-        </FormSection>
+        </section>
       </form>
     </Drawer>
   );

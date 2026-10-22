@@ -39,6 +39,7 @@ import { LoadingState } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { CopyButton } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { ApiError } from '@/lib/api/client';
@@ -638,9 +639,9 @@ function LoadedEntryEditor({
             </div>
           }
         >
-          <label className="block text-label uppercase text-muted-foreground" htmlFor="review-note">
+          <FieldLabel htmlFor="review-note">
             {reviewDialog === 'submit' ? 'Note for the reviewer (optional)' : 'What needs changing'}
-          </label>
+          </FieldLabel>
           <textarea
             id="review-note"
             rows={4}
@@ -867,12 +868,7 @@ function ScheduleSection({ entry }: { entry: CmsEntry }) {
     <SettingsSection
       title="Schedule"
       actions={
-        <Tooltip
-          side="top"
-          align="end"
-          wrap
-          label={`A scheduled publish uses the draft as it is saved at that moment. ${zoneHint}`}
-        >
+        <Tooltip side="top" align="end" wrap label={`A scheduled publish uses the draft as it is saved at that moment. ${zoneHint}`}>
           <button
             type="button"
             aria-label="About scheduling"
@@ -885,7 +881,13 @@ function ScheduleSection({ entry }: { entry: CmsEntry }) {
     >
       <div className="space-y-4">
         <ScheduleRow icon={Send} title="Publish" value={publishAt} saved={entry.scheduledPublishAt} onClear={() => setPublishAt('')}>
-          <DateTimeField label={<span className="sr-only">Publish at</span>} value={publishAt} min={minDay} hint={zoneHint} onChange={setPublishAt} />
+          <DateTimeField
+            label={<span className="sr-only">Publish at</span>}
+            value={publishAt}
+            min={minDay}
+            hint={zoneHint}
+            onChange={setPublishAt}
+          />
         </ScheduleRow>
         <ScheduleRow
           icon={EyeOff}
@@ -919,8 +921,7 @@ function ScheduleSection({ entry }: { entry: CmsEntry }) {
  * where it stands on the right — with its date and time underneath, since a
  * picker pair is too wide to sit beside the title in the aside.
  */
-const scheduleLabel = (iso: string) =>
-  formatInstant(iso, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const scheduleLabel = (iso: string) => formatInstant(iso, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /**
  * One schedule line: the time (or "Not set") is the button that opens its
@@ -1023,6 +1024,7 @@ function HistoryDrawer({
 
   return (
     <Drawer
+      icon={History}
       title="Version history"
       description={`Every save, publish and restore of the ${entry.locale} version, newest first.`}
       onClose={onClose}
@@ -1034,7 +1036,7 @@ function HistoryDrawer({
       ) : (
         <ol className="space-y-2">
           {versionsQuery.data.map((version) => (
-            <li key={version.id} className="rounded-lg border border-rule/50 bg-background/60">
+            <li key={version.id} className="rounded-lg border border-rule/50 bg-field">
               <button
                 type="button"
                 className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left text-sm hover:bg-band/50"

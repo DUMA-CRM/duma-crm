@@ -321,6 +321,7 @@ function AuditLogPageContent() {
 
       {!wide && selected && (
         <Drawer
+          icon={History}
           title={`${auditActor(selected)}${auditRole(selected) ? ` (${auditRole(selected)})` : ''} ${auditPhrase(selected)}`}
           description={fullTimestamp(selected.createdAt)}
           onClose={() => setSelected(null)}

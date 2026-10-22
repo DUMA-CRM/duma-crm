@@ -3,8 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { UserMinus } from '@/components/icons';
+import { UserMinus, UsersRound } from '@/components/icons';
+import { Drawer } from '@/components/shared/Drawer';
+import { ModalActions } from '@/components/shared/FormParts';
 import { DatePicker } from '@/components/ui/date-picker';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import {
@@ -28,7 +31,7 @@ import {
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useAuthStore } from '@/stores/authStore';
 
-import { Avatar, EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, SCOPES, inp, lbl, sel, toDateInput } from './shared';
+import { Avatar, EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, SCOPES, inp, sel, toDateInput } from './shared';
 
 // ── Create staff ──────────────────────────────────────────────────────────────
 
@@ -59,7 +62,7 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
       className="space-y-4"
     >
       <div>
-        <label className={lbl}>Full name</label>
+        <FieldLabel className="mb-1.5">Full name</FieldLabel>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -71,7 +74,7 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
         />
       </div>
       <div>
-        <label className={lbl}>Email</label>
+        <FieldLabel className="mb-1.5">Email</FieldLabel>
         <input
           type="email"
           value={email}
@@ -86,7 +89,7 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className={lbl}>Role</label>
+          <FieldLabel className="mb-1.5">Role</FieldLabel>
           <Select
             value={role}
             onValueChange={(value) => setRole(value as StaffRole)}
@@ -96,7 +99,7 @@ export function CreateStaffModal({ tenantId, onClose }: { tenantId: string; onCl
           />
         </div>
         <div>
-          <label className={lbl}>Scope</label>
+          <FieldLabel className="mb-1.5">Scope</FieldLabel>
           <Select
             value={scope}
             onValueChange={(value) => setScope(value as StaffScope)}
@@ -184,7 +187,7 @@ export function EditStaffModal({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className={lbl}>Role</label>
+          <FieldLabel className="mb-1.5">Role</FieldLabel>
           <Select
             value={role}
             onValueChange={(value) => setRole(value as StaffRole)}
@@ -194,7 +197,7 @@ export function EditStaffModal({
           />
         </div>
         <div>
-          <label className={lbl}>Scope</label>
+          <FieldLabel className="mb-1.5">Scope</FieldLabel>
           <Select
             value={scope}
             onValueChange={(value) => setScope(value as StaffScope)}
@@ -207,7 +210,7 @@ export function EditStaffModal({
 
       {scope === 'location' && locations.length > 0 && (
         <div>
-          <label className={lbl}>Assigned locations</label>
+          <FieldLabel className="mb-1.5">Assigned locations</FieldLabel>
           <div className="flex flex-col gap-1.5 mt-1">
             {locations.map((loc) => (
               <label
@@ -261,7 +264,7 @@ export function EditStaffModal({
 
 // ── Enroll as employee (create HR record for a specific person) ────────────────
 
-export function EnrollEmployeeModal({
+export function EnrollEmployeeDrawer({
   member,
   onClose,
   onCreated,
@@ -303,70 +306,73 @@ export function EnrollEmployeeModal({
   });
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        mutate();
-      }}
-      className="space-y-4"
-    >
-      <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/40 border border-rule rounded-sm">
-        <Avatar name={member.name} email={member.email} />
-        <div>
-          <p className="text-sm font-semibold text-foreground">{member.name ?? '—'}</p>
-          <p className="text-xs text-muted-foreground">{member.email ?? '—'}</p>
-        </div>
-      </div>
-
-      <div>
-        <label className={lbl}>Job title</label>
-        <input
-          value={jobTitle}
-          onChange={(e) => setJobTitle(e.target.value)}
-          required
-          placeholder="Store Manager"
-          className={inp}
-          autoFocus
+    <Drawer
+      icon={UsersRound}
+      title="Add employee record"
+      onClose={onClose}
+      footer={
+        <ModalActions
+          form="enroll-employee-form"
+          submitLabel={submitLabel}
+          pending={isPending}
+          pendingLabel="Creating…"
+          onCancel={onClose}
         />
-      </div>
-      <div>
-        <label className={lbl}>Department</label>
-        <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Operations" className={inp} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      }
+    >
+      <form
+        id="enroll-employee-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          mutate();
+        }}
+        className="space-y-4"
+      >
+        <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/40 border border-rule rounded-sm">
+          <Avatar name={member.name} email={member.email} />
+          <div>
+            <p className="text-sm font-semibold text-foreground">{member.name ?? '—'}</p>
+            <p className="text-xs text-muted-foreground">{member.email ?? '—'}</p>
+          </div>
+        </div>
+
         <div>
-          <label className={lbl}>Employment type</label>
-          <Select
-            value={employmentType}
-            onValueChange={(value) => setEmploymentType(value as EmploymentType)}
-            options={EMPLOYMENT_TYPES.map((type) => ({ value: type, label: EMPLOYMENT_CONFIG[type].label }))}
-            ariaLabel="Employment type"
-            className={sel}
+          <FieldLabel required className="mb-1.5">
+            Job title
+          </FieldLabel>
+          <input
+            value={jobTitle}
+            onChange={(e) => setJobTitle(e.target.value)}
+            required
+            placeholder="Store Manager"
+            className={inp}
+            autoFocus
           />
         </div>
-        <DatePicker label="Start date" value={startDate} onValueChange={setStartDate} required />
-      </div>
-      <DatePicker label="Date of birth" value={dateOfBirth} onValueChange={setDateOfBirth} />
+        <div>
+          <FieldLabel className="mb-1.5">Department</FieldLabel>
+          <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Operations" className={inp} />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <FieldLabel required className="mb-1.5">
+              Employment type
+            </FieldLabel>
+            <Select
+              value={employmentType}
+              onValueChange={(value) => setEmploymentType(value as EmploymentType)}
+              options={EMPLOYMENT_TYPES.map((type) => ({ value: type, label: EMPLOYMENT_CONFIG[type].label }))}
+              ariaLabel="Employment type"
+              className={sel}
+            />
+          </div>
+          <DatePicker label="Start date" value={startDate} onValueChange={setStartDate} required />
+        </div>
+        <DatePicker label="Date of birth" value={dateOfBirth} onValueChange={setDateOfBirth} />
 
-      {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
-
-      <div className="flex gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex-1 h-10 border border-rule rounded-sm text-sm font-medium text-muted-foreground hover:bg-band transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={isPending}
-          className="flex-1 h-10 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
-        >
-          {isPending ? 'Creating…' : submitLabel}
-        </button>
-      </div>
-    </form>
+        {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
+      </form>
+    </Drawer>
   );
 }
 
@@ -422,16 +428,20 @@ export function EditEmployeeModal({ employee, name, onClose }: { employee: HrEmp
       </div>
 
       <div>
-        <label className={lbl}>Job title</label>
+        <FieldLabel required className="mb-1.5">
+          Job title
+        </FieldLabel>
         <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} required className={inp} />
       </div>
       <div>
-        <label className={lbl}>Department</label>
+        <FieldLabel className="mb-1.5">Department</FieldLabel>
         <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Operations" className={inp} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className={lbl}>Employment type</label>
+          <FieldLabel required className="mb-1.5">
+            Employment type
+          </FieldLabel>
           <Select
             value={employmentType}
             onValueChange={(value) => setEmploymentType(value as EmploymentType)}

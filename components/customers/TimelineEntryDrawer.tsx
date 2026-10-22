@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { RowTile } from '@/components/cms/rows';
+import { Drawer } from '@/components/customers/CustomerDialogs';
 import { PILL_TONE, TIMELINE_KIND_META } from '@/components/customers/timelineKinds';
 import {
   Activity,
@@ -26,7 +27,6 @@ import {
   Zap,
 } from '@/components/icons';
 import { Fact } from '@/components/settings/controls';
-import { Drawer } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
@@ -95,19 +95,19 @@ export function TimelineEntryDrawer({ entry, customerId, tenantId, onRetryEmail,
         </span>
       }
       leading={
-        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', meta.tile)}>
-          <Icon size={18} aria-hidden="true" />
+        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', meta.tile)}>
+          <Icon size={20} aria-hidden="true" />
         </span>
       }
       onClose={onClose}
       footer={
         entry.kind === 'email' && entry.status === 'failed' && onRetryEmail ? (
-          <Button size="lg" onClick={() => onRetryEmail(entry.id)} disabled={retryPending} className="w-full">
+          <Button size="default" onClick={() => onRetryEmail(entry.id)} disabled={retryPending} className="w-full">
             {retryPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw data-icon="inline-start" />}
             {retryPending ? 'Queueing…' : 'Try sending again'}
           </Button>
         ) : entry.kind === 'consent' || entry.kind === 'privacy' ? (
-          <Button size="lg" variant="outline" onClick={toCompliance} className="w-full">
+          <Button size="default" variant="outline" onClick={toCompliance} className="w-full">
             <ShieldCheck data-icon="inline-start" />
             Open the Compliance tab
           </Button>

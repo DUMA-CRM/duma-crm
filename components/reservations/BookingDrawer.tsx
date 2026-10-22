@@ -10,7 +10,6 @@ import {
   Clock,
   LayoutGrid,
   Loader2,
-  Mail,
   Phone,
   Search,
   Sparkles,
@@ -23,13 +22,14 @@ import {
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
-import { DetailRow, DrawerSection, FieldLine } from '@/components/shared/DrawerSection';
-import { NumberStepper } from '@/components/shared/FormParts';
+import { DetailRow, DrawerSection } from '@/components/shared/DrawerSection';
+import { FormSection, NumberStepper } from '@/components/shared/FormParts';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { TimePicker } from '@/components/ui/time-picker';
 
@@ -240,6 +240,7 @@ export function BookingDrawer({
 
   return (
     <Drawer
+      icon={CalendarDays}
       title={existing ? existing.guestName : 'New booking'}
       description={
         existing ? (
@@ -249,21 +250,19 @@ export function BookingDrawer({
               {existing.partySize} · {slotOf(existing.startsAt, timeZone)} · {SOURCE_LABELS[existing.source]}
             </span>
           </span>
-        ) : (
-          'Who, when, and which tables.'
-        )
+        ) : undefined
       }
       onClose={onClose}
       // The file drawer's footer: leaving on the left, saving on the right.
       footer={
         editable ? (
-          <div className="flex items-center justify-between gap-2">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={save.isPending}>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={save.isPending}>
               Cancel
             </Button>
-            <Button type="submit" form="booking-form" className="min-w-32" disabled={save.isPending}>
+            <Button type="submit" form="booking-form" className="flex-1" disabled={save.isPending}>
               {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
-              {existing ? 'Save booking' : 'Book'}
+              {existing ? 'Save booking' : 'Create booking'}
             </Button>
           </div>
         ) : undefined
@@ -289,7 +288,7 @@ export function BookingDrawer({
 
         <form id="booking-form" onSubmit={submit}>
           <fieldset disabled={!editable} className="space-y-6">
-            <DrawerSection id={`${id}-guest`} title="Guest">
+            <div className="space-y-3">
               <CustomerLink
                 id={`${id}-customer`}
                 customer={customer}
@@ -308,36 +307,17 @@ export function BookingDrawer({
                 }}
                 editable={editable}
               />
-              <FieldLine icon={UserRound} title="Name" htmlFor={`${id}-name`} error={problem('guestName')}>
-                <Input
-                  id={`${id}-name`}
-                  value={draft.guestName}
-                  onChange={(event) => set('guestName', event.target.value)}
-                  placeholder="Who the table is for"
-                  aria-invalid={Boolean(problem('guestName')) || undefined}
-                  autoFocus={!existing}
-                />
-              </FieldLine>
-              <FieldLine icon={Phone} title="Phone" htmlFor={`${id}-phone`}>
-                <Input
-                  id={`${id}-phone`}
-                  type="tel"
-                  value={draft.guestPhone}
-                  onChange={(event) => set('guestPhone', event.target.value)}
-                  placeholder="Optional"
-                />
-              </FieldLine>
-              <FieldLine icon={Mail} title="Email" htmlFor={`${id}-email`} error={problem('guestEmail')}>
-                <Input
-                  id={`${id}-email`}
-                  type="email"
-                  value={draft.guestEmail}
-                  onChange={(event) => set('guestEmail', event.target.value)}
-                  placeholder="Optional — for the confirmation"
-                  aria-invalid={Boolean(problem('guestEmail')) || undefined}
-                />
-              </FieldLine>
-            </DrawerSection>
+              <Input
+                id={`${id}-name`}
+                label="Guest name"
+                required
+                value={draft.guestName}
+                onChange={(event) => set('guestName', event.target.value)}
+                placeholder="Who the table is for"
+                error={problem('guestName')}
+                autoFocus={!existing}
+              />
+            </div>
 
             {/* One line each — what it is set to — and the control opens underneath on a tap. */}
             <DrawerSection id={`${id}-when`} title="When">
@@ -366,7 +346,9 @@ export function BookingDrawer({
               <DetailRow
                 icon={CalendarDays}
                 title="Day"
-                value={problem('date') ?? formatCalendarDate(draft.date, { weekday: 'short', day: 'numeric', month: 'short' }, 'Choose a day')}
+                value={
+                  problem('date') ?? formatCalendarDate(draft.date, { weekday: 'short', day: 'numeric', month: 'short' }, 'Choose a day')
+                }
                 tone={problem('date') ? 'warning' : undefined}
                 open={openRow === 'day'}
                 onToggle={() => toggleRow('day')}
@@ -417,14 +399,7 @@ export function BookingDrawer({
                 open={openRow === 'tables'}
                 onToggle={() => toggleRow('tables')}
               >
-                <TablePicker
-                  floor={floor}
-                  tableIds={tableIds}
-                  byId={byId}
-                  editable={editable}
-                  timeZone={timeZone}
-                  onToggle={toggleTable}
-                />
+                <TablePicker floor={floor} tableIds={tableIds} byId={byId} editable={editable} timeZone={timeZone} onToggle={toggleTable} />
                 {availability.isError && (
                   <p className="mt-2 text-xs text-exception">Couldn’t check which tables are free — saving still checks.</p>
                 )}
@@ -442,42 +417,70 @@ export function BookingDrawer({
               </DetailRow>
             </DrawerSection>
 
-            <DrawerSection id={`${id}-details`} title="Details">
-              <FieldLine icon={Phone} title="Taken by" htmlFor={`${id}-source`}>
-                <Select
-                  id={`${id}-source`}
-                  value={source}
-                  onValueChange={(value) => setSource(value as BookingSource)}
-                  options={SOURCE_OPTIONS}
-                  ariaLabel="How the booking came in"
-                  className="w-full"
-                  disabled={!editable}
+            <FormSection
+              icon={Phone}
+              title="Contact details"
+              collapsible
+              defaultOpen={Boolean(existing?.guestPhone || existing?.guestEmail)}
+              invalid={Boolean(problem('guestEmail'))}
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="Phone"
+                  type="tel"
+                  autoComplete="tel"
+                  value={draft.guestPhone}
+                  onChange={(event) => set('guestPhone', event.target.value)}
                 />
-              </FieldLine>
-              <FieldLine icon={StickyNote} title="Notes" htmlFor={`${id}-notes`}>
-                <textarea
-                  id={`${id}-notes`}
-                  value={draft.notes}
-                  onChange={(event) => set('notes', event.target.value)}
-                  maxLength={500}
-                  rows={3}
-                  placeholder="Allergies, an occasion, a high chair…"
-                  className="w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-measured disabled:opacity-60"
+                <Input
+                  label="Email"
+                  type="email"
+                  autoComplete="email"
+                  value={draft.guestEmail}
+                  onChange={(event) => set('guestEmail', event.target.value)}
+                  error={problem('guestEmail')}
                 />
-              </FieldLine>
+              </div>
               {!existing && draft.guestEmail.trim() && (
-                <div className="flex items-center gap-3 px-4 py-2.5">
-                  <RowTile icon={Mail} tone={sendConfirmation ? 'success' : 'default'} />
+                <div className="flex items-center gap-3">
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-foreground">Email a confirmation</span>
-                    <span className="block text-xs text-muted-foreground">
+                    <span className="block text-xs leading-relaxed text-muted-foreground">
                       To {draft.guestEmail.trim()}, if a confirmation automation is set up. The reminder goes either way.
                     </span>
                   </span>
                   <Switch checked={sendConfirmation} onChange={setSendConfirmation} label="Email a confirmation" />
                 </div>
               )}
-            </DrawerSection>
+            </FormSection>
+
+            <FormSection icon={StickyNote} title="Notes" collapsible defaultOpen={Boolean(draft.notes)}>
+              <FieldLabel htmlFor={`${id}-notes`}>Notes</FieldLabel>
+              <textarea
+                id={`${id}-notes`}
+                value={draft.notes}
+                onChange={(event) => set('notes', event.target.value)}
+                maxLength={500}
+                rows={3}
+                placeholder="Allergies, an occasion, a high chair…"
+                className="w-full rounded-md border border-input bg-control px-3 py-2 text-base sm:text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-measured disabled:opacity-60"
+              />
+            </FormSection>
+
+            <FormSection icon={Phone} title="Booking source" collapsible>
+              <FieldLabel htmlFor={`${id}-source`} required>
+                Source
+              </FieldLabel>
+              <Select
+                id={`${id}-source`}
+                value={source}
+                onValueChange={(value) => setSource(value as BookingSource)}
+                options={SOURCE_OPTIONS}
+                ariaLabel="How the booking came in"
+                className="w-full"
+                disabled={!editable}
+              />
+            </FormSection>
           </fieldset>
         </form>
 
@@ -549,7 +552,9 @@ function TablePicker({
                     type="button"
                     aria-pressed={selected}
                     disabled={!editable || (busy && !selected)}
-                    title={clash ? `${clash.guestName} at ${slotOf(clash.startsAt, timeZone)}` : `Seats ${table.minCovers}–${table.maxCovers}`}
+                    title={
+                      clash ? `${clash.guestName} at ${slotOf(clash.startsAt, timeZone)}` : `Seats ${table.minCovers}–${table.maxCovers}`
+                    }
                     onClick={() => onToggle(table.id)}
                     className={cn(
                       'flex h-10 min-w-16 flex-col items-center justify-center rounded-md border px-2 text-xs transition-colors',
@@ -602,7 +607,7 @@ function CustomerLink({
   if (customer) {
     const allergies = customer.allergies?.length ? customer.allergies.join(', ') : null;
     return (
-      <div className="flex items-center gap-3 border-b border-rule/45 px-4 py-2.5">
+      <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3">
         <RowTile icon={UserRound} tone={allergies ? 'warning' : 'success'} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-foreground">
@@ -622,12 +627,14 @@ function CustomerLink({
   }
   if (!editable) return null;
   return (
-    <FieldLine icon={Search} title="Customer" htmlFor={id}>
+    <div>
       <Input
         id={id}
+        label="Link customer"
+        leftIcon={<Search size={14} />}
         value={term}
         onChange={(event) => setTerm(event.target.value)}
-        placeholder="Name, phone or email — optional"
+        placeholder="Search by name, phone or email"
       />
       {search.length >= 2 && (
         <div className="mt-1.5 rounded-md border border-rule/60 bg-card p-1">
@@ -655,6 +662,6 @@ function CustomerLink({
           )}
         </div>
       )}
-    </FieldLine>
+    </div>
   );
 }

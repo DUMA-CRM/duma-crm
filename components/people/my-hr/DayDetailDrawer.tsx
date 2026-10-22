@@ -89,8 +89,8 @@ export function DayDetailDrawer({ day, onClose, onQuery }: { day: AttendanceDay;
         </span>
       }
       leading={
-        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', status.tile)}>
-          <CalendarCheck size={18} aria-hidden="true" />
+        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', status.tile)}>
+          <CalendarCheck size={20} aria-hidden="true" />
         </span>
       }
       onClose={onClose}

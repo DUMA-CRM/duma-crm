@@ -22,8 +22,8 @@ import { fmtDate, fmtHours } from '@/components/people/shared';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact } from '@/components/settings/controls';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { MiniBar } from '@/components/shared/MiniBar';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Button } from '@/components/ui/button';
 
 import type { StaffProfile } from '@/lib/modules/identity/client';
@@ -123,22 +123,20 @@ export function OverviewSection({
   return (
     <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
       {member && (
-        <motion.section variants={SECTION_RISE} aria-label="Needs you">
-          <RecordAttention
-            member={member}
-            employee={employee}
-            country={payroll?.payrollCountry ?? null}
-            tickets={tickets}
-            canReadDocuments={access.documents}
-            onAction={(target) => {
-              if (target === 'edit') return onEdit();
-              if (target === 'documents') return onOpenSection('time');
-              if (target === 'pay') return onOpenSection('pay');
-              // Access and requests are both further down this page.
-              document.getElementById(`record-${target}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-          />
-        </motion.section>
+        <RecordAttention
+          member={member}
+          employee={employee}
+          country={payroll?.payrollCountry ?? null}
+          tickets={tickets}
+          canReadDocuments={access.documents}
+          onAction={(target) => {
+            if (target === 'edit') return onEdit();
+            if (target === 'documents') return onOpenSection('time');
+            if (target === 'pay') return onOpenSection('pay');
+            // Access and requests are both further down this page.
+            document.getElementById(`record-${target}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+        />
       )}
 
       {/* Laid out as a settings tab is — the same body, panels and read-outs —
@@ -268,23 +266,10 @@ function RecordAttention({
       </div>
     );
 
-  if (items.length === 0)
-    return (
-      <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-momentum/10 text-momentum">
-          <CheckCircle2 size={18} aria-hidden="true" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-foreground">This record is complete</span>
-          <span className="block text-xs text-muted-foreground">
-            All {checks.length} employment checks are done and nothing is waiting on a reply.
-          </span>
-        </span>
-      </div>
-    );
+  if (items.length === 0) return null;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+    <motion.section variants={SECTION_RISE} aria-label="Needs you" className="overflow-hidden rounded-lg border border-rule/60 bg-field">
       <button
         type="button"
         aria-expanded={open}
@@ -370,7 +355,7 @@ function RecordAttention({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.section>
   );
 }
 

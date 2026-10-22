@@ -1360,6 +1360,7 @@ export function AssetDrawer({
   const asset = query.data;
   return (
     <Drawer
+      icon={ImageIcon}
       title={asset?.fileName ?? 'File'}
       onClose={onClose}
       footer={
@@ -1500,7 +1501,7 @@ export function AssetDrawer({
                         <button
                           type="button"
                           aria-label="Suggest alt text from the image"
-                          className="flex size-7 items-center justify-center rounded-sm text-primary hover:bg-primary/8 disabled:opacity-50"
+                          className="flex size-7 items-center justify-center rounded-md text-primary hover:bg-primary/8 disabled:opacity-50"
                           disabled={suggesting}
                           onClick={() => void suggestAlt(asset)}
                         >

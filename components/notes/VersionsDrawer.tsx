@@ -54,6 +54,7 @@ export function VersionsDrawer({
 
   return (
     <Drawer
+      icon={History}
       title="History"
       description={
         count > 0
@@ -66,11 +67,11 @@ export function VersionsDrawer({
       bodyClassName={count > 0 ? 'flex flex-col overflow-hidden p-0 md:flex-row' : undefined}
       footer={
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="lg" className="flex-1" onClick={onClose}>
+          <Button type="button" variant="outline" size="default" className="flex-1" onClick={onClose}>
             Close
           </Button>
           {canRestore && shown && (
-            <Button type="button" size="lg" className="flex-1" disabled={restore.isPending} onClick={() => restore.mutate(shown.id)}>
+            <Button type="button" size="default" className="flex-1" disabled={restore.isPending} onClick={() => restore.mutate(shown.id)}>
               {restore.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RotateCcw aria-hidden="true" />}
               {restore.isPending ? 'Restoring…' : 'Restore this copy'}
             </Button>
@@ -115,11 +116,11 @@ function VersionList({ versions, shownId, onPick }: { versions: NoteVersion[]; s
   return (
     <nav
       aria-label="Earlier copies"
-      className="max-h-56 shrink-0 overflow-y-auto border-b border-divider bg-card md:max-h-none md:w-64 md:border-b-0 md:border-r"
+      className="max-h-[30dvh] shrink-0 overflow-y-auto border-b border-divider bg-field md:max-h-none md:w-64 md:border-b-0 md:border-r"
     >
       {groups.map((group) => (
         <section key={group.group} aria-label={group.group}>
-          <h3 className="sticky top-0 z-1 bg-card/95 px-4 pb-1 pt-3 text-label uppercase text-muted-foreground backdrop-blur">
+          <h3 className="sticky top-0 z-1 bg-field/95 px-4 pb-1 pt-3 text-label uppercase text-muted-foreground backdrop-blur">
             {group.group}
           </h3>
           <ul className="space-y-px px-2 pb-1">

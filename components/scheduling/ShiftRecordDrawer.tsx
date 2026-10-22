@@ -5,7 +5,9 @@ import { useMemo, useState } from 'react';
 
 import {
   Banknote,
+  CalendarClock,
   CalendarDays,
+  ChevronDown,
   Clock,
   Coffee,
   FileText,
@@ -44,8 +46,9 @@ import { StatusDot } from '@/components/shared/StatusDot';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
-import { TimePicker } from '@/components/ui/time-picker';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
+import { TimePicker } from '@/components/ui/time-picker';
 
 import type { StaffProfile } from '@/lib/modules/identity/client';
 import type { HrEmployee } from '@/lib/modules/people/client';
@@ -84,7 +87,9 @@ function Field({ icon: Icon, label, children }: { icon: IconComponent; label: st
     <div className="grid grid-cols-1 items-center gap-1.5 sm:grid-cols-[10.5rem_minmax(0,1fr)] sm:gap-4">
       <span className="flex items-center gap-2 text-sm font-medium text-foreground">
         <Icon size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-        {label}
+        <FieldLabel as="span" required={['Staff member', 'Location', 'Date worked', 'Assignment date', 'Shift status'].includes(label)}>
+          {label}
+        </FieldLabel>
       </span>
       {children}
     </div>
@@ -106,10 +111,37 @@ function Hint({ tone, children }: { tone: 'success' | 'warning' | 'muted'; child
   );
 }
 
-function Card({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
+function Card({
+  title,
+  children,
+  icon: Icon,
+  collapsible = false,
+  defaultOpen = false,
+}: {
+  title: React.ReactNode;
+  icon?: IconComponent;
+  children: React.ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+}) {
+  if (collapsible)
+    return (
+      <details open={defaultOpen} className="group/shift-section rounded-lg border border-rule/60 bg-field">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+          {Icon && (
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
+              <Icon size={16} aria-hidden="true" />
+            </span>
+          )}
+          <span className="min-w-0 flex-1">{title}</span>
+          <ChevronDown size={15} className="shrink-0 text-muted-foreground group-open/shift-section:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="px-4 pb-4">{children}</div>
+      </details>
+    );
   return (
     <section className="rounded-lg border border-rule/60 bg-field p-4">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
+      <h3 className="mb-2 text-sm font-semibold text-foreground">{title}</h3>
       {children}
     </section>
   );
@@ -491,9 +523,14 @@ function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftRecordD
   });
 
   return (
-    <Drawer title="Worked without a rota shift" description={`${record.staffName} · ${formatDate(record.at)}`} onClose={onClose}>
+    <Drawer
+      icon={Clock}
+      title="Worked without a rota shift"
+      description={`${record.staffName} · ${formatDate(record.at)}`}
+      onClose={onClose}
+    >
       <div className="space-y-5">
-        <div className="flex flex-col gap-3 rounded-sm border border-warning/30 bg-warning/6 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-md border border-warning/30 bg-warning/6 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">Attendance recorded, no shift was planned</p>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -513,7 +550,7 @@ function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftRecordD
             </Button>
           )}
         </div>
-        <dl className="grid grid-cols-1 gap-3 rounded-sm border border-rule bg-band p-4 text-sm sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-3 rounded-md border border-rule bg-band p-4 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-xs text-muted-foreground">Staff member</dt>
             <dd className="mt-1 font-semibold text-foreground">{record.staffName}</dd>
@@ -593,8 +630,9 @@ function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser
 
   return (
     <Drawer
+      icon={Clock}
       title="Record worked time"
-      description="Add hours that were worked without a clock record or rota shift."
+      guidance="Add hours that were worked without a clock record or rota shift."
       onClose={onClose}
       footer={
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -603,11 +641,11 @@ function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser
             {estimatedCost != null && ` · ${fmtMoney(estimatedCost)} estimated`}
           </p>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="lg" onClick={onClose}>
+            <Button variant="outline" size="default" onClick={onClose}>
               Cancel
             </Button>
             <Button
-              size="lg"
+              size="default"
               onClick={() => record.mutate()}
               disabled={record.isPending || !userId || !locationId || !date || !startTime || !endTime}
             >
@@ -629,7 +667,7 @@ function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser
           <Field icon={UsersRound} label="Staff member">
             <div className="flex items-center gap-2">
               {assigned && (
-                <span className="shrink-0 *:size-9 *:rounded-sm">
+                <span className="shrink-0 *:size-9 *:rounded-md">
                   <Avatar name={assigned.name} email={assigned.email} />
                 </span>
               )}
@@ -858,6 +896,7 @@ function PlannedShiftDrawer({
 
   return (
     <Drawer
+      icon={CalendarClock}
       title={editing ? 'Review shift' : 'Plan a shift'}
       description={
         editing ? `${editing.staffName} · ${formatDate(editing.at)}` : 'Plan the shift, assign who works it, and see what it will cost.'
@@ -894,10 +933,10 @@ function PlannedShiftDrawer({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Button variant="outline" size="lg" onClick={onClose}>
+              <Button variant="outline" size="default" onClick={onClose}>
                 Cancel
               </Button>
-              <Button size="lg" onClick={() => save.mutate()} disabled={save.isPending || occurrences.length === 0 || !locationId}>
+              <Button size="default" onClick={() => save.mutate()} disabled={save.isPending || occurrences.length === 0 || !locationId}>
                 {save.isPending ? 'Saving…' : 'Save'}
               </Button>
             </div>
@@ -928,7 +967,7 @@ function PlannedShiftDrawer({
           <Field icon={UsersRound} label="Assigned worker">
             <div className="flex items-center gap-2">
               {assigned && (
-                <span className="shrink-0 *:size-9 *:rounded-sm">
+                <span className="shrink-0 *:size-9 *:rounded-md">
                   <Avatar name={assigned.name} email={assigned.email} />
                 </span>
               )}
@@ -1084,13 +1123,7 @@ function PlannedShiftDrawer({
 
         {/* Repeat — creating only; each occurrence becomes its own editable shift. */}
         {!editing && (
-          <Card
-            title={
-              <span className="inline-flex items-center gap-1.5">
-                <Repeat size={14} /> Repeat weekly
-              </span>
-            }
-          >
+          <Card collapsible defaultOpen={repeatDays.length > 0} icon={Repeat} title="Repeat weekly">
             <div className="space-y-2.5">
               <div className="flex flex-wrap gap-1.5">
                 {WEEKDAYS.map(({ day, label }) => {
@@ -1136,13 +1169,7 @@ function PlannedShiftDrawer({
 
         {/* Estimated bill */}
         {money && (
-          <Card
-            title={
-              <span className="inline-flex items-center gap-1.5">
-                <Banknote size={14} /> Estimated bill
-              </span>
-            }
-          >
+          <Card collapsible icon={Banknote} title="Estimated bill">
             {hourlyRate == null ? (
               <p className="text-sm text-muted-foreground">
                 {!userId

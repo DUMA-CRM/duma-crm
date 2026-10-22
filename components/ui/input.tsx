@@ -1,8 +1,11 @@
+'use client';
+
 import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
 import { DatePicker } from './date-picker';
+import { FieldLabel } from './label';
 import { TimePicker } from './time-picker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -71,14 +74,9 @@ function Input({ className, type, label, hint, error, leftIcon, rightIcon, right
     <div className="flex flex-col gap-1.5 w-full">
       {/* Label */}
       {label && (
-        <label htmlFor={inputId} className="block text-label uppercase text-muted-foreground">
+        <FieldLabel htmlFor={inputId} required={props.required || props['aria-required'] === true || props['aria-required'] === 'true'}>
           {label}
-          {props.required && (
-            <span className="ml-1 text-exception" aria-hidden="true">
-              *
-            </span>
-          )}
-        </label>
+        </FieldLabel>
       )}
 
       {/* Input wrapper */}

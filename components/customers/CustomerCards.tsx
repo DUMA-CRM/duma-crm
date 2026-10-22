@@ -55,7 +55,7 @@ export function CustomerCards({
     );
   }
 
-  if (customers.length === 0) return <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">{emptyState}</div>;
+  if (customers.length === 0) return <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">{emptyState}</div>;
 
   return (
     <>
@@ -110,7 +110,7 @@ function CustomerCard({
   return (
     <div
       className={cn(
-        'group relative flex flex-col rounded-lg border bg-card transition-colors duration-150 focus-within:border-primary/40 hover:border-primary/40',
+        'group relative flex flex-col rounded-lg border bg-field transition-colors duration-150 focus-within:border-primary/40 hover:border-primary/40',
         selected ? 'border-primary/60 ring-2 ring-primary/15' : 'border-rule/60',
       )}
     >
@@ -137,7 +137,7 @@ function CustomerCard({
             <label
               className={cn(
                 'pointer-events-auto absolute inset-0 z-10 flex cursor-pointer items-center justify-center rounded-md border border-rule/60 bg-background transition-opacity',
-                selected || anySelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100',
+                selected || anySelected ? 'opacity-100' : 'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100',
               )}
             >
               <input
@@ -249,7 +249,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function CardSkeleton() {
   return (
-    <div className="flex flex-col rounded-lg border border-rule/60 bg-card" aria-hidden="true">
+    <div className="flex flex-col rounded-lg border border-rule/60 bg-field" aria-hidden="true">
       <div className="flex items-start gap-3 p-3.5 pb-3">
         <Bone className="size-10 shrink-0" />
         <span className="min-w-0 flex-1 space-y-1.5 pt-0.5">

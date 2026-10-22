@@ -1,19 +1,25 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+import { EditorShell } from '@/components/shared/EditorShell';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 
+import { canAccessConnector } from '@/lib/auth/connector-access';
+import { getCurrentTenantModules } from '@/lib/modules/organization/client';
+import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { useAuthStore } from '@/stores/authStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
+
+import { AnalyticsConnectWizard, AnalyticsConnectorPage } from './AnalyticsConnector';
 import { ConnectorsGrid } from './ConnectorsGrid';
 import { EmailConnectWizard, EmailConnectorPage } from './EmailConnector';
 import { PaymentsConnectWizard, PaymentsConnectorPage } from './PaymentsConnector';
 import { StorageConnectWizard } from './StorageConnector';
 import { StorageConnectorPage } from './StorageConnectorPage';
-import { AnalyticsConnectWizard, AnalyticsConnectorPage } from './AnalyticsConnector';
 import { CONNECTORS_BY_ID, type ConnectorId } from './registry';
-import { hasCapability } from '@/lib/auth/capabilities';
-import { useAuthStore } from '@/stores/authStore';
-import { EditorShell } from '@/components/shared/EditorShell';
-import { ErrorState } from '@/components/shared/ErrorState';
 
 const LIST = '/settings/connectors';
 
@@ -27,6 +33,12 @@ const LIST = '/settings/connectors';
 export function ConnectorsRoute() {
   const router = useRouter();
   const capabilities = useAuthStore((state) => state.capabilities);
+  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const modules = useQuery({
+    queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
+    queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
+    staleTime: 30_000,
+  });
   const searchParams = useSearchParams();
   const connector = searchParams.get('connector') as ConnectorId | null;
   const connecting = searchParams.get('mode') === 'connect';
@@ -36,13 +48,27 @@ export function ConnectorsRoute() {
   const toConnect = (id: ConnectorId) => router.push(`${LIST}?connector=${id}&mode=connect`);
 
   const definition = connector ? CONNECTORS_BY_ID[connector] : undefined;
-  if (definition && (
-    (definition.capability && !hasCapability(capabilities, definition.capability)) ||
-    (definition.readCapability && !hasCapability(capabilities, definition.readCapability))
-  )) {
+  if (definition?.moduleId && modules.isPending) {
     return (
       <EditorShell title={definition.name} onClose={toList}>
-        <ErrorState title="You don’t have access to this connection" description="Ask a workspace administrator for access, or return to Connections." />
+        <TilesSkeleton count={1} label="Checking connection access" />
+      </EditorShell>
+    );
+  }
+  if (definition?.moduleId && modules.isError) {
+    return (
+      <EditorShell title={definition.name} onClose={toList}>
+        <ErrorState title="Couldn’t check connection access" onRetry={() => void modules.refetch()} />
+      </EditorShell>
+    );
+  }
+  if (definition && !canAccessConnector(capabilities, definition, modules.data?.modules)) {
+    return (
+      <EditorShell title={definition.name} onClose={toList}>
+        <ErrorState
+          title="You don’t have access to this connection"
+          description="Ask a workspace administrator for access, or return to Connections."
+        />
       </EditorShell>
     );
   }

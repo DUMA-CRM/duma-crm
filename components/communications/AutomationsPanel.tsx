@@ -4,19 +4,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile, SectionInfo } from '@/components/cms/rows';
+import { RowTile } from '@/components/cms/rows';
 import { ChevronRight, FileText, Plus, Search, Send, Trash2, TriangleAlert, XCircle, Zap } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { Fact } from '@/components/settings/controls';
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
 import { TilesSkeleton } from '@/components/shared/TileSkeleton';
-import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 import {
   type EmailAutomation,
@@ -33,6 +32,7 @@ import { attentionIssues, groupAutomations, hasUnpublishedChanges, missingTempla
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { CommunicationsToolbar } from './CommunicationsToolbar';
 import { TRIGGER_LABELS } from './shared';
 import { type EmailAccess, useEmailAccess } from './useEmailAccess';
 import { workflowForAutomation, workflowSummary } from './workflowModel';
@@ -56,6 +56,7 @@ export function AutomationsPanel({
   const reduceMotion = useReducedMotion();
   const [deleteTarget, setDeleteTarget] = useState<EmailAutomation | null>(null);
   const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
   // Pinned on mount so "5 min ago" doesn't shift under a render.
   const [now] = useState(() => Date.now());
 
@@ -121,20 +122,29 @@ export function AutomationsPanel({
   }, [automations, now, templates]);
 
   const needle = search.trim().toLowerCase();
+  const figure = (value: number | string) => (automationsQuery.isSuccess ? value : '—');
+  const reset = () => {
+    setSearch('');
+    setStatus('all');
+  };
   const shownGroups = useMemo(
     () =>
-      needle
-        ? groups
-            .map((group) => ({ ...group, items: group.items.filter((automation) => automation.name.toLowerCase().includes(needle)) }))
-            .filter((group) => group.items.length > 0)
-        : groups,
-    [groups, needle],
+      groups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter(
+            (automation) =>
+              automation.name.toLowerCase().includes(needle) &&
+              (status === 'all' || (status === 'live' ? automation.isEnabled : !automation.isEnabled)),
+          ),
+        }))
+        .filter((group) => group.items.length > 0),
+    [groups, needle, status],
   );
 
   if (automationsQuery.isSuccess && automations.length === 0)
     return (
       <div className="flex flex-1 flex-col space-y-5">
-        <NeedsAttention items={attention} />
         <EmptyState
           icon={Zap}
           title="No automations yet"
@@ -144,58 +154,86 @@ export function AutomationsPanel({
               ? 'Automations you set up appear here, each sending an email when something happens — an order is ready, a birthday, a first visit.'
               : 'Automations appear here once someone sets one up.'
           }
-          action={access.canWrite && canCreate ? { label: 'New automation', onClick: () => onEdit({}), icon: Plus } : undefined}
+          action={
+            access.canWrite
+              ? canCreate
+                ? { label: 'New automation', onClick: () => onEdit({}), icon: Plus }
+                : { label: 'Create a template', onClick: onOpenTemplates, icon: FileText }
+              : undefined
+          }
         />
       </div>
     );
 
   return (
-    <SettingsTabBody
-      narrowAside
-      aside={
-        <AutomationsAside
-          automations={automations}
-          templates={templates}
-          flagged={flagged}
-          loaded={automationsQuery.isSuccess}
-          onOpenTemplates={onOpenTemplates}
+    <div className="flex flex-1 flex-col gap-5">
+      <dl className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <Fact surface="card" icon={Zap} label="Sending" value={figure(automations.filter((automation) => automation.isEnabled).length)} />
+        <Fact
+          surface="card"
+          icon={Send}
+          label="Runs"
+          value={figure(automations.reduce((total, automation) => total + (automation.runCount ?? 0), 0).toLocaleString())}
         />
-      }
-    >
+        <Fact
+          surface="card"
+          icon={XCircle}
+          label="Failed runs"
+          value={figure(automations.reduce((total, automation) => total + (automation.failedRunCount ?? 0), 0).toLocaleString())}
+        />
+        <Fact surface="card" icon={TriangleAlert} label="Needs a look" value={figure(flagged)} />
+      </dl>
       {attention.length > 0 && <NeedsAttention items={attention} />}
 
       {automationsQuery.isPending ? (
-        <SettingsSection title="Automations">
+        <div>
           <TilesSkeleton count={4} label="Loading automations" />
-        </SettingsSection>
+        </div>
       ) : automationsQuery.isError ? (
-        <SettingsSection title="Automations">
+        <div>
           <ErrorState title="Automations couldn’t be loaded" onRetry={() => void automationsQuery.refetch()} />
-        </SettingsSection>
+        </div>
       ) : (
         <>
-          {automations.length > 6 && (
-            <Input
-              aria-label="Find an automation"
-              placeholder="Find an automation"
-              value={search}
-              leftIcon={<Search size={14} aria-hidden="true" />}
-              onChange={(event) => setSearch(event.target.value)}
+          <CommunicationsToolbar
+            search={search}
+            onSearch={setSearch}
+            placeholder="Search automations…"
+            onClear={reset}
+            count={`${shownGroups.reduce((total, group) => total + group.items.length, 0)} automations`}
+            filters={
+              <Select
+                value={status}
+                onValueChange={setStatus}
+                options={[
+                  { value: 'all', label: 'All automations' },
+                  { value: 'live', label: 'Sending' },
+                  { value: 'off', label: 'Switched off' },
+                ]}
+                ariaLabel="Automation status"
+                className="w-full sm:w-44"
+              />
+            }
+            chips={status === 'all' ? [] : [{ label: status === 'live' ? 'Sending' : 'Switched off', onRemove: () => setStatus('all') }]}
+          />
+          {shownGroups.length === 0 && (
+            <EmptyState
+              className="flex-1"
+              icon={Search}
+              kind="search"
+              title="Nothing matches"
+              description="Try another search or status."
+              action={{ label: 'Clear filters', onClick: reset }}
             />
           )}
-          {shownGroups.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">No automation matches “{search.trim()}”.</p>
-          )}
           {shownGroups.map((group) => (
-            <SettingsSection
-              key={group.group}
-              title={group.label}
-              actions={
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  <span className="font-semibold text-foreground">{group.sending}</span> of {group.items.length} sending
+            <motion.section key={group.group} variants={SECTION_RISE} aria-label={group.label}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold text-foreground">{group.label}</h2>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {group.items.filter((automation) => automation.isEnabled).length} of {group.items.length} sending
                 </span>
-              }
-            >
+              </div>
               <ul className="space-y-2">
                 {group.items.map((automation, index) => (
                   <motion.li
@@ -216,7 +254,7 @@ export function AutomationsPanel({
                   </motion.li>
                 ))}
               </ul>
-            </SettingsSection>
+            </motion.section>
           ))}
         </>
       )}
@@ -236,74 +274,7 @@ export function AutomationsPanel({
           onClose={() => setDeleteTarget(null)}
         />
       )}
-    </SettingsTabBody>
-  );
-}
-
-/** The totals beside the list, in the Content asides' rows: what's live, what ran, what needs a look. */
-function AutomationsAside({
-  automations,
-  templates,
-  flagged,
-  loaded,
-  onOpenTemplates,
-}: {
-  automations: EmailAutomation[];
-  templates: EmailTemplate[];
-  flagged: number;
-  loaded: boolean;
-  onOpenTemplates: () => void;
-}) {
-  const sending = automations.filter((automation) => automation.isEnabled).length;
-  const runs = automations.reduce((sum, automation) => sum + (automation.runCount ?? 0), 0);
-  const failed = automations.reduce((sum, automation) => sum + (automation.failedRunCount ?? 0), 0);
-  const activeTemplates = templates.filter((template) => template.isActive).length;
-  const figure = (value: React.ReactNode) => <span className="text-sm tabular-nums text-muted-foreground">{loaded ? value : '—'}</span>;
-  return (
-    <>
-      <SettingsSection title="Overview">
-        <InfoRows>
-          <InfoRow icon={Zap} title="Sending">
-            {figure(
-              <>
-                <span className="text-foreground">{sending}</span> of {automations.length}
-              </>,
-            )}
-          </InfoRow>
-          <InfoRow icon={Send} title="Runs">
-            {figure(runs.toLocaleString())}
-          </InfoRow>
-          <InfoRow icon={XCircle} title="Failed runs">
-            {figure(failed > 0 ? <span className="font-semibold text-exception">{failed.toLocaleString()}</span> : 0)}
-          </InfoRow>
-          <InfoRow icon={TriangleAlert} title="Needs a look">
-            <Tooltip
-              side="top"
-              align="end"
-              wrap
-              label="A deleted template, failed runs or changes not yet published — flagged on the rows."
-            >
-              {figure(flagged > 0 ? <span className="font-semibold text-measured">{flagged}</span> : 'None')}
-            </Tooltip>
-          </InfoRow>
-        </InfoRows>
-      </SettingsSection>
-      <SettingsSection
-        title="Templates"
-        actions={
-          <SectionInfo label="Every automation sends a template. Change one there and every automation using it sends the new version." />
-        }
-      >
-        <div className="space-y-3">
-          <InfoRow icon={FileText} title="Ready to send">
-            <span className="text-sm tabular-nums text-muted-foreground">{templates.length ? activeTemplates : '—'}</span>
-          </InfoRow>
-          <ActionRows>
-            <ActionRow icon={FileText} label="Open templates" onClick={onOpenTemplates} />
-          </ActionRows>
-        </div>
-      </SettingsSection>
-    </>
+    </div>
   );
 }
 
@@ -343,7 +314,7 @@ function AutomationRow({
   const canToggle = !automation.isEnabled && draft ? access.canPublish : access.canWrite;
 
   return (
-    <div className="group flex items-center gap-2 rounded-lg border border-rule/50 bg-control pr-2 transition-colors hover:border-rule">
+    <div className="group flex items-center gap-2 rounded-lg border border-rule/50 bg-field pr-2 transition-colors hover:border-rule">
       <button
         type="button"
         onClick={onEdit}
@@ -352,7 +323,7 @@ function AutomationRow({
       >
         <RowTile icon={Zap} tone={missing > 0 ? 'danger' : automation.isEnabled ? 'success' : 'default'} />
         <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-2">
+          <span className="flex min-w-0 flex-wrap items-center gap-1.5">
             <span className={cn('truncate text-sm font-semibold', automation.isEnabled ? 'text-foreground' : 'text-muted-foreground')}>
               {automation.name}
             </span>
@@ -395,7 +366,7 @@ function AutomationRow({
           onClick={onDelete}
           aria-label={`Delete ${automation.name}`}
           title="Delete"
-          className="text-muted-foreground/50 opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
+          className="text-muted-foreground opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
         >
           <Trash2 />
         </Button>

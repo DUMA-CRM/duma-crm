@@ -3,19 +3,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Loader2, MapPin, Pencil, Plus, Store, Truck, User, UserPlus, Users } from '@/components/icons';
 import { AddressDrawer } from '@/components/customers/CustomerAddresses';
 import { DeliveryAddressFields } from '@/components/customers/DeliveryAddressFields';
+import { Loader2, MapPin, Pencil, Plus, Store, Truck, UserPlus, Users } from '@/components/icons';
 import { CustomerAttach } from '@/components/pos/CustomerAttach';
 import { ChoiceCards, FormSection } from '@/components/shared/FormParts';
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 
-import { type CustomerAddress, getCustomerAddresses, getCustomer } from '@/lib/modules/customers/client';
+import { useHomeCountries } from '@/lib/hooks/useHomeCountries';
+import { type CustomerAddress, getCustomer, getCustomerAddresses } from '@/lib/modules/customers/client';
 import { type OrderDetail, type OrderShippingAddress, updateOrderDetails } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { useHomeCountries } from '@/lib/hooks/useHomeCountries';
 import { addressErrors, cleanAddress, emptyAddress, sameAddress } from '@/lib/utils/delivery-address';
 import { shippingAddressLines } from '@/lib/utils/orders-list';
 import { toast } from '@/stores/toastStore';
@@ -137,7 +137,11 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
               // A typed address keeps what was typed; its blanks take the new customer's details.
               setDraft((current) =>
                 current
-                  ? { ...current, recipientName: current.recipientName || [next.firstName, next.lastName].filter(Boolean).join(' '), phone: current.phone || next.phone }
+                  ? {
+                      ...current,
+                      recipientName: current.recipientName || [next.firstName, next.lastName].filter(Boolean).join(' '),
+                      phone: current.phone || next.phone,
+                    }
                   : null,
               );
               setFinding(false);
@@ -153,7 +157,7 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
         </div>
       ) : (
         <div className="space-y-7">
-          <FormSection icon={User} title="Customer" note="Optional — but a delivery needs someone to deliver to.">
+          <FormSection title="Customer" note="Optional — but a delivery needs someone to deliver to.">
             {customerId ? (
               <div className="flex items-center gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary" aria-hidden="true">
@@ -174,7 +178,7 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
             )}
           </FormSection>
 
-          <FormSection icon={Truck} title="How it reaches them">
+          <FormSection title="How it reaches them">
             <ChoiceCards
               columns={2}
               value={type}
@@ -188,16 +192,23 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
 
           {type === 'delivery' && (
             <FormSection
-              icon={MapPin}
               title="Deliver to"
-              note={savedRows.length > 0 ? `${name}'s saved addresses, or a new one.` : customerId ? `Saved to ${name} for next time.` : undefined}
+              note={
+                savedRows.length > 0
+                  ? `${name}'s saved addresses, or a new one.`
+                  : customerId
+                    ? `Saved to ${name} for next time.`
+                    : undefined
+              }
             >
               {/* Addresses this customer has had before — one tap instead of typing. */}
               {savedRows.length > 0 && (
                 <div className="grid gap-2" role="radiogroup" aria-label="Saved addresses">
-                  {[...savedRows.map((row) => ({ id: row.id, lines: shippingAddressLines(fromSaved(row)) })), { id: NEW, lines: ['A new address'] }].map(
-                    (option) => (
-                      <div key={option.id} className="relative">
+                  {[
+                    ...savedRows.map((row) => ({ id: row.id, lines: shippingAddressLines(fromSaved(row)) })),
+                    { id: NEW, lines: ['A new address'] },
+                  ].map((option) => (
+                    <div key={option.id} className="relative">
                       <button
                         type="button"
                         role="radio"
@@ -209,13 +220,25 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
                         )}
                       >
                         {option.id === NEW ? (
-                          <Plus size={15} className={cn('mt-0.5 shrink-0', selection === option.id ? 'text-primary' : 'text-muted-foreground')} aria-hidden="true" />
+                          <Plus
+                            size={15}
+                            className={cn('mt-0.5 shrink-0', selection === option.id ? 'text-primary' : 'text-muted-foreground')}
+                            aria-hidden="true"
+                          />
                         ) : (
-                          <MapPin size={15} className={cn('mt-0.5 shrink-0', selection === option.id ? 'text-primary' : 'text-muted-foreground')} aria-hidden="true" />
+                          <MapPin
+                            size={15}
+                            className={cn('mt-0.5 shrink-0', selection === option.id ? 'text-primary' : 'text-muted-foreground')}
+                            aria-hidden="true"
+                          />
                         )}
                         <span className="min-w-0">
-                          <span className={cn('block text-foreground', selection === option.id ? 'font-semibold' : 'font-medium')}>{option.lines[0]}</span>
-                          {option.lines.length > 1 && <span className="block text-xs text-muted-foreground">{option.lines.slice(1).join(', ')}</span>}
+                          <span className={cn('block text-foreground', selection === option.id ? 'font-semibold' : 'font-medium')}>
+                            {option.lines[0]}
+                          </span>
+                          {option.lines.length > 1 && (
+                            <span className="block text-xs text-muted-foreground">{option.lines.slice(1).join(', ')}</span>
+                          )}
                         </span>
                       </button>
                       {/* Correct a saved address in place — it changes for next time too. */}
@@ -230,9 +253,8 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
                           <Pencil aria-hidden="true" />
                         </Button>
                       )}
-                      </div>
-                    ),
-                  )}
+                    </div>
+                  ))}
                 </div>
               )}
 

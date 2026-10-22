@@ -5,17 +5,16 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { HelpdeskBoard } from '@/components/helpdesk/HelpdeskBoard';
 import { CalendarCheck, CalendarDays, CircleHelp, FileText, LayoutDashboard, MessageSquarePlus, Pencil, Plus } from '@/components/icons';
-import { EnrollEmployeeModal } from '@/components/people/PeopleModals';
-import { Drawer } from '@/components/shared/Drawer';
+import { EnrollEmployeeDrawer } from '@/components/people/PeopleModals';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 
 import { hasCapability } from '@/lib/auth/capabilities';
-import { getEmployeeBank, getMyEmployee } from '@/lib/modules/people/client';
-import { getMyPayslips } from '@/lib/modules/payroll/client';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
+import { getMyPayslips } from '@/lib/modules/payroll/client';
+import { getEmployeeBank, getMyEmployee } from '@/lib/modules/people/client';
 import { getMyDocuments, getMyEntitlements, getMyLeaveRequests, getMyTickets } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type MyHrAction, myHrActions } from '@/lib/utils/my-hr';
@@ -48,8 +47,7 @@ export function MyHrWorkspace() {
     queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
     staleTime: 30_000,
   });
-  const payrollEnabled =
-    modules.data?.modules.some((module) => module.moduleId === 'payroll' && module.status === 'enabled') ?? false;
+  const payrollEnabled = modules.data?.modules.some((module) => module.moduleId === 'payroll' && module.status === 'enabled') ?? false;
   // `?tab=` lets other pages (Support, notifications) link to a section.
   const searchParams = useSearchParams();
   const requested = searchParams.get('tab');
@@ -280,18 +278,12 @@ export function MyHrWorkspace() {
         />
       )}
       {createEmployeeOpen && user && tenantId && (
-        <Drawer
-          title="Add employee record"
-          description="Create your employment record for this workspace. You can add pay and personal details afterwards."
+        <EnrollEmployeeDrawer
+          member={{ userId: user.id, name: user.name, email: user.email }}
           onClose={() => setCreateEmployeeOpen(false)}
-        >
-          <EnrollEmployeeModal
-            member={{ userId: user.id, name: user.name, email: user.email }}
-            onClose={() => setCreateEmployeeOpen(false)}
-            initialJobTitle="Franchise owner"
-            submitLabel="Create record"
-          />
-        </Drawer>
+          initialJobTitle="Franchise owner"
+          submitLabel="Create record"
+        />
       )}
       {ticket && (
         <NewTicketDrawer

@@ -4,13 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { Copy, Eye, Mail, Plus, Trash2, Zap } from '@/components/icons';
+import { Copy, Eye, Mail, Plus, Search, Trash2, Zap } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 
 import {
   type EmailTemplate,
@@ -25,6 +26,7 @@ import { groupTemplates, templateUsage } from '@/lib/utils/communications';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { CommunicationsToolbar } from './CommunicationsToolbar';
 import { TEMPLATE_CATEGORIES, templateCategoryLabel } from './shared';
 import { useEmailAccess } from './useEmailAccess';
 import { workflowForAutomation } from './workflowModel';
@@ -47,6 +49,8 @@ export function TemplatesPanel({
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
   const { canWrite } = useEmailAccess();
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('all');
   const [deleteTarget, setDeleteTarget] = useState<EmailTemplate | null>(null);
 
   const templatesQuery = useQuery({
@@ -95,11 +99,25 @@ export function TemplatesPanel({
     [automations],
   );
   const groups = useMemo(() => groupTemplates(templatesQuery.data ?? [], CATEGORY_ORDER, usage), [templatesQuery.data, usage]);
+  const shownGroups = groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (template) =>
+          (category === 'all' || template.category === category) &&
+          `${template.name} ${template.subject}`.toLowerCase().includes(search.trim().toLowerCase()),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+  const reset = () => {
+    setSearch('');
+    setCategory('all');
+  };
   const deleteUses = deleteTarget ? (usage.get(deleteTarget.id) ?? 0) : 0;
 
   if (templatesQuery.isError)
     return (
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+      <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
         <ErrorState title="Templates couldn’t be loaded" onRetry={() => void templatesQuery.refetch()} />
       </div>
     );
@@ -110,8 +128,8 @@ export function TemplatesPanel({
         <Bone className="mb-2 h-3 w-40" />
         <TemplateGrid>
           {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="flex flex-col overflow-hidden rounded-lg border border-rule/60 bg-card" aria-hidden="true">
-              <Bone className="aspect-16/10 w-full rounded-none border-b border-rule/45" />
+            <div key={index} className="flex flex-col overflow-hidden rounded-lg border border-rule/60 bg-field" aria-hidden="true">
+              <Bone className="aspect-16/9 sm:aspect-2/1 w-full rounded-none border-b border-rule/45" />
               <span className="space-y-1.5 px-3.5 py-3">
                 <Bone className={cn('h-3.5', index % 2 ? 'w-28' : 'w-36')} />
                 <Bone className="h-3 w-44 max-w-full" />
@@ -135,11 +153,37 @@ export function TemplatesPanel({
 
   return (
     <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
-      {groups.map((group) => (
+      <CommunicationsToolbar
+        search={search}
+        onSearch={setSearch}
+        placeholder="Search templates…"
+        onClear={reset}
+        count={`${shownGroups.reduce((total, group) => total + group.items.length, 0)} templates`}
+        filters={
+          <Select
+            value={category}
+            onValueChange={setCategory}
+            options={[{ value: 'all', label: 'All categories' }, ...TEMPLATE_CATEGORIES.map(({ value, label }) => ({ value, label }))]}
+            ariaLabel="Template category"
+            className="w-full sm:w-44"
+          />
+        }
+        chips={category === 'all' ? [] : [{ label: templateCategoryLabel(category), onRemove: () => setCategory('all') }]}
+      />
+      {shownGroups.length === 0 && (
+        <EmptyState
+          icon={Search}
+          kind="search"
+          title="Nothing matches"
+          description="Try another search or category."
+          action={{ label: 'Clear filters', onClick: reset }}
+        />
+      )}
+      {shownGroups.map((group) => (
         <motion.section key={group.category} variants={SECTION_RISE} aria-label={templateCategoryLabel(group.category)}>
-          <h2 className="mb-2 flex items-center gap-2 text-label uppercase text-muted-foreground">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
             {templateCategoryLabel(group.category)}
-            <span className="normal-case tabular-nums">
+            <span className="text-xs font-normal text-muted-foreground tabular-nums">
               {group.items.length} {group.items.length === 1 ? 'template' : 'templates'} · {group.inUse} in use
             </span>
           </h2>
@@ -186,7 +230,7 @@ export function TemplatesPanel({
 }
 
 function TemplateGrid({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{children}</div>;
+  return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{children}</div>;
 }
 
 function TemplateCard({
@@ -209,13 +253,13 @@ function TemplateCard({
   onDelete: () => void;
 }) {
   return (
-    <article className="group flex flex-col overflow-hidden rounded-lg border border-rule/60 bg-card transition-colors hover:border-rule">
+    <article className="group flex flex-col overflow-hidden rounded-lg border border-rule/60 bg-field transition-colors hover:border-rule">
       {/* The thumbnail is the preview — the whole plate is the button. */}
       <button
         type="button"
         onClick={onPreview}
         aria-label={`Preview ${template.name}`}
-        className="relative block aspect-16/10 w-full overflow-hidden border-b border-rule/45 bg-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        className="relative block aspect-16/9 sm:aspect-2/1 w-full overflow-hidden border-b border-rule/45 bg-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       >
         <iframe
           title=""
@@ -226,7 +270,7 @@ function TemplateCard({
         />
         {/* Rendered emails are white in both themes, so the scrim is fixed dark. */}
         <span className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity group-hover:opacity-100">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-md">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-field px-3 py-1.5 text-xs font-semibold text-foreground shadow-md">
             <Eye size={14} aria-hidden="true" /> Preview
           </span>
         </span>
@@ -248,16 +292,16 @@ function TemplateCard({
           <span
             className={cn(
               'mt-1 inline-flex items-center gap-1 text-micro font-semibold tabular-nums',
-              uses > 0 ? 'text-momentum' : 'text-muted-foreground/60',
+              uses > 0 ? 'text-momentum' : 'text-muted-foreground',
             )}
             title={uses > 0 ? `In ${uses} automation${uses === 1 ? '' : 's'}` : 'Not in an automation'}
           >
             <Zap size={11} aria-hidden="true" />
-            {uses}
+            {uses > 0 ? `${uses} automation${uses === 1 ? '' : 's'}` : 'Not in use'}
           </span>
         </button>
         {canWrite && (
-          <span className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          <span className="flex shrink-0 items-center opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100">
             <Button
               variant="ghost"
               size="icon-sm"

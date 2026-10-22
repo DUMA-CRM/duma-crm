@@ -4,12 +4,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
+import { Modal } from '@/components/customers/CustomerDialogs';
 import { Ban, CheckCircle2, MailX, RotateCcw, ShieldAlert } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards } from '@/components/shared/FormParts';
-import { Modal } from '@/components/shared/Modal';
 import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,8 @@ import { formatDate } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+
+import { CustomerDisclosure } from './CustomerSection';
 
 /**
  * Marketing consent, and the trail behind it — drawn as the record's other
@@ -150,7 +152,7 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
       </div>
 
       {!email ? (
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
           <Row
             icon={MailX}
             tile="bg-band text-muted-foreground"
@@ -160,11 +162,11 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
         </ul>
       ) : isPending ? (
         <div role="status" aria-busy="true" aria-label="Loading marketing consent">
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
             <RowSkeleton />
           </div>
           <Bone className="mt-5 mb-2 ml-1 h-4 w-16" />
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
             <RowSkeleton index={1} />
             <RowSkeleton index={2} />
           </div>
@@ -172,7 +174,7 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
       ) : isError ? (
         // Not the opted-out default: a preference that has not loaded is not a
         // preference, and showing one would be a consent claim.
-        <div className="rounded-lg border border-rule/60 bg-card">
+        <div className="rounded-lg border border-rule/60 bg-field">
           <ErrorState
             title="Marketing consent couldn’t be loaded"
             description="Their preference is unknown until it loads — don’t assume either way."
@@ -182,7 +184,7 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
       ) : (
         <>
           {/* ── Where they stand ───────────────────────────────────────── */}
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
             <Row
               icon={StateIcon}
               tile={state.tile}
@@ -221,35 +223,35 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
           </ul>
 
           {/* ── The trail ──────────────────────────────────────────────── */}
-          <h3 className="mt-5 mb-2 flex items-baseline gap-2 px-1 text-sm font-semibold text-foreground">
-            History
-            {history.length > 0 && <span className="text-xs font-normal tabular-nums text-muted-foreground">{history.length}</span>}
-          </h3>
-          {history.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">
-              Nothing recorded yet.
-            </p>
-          ) : (
-            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-              {history.map((event) => {
-                const meta = STATE[event.action] ?? STATE.opted_out;
-                return (
-                  <Row
-                    key={event.id}
-                    icon={meta.icon}
-                    tile={meta.tile}
-                    lead={meta.label}
-                    phrase={`· ${sourceLabel(event.source).toLowerCase()}`}
-                    detail={event.reason ?? undefined}
-                    trailing={formatDate(event.occurredAt)}
-                  />
-                );
-              })}
-            </ul>
-          )}
-          <p className="mt-2 px-1 text-xs leading-relaxed text-muted-foreground">
-            Every change is kept permanently, with how it was received — that record is what makes a consent claim hold up.
-          </p>
+          <div className="mt-4">
+            <CustomerDisclosure title={`Consent history${history.length ? ` · ${history.length}` : ''}`}>
+              {history.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">
+                  Nothing recorded yet.
+                </p>
+              ) : (
+                <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+                  {history.map((event) => {
+                    const meta = STATE[event.action] ?? STATE.opted_out;
+                    return (
+                      <Row
+                        key={event.id}
+                        icon={meta.icon}
+                        tile={meta.tile}
+                        lead={meta.label}
+                        phrase={`· ${sourceLabel(event.source).toLowerCase()}`}
+                        detail={event.reason ?? undefined}
+                        trailing={formatDate(event.occurredAt)}
+                      />
+                    );
+                  })}
+                </ul>
+              )}
+              <p className="mt-2 px-1 text-xs leading-relaxed text-muted-foreground">
+                Every change is kept permanently, with how it was received — that record is what makes a consent claim hold up.
+              </p>
+            </CustomerDisclosure>
+          </div>
         </>
       )}
 
@@ -272,10 +274,10 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
           onClose={() => setLiftOpen(false)}
           footer={
             <div className="flex gap-2">
-              <Button variant="outline" size="lg" onClick={() => setLiftOpen(false)} disabled={lift.isPending} className="flex-1">
+              <Button variant="outline" size="default" onClick={() => setLiftOpen(false)} disabled={lift.isPending} className="flex-1">
                 Cancel
               </Button>
-              <Button size="lg" onClick={() => lift.mutate()} disabled={lift.isPending} className="flex-1">
+              <Button size="default" onClick={() => lift.mutate()} disabled={lift.isPending} className="flex-1">
                 {lift.isPending ? 'Lifting…' : 'Lift the block'}
               </Button>
             </div>
@@ -408,13 +410,13 @@ function RecordConsentModal({
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={save.isPending}>
+          <Button type="button" variant="outline" size="default" className="flex-1" onClick={onClose} disabled={save.isPending}>
             Cancel
           </Button>
           <Button
             type="submit"
             form={FORM_ID}
-            size="lg"
+            size="default"
             variant={status === 'suppressed' ? 'destructive' : 'default'}
             className="flex-1"
             disabled={save.isPending}

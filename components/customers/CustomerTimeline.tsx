@@ -7,16 +7,18 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { TimelineEntryDrawer } from '@/components/customers/TimelineEntryDrawer';
 import { PILL_TONE, TIMELINE_KINDS, TIMELINE_KIND_META } from '@/components/customers/timelineKinds';
-import { Activity, ChevronRight, Loader2 } from '@/components/icons';
+import { Activity, ChevronRight, Search } from '@/components/icons';
 import { OrderDrawer } from '@/components/orders/OrderDrawer';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { FilterChip } from '@/components/shared/FilterChip';
 import { LoadMore } from '@/components/shared/LoadMore';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Bone } from '@/components/shared/Skeleton';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 import { retryEmailDelivery } from '@/lib/modules/communications/client';
 import { getCustomerTimeline } from '@/lib/modules/customers/client';
@@ -57,6 +59,7 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
   const { tenantId } = useWorkspaceStore();
   const money = useWorkspaceMoney();
   const [filter, setFilter] = useState<Filter>('all');
+  const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(PAGE);
   const [openEntry, setOpenEntry] = useState<TimelineEntry | null>(null);
   // Pinned per mount so "Today" cannot change under the reader mid-scroll.
@@ -114,7 +117,15 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
   // Previous / next in the drawer walk this guest's orders, in the feed's order.
   const orderEntries = useMemo(() => entries.filter((entry) => entry.kind === 'order'), [entries]);
   const orderIndex = openEntry?.kind === 'order' ? orderEntries.findIndex((entry) => entry.id === openEntry.id) : -1;
-  const days = useMemo(() => groupTimelineByDay(entries, now), [entries, now]);
+  const visible = useMemo(
+    () =>
+      entries.filter((entry) => {
+        const row = timelineRowText(entry, money, now.getTime());
+        return `${row.lead} ${row.phrase} ${row.detail ?? ''}`.toLowerCase().includes(search.trim().toLowerCase());
+      }),
+    [entries, search, money, now],
+  );
+  const days = useMemo(() => groupTimelineByDay(visible, now), [visible, now]);
   const counts = useMemo(() => (everything.data ? countTimelineKinds(everything.data.data) : null), [everything.data]);
   const mergedIn = (data?.group.length ?? 1) > 1;
   const full = entries.length >= limit;
@@ -122,25 +133,45 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
 
   return (
     <div className="space-y-5">
-      <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-3">
-        <SegmentedControl<Filter>
-          ariaLabel="Show activity of one kind"
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: 'all', label: withCount('All', everything.data?.data.length) },
-            ...TIMELINE_KINDS.map(({ value, label }) => ({
-              value,
-              label: withCount(label, counts?.[value]),
-              icon: TIMELINE_KIND_META[value].icon,
-            })),
-          ]}
-        />
-        {isFetching && !isLoading && (
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
-            <Loader2 size={12} className="animate-spin" aria-hidden="true" />
-            Updating
-          </span>
+      <motion.div variants={SECTION_RISE} className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-0 basis-full sm:min-w-48 sm:flex-1 sm:basis-auto">
+            <Input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search loaded activity…"
+              aria-label="Search loaded customer activity"
+              leftIcon={<Search size={15} aria-hidden="true" />}
+            />
+          </div>
+          <Select
+            value={filter}
+            onValueChange={(value) => setFilter(value as Filter)}
+            options={[
+              { value: 'all', label: withCount('All activity', everything.data?.data.length) },
+              ...TIMELINE_KINDS.map(({ value, label }) => ({ value, label: withCount(label, counts?.[value]) })),
+            ]}
+            ariaLabel="Activity type"
+            className="w-full sm:w-48"
+          />
+          {isFetching && !isLoading && (
+            <span className="text-xs text-muted-foreground" role="status">
+              Updating…
+            </span>
+          )}
+        </div>
+        {(filter !== 'all' || search.trim()) && (
+          <div className="flex flex-wrap gap-2" aria-label="Active activity filters">
+            {search.trim() && <FilterChip variant="tag" label={`Search: ${search.trim()}`} onRemove={() => setSearch('')} />}
+            {filter !== 'all' && (
+              <FilterChip
+                variant="tag"
+                label={TIMELINE_KINDS.find((kind) => kind.value === filter)!.label}
+                onRemove={() => setFilter('all')}
+              />
+            )}
+          </div>
         )}
       </motion.div>
 
@@ -156,23 +187,33 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
         ) : isLoading ? (
           <div role="status" aria-busy="true" aria-label="Loading the timeline">
             <Bone className="mb-2 ml-1 h-4 w-24" />
-            <div className="space-y-2 rounded-lg bg-band/50 p-2">
+            <div className="space-y-2">
               {Array.from({ length: 6 }, (_, index) => (
                 <Bone key={index} className="h-[3.75rem] rounded-md" />
               ))}
             </div>
           </div>
-        ) : entries.length === 0 ? (
+        ) : visible.length === 0 ? (
           <EmptyState
             icon={Activity}
-            title={filter === 'all' ? 'Nothing here yet' : 'Nothing of that kind'}
+            title={search.trim() ? 'Nothing matches' : filter === 'all' ? 'Nothing here yet' : 'Nothing of that kind'}
             description={
-              filter === 'all'
+              filter === 'all' && !search.trim()
                 ? 'Orders, emails, points changes and consent decisions will appear here as they happen.'
-                : 'Try another kind of activity, or go back to all of it.'
+                : 'Try another search or activity type.'
             }
-            kind={filter === 'all' ? 'start' : 'search'}
-            action={filter === 'all' ? undefined : { label: 'Show all activity', onClick: () => setFilter('all') }}
+            kind={filter === 'all' && !search.trim() ? 'start' : 'search'}
+            action={
+              filter === 'all' && !search.trim()
+                ? undefined
+                : {
+                    label: 'Clear filters',
+                    onClick: () => {
+                      setFilter('all');
+                      setSearch('');
+                    },
+                  }
+            }
           />
         ) : (
           <div className="space-y-6">
@@ -191,7 +232,7 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
                   )}
                 </h2>
                 {/* Each day a tinted panel of white rows — the newer cards' shape. */}
-                <ul className="space-y-2 rounded-lg bg-band/50 p-2">
+                <ul className="space-y-2">
                   {day.entries.map((entry) => (
                     <EntryRow
                       key={`${entry.kind}-${entry.id}`}
@@ -224,7 +265,9 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
             ) : (
               !full && (
                 <p className="pb-2 text-center text-xs tabular-nums text-muted-foreground">
-                  That’s everything — {entries.length.toLocaleString()} {entries.length === 1 ? 'entry' : 'entries'}
+                  {search.trim()
+                    ? `${visible.length} of ${entries.length} loaded entries`
+                    : `That’s everything — ${entries.length.toLocaleString()} ${entries.length === 1 ? 'entry' : 'entries'}`}
                 </p>
               )
             )}
@@ -281,7 +324,7 @@ function EntryRow({
         type="button"
         onClick={onOpen}
         className={cn(
-          'group flex w-full items-center gap-3 rounded-md bg-card px-3 py-2.5 text-left shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+          'group flex w-full items-center gap-3 rounded-lg border border-rule/60 bg-field px-3 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
           selected ? 'ring-2 ring-primary/30' : 'hover:bg-background',
         )}
       >

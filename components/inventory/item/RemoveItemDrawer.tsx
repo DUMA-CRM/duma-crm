@@ -41,23 +41,34 @@ export function RemoveItemDrawer({
   const blocked = onHand > 0;
   const here = locationName ?? 'this location';
   const rows: { icon: IconComponent; title: string; detail: string; tone: 'stop' | 'keep' }[] = [
-    { icon: Ban, title: `Stops being stocked at ${here}`, detail: `${name} is marked unavailable here — it leaves ordering, recipes and the suggested order.`, tone: 'stop' },
-    { icon: History, title: 'History is kept', detail: 'Movements, losses, transfers and stocktakes stay on record. Other locations aren’t affected.', tone: 'keep' },
+    {
+      icon: Ban,
+      title: `Stops being stocked at ${here}`,
+      detail: `${name} is marked unavailable here — it leaves ordering, recipes and the suggested order.`,
+      tone: 'stop',
+    },
+    {
+      icon: History,
+      title: 'History is kept',
+      detail: 'Movements, losses, transfers and stocktakes stay on record. Other locations aren’t affected.',
+      tone: 'keep',
+    },
     { icon: RotateCcw, title: 'Bring it back any time', detail: 'Switch “Available here” back on from the item’s Overview.', tone: 'keep' },
   ];
 
   return (
     <Drawer
+      icon={Trash2}
       title={`Remove from ${here}`}
-      description="Stops tracking it here. Nothing is deleted."
+      guidance="Stops tracking it here. Nothing is deleted."
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={pending}>
+          <Button variant="outline" size="default" className="flex-1" onClick={onClose} disabled={pending}>
             {blocked ? 'Close' : 'Keep it'}
           </Button>
           {!blocked && (
-            <Button variant="destructive" size="lg" className="flex-1" onClick={onConfirm} disabled={pending}>
+            <Button variant="destructive" size="default" className="flex-1" onClick={onConfirm} disabled={pending}>
               {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
               Remove from {here}
             </Button>
@@ -97,7 +108,10 @@ export function RemoveItemDrawer({
             {rows.map(({ icon: Icon, title, detail, tone }) => (
               <li key={title} className="flex items-start gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
                 <span
-                  className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', tone === 'stop' ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary')}
+                  className={cn(
+                    'flex size-9 shrink-0 items-center justify-center rounded-md',
+                    tone === 'stop' ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary',
+                  )}
                   aria-hidden="true"
                 >
                   <Icon size={16} />

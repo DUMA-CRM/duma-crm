@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-import { ArrowUpRight, type IconComponent } from '@/components/icons';
+import { ArrowUpRight, FileText, type IconComponent } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ export function ReportDrawer({
 }) {
   return (
     <Drawer
+      icon={FileText}
       title={title}
       description={description}
       leading={leading}
@@ -49,7 +50,7 @@ export function ReportDrawer({
         links.length ? (
           <div className="flex gap-2">
             {links.map((link) => (
-              <Button key={link.href} asChild size="lg" variant={link.primary ? 'default' : 'outline'} className="flex-1 gap-1.5">
+              <Button key={link.href} asChild size="default" variant={link.primary ? 'default' : 'outline'} className="flex-1 gap-1.5">
                 <Link href={link.href}>
                   {link.icon && <link.icon size={15} aria-hidden="true" />}
                   {link.label}
@@ -69,8 +70,8 @@ export function ReportDrawer({
 /** A coloured mark before the drawer title, matching the row's kind. */
 export function DrawerMark({ icon: Icon, tone = 'bg-primary/8 text-primary' }: { icon: IconComponent; tone?: string }) {
   return (
-    <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', tone)} aria-hidden="true">
-      <Icon size={18} />
+    <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', tone)} aria-hidden="true">
+      <Icon size={20} />
     </span>
   );
 }
@@ -80,9 +81,9 @@ export function DrawerFacts({ facts }: { facts: { label: string; value: React.Re
   return (
     <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule/60 bg-rule/50">
       {facts.map((fact) => (
-        <div key={fact.label} className="min-w-0 bg-card px-3.5 py-3">
+        <div key={fact.label} className="min-w-0 bg-field px-3.5 py-3">
           <dt className="text-xs text-muted-foreground">{fact.label}</dt>
-          <dd className="mt-0.5 truncate text-base font-semibold tabular-nums text-foreground">{fact.value}</dd>
+          <dd className="mt-0.5 break-words text-base font-semibold tabular-nums text-foreground">{fact.value}</dd>
           {fact.hint && <dd className="mt-0.5 text-xs text-muted-foreground">{fact.hint}</dd>}
         </div>
       ))}
@@ -96,14 +97,17 @@ export function DrawerList({ rows }: { rows: { label: string; value: React.React
   const shown = rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== '');
   if (shown.length === 0) return null;
   return (
-    <dl className="overflow-hidden rounded-lg border border-rule/60 bg-card text-sm">
+    <dl className="overflow-hidden rounded-lg border border-rule/60 bg-field text-sm">
       {shown.map((row) => (
-        <div key={row.label} className="flex items-baseline justify-between gap-4 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+        <div
+          key={row.label}
+          className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0"
+        >
           <dt className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
             {row.icon && <row.icon size={13} aria-hidden="true" />}
             {row.label}
           </dt>
-          <dd className="min-w-0 text-right text-foreground">{row.value}</dd>
+          <dd className="min-w-0 break-words text-foreground sm:text-right">{row.value}</dd>
         </div>
       ))}
     </dl>
@@ -119,7 +123,7 @@ const LABEL_W = ['w-24', 'w-32', 'w-20', 'w-28', 'w-36'];
  */
 export function DrawerListSkeleton({ rows = 3, lines = 1, label = 'Loading' }: { rows?: number; lines?: 1 | 2; label?: string }) {
   return (
-    <div role="status" aria-busy="true" aria-label={label} className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+    <div role="status" aria-busy="true" aria-label={label} className="overflow-hidden rounded-lg border border-rule/60 bg-field">
       {Array.from({ length: rows }, (_, index) => (
         <div
           key={index}
@@ -143,8 +147,8 @@ export function DrawerListSkeleton({ rows = 3, lines = 1, label = 'Loading' }: {
 export function DrawerSection({ title, children, aside }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section>
-      <div className="mb-1.5 flex items-baseline justify-between gap-3 px-1">
-        <h3 className="text-xs font-semibold text-foreground">{title}</h3>
+      <div className="mb-2 flex items-baseline justify-between gap-3 px-1">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {aside && <span className="text-xs text-muted-foreground">{aside}</span>}
       </div>
       {children}

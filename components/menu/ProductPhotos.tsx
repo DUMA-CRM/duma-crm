@@ -299,7 +299,7 @@ export function ProductPhotos({ menuItemId, productName, tenantId }: { menuItemI
             }
           />
         ) : (
-          <Drawer title="Linked image" description={open.url ?? undefined} onClose={() => setOpenId(null)}>
+          <Drawer icon={ImageIcon} title="Linked image" guidance={open.url ?? undefined} onClose={() => setOpenId(null)}>
             <div className="space-y-6">
               <OnThisProduct
                 image={open}
@@ -476,8 +476,9 @@ function LinkDialog({ pending, onAdd, onClose }: { pending: boolean; onAdd: (url
   const valid = /^https?:\/\/\S+$/i.test(url.trim());
   return (
     <Drawer
+      icon={ImageIcon}
       title="Add a photo by link"
-      description="For an image hosted elsewhere. It isn’t optimised — upload it instead to get phone sizes."
+      guidance="For an image hosted elsewhere. It isn’t optimised — upload it instead to get phone sizes."
       onClose={onClose}
       footer={
         <div className="flex justify-end gap-2">
@@ -491,6 +492,7 @@ function LinkDialog({ pending, onAdd, onClose }: { pending: boolean; onAdd: (url
       }
     >
       <Input
+        required
         label="Image address"
         placeholder="https://…"
         value={url}

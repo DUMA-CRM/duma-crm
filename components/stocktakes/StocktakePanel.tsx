@@ -53,7 +53,6 @@ import {
 } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { formatInstant } from '@/lib/utils/workspace-time';
 import {
   type CountLine,
   type CountView,
@@ -66,6 +65,7 @@ import {
   summarise,
   variance,
 } from '@/lib/utils/stocktake';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
@@ -345,6 +345,7 @@ function StocktakeDrawer({ id, catalogue, onClose }: { id: string; catalogue: Re
 
   return (
     <Drawer
+      icon={ClipboardCheck}
       title="Stocktake"
       description={data ? [dateTime(data.createdAt), data.startedByUser?.name, data.location?.name].filter(Boolean).join(' · ') : undefined}
       onClose={onClose}
@@ -397,7 +398,7 @@ function StocktakeDrawer({ id, catalogue, onClose }: { id: string; catalogue: Re
           {uncounted.length > 0 && (
             <section>
               <h3 className="mb-2 text-sm font-semibold text-foreground">Not counted</h3>
-              <p className="rounded-lg border border-rule/60 bg-card px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
+              <p className="rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
                 {uncounted.map((l) => l.name).join(', ')}
               </p>
             </section>
@@ -884,15 +885,15 @@ function ReviewDrawer({
   const differences = byImpact(sheet.filter((l) => l.counted !== null && l.counted !== l.expected));
   return (
     <Drawer
+      icon={ClipboardCheck}
       title="Review stocktake"
-      description="On-hand stock is set to your counts and each difference recorded as an adjustment."
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={pending}>
+          <Button variant="outline" size="default" className="flex-1" onClick={onClose} disabled={pending}>
             Keep counting
           </Button>
-          <Button size="lg" className="flex-1" onClick={onApply} disabled={pending}>
+          <Button size="default" className="flex-1" onClick={onApply} disabled={pending}>
             {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
             {differences.length
               ? `Apply ${differences.length} ${differences.length === 1 ? 'adjustment' : 'adjustments'}`
@@ -902,25 +903,30 @@ function ReviewDrawer({
       }
     >
       <div className="space-y-6">
-        <dl className="grid grid-cols-2 gap-3">
-          <Fact
-            surface="card"
-            icon={ClipboardCheck}
-            label="Counted"
-            value={`${summary.counted} of ${summary.total}`}
-            hint={summary.uncounted ? undefined : 'Every item'}
-          />
-          <Fact surface="card" icon={Check} label="Matched" value={summary.matched} />
-          <Fact
-            surface="card"
-            icon={AlertTriangle}
-            label="Differences"
-            value={summary.differences}
-            tone={summary.differences ? 'warning' : 'default'}
-            hint={`${summary.over} over · ${summary.short} short`}
-          />
-          <ValueFact summary={summary} money={money} />
-        </dl>
+        <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary" aria-hidden="true">
+              <ClipboardCheck size={20} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                {summary.counted} of {summary.total} items counted
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {summary.matched} matched · {summary.over} over · {summary.short} short
+              </p>
+            </div>
+          </div>
+          <dl className="flex flex-wrap items-center justify-between gap-2 border-t border-rule/45 px-4 py-3 text-sm">
+            <dt className="text-muted-foreground">Stock value change</dt>
+            <dd className={cn('font-semibold tabular-nums', summary.valuePence < 0 ? 'text-exception' : 'text-foreground')}>
+              {summary.valuePence === 0 ? money(0) : `${summary.valuePence > 0 ? '+' : '−'}${money(Math.abs(summary.valuePence) / 100)}`}
+            </dd>
+          </dl>
+          {summary.unpriced > 0 && (
+            <p className="px-4 pb-3 text-xs text-muted-foreground">{summary.unpriced} without a cost. Value uses the last recorded cost.</p>
+          )}
+        </div>
 
         {summary.uncounted > 0 && (
           <p className="flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs text-measured">
@@ -929,6 +935,10 @@ function ReviewDrawer({
             {summary.uncounted === 1 ? 'its' : 'their'} current stock.
           </p>
         )}
+
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Applying sets on-hand stock to your counts and records each difference as an adjustment.
+        </p>
 
         <DiffList
           title="What will change"

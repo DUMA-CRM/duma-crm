@@ -5,12 +5,12 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 
 import { ActionRow, ActionRows, RowTile } from '@/components/cms/rows';
+import { Drawer } from '@/components/customers/CustomerDialogs';
 import { DeliveryAddressFields } from '@/components/customers/DeliveryAddressFields';
 import { Loader2, MapPin, Pencil, Plus, Star, Trash2 } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
-import { Drawer } from '@/components/shared/Drawer';
 import { DrawerSection } from '@/components/shared/DrawerSection';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -94,7 +94,7 @@ export function CustomerAddresses({ customer, canEdit }: { customer: Customer; c
         )}
       </header>
       {addresses.isPending ? (
-        <div className="space-y-2 rounded-lg bg-band/50 p-2" role="status" aria-busy="true" aria-label="Loading addresses">
+        <div className="space-y-2" role="status" aria-busy="true" aria-label="Loading addresses">
           <Bone className="h-14 rounded-md" />
           <Bone className="h-14 rounded-md" />
         </div>
@@ -107,12 +107,12 @@ export function CustomerAddresses({ customer, canEdit }: { customer: Customer; c
           title="No addresses yet"
           description="One is saved when an order is delivered to them, or add one now."
           action={canEdit ? { label: 'Add an address', icon: Plus, onClick: () => setEditing('new') } : undefined}
-          className="rounded-lg bg-band/50 py-8"
+          className="py-8"
         />
       ) : (
         // Each address its own row on a tinted ground — the dashboard cards' shape — with
         // "add another" as the last line of the list, as on the product's options.
-        <div className="space-y-2 rounded-lg bg-band/50 p-2">
+        <div className="space-y-2">
           <ul className="space-y-2">
             {rows.map((row) => {
               const lines = shippingAddressLines(asAddress(row));
@@ -123,7 +123,7 @@ export function CustomerAddresses({ customer, canEdit }: { customer: Customer; c
                 <li
                   key={row.id}
                   className={cn(
-                    'flex items-center gap-3 rounded-md bg-card px-3 py-2.5 shadow-sm',
+                    'flex items-center gap-3 rounded-md bg-field px-3 py-2.5 shadow-sm',
                     row.isDefault && 'ring-1 ring-primary/25',
                   )}
                 >
@@ -271,8 +271,9 @@ export function AddressDrawer({
 
   return (
     <Drawer
+      icon={MapPin}
       title={address ? 'Edit address' : 'New address'}
-      description={address ? 'Orders already sent here keep the address they went to.' : 'Saved to the customer for their next delivery.'}
+      guidance={address ? 'Orders already sent here keep the address they went to.' : 'Saved to the customer for their next delivery.'}
       onClose={onClose}
       // The file drawer's footer: the destructive action on the left, saving on the right.
       footer={

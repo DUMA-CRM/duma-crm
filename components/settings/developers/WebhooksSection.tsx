@@ -287,8 +287,16 @@ function CreateWebhookDialog({
       }
     >
       <div className="space-y-4">
-        <Input label="Name" placeholder="Rebuild website" value={name} autoFocus onChange={(event) => setName(event.target.value)} />
         <Input
+          required
+          label="Name"
+          placeholder="Rebuild website"
+          value={name}
+          autoFocus
+          onChange={(event) => setName(event.target.value)}
+        />
+        <Input
+          required
           label="URL"
           type="url"
           placeholder="https://api.vercel.com/v1/integrations/deploy/…"
@@ -341,7 +349,7 @@ function DeliveriesDrawer({ webhookId, onClose }: { webhookId: string; onClose: 
   });
 
   return (
-    <Drawer title="Recent deliveries" description="The last 50 events sent to this webhook." onClose={onClose}>
+    <Drawer icon={Webhook} title="Recent deliveries" guidance="The last 50 events sent to this webhook." onClose={onClose}>
       {query.isError ? (
         <ErrorState title="Couldn’t load deliveries" onRetry={() => void query.refetch()} />
       ) : query.isPending ? (
@@ -351,9 +359,9 @@ function DeliveriesDrawer({ webhookId, onClose }: { webhookId: string; onClose: 
       ) : (
         <ul className="space-y-2">
           {query.data.map((delivery) => (
-            <li key={delivery.id} className="rounded-lg border border-rule/50 bg-background/60 px-3.5 py-2.5 text-sm">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-xs">{delivery.eventType}</span>
+            <li key={delivery.id} className="rounded-lg border border-rule/50 bg-field px-3.5 py-2.5 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0 break-all font-mono text-xs">{delivery.eventType}</span>
                 <Badge variant={delivery.status === 'succeeded' ? 'success' : delivery.status === 'failed' ? 'destructive' : 'muted'}>
                   {delivery.status === 'succeeded'
                     ? `OK${delivery.responseStatus ? ` ${delivery.responseStatus}` : ''}`
@@ -362,7 +370,7 @@ function DeliveriesDrawer({ webhookId, onClose }: { webhookId: string; onClose: 
                       : 'Retrying'}
                 </Badge>
               </div>
-              <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                 <span>
                   <RelativeTime iso={delivery.createdAt} /> · {delivery.attemptCount} {delivery.attemptCount === 1 ? 'attempt' : 'attempts'}
                 </span>

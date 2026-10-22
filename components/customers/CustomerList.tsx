@@ -119,7 +119,7 @@ export function CustomerList({
         ))}
       </div>
 
-      <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+      <ul className="space-y-2">
         {customers.map((customer) => (
           <CustomerRow
             key={customer.id}
@@ -162,7 +162,7 @@ function CustomerRow({
   return (
     <li
       className={cn(
-        'flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40',
+        'flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-3.5 py-3 transition-colors hover:border-rule',
         selected && 'bg-band/50',
       )}
     >

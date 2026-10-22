@@ -4,7 +4,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-q
 import { motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { MailX, RefreshCw, Search, Send, X } from '@/components/icons';
+import { MailX, RefreshCw, Search, Send } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Avatar } from '@/components/shared/Avatar';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -14,7 +14,6 @@ import { Pill } from '@/components/shared/Pill';
 import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import type { Tone } from '@/components/shared/tone';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, type SelectOption } from '@/components/ui/select';
 
 import { dayHeading, localDayKey } from '@/lib/audit/groups';
@@ -26,6 +25,7 @@ import { type DeliveryBucket, type HistoryWindow, deliveriesByDay, deliveryTime,
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { CommunicationsToolbar } from './CommunicationsToolbar';
 import { BOOKING_EMAIL_LABELS } from './shared';
 import { useEmailAccess } from './useEmailAccess';
 
@@ -168,7 +168,12 @@ export function HistoryPanel({
     );
 
   return (
-    <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+    <motion.div
+      className="flex flex-1 flex-col gap-5"
+      initial="hidden"
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
+    >
       {/* A count and a way to them — each failed row below carries its own fix. */}
       {failedCount > 0 && status !== 'failed' && (
         <motion.section
@@ -188,64 +193,60 @@ export function HistoryPanel({
         </motion.section>
       )}
 
-      <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-2">
-        <div className="min-w-56 flex-1 lg:max-w-sm">
-          <Input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            aria-label="Search email history"
-            placeholder="Search recipient or subject…"
-            leftIcon={<Search size={14} />}
-            rightAction={
-              search ? (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  aria-label="Clear search"
-                  className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <X size={13} aria-hidden="true" />
-                </button>
-              ) : undefined
-            }
-          />
-        </div>
-        <Select
-          value={status}
-          onValueChange={(value) => setStatus(value as DeliveryBucket)}
-          options={STATUS_OPTIONS}
-          ariaLabel="Status"
-          className="w-40"
-        />
-        <Select
-          value={template}
-          onValueChange={setTemplate}
-          options={templateOptions}
-          ariaLabel="Template"
-          className="w-44"
-          disabled={templateOptions.length === 1}
-        />
-        <Select
-          value={when}
-          onValueChange={(value) => setWhen(value as HistoryWindow)}
-          options={WINDOW_OPTIONS}
-          ariaLabel="When"
-          className="w-40"
-        />
-        {filtered && (
-          <button type="button" onClick={clearFilters} className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-            Clear
-          </button>
-        )}
-        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-          {filtered ? `${visible.length} of ${deliveries.length} loaded` : `${deliveries.length} of ${total.toLocaleString()} emails`}
-        </span>
-      </motion.div>
+      <CommunicationsToolbar
+        search={search}
+        onSearch={setSearch}
+        placeholder="Search recipient or subject…"
+        onClear={clearFilters}
+        count={filtered ? `${visible.length} of ${deliveries.length} loaded` : `${deliveries.length} of ${total.toLocaleString()} emails`}
+        filters={
+          <>
+            <Select
+              value={status}
+              onValueChange={(value) => setStatus(value as DeliveryBucket)}
+              options={STATUS_OPTIONS}
+              ariaLabel="Status"
+              className="w-full sm:w-36"
+            />
+            <Select
+              value={template}
+              onValueChange={setTemplate}
+              options={templateOptions}
+              ariaLabel="Template"
+              className="w-full sm:w-40"
+              disabled={templateOptions.length === 1}
+            />
+            <Select
+              value={when}
+              onValueChange={(value) => setWhen(value as HistoryWindow)}
+              options={WINDOW_OPTIONS}
+              ariaLabel="When"
+              className="w-full sm:w-36"
+            />
+          </>
+        }
+        chips={[
+          ...(status !== 'all'
+            ? [{ label: STATUS_OPTIONS.find((option) => option.value === status)!.label, onRemove: () => setStatus('all') }]
+            : []),
+          ...(template !== 'all'
+            ? [
+                {
+                  label: templateOptions.find((option) => option.value === template)?.label ?? 'Template',
+                  onRemove: () => setTemplate('all'),
+                },
+              ]
+            : []),
+          ...(when !== 'all'
+            ? [{ label: WINDOW_OPTIONS.find((option) => option.value === when)!.label, onRemove: () => setWhen('all') }]
+            : []),
+        ]}
+      />
 
       {days.length === 0 ? (
-        <motion.div variants={SECTION_RISE}>
+        <motion.div variants={SECTION_RISE} className="flex flex-1 flex-col">
           <EmptyState
+            className="flex-1"
             icon={Search}
             kind="search"
             title="Nothing matches"
@@ -260,7 +261,7 @@ export function HistoryPanel({
               <h2 id={`history-day-${day.day}`} className="mb-2 px-1 text-sm font-semibold text-foreground">
                 {dayHeading(day.day, now)}
               </h2>
-              <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              <ul className="space-y-2">
                 {day.items.map((delivery) => (
                   <DeliveryRow
                     key={delivery.id}
@@ -282,7 +283,7 @@ export function HistoryPanel({
         loading={history.isFetchingNextPage}
         onLoadMore={() => void history.fetchNextPage()}
       />
-      {!history.hasNextPage && !filtered && <p className="pb-2 text-center text-xs text-muted-foreground">That’s everything</p>}
+      {!history.hasNextPage && !filtered && <p className="pb-2 text-center text-xs text-muted-foreground">All loaded emails shown</p>}
     </motion.div>
   );
 }
@@ -310,7 +311,7 @@ function DeliveryRow({
     .join(' · ');
 
   return (
-    <li className="group flex items-center gap-3 border-b border-rule/45 pr-3.5 transition-colors last:border-b-0 hover:bg-band/40">
+    <li className="group flex items-center gap-2 rounded-lg border border-rule/60 bg-field pr-3 transition-colors hover:border-rule">
       <button
         type="button"
         onClick={onOpen}
@@ -334,7 +335,7 @@ function DeliveryRow({
             attempt {delivery.attemptCount}/{delivery.maxAttempts}
           </span>
         )}
-        <span className="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+        <span className="hidden w-12 shrink-0 sm:block text-right text-xs tabular-nums text-muted-foreground">
           {timeOfDay(deliveryTime(delivery)).slice(0, 5)}
         </span>
       </button>

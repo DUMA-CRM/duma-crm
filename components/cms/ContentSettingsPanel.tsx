@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 
 import { Loader2 } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Switch } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -17,7 +17,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { cmsKeys, invalidateCms } from './shared';
 
-const rowClass = 'flex flex-wrap items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3';
+const rowClass = 'flex flex-wrap items-center gap-3 rounded-lg border border-rule/50 bg-field px-3.5 py-3';
 
 /**
  * Content's own settings: file privacy and a full export. Keys and webhooks
@@ -59,7 +59,8 @@ function FilePrivacySection() {
     onError: (error) => toast('error', error.message),
   });
   return (
-    <SettingsSection title="File privacy">
+    <motion.section variants={SECTION_RISE}>
+      <h2 className="mb-3 text-base font-semibold tracking-title text-foreground">File privacy</h2>
       {query.isError ? (
         <ErrorState title="Couldn’t load file privacy" onRetry={() => void query.refetch()} />
       ) : (
@@ -79,7 +80,7 @@ function FilePrivacySection() {
           />
         </div>
       )}
-    </SettingsSection>
+    </motion.section>
   );
 }
 
@@ -106,7 +107,8 @@ function BackupSection() {
     }
   }
   return (
-    <SettingsSection title="Backup">
+    <motion.section variants={SECTION_RISE}>
+      <h2 className="mb-3 text-base font-semibold tracking-title text-foreground">Backup</h2>
       <div className={rowClass}>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-foreground">Export all content</span>
@@ -119,6 +121,6 @@ function BackupSection() {
           {busy ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : null} {busy ? 'Exporting…' : 'Export JSON'}
         </Button>
       </div>
-    </SettingsSection>
+    </motion.section>
   );
 }

@@ -46,21 +46,22 @@ export function ModifierRecipeDrawer({
 
   return (
     <Drawer
+      icon={ChefHat}
       title={`${modifier.label} — what it adds`}
-      description="The stock this option adds on top of the item’s own recipe. It applies to every item that offers it."
+      guidance="The stock this option adds on top of the item’s own recipe. It applies to every item that offers it."
       onClose={onClose}
       footer={
         <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" size="lg" className="text-muted-foreground">
+          <Button asChild variant="ghost" size="default" className="text-muted-foreground">
             <Link href={`/menu/modifiers/${modifier.id}`}>
               <ArrowUpRight aria-hidden="true" /> Modifier page
             </Link>
           </Button>
-          <Button variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={recipe.save.isPending}>
+          <Button variant="outline" size="default" className="flex-1" onClick={onClose} disabled={recipe.save.isPending}>
             {recipe.dirty ? 'Discard' : 'Close'}
           </Button>
           <Button
-            size="lg"
+            size="default"
             className="flex-1"
             onClick={() => recipe.save.mutate(undefined, { onSuccess: onClose })}
             disabled={!recipe.dirty || recipe.save.isPending}
@@ -71,8 +72,8 @@ export function ModifierRecipeDrawer({
         </div>
       }
     >
-      <div className="space-y-7">
-        <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3.5">
+      <div className="space-y-5">
+        <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5">
           <span
             className={cn(
               'flex size-10 shrink-0 items-center justify-center rounded-lg',
@@ -86,7 +87,7 @@ export function ModifierRecipeDrawer({
             <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
               {modifier.label}
               {modifier.isDefault && (
-                <span className="shrink-0 rounded-sm bg-primary/8 px-1.5 py-0.5 text-micro font-semibold text-primary">Default</span>
+                <span className="shrink-0 rounded-md bg-primary/8 px-1.5 py-0.5 text-micro font-semibold text-primary">Default</span>
               )}
             </p>
             <p className="truncate text-xs text-muted-foreground">
@@ -94,12 +95,12 @@ export function ModifierRecipeDrawer({
             </p>
           </div>
           {recipe.dirty && (
-            <span className="shrink-0 rounded-sm bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured">Unsaved</span>
+            <span className="shrink-0 rounded-md bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured">Unsaved</span>
           )}
         </div>
 
         <FormSection
-          icon={ChefHat}
+          framed={false}
           title="Ingredients"
           note={sizes.length ? `Leave a size blank to use the ${defaultIsSize ? 'All sizes' : 'Default'} amount.` : undefined}
         >

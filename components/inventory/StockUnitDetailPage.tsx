@@ -6,13 +6,12 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import {
-  Coins,
   Barcode,
   Box,
   CalendarClock,
   CalendarDays,
+  Coins,
   FileText,
-  Gauge,
   History,
   type IconComponent,
   Loader2,
@@ -40,6 +39,7 @@ import { Bone, LoadingState, RowSkeleton } from '@/components/shared/Skeleton';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import {
@@ -509,15 +509,16 @@ function AdjustDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void 
 
   return (
     <Drawer
+      icon={Scale}
       title="Correct the balance"
-      description="Set what’s really in the container after a count."
+      guidance="Set what’s really in the container after a count."
       onClose={onClose}
       footer={<Footer form="unit-adjust" pending={adjust.isPending} label="Save balance" icon={Scale} onCancel={onClose} />}
     >
       <form
         id="unit-adjust"
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
           setSubmitted(true);
@@ -526,8 +527,9 @@ function AdjustDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void 
         }}
       >
         <UnitCard unit={unit} />
-        <FormSection icon={Gauge} title="Counted">
+        <section aria-label="Counted" className="space-y-3">
           <Input
+            required
             label="What’s in it now"
             value={value}
             onChange={(event) => setValue(event.target.value)}
@@ -543,13 +545,14 @@ function AdjustDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void 
                 : `${delta > 0 ? '+' : '−'}${precise(Math.abs(delta))} ${unit.unitOfMeasure} against the recorded ${precise(current)}.`}
             </p>
           )}
-        </FormSection>
-        <FormSection icon={FileText} title="Note">
+        </section>
+        <FormSection icon={FileText} title="Note" collapsible>
           <Input
+            label="Note"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             maxLength={1000}
-            placeholder="Optional — e.g. weekly count"
+            placeholder="e.g. Weekly count"
             aria-label="Note"
           />
         </FormSection>
@@ -585,8 +588,8 @@ function WasteDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void }
 
   return (
     <Drawer
+      icon={PackageMinus}
       title="Log waste"
-      description="Write off part of this container. The rest stays in use."
       onClose={onClose}
       footer={
         <Footer
@@ -602,7 +605,7 @@ function WasteDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void }
       <form
         id="unit-waste"
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
           setSubmitted(true);
@@ -610,9 +613,10 @@ function WasteDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void }
         }}
       >
         <UnitCard unit={unit} />
-        <FormSection icon={PackageMinus} title="How much">
+        <section aria-label="How much" className="space-y-3">
           <Input
-            label="Wasted"
+            required
+            label="Quantity lost"
             value={value}
             onChange={(event) => setValue(event.target.value)}
             inputMode="decimal"
@@ -629,14 +633,25 @@ function WasteDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void }
               All of it
             </button>
           </div>
-        </FormSection>
-        <FormSection icon={FileText} title="Why">
+        </section>
+        <fieldset className="space-y-1.5">
+          <legend className="mb-1.5">
+            <FieldLabel as="span" required>
+              Reason
+            </FieldLabel>
+          </legend>
           <ChoiceCards columns={3} value={reason} onChange={setReason} options={WASTE_REASONS} />
+        </fieldset>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Written-off stock comes off this container straight away. The rest stays in use.
+        </p>
+        <FormSection icon={FileText} title="Note" collapsible>
           <Input
+            label="Note"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             maxLength={1000}
-            placeholder="Optional — what happened"
+            placeholder="What happened"
             aria-label="Note"
           />
         </FormSection>
@@ -663,8 +678,9 @@ function DiscardDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void
 
   return (
     <Drawer
+      icon={Trash2}
       title="Discard container"
-      description="Throw away what’s left. This can’t be undone."
+      guidance="Throw away what’s left. This can’t be undone."
       onClose={onClose}
       footer={
         <Footer
@@ -680,7 +696,7 @@ function DiscardDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void
       <form
         id="unit-discard"
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
           discard.mutate();
@@ -690,13 +706,21 @@ function DiscardDrawer({ unit, onClose }: { unit: StockUnit; onClose: () => void
         <p className="rounded-md bg-exception/6 px-3 py-2 text-xs leading-relaxed text-exception">
           The remaining {precise(remaining)} {unit.unitOfMeasure} is written off as waste and the container is closed. Its history is kept.
         </p>
-        <FormSection icon={FileText} title="Why">
+        <fieldset className="space-y-1.5">
+          <legend className="mb-1.5">
+            <FieldLabel as="span" required>
+              Reason
+            </FieldLabel>
+          </legend>
           <ChoiceCards columns={3} value={reason} onChange={setReason} options={WASTE_REASONS} />
+        </fieldset>
+        <FormSection icon={FileText} title="Note" collapsible>
           <Input
+            label="Note"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             maxLength={1000}
-            placeholder="Optional — what happened"
+            placeholder="What happened"
             aria-label="Note"
           />
         </FormSection>

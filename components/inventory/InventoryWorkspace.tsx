@@ -6,11 +6,10 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { Boxes, Building2, ClipboardCheck, ClipboardList, MapPin, Package, Plus, Truck, Users } from '@/components/icons';
 import { RestockApprovals } from '@/components/inventory/RestockApprovals';
-import { RestockRequestForm } from '@/components/inventory/RestockRequestForm';
+import { RestockRequestDrawer } from '@/components/inventory/RestockRequestForm';
 import { StockOverview } from '@/components/inventory/StockOverview';
 import { type PurchaseOrderDraft, PurchaseOrdersPanel } from '@/components/purchasing/PurchaseOrdersPanel';
 import { SuppliersPanel } from '@/components/purchasing/SuppliersPanel';
-import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
@@ -206,6 +205,7 @@ export function InventoryWorkspace() {
         ) : actionLabel ? (
           <Button
             className="h-9 gap-1.5"
+            aria-label={actionLabel}
             onClick={() => {
               setPoDraft(null);
               setCreateOpen(true);
@@ -296,20 +296,14 @@ export function InventoryWorkspace() {
           )}
 
           {tab === 'demand' && createOpen && (
-            <Drawer
-              title="New Restock Request"
-              description="Ask for more of an item at this location — approvals pick it up from the demand queue."
+            <RestockRequestDrawer
               onClose={() => setCreateOpen(false)}
-              className="max-w-3xl"
-            >
-              <RestockRequestForm
-                onSubmitted={() => {
-                  // Close and land on the list the new request just joined.
-                  setCreateOpen(false);
-                  setDemandStatus('pending');
-                }}
-              />
-            </Drawer>
+              onSubmitted={() => {
+                // Close and land on the list the new request just joined.
+                setCreateOpen(false);
+                setDemandStatus('pending');
+              }}
+            />
           )}
         </div>
       )}

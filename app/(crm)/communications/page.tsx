@@ -20,6 +20,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 
 import {
   type EmailDelivery,
@@ -113,6 +114,7 @@ function CommunicationsView() {
     queryFn: () => getEmailConnection(tenantId ?? undefined),
     enabled: !!tenantId && access.canReadConnection,
     retry: false,
+    meta: { silentForbidden: true },
   });
   const { data: deliveries } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-deliveries', tenantId, 1),
@@ -209,6 +211,20 @@ function CommunicationsView() {
           ? { icon: Plus, label: 'Add email', onClick: () => setAddingSuppression(true) }
           : null;
   const ActionIcon = action?.icon;
+  const actionControl =
+    action && ActionIcon ? (
+      <Button
+        size="sm"
+        className="gap-1.5"
+        aria-label={action.label}
+        disabled={action.disabled}
+        title={action.title}
+        onClick={action.onClick}
+      >
+        <ActionIcon size={15} aria-hidden="true" />
+        <span>{action.label}</span>
+      </Button>
+    ) : null;
 
   // Previewing a template keeps `?preview=` so the link is shareable; a bad id
   // simply opens nothing rather than taking over the page.
@@ -220,21 +236,30 @@ function CommunicationsView() {
       title="Communications"
       icon={<Send size={20} aria-hidden="true" />}
       meta={<ConnectionStatus state={connectionStatus} onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined} />}
-      actions={
-        action && ActionIcon ? (
-          <Button className="h-9 gap-1.5" disabled={action.disabled} title={action.title} onClick={action.onClick}>
-            <ActionIcon size={15} aria-hidden="true" />
-            <span className="hidden md:inline">{action.label}</span>
-          </Button>
-        ) : undefined
-      }
+      actions={<div className="hidden md:flex">{actionControl}</div>}
       subheader={
-        <SectionTabs
-          tabs={tabs}
-          value={tab}
-          onChange={(value) => navigate({ tab: value, status: null }, 'replace')}
-          ariaLabel="Communications sections"
-        />
+        <>
+          <div className="flex items-center gap-3 border-b border-rule/60 bg-background px-3 py-2 md:hidden">
+            <Select
+              value={tab}
+              onValueChange={(value) => navigate({ tab: value, status: null }, 'replace')}
+              options={tabs.map(({ value, label }) => ({ value, label }))}
+              ariaLabel="Communications section"
+              className="min-w-0 flex-1"
+            />
+            {actionControl ?? (
+              <ConnectionStatus state={connectionStatus} onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined} />
+            )}
+          </div>
+          <div className="hidden md:block">
+            <SectionTabs
+              tabs={tabs}
+              value={tab}
+              onChange={(value) => navigate({ tab: value, status: null }, 'replace')}
+              ariaLabel="Communications sections"
+            />
+          </div>
+        </>
       }
     >
       {/* A flex column, so a tab's empty state can fill the page and centre. */}

@@ -21,6 +21,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 interface SendEmailModalProps {
   customerId?: string;
   orderId?: string;
+  className?: string;
   /** Who this is going to, in words. */
   recipientName: string;
   /** The address, when the caller knows it. Shown so it can be checked before sending. */
@@ -62,7 +63,7 @@ const CONSENT_COPY: Record<Exclude<Consent, 'unknown'>, { icon: typeof Mail; lab
  * deliberately — transactional mail is still legitimate, so this is a
  * checkpoint rather than a wall.
  */
-export function SendEmailModal({ customerId, orderId, recipientName, recipientEmail, onClose }: SendEmailModalProps) {
+export function SendEmailModal({ customerId, orderId, recipientName, recipientEmail, onClose, className }: SendEmailModalProps) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
   const [templateId, setTemplateId] = useState('');
@@ -118,6 +119,7 @@ export function SendEmailModal({ customerId, orderId, recipientName, recipientEm
   return (
     <Modal
       title="Send email"
+      className={className}
       size="lg"
       onClose={onClose}
       footer={

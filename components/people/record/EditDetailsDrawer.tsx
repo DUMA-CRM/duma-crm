@@ -3,15 +3,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Banknote, Building2, HeartHandshake, Landmark, Loader2, UserRound } from '@/components/icons';
+import { Banknote, HeartHandshake, Landmark, Loader2, UserRound } from '@/components/icons';
 import { usePayrollSettings } from '@/components/payroll/usePayroll';
 import { AddressFields } from '@/components/people/AddressFields';
-import { EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, PAY_CONFIG, PAY_TYPES, lbl } from '@/components/people/shared';
+import { EMPLOYMENT_CONFIG, EMPLOYMENT_TYPES, PAY_CONFIG, PAY_TYPES } from '@/components/people/shared';
 import { Drawer } from '@/components/shared/Drawer';
 import { FormSection } from '@/components/shared/FormParts';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { type UpdateEmployeePayload, setEmployeeBank, updateEmployee } from '@/lib/modules/people/client';
@@ -62,7 +63,10 @@ export function EditDetailsDrawer({
 }) {
   const qc = useQueryClient();
   // Country and currency come from payroll settings, readable with `hr.payroll:read`.
-  const canReadPayroll = hasCapability(useAuthStore((state) => state.capabilities), 'hr.payroll:read');
+  const canReadPayroll = hasCapability(
+    useAuthStore((state) => state.capabilities),
+    'hr.payroll:read',
+  );
   const { data: payroll } = usePayrollSettings(canReadPayroll);
   const country = payroll?.payrollCountry ?? null;
   const uk = !country || country === 'GB';
@@ -90,6 +94,8 @@ export function EditDetailsDrawer({
     sortCode: '',
     accountNumber: '',
   });
+  const [initialForm] = useState(() => JSON.stringify(form));
+  const dirty = JSON.stringify(form) !== initialForm;
   const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: event.target.value });
 
   // Bank details are all-or-nothing: a sort code with no account number cannot
@@ -107,7 +113,7 @@ export function EditDetailsDrawer({
     : form.accountNumber.replace(/\s/g, '').length > 0 && form.accountNumber.replace(/\s/g, '').length <= 20;
   const bankComplete = !!form.accountHolder.trim() && sortCodeValid && accountValid;
   const niValid = !form.niNumber || (uk ? isValidNiNumber(form.niNumber) : form.niNumber.trim().length <= 13);
-  const canSave = (!bankTouched || bankComplete) && niValid && form.jobTitle.trim() !== '';
+  const canSave = dirty && (!bankTouched || bankComplete) && niValid && form.jobTitle.trim() !== '';
 
   const save = useMutation({
     mutationFn: async () => {
@@ -153,23 +159,24 @@ export function EditDetailsDrawer({
 
   return (
     <Drawer
+      icon={UserRound}
       title="Edit details"
-      description="Their employment record. Access and sign-in are changed on the record itself."
+      guidance="Their employment record. Access and sign-in are changed on the record itself."
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={save.isPending}>
+          <Button variant="outline" size="default" className="flex-1" onClick={onClose} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button size="lg" className="flex-1" onClick={() => save.mutate()} disabled={!canSave || save.isPending}>
+          <Button size="default" className="flex-1" onClick={() => save.mutate()} disabled={!canSave || save.isPending}>
             {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
             Save changes
           </Button>
         </div>
       }
     >
-      <div className="space-y-7">
-        <FormSection icon={Building2} title="Employment">
+      <div className="space-y-5">
+        <FormSection framed={false} title="Employment">
           <Field label="Job title">
             <Input value={form.jobTitle} onChange={set('jobTitle')} aria-invalid={!form.jobTitle.trim()} />
             {!form.jobTitle.trim() && <p className="mt-1 text-xs font-semibold text-destructive">A job title is needed.</p>}
@@ -186,7 +193,7 @@ export function EditDetailsDrawer({
           </Field>
         </FormSection>
 
-        <FormSection icon={UserRound} title="Personal">
+        <FormSection icon={UserRound} title="Personal" collapsible>
           <DatePicker
             label="Date of birth"
             value={form.dateOfBirth}
@@ -197,7 +204,13 @@ export function EditDetailsDrawer({
           <AddressFields value={form.address} onChange={(address) => setForm({ ...form, address })} />
         </FormSection>
 
-        <FormSection icon={HeartHandshake} title="Emergency contact" note="Who to call if something happens at work.">
+        <FormSection
+          icon={HeartHandshake}
+          framed={false}
+          title="Emergency contact"
+          collapsible
+          note="Who to call if something happens at work."
+        >
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Name">
               <Input value={form.emergencyContactName} onChange={set('emergencyContactName')} />
@@ -213,7 +226,14 @@ export function EditDetailsDrawer({
 
         {canEditPay && (
           <>
-            <FormSection icon={Banknote} title="Pay" note={`Amounts in ${currency}. Nothing here is calculated — payroll uses what you enter.`}>
+            <FormSection
+              icon={Banknote}
+              framed={false}
+              title="Pay"
+              collapsible
+              defaultOpen={!niValid}
+              note={`Amounts in ${currency}. Nothing here is calculated — payroll uses what you enter.`}
+            >
               <Field label="Pay basis">
                 <ChoiceCards
                   value={form.payType}
@@ -251,7 +271,13 @@ export function EditDetailsDrawer({
               </Field>
             </FormSection>
 
-            <FormSection icon={Landmark} title="Bank details" note="Leave blank to keep what’s on file. Entering any of these replaces all of them.">
+            <FormSection
+              icon={Landmark}
+              title="Bank details"
+              collapsible
+              defaultOpen={bankTouched && !bankComplete}
+              note="Leave blank to keep what’s on file. Entering any of these replaces all of them."
+            >
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Account holder">
                   <Input value={form.accountHolder} onChange={set('accountHolder')} />
@@ -268,7 +294,9 @@ export function EditDetailsDrawer({
                     placeholder={uk ? '04-00-04' : ''}
                   />
                   {touched.sortCode && form.sortCode && !sortCodeValid && (
-                    <p className="mt-1 text-xs font-semibold text-destructive">{uk ? 'Six digits, e.g. 04-00-04.' : 'Up to 10 characters.'}</p>
+                    <p className="mt-1 text-xs font-semibold text-destructive">
+                      {uk ? 'Six digits, e.g. 04-00-04.' : 'Up to 10 characters.'}
+                    </p>
                   )}
                 </Field>
                 <Field label="Account number">
@@ -300,7 +328,9 @@ export function EditDetailsDrawer({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className={lbl}>{label}</label>
+      <FieldLabel required={['Job title', 'Contract', 'Pay basis'].includes(label)} className="mb-1.5">
+        {label}
+      </FieldLabel>
       {children}
     </div>
   );

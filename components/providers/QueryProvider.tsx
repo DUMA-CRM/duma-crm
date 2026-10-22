@@ -39,6 +39,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
         queryCache: new QueryCache({
           onError: (error, query) => {
             if (query.meta?.silentError) return;
+            if (query.meta?.silentForbidden && error instanceof ApiError && error.status === 403) return;
             // Offline is expected, not an error — the POS banner covers it.
             if (typeof navigator !== 'undefined' && !navigator.onLine) return;
             toast('error', queryErrorMessage(error));

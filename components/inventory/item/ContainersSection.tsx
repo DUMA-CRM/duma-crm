@@ -5,7 +5,19 @@ import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { Box, ChevronRight, Coins, Combine, type IconComponent, Loader2, PackageOpen, Plus, Scissors, X } from '@/components/icons';
+import {
+  Box,
+  CalendarDays,
+  ChevronRight,
+  Coins,
+  Combine,
+  type IconComponent,
+  Loader2,
+  PackageOpen,
+  Plus,
+  Scissors,
+  X,
+} from '@/components/icons';
 import { ContainerPriceInput, SetContainerCostDrawer, priceError } from '@/components/inventory/item/ContainerCost';
 import { fmtQty, formatDate } from '@/components/inventory/stock/shared';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
@@ -15,10 +27,11 @@ import { ErrorState } from '@/components/shared/ErrorState';
 import { FormSection, NumberStepper } from '@/components/shared/FormParts';
 import { Pill } from '@/components/shared/Pill';
 import { ListSkeleton } from '@/components/shared/Skeleton';
+import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
-import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { type StockItem, type StockUnit, combineStockUnits, receiveStockUnits, splitStockUnit } from '@/lib/modules/inventory/client';
@@ -108,7 +121,12 @@ export function ContainersSection({
 
   return (
     // Flex down to the list, so an empty one centres in what is left of the page.
-    <motion.div className="flex flex-1 flex-col space-y-4" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+    <motion.div
+      className="flex flex-1 flex-col space-y-4"
+      initial="hidden"
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
+    >
       <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-2">
         <Select
           value={view}
@@ -459,8 +477,9 @@ function ReceiveContainersDrawer({
 
   return (
     <Drawer
+      icon={PackageOpen}
       title="Receive containers"
-      description={`${item.name} — each container gets its own balance, use-by date and history.`}
+      description={item.name}
       onClose={onClose}
       footer={
         <DrawerFooter
@@ -475,16 +494,17 @@ function ReceiveContainersDrawer({
       <form
         id="receive-containers"
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
           setSubmitted(true);
           if (valid) receive.mutate();
         }}
       >
-        <FormSection icon={Box} title="Containers">
+        <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
+              required
               label="Each holds"
               value={perContainer}
               onChange={(event) => setPerContainer(event.target.value)}
@@ -494,12 +514,14 @@ function ReceiveContainersDrawer({
               error={submitted ? (quantityError ?? undefined) : undefined}
             />
             <div className="flex flex-col gap-1.5">
-              <span className="text-label uppercase text-muted-foreground">How many</span>
-              <NumberStepper value={count} onChange={setCount} min={1} max={500} label="Containers" />
+              <FieldLabel as="span" required>
+                How many
+              </FieldLabel>
+              <NumberStepper value={count} onChange={setCount} min={1} max={500} label="Containers" size="compact" />
               {submitted && countError && <p className="text-xs text-destructive">{countError}</p>}
             </div>
           </div>
-          {valid && (
+          {!quantityError && !countError && (
             <p className="rounded-md bg-band/60 px-3 py-2 text-xs tabular-nums text-muted-foreground">
               {count} × {fmtQty(quantity)} {item.unit} ={' '}
               <span className="font-semibold text-foreground">
@@ -507,9 +529,9 @@ function ReceiveContainersDrawer({
               </span>
             </p>
           )}
-        </FormSection>
+        </div>
 
-        <FormSection icon={Coins} title="Cost" note="What one container cost on the invoice. Reports value what's used from it at this price.">
+        <FormSection icon={Coins} title="Cost" collapsible invalid={submitted && Boolean(costError)}>
           <ContainerPriceInput
             price={price}
             onChange={setPrice}
@@ -521,8 +543,11 @@ function ReceiveContainersDrawer({
         </FormSection>
 
         <FormSection
-          icon={PackageOpen}
-          title="Batch"
+          icon={CalendarDays}
+          title="Batch details"
+          collapsible
+          defaultOpen={item.isPerishable}
+          invalid={submitted && Boolean(expiryError)}
           note={item.isPerishable ? 'Perishable — the use-by date drives expiry alerts and use-first order.' : undefined}
         >
           <div className="grid gap-3 sm:grid-cols-2">
@@ -538,13 +563,7 @@ function ReceiveContainersDrawer({
                   : undefined
               }
             />
-            <Input
-              label="Lot number"
-              value={lotNumber}
-              onChange={(event) => setLotNumber(event.target.value)}
-              maxLength={100}
-              placeholder="Optional"
-            />
+            <Input label="Lot number" value={lotNumber} onChange={(event) => setLotNumber(event.target.value)} maxLength={100} />
           </div>
         </FormSection>
       </form>
@@ -569,8 +588,9 @@ function SplitContainerDrawer({ unit, onClose, onDone }: { unit: StockUnit; onCl
 
   return (
     <Drawer
+      icon={Scissors}
       title="Split container"
-      description="Divide one container into smaller ones — for decanting or sending part to another location."
+      guidance="Divide one container into smaller ones — for decanting or sending part to another location."
       onClose={onClose}
       footer={
         <DrawerFooter
@@ -583,10 +603,15 @@ function SplitContainerDrawer({ unit, onClose, onDone }: { unit: StockUnit; onCl
         />
       }
     >
-      <div className="space-y-7">
+      <div className="space-y-5">
         <SourceCard units={[unit]} />
-        <FormSection icon={Scissors} title="Into">
-          <NumberStepper value={count} onChange={setCount} min={2} max={max} label="New containers" unit="containers" />
+        <section aria-label="Into" className="space-y-3">
+          <div className="space-y-1.5">
+            <FieldLabel as="span" required>
+              New containers
+            </FieldLabel>
+            <NumberStepper value={count} onChange={setCount} min={2} max={max} label="New containers" unit="containers" size="compact" />
+          </div>
           {parts ? (
             <div>
               <p className="mb-2 text-xs text-muted-foreground">Each new container holds</p>
@@ -594,7 +619,7 @@ function SplitContainerDrawer({ unit, onClose, onDone }: { unit: StockUnit; onCl
                 {parts.map((quantity, index) => (
                   <span
                     key={index}
-                    className="rounded-md border border-rule/60 bg-card px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground"
+                    className="rounded-md border border-rule/60 bg-field px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground"
                   >
                     {preciseQty(quantity)} {unit.unitOfMeasure}
                   </span>
@@ -607,7 +632,7 @@ function SplitContainerDrawer({ unit, onClose, onDone }: { unit: StockUnit; onCl
           ) : (
             <p className="text-xs text-destructive">This balance is too small to split that many ways.</p>
           )}
-        </FormSection>
+        </section>
       </div>
     </Drawer>
   );
@@ -634,8 +659,9 @@ function CombineContainersDrawer({ units, onClose, onDone }: { units: StockUnit[
 
   return (
     <Drawer
+      icon={Combine}
       title="Combine containers"
-      description="Pour part-used containers into one, so the shelf holds fewer, fuller ones."
+      guidance="Pour part-used containers into one, so the shelf holds fewer, fuller ones."
       onClose={onClose}
       footer={
         <DrawerFooter
@@ -647,9 +673,9 @@ function CombineContainersDrawer({ units, onClose, onDone }: { units: StockUnit[
         />
       }
     >
-      <div className="space-y-7">
+      <div className="space-y-5">
         <SourceCard units={units} />
-        <FormSection icon={Combine} title="New container">
+        <section aria-label="New container" className="space-y-3">
           <Input
             label="Label"
             value={label}
@@ -668,7 +694,7 @@ function CombineContainersDrawer({ units, onClose, onDone }: { units: StockUnit[
             <li>{earliest ? `Keeps the earliest use-by — ${expiryLabel(earliest, new Date())}.` : 'None of these has a use-by date.'}</li>
             <li>{lots.size === 1 && [...lots][0] ? `Keeps lot ${[...lots][0]}.` : 'Lots differ, so the new container has none.'}</li>
           </ul>
-        </FormSection>
+        </section>
       </div>
     </Drawer>
   );

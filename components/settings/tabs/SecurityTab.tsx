@@ -18,14 +18,16 @@ import {
 } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { IconTag } from '@/components/shared/IconTag';
 import { RelativeTime } from '@/components/shared/RelativeTime';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { MIN_PASSWORD_LENGTH, passwordLengthHint } from '@/lib/auth/password-policy';
+import { ApiError } from '@/lib/modules/core/client';
 import {
   type Session,
   changeEmail,
@@ -37,6 +39,7 @@ import {
 } from '@/lib/modules/identity/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { canReadSessionList } from '@/lib/utils/session-freshness';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
@@ -301,11 +304,22 @@ function ActiveSessionsSection() {
   const qc = useQueryClient();
   const reduceMotion = useReducedMotion();
   const sessionsKey = moduleQueryKeys.identity.key('auth', 'sessions');
-  const { data: current } = useQuery({
+  const currentQuery = useQuery({
     queryKey: moduleQueryKeys.identity.key('auth', 'current-session'),
     queryFn: () => getSession(),
   });
-  const sessions = useQuery({ queryKey: sessionsKey, queryFn: listSessions });
+  const current = currentQuery.data;
+  const canList = canReadSessionList(current);
+  const sessions = useQuery({
+    queryKey: sessionsKey,
+    queryFn: listSessions,
+    enabled: canList,
+    // This section provides its own retry and recent-sign-in states.
+    meta: { silentError: true },
+  });
+  const needsRecentSignIn =
+    Boolean(current && !canList) ||
+    (sessions.error instanceof ApiError && sessions.error.status === 403 && sessions.error.code === 'SESSION_NOT_FRESH');
   const revoke = useMutation({
     mutationFn: (token: string) => revokeSession(token),
     onSuccess: () => qc.invalidateQueries({ queryKey: sessionsKey }),
@@ -333,10 +347,24 @@ function ActiveSessionsSection() {
     <SettingsSection
       title="Active sessions"
       actions={
-        sessions.isSuccess ? <span className="text-xs tabular-nums text-muted-foreground">{sorted.length} signed in</span> : undefined
+        sessions.isSuccess && !needsRecentSignIn ? (
+          <span className="text-xs tabular-nums text-muted-foreground">{sorted.length} signed in</span>
+        ) : undefined
       }
     >
-      {sessions.isPending ? (
+      {currentQuery.isPending ? (
+        <TilesSkeleton count={2} label="Checking session access" />
+      ) : currentQuery.isError ? (
+        <ErrorState title="Couldn’t check your current session" onRetry={() => void currentQuery.refetch()} />
+      ) : !current || needsRecentSignIn ? (
+        <EmptyState
+          icon={ShieldCheck}
+          title="A quick security check"
+          description="Sign in again to view and manage your devices. You’ll return here afterwards."
+          action={{ label: 'Sign in again', href: '/sign-in?next=%2Fsettings%2Faccount&reason=recent-sign-in' }}
+          className="px-0 py-8"
+        />
+      ) : sessions.isPending ? (
         <TilesSkeleton count={2} label="Loading active sessions" />
       ) : sessions.isError ? (
         <ErrorState title="Couldn’t load your active sessions" onRetry={() => void sessions.refetch()} />
@@ -361,17 +389,13 @@ function ActiveSessionsSection() {
                     aria-current={isCurrent || undefined}
                     className={cn(
                       'flex items-center gap-3 rounded-lg border px-3.5 py-3',
-                      isCurrent
-                        ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
-                        : 'border-rule/50 bg-background/60',
+                      isCurrent ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-rule/50 bg-background/60',
                     )}
                   >
                     <span
                       className={cn(
                         'flex size-10 shrink-0 items-center justify-center rounded-md border transition-colors duration-150',
-                        isCurrent
-                          ? 'border-primary/40 bg-primary text-primary-foreground'
-                          : 'border-rule/55 bg-band text-muted-foreground',
+                        isCurrent ? 'border-primary/40 bg-primary text-primary-foreground' : 'border-rule/55 bg-band text-muted-foreground',
                       )}
                     >
                       <Icon size={18} aria-hidden="true" />

@@ -1,10 +1,8 @@
 'use client';
 
-import { motion } from 'motion/react';
-
-import { AlertTriangle, Leaf, MapPin, ShieldAlert, ShieldCheck } from '@/components/icons';
+import { AlertTriangle, Leaf, MapPin, ShieldAlert } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
-import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 
 import { cn } from '@/lib/utils/cn';
 import type { Customer, CustomerAlert } from '@/types/customers';
@@ -45,25 +43,7 @@ export function GuestSafetyBlock({ customer }: { customer: Customer }) {
 
   const hasAnything = alerts.length > 0 || allergies.length > 0 || dietary.length > 0 || !!seating;
 
-  if (!hasAnything) {
-    return (
-      <motion.section
-        variants={SECTION_RISE}
-        aria-label="Guest safety and preferences"
-        className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-rule/60 px-4 py-3"
-      >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground">
-          <ShieldCheck size={18} aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1 basis-60">
-          <span className="block text-sm font-semibold text-foreground">Nothing to know before serving</span>
-          <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-            No allergies, dietary needs or alerts recorded. Add them with Edit details — they show here before service, every time.
-          </span>
-        </span>
-      </motion.section>
-    );
-  }
+  if (!hasAnything) return null;
 
   // Critical first: order here is read as priority.
   const ordered = [...alerts].sort((a, b) => {
@@ -104,7 +84,7 @@ export function GuestSafetyBlock({ customer }: { customer: Customer }) {
 
       {/* ── Tier 2: pinned alerts ─────────────────────────────────────── */}
       {ordered.length > 0 && (
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
           {ordered.map((alert, index) => {
             const severity = SEVERITY[alert.severity];
             return (
@@ -158,7 +138,7 @@ export function GuestSafetyBlock({ customer }: { customer: Customer }) {
 /** A `Fact` tile whose value wraps rather than truncates — a dietary list cut short is a list misread. */
 function Preference({ icon: Icon, label, children }: { icon: IconComponent; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3">
+    <div className="flex items-start gap-3 rounded-lg border border-rule/50 bg-field px-3.5 py-3">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
         <Icon size={17} aria-hidden="true" />
       </span>

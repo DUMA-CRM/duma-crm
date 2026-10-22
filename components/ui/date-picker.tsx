@@ -9,6 +9,7 @@ import { dateToIso, formatIsoForInput, isoToDate, maskDateInput, parseDisplayDat
 
 import { Button } from './button';
 import { Calendar } from './calendar';
+import { FieldLabel } from './label';
 import { Popover, PopoverAnchor, PopoverContent } from './popover';
 
 export interface DatePickerProps {
@@ -146,14 +147,9 @@ export function DatePicker({
   return (
     <div ref={rootRef} className="relative flex w-full flex-col gap-1.5">
       {label && (
-        <label htmlFor={inputId} className="block text-label uppercase text-muted-foreground">
+        <FieldLabel htmlFor={inputId} required={required}>
           {label}
-          {required && (
-            <span className="ml-1 text-destructive" aria-hidden="true">
-              *
-            </span>
-          )}
-        </label>
+        </FieldLabel>
       )}
       <Popover open={open && !disabled} onOpenChange={setOpen}>
         <PopoverAnchor asChild>

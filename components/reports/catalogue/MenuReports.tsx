@@ -541,7 +541,7 @@ function CategoryDrawer({
             None of its items are among the top 100 sellers.
           </p>
         ) : (
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
             {members.map((row) => (
               <li key={row.id} className="border-b border-rule/45 last:border-b-0">
                 <button

@@ -178,7 +178,7 @@ export function CustomerFilterBar({
   return (
     <div className="space-y-2.5">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-56 flex-1 lg:max-w-xs">
+        <div className="min-w-0 basis-full sm:min-w-56 sm:basis-auto sm:flex-1">
           <Input
             leftIcon={<Search size={14} />}
             type="search"
@@ -237,7 +237,7 @@ export function CustomerFilterBar({
               align="end"
               sideOffset={8}
               collisionPadding={16}
-              className="z-90 w-[calc(100vw-2rem)] max-w-md overflow-y-auto rounded-sm border border-rule bg-surface p-4 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 max-h-[min(32rem,var(--radix-popover-content-available-height))]"
+              className="z-90 w-[calc(100vw-2rem)] max-w-md overflow-y-auto rounded-xl border border-rule/60 bg-field p-4 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 max-h-[min(32rem,var(--radix-popover-content-available-height))]"
             >
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
@@ -391,34 +391,56 @@ export function CustomerFilterBar({
 
       {hasChips && (
         <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
-          {filters.search && <FilterChip label={`Search: ${filters.search}`} onRemove={() => setSearch('')} />}
+          {filters.search && <FilterChip variant="tag" label={`Search: ${filters.search}`} onRemove={() => setSearch('')} />}
           {filters.tier && (
-            <FilterChip label={`Tier: ${optionLabel([...TIER_FILTERS], filters.tier)}`} onRemove={() => set('tier', undefined)} />
+            <FilterChip
+              variant="tag"
+              label={`Tier: ${optionLabel([...TIER_FILTERS], filters.tier)}`}
+              onRemove={() => set('tier', undefined)}
+            />
           )}
-          {lastVisit !== 'off' && <FilterChip label={optionLabel(LAST_VISIT_OPTIONS, lastVisit)} onRemove={clearLastVisit} />}
+          {lastVisit !== 'off' && <FilterChip variant="tag" label={optionLabel(LAST_VISIT_OPTIONS, lastVisit)} onRemove={clearLastVisit} />}
           {filters.birthdayMonth !== undefined && (
-            <FilterChip label={`Birthday in ${MONTHS[filters.birthdayMonth - 1]}`} onRemove={() => set('birthdayMonth', undefined)} />
+            <FilterChip
+              variant="tag"
+              label={`Birthday in ${MONTHS[filters.birthdayMonth - 1]}`}
+              onRemove={() => set('birthdayMonth', undefined)}
+            />
           )}
           {filters.marketing && (
-            <FilterChip label={optionLabel(MARKETING_OPTIONS, filters.marketing)} onRemove={() => set('marketing', undefined)} />
+            <FilterChip
+              variant="tag"
+              label={optionLabel(MARKETING_OPTIONS, filters.marketing)}
+              onRemove={() => set('marketing', undefined)}
+            />
           )}
           {(filters.minTotalSpent !== undefined || filters.maxTotalSpent !== undefined) && (
             <FilterChip
+              variant="tag"
               label={`Spend: ${spendLabel}`}
               onRemove={() => onChange((current) => ({ ...current, minTotalSpent: undefined, maxTotalSpent: undefined }))}
             />
           )}
           {(filters.minTotalVisits !== undefined || filters.maxTotalVisits !== undefined) && (
             <FilterChip
+              variant="tag"
               label={`Visits: ${visitsLabel}`}
               onRemove={() => onChange((current) => ({ ...current, minTotalVisits: undefined, maxTotalVisits: undefined }))}
             />
           )}
           {Boolean(filters.allergies?.length) && (
-            <FilterChip label={`Allergies: ${filters.allergies!.map(labelFor).join(', ')}`} onRemove={() => set('allergies', undefined)} />
+            <FilterChip
+              variant="tag"
+              label={`Allergies: ${filters.allergies!.map(labelFor).join(', ')}`}
+              onRemove={() => set('allergies', undefined)}
+            />
           )}
           {Boolean(filters.dietary?.length) && (
-            <FilterChip label={`Dietary: ${filters.dietary!.map(labelFor).join(', ')}`} onRemove={() => set('dietary', undefined)} />
+            <FilterChip
+              variant="tag"
+              label={`Dietary: ${filters.dietary!.map(labelFor).join(', ')}`}
+              onRemove={() => set('dietary', undefined)}
+            />
           )}
 
           {/* A segment saved under an older filter vocabulary silently selecting

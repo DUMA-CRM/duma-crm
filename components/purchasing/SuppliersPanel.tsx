@@ -30,13 +30,13 @@ import { Pill } from '@/components/shared/Pill';
 import { RelativeTime } from '@/components/shared/RelativeTime';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { type Supplier, type SupplierPayload, createSupplier, deactivateSupplier, updateSupplier } from '@/lib/modules/purchasing/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
-import { formatInstant } from '@/lib/utils/workspace-time';
 import {
   type SupplierForm,
   type SupplierView,
@@ -47,6 +47,7 @@ import {
   supplierPayload,
   unreachable,
 } from '@/lib/utils/suppliers';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 
@@ -198,16 +199,8 @@ function SupplierDrawer({
 
   return (
     <Drawer
+      icon={Building2}
       title={confirming ? 'Deactivate supplier' : inactive ? 'Inactive supplier' : supplier ? 'Edit supplier' : 'New supplier'}
-      description={
-        confirming
-          ? 'Check what changes before you confirm.'
-          : inactive
-            ? 'Kept for the orders it’s on. Reactivate to order from them or edit.'
-            : supplier
-              ? 'Changes show on new purchase orders straight away.'
-              : 'Who you buy from — you’ll pick them on purchase orders.'
-      }
       onClose={onClose}
       footer={footer}
     >
@@ -229,7 +222,7 @@ function SupplierDrawer({
             key="form"
             id={SUPPLIER_FORM}
             noValidate
-            className="space-y-7"
+            className="space-y-5"
             initial={{ opacity: 0, x: -12 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 12 }}
@@ -260,7 +253,7 @@ function SupplierDrawer({
               <ReadOnlyDetails supplier={supplier} />
             ) : (
               <>
-                <FormSection icon={Building2} title="Business">
+                <FormSection framed={false} title="Business">
                   <Input label="Name" required autoFocus={!supplier} placeholder="e.g. Dairy Direct" maxLength={255} {...field('name')} />
                   <Input
                     label="Address"
@@ -271,7 +264,7 @@ function SupplierDrawer({
                   />
                 </FormSection>
 
-                <FormSection icon={UserRound} title="Contact">
+                <FormSection icon={UserRound} title="Contact" collapsible invalid={submitted && Boolean(errors.email || errors.phone)}>
                   <Input label="Contact person" placeholder="e.g. Priya Shah" maxLength={255} {...field('contactName')} />
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Input
@@ -302,8 +295,10 @@ function SupplierDrawer({
                   )}
                 </FormSection>
 
-                <FormSection icon={FileText} title="Notes">
+                <FormSection icon={FileText} title="Notes" collapsible defaultOpen={Boolean(form.notes)} invalid={Boolean(notesError)}>
+                  <FieldLabel htmlFor="supplier-notes">Notes</FieldLabel>
                   <textarea
+                    id="supplier-notes"
                     {...notesField}
                     aria-label="Notes"
                     rows={4}

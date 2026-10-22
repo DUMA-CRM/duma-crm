@@ -88,14 +88,14 @@ export function NewModifierDrawer({
 
   return (
     <Drawer
+      icon={SlidersHorizontal}
       title="New modifier"
-      description="An option offered with items — a size, a milk, an extra shot."
       onClose={onClose}
       footer={
         <div className="flex gap-2">
           <Button
             variant="outline"
-            size="lg"
+            size="default"
             className="flex-1"
             onClick={() => submit('recipe')}
             disabled={create.isPending || !groups.length}
@@ -107,7 +107,7 @@ export function NewModifierDrawer({
             )}
             Create &amp; add recipe
           </Button>
-          <Button type="submit" form={FORM_ID} size="lg" className="flex-1" disabled={create.isPending || !groups.length}>
+          <Button type="submit" form={FORM_ID} size="default" className="flex-1" disabled={create.isPending || !groups.length}>
             {create.isPending && then === 'stay' ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
             Create modifier
           </Button>
@@ -117,14 +117,15 @@ export function NewModifierDrawer({
       <form
         id={FORM_ID}
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
           submit('stay');
         }}
       >
-        <FormSection icon={SlidersHorizontal} title="Modifier">
+        <section aria-label="Modifier" className="space-y-3">
           <Input
+            required
             label="Name"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -133,6 +134,7 @@ export function NewModifierDrawer({
             error={submitted ? (labelError ?? undefined) : undefined}
           />
           <Input
+            required
             label="Price change"
             value={priceAdjust}
             onChange={(e) => setPriceAdjust(e.target.value)}
@@ -151,9 +153,9 @@ export function NewModifierDrawer({
                 : undefined
             }
           />
-        </FormSection>
+        </section>
 
-        <FormSection icon={Scale} title="Group">
+        <FormSection framed={false} title="Group">
           {groups.length ? (
             <>
               <ChoiceCards
@@ -178,7 +180,7 @@ export function NewModifierDrawer({
           )}
         </FormSection>
 
-        <div className="rounded-lg border border-rule/60 bg-card px-4 py-3.5">
+        <div className="rounded-lg border border-rule/60 bg-field px-4 py-3.5">
           <SettingRows>
             <SettingRow
               icon={Scale}

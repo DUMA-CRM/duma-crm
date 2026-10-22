@@ -15,6 +15,7 @@ import {
   subjectHref,
   subjectName,
 } from '@/components/compliance/privacyCopy';
+import { Modal } from '@/components/customers/CustomerDialogs';
 import {
   AlertTriangle,
   CalendarClock,
@@ -30,7 +31,6 @@ import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Bone, FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -249,7 +249,7 @@ export function PrivacyRequestsPanel({
         ) : requests.isError ? (
           <ErrorState title="Privacy requests couldn’t be loaded" onRetry={() => void requests.refetch()} />
         ) : (
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <ul className="space-y-2 [&>li]:rounded-lg [&>li]:border [&>li]:border-rule/60 [&>li]:bg-field [&>li:last-child]:border-b">
             {all.length === 0 ? (
               <li className="flex items-center gap-3 px-3.5 py-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground">

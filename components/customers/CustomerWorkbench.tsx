@@ -4,12 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import QRCode from 'react-qr-code';
 
+import { Modal } from '@/components/customers/CustomerDialogs';
 import { GrantRewardModal, rewardLabel } from '@/components/customers/CustomerLoyaltyCards';
 import { CustomerNotesPanel } from '@/components/customers/CustomerNotesPanel';
 import { Ban, Calendar, CheckCircle2, Coffee, Coins, Gift, Mail, Pencil, Phone, QrCode, Send, ShieldAlert } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { Modal } from '@/components/shared/Modal';
 import { CopyGlyph } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 
@@ -20,6 +20,8 @@ import { cn } from '@/lib/utils/cn';
 import { birthdayHint, daysUntilBirthday } from '@/lib/utils/customer-card';
 import { customerQrValue } from '@/lib/utils/customer-qr';
 import type { Customer } from '@/types/customers';
+
+import { CustomerDisclosure, CustomerSection } from './CustomerSection';
 
 /**
  * The stable context column beside the record.
@@ -81,7 +83,7 @@ export function CustomerWorkbench({
   const { data: preferences } = useQuery({
     queryKey: moduleQueryKeys.customers.key('marketing-preferences', customer.id),
     queryFn: () => getMarketingPreferences(customer.id),
-    enabled: Boolean(customer.email),
+    enabled: Boolean(customer.email) && (showConsent || canEmail),
   });
 
   const consent: ConsentState = !customer.email
@@ -98,7 +100,7 @@ export function CustomerWorkbench({
   const birthdaySoon = birthdayHint(daysUntilBirthday(customer.dob, now));
 
   return (
-    <aside className={cn('flex min-w-0 flex-col gap-5', className)} aria-label="Guest details and actions">
+    <aside className={cn('flex min-w-0 flex-col gap-3', className)} aria-label="Guest details and actions">
       {/* ── What you can do ──────────────────────────────────────────────
           First, not last: on a phone this column sits above the figures, and
           someone holding a queue needs the verbs before the analytics. */}
@@ -111,7 +113,7 @@ export function CustomerWorkbench({
             canEmail && !customer.email ? 'No email address on this record, so nothing can be sent yet.' : undefined
           }
         >
-          <div className="grid gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {canEmail && (
               <Button
                 variant="outline"
@@ -124,6 +126,7 @@ export function CustomerWorkbench({
                       ? 'This address is suppressed and cannot be emailed'
                       : undefined
                 }
+                size="sm"
                 className="w-full justify-start"
               >
                 <Send data-icon="inline-start" />
@@ -132,7 +135,7 @@ export function CustomerWorkbench({
             )}
 
             {canAdjustPoints && (
-              <Button variant="outline" onClick={() => onAction('points')} className="w-full justify-start">
+              <Button variant="outline" onClick={() => onAction('points')} size="sm" className="w-full justify-start">
                 <Coins data-icon="inline-start" />
                 Adjust points
               </Button>
@@ -145,7 +148,8 @@ export function CustomerWorkbench({
                   variant="outline"
                   onClick={() => setGranting(programme)}
                   title={`${rewardLabel(programme)} — issued automatically each birthday`}
-                  className="w-full justify-start"
+                  size="sm"
+                  className="col-span-2 w-full justify-start"
                 >
                   <Gift data-icon="inline-start" />
                   <span className="truncate">Give birthday reward</span>
@@ -156,7 +160,7 @@ export function CustomerWorkbench({
               ))}
 
             {canEdit && (
-              <Button variant="outline" onClick={() => onAction('edit')} className="w-full justify-start">
+              <Button variant="outline" onClick={() => onAction('edit')} size="sm" className="w-full justify-start">
                 <Pencil data-icon="inline-start" />
                 Edit details
               </Button>
@@ -219,9 +223,9 @@ export function CustomerWorkbench({
         </ul>
       </SettingsSection>
 
-      {loyalty}
+      {loyalty && <CustomerDisclosure title="Loyalty & rewards">{loyalty}</CustomerDisclosure>}
 
-      {referral}
+      {referral && <CustomerDisclosure title="Referrals">{referral}</CustomerDisclosure>}
 
       {/* ── What the team should know ────────────────────────────────────
           In the column rather than the Guest tab, so a note can be written
@@ -252,15 +256,11 @@ function MembershipCard({ customer }: { customer: Customer }) {
   const qrValue = customerQrValue(customer.id);
 
   return (
-    <SettingsSection
-      title="Loyalty card"
-      actions={
-        <Button variant="outline" size="sm" onClick={() => setScanning(true)}>
-          <QrCode data-icon="inline-start" />
-          Show to scan
-        </Button>
-      }
-    >
+    <CustomerSection title="Loyalty card" collapsible>
+      <Button variant="outline" size="sm" className="mb-3" onClick={() => setScanning(true)}>
+        <QrCode data-icon="inline-start" />
+        Show to scan
+      </Button>
       <article
         aria-label={`Loyalty card for ${name}`}
         className="relative overflow-hidden rounded-xl bg-primary p-4 text-primary-foreground shadow-sm"
@@ -298,7 +298,7 @@ function MembershipCard({ customer }: { customer: Customer }) {
         <Modal title="Scan this code" description={`${name} · member ${memberNumber}`} onClose={() => setScanning(false)}>
           <div className="flex flex-col items-center gap-4 py-2">
             <div className="rounded-lg border border-rule/60 bg-white p-4">
-              <QRCode value={qrValue} size={240} bgColor="#ffffff" aria-label={`Loyalty QR code for ${name}`} />
+              <QRCode value={qrValue} size={224} bgColor="#ffffff" aria-label={`Loyalty QR code for ${name}`} />
             </div>
             <p className="max-w-xs text-center text-sm text-muted-foreground">
               Hold the till’s scanner up to the screen. Turn the brightness up if it doesn’t read first time.
@@ -309,7 +309,7 @@ function MembershipCard({ customer }: { customer: Customer }) {
           </div>
         </Modal>
       )}
-    </SettingsSection>
+    </CustomerSection>
   );
 }
 

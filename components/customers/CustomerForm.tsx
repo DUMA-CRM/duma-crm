@@ -3,16 +3,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { AlertTriangle, Plus, ShieldAlert, X } from '@/components/icons';
-import { Drawer } from '@/components/shared/Drawer';
+import { RowTile } from '@/components/cms/rows';
+import { Drawer } from '@/components/customers/CustomerDialogs';
+import { AlertTriangle, ChevronDown, Plus, ShieldAlert, SlidersHorizontal, UserCircle2, X } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Select } from '@/components/ui/select';
 
 import { createCustomer, updateCustomer } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { customerFormSnapshot } from '@/lib/utils/customer-form';
 import { toast } from '@/stores/toastStore';
 import { DIETARY_PREFERENCES, FSA_ALLERGENS } from '@/types/customers';
 import type { AlertSeverity, Allergen, Customer, CustomerAlert, DietaryPreference } from '@/types/customers';
@@ -83,11 +86,19 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
   const [seating, setSeating] = useState(customer?.seatingPreference ?? '');
   const [alerts, setAlerts] = useState<CustomerAlert[]>(customer?.alerts ?? []);
 
+  const [addingAlert, setAddingAlert] = useState(false);
   const [newAlert, setNewAlert] = useState<{ severity: AlertSeverity; label: string; note: string }>({
     severity: 'warning',
     label: '',
     note: '',
   });
+
+  const values = { firstName, lastName, phone, email, dob, allergies, dietary, seating, alerts };
+  // Capture what was opened, so a background refetch cannot reset the dirty state.
+  const [initialSnapshot] = useState(() => customerFormSnapshot(values));
+  const dirty = customerFormSnapshot(values) !== initialSnapshot;
+  const unfinishedAlert = Boolean(newAlert.label.trim() || newAlert.note.trim());
+  const canSave = (!isEdit || dirty) && !unfinishedAlert;
 
   const save = useMutation({
     mutationFn: async () => {
@@ -134,23 +145,24 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
       { severity: newAlert.severity, label: trimmed, ...(newAlert.note.trim() ? { note: newAlert.note.trim() } : {}) },
     ]);
     setNewAlert({ severity: 'warning', label: '', note: '' });
+    setAddingAlert(false);
   };
 
   return (
     <Drawer
       title={isEdit ? 'Edit customer' : 'New customer'}
-      description={
-        isEdit
-          ? 'Contact details, plus what the team needs to know before serving this guest.'
-          : 'Create a loyalty profile now; allergies and preferences can be added once the guest is served.'
+      leading={
+        <span className="flex size-10 items-center justify-center rounded-md bg-primary/8 text-primary">
+          <UserCircle2 size={20} aria-hidden="true" />
+        </span>
       }
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" onClick={onClose} disabled={save.isPending} className="flex-1">
+          <Button variant="outline" size="default" onClick={onClose} disabled={save.isPending} className="flex-1">
             Cancel
           </Button>
-          <Button size="lg" type="submit" form={FORM_ID} disabled={save.isPending} className="flex-1">
+          <Button size="default" type="submit" form={FORM_ID} disabled={save.isPending || !canSave} className="flex-1">
             {save.isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Create customer'}
           </Button>
         </div>
@@ -160,11 +172,12 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
         id={FORM_ID}
         onSubmit={(event) => {
           event.preventDefault();
-          save.mutate();
+          if (canSave && !save.isPending) save.mutate();
         }}
         className="space-y-6"
       >
-        <Section title="Customer details">
+        <fieldset className="min-w-0">
+          <legend className="sr-only">Contact details</legend>
           <div className="grid gap-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <Input
@@ -205,36 +218,27 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
             />
             <Input label="Date of birth (optional)" type="date" value={dob} onChange={(event) => setDob(event.target.value)} />
           </div>
-        </Section>
+        </fieldset>
 
         {isEdit ? (
           <>
-            <Section title="Before you serve">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Allergies">
-                  <MultiSelect
-                    value={allergies}
-                    onChange={(next) => setAllergies(next as Allergen[])}
-                    options={ALLERGEN_OPTIONS}
-                    placeholder="None recorded"
-                    ariaLabel="Allergies for this guest"
-                    className="w-full"
-                  />
-                </Field>
-                <Field label="Dietary">
-                  <MultiSelect
-                    value={dietary}
-                    onChange={(next) => setDietary(next as DietaryPreference[])}
-                    options={DIETARY_OPTIONS}
-                    placeholder="None recorded"
-                    ariaLabel="Dietary preferences for this guest"
-                    className="w-full"
-                  />
-                </Field>
+            <section aria-labelledby="customer-allergies-title" className="space-y-3">
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-rule/60 bg-field px-3 py-2.5">
+                <h3 id="customer-allergies-title" className="flex items-center gap-3 text-sm font-semibold text-foreground">
+                  <RowTile icon={AlertTriangle} tone={allergies.length ? 'warning' : 'default'} />
+                  Allergies
+                </h3>
+                <MultiSelect
+                  value={allergies}
+                  onChange={(next) => setAllergies(next as Allergen[])}
+                  options={ALLERGEN_OPTIONS}
+                  placeholder="Add allergy"
+                  ariaLabel="Allergies for this guest"
+                  className="max-w-[65%]"
+                />
               </div>
-
               {allergies.length > 0 && (
-                <p className="mt-3 flex items-start gap-2 rounded-sm border border-exception/30 bg-exception/8 px-3 py-2 text-xs text-exception">
+                <p className="mt-3 flex items-start gap-2 rounded-md border border-exception/30 bg-exception/8 px-3 py-2 text-xs text-exception">
                   <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
                   <span>
                     <strong className="font-semibold uppercase">{allergies.map(labelFor).join(' · ')}</strong> will show at the top of this
@@ -242,7 +246,28 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
                   </span>
                 </p>
               )}
+            </section>
 
+            <Section
+              title={
+                <span className="flex items-center gap-3">
+                  <RowTile icon={SlidersHorizontal} />
+                  Preferences
+                </span>
+              }
+              collapsible
+              defaultOpen={Boolean(customer?.dietary?.length || customer?.seatingPreference)}
+            >
+              <Field label="Dietary">
+                <MultiSelect
+                  value={dietary}
+                  onChange={(next) => setDietary(next as DietaryPreference[])}
+                  options={DIETARY_OPTIONS}
+                  placeholder="None recorded"
+                  ariaLabel="Dietary preferences for this guest"
+                  className="w-full"
+                />
+              </Field>
               <Input
                 label="Seating preference (optional)"
                 value={seating}
@@ -253,21 +278,41 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
               />
             </Section>
 
-            <Section
-              title="Alerts"
-              hint={
-                <>
-                  Pinned to the top of the record. Use <strong className="font-semibold text-foreground">Critical</strong> only for things
-                  that must stop service going wrong.
-                </>
-              }
-            >
+            <section aria-labelledby="customer-alerts-title" className="space-y-3">
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-rule/60 bg-field px-3 py-2.5">
+                <h3 id="customer-alerts-title" className="flex items-center gap-3 text-sm font-semibold text-foreground">
+                  <RowTile
+                    icon={ShieldAlert}
+                    tone={
+                      alerts.some((alert) => alert.severity === 'critical')
+                        ? 'danger'
+                        : alerts.some((alert) => alert.severity === 'warning')
+                          ? 'warning'
+                          : 'default'
+                    }
+                  />
+                  Alerts
+                </h3>
+                {!addingAlert && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAddingAlert(true)}
+                    aria-expanded={false}
+                    aria-controls="customer-alert-composer"
+                  >
+                    <Plus data-icon="inline-start" />
+                    Add alert
+                  </Button>
+                )}
+              </div>
               {alerts.length > 0 && (
                 <ul className="mb-3 space-y-1.5">
                   {alerts.map((alert, index) => (
                     <li
                       key={`${alert.label}-${index}`}
-                      className="flex items-start gap-2.5 rounded-sm border border-rule bg-background px-3 py-2"
+                      className="flex items-start gap-2.5 rounded-lg border border-rule/60 bg-field px-3 py-2"
                     >
                       <span
                         className={cn(
@@ -285,7 +330,7 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
                         type="button"
                         onClick={() => setAlerts((current) => current.filter((_, at) => at !== index))}
                         aria-label={`Remove alert ${alert.label}`}
-                        className="flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-exception/8 hover:text-exception"
+                        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-exception/8 hover:text-exception"
                       >
                         <X size={14} aria-hidden="true" />
                       </button>
@@ -294,27 +339,46 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
                 </ul>
               )}
 
-              <div className="grid gap-2 rounded-sm border border-dashed border-rule p-3">
-                <p className="flex items-center gap-1.5 text-micro font-semibold uppercase tracking-micro text-muted-foreground">
-                  <ShieldAlert size={12} aria-hidden="true" />
-                  Add an alert
-                </p>
-                <div className="flex gap-2">
-                  <Select
-                    value={newAlert.severity}
-                    onValueChange={(value) => setNewAlert((current) => ({ ...current, severity: value as AlertSeverity }))}
-                    options={SEVERITIES}
-                    ariaLabel="Alert severity"
-                    className="w-32 shrink-0"
-                  />
+              {addingAlert && (
+                <div id="customer-alert-composer" className="grid gap-3 rounded-lg border border-rule/60 bg-field p-3">
+                  <p className="flex items-center gap-1.5 text-micro font-semibold uppercase tracking-micro text-muted-foreground">
+                    <ShieldAlert size={12} aria-hidden="true" />
+                    New alert
+                  </p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Shown before service. Use Critical for information staff must act on.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                    <Select
+                      value={newAlert.severity}
+                      onValueChange={(value) => setNewAlert((current) => ({ ...current, severity: value as AlertSeverity }))}
+                      options={SEVERITIES}
+                      ariaLabel="Alert severity"
+                      className="w-full"
+                    />
+                    <Input
+                      value={newAlert.label}
+                      onChange={(event) => setNewAlert((current) => ({ ...current, label: event.target.value }))}
+                      placeholder="What should staff know?"
+                      maxLength={120}
+                      aria-label="Alert label"
+                      autoFocus
+                      // Enter would otherwise submit the whole form rather than
+                      // adding the alert being typed.
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          addAlert();
+                        }
+                      }}
+                    />
+                  </div>
                   <Input
-                    value={newAlert.label}
-                    onChange={(event) => setNewAlert((current) => ({ ...current, label: event.target.value }))}
-                    placeholder="What should staff know?"
-                    maxLength={120}
-                    aria-label="Alert label"
-                    // Enter would otherwise submit the whole form rather than
-                    // adding the alert being typed.
+                    value={newAlert.note}
+                    onChange={(event) => setNewAlert((current) => ({ ...current, note: event.target.value }))}
+                    placeholder="More detail (optional)"
+                    maxLength={500}
+                    aria-label="Alert detail"
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
                         event.preventDefault();
@@ -322,26 +386,34 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
                       }
                     }}
                   />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setNewAlert({ severity: 'warning', label: '', note: '' });
+                        setAddingAlert(false);
+                      }}
+                    >
+                      Cancel alert
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={addAlert} disabled={!newAlert.label.trim()}>
+                      Add alert
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={newAlert.note}
-                    onChange={(event) => setNewAlert((current) => ({ ...current, note: event.target.value }))}
-                    placeholder="More detail (optional)"
-                    maxLength={500}
-                    aria-label="Alert detail"
-                  />
-                  <Button type="button" variant="outline" onClick={addAlert} disabled={!newAlert.label.trim()} className="shrink-0">
-                    <Plus data-icon="inline-start" />
-                    Add
-                  </Button>
-                </div>
-              </div>
-            </Section>
+              )}
+              {unfinishedAlert && (
+                <p className="text-xs text-muted-foreground" role="status">
+                  Add or cancel this alert before saving.
+                </p>
+              )}
+            </section>
           </>
         ) : (
           <Section title="Communication">
-            <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-sm border border-rule bg-band/55 p-3 text-sm transition-colors hover:bg-band">
+            <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-lg border border-rule/60 bg-field p-3 text-sm transition-colors hover:bg-band">
               <input
                 type="checkbox"
                 className="mt-0.5 size-4 shrink-0 accent-primary"
@@ -362,12 +434,41 @@ export function CustomerFormDrawer({ tenantId, customer, onClose, onSaved }: Pro
   );
 }
 
-function Section({ title, hint, children }: { title: string; hint?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <fieldset className="min-w-0">
-      <legend className="text-sm font-semibold text-foreground">{title}</legend>
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-      <div className="mt-3">{children}</div>
+function Section({
+  title,
+  hint,
+  children,
+  collapsible,
+  defaultOpen,
+}: {
+  title: React.ReactNode;
+  hint?: React.ReactNode;
+  children: React.ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+}) {
+  const content = (
+    <>
+      {hint && <p className="mb-3 text-xs leading-relaxed text-muted-foreground">{hint}</p>}
+      {children}
+    </>
+  );
+  return collapsible ? (
+    <details open={defaultOpen} className="group/customer-form rounded-lg border border-rule/60 bg-field">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+        {title}
+        <ChevronDown
+          size={15}
+          aria-hidden="true"
+          className="text-muted-foreground transition-transform group-open/customer-form:rotate-180"
+        />
+      </summary>
+      <div className="px-4 pb-4">{content}</div>
+    </details>
+  ) : (
+    <fieldset className="min-w-0 rounded-lg border border-rule/60 bg-field p-4">
+      <legend className="px-1 text-sm font-semibold text-foreground">{title}</legend>
+      {content}
     </fieldset>
   );
 }
@@ -375,7 +476,9 @@ function Section({ title, hint, children }: { title: string; hint?: React.ReactN
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0 space-y-1.5">
-      <span className="block text-label uppercase text-muted-foreground">{label}</span>
+      <FieldLabel as="span" required={['Job title', 'Contract', 'Pay basis'].includes(label)}>
+        {label}
+      </FieldLabel>
       {children}
     </div>
   );

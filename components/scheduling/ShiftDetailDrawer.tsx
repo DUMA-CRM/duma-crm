@@ -237,15 +237,15 @@ function ClockList({ entries, now }: { entries: Shift[]; now: number }) {
 
 function Tile({ className }: { className: string }) {
   return (
-    <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', className)}>
-      <CalendarClock size={18} aria-hidden="true" />
+    <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', className)}>
+      <CalendarClock size={20} aria-hidden="true" />
     </span>
   );
 }
 
 function CloseButton({ onClose }: { onClose: () => void }) {
   return (
-    <Button variant="outline" size="lg" className="w-full" onClick={onClose}>
+    <Button variant="outline" size="default" className="w-full" onClick={onClose}>
       Close
     </Button>
   );
@@ -261,7 +261,7 @@ function Panel({ children }: { children: React.ReactNode }) {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-baseline gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
       <dt className="w-20 shrink-0 text-xs text-muted-foreground">{label}</dt>
       <dd className="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5 text-sm text-foreground">{children}</dd>
     </div>

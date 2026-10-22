@@ -15,6 +15,7 @@ import {
   Coins,
   CreditCard,
   EyeOff,
+  FileText,
   History,
   Loader2,
   Lock,
@@ -27,6 +28,7 @@ import {
 } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { FormSection } from '@/components/shared/FormParts';
 import { MiniBar } from '@/components/shared/MiniBar';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Bone, ListSkeleton, LoadingState } from '@/components/shared/Skeleton';
@@ -34,6 +36,7 @@ import { TONE_TINT, type Tone } from '@/components/shared/tone';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { type CashUp, closeCashUp, getCashUpExpectation, getCashUps, openCashUp } from '@/lib/modules/payments/client';
@@ -198,14 +201,14 @@ export function CashUpDrawer(props: DrawerProps) {
   }
   if (rows.isError) {
     return (
-      <Drawer title="Cash up" description={props.locationName} onClose={onClose}>
+      <Drawer icon={Banknote} title="Cash up" description={props.locationName} onClose={onClose}>
         <ErrorState title="The day’s cash-up couldn’t be loaded" onRetry={() => void rows.refetch()} />
       </Drawer>
     );
   }
   if (rows.isPending) {
     return (
-      <Drawer title="Cash up" description={props.locationName} onClose={onClose}>
+      <Drawer icon={Banknote} title="Cash up" description={props.locationName} onClose={onClose}>
         <LoadingState label="Loading the day’s cash-up" />
       </Drawer>
     );
@@ -242,12 +245,14 @@ function CashCounter({
   onChange,
   value,
   label,
+  compact = false,
 }: {
   currency: string;
   state: CountState;
   onChange: (next: Partial<CountState>) => void;
   value: number | null;
   label: string;
+  compact?: boolean;
 }) {
   const money = useWorkspaceMoney();
   const denominations = denominationsFor(currency);
@@ -257,13 +262,20 @@ function CashCounter({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3">
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-3xl font-semibold tracking-title tabular-nums text-foreground" aria-live="polite">
-            {value === null ? '—' : money(value / 100)}
-          </p>
-        </div>
+      <div
+        className={cn(
+          'flex flex-wrap items-center justify-between gap-3',
+          !compact && 'rounded-lg border border-rule/60 bg-field px-4 py-3',
+        )}
+      >
+        {(!compact || mode === 'coins') && (
+          <div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="text-3xl font-semibold tracking-title tabular-nums text-foreground" aria-live="polite">
+              {value === null ? '—' : money(value / 100)}
+            </p>
+          </div>
+        )}
         {denominations && (
           <SegmentedControl<CountMode>
             options={[
@@ -279,14 +291,15 @@ function CashCounter({
 
       {mode === 'total' || !denominations ? (
         <Input
-          label="Amount"
+          required
+          label={compact ? label : 'Amount'}
           inputMode="decimal"
           autoComplete="off"
           value={state.typed}
           onChange={(event) => onChange({ typed: event.target.value })}
           error={state.typed !== '' && value === null ? 'Enter an amount like 120.50' : undefined}
           leftIcon={<Banknote size={14} />}
-          className="h-12 text-lg tabular-nums"
+          className={compact ? 'tabular-nums' : 'h-12 text-lg tabular-nums'}
         />
       ) : (
         (['note', 'coin'] as const).map((kind) => {
@@ -294,16 +307,26 @@ function CashCounter({
           if (group.length === 0) return null;
           const subtotal = countMinor(Object.fromEntries(group.map((entry) => [entry.value, state.counts[entry.value] ?? 0])));
           return (
-            <section key={kind} aria-label={kind === 'note' ? 'Notes' : 'Coins'}>
+            <FormSection
+              key={kind}
+              title={kind === 'note' ? 'Notes' : 'Coins'}
+              icon={kind === 'note' ? Banknote : Coins}
+              collapsible={compact}
+              framed={false}
+              defaultOpen
+            >
               <div className="mb-1.5 flex items-baseline justify-between px-1">
-                <h3 className="text-xs font-semibold text-foreground">{kind === 'note' ? 'Notes' : 'Coins'}</h3>
+                <span className="text-xs text-muted-foreground">Subtotal</span>
                 <span className="text-xs tabular-nums text-muted-foreground">{money(subtotal / 100)}</span>
               </div>
-              <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              <ul className={cn('overflow-hidden', !compact && 'rounded-lg border border-rule/60 bg-card')}>
                 {group.map((entry) => {
                   const quantity = state.counts[entry.value] ?? 0;
                   return (
-                    <li key={entry.value} className="flex items-center gap-3 border-b border-rule/45 px-3 py-2 last:border-b-0">
+                    <li
+                      key={entry.value}
+                      className={cn('flex items-center gap-3 border-b border-rule/45 py-2 last:border-b-0', !compact && 'px-3')}
+                    >
                       <span
                         className={cn(
                           'flex h-8 w-14 shrink-0 items-center justify-center text-sm font-semibold tabular-nums',
@@ -345,7 +368,7 @@ function CashCounter({
                   );
                 })}
               </ul>
-            </section>
+            </FormSection>
           );
         })
       )}
@@ -406,34 +429,55 @@ function OpenFlow({
 
   return (
     <Drawer
+      icon={Banknote}
       title="Open the day"
       description={description}
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={open.isPending}>
+          <Button variant="outline" size="default" className="flex-1" onClick={onClose} disabled={open.isPending}>
             Cancel
           </Button>
-          <Button size="lg" className="flex-1 gap-1.5" disabled={value === null || open.isPending} onClick={() => open.mutate()}>
+          <Button
+            type="submit"
+            form="open-trading-day"
+            size="default"
+            className="flex-1 gap-1.5"
+            disabled={value === null || open.isPending}
+          >
             {open.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Play size={15} aria-hidden="true" />}
             {open.isPending ? 'Opening…' : value === null ? 'Open the day' : `Open with ${money(value / 100)}`}
           </Button>
         </div>
       }
     >
-      <div className="space-y-5">
-        <p className="text-sm text-muted-foreground">
-          Put the float in the drawer and confirm it here. The till expects this much cash before the first sale.
+      <form
+        id="open-trading-day"
+        className="space-y-5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (value !== null && !open.isPending) open.mutate();
+        }}
+      >
+        <CashCounter currency={currency} state={count} onChange={setCount} value={value} label="Opening float" compact />
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Cash in the drawer before the first sale. Confirm the amount you’ve put in.
         </p>
-        <CashCounter currency={currency} state={count} onChange={setCount} value={value} label="Opening float" />
         {last && (
-          <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-            <History size={13} aria-hidden="true" />
-            Last close {DATE(last.tradingDate)} — float {money(last.openingFloat)},{' '}
-            {needsExplanation(toMinor(last.cashVariance), toMinor(last.cardVariance)) ? 'didn’t balance' : 'balanced'}.
-          </p>
+          <FormSection icon={History} title="Last close" collapsible>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">Trading day</dt>
+              <dd className="text-right">{DATE(last.tradingDate)}</dd>
+              <dt className="text-muted-foreground">Opening float</dt>
+              <dd className="text-right tabular-nums">{money(last.openingFloat)}</dd>
+              <dt className="text-muted-foreground">Balance</dt>
+              <dd className="text-right">
+                {needsExplanation(toMinor(last.cashVariance), toMinor(last.cardVariance)) ? 'Didn’t balance' : 'Balanced'}
+              </dd>
+            </dl>
+          </FormSection>
         )}
-      </div>
+      </form>
     </Drawer>
   );
 }
@@ -497,6 +541,7 @@ function CloseFlow({
 
   return (
     <Drawer
+      icon={Banknote}
       title={stale ? 'Close an earlier day' : 'Close the day'}
       description={description}
       onClose={onClose}
@@ -504,7 +549,7 @@ function CloseFlow({
         <div className="flex gap-2">
           <Button
             variant="outline"
-            size="lg"
+            size="default"
             className="flex-1 gap-1.5"
             onClick={() => (index === 0 ? onClose() : setStep(STEPS[index - 1].id))}
             disabled={close.isPending}
@@ -513,12 +558,12 @@ function CloseFlow({
             {index === 0 ? 'Cancel' : 'Back'}
           </Button>
           {step === 'review' ? (
-            <Button size="lg" className="flex-1 gap-1.5" disabled={!canClose} onClick={() => close.mutate()}>
+            <Button size="default" className="flex-1 gap-1.5" disabled={!canClose} onClick={() => close.mutate()}>
               {close.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Lock size={15} aria-hidden="true" />}
               {close.isPending ? 'Closing…' : 'Close the day'}
             </Button>
           ) : (
-            <Button size="lg" className="flex-1 gap-1.5" disabled={!canContinue} onClick={() => setStep(STEPS[index + 1].id)}>
+            <Button size="default" className="flex-1 gap-1.5" disabled={!canContinue} onClick={() => setStep(STEPS[index + 1].id)}>
               {step === 'check' && queuedCount > 0 ? 'Count anyway' : 'Continue'}
               <ArrowRight size={15} aria-hidden="true" />
             </Button>
@@ -548,10 +593,18 @@ function CloseFlow({
 
       {step === 'check' && (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Opened{day.openedAt ? ` at ${TIME(day.openedAt)}` : ''} with a {money(day.openingFloat)} float. Before you count:
-          </p>
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary" aria-hidden="true">
+              <Wallet size={20} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold tabular-nums text-foreground">{money(day.openingFloat)} opening float</p>
+              <p className="text-xs text-muted-foreground">
+                {day.openedAt ? `Opened at ${TIME(day.openedAt)}` : 'Included in the cash count'}
+              </p>
+            </div>
+          </div>
+          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
             {stale && (
               <CheckRow
                 tone="exception"
@@ -596,17 +649,15 @@ function CloseFlow({
 
       {step === 'cash' && (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">Count everything in the drawer, float included.</p>
-          <CashCounter currency={currency} state={cash} onChange={setCash} value={cashMinor} label="Cash in the drawer" />
+          <CashCounter currency={currency} state={cash} onChange={setCash} value={cashMinor} label="Cash in the drawer" compact />
+          <p className="text-xs leading-relaxed text-muted-foreground">Count everything in the drawer, float included.</p>
         </div>
       )}
 
       {step === 'card' && (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Run the end-of-day report on the card terminal and enter its total. No terminal? Enter 0.
-          </p>
           <Input
+            required
             label="Card terminal total"
             inputMode="decimal"
             autoComplete="off"
@@ -614,9 +665,9 @@ function CloseFlow({
             value={card}
             onChange={(event) => setCard(event.target.value)}
             error={card !== '' && cardMinor === null ? 'Enter an amount like 842.10' : undefined}
-            hint="The total on the terminal’s end-of-day (Z) print"
+            hint="Use the terminal’s end-of-day (Z) report. No terminal? Enter 0."
             leftIcon={<CreditCard size={14} />}
-            className="h-12 text-lg tabular-nums"
+            className="tabular-nums"
           />
         </div>
       )}
@@ -629,7 +680,7 @@ function CloseFlow({
             <ListSkeleton rows={2} label="Loading what the till expects" />
             <div>
               <Bone className="mx-1 mb-1.5 h-3 w-32" />
-              <div className="overflow-hidden rounded-lg border border-rule/60 bg-card" aria-hidden="true">
+              <div className="overflow-hidden rounded-lg border border-rule/60 bg-field" aria-hidden="true">
                 {[0, 1, 2].map((line) => (
                   <div key={line} className="flex items-center justify-between gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
                     <Bone className={line === 0 ? 'h-3.5 w-28' : 'h-3.5 w-20'} />
@@ -641,28 +692,38 @@ function CloseFlow({
           </div>
         ) : (
           <div className="space-y-5">
-            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
               <ReconRow icon={Banknote} label="Cash" counted={cashMinor ?? 0} expected={expectedCash} onEdit={() => setStep('cash')} />
               <ReconRow icon={CreditCard} label="Card" counted={cardMinor ?? 0} expected={expectedCard} onEdit={() => setStep('card')} />
             </ul>
 
             <Breakdown tenders={expectation.data.tenderSummary} openingFloat={expectation.data.openingFloat} />
 
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-foreground">
-                {explain ? 'What happened?' : 'Note'}{' '}
-                <span className="font-normal text-muted-foreground">
-                  {explain ? `— needed when it’s out by ${money(EXPLAIN_FROM_MINOR / 100)} or more` : '(optional)'}
-                </span>
-              </span>
+            <FormSection
+              icon={FileText}
+              title={explain ? 'Explain the difference' : 'Note'}
+              collapsible
+              defaultOpen={explain}
+              invalid={explain && !note.trim()}
+            >
+              <FieldLabel htmlFor="cash-up-close-note" required={explain}>
+                {explain ? 'What happened?' : 'Note'}
+              </FieldLabel>
+              {explain && (
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Required when cash or card is out by {money(EXPLAIN_FROM_MINOR / 100)} or more.
+                </p>
+              )}
               <textarea
+                id="cash-up-close-note"
+                required={explain}
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
                 maxLength={2000}
                 placeholder={explain ? 'e.g. £5 paid out for milk, receipt in the drawer' : 'Anything the next shift should know'}
-                className="min-h-24 w-full rounded-md border border-input bg-control p-3 text-sm leading-relaxed text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured"
+                className="min-h-24 w-full rounded-md border border-input bg-control p-3 text-base sm:text-sm leading-relaxed text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured"
               />
-            </label>
+            </FormSection>
 
             <p className="flex items-start gap-2 text-xs text-muted-foreground">
               <Lock size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
@@ -852,18 +913,19 @@ function ClosedSummary({
 
   return (
     <Drawer
+      icon={Banknote}
       title={justNow ? 'Day closed' : 'Today is closed'}
       description={description}
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button asChild variant="outline" size="lg" className="flex-1 gap-1.5">
+          <Button asChild variant="outline" size="default" className="flex-1 gap-1.5">
             <Link href="/reports/end-of-day">
               <History size={15} aria-hidden="true" />
               History
             </Link>
           </Button>
-          <Button size="lg" className="flex-1" onClick={onClose}>
+          <Button size="default" className="flex-1" onClick={onClose}>
             Done
           </Button>
         </div>
@@ -889,7 +951,7 @@ function ClosedSummary({
           </p>
         </div>
 
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
           <SummaryRow icon={Banknote} label="Cash" counted={day.countedCash} expected={day.expectedCash} difference={cash} />
           <SummaryRow icon={CreditCard} label="Card" counted={day.terminalCardTotal} expected={day.expectedCard} difference={card} />
         </ul>

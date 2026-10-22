@@ -36,6 +36,7 @@ import { Select } from '@/components/ui/select';
 
 import { serverCache } from '@/lib/api/cache-policy';
 import { hasCapability } from '@/lib/auth/capabilities';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import {
   type InventoryForecast,
   type InventoryOverviewRow,
@@ -58,7 +59,6 @@ import {
 } from '@/lib/modules/inventory/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { cn } from '@/lib/utils/cn';
 import { timeAgo } from '@/lib/utils/format';
 import { type RestockJourneyStage, restockJourney } from '@/lib/utils/restock-journey';
@@ -253,7 +253,12 @@ export function RestockApprovals({
   ];
 
   return (
-    <motion.div className="flex flex-1 flex-col space-y-4" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+    <motion.div
+      className="flex flex-1 flex-col space-y-4"
+      initial="hidden"
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
+    >
       {/* How many requests sit at each stage — and the way in: a tile filters to its stage, again to show all. */}
       <motion.dl variants={SECTION_RISE} className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {TILES.filter((tile) => tile.value !== 'all').map((tile) => (
@@ -443,15 +448,16 @@ function ReceiveRestockDrawer({ request, onClose, onDone }: { request: RestockRe
 
   return (
     <Drawer
+      icon={PackageOpen}
       title="Receive stock"
-      description={`${item?.name ?? 'Stock item'} · confirm what physically arrived before changing the on-hand balance.`}
+      description={item?.name ?? 'Stock item'}
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={receive.isPending}>
+          <Button variant="outline" size="default" className="flex-1" onClick={onClose} disabled={receive.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form="receive-restock" size="lg" className="flex-1" disabled={receive.isPending}>
+          <Button type="submit" form="receive-restock" size="default" className="flex-1" disabled={receive.isPending}>
             {receive.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <PackageOpen aria-hidden="true" />}
             Receive stock
           </Button>
@@ -461,20 +467,20 @@ function ReceiveRestockDrawer({ request, onClose, onDone }: { request: RestockRe
       <form
         id="receive-restock"
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
           setSubmitted(true);
           if (valid) receive.mutate();
         }}
       >
-        <FormSection
-          icon={PackageOpen}
-          title="Delivery"
-          note={`Requested ${request.requestedQty} ${item?.unit ?? 'units'}. Change this if less or more arrived.`}
-        >
+        <div className="space-y-3">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Requested {request.requestedQty} {item?.unit ?? 'units'}. Enter what physically arrived.
+          </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
+              required
               label="Quantity received"
               value={quantity}
               onChange={(event) => setQuantity(event.target.value)}
@@ -496,21 +502,11 @@ function ReceiveRestockDrawer({ request, onClose, onDone }: { request: RestockRe
               }
             />
           </div>
+        </div>
+        <FormSection icon={PackageOpen} title="Delivery references" collapsible>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              label="Lot number"
-              value={lotNumber}
-              onChange={(event) => setLotNumber(event.target.value)}
-              maxLength={100}
-              placeholder="Optional"
-            />
-            <Input
-              label="Delivery note"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              maxLength={1000}
-              placeholder="Optional"
-            />
+            <Input label="Lot number" value={lotNumber} onChange={(event) => setLotNumber(event.target.value)} maxLength={100} />
+            <Input label="Delivery note" value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} />
           </div>
         </FormSection>
       </form>
@@ -663,8 +659,13 @@ function RequestRow({
           </span>
         </span>
         <RequestJourney stages={journey} />
-        <span className="hidden w-14 shrink-0 text-right text-xs text-muted-foreground sm:block" title={formatInstant(createdAt, { dateStyle: 'short', timeStyle: 'medium' })}>
-          {mountedAt - createdAt.getTime() < 86_400_000 ? formatInstant(createdAt, { hour: '2-digit', minute: '2-digit' }) : timeAgo(request.createdAt)}
+        <span
+          className="hidden w-14 shrink-0 text-right text-xs text-muted-foreground sm:block"
+          title={formatInstant(createdAt, { dateStyle: 'short', timeStyle: 'medium' })}
+        >
+          {mountedAt - createdAt.getTime() < 86_400_000
+            ? formatInstant(createdAt, { hour: '2-digit', minute: '2-digit' })
+            : timeAgo(request.createdAt)}
         </span>
         {pending && canDecide && (
           <span className="flex shrink-0 items-center gap-1" onClick={(event) => event.stopPropagation()}>

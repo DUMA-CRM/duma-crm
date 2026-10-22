@@ -7,13 +7,13 @@ import { useEffect } from 'react';
 import { Plug, Power, Settings, Zap } from '@/components/icons';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 
-import { hasCapability } from '@/lib/auth/capabilities';
+import { canAccessConnector } from '@/lib/auth/connector-access';
+import { getAnalyticsConnection } from '@/lib/modules/analytics/client';
 import { getCmsStorage } from '@/lib/modules/cms/client';
 import { getEmailConnection } from '@/lib/modules/communications/client';
 import { disconnectGoogleDrive, getGoogleDriveStatus, startGoogleDriveConnect } from '@/lib/modules/notes/client';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { getPaymentConnections } from '@/lib/modules/payments/client';
-import { getAnalyticsConnection } from '@/lib/modules/analytics/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { formatBytes } from '@/lib/utils/cms';
 import { useAuthStore } from '@/stores/authStore';
@@ -23,9 +23,9 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { type ConnectorAccount, type ConnectorAction, ConnectorCard } from './ConnectorCard';
 import { emailConnectorState } from './EmailConnector';
 import { PROVIDER_LABELS, paymentsConnectorState } from './PaymentsConnector';
+import { storageConnectorState, storageProviderLabel } from './StorageConnector';
 import { CONNECTORS, type ConnectorId, type ConnectorState } from './registry';
 import { relativeTime } from './shared';
-import { storageConnectorState, storageProviderLabel } from './StorageConnector';
 
 /**
  * The Connectors tab: every integration on one screen with its live status, the
@@ -38,11 +38,19 @@ export function ConnectorsGrid() {
   const { tenantId, locationId } = useWorkspaceStore();
   const capabilities = useAuthStore((state) => state.capabilities);
 
+  const modules = useQuery({
+    queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
+    queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
+    staleTime: 30_000,
+  });
+  const visible = (definition: (typeof CONNECTORS)[number]) => canAccessConnector(capabilities, definition, modules.data?.modules);
+
   const { data: emailConnection } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
-    enabled: !!tenantId && hasCapability(capabilities, 'email.connections:read') && hasCapability(capabilities, 'email.connections:write'),
+    enabled: !!tenantId && visible(CONNECTORS.find((definition) => definition.id === 'email')!),
     retry: false,
+    meta: { silentForbidden: true },
   });
   // Every reader, paused ones included: the till list (payment-methods) hides
   // paused readers, which made a paused-only location look unconnected and sent
@@ -50,20 +58,10 @@ export function ConnectorsGrid() {
   const { data: paymentMethods } = useQuery({
     queryKey: moduleQueryKeys.payments.key('payment-connections', locationId),
     queryFn: () => getPaymentConnections(locationId!),
-    enabled: !!locationId && hasCapability(capabilities, 'payments.connections:read') && hasCapability(capabilities, 'payments.connections:write'),
+    enabled: !!locationId && visible(CONNECTORS.find((definition) => definition.id === 'card-payments')!),
+    meta: { silentForbidden: true },
   });
 
-  // Same key as the settings shell, so this is the shell's cached answer.
-  const modules = useQuery({
-    queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
-    queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
-    staleTime: 30_000,
-  });
-  const visible = (definition: (typeof CONNECTORS)[number]) =>
-    (!definition.capability || hasCapability(capabilities, definition.capability)) &&
-    (!definition.readCapability || hasCapability(capabilities, definition.readCapability)) &&
-    (!definition.moduleId ||
-      (modules.data?.modules.some((module) => module.moduleId === definition.moduleId && module.status === 'enabled') ?? false));
   const storageVisible = visible(CONNECTORS.find((definition) => definition.id === 'media-storage')!);
   const { data: storage } = useQuery({
     queryKey: moduleQueryKeys.cms.key('storage', tenantId),

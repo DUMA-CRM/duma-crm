@@ -1,6 +1,8 @@
 'use client';
 
+import { TriangleAlert } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
+import { Button } from '@/components/ui/button';
 
 interface ConfirmDrawerProps {
   title: string;
@@ -29,26 +31,18 @@ export function ConfirmDrawer({
 }: ConfirmDrawerProps) {
   return (
     <Drawer
+      icon={TriangleAlert}
       title={title}
       onClose={onClose}
       className="max-w-md"
       footer={
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-10 flex-1 rounded-sm border border-rule text-sm font-medium text-muted-foreground transition-colors hover:bg-band"
-          >
+          <Button type="button" variant="outline" onClick={onClose} disabled={isPending} className="flex-1">
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isPending}
-            className="h-10 flex-1 rounded-sm bg-destructive text-sm font-semibold text-on-fill transition-colors hover:bg-destructive/90 disabled:opacity-60"
-          >
+          </Button>
+          <Button type="button" variant="destructive" onClick={onConfirm} disabled={isPending} className="flex-1">
             {isPending ? pendingLabel : confirmLabel}
-          </button>
+          </Button>
         </div>
       }
     >

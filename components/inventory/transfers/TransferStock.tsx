@@ -15,7 +15,6 @@ import {
   FileText,
   type IconComponent,
   Loader2,
-  MapPin,
   Package,
   Plus,
   Trash2,
@@ -31,6 +30,7 @@ import { LoadMore } from '@/components/shared/LoadMore';
 import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import {
@@ -56,8 +56,7 @@ const STATUS: Record<StockTransferStatus, { label: string; pill: string }> = {
   cancelled: { label: 'Cancelled', pill: 'bg-band text-muted-foreground' },
 };
 
-const dateTime = (iso: string) =>
-  formatInstant(iso, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const dateTime = (iso: string) => formatInstant(iso, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const time = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 const signed = (n: number) => (n > 0 ? `+${fmtQty(n)}` : n < 0 ? `−${fmtQty(-n)}` : '0');
 
@@ -135,16 +134,18 @@ export function TransferStockDrawer({
   return (
     <Drawer
       title="New transfer"
-      description={
-        from?.name ? `Send stock from ${from.name}. Nothing moves until it’s marked as arrived.` : 'Send stock to another location.'
+      leading={
+        <span className="flex size-10 items-center justify-center rounded-md bg-primary/8 text-primary">
+          <ArrowLeftRight size={20} aria-hidden="true" />
+        </span>
       }
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" className="flex-1" onClick={onClose} disabled={create.isPending}>
+          <Button variant="outline" size="default" className="flex-1" onClick={onClose} disabled={create.isPending}>
             Cancel
           </Button>
-          <Button type="submit" form={TRANSFER_FORM} size="lg" className="flex-1" disabled={create.isPending}>
+          <Button type="submit" form={TRANSFER_FORM} size="default" className="flex-1" disabled={create.isPending}>
             {create.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <ArrowLeftRight aria-hidden="true" />}
             Create transfer
           </Button>
@@ -154,25 +155,31 @@ export function TransferStockDrawer({
       <form
         id={TRANSFER_FORM}
         noValidate
-        className="space-y-7"
+        className="space-y-5"
         onSubmit={(event) => {
           event.preventDefault();
           setSubmitted(true);
           if (valid) create.mutate();
         }}
       >
-        <FormSection icon={MapPin} title="Route">
+        <section aria-label="Route" className="space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <div className="flex-1">
-              <span className="mb-1.5 block text-label uppercase text-muted-foreground">From</span>
+              <FieldLabel required className="mb-1.5">
+                From
+              </FieldLabel>
               <div className="flex h-9 items-center rounded-md border border-rule/60 bg-band/50 px-3 text-sm text-muted-foreground">
                 {from?.name ?? 'This location'}
               </div>
             </div>
             <ArrowRight size={16} className="mx-auto mb-2.5 hidden shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
             <div className="flex-1">
-              <span className="mb-1.5 block text-label uppercase text-muted-foreground">To</span>
+              <FieldLabel required htmlFor="transfer-destination" className="mb-1.5">
+                To
+              </FieldLabel>
               <Select
+                id="transfer-destination"
+                required
                 value={toLocationId}
                 onValueChange={setToLocationId}
                 options={[{ value: '', label: 'Choose a location' }, ...destinations.map((l) => ({ value: l.id, label: l.name }))]}
@@ -182,18 +189,24 @@ export function TransferStockDrawer({
             </div>
           </div>
           {submitted && !toLocationId && <p className="text-xs text-destructive">Choose where it’s going.</p>}
-        </FormSection>
+          <p className="text-xs text-muted-foreground">Stock moves when the transfer is marked as arrived.</p>
+        </section>
 
-        <FormSection icon={Package} title="Items">
+        <FormSection title="Items" icon={Package} collapsible defaultOpen invalid={submitted && errors.some(Boolean)}>
           <div className="space-y-3">
             {lines.map((line, index) => {
               const row = rowFor(line.stockItemId);
               const error = submitted ? errors[index] : null;
               return (
-                <div key={index} className="rounded-lg border border-rule/60 bg-card p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="min-w-0 flex-1">
+                <div key={index} className="space-y-2 border-b border-rule/45 pb-3 last:border-b-0 last:pb-0">
+                  <div className="grid grid-cols-[minmax(0,1fr)_2.25rem] items-end gap-2 sm:flex">
+                    <div className="col-span-2 flex min-w-0 flex-1 flex-col gap-1.5">
+                      <FieldLabel htmlFor={`transfer-item-${index}`} required>
+                        Item
+                      </FieldLabel>
                       <Select
+                        id={`transfer-item-${index}`}
+                        required
                         value={line.stockItemId}
                         onValueChange={(value) => setLine(index, { stockItemId: value })}
                         options={[
@@ -206,8 +219,10 @@ export function TransferStockDrawer({
                         className="w-full"
                       />
                     </div>
-                    <div className="w-32 shrink-0">
+                    <div className="min-w-0 sm:w-32 sm:shrink-0">
                       <Input
+                        label="Quantity"
+                        required
                         value={line.quantity}
                         onChange={(event) => setLine(index, { quantity: event.target.value })}
                         inputMode="decimal"
@@ -255,8 +270,9 @@ export function TransferStockDrawer({
           )}
         </FormSection>
 
-        <FormSection icon={FileText} title="Note">
+        <FormSection title="Note" icon={FileText} collapsible defaultOpen={Boolean(notes)}>
           <Input
+            label="Note"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             maxLength={1000}
@@ -314,7 +330,12 @@ export function ItemTransfersSection({
   const exhausted = !query.hasNextPage && !query.isFetchingNextPage;
 
   return (
-    <motion.div className="flex flex-1 flex-col space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+    <motion.div
+      className="flex flex-1 flex-col space-y-5"
+      initial="hidden"
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
+    >
       <motion.div variants={SECTION_RISE} className="flex min-h-9 flex-wrap items-center gap-2">
         <h2 className="flex-1 text-base font-semibold tracking-title text-foreground">Transfers</h2>
         <Select
@@ -529,6 +550,7 @@ function TransferDrawer({
 
   return (
     <Drawer
+      icon={ArrowLeftRight}
       title={
         out
           ? `Transfer to ${transfer.toLocation?.name ?? 'another location'}`
@@ -540,10 +562,10 @@ function TransferDrawer({
         actionable ? (
           confirmCancel ? (
             <div className="flex gap-2">
-              <Button variant="outline" size="lg" className="flex-1" onClick={() => setConfirmCancel(false)} disabled={pending}>
+              <Button variant="outline" size="default" className="flex-1" onClick={() => setConfirmCancel(false)} disabled={pending}>
                 Keep it
               </Button>
-              <Button variant="destructive" size="lg" className="flex-1" onClick={() => cancel.mutate()} disabled={pending}>
+              <Button variant="destructive" size="default" className="flex-1" onClick={() => cancel.mutate()} disabled={pending}>
                 {cancel.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <X aria-hidden="true" />}
                 Cancel transfer
               </Button>
@@ -552,14 +574,14 @@ function TransferDrawer({
             <div className="flex gap-2">
               <Button
                 variant="ghost"
-                size="lg"
+                size="default"
                 className="text-exception hover:bg-exception/6 hover:text-exception"
                 onClick={() => setConfirmCancel(true)}
                 disabled={pending}
               >
                 Cancel transfer
               </Button>
-              <Button size="lg" className="flex-1" onClick={() => complete.mutate()} disabled={pending}>
+              <Button size="default" className="flex-1" onClick={() => complete.mutate()} disabled={pending}>
                 {complete.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
                 Mark as arrived
               </Button>
@@ -569,7 +591,7 @@ function TransferDrawer({
       }
     >
       <div className="space-y-6">
-        <div className="rounded-lg border border-rule/60 bg-card p-4">
+        <div className="rounded-lg border border-rule/60 bg-field p-4">
           <div className="flex items-center gap-3 text-sm">
             <span className={cn('min-w-0 flex-1 truncate font-semibold', out ? 'text-foreground' : 'text-muted-foreground')}>
               {transfer.fromLocation?.name ?? 'From'}
@@ -602,7 +624,7 @@ function TransferDrawer({
           <h3 className="mb-2 text-sm font-semibold text-foreground">
             Items <span className="font-normal text-muted-foreground">· {transfer.lines.length}</span>
           </h3>
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
             {transfer.lines.map((line) => (
               <li key={line.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary" aria-hidden="true">
@@ -620,7 +642,9 @@ function TransferDrawer({
         {transfer.notes && (
           <section>
             <h3 className="mb-2 text-sm font-semibold text-foreground">Note</h3>
-            <p className="rounded-lg border border-rule/60 bg-card px-3.5 py-3 text-sm leading-relaxed text-foreground">{transfer.notes}</p>
+            <p className="rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-sm leading-relaxed text-foreground">
+              {transfer.notes}
+            </p>
           </section>
         )}
       </div>

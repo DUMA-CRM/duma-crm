@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { hasCapability } from '@/lib/auth/capabilities';
-import { useAuthStore } from '@/stores/authStore';
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
 import {
   type PaymentMethod,
@@ -27,6 +26,7 @@ import {
 } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -531,6 +531,7 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
     queryKey: moduleQueryKeys.payments.key('payment-connections', locationId),
     queryFn: () => getPaymentConnections(locationId!),
     enabled: !!locationId && hasCapability(capabilities, 'payments.connections:read'),
+    meta: { silentForbidden: true },
   });
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-connections') });

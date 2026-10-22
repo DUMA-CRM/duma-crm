@@ -3,13 +3,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { AlertTriangle, MapPin, Package, Sparkles } from '@/components/icons';
+import { AlertTriangle, FileText, Loader2, PackagePlus, Sparkles } from '@/components/icons';
 import { ParMeter, STATUS_LABEL, STATUS_TONE, fmtQty, getStatus, statusGlyph } from '@/components/inventory/stock/shared';
+import { Drawer } from '@/components/shared/Drawer';
+import { FormSection } from '@/components/shared/FormParts';
 import { Pill } from '@/components/shared/Pill';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { TONE_TINT } from '@/components/shared/tone';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { FieldLabel, Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { type LocationStock, getLocationStock } from '@/lib/modules/inventory/client';
@@ -21,7 +24,7 @@ import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const selectClass = cn(
-  'w-full h-9 bg-control border border-input rounded-sm px-3 pr-8 text-sm text-foreground',
+  'w-full h-9 bg-control border border-input rounded-md px-3 pr-8 text-sm text-foreground',
   'outline-none focus:border-primary focus:ring-2 focus:ring-primary/15',
   'transition-[border-color,box-shadow] duration-150 appearance-none cursor-pointer',
   'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -51,7 +54,7 @@ function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSug
     Number.isFinite(configuredReorder) && configuredReorder > 0 ? Math.ceil(configuredReorder) : Math.max(Math.ceil(target - qty), 1);
 
   return (
-    <div className="space-y-3 rounded-lg border border-rule/60 bg-card p-4">
+    <div className="space-y-3 rounded-lg border border-rule/60 bg-field p-4">
       <div className="flex items-center gap-3">
         <span
           className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', TONE_TINT[STATUS_TONE[status]])}
@@ -91,7 +94,7 @@ function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSug
   );
 }
 
-export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
+export function RestockRequestDrawer({ onSubmitted, onClose }: { onSubmitted?: () => void; onClose: () => void }) {
   const { tenantId, locationId } = useWorkspaceStore();
   const queryClient = useQueryClient();
 
@@ -178,140 +181,121 @@ export function RestockRequestForm({ onSubmitted }: { onSubmitted?: () => void }
 
   // The drawer body owns the scrolling — this just lays the form out beside its live context.
   return (
-    <div className="grid items-start gap-6 grid-cols-1 xl:grid-cols-[minmax(0,26rem)_1fr]">
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Location (set from the top bar) */}
-        <div className="flex flex-col gap-1.5">
-          <Label uppercase>Location</Label>
-          <div className="h-9 px-3 bg-band rounded-sm flex items-center gap-2 text-sm">
-            <MapPin size={14} className="text-muted-foreground shrink-0" />
-            {locationName ? (
-              <span className="font-medium text-foreground truncate">{locationName}</span>
-            ) : (
-              <span className="text-muted-foreground">No location selected — choose one from the location picker</span>
+    <Drawer
+      icon={PackagePlus}
+      title="New restock request"
+      description={locationName}
+      onClose={onClose}
+      footer={
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onClose} className="flex-1" disabled={isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" form="restock-request-form" disabled={isPending || !locationId || !!duplicatePending} className="flex-1">
+            {isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+            {isPending ? 'Submitting…' : 'Request restock'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-5">
+        {/* Form */}
+        <form id="restock-request-form" onSubmit={handleSubmit} className="space-y-5">
+          {/* Stock Item */}
+          <div className="flex flex-col gap-1.5">
+            <Label required uppercase>
+              Item
+            </Label>
+            <Select
+              value={validStockItemId}
+              onValueChange={(value) => {
+                setStockItemId(value);
+                setErrors((prev) => ({ ...prev, stockItem: undefined }));
+              }}
+              options={[
+                {
+                  value: '',
+                  label: loadingStock
+                    ? 'Loading items…'
+                    : availableItems.length === 0 && locationId
+                      ? 'No available items'
+                      : 'Select item…',
+                },
+                ...availableItems.map((item) => ({
+                  value: item.stockItemId,
+                  label: `${item.stockItem!.name} · ${fmtQty(Number(item.quantity))} ${item.stockItem!.unit}`,
+                })),
+              ]}
+              ariaLabel="Select stock item"
+              ariaInvalid={Boolean(errors.stockItem)}
+              disabled={!locationId || loadingStock}
+              className={selectClass}
+            />
+            {!locationId && <p className="text-xs text-muted-foreground">Select a location before sending this request.</p>}
+            {errors.stockItem && <p className="text-xs text-destructive">{errors.stockItem}</p>}
+            {duplicatePending && (
+              <div className="flex items-start gap-2 rounded-md border border-warning/20 bg-warning/5 px-3 py-2 text-xs text-warning">
+                <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <span>
+                  A pending request already exists for {duplicatePending.requestedQty} {selectedItem?.stockItem?.unit ?? 'units'}.
+                </span>
+              </div>
             )}
           </div>
-        </div>
 
-        {/* Stock Item */}
-        <div className="flex flex-col gap-1.5">
-          <Label uppercase>Item</Label>
-          <Select
-            value={validStockItemId}
-            onValueChange={(value) => {
-              setStockItemId(value);
-              setErrors((prev) => ({ ...prev, stockItem: undefined }));
-            }}
-            options={[
-              {
-                value: '',
-                label: loadingStock ? 'Loading items…' : availableItems.length === 0 && locationId ? 'No available items' : 'Select item…',
-              },
-              ...availableItems.map((item) => ({
-                value: item.stockItemId,
-                label: `${item.stockItem!.name} · ${fmtQty(Number(item.quantity))} ${item.stockItem!.unit}`,
-              })),
-            ]}
-            ariaLabel="Select stock item"
-            ariaInvalid={Boolean(errors.stockItem)}
-            disabled={!locationId || loadingStock}
-            className={selectClass}
-          />
-          {!locationId && <p className="text-xs text-muted-foreground">Select a location before sending this request.</p>}
-          {errors.stockItem && <p className="text-xs text-destructive">{errors.stockItem}</p>}
-          {duplicatePending && (
-            <div className="flex items-start gap-2 rounded-sm border border-warning/20 bg-warning/5 px-3 py-2 text-xs text-warning">
-              <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-              <span>
-                A pending request already exists for {duplicatePending.requestedQty} {selectedItem?.stockItem?.unit ?? 'units'}.
-              </span>
+          {/* Context follows the selected item, above the optional note. */}
+          {selectedItem && (
+            <div>
+              <StockContextCard
+                ls={selectedItem}
+                onUseSuggestion={(q) => {
+                  setQty(String(q));
+                  setErrors((prev) => ({ ...prev, qty: undefined }));
+                }}
+              />
             </div>
           )}
-        </div>
-
-        {/* Quantity + Unit */}
-        <div className="flex flex-col gap-1.5">
-          <Label uppercase>Quantity</Label>
-          <div className="flex gap-3 items-center">
-            <input
-              type="number"
-              min={1}
-              value={qty}
-              onChange={(e) => {
-                setQty(e.target.value);
-                setErrors((prev) => ({ ...prev, qty: undefined }));
-              }}
-              placeholder="0"
-              className={cn(
-                'flex-1 h-9 px-3 bg-control border border-input rounded-sm text-sm text-foreground',
-                'placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15',
-                'transition-[border-color,box-shadow] duration-150',
-                errors.qty && 'border-destructive/60 focus:border-destructive focus:ring-destructive/15',
-              )}
-            />
-            <div
-              className={cn(
-                'h-9 px-3 bg-band rounded-sm flex items-center text-sm font-medium shrink-0 border border-input',
-                selectedItem?.stockItem?.unit ? 'text-foreground' : 'text-muted-foreground',
-              )}
-            >
-              {selectedItem?.stockItem?.unit ?? 'unit'}
-            </div>
-          </div>
-          {errors.qty && <p className="text-xs text-destructive">{errors.qty}</p>}
-        </div>
-
-        {/* Priority */}
-        <div className="flex flex-col gap-1.5">
-          <Label uppercase>Priority</Label>
-          <SegmentedControl options={PRIORITY_OPTIONS} value={priority} onChange={setPriority} />
-        </div>
-
-        {/* Notes */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-baseline gap-1.5">
-            <Label uppercase>Notes</Label>
-            <span className="text-xs text-muted-foreground">(optional)</span>
-          </div>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Any additional context for this request…"
-            maxLength={900}
-            rows={3}
-            className={cn(
-              'w-full bg-control border border-input rounded-sm px-3 py-2 text-sm text-foreground',
-              'placeholder:text-muted-foreground outline-none resize-none',
-              'focus:border-primary focus:ring-2 focus:ring-primary/15',
-              'transition-[border-color,box-shadow] duration-150',
-            )}
-          />
-        </div>
-
-        <Button type="submit" disabled={isPending || !locationId || !!duplicatePending} size="lg" className="w-full">
-          {isPending ? 'Submitting…' : 'Submit Request'}
-        </Button>
-      </form>
-
-      {/* Live context for the selected item */}
-      <div className="flex flex-col gap-1.5">
-        <Label uppercase>Item stock</Label>
-        {selectedItem ? (
-          <StockContextCard
-            ls={selectedItem}
-            onUseSuggestion={(q) => {
-              setQty(String(q));
+          <Input
+            required
+            label="Quantity"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            step={1}
+            value={qty}
+            onChange={(e) => {
+              setQty(e.target.value);
               setErrors((prev) => ({ ...prev, qty: undefined }));
             }}
+            placeholder="0"
+            rightIcon={<span className="text-xs">{selectedItem?.stockItem?.unit ?? 'unit'}</span>}
+            error={errors.qty}
           />
-        ) : (
-          <div className="rounded-sm border border-dashed border-rule p-5 text-center">
-            <Package size={20} className="mx-auto mb-2 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground">Pick an item to see its current stock level and a suggested order amount.</p>
-          </div>
-        )}
+
+          <FormSection icon={AlertTriangle} title="Priority" collapsible defaultOpen={priority === 'urgent'}>
+            <div className="flex flex-col gap-1.5">
+              <Label required uppercase>
+                Priority
+              </Label>
+              <SegmentedControl options={PRIORITY_OPTIONS} value={priority} onChange={setPriority} />
+            </div>
+          </FormSection>
+
+          <FormSection icon={FileText} title="Note" collapsible>
+            <FieldLabel htmlFor="restock-request-note">Note</FieldLabel>
+            <textarea
+              id="restock-request-note"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              aria-label="Note"
+              placeholder="Additional context…"
+              maxLength={900}
+              rows={3}
+              className="w-full rounded-md border border-input bg-control px-3 py-2 text-base sm:text-sm outline-none focus-visible:outline-2 focus-visible:outline-ring"
+            />
+          </FormSection>
+        </form>
       </div>
-    </div>
+    </Drawer>
   );
 }

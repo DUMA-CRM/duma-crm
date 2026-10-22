@@ -8,14 +8,14 @@ import { ArrowUp, Loader2 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { QUESTION_MAX, QUESTION_MIN, QUICK_QUESTIONS, type ReservationFacts } from '@/lib/ai/reservation-assist';
+import { QUESTION_MAX, QUESTION_MIN, type ReservationFacts } from '@/lib/ai/reservation-assist';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /**
- * Ask DUMA about the booking that's open: a chip for the usual questions, a
- * line for anything else, and the answer in the mascot's bubble. The booking's
+ * Ask DUMA about the booking that's open, with the answer in the mascot's
+ * bubble. The booking's
  * facts go with the question — the agent has no reservations tools of its own.
  * Hidden while the workspace has Ask DUMA switched off.
  */
@@ -65,19 +65,6 @@ export function BookingAssist({ facts }: { facts: ReservationFacts }) {
         cheer={cheer}
       />
       {reply && !busy && <p className="pl-16 text-xs text-muted-foreground">You asked: {reply.asked}</p>}
-      <div className="flex flex-wrap gap-1.5">
-        {QUICK_QUESTIONS.map((quick) => (
-          <button
-            key={quick}
-            type="button"
-            disabled={busy}
-            onClick={() => void ask(quick)}
-            className="rounded-md border border-rule/60 bg-control px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-rule hover:text-foreground disabled:opacity-50"
-          >
-            {quick}
-          </button>
-        ))}
-      </div>
       <form
         className="flex items-center gap-2"
         onSubmit={(event) => {

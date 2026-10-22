@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { AlertTriangle, Loader2, Plus, Trash2 } from '@/components/icons';
+import { AlertTriangle, Banknote, Loader2, Plus, Trash2 } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
@@ -90,6 +90,7 @@ export function LineEditor({
 
   return (
     <Drawer
+      icon={Banknote}
       title={line.employeeName ?? 'Payslip'}
       description={`Gross ${money(line.grossPay)} · ${Number(line.paidHours)} paid hours`}
       onClose={onClose}
@@ -100,10 +101,14 @@ export function LineEditor({
               <p className="text-xs text-muted-foreground">Net pay</p>
               <p className="text-lg font-semibold text-foreground">{money(net)}</p>
             </div>
-            <Button variant="outline" size="lg" onClick={onClose} disabled={save.isPending}>
+            <Button variant="outline" size="default" onClick={onClose} disabled={save.isPending}>
               Cancel
             </Button>
-            <Button size="lg" onClick={() => save.mutate()} disabled={save.isPending || incomplete || !/^-?\d+(\.\d{1,2})?$/.test(net)}>
+            <Button
+              size="default"
+              onClick={() => save.mutate()}
+              disabled={save.isPending || incomplete || !/^-?\d+(\.\d{1,2})?$/.test(net)}
+            >
               {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
               Save payslip
             </Button>
@@ -112,6 +117,40 @@ export function LineEditor({
       }
     >
       <div className="space-y-6">
+        <section className="rounded-lg border border-rule/60 bg-field">
+          <dl className="divide-y divide-rule/45">
+            <Row label="Gross pay" value={money(line.grossPay)} />
+            <Row label="Taken from their pay" value={`− ${money(totals.employee)}`} />
+            <Row
+              label="Net pay"
+              value={
+                editable ? (
+                  <input
+                    value={net}
+                    onChange={(event) => AMOUNT.test(event.target.value) && setNetOverride(event.target.value)}
+                    inputMode="decimal"
+                    aria-label="Net pay"
+                    className="h-8 w-32 rounded-md border border-input bg-background px-2.5 text-right text-sm font-semibold text-foreground outline-none focus-visible:border-ring"
+                  />
+                ) : (
+                  money(line.netPay)
+                )
+              }
+              strong
+            />
+            <Row label="Employer pays on top" value={money(totals.employer)} muted />
+          </dl>
+          {netOverride !== null && editable && (
+            <button
+              type="button"
+              className="w-full border-t border-rule/45 px-4 py-2 text-left text-xs font-semibold text-primary"
+              onClick={() => setNetOverride(null)}
+            >
+              Use the worked-out net ({money(suggested)})
+            </button>
+          )}
+        </section>
+
         <section>
           <div className="flex items-baseline justify-between">
             <h3 className="text-sm font-semibold text-foreground">Deductions and contributions</h3>
@@ -121,7 +160,7 @@ export function LineEditor({
           <ul className="mt-2.5 space-y-2">
             {items.map((item, index) => (
               <li key={index} className="rounded-lg border border-rule/60 bg-field p-3">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <input
                     value={item.label}
                     onChange={(event) => update(index, { label: event.target.value })}
@@ -129,7 +168,7 @@ export function LineEditor({
                     aria-label="Line name"
                     maxLength={120}
                     disabled={!editable}
-                    className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring disabled:opacity-60"
+                    className="h-9 min-w-0 basis-full sm:basis-auto flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring disabled:opacity-60"
                   />
                   <input
                     value={item.amount}
@@ -138,7 +177,7 @@ export function LineEditor({
                     placeholder="0.00"
                     aria-label={`${item.label || 'Line'} amount`}
                     disabled={!editable}
-                    className="h-9 w-28 rounded-md border border-input bg-background px-3 text-right text-sm font-semibold text-foreground outline-none focus-visible:border-ring disabled:opacity-60"
+                    className="h-9 w-28 flex-1 sm:flex-none rounded-md border border-input bg-background px-3 text-right text-sm font-semibold text-foreground outline-none focus-visible:border-ring disabled:opacity-60"
                   />
                   {editable && (
                     <Button
@@ -200,40 +239,6 @@ export function LineEditor({
                 <Plus size={12} aria-hidden="true" /> Another line
               </button>
             </div>
-          )}
-        </section>
-
-        <section className="rounded-lg border border-rule/60 bg-field">
-          <dl className="divide-y divide-rule/45">
-            <Row label="Gross pay" value={money(line.grossPay)} />
-            <Row label="Taken from their pay" value={`− ${money(totals.employee)}`} />
-            <Row
-              label="Net pay"
-              value={
-                editable ? (
-                  <input
-                    value={net}
-                    onChange={(event) => AMOUNT.test(event.target.value) && setNetOverride(event.target.value)}
-                    inputMode="decimal"
-                    aria-label="Net pay"
-                    className="h-8 w-32 rounded-md border border-input bg-background px-2.5 text-right text-sm font-semibold text-foreground outline-none focus-visible:border-ring"
-                  />
-                ) : (
-                  money(line.netPay)
-                )
-              }
-              strong
-            />
-            <Row label="Employer pays on top" value={money(totals.employer)} muted />
-          </dl>
-          {netOverride !== null && editable && (
-            <button
-              type="button"
-              className="w-full border-t border-rule/45 px-4 py-2 text-left text-xs font-semibold text-primary"
-              onClick={() => setNetOverride(null)}
-            >
-              Use the worked-out net ({money(suggested)})
-            </button>
           )}
         </section>
 

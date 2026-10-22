@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils/cn';
 import { STATUS_BADGE, STATUS_LABELS, isLive } from '@/lib/utils/reservations';
 import { formatInstant } from '@/lib/utils/workspace-time';
 
+import { CustomerDisclosure } from './CustomerSection';
+
 /**
  * Their table bookings — coming up first, then the most recent past ones — at
  * the locations the viewer can reach. Only bookings linked to this record:
@@ -92,10 +94,9 @@ export function CustomerBookings({ customerId }: { customerId: string }) {
             </section>
           )}
           {past.length > 0 && (
-            <section aria-label="Past">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Past</p>
+            <CustomerDisclosure title={`Past bookings · ${past.length}`}>
               <ul className="space-y-2">{past.slice(0, 10).map(row)}</ul>
-            </section>
+            </CustomerDisclosure>
           )}
         </div>
       )}

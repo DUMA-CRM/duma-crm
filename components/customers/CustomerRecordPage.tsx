@@ -6,9 +6,9 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 
 import { CustomerAddresses } from '@/components/customers/CustomerAddresses';
+import { CustomerBookings } from '@/components/customers/CustomerBookings';
 import { CustomerFormDrawer } from '@/components/customers/CustomerForm';
 import { CustomerLoyaltyCards } from '@/components/customers/CustomerLoyaltyCards';
-import { CustomerBookings } from '@/components/customers/CustomerBookings';
 import { CustomerReferralCard } from '@/components/customers/CustomerReferralCard';
 import { CustomerTimeline } from '@/components/customers/CustomerTimeline';
 import { CustomerWorkbench, type WorkbenchAction } from '@/components/customers/CustomerWorkbench';
@@ -43,6 +43,7 @@ import { Bone, LoadingState } from '@/components/shared/Skeleton';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 
 import { ApiError } from '@/lib/api/client';
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -272,7 +273,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
       actions={
         startOrder ? (
           <Button
-            className="h-9 gap-1.5"
+            size="sm"
+            className="hidden gap-1.5 md:inline-flex"
             onClick={() => router.push(startOrder)}
             aria-label={posOn ? 'Start an order at the Till' : 'Start an order for this customer'}
           >
@@ -282,7 +284,28 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
         ) : undefined
       }
       subheader={
-        customer ? <SectionTabs tabs={sections} value={section} onChange={setSection} ariaLabel="Customer record sections" /> : undefined
+        customer ? (
+          <>
+            <div className="flex items-center gap-2 border-b border-rule/60 bg-background px-3 py-2 md:hidden">
+              <Select
+                value={section}
+                onValueChange={(value) => setSection(value as Section)}
+                options={sections.map(({ value, label }) => ({ value, label }))}
+                ariaLabel="Customer section"
+                className="min-w-0 flex-1"
+              />
+              {startOrder && (
+                <Button size="sm" onClick={() => router.push(startOrder)}>
+                  <ShoppingBag size={14} aria-hidden="true" />
+                  Start an order
+                </Button>
+              )}
+            </div>
+            <div className="hidden md:block">
+              <SectionTabs tabs={sections} value={section} onChange={setSection} ariaLabel="Customer record sections" />
+            </div>
+          </>
+        ) : undefined
       }
     >
       {isLoading ? (
@@ -305,10 +328,9 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
           </div>
         </div>
       ) : (
-        // Keyed by tab so only the body re-enters on a switch — the shell's
-        // stagger, the same as the settings tabs.
+        // Keep notes and disclosures stable between tabs; reset for a different customer.
         <motion.div
-          key={section}
+          key={customer.id}
           className="space-y-5"
           initial={reduceMotion ? false : 'hidden'}
           animate="shown"
@@ -355,7 +377,68 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
               The settings body's grid with its narrow rail. The rail comes
               first in the DOM so that on a phone the verbs sit above the
               analytics; on a desk it is placed back on the right. */}
-          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_21rem]">
+            <div className="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
+              {section === 'guest' ? (
+                <>
+                  <GlanceFacts customer={customer} avgTicket={avgTicket} summary={visitSummary} money={money} />
+
+                  {orderingOn && !visitsForbidden && (
+                    <SettingsSection
+                      title="Visit pattern"
+                      description={
+                        visitsQuery.isSuccess
+                          ? `${visitSummary.visitDays.toLocaleString()} ${visitSummary.visitDays === 1 ? 'visit day' : 'visit days'} in the last ${VISIT_MONTHS} months · ${money(visitSummary.spend)} spent`
+                          : `The last ${VISIT_MONTHS} months, one square a day.`
+                      }
+                      actions={
+                        visitsQuery.isSuccess ? (
+                          <span className="hidden sm:block">
+                            <VisitLegend />
+                          </span>
+                        ) : undefined
+                      }
+                      footnote={visitsQuery.isSuccess && visits.length >= 200 ? 'Drawn from their most recent 200 orders.' : undefined}
+                    >
+                      {visitsQuery.isPending ? (
+                        <div role="status" aria-busy="true" aria-label="Loading visits">
+                          <Bone className="h-40 rounded-lg" />
+                        </div>
+                      ) : visitsQuery.isError ? (
+                        <ErrorState
+                          className="py-8"
+                          title="Visits couldn’t be loaded"
+                          description="The rest of the record is unaffected."
+                          onRetry={() => void visitsQuery.refetch()}
+                        />
+                      ) : (
+                        <>
+                          <VisitCalendar visits={visits} today={today} months={VISIT_MONTHS} money={money} />
+                          <div className="mt-3 sm:hidden">
+                            <VisitLegend />
+                          </div>
+                        </>
+                      )}
+                    </SettingsSection>
+                  )}
+
+                  {reservationsOn && !erased && hasCapability(capabilities, 'reservations:read') && (
+                    <CustomerBookings customerId={customer.id} />
+                  )}
+
+                  {!erased && <CustomerAddresses customer={customer} canEdit={canEdit} />}
+                </>
+              ) : section === 'timeline' ? (
+                <CustomerTimeline customerId={customer.id} />
+              ) : (
+                // Two blocks headed on the page, as the staff record lays them
+                // out: more air between them than between panels.
+                <div className="space-y-8">
+                  {commsOn && <MarketingPreferencesPanel customerId={customer.id} email={customer.email} />}
+                  {complianceOn && <PrivacyRequestsPanel customerId={customer.id} tenantId={customer.tenantId} />}
+                </div>
+              )}
+            </div>
             <CustomerWorkbench
               customer={customer}
               loyaltyProgrammes={loyaltyWallet?.programmes ?? []}
@@ -403,55 +486,6 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
               onAction={setModal}
               className="lg:col-start-2 lg:row-start-1"
             />
-
-            <div className="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
-              {section === 'guest' ? (
-                <>
-                  <GlanceFacts customer={customer} avgTicket={avgTicket} summary={visitSummary} money={money} />
-
-                  {orderingOn && !visitsForbidden && (
-                    <SettingsSection
-                      title="Visit pattern"
-                      description={
-                        visitsQuery.isSuccess
-                          ? `${visitSummary.visitDays.toLocaleString()} ${visitSummary.visitDays === 1 ? 'visit day' : 'visit days'} in the last ${VISIT_MONTHS} months · ${money(visitSummary.spend)} spent`
-                          : `The last ${VISIT_MONTHS} months, one square a day.`
-                      }
-                      actions={visitsQuery.isSuccess ? <VisitLegend /> : undefined}
-                      footnote={visitsQuery.isSuccess && visits.length >= 200 ? 'Drawn from their most recent 200 orders.' : undefined}
-                    >
-                      {visitsQuery.isPending ? (
-                        <div role="status" aria-busy="true" aria-label="Loading visits">
-                          <Bone className="h-40 rounded-lg" />
-                        </div>
-                      ) : visitsQuery.isError ? (
-                        <ErrorState
-                          className="py-8"
-                          title="Visits couldn’t be loaded"
-                          description="The rest of the record is unaffected."
-                          onRetry={() => void visitsQuery.refetch()}
-                        />
-                      ) : (
-                        <VisitCalendar visits={visits} today={today} months={VISIT_MONTHS} money={money} />
-                      )}
-                    </SettingsSection>
-                  )}
-
-                  {reservationsOn && !erased && hasCapability(capabilities, 'reservations:read') && <CustomerBookings customerId={customer.id} />}
-
-                  {!erased && <CustomerAddresses customer={customer} canEdit={canEdit} />}
-                </>
-              ) : section === 'timeline' ? (
-                <CustomerTimeline customerId={customer.id} />
-              ) : (
-                // Two blocks headed on the page, as the staff record lays them
-                // out: more air between them than between panels.
-                <div className="space-y-8">
-                  {commsOn && <MarketingPreferencesPanel customerId={customer.id} email={customer.email} />}
-                  {complianceOn && <PrivacyRequestsPanel customerId={customer.id} tenantId={customer.tenantId} />}
-                </div>
-              )}
-            </div>
           </div>
         </motion.div>
       )}
@@ -464,6 +498,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
 
       {modal === 'email' && customer?.email && (
         <SendEmailModal
+          className="rounded-xl bg-field"
           customerId={customer.id}
           recipientName={`${customer.firstName} ${customer.lastName}`}
           recipientEmail={customer.email}
@@ -506,18 +541,18 @@ function GlanceFacts({
   money: (amount: string | number | null | undefined) => string;
 }) {
   return (
-    <motion.dl variants={SECTION_RISE} className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-      <Fact surface="page" icon={Wallet} label="Lifetime spend" value={money(customer.totalSpent)} />
+    <motion.dl variants={SECTION_RISE} className="grid grid-cols-2 gap-3 2xl:grid-cols-4 [&_dd+dd]:hidden sm:[&_dd+dd]:block">
+      <Fact surface="card" icon={Wallet} label="Lifetime spend" value={money(customer.totalSpent)} />
       <Fact
-        surface="page"
+        surface="card"
         icon={Repeat}
         label="Visits"
         value={customer.totalVisits.toLocaleString()}
         hint={customer.lastVisitAt ? `Last visit ${fmtDate(customer.lastVisitAt)}` : 'No visits yet'}
       />
-      <Fact surface="page" icon={Receipt} label="Average order" value={customer.totalVisits > 0 ? money(avgTicket) : '—'} />
+      <Fact surface="card" icon={Receipt} label="Average order" value={customer.totalVisits > 0 ? money(avgTicket) : '—'} />
       <Fact
-        surface="page"
+        surface="card"
         icon={Clock}
         label="Comes back"
         value={summary.averageGapDays === null ? '—' : summary.averageGapDays <= 1 ? 'Daily' : `Every ${summary.averageGapDays} days`}

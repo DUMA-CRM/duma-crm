@@ -74,9 +74,8 @@ export function CustomersWorkspace() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [mergePair, setMergePair] = useState<{ a: Customer; b: Customer } | null>(null);
 
-  // Cards are the default: the page opens on the tile grid, and a device that
-  // has chosen the table keeps it (the stored preference wins over this).
-  const view = useUiSettingsStore((state) => state.listViews.customers ?? 'cards');
+  // Lists scan quickly; keep any layout this device has already chosen.
+  const view = useUiSettingsStore((state) => state.listViews.customers ?? 'table');
   const setListView = useUiSettingsStore((state) => state.setListView);
 
   const canWriteSegments = hasCapability(capabilities, 'segments:write');
@@ -219,10 +218,11 @@ export function CustomersWorkspace() {
       icon={<Users size={20} aria-hidden="true" />}
       actions={
         tenantId ? (
-          <>
+          <div className="hidden items-center gap-2 md:flex">
             {canMerge && (
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => router.push('/customers/duplicates')}
                 aria-label="Find duplicate customer records"
                 className="gap-1.5"
@@ -232,18 +232,48 @@ export function CustomersWorkspace() {
               </Button>
             )}
             {hasCapability(capabilities, 'customers:points') && (
-              <Button variant="outline" onClick={() => router.push('/customers/loyalty')} className="gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label="Loyalty rules"
+                onClick={() => router.push('/customers/loyalty')}
+                className="gap-1.5"
+              >
                 <Gift size={15} aria-hidden="true" />
                 <span className="hidden lg:inline">Loyalty rules</span>
               </Button>
             )}
             {canCreate && (
-              <Button className="gap-1.5" onClick={() => setShowCreate(true)} aria-label="New customer">
+              <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(true)} aria-label="New customer">
                 <Plus size={15} aria-hidden="true" />
-                <span className="hidden md:inline">New customer</span>
+                <span className="hidden sm:inline">New customer</span>
               </Button>
             )}
-          </>
+          </div>
+        ) : undefined
+      }
+      subheader={
+        tenantId ? (
+          <div className="flex flex-wrap items-center gap-2 border-b border-rule/60 bg-background px-3 py-2 md:hidden">
+            {canCreate && (
+              <Button size="sm" onClick={() => setShowCreate(true)}>
+                <Plus size={14} aria-hidden="true" />
+                New customer
+              </Button>
+            )}
+            {canMerge && (
+              <Button size="sm" variant="outline" onClick={() => router.push('/customers/duplicates')}>
+                <Combine size={14} aria-hidden="true" />
+                Duplicates
+              </Button>
+            )}
+            {hasCapability(capabilities, 'customers:points') && (
+              <Button size="sm" variant="outline" onClick={() => router.push('/customers/loyalty')}>
+                <Gift size={14} aria-hidden="true" />
+                Loyalty
+              </Button>
+            )}
+          </div>
         ) : undefined
       }
     >
@@ -251,18 +281,18 @@ export function CustomersWorkspace() {
         <EmptyState icon={Users} title="No workspace selected" description="Choose a workspace to view its customers." />
       ) : (
         <div className="flex flex-1 flex-col gap-5">
-          <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Fact surface="page" icon={Users} label="Customers" value={count(0)} hint="Everyone on your list" />
-            <Fact surface="page" icon={Mail} label="Can be emailed" value={count(1)} hint="Opted in to marketing" />
+          <dl className="grid grid-cols-2 gap-3 xl:grid-cols-4 [&_dd+dd]:hidden sm:[&_dd+dd]:block">
+            <Fact surface="card" icon={Users} label="Customers" value={count(0)} hint="Everyone on your list" />
+            <Fact surface="card" icon={Mail} label="Can be emailed" value={count(1)} hint="Opted in to marketing" />
             <Fact
-              surface="page"
+              surface="card"
               icon={Gift}
               label="Birthdays this month"
               value={count(2)}
               hint={new Date(2000, month - 1, 1).toLocaleDateString('en-GB', { month: 'long' })}
             />
             <Fact
-              surface="page"
+              surface="card"
               icon={UserMinus}
               label="Not seen in 60 days"
               value={count(3)}

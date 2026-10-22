@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useId, useState } from 'react';
 
-import { AlertTriangle, CheckCircle2, ChevronDown } from '@/components/icons';
+import { AlertTriangle, ChevronDown } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,6 @@ export function NeedsAttention({
   label = 'Needs attention',
   summary,
   icon: SummaryIcon = AlertTriangle,
-  clear,
   className,
 }: {
   items: NeedsAttentionItem[];
@@ -52,31 +51,14 @@ export function NeedsAttention({
   /** The folded line; defaults to "N things need you". */
   summary?: string;
   icon?: IconComponent;
-  /** Shown when nothing needs anyone. Omit to render nothing instead. */
-  clear?: { title: string; detail?: string };
   className?: string;
 }) {
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const listId = useId();
 
-  if (items.length === 0) {
-    if (!clear) return null;
-    return (
-      <motion.section
-        variants={SECTION_RISE}
-        className={cn('flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5', className)}
-      >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-momentum/10 text-momentum">
-          <CheckCircle2 size={18} aria-hidden="true" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-foreground">{clear.title}</span>
-          {clear.detail && <span className="block text-xs text-muted-foreground">{clear.detail}</span>}
-        </span>
-      </motion.section>
-    );
-  }
+  // Attention is only shown when there is something to act on.
+  if (items.length === 0) return null;
 
   const worst: NeedsAttentionTone = items.some((item) => item.tone === 'exception')
     ? 'exception'
