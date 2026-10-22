@@ -440,6 +440,12 @@ export const uploadCmsAsset = (file: File, meta: { title?: string; altText?: str
   for (const [key, value] of Object.entries(meta)) if (value) body.set(key, value);
   return apiFetch<CmsAsset>(`/cms/assets?${qs(tenantId)}`, { method: 'POST', body, timeoutMs: 120_000 });
 };
+/**
+ * An image from a link, fetched by the API into the media library (https, public hosts, images up to 25 MB) —
+ * so a media field can be filled from a URL. Returns the new asset.
+ */
+export const importCmsAsset = (url: string, meta: { title?: string; altText?: string; folder?: string }, tenantId?: string) =>
+  apiFetch<CmsAsset>(`/cms/assets/import?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify({ url, ...meta }), timeoutMs: 60_000 });
 /** The file's bytes, read through the API (a bucket may send no CORS headers). */
 export const getCmsAssetFile = (id: string, tenantId?: string) =>
   apiFetch<Blob>(`/cms/assets/${id}/file?${qs(tenantId)}`, { asBlob: true, timeoutMs: 120_000 });

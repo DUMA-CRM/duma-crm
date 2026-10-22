@@ -42,6 +42,7 @@ import { TRIGGER_HELP, TRIGGER_OPTIONS } from './shared';
 import { describeStep } from './stepSummary';
 import { isMovableNode } from './workflowModel';
 import { NODE_META } from './workflowNodes';
+import { workflowFieldAvailable } from './workflowPolicy';
 
 /** Sections rise in one after another, as in the Content editors. */
 const STAGGER = { shown: { transition: { staggerChildren: 0.06 } } };
@@ -97,6 +98,7 @@ export function AutomationSidebar({
   segments,
   staffAudience,
   bookingAudience = false,
+  triggerEvent,
   runs,
   now,
   readOnly,
@@ -117,6 +119,7 @@ export function AutomationSidebar({
   staffAudience: boolean;
   /** A booking's guest email: steps speak of "the guest". */
   bookingAudience?: boolean;
+  triggerEvent: string;
   runs: EmailAutomationRun[];
   now: number;
   readOnly: boolean;
@@ -147,7 +150,9 @@ export function AutomationSidebar({
             </fieldset>
             <InfoRows>
               <InfoRow icon={Users} title="Sends to">
-                <span className="text-sm text-muted-foreground">{staffAudience ? 'Employees' : bookingAudience ? 'Booking guests' : 'Customers'}</span>
+                <span className="text-sm text-muted-foreground">
+                  {staffAudience ? 'Employees' : bookingAudience ? 'Booking guests' : 'Customers'}
+                </span>
               </InfoRow>
               {automation && (
                 <>
@@ -175,6 +180,7 @@ export function AutomationSidebar({
           <StepPanel
             key={node.id}
             node={node}
+            triggerEvent={triggerEvent}
             templates={templates}
             locations={locations}
             segments={segments}
@@ -250,6 +256,7 @@ export function AutomationSidebar({
 
 function StepPanel({
   node,
+  triggerEvent,
   templates,
   locations,
   segments,
@@ -263,6 +270,7 @@ function StepPanel({
   onPreview,
 }: {
   node: EmailWorkflowNode;
+  triggerEvent: string;
   templates: EmailTemplate[];
   locations: Array<{ id: string; name: string }>;
   segments: Array<{ id: string; name: string }>;
@@ -284,12 +292,15 @@ function StepPanel({
   return (
     <>
       {/* One card for the step: who it is and what it does, then the how — every line the same row. */}
-      <SettingsSection title="Step" description={describeStep(node, {
+      <SettingsSection
+        title="Step"
+        description={describeStep(node, {
           templateName,
           locationName,
           staff: staffAudience,
           booking: bookingAudience,
-        })}>
+        })}
+      >
         <fieldset disabled={readOnly} className="min-w-0 space-y-4">
           <ExpandRow icon={meta.icon} title={meta.label} htmlFor="step-name" value={node.name}>
             <Input
@@ -302,6 +313,7 @@ function StepPanel({
           </ExpandRow>
           <StepSettings
             node={node}
+            triggerEvent={triggerEvent}
             templates={templates}
             locations={locations}
             segments={segments}
@@ -356,6 +368,7 @@ function StepPanel({
 /** The step's settings as one-line rows — icon tile, title, its value — each opening its input underneath. */
 function StepSettings({
   node,
+  triggerEvent,
   templates,
   locations,
   segments,
@@ -364,6 +377,7 @@ function StepSettings({
   onChange,
 }: {
   node: EmailWorkflowNode;
+  triggerEvent: string;
   templates: EmailTemplate[];
   locations: Array<{ id: string; name: string }>;
   segments: Array<{ id: string; name: string }>;
@@ -376,7 +390,7 @@ function StepSettings({
     const days = Math.abs(node.config.offsetDays ?? 0);
     return (
       <>
-        <ExpandRow icon={Zap} title="Starts when" value={labelOf(TRIGGER_OPTIONS, event)}>
+        <ExpandRow defaultOpen icon={Zap} title="Starts when" value={labelOf(TRIGGER_OPTIONS, event)}>
           <Select
             value={event}
             onValueChange={(value) =>
@@ -420,12 +434,7 @@ function StepSettings({
           </ExpandRow>
         )}
         {event === 'reservation_reminder' && (
-          <ExpandRow
-            icon={CalendarDays}
-            title="Hours before"
-            htmlFor="trigger-hours"
-            value={`${node.config.offsetHours ?? 24} h before`}
-          >
+          <ExpandRow icon={CalendarDays} title="Hours before" htmlFor="trigger-hours" value={`${node.config.offsetHours ?? 24} h before`}>
             <Input
               id="trigger-hours"
               type="number"
@@ -437,7 +446,9 @@ function StepSettings({
                 onChange({ ...node, config: { ...node.config, offsetHours: Math.min(168, Math.max(1, Number(change.target.value) || 1)) } })
               }
             />
-            <p className="text-xs text-muted-foreground">How long before the booking the reminder goes. Bookings made later than that get none.</p>
+            <p className="text-xs text-muted-foreground">
+              How long before the booking the reminder goes. Bookings made later than that get none.
+            </p>
           </ExpandRow>
         )}
         {(event.startsWith('order_') || event.startsWith('reservation_')) && (
@@ -527,8 +538,39 @@ function StepSettings({
       </ExpandRow>
     );
 
+  if (node.type === 'create_task')
+    return (
+      <div className="space-y-3">
+        <label className="block text-sm font-semibold" htmlFor="task-subject">
+          Task subject
+        </label>
+        <Input
+          id="task-subject"
+          value={node.config.subject}
+          maxLength={200}
+          onChange={(event) => onChange({ ...node, config: { ...node.config, subject: event.target.value } })}
+        />
+        <label className="block text-sm font-semibold" htmlFor="task-body">
+          What needs doing?
+        </label>
+        <textarea
+          id="task-body"
+          value={node.config.body}
+          maxLength={10000}
+          rows={5}
+          className="w-full rounded-md border border-input bg-control p-3 text-sm"
+          onChange={(event) => onChange({ ...node, config: { ...node.config, body: event.target.value } })}
+        />
+        <p className="text-xs text-muted-foreground">
+          Creates an open request in Staff → Helpdesk. The workflow publisher must retain helpdesk management permission.
+        </p>
+      </div>
+    );
+
   if (node.type === 'condition') {
-    const fields = staffAudience ? STAFF_CONDITION_FIELDS : CONDITION_FIELDS;
+    const fields = [...STAFF_CONDITION_FIELDS, ...CONDITION_FIELDS].filter((field) => workflowFieldAvailable(triggerEvent, field.value));
+    if (!fields.some((field) => field.value === node.config.field))
+      fields.unshift({ value: node.config.field, label: `${node.config.field} (unavailable)` });
     const summary = `${labelOf(fields, node.config.field)} ${labelOf(CONDITION_OPERATORS, node.config.operator)} ${String(node.config.value ?? '').trim() || '…'}`;
     return (
       <>

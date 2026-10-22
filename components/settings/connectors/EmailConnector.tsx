@@ -433,7 +433,7 @@ export function EmailConnectWizard({ onClose, onDone }: { onClose: () => void; o
 
 const USES = [
   { href: '/communications?tab=templates', icon: Mail, title: 'Templates', description: 'The emails themselves.' },
-  { href: '/communications?tab=automations', icon: Sparkles, title: 'Automations', description: 'When each template is sent.' },
+  { href: '/automation', icon: Sparkles, title: 'Automations', description: 'When each template is sent.' },
   { href: '/communications?tab=history', icon: Send, title: 'History', description: 'Every email that went out.' },
   { href: '/communications?tab=suppressions', icon: ShieldOff, title: 'Suppressions', description: 'Addresses we never email.' },
 ];

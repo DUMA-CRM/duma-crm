@@ -61,7 +61,7 @@ export function AutomationsPanel({
   const [now] = useState(() => Date.now());
 
   const automationsQuery = useQuery({
-    queryKey: moduleQueryKeys.communications.key('email-automations', tenantId),
+    queryKey: moduleQueryKeys.automation.key('email-automations', tenantId),
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
     enabled: !!tenantId,
   });
@@ -80,7 +80,7 @@ export function AutomationsPanel({
         ? publishEmailAutomation(automation.id, tenantId ?? undefined)
         : updateEmailAutomation(automation.id, { isEnabled }),
     onSuccess: (saved) => {
-      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-automations') });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.automation.key('email-automations') });
       toast('success', saved.isEnabled ? `“${saved.name}” is now sending.` : `“${saved.name}” is switched off.`);
     },
     onError: (error) => toast('error', error.message),
@@ -88,7 +88,7 @@ export function AutomationsPanel({
   const remove = useMutation({
     mutationFn: (id: string) => deleteEmailAutomation(id, tenantId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-automations') });
+      queryClient.invalidateQueries({ queryKey: moduleQueryKeys.automation.key('email-automations') });
       setDeleteTarget(null);
       toast('success', 'Automation deleted.');
     },

@@ -1,25 +1,30 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
+import { MediaPicker } from '@/components/cms/MediaPicker';
+import { InfoRow, InfoRows, PickerRow } from '@/components/cms/rows';
 import {
+  AlertTriangle,
   Banknote,
   CalendarDays,
   CheckCircle2,
   Clock,
   Coins,
   CreditCard,
+  type IconComponent,
+  ImageIcon,
   ImagePlus,
-  Loader2,
   MapPin,
   Pause,
   QrCode,
   RefreshCw,
+  StickyNote,
   Store,
   Timer,
   Trash2,
+  Type,
   Users,
 } from '@/components/icons';
 import { PhoneFrame } from '@/components/settings/PhoneFrame';
@@ -27,17 +32,22 @@ import { QrMenuList } from '@/components/settings/QrMenuList';
 import { SettingsSection as Section } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { relativeTime } from '@/components/settings/connectors/shared';
-import { StepperCard, Switch, ToggleCard } from '@/components/settings/controls';
+import { SaveBar, Switch } from '@/components/settings/controls';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { NumberStepper } from '@/components/shared/FormParts';
 import { Bone } from '@/components/shared/Skeleton';
 import { PublicQrCodeCard } from '@/components/shared/PublicQrCodeCard';
-import { SectionSkeleton, TileSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { absoluteMediaUrl, proxiedImage } from '@/lib/api/client';
+import { hasCapability } from '@/lib/auth/capabilities';
+import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { getMenuCategories, getMenuItems } from '@/lib/modules/catalog/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import {
@@ -49,6 +59,9 @@ import {
 } from '@/lib/modules/qr-ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { mediaImagePath } from '@/lib/utils/image-src';
+import { minutesLabel } from '@/lib/utils/reservations';
+import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -60,6 +73,8 @@ const EMPTY_CONTENT: QrOrderingContent = {
   featuredItemIds: [],
   categoryOrder: [],
 };
+
+type Row = 'qr' | 'minimum' | 'readyIn' | 'interval' | 'perSlot' | 'ahead' | 'cover' | 'headline' | 'collect';
 
 interface Draft {
   isEnabled: boolean;
@@ -75,11 +90,26 @@ interface Draft {
   visibility: Record<string, boolean>;
 }
 
+/**
+ * QR ordering for one location: whether guests can order, how they pay, when
+ * they can collect, what the welcome page says and which items show. Edited as
+ * a draft — saved, then published to guests. Laid out like the other rules
+ * tabs: the rules in the main column, the guest page's status, QR code and a
+ * live preview alongside.
+ */
 export function QrOrderingSettings() {
   const qc = useQueryClient();
-  const reduceMotion = useReducedMotion();
   const { tenantId, locationId } = useWorkspaceStore();
   const [draftState, setDraftState] = useState<{ locationId: string; value: Draft } | null>(null);
+  // One row open at a time; a tap on the open one closes it.
+  const [open, setOpen] = useState<Row | null>(null);
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const canEdit = hasCapability(capabilities, 'qr-ordering:write');
+  const formatMoney = useFormatMoney();
+  // Media is offered for the cover photo only with Content on and the right to read it.
+  const { contentEnabled } = useCatalogWords();
+  const mediaAvailable = contentEnabled && hasCapability(capabilities, 'cms:read');
+  const [pickingCover, setPickingCover] = useState(false);
 
   const locations = useQuery({
     queryKey: moduleQueryKeys.organization.key('locations', tenantId),
@@ -165,36 +195,7 @@ export function QrOrderingSettings() {
   if (!tenantId || !locationId) {
     return <EmptyState icon={MapPin} title="Choose a location" description="QR ordering is configured separately for each location." />;
   }
-  if (config.isPending) {
-    return (
-      // The page's shape: the live headline, then the settings beside the QR code.
-      <div role="status" aria-busy="true" aria-label="Loading QR ordering" className="flex flex-col gap-6">
-        <div className="flex items-center gap-4" aria-hidden="true">
-          <Bone className="size-14 shrink-0 rounded-xl" />
-          <span className="min-w-0 flex-1 space-y-2">
-            <Bone className="h-6 w-72 max-w-full" />
-            <Bone className="h-3.5 w-44" />
-          </span>
-          <Bone className="hidden h-11 w-28 sm:block" />
-        </div>
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
-          <div className="flex min-w-0 flex-col gap-5">
-            <SectionSkeleton>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {Array.from({ length: 4 }, (_, index) => (
-                  <TileSkeleton key={index} index={index} />
-                ))}
-              </div>
-            </SectionSkeleton>
-            <SectionSkeleton fields={2} />
-          </div>
-          <SectionSkeleton>
-            <Bone className="mx-auto aspect-square w-48" />
-          </SectionSkeleton>
-        </div>
-      </div>
-    );
-  }
+  if (config.isPending) return <Bone className="h-96 w-full rounded-lg" />;
   if (config.isError) {
     return <ErrorState title="Couldn’t load QR ordering" onRetry={() => void config.refetch()} />;
   }
@@ -210,216 +211,272 @@ export function QrOrderingSettings() {
   const published = relativeTime(config.data?.publishedAt);
   const allItems = items.data ?? [];
   const content = (value: Partial<QrOrderingContent>) => patch({ content: { ...draft.content, ...value } });
+  const status = draft.isEnabled ? (draft.isPaused ? 'Paused' : 'Live') : 'Off';
+  const statusBadge = <Badge variant={live ? 'success' : draft.isEnabled ? 'warning' : 'muted'}>{status}</Badge>;
+  const minimum = Number(draft.minimumOrderAmount);
+
+  const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
+  const switchRow = (key: 'isEnabled' | 'isPaused' | 'cardEnabled' | 'cashEnabled', icon: IconComponent, title: string, disabled = false) => (
+    <InfoRow icon={icon} title={title}>
+      <Switch checked={draft[key]} onChange={(next) => patch({ [key]: next })} label={title} disabled={!canEdit || disabled} />
+    </InfoRow>
+  );
+  /** A number rule: its value on the row, the stepper (and why it matters) underneath. */
+  const numberRow = (
+    row: Row,
+    key: 'minimumNoticeMinutes' | 'slotIntervalMinutes' | 'maxOrdersPerSlot' | 'bookingHorizonDays',
+    icon: IconComponent,
+    title: string,
+    shown: string,
+    hint: string,
+    min: number,
+    max: number,
+    step: number,
+    unit: string,
+  ) => (
+    <PickerRow icon={icon} title={title} value={shown} open={open === row} onToggle={() => toggle(row)}>
+      <NumberStepper label={title} value={Number(draft[key])} min={min} max={max} step={step} unit={unit} onChange={(next) => patch({ [key]: String(next) })} />
+      <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
+    </PickerRow>
+  );
+  const publishButton = (
+    <ActionButton
+      type="button"
+      className="h-9"
+      onClick={() => publish.mutate(undefined, { onSuccess: flashPublished })}
+      variant={unpublished || justPublished ? 'default' : 'outline'}
+      disabled={!unpublished || !paymentsValid || save.isPending}
+      pending={publish.isPending}
+      pendingLabel="Publishing…"
+      done={justPublished}
+      doneLabel="Live for guests"
+      icon={<CheckCircle2 aria-hidden="true" />}
+      title={
+        !unpublished
+          ? 'Guests already see the latest version'
+          : dirty
+            ? 'Saves your changes, then publishes them'
+            : 'Show your latest changes to guests'
+      }
+    >
+      {unpublished ? 'Publish' : 'Published'}
+    </ActionButton>
+  );
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* The one thing to know: are guests ordering from this location right now. */}
-      <div className="flex flex-wrap items-center gap-4">
-        <span
-          className={cn(
-            'flex size-14 shrink-0 items-center justify-center rounded-xl',
-            live ? 'bg-primary/8 text-primary' : 'bg-band text-muted-foreground',
+    <SettingsTabBody
+      narrowAside
+      stickyAside
+      aside={
+        <>
+          <Section title="Guest page" actions={statusBadge}>
+            <InfoRows>
+              <InfoRow icon={MapPin} title="Location">
+                <span className="truncate text-sm font-semibold text-foreground">{location?.name ?? 'This location'}</span>
+              </InfoRow>
+              <InfoRow icon={CheckCircle2} title="Menu published">
+                <span className={cn('text-sm', published ? 'font-semibold text-foreground' : 'text-muted-foreground/70')}>{published ?? 'Not yet'}</span>
+              </InfoRow>
+              {/* Folded away until needed, so the preview below gets the room. */}
+              {publicUrl ? (
+                <PickerRow icon={QrCode} title="QR code and link" value="Show" open={open === 'qr'} onToggle={() => toggle('qr')}>
+                  <PublicQrCodeCard url={publicUrl} locationName={location?.name ?? 'this location'} purpose="guest page" actions="rows" />
+                  <p className="mt-1.5 text-xs text-muted-foreground">Print it for tables and the counter, or share the link.</p>
+                </PickerRow>
+              ) : (
+                <InfoRow icon={QrCode} title="QR code and link">
+                  <span className="text-sm text-muted-foreground/70">After you save</span>
+                </InfoRow>
+              )}
+            </InfoRows>
+            {published && unpublished && (
+              <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">You have changes guests can’t see yet.</p>
+            )}
+            {/* While there are unsaved edits, Publish rides in the SaveBar instead. */}
+            {canEdit && !dirty && <div className="mt-4 [&>button]:w-full">{publishButton}</div>}
+          </Section>
+          {config.data?.publicToken && (
+            <PhonePreview
+              path={`/order/${config.data.publicToken}`}
+              version={config.data.publishedAt ?? 'unpublished'}
+              behind={dirty || !config.data.publishedAt}
+            />
           )}
-        >
-          <QrCode size={26} aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xl font-semibold tracking-headline text-foreground">
-            QR ordering is {draft.isEnabled ? (draft.isPaused ? 'paused' : 'live') : 'off'} at {location?.name ?? 'this location'}
-          </p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <span
-              className={cn('size-1.5 rounded-full', live ? 'bg-success' : draft.isEnabled ? 'bg-stock' : 'bg-muted-foreground/60')}
-              aria-hidden="true"
-            />
-            {published ? `Menu published ${published}${unpublished ? ' · changes not published yet' : ''}` : 'Menu not published yet'}
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-3 text-sm font-semibold text-foreground">
-            Take orders
-            <Switch checked={draft.isEnabled} onChange={(isEnabled) => patch({ isEnabled })} label="Take QR orders" />
-          </label>
-          {/* Saving lives up here, and only while there is something to save. */}
-          <AnimatePresence initial={false}>
-            {dirty && (
-              <motion.div
-                key="save"
-                className="flex items-center gap-1"
-                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 12 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 12 }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="lg"
-                  className="h-11 px-3 text-muted-foreground"
-                  onClick={() => setDraftState(null)}
-                  disabled={save.isPending || publish.isPending}
-                >
-                  Discard
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  className="h-11 px-4"
-                  onClick={() => save.mutate()}
-                  disabled={!paymentsValid || save.isPending || publish.isPending}
-                  title={paymentsValid ? 'Save without showing guests yet' : 'Turn on at least one way to pay'}
-                >
-                  {save.isPending && !publish.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
-                  Save draft
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <ActionButton
-            type="button"
-            size="lg"
-            className="h-11 min-w-36 px-5"
-            onClick={() => publish.mutate(undefined, { onSuccess: flashPublished })}
-            variant={unpublished || justPublished ? 'default' : 'outline'}
-            disabled={!unpublished || !paymentsValid || save.isPending}
-            pending={publish.isPending}
-            pendingLabel="Publishing…"
-            done={justPublished}
-            doneLabel="Live for guests"
-            icon={<CheckCircle2 aria-hidden="true" />}
-            title={
-              !unpublished
-                ? 'Guests already see the latest version'
-                : dirty
-                  ? 'Saves your changes, then publishes them'
-                  : 'Show your latest changes to guests'
-            }
+        </>
+      }
+    >
+      <Section title="Ordering">
+        <fieldset disabled={!canEdit} className="space-y-3">
+          {switchRow('isEnabled', QrCode, 'Take orders')}
+          {switchRow('isPaused', Pause, 'Pause new orders', !draft.isEnabled)}
+          {switchRow('cardEnabled', CreditCard, 'Card payments')}
+          {switchRow('cashEnabled', Banknote, 'Cash at the counter')}
+          <PickerRow
+            icon={Coins}
+            title="Minimum order"
+            value={minimum > 0 ? formatMoney(minimum, 2) : 'None'}
+            muted={!(minimum > 0)}
+            open={open === 'minimum'}
+            onToggle={() => toggle('minimum')}
           >
-            {unpublished ? 'Publish' : 'Published'}
-          </ActionButton>
-        </div>
-      </div>
+            <Input
+              aria-label="Minimum order"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={draft.minimumOrderAmount}
+              onChange={(event) => patch({ minimumOrderAmount: event.target.value })}
+              onBlur={() => patch({ minimumOrderAmount: (Math.max(0, Number(draft.minimumOrderAmount)) || 0).toFixed(2) })}
+              autoFocus
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">Baskets under this can’t check out. Leave at 0 for no minimum.</p>
+          </PickerRow>
+        </fieldset>
+        {draft.isEnabled && draft.isPaused && (
+          <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">Paused — guests can browse, but checkout is closed.</p>
+        )}
+        {!paymentsValid && <Warning>Guests can’t check out with no way to pay — turn on card payments or cash.</Warning>}
+        {draft.cashEnabled && (
+          <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">Cash is paid on collection, so it’s offered on ASAP orders only.</p>
+        )}
+      </Section>
 
-      <SettingsTabBody
-        stickyAside
-        aside={
-          <>
-            {publicUrl && <PublicQrCodeCard url={publicUrl} locationName={location?.name ?? 'this location'} />}
-            {config.data?.publicToken && (
-              <PhonePreview
-                path={`/order/${config.data.publicToken}`}
-                version={config.data.publishedAt ?? 'unpublished'}
-                behind={dirty || !config.data.publishedAt}
-              />
+      <Section title="Pickup times">
+        <fieldset disabled={!canEdit} className="space-y-3">
+          {numberRow('readyIn', 'minimumNoticeMinutes', Timer, 'Ready in', minutesLabel(Number(draft.minimumNoticeMinutes), 'Straight away'), 'How long you need to make an order.', 0, 1440, 5, 'min')}
+          {numberRow('interval', 'slotIntervalMinutes', Clock, 'A pickup every', minutesLabel(Number(draft.slotIntervalMinutes)), 'How far apart pickup times are.', 5, 120, 5, 'min')}
+          {numberRow(
+            'perSlot',
+            'maxOrdersPerSlot',
+            Users,
+            'Orders per pickup',
+            `${draft.maxOrdersPerSlot} ${Number(draft.maxOrdersPerSlot) === 1 ? 'order' : 'orders'}`,
+            'Once full, guests pick the next one.',
+            1,
+            100,
+            1,
+            'orders',
+          )}
+          {numberRow(
+            'ahead',
+            'bookingHorizonDays',
+            CalendarDays,
+            'Book ahead',
+            `${draft.bookingHorizonDays} ${Number(draft.bookingHorizonDays) === 1 ? 'day' : 'days'}`,
+            'How far ahead guests can order.',
+            1,
+            30,
+            1,
+            'days',
+          )}
+        </fieldset>
+      </Section>
+
+      <Section title="Welcome page">
+        <fieldset disabled={!canEdit} className="space-y-3">
+          <PickerRow
+            icon={ImagePlus}
+            title="Cover photo"
+            value={draft.content.coverImageUrl ? 'Added' : 'None'}
+            muted={!draft.content.coverImageUrl}
+            open={open === 'cover'}
+            onToggle={() => toggle('cover')}
+          >
+            {draft.content.coverImageUrl && (
+              <div className="relative mb-3 aspect-[3/1] overflow-hidden rounded-lg border border-rule/50 bg-band">
+                {/* The owner supplies this URL, so Next Image cannot allow-list its host. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={proxiedImage(draft.content.coverImageUrl) ?? undefined} alt="" className="size-full object-cover" />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="absolute right-3 top-3"
+                  onClick={() => content({ coverImageUrl: null })}
+                  aria-label="Remove cover photo"
+                >
+                  <Trash2 aria-hidden="true" />
+                </Button>
+              </div>
             )}
-          </>
-        }
-      >
-        <Section title="Ordering">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <ToggleCard
-              icon={CreditCard}
-              title="Card payments"
-              description="Guests pay on their phone."
-              checked={draft.cardEnabled}
-              onChange={(cardEnabled) => patch({ cardEnabled })}
+            {/* One line: paste a link, or pick from Media when Content is on. */}
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <Input
+                  type="url"
+                  aria-label="Cover photo link"
+                  value={draft.content.coverImageUrl ?? ''}
+                  onChange={(event) => content({ coverImageUrl: event.target.value || null })}
+                  placeholder={mediaAvailable ? 'Paste a link, or choose from Media' : 'https://…/photo.jpg'}
+                  autoFocus
+                />
+              </div>
+              {mediaAvailable && (
+                <Button type="button" variant="outline" className="h-9 shrink-0" onClick={() => setPickingCover(true)}>
+                  <ImageIcon aria-hidden="true" />
+                  Media
+                </Button>
+              )}
+            </div>
+            <p className="mt-1.5 text-xs text-muted-foreground">A wide photo — your counter, a signature drink. Shown across the top.</p>
+          </PickerRow>
+          <PickerRow
+            icon={Type}
+            title="Headline"
+            value={draft.content.welcomeMessage.trim() || 'None'}
+            muted={!draft.content.welcomeMessage.trim()}
+            open={open === 'headline'}
+            onToggle={() => toggle('headline')}
+          >
+            <Input
+              aria-label="Headline"
+              value={draft.content.welcomeMessage}
+              maxLength={160}
+              onChange={(event) => content({ welcomeMessage: event.target.value })}
+              placeholder="Order ahead, skip the queue"
+              autoFocus
             />
-            <ToggleCard
-              icon={Banknote}
-              title="Cash at the counter"
-              description="Paid on collection — ASAP orders only."
-              checked={draft.cashEnabled}
-              onChange={(cashEnabled) => patch({ cashEnabled })}
+            <p className="mt-1.5 flex justify-between gap-3 text-xs text-muted-foreground">
+              <span>The first thing guests read.</span>
+              <span className="tabular-nums">{draft.content.welcomeMessage.length}/160</span>
+            </p>
+          </PickerRow>
+          <PickerRow
+            icon={StickyNote}
+            title="How to collect"
+            value={draft.content.collectionInstructions.trim() || 'None'}
+            muted={!draft.content.collectionInstructions.trim()}
+            open={open === 'collect'}
+            onToggle={() => toggle('collect')}
+          >
+            <textarea
+              aria-label="How to collect"
+              rows={3}
+              maxLength={500}
+              value={draft.content.collectionInstructions}
+              onChange={(event) => content({ collectionInstructions: event.target.value })}
+              autoFocus
+              placeholder="Collect from the pickup shelf by the window."
+              className="w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-measured disabled:opacity-60"
             />
-            <ToggleCard
-              icon={Pause}
-              title="Pause new orders"
-              description={draft.isEnabled ? 'Guests can browse; checkout is closed.' : 'Turn on Take orders first.'}
-              tone="warning"
-              checked={draft.isPaused}
-              disabled={!draft.isEnabled}
-              onChange={(isPaused) => patch({ isPaused })}
-            />
-            <MinimumOrderCard value={draft.minimumOrderAmount} onChange={(minimumOrderAmount) => patch({ minimumOrderAmount })} />
-          </div>
-          {!paymentsValid && <p className="mt-3 text-sm font-medium text-exception">Turn on at least one way to pay.</p>}
-        </Section>
+            <p className="mt-1.5 flex justify-between gap-3 text-xs text-muted-foreground">
+              <span>Shown under the headline and on the order confirmation.</span>
+              <span className="tabular-nums">{draft.content.collectionInstructions.length}/500</span>
+            </p>
+          </PickerRow>
+        </fieldset>
+      </Section>
 
-        <Section title="Welcome page">
-          <WelcomeFields content={draft.content} onChange={content} />
-        </Section>
-
-        <Section title="Pickup times">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <StepperCard
-              icon={Timer}
-              title="Ready in"
-              description={
-                Number(draft.minimumNoticeMinutes) > 0 ? 'How long you need to make an order.' : 'Orders can be collected straight away.'
-              }
-              control="duration"
-              min={0}
-              max={1440}
-              step={5}
-              value={Number(draft.minimumNoticeMinutes)}
-              onChange={(value) => patch({ minimumNoticeMinutes: String(value) })}
-            />
-            <StepperCard
-              icon={Clock}
-              title="A pickup every"
-              description="How far apart pickup times are."
-              control="wheel"
-              unit="min"
-              min={5}
-              max={120}
-              step={5}
-              value={Number(draft.slotIntervalMinutes)}
-              onChange={(value) => patch({ slotIntervalMinutes: String(value) })}
-            />
-            <StepperCard
-              icon={Users}
-              title="Orders per pickup"
-              description="Once full, guests pick the next one."
-              min={1}
-              max={100}
-              value={Number(draft.maxOrdersPerSlot)}
-              onChange={(value) => patch({ maxOrdersPerSlot: String(value) })}
-            />
-            <StepperCard
-              icon={CalendarDays}
-              title="Book ahead"
-              description="How far ahead guests can order."
-              control="wheel"
-              unit={Number(draft.bookingHorizonDays) === 1 ? 'day' : 'days'}
-              min={1}
-              max={30}
-              value={Number(draft.bookingHorizonDays)}
-              onChange={(value) => patch({ bookingHorizonDays: String(value) })}
-            />
-          </div>
-        </Section>
-
-        <Section title="Menu">
-          {items.isPending ? (
-            <TilesSkeleton
-              count={4}
-              label="Loading menu"
-              className="grid gap-2"
-              tile="size-12"
-              trailing="h-4 w-12"
-              tileClassName="p-2 pr-3.5"
-            />
-          ) : items.isError ? (
-            <ErrorState title="Couldn’t load the menu" onRetry={() => void items.refetch()} />
-          ) : allItems.length === 0 ? (
-            <EmptyState
-              icon={Store}
-              title="Nothing on the menu yet"
-              description="Add products first — they appear here to show or hide."
-              compact
-            />
-          ) : (
+      <Section title="Menu">
+        {items.isPending ? (
+          <TilesSkeleton count={4} label="Loading menu" className="grid gap-2" tile="size-12" trailing="h-4 w-12" tileClassName="p-2 pr-3.5" />
+        ) : items.isError ? (
+          <ErrorState title="Couldn’t load the menu" onRetry={() => void items.refetch()} />
+        ) : allItems.length === 0 ? (
+          <EmptyState icon={Store} title="Nothing on the menu yet" description="Add products first — they appear here to show or hide." compact />
+        ) : (
+          <fieldset disabled={!canEdit}>
             <QrMenuList
               items={allItems}
               categories={categories.data ?? []}
@@ -429,152 +486,50 @@ export function QrOrderingSettings() {
               onVisibilityChange={(visibility) => patch({ visibility })}
               onFeaturedChange={(featuredItemIds) => content({ featuredItemIds })}
             />
-          )}
-        </Section>
-      </SettingsTabBody>
-    </div>
-  );
-}
-
-/**
- * The rule the Ordering tiles can't express as a switch: a floor on the basket.
- * Zero means no minimum, which is what most places want.
- */
-function MinimumOrderCard({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const formatMoney = useFormatMoney();
-  const amount = Number(value);
-  const set = amount > 0;
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-3 rounded-lg border px-3.5 py-3 transition-colors',
-        set ? 'border-rule/50 bg-background/60' : 'border-dashed border-rule/60 bg-transparent',
-      )}
-    >
-      <span
-        className={cn(
-          'flex size-10 shrink-0 items-center justify-center rounded-md transition-colors',
-          set ? 'bg-primary/8 text-primary' : 'bg-band text-muted-foreground',
+          </fieldset>
         )}
-      >
-        <Coins size={18} aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className={cn('block text-sm font-semibold', set ? 'text-foreground' : 'text-muted-foreground')}>Minimum order</span>
-        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-          {set ? `Baskets under ${formatMoney(amount, 2)} can't check out.` : 'No minimum — leave at 0.'}
-        </span>
-      </span>
-      <input
-        type="number"
-        inputMode="decimal"
-        min="0"
-        step="0.01"
-        aria-label="Minimum order"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onBlur={() => onChange((Math.max(0, Number(value)) || 0).toFixed(2))}
-        className="h-9 w-20 shrink-0 rounded-md border border-rule/60 bg-field px-2 text-right font-mono text-sm font-semibold tabular-nums text-foreground outline-none [appearance:textfield] focus-visible:border-ring [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-      />
-    </div>
-  );
-}
+      </Section>
 
-/**
- * What a guest reads first: a cover photo, a headline and how to collect.
- * Counters sit on the fields because the phone screen, not the database, is
- * the real limit.
- */
-function WelcomeFields({ content, onChange }: { content: QrOrderingContent; onChange: (value: Partial<QrOrderingContent>) => void }) {
-  const [editingImage, setEditingImage] = useState(false);
-  const image = content.coverImageUrl;
-  const counter = (value: string, max: number) => `${value.length}/${max}`;
-
-  return (
-    <div className="grid gap-5">
-      {/* Cover photo: shown as it will look, not as a bare link. */}
-      <div>
-        <p className="mb-1.5 text-label uppercase text-muted-foreground">Cover photo</p>
-        {image && !editingImage ? (
-          <div className="group relative aspect-[3/1] overflow-hidden rounded-lg border border-rule/50 bg-band">
-            {/* The owner supplies this URL, so Next Image cannot allow-list its host. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={image} alt="" className="size-full object-cover" />
-            <div className="absolute right-3 top-3 flex gap-2">
-              <Button type="button" size="sm" variant="secondary" onClick={() => setEditingImage(true)}>
-                Change
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => onChange({ coverImageUrl: null })}
-                aria-label="Remove cover photo"
-              >
-                <Trash2 aria-hidden="true" />
-              </Button>
-            </div>
-          </div>
-        ) : editingImage || image ? (
-          <div className="flex items-end gap-2">
-            <div className="min-w-0 flex-1">
-              <Input
-                type="url"
-                autoFocus
-                aria-label="Cover photo link"
-                value={image ?? ''}
-                onChange={(event) => onChange({ coverImageUrl: event.target.value || null })}
-                placeholder="https://…/photo.jpg"
-                hint="Paste a link to a wide photo — your counter, a signature drink."
-              />
-            </div>
-            <Button type="button" variant="outline" className="mb-6" onClick={() => setEditingImage(false)}>
-              Done
-            </Button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditingImage(true)}
-            className="flex h-24 w-full items-center justify-center gap-3 rounded-lg border-2 border-dashed border-rule/70 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <ImagePlus size={22} aria-hidden="true" />
-            <span className="text-left">
-              <span className="block text-sm font-semibold">Add a cover photo</span>
-              <span className="block text-xs">Optional — shown across the top of the page</span>
-            </span>
-          </button>
-        )}
-      </div>
-
-      <Input
-        label="Headline"
-        value={content.welcomeMessage}
-        maxLength={160}
-        onChange={(event) => onChange({ welcomeMessage: event.target.value })}
-        placeholder="Order ahead, skip the queue"
-        hint={`The first thing guests read · ${counter(content.welcomeMessage, 160)}`}
-      />
-
-      <div>
-        <label htmlFor="qr-collection-instructions" className="mb-1.5 block text-label uppercase text-muted-foreground">
-          How to collect
-        </label>
-        <textarea
-          id="qr-collection-instructions"
-          rows={2}
-          maxLength={500}
-          value={content.collectionInstructions}
-          onChange={(event) => onChange({ collectionInstructions: event.target.value })}
-          className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
-          placeholder="Collect from the pickup shelf by the window."
+      {pickingCover && (
+        <MediaPicker
+          multiple={false}
+          groups={['image']}
+          onClose={() => setPickingCover(false)}
+          onPick={(_ids, assets) => {
+            setPickingCover(false);
+            const asset = assets[0];
+            // Absolute, as the API requires a full URL; shown through `/be` by `proxiedImage`.
+            if (asset) content({ coverImageUrl: absoluteMediaUrl(mediaImagePath(asset)) });
+          }}
         />
-        <p className="mt-1.5 flex justify-between text-xs text-muted-foreground">
-          <span>Shown under the headline and on the order confirmation.</span>
-          <span className="tabular-nums">{counter(content.collectionInstructions, 500)}</span>
-        </p>
-      </div>
-    </div>
+      )}
+
+      {canEdit && (
+        <SaveBar
+          dirty={dirty}
+          saving={save.isPending && !publish.isPending}
+          saveLabel="Save draft"
+          disabled={!paymentsValid || publish.isPending}
+          message={paymentsValid ? 'Saved drafts aren’t shown to guests until you publish' : 'Turn on at least one way to pay'}
+          onSave={() => save.mutate()}
+          onDiscard={() => {
+            setDraftState(null);
+            setOpen(null);
+          }}
+          extra={publishButton}
+        />
+      )}
+    </SettingsTabBody>
+  );
+}
+
+/** Something that stops guests ordering, with what to do about it. */
+function Warning({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
+      <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
+      <span>{children}</span>
+    </p>
   );
 }
 

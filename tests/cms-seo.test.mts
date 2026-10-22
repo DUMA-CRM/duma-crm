@@ -130,3 +130,21 @@ test('a stored focus keyword drives the keyword checks; content type is asked fo
   assert.equal(checks.find((check) => check.id === 'title-keyword')!.ok, true);
   assert.equal(checks.find((check) => check.id === 'structured-data')!.ok, false);
 });
+
+test('seoFieldGroups: the block in a writer’s order, empty groups dropped, extras kept', async () => {
+  const { seoFieldGroups } = await import('../lib/utils/cms-seo.ts');
+  const groups = seoFieldGroups([
+    { key: 'noIndex', label: 'Hide', type: 'boolean' },
+    { key: 'metaDescription', label: 'Meta description', type: 'longText' },
+    { key: 'metaTitle', label: 'Meta title', type: 'text' },
+    { key: 'twitterHandle', label: 'Twitter', type: 'text' },
+  ]);
+  assert.deepEqual(
+    groups.map((group) => [group.title, group.fields.map((field) => field.key)]),
+    [
+      ['Search results', ['metaTitle', 'metaDescription']],
+      ['Advanced', ['noIndex']],
+      ['Other', ['twitterHandle']],
+    ],
+  );
+});

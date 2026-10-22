@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
@@ -17,18 +17,21 @@ import {
   Globe,
   Hash,
   History,
-  Info,
   Layers,
   Link2,
+  MessageSquarePlus,
   RotateCcw,
+  Search,
   Send,
   Trash2,
+  Undo,
   Users,
+  X,
 } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { SettingRow } from '@/components/settings/controls';
+import { SaveBar } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
@@ -38,6 +41,7 @@ import { RelativeTime } from '@/components/shared/RelativeTime';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { CopyButton } from '@/components/ui/action-button';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -63,7 +67,7 @@ import {
   scheduleCmsEntry,
   unpublishCmsEntry,
 } from '@/lib/modules/cms/client';
-import { cleanEntryData, entryStatusMeta, issuesByField, previewUrlFor, sameEntryData } from '@/lib/utils/cms';
+import { cleanEntryData, entryStatusMeta, issuesByField, previewUrlFor, requiredMissing, sameEntryData } from '@/lib/utils/cms';
 import { draftStorageKey, parseStoredDraft, recoveryFor } from '@/lib/utils/cms-draft';
 import { SEO_FIELD_KEY, seoChecklist, seoSnapshot } from '@/lib/utils/cms-seo';
 import { cn } from '@/lib/utils/cn';
@@ -74,8 +78,10 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { AssistSection } from './AssistSection';
 import { DateTimeField } from './DateTimeField';
 import { FieldSet } from './FieldInput';
+import { FieldRows } from './FieldRows';
+import { SeoFieldRows } from './SeoFieldRows';
 import { SeoPanel, SharePreviewDialog, goToField } from './SeoPanel';
-import { ActionRow, ActionRows } from './rows';
+import { ActionRow, ActionRows, InfoRow, InfoRows, RowMenu, type RowMenuItem, RowTile, SectionInfo } from './rows';
 import { EntryStatusBadge, PanelError, TEXTAREA_CLASS, cmsKeys, copyText, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
 
@@ -155,6 +161,7 @@ function LoadedEntryEditor({
   const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
   const queryClient = useQueryClient();
   const access = useCmsAccess();
+  const reduceMotion = useReducedMotion();
   const type = entry.contentType;
   const fields = type.fields;
   const archived = entry.status === 'archived';
@@ -172,19 +179,39 @@ function LoadedEntryEditor({
   const seoField = fields.find((field) => field.key === SEO_FIELD_KEY && field.type === 'group');
   const contentFields = seoField ? fields.filter((field) => field !== seoField) : fields;
   const [seoOpen, setSeoOpen] = useState(false);
+  // Which SEO row is open — here, so a Fix in Search & sharing can open the right one.
+  const [seoRow, setSeoRow] = useState<string | null>(null);
+  // The open Content row; a failed save opens the first field it names.
+  const [contentRow, setContentRow] = useState<string | null>(null);
+  const headlineField = type.titleField ? contentFields.find((field) => field.key === type.titleField && field.type === 'text') : undefined;
+  const rowFields = headlineField ? contentFields.filter((field) => field !== headlineField) : contentFields;
   const seoData = (
     data[SEO_FIELD_KEY] && typeof data[SEO_FIELD_KEY] === 'object' && !Array.isArray(data[SEO_FIELD_KEY]) ? data[SEO_FIELD_KEY] : {}
   ) as Record<string, unknown>;
   const seoSummary = useMemo(() => {
-    if (!seoField) return '';
+    if (!seoField) return null;
     const checks = seoChecklist(seoSnapshot(fields, type.titleField, data));
     const seo = (data[SEO_FIELD_KEY] && typeof data[SEO_FIELD_KEY] === 'object' ? data[SEO_FIELD_KEY] : {}) as Record<string, unknown>;
     const empty = (seoField.fields ?? []).filter(
       (sub) => sub.type !== 'boolean' && (seo[sub.key] === undefined || seo[sub.key] === null || seo[sub.key] === ''),
     ).length;
     const passed = checks.filter((check) => check.ok).length;
-    return `${passed}/${checks.length}${empty > 0 ? ` · ${empty} empty` : ''}`;
+    return { passed, total: checks.length, empty };
   }, [seoField, fields, type.titleField, data]);
+  // What each blank SEO field falls back to — the same reading the checks and the previews use.
+  const seoPlaceholders = useMemo(() => {
+    if (!seoField) return undefined;
+    const snapshot = seoSnapshot(fields, type.titleField, data);
+    return {
+      metaTitle: snapshot.title,
+      metaDescription: snapshot.description,
+      socialTitle: snapshot.title,
+      socialDescription: snapshot.description,
+    };
+  }, [seoField, fields, type.titleField, data]);
+  // What still stands between this draft and publishing, counted as you type.
+  const missing = requiredMissing(contentFields, data);
+  const requiredCount = contentFields.filter((field) => field.required && field.type !== 'boolean').length;
   const dirty = !sameEntryData(fields, data, entry.draftData);
   const draftKey = draftStorageKey(entry.id);
   const [reviewDialog, setReviewDialog] = useState<null | 'submit' | 'changes'>(null);
@@ -238,7 +265,11 @@ function LoadedEntryEditor({
   const otherLanguages = (entry.localizations ?? []).filter((version) => version.id !== entry.id).length;
 
   const fail = (error: Error) => {
-    if (error instanceof ApiError && error.issues.length > 0) setIssues(error.issues);
+    if (error instanceof ApiError && error.issues.length > 0) {
+      setIssues(error.issues);
+      const first = error.issues.map((issue) => issue.field.split(/[.[]/)[0]).find((key) => rowFields.some((field) => field.key === key));
+      if (first) setContentRow(first);
+    }
     toast('error', error.message);
   };
 
@@ -344,7 +375,36 @@ function LoadedEntryEditor({
   const canPublishNow = access.canPublish && !archived && entry.status !== 'published';
   const saveShortcut = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘S' : 'Ctrl+S';
 
-  // ⌘S / Ctrl+S saves the draft — the save button is in the header now, out of the hand's way.
+  /** Everything else about the entry — Contentful's ⋯ pattern — so the sidebar keeps to what it is and where it stands. */
+  const entryActions: RowMenuItem[] = [
+    ...(access.canWrite && !archived ? [{ icon: Link2, label: 'Share draft preview', onClick: () => setSharing(true) }] : []),
+    ...(access.canWrite && type.kind === 'collection'
+      ? [{ icon: Copy, label: 'Duplicate', disabled: busy, onClick: () => action.mutate('duplicate') }]
+      : []),
+    ...(access.canPublish && entry.publishedData
+      ? [{ icon: EyeOff, label: 'Unpublish', disabled: busy, onClick: () => setConfirm({ kind: 'unpublish' }) }]
+      : []),
+    ...(access.canPublish && !archived
+      ? [{ icon: Archive, label: 'Archive', disabled: busy, onClick: () => setConfirm({ kind: 'archive' }) }]
+      : []),
+    ...(access.canWrite && archived
+      ? [{ icon: RotateCcw, label: 'Restore to draft', disabled: busy, onClick: () => action.mutate('restore') }]
+      : []),
+    ...(access.canModel ? [{ icon: Layers, label: `Edit the ${type.name} model`, onClick: () => onOpenModel(type.id) }] : []),
+    ...(access.canPublish
+      ? [
+          {
+            icon: Trash2,
+            label: otherLanguages > 0 ? `Delete the ${entry.locale} version` : 'Delete entry',
+            danger: true,
+            disabled: busy,
+            onClick: () => setConfirm({ kind: 'delete' }),
+          },
+        ]
+      : []),
+  ];
+
+  // ⌘S / Ctrl+S saves the draft, as the SaveBar's Save draft does.
   useEffect(() => {
     if (!editable) return;
     const onKey = (event: KeyboardEvent) => {
@@ -368,12 +428,6 @@ function LoadedEntryEditor({
         <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <EntryStatusBadge status={entry.status} />
           <span>v{entry.version}</span>
-          {dirty && (
-            <span className="inline-flex items-center gap-1 font-medium text-measured">
-              <span className="size-1.5 rounded-full bg-measured" aria-hidden="true" />
-              Unsaved changes{otherLanguages > 0 ? ` in ${entry.locale}` : ''}
-            </span>
-          )}
         </span>
       }
       actions={
@@ -391,77 +445,54 @@ function LoadedEntryEditor({
               <Users aria-hidden="true" /> Submit for review
             </Button>
           )}
-          {/* Unsaved edits: discard, save, and save-then-publish (or submit) — all here, no bar below. */}
-          {dirty && editable && (
-            <>
-              <Button
-                variant="ghost"
-                className="h-9"
-                disabled={busy}
-                onClick={() => {
-                  // Forget the kept copy too, or the next load would bring the edits back.
-                  forgetDraft();
-                  onDiscard();
-                }}
-              >
-                Discard
-              </Button>
-              <Tooltip side="top" label={`Save draft (${saveShortcut})`}>
-                <Button
-                  variant={access.canPublish || !entry.reviewRequestedAt ? 'outline' : 'default'}
-                  className="h-9"
-                  disabled={busy}
-                  onClick={() => save.mutate()}
-                >
-                  {save.isPending ? 'Saving…' : 'Save draft'}
-                </Button>
-              </Tooltip>
-              {access.canPublish ? (
-                <Button className="h-9 gap-1.5" disabled={busy} onClick={() => publish.mutate()}>
-                  <Send aria-hidden="true" />
-                  {publish.isPending ? 'Publishing…' : 'Save & publish'}
-                </Button>
-              ) : !entry.reviewRequestedAt ? (
-                <Button className="h-9 gap-1.5" disabled={busy || review.isPending} onClick={() => setReviewDialog('submit')}>
-                  <Users aria-hidden="true" /> Save & submit
-                </Button>
-              ) : null}
-            </>
-          )}
           {!dirty && canPublishNow && (
             <Button className="h-9 gap-1.5" disabled={busy} onClick={() => publish.mutate()}>
               <Send aria-hidden="true" />
               {publish.isPending ? 'Publishing…' : entry.status === 'draft' ? 'Publish' : 'Publish changes'}
             </Button>
           )}
+          {/* Everything else about the entry, one place — the sidebar keeps to what it is and where it stands. */}
+          {entryActions.length > 0 && <RowMenu label="Entry actions" pending={action.isPending} items={entryActions} />}
         </div>
       }
     >
-      <motion.div initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
+      <motion.div
+        initial={reduceMotion ? false : 'hidden'}
+        animate="shown"
+        variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+      >
         <SettingsTabBody
           narrowAside
           aside={
             <>
-              <StatusSection entry={entry} />
+              <StatusSection entry={entry} onHistory={() => setHistoryOpen(true)} />
               {(entry.reviewRequestedAt || entry.reviewNote) && (
                 <SettingsSection title="Review">
                   <ReviewState entry={entry} />
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {entry.reviewRequestedAt && access.canPublish && (
-                      <Button size="sm" variant="outline" disabled={review.isPending} onClick={() => setReviewDialog('changes')}>
-                        Request changes
-                      </Button>
-                    )}
-                    <Button size="sm" variant="ghost" disabled={review.isPending} onClick={() => review.mutate('clear')}>
-                      {entry.reviewRequestedAt ? 'Withdraw request' : 'Dismiss note'}
-                    </Button>
+                  <div className="mt-3">
+                    <ActionRows>
+                      {entry.reviewRequestedAt && access.canPublish && (
+                        <ActionRow
+                          icon={MessageSquarePlus}
+                          label="Request changes"
+                          disabled={review.isPending}
+                          onClick={() => setReviewDialog('changes')}
+                        />
+                      )}
+                      <ActionRow
+                        icon={entry.reviewRequestedAt ? Undo : X}
+                        label={entry.reviewRequestedAt ? 'Withdraw request' : 'Dismiss note'}
+                        disabled={review.isPending}
+                        onClick={() => review.mutate('clear')}
+                      />
+                    </ActionRows>
                   </div>
                 </SettingsSection>
               )}
               {access.canPublish && !archived && (
                 <ScheduleSection key={`${entry.scheduledPublishAt}|${entry.scheduledUnpublishAt}`} entry={entry} />
               )}
-              {fields.length > 0 && (
+              {seoField && (
                 <SeoPanel
                   fields={fields}
                   titleField={type.titleField}
@@ -474,7 +505,8 @@ function LoadedEntryEditor({
                   onFillSeo={() => setFillSeoRequest((count) => count + 1)}
                   onRevealField={(key) => {
                     setSeoOpen(true);
-                    // After the section has opened and rendered the field.
+                    setSeoRow(key);
+                    // After the section and the row have opened and rendered the field.
                     requestAnimationFrame(() => requestAnimationFrame(() => goToField(key)));
                   }}
                 />
@@ -493,52 +525,22 @@ function LoadedEntryEditor({
                   />
                 </SettingsSection>
               )}
-              <SettingsSection title="Actions">
-                <ActionRows
-                  danger={
-                    access.canPublish ? (
-                      <ActionRow
-                        icon={Trash2}
-                        label={otherLanguages > 0 ? `Delete the ${entry.locale} version` : 'Delete entry'}
-                        danger
-                        disabled={busy}
-                        onClick={() => setConfirm({ kind: 'delete' })}
-                      />
-                    ) : undefined
-                  }
-                >
-                  <ActionRow icon={History} label="Version history" onClick={() => setHistoryOpen(true)} />
-                  {access.canWrite && !archived && <ActionRow icon={Link2} label="Share draft preview" onClick={() => setSharing(true)} />}
-                  {access.canWrite && type.kind === 'collection' && (
-                    <ActionRow icon={Copy} label="Duplicate" disabled={busy} onClick={() => action.mutate('duplicate')} />
-                  )}
-                  {access.canPublish && entry.publishedData && (
-                    <ActionRow icon={EyeOff} label="Unpublish" disabled={busy} onClick={() => setConfirm({ kind: 'unpublish' })} />
-                  )}
-                  {access.canPublish && !archived && (
-                    <ActionRow icon={Archive} label="Archive" disabled={busy} onClick={() => setConfirm({ kind: 'archive' })} />
-                  )}
-                  {access.canWrite && archived && (
-                    <ActionRow icon={RotateCcw} label="Restore to draft" disabled={busy} onClick={() => action.mutate('restore')} />
-                  )}
-                  {access.canModel && (
-                    <ActionRow icon={Layers} label={`Edit the ${type.name} model`} onClick={() => onOpenModel(type.id)} />
-                  )}
-                </ActionRows>
-              </SettingsSection>
             </>
           }
         >
           {archived && (
-            <p className="rounded-lg border border-rule/60 bg-band/60 px-4 py-3 text-sm text-muted-foreground">
-              This entry is archived and read-only. Restore it to edit or publish again.
+            <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+              This entry is archived and read-only. Restore it from the ⋯ menu to edit or publish again.
             </p>
           )}
           {issues.length > 0 && (
-            <div role="alert" className="rounded-lg border border-exception/50 bg-exception/6 px-4 py-3 text-sm text-exception">
-              {issues.length === 1 ? 'One field needs attention' : `${issues.length} fields need attention`} before this can be saved or
-              published.
-            </div>
+            <p role="alert" className="flex items-start gap-2 rounded-md bg-exception/6 px-3 py-2 text-xs font-medium text-exception">
+              <AlertCircle size={14} className="mt-px shrink-0" aria-hidden="true" />
+              <span>
+                {issues.length === 1 ? 'One field needs attention' : `${issues.length} fields need attention`} before this can be saved or
+                published — each is marked below.
+              </span>
+            </p>
           )}
           {fields.length === 0 ? (
             <EmptyState
@@ -549,28 +551,71 @@ function LoadedEntryEditor({
             />
           ) : (
             <>
-              <SettingsSection title="Content" description={type.description ?? undefined}>
-                <FieldSet
-                  fields={contentFields}
+              <SettingsSection
+                title="Content"
+                description={type.description ?? undefined}
+                actions={
+                  editable && requiredCount > 0 ? (
+                    missing.length > 0 ? (
+                      <Tooltip side="top" align="end" wrap label={`Still empty: ${missing.map((field) => field.label).join(', ')}`}>
+                        <Badge variant="warning">{missing.length} required left</Badge>
+                      </Tooltip>
+                    ) : (
+                      <Badge variant="success">Required filled</Badge>
+                    )
+                  ) : undefined
+                }
+              >
+                {/* The title stays the page's headline, typed in place; every other field is a row, as in SEO & sharing. */}
+                {headlineField && (
+                  <div className="mb-5">
+                    <FieldSet
+                      fields={[headlineField]}
+                      value={data}
+                      onChange={setData}
+                      issues={issueMap}
+                      disabled={!editable}
+                      locale={entry.locale}
+                      headlineKey={headlineField.key}
+                    />
+                  </div>
+                )}
+                <FieldRows
+                  fields={rowFields}
                   value={data}
                   onChange={setData}
                   issues={issueMap}
                   disabled={!editable}
                   locale={entry.locale}
-                  headlineKey={type.titleField}
+                  open={contentRow}
+                  onOpenChange={setContentRow}
                 />
               </SettingsSection>
               {seoField && (
                 // Metadata, not writing: folded under the content, summarised in its header.
                 <SettingsSection
                   title="SEO & sharing"
+                  icon={Search}
+                  // Folded, the header is the whole card: title and controls on one centred line, equal space above and below.
+                  alignActionsToTitle
                   bodyClassName={seoShown ? undefined : 'hidden'}
-                  className={seoShown ? undefined : 'pb-3.5'}
+                  className={seoShown ? undefined : 'pb-5'}
                   actions={
                     <div className="flex items-center gap-2">
-                      <span className="text-xs tabular-nums text-muted-foreground">{seoSummary}</span>
+                      {seoSummary && (
+                        <Tooltip
+                          side="top"
+                          align="end"
+                          wrap
+                          label={`${seoSummary.passed} of ${seoSummary.total} search checks pass${seoSummary.empty > 0 ? `; ${seoSummary.empty} fields are empty and use the entry’s own text` : ''}. Details in Search & sharing.`}
+                        >
+                          <Badge variant={seoSummary.passed === seoSummary.total ? 'success' : 'warning'}>
+                            {seoSummary.passed}/{seoSummary.total} checks
+                          </Badge>
+                        </Tooltip>
+                      )}
                       <Button size="sm" variant="ghost" className="gap-1" aria-expanded={seoShown} onClick={() => setSeoOpen(!seoShown)}>
-                        {seoShown ? 'Hide' : 'Show'}
+                        {seoShown ? 'Hide fields' : 'Edit'}
                         <ChevronDown size={14} className={cn('transition-transform', seoShown && 'rotate-180')} aria-hidden="true" />
                       </Button>
                     </div>
@@ -578,25 +623,54 @@ function LoadedEntryEditor({
                 >
                   {/* The group's own fields, straight in the section — its title is this section's title. */}
                   {issueMap.get(SEO_FIELD_KEY)?.length ? (
-                    <ul
-                      role="alert"
-                      className="mb-4 space-y-0.5 rounded-lg border border-exception/50 bg-exception/6 px-4 py-3 text-sm text-exception"
-                    >
+                    <ul role="alert" className="mb-4 space-y-0.5 rounded-md bg-exception/6 px-3 py-2 text-xs font-medium text-exception">
                       {issueMap.get(SEO_FIELD_KEY)!.map((issue) => (
                         <li key={issue}>{issue}</li>
                       ))}
                     </ul>
                   ) : null}
-                  <FieldSet
+                  {/* Rows as on the settings pages: value in words (or its fallback, muted), tap to edit. */}
+                  <SeoFieldRows
                     fields={seoField.fields ?? []}
                     value={seoData}
                     onChange={(next) => setData({ ...data, [SEO_FIELD_KEY]: next })}
                     disabled={!editable}
                     locale={entry.locale}
+                    placeholders={seoPlaceholders}
+                    open={seoRow}
+                    onOpenChange={setSeoRow}
                   />
                 </SettingsSection>
               )}
             </>
+          )}
+
+          {editable && (
+            <SaveBar
+              dirty={dirty}
+              saving={save.isPending}
+              saveLabel="Save draft"
+              disabled={busy}
+              message={`Unsaved changes${otherLanguages > 0 ? ` in ${entry.locale}` : ''} · ${saveShortcut} saves`}
+              onSave={() => save.mutate()}
+              onDiscard={() => {
+                // Forget the kept copy too, or the next load would bring the edits back.
+                forgetDraft();
+                onDiscard();
+              }}
+              extra={
+                access.canPublish ? (
+                  <Button className="gap-1.5" disabled={busy} onClick={() => publish.mutate()}>
+                    <Send aria-hidden="true" />
+                    {publish.isPending ? 'Publishing…' : 'Save & publish'}
+                  </Button>
+                ) : !entry.reviewRequestedAt ? (
+                  <Button className="gap-1.5" disabled={busy || review.isPending} onClick={() => setReviewDialog('submit')}>
+                    <Users aria-hidden="true" /> Save & submit
+                  </Button>
+                ) : undefined
+              }
+            />
           )}
         </SettingsTabBody>
       </motion.div>
@@ -789,40 +863,34 @@ function LanguageSwitcher({ entry, dirty, onOpenEntry }: { entry: CmsEntry; dirt
 
 // ─── Aside ───────────────────────────────────────────────────────────────────
 
-function StatusSection({ entry }: { entry: CmsEntry }) {
+function StatusSection({ entry, onHistory }: { entry: CmsEntry; onHistory: () => void }) {
   const meta = entryStatusMeta(entry.status);
-  const live = entry.status === 'published' || entry.status === 'changed';
-  // Settings' rows (outlined icon tile, the fact, its value on the right), without hairlines and tighter for the aside.
   return (
-    <SettingsSection title="Status">
-      <div className="[&>div]:py-2 [&>div:first-child]:pt-0 [&>div:last-child]:pb-0">
-        <SettingRow icon={live ? Send : FileText} title={meta.label}>
-          <Tooltip side="top" label={meta.description} className="min-w-0">
-            <span className="max-w-40 truncate text-right text-sm text-muted-foreground">{meta.description}</span>
-          </Tooltip>
-        </SettingRow>
+    <SettingsSection title="Status" actions={<EntryStatusBadge status={entry.status} />}>
+      <p className="mb-3 text-xs text-muted-foreground">{meta.description}</p>
+      <InfoRows>
         {entry.publishedAt && (
-          <SettingRow icon={Globe} title="Published">
+          <InfoRow icon={Globe} title="Published">
             <span className="text-sm text-foreground">
               <RelativeTime iso={entry.publishedAt} />
               {entry.publishedVersion !== null && <span className="tabular-nums text-muted-foreground"> · v{entry.publishedVersion}</span>}
             </span>
-          </SettingRow>
+          </InfoRow>
         )}
-        <SettingRow icon={Clock} title="Last saved">
+        <InfoRow icon={Clock} title="Last saved">
           <span className="text-sm text-foreground">
             <RelativeTime iso={entry.updatedAt} />
             <span className="tabular-nums text-muted-foreground"> · v{entry.version}</span>
           </span>
-        </SettingRow>
+        </InfoRow>
         {entry.slug && (
-          <SettingRow icon={Link2} title="Slug">
+          <InfoRow icon={Link2} title="Slug">
             <Tooltip side="top" label={`/${entry.slug}`} className="min-w-0">
               <span className="max-w-36 truncate font-mono text-xs text-foreground">/{entry.slug}</span>
             </Tooltip>
-          </SettingRow>
+          </InfoRow>
         )}
-        <SettingRow icon={Hash} title="Entry ID">
+        <InfoRow icon={Hash} title="Entry ID">
           <Tooltip side="top" label={entry.documentId}>
             <span className="font-mono text-xs text-muted-foreground">{entry.documentId.slice(0, 8)}</span>
           </Tooltip>
@@ -837,7 +905,12 @@ function StatusSection({ entry }: { entry: CmsEntry }) {
               return copied;
             }}
           />
-        </SettingRow>
+        </InfoRow>
+      </InfoRows>
+      <div className="mt-3">
+        <ActionRows>
+          <ActionRow icon={History} label="Version history" onClick={onHistory} />
+        </ActionRows>
       </div>
     </SettingsSection>
   );
@@ -867,17 +940,7 @@ function ScheduleSection({ entry }: { entry: CmsEntry }) {
   return (
     <SettingsSection
       title="Schedule"
-      actions={
-        <Tooltip side="top" align="end" wrap label={`A scheduled publish uses the draft as it is saved at that moment. ${zoneHint}`}>
-          <button
-            type="button"
-            aria-label="About scheduling"
-            className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
-          >
-            <Info size={15} aria-hidden="true" />
-          </button>
-        </Tooltip>
-      }
+      actions={<SectionInfo label={`A scheduled publish uses the draft as it is saved at that moment. ${zoneHint}`} />}
     >
       <div className="space-y-4">
         <ScheduleRow icon={Send} title="Publish" value={publishAt} saved={entry.scheduledPublishAt} onClear={() => setPublishAt('')}>
@@ -929,7 +992,7 @@ const scheduleLabel = (iso: string) => formatInstant(iso, { day: 'numeric', mont
  * someone schedules something.
  */
 function ScheduleRow({
-  icon: Icon,
+  icon,
   title,
   value,
   saved,
@@ -955,9 +1018,7 @@ function ScheduleRow({
       <div className="flex items-center justify-between gap-3">
         {/* The same outlined tile as the Status card's rows. */}
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
-            <Icon size={16} aria-hidden="true" />
-          </span>
+          <RowTile icon={icon} />
           <p className="text-sm font-semibold text-foreground">{title}</p>
         </div>
         <button

@@ -15,6 +15,7 @@ type NodeType = EmailWorkflowNode['type'];
 
 export const NODE_META: Record<NodeType, { label: string; icon: IconComponent; chip: string; ink: string }> = {
   trigger: { label: 'Trigger', icon: Zap, chip: 'bg-band text-primary', ink: 'text-primary' },
+  create_task: { label: 'Create task', icon: CheckCircle2, chip: 'bg-momentum/6 text-momentum', ink: 'text-momentum' },
   send_email: { label: 'Send email', icon: Send, chip: 'bg-info/6 text-info', ink: 'text-info' },
   delay: { label: 'Wait', icon: Clock, chip: 'bg-warning/6 text-warning', ink: 'text-warning' },
   condition: { label: 'Condition', icon: GitCompareArrows, chip: 'bg-chart-5/10 text-chart-5', ink: 'text-chart-5' },
@@ -41,6 +42,8 @@ export function nodeDetail(node: EmailWorkflowNode, templateName?: (id: string) 
   switch (node.type) {
     case 'trigger':
       return TRIGGER_LABELS[node.config.event];
+    case 'create_task':
+      return node.config.subject || 'Helpdesk task';
     case 'send_email':
       return templateName?.(node.config.templateId) ?? 'Email template';
     case 'delay':

@@ -1,12 +1,17 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useState } from 'react';
 
-import { Ban, Bell, Check, Loader2 } from '@/components/icons';
-import { SettingsChoice } from '@/components/settings/SettingsChoice';
+import { InfoRow, InfoRows, PickerRow } from '@/components/cms/rows';
+import { AlertTriangle, Bell, CheckCircle2, Clock, type IconComponent, Timer } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { Button } from '@/components/ui/button';
+import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { SaveBar, Switch } from '@/components/settings/controls';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
@@ -15,11 +20,19 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { type DurationUnit, FOOD_LATENESS, durationLabel, joinDuration, latenessFor, splitDuration } from '@/lib/utils/kitchen-age';
+import {
+  type DurationUnit,
+  FOOD_LATENESS,
+  type Lateness,
+  durationLabel,
+  joinDuration,
+  latenessFor,
+  latenessProblems,
+  splitDuration,
+} from '@/lib/utils/kitchen-age';
+import { toast } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-
-import { ConfigurationBodySkeleton } from './shared';
 
 const UNITS: { value: DurationUnit; label: string }[] = [
   { value: 'minutes', label: 'minutes' },
@@ -27,57 +40,31 @@ const UNITS: { value: DurationUnit; label: string }[] = [
   { value: 'days', label: 'days' },
 ];
 
-/** An amount and its unit — "5 minutes", "2 days" — for one threshold. */
-function DurationField({
-  label,
-  hint,
-  amount,
-  unit,
-  onChange,
-  error,
-}: {
-  label: string;
-  hint?: string;
-  amount: string;
-  unit: DurationUnit;
-  onChange: (next: { amount: string; unit: DurationUnit }) => void;
-  error?: string;
-}) {
-  const id = useId();
-  return (
-    <fieldset aria-describedby={hint ? `${id}-hint` : undefined} className="min-w-0">
-      <legend className="mb-1.5 text-label uppercase text-muted-foreground">{label}</legend>
-      <div className="grid grid-cols-[minmax(0,1fr)_8rem] items-start gap-2">
-        <Input
-          aria-label={label}
-          value={amount}
-          onChange={(e) => onChange({ amount: e.target.value, unit })}
-          inputMode="decimal"
-          error={error}
-        />
-        <Select
-          value={unit}
-          onValueChange={(next) => onChange({ amount, unit: next as DurationUnit })}
-          options={UNITS}
-          ariaLabel={`${label} unit`}
-        />
-      </div>
-      {hint && (
-        <p id={`${id}-hint`} className="mt-1.5 text-xs text-muted-foreground">
-          {hint}
-        </p>
-      )}
-    </fieldset>
-  );
-}
+type OrderingModule = NonNullable<Awaited<ReturnType<typeof getCurrentTenantModules>>['modules'][number]>;
+type Duration = { amount: string; unit: DurationUnit };
+type Draft = { on: boolean; nearly: Duration; late: Duration };
+type Row = 'nearly' | 'late';
+
+const durationOf = (mins: number): Duration => {
+  const { amount, unit } = splitDuration(mins);
+  return { amount: String(amount), unit };
+};
+
+// Off still remembers what "on" would be: the defaults for food, a day for products.
+const draftOf = (lateness: Lateness | null, vocabulary: 'menu' | 'retail' | 'mixed'): Draft => {
+  const start = lateness ?? (vocabulary === 'retail' ? { nearlyMins: 720, lateMins: 1440 } : FOOD_LATENESS);
+  return { on: lateness !== null, nearly: durationOf(start.nearlyMins), late: durationOf(start.lateMins) };
+};
 
 /**
  * When an order counts as late — per workspace, because five minutes is late
  * for a flat white and nothing for a parcel. Feeds the kitchen screen's colours,
  * the dashboard's "needs you" strip and anything else that flags a late order.
+ * Laid out like the other rules tabs: the switch and the two thresholds in the
+ * main column, each threshold a row that opens its field; what staff will see
+ * alongside.
  */
 export function OrdersConfiguration() {
-  const qc = useQueryClient();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const canChange = hasCapability(
     useAuthStore((state) => state.capabilities),
@@ -89,201 +76,168 @@ export function OrdersConfiguration() {
     queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
     enabled: Boolean(tenantId),
   });
-  const ordering = modules.data?.modules.find((state) => state.moduleId === 'ordering');
 
+  if (!tenantId) return <p className="text-sm text-muted-foreground">Choose a workspace to see its order settings.</p>;
+  if (modules.isPending) return <Bone className="h-96 w-full rounded-lg" />;
+  if (modules.isError) return <ErrorState title="Couldn’t load the order settings" onRetry={() => void modules.refetch()} />;
+  const ordering = modules.data.modules.find((state) => state.moduleId === 'ordering');
   if (!ordering) {
     return (
-      <div className="space-y-5">
-        <ConfigurationBodySkeleton label="Loading order settings" />
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Orders isn’t set up for this workspace. Turn it on in{' '}
+        <Link href="/settings/modules" className="underline underline-offset-2">
+          Settings → Modules
+        </Link>
+        .
+      </p>
     );
   }
-  // Keep the form mounted across saves; reset only when switching workspace.
-  return (
-    <OrdersForm
-      key={tenantId}
-      ordering={ordering}
-      vocabulary={vocabulary}
-      canChange={canChange}
-      qc={qc}
-      tenantId={tenantId}
-    />
-  );
+  // The draft belongs to one workspace: switching drops it.
+  return <OrdersForm key={tenantId} ordering={ordering} vocabulary={vocabulary} canChange={canChange} tenantId={tenantId} />;
 }
 
 function OrdersForm({
   ordering,
   vocabulary,
   canChange,
-  qc,
   tenantId,
 }: {
-  ordering: NonNullable<Awaited<ReturnType<typeof getCurrentTenantModules>>['modules'][number]>;
+  ordering: OrderingModule;
   vocabulary: 'menu' | 'retail' | 'mixed';
   canChange: boolean;
-  qc: ReturnType<typeof useQueryClient>;
-  tenantId: string | null;
+  tenantId: string;
 }) {
-  const current = latenessFor(ordering.configuration, vocabulary);
-  // Off still remembers what "on" would be: the defaults for food, a day for products.
-  const start = current ?? (vocabulary === 'retail' ? { nearlyMins: 720, lateMins: 1440 } : FOOD_LATENESS);
-  const [on, setOn] = useState(current !== null);
-  const [nearly, setNearly] = useState(() => ({
-    ...splitDuration(start.nearlyMins),
-    amount: String(splitDuration(start.nearlyMins).amount),
-  }));
-  const [late, setLate] = useState(() => ({ ...splitDuration(start.lateMins), amount: String(splitDuration(start.lateMins).amount) }));
-  const latestSaved = useRef(ordering);
-  const pendingSave = useRef<(() => void) | null>(null);
-  const [savedSignature, setSavedSignature] = useState(() => JSON.stringify(current));
+  const qc = useQueryClient();
+  // The module as this page last saved it — ahead of the list until that refetches, so a second save sends the right version.
+  const [base, setBase] = useState(ordering);
+  const latest = ordering.configurationVersion > base.configurationVersion ? ordering : base;
+  const saved = latenessFor(latest.configuration, vocabulary);
 
-  const nearlyMins = joinDuration(nearly.amount, nearly.unit);
-  const lateMins = joinDuration(late.amount, late.unit);
-  const errors = {
-    late: on && lateMins === null ? 'More than 0.' : undefined,
-    nearly:
-      on && nearlyMins === null
-        ? 'More than 0.'
-        : on && nearlyMins !== null && lateMins !== null && nearlyMins >= lateMins
-          ? 'Sooner than “late”.'
-          : undefined,
-  };
-  const valid = !errors.late && !errors.nearly;
+  const [draftState, setDraftState] = useState<Draft | null>(null);
+  // One threshold open at a time; a tap on the open one closes it.
+  const [open, setOpen] = useState<Row | null>(null);
+  const draft = draftState ?? draftOf(saved, vocabulary);
+  const set = (patch: Partial<Draft>) => setDraftState({ ...draft, ...patch });
 
-  const signature = JSON.stringify(on ? { nearlyMins, lateMins } : null);
-  const dirty = signature !== savedSignature;
+  const nearlyMins = joinDuration(draft.nearly.amount, draft.nearly.unit);
+  const lateMins = joinDuration(draft.late.amount, draft.late.unit);
+  const problems = draft.on ? latenessProblems(nearlyMins, lateMins) : {};
+  const valid = !problems.nearly && !problems.late;
+  // Compared in minutes, not as typed, so "5" and "5.0" are the same.
+  const next: Lateness | null = draft.on && valid ? { nearlyMins: nearlyMins!, lateMins: lateMins! } : null;
+  const dirty = JSON.stringify(draft.on ? { nearlyMins, lateMins } : null) !== JSON.stringify(saved);
+
   const save = useMutation({
-    mutationFn: (lateness: typeof current) =>
+    mutationFn: (lateness: Lateness | null) =>
       updateTenantModuleConfiguration(
-        tenantId!,
+        tenantId,
         'ordering',
-        latestSaved.current,
+        latest,
         { lateness: lateness ?? { off: true } },
         lateness ? `Orders late after ${durationLabel(lateness.lateMins)}` : 'Late orders not flagged',
       ),
-    onSuccess: async (result, lateness) => {
-      latestSaved.current = result.module;
-      setSavedSignature(JSON.stringify(lateness));
+    onSuccess: async (result) => {
+      setBase(result.module);
+      setDraftState(null);
+      setOpen(null);
       await Promise.all([
         qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('current-tenant-modules') }),
         qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenant-modules') }),
       ]);
     },
+    onError: (error) => toast('error', error.message || 'Changes couldn’t be saved. Try again.'),
   });
-  const { mutate, isPending, isError } = save;
 
-  // Wait for a pause in typing; do not persist an incomplete pair or retry a failed request automatically.
-  useEffect(() => {
-    pendingSave.current = null;
-    if (!canChange || !tenantId || !dirty || !valid || isPending || isError) return;
-    const persist = () => {
-      pendingSave.current = null;
-      mutate(on ? { nearlyMins: nearlyMins!, lateMins: lateMins! } : null);
-    };
-    pendingSave.current = persist;
-    const timer = window.setTimeout(() => pendingSave.current?.(), 700);
-    return () => window.clearTimeout(timer);
-  }, [canChange, tenantId, dirty, valid, isPending, isError, on, nearlyMins, lateMins, mutate]);
-
-  // Finish a queued valid edit if the user leaves before the typing delay ends.
-  useEffect(() => () => pendingSave.current?.(), []);
+  const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
+  /** A threshold: its length on the row, the amount and unit (and what it does) underneath. */
+  const durationRow = (row: Row, icon: IconComponent, title: string, hint: string) => {
+    const value = draft[row];
+    const mins = row === 'nearly' ? nearlyMins : lateMins;
+    return (
+      <PickerRow icon={icon} title={title} value={mins === null ? 'Not set' : durationLabel(mins)} muted={mins === null} open={open === row} onToggle={() => toggle(row)}>
+        <div className="grid grid-cols-[minmax(0,1fr)_8rem] items-start gap-2">
+          <Input
+            aria-label={title}
+            value={value.amount}
+            onChange={(event) => set({ [row]: { ...value, amount: event.target.value } })}
+            inputMode="decimal"
+            autoFocus
+            error={problems[row]}
+          />
+          <Select
+            value={value.unit}
+            onValueChange={(unit) => set({ [row]: { ...value, unit: unit as DurationUnit } })}
+            options={UNITS}
+            ariaLabel={`${title} unit`}
+          />
+        </div>
+        <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
+      </PickerRow>
+    );
+  };
 
   return (
-    <div className="space-y-5">
-      <SettingsSection
-        title="Late orders"
-        descriptionClassName="max-w-none"
-        description={
-          vocabulary === 'retail'
-            ? 'A parcel isn’t late after five minutes — set it in hours or days, or don’t flag lateness at all.'
-            : 'Measured in each stage — how long an order has been new, preparing or ready — not since it was placed.'
-        }
-        actions={
-          canChange ? (
-            <span role="status" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              {save.isPending ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" aria-hidden="true" /> Saving…
-                </>
-              ) : save.isError ? (
-                'Not saved'
-              ) : dirty ? (
-                valid ? (
-                  'Waiting to save…'
-                ) : (
-                  'Check the times below'
-                )
-              ) : (
-                <>
-                  <Check size={14} aria-hidden="true" /> Saved
-                </>
+    <SettingsTabBody
+      narrowAside
+      aside={
+        <SettingsSection title="What staff see" actions={<Badge variant={draft.on ? 'success' : 'muted'}>{draft.on ? 'On' : 'Off'}</Badge>}>
+          {!draft.on ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                No order turns amber or red on the kitchen screen, and the dashboard doesn’t list late orders.
+              </p>
+              {vocabulary === 'retail' && (
+                <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+                  Off by default for products — a parcel isn’t late after five minutes.
+                </p>
               )}
-            </span>
-          ) : undefined
-        }
-        footnote={canChange ? undefined : 'Only someone who can change workspace settings can change this.'}
-      >
-        <fieldset
-          disabled={!canChange}
-          className="space-y-4"
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) pendingSave.current?.();
-          }}
-        >
-          <legend className="sr-only">Late order settings</legend>
-          <SettingsChoice
-            label="Late order alerts"
-            value={on ? 'on' : 'off'}
-            onChange={(next) => {
-              if (save.isError) save.reset();
-              setOn(next === 'on');
-            }}
-            options={[
-              { value: 'on', label: 'Flag late orders', icon: Bell },
-              { value: 'off', label: 'Don’t flag them', icon: Ban },
-            ]}
-          />
-          {on && (
-            <div className="grid items-start gap-4 sm:grid-cols-2">
-              <DurationField
-                label="Nearly late after"
-                hint="Turns amber."
-                amount={nearly.amount}
-                unit={nearly.unit}
-                onChange={(next) => {
-                  if (save.isError) save.reset();
-                  setNearly(next);
-                }}
-                error={dirty ? errors.nearly : undefined}
-              />
-              <DurationField
-                label="Late after"
-                hint="Turns red, and shows on the dashboard."
-                amount={late.amount}
-                unit={late.unit}
-                onChange={(next) => {
-                  if (save.isError) save.reset();
-                  setLate(next);
-                }}
-                error={dirty ? errors.late : undefined}
-              />
             </div>
+          ) : next ? (
+            <>
+              <InfoRows>
+                <InfoRow icon={CheckCircle2} tone="success" title="On time">
+                  <span className="text-sm text-muted-foreground">Under {durationLabel(next.nearlyMins)}</span>
+                </InfoRow>
+                <InfoRow icon={Timer} tone="warning" title="Nearly late">
+                  <span className="text-sm text-muted-foreground">After {durationLabel(next.nearlyMins)}</span>
+                </InfoRow>
+                <InfoRow icon={AlertTriangle} tone="danger" title="Late">
+                  <span className="text-sm text-muted-foreground">After {durationLabel(next.lateMins)}</span>
+                </InfoRow>
+              </InfoRows>
+              <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+                Counted in each stage — how long an order has been new, preparing or ready — not since it was placed. Late orders also show on the dashboard.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Fix the times and you’ll see here when an order turns amber and red.</p>
           )}
+        </SettingsSection>
+      }
+    >
+      <SettingsSection title="Late orders" footnote={canChange ? undefined : 'Only someone who can change workspace settings can change this.'}>
+        <fieldset disabled={!canChange} className="space-y-3">
+          <InfoRow icon={Bell} title="Flag late orders">
+            <Switch checked={draft.on} onChange={(on) => set({ on })} label="Flag late orders" disabled={!canChange} />
+          </InfoRow>
+          {draft.on && durationRow('nearly', Timer, 'Nearly late after', 'The ticket turns amber.')}
+          {draft.on && durationRow('late', Clock, 'Late after', 'It turns red and shows on the dashboard.')}
         </fieldset>
-        {save.isError && (
-          <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-exception">
-            <p>{save.error.message || 'Changes couldn’t be saved. Try again.'}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!canChange || !valid}
-              onClick={() => save.mutate(on ? { nearlyMins: nearlyMins!, lateMins: lateMins! } : null)}
-            >
-              Retry
-            </Button>
-          </div>
-        )}
       </SettingsSection>
-    </div>
+
+      {canChange && (
+        <SaveBar
+          dirty={dirty}
+          saving={save.isPending}
+          disabled={!valid}
+          message={valid ? undefined : 'Check the times — each more than 0, nearly late sooner than late'}
+          onSave={() => save.mutate(next)}
+          onDiscard={() => {
+            setDraftState(null);
+            setOpen(null);
+          }}
+        />
+      )}
+    </SettingsTabBody>
   );
 }

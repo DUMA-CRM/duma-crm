@@ -29,6 +29,7 @@ export const moduleQueryKeys = {
   people: createModuleQueryKeys('people'),
   payroll: createModuleQueryKeys('payroll'),
   communications: createModuleQueryKeys('communications'),
+  automation: createModuleQueryKeys('automation'),
   compliance: createModuleQueryKeys('compliance'),
   audit: createModuleQueryKeys('audit'),
   analytics: createModuleQueryKeys('analytics'),

@@ -3,7 +3,7 @@
 import { type UseQueryResult, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { InfoRow, InfoRows } from '@/components/cms/rows';
+import { InfoRow, InfoRows, PickerRow } from '@/components/cms/rows';
 import {
   AlertTriangle,
   Bell,
@@ -57,7 +57,6 @@ import { toast } from '@/stores/toastStore';
 import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 
 import { FloorCanvas, type TableTone, ToneSwatch } from './FloorCanvas';
-import { PickerRow } from './PickerRow';
 import { useMinuteClock } from './useMinuteClock';
 
 const seatsLabel = (table: Pick<FloorTable, 'minCovers' | 'maxCovers'>) =>

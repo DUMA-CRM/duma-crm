@@ -56,6 +56,8 @@ export function describeStep(
       const where = scoped ? (locationName ? ` at ${locationName}` : ' at any location') : '';
       return `Starts when ${event.charAt(0).toLowerCase()}${event.slice(1)}${where}.`;
     }
+    case 'create_task':
+      return 'Creates an internal helpdesk task for your team. Requires helpdesk management permission.';
     case 'send_email':
       return node.config.templateId ? `Emails “${templateName(node.config.templateId)}” to ${who}.` : `Emails ${who} — choose a template.`;
     case 'delay':

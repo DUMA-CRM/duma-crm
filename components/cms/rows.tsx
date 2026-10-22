@@ -1,8 +1,12 @@
 'use client';
 
-import { ChevronRight, Info } from '@/components/icons';
+import { useState } from 'react';
+
+import { ChevronDown, ChevronRight, Info, Loader2, MoreHorizontal } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { Tooltip } from '@/components/shared/Tooltip';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -34,12 +38,33 @@ export function RowTile({ icon: Icon, tone = 'default' }: { icon: IconComponent;
 }
 
 /** A fact: tile and title on the left, its value (or a small control) on the right. */
-export function InfoRow({ icon, title, children }: { icon: IconComponent; title: string; children: React.ReactNode }) {
+export function InfoRow({
+  icon,
+  title,
+  description,
+  tone,
+  children,
+}: {
+  icon: IconComponent;
+  title: string;
+  /** One line under the title saying what the thing is — for a list of things rather than a fact. */
+  description?: string;
+  /** Tint the tile when the row means something — a state, a warning. */
+  tone?: React.ComponentProps<typeof RowTile>['tone'];
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
-        <RowTile icon={icon} />
-        <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+        <RowTile icon={icon} tone={tone} />
+        {description ? (
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+            <p className="truncate text-xs text-muted-foreground">{description}</p>
+          </div>
+        ) : (
+          <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+        )}
       </div>
       <div className="flex min-w-0 shrink-0 items-center gap-1.5">{children}</div>
     </div>
@@ -143,5 +168,111 @@ export function FieldRow({
       </div>
       <div className="mt-2">{children}</div>
     </div>
+  );
+}
+
+/**
+ * A choice on one line — tile, name, what it's set to — that opens its control
+ * underneath on a tap. Built like an `InfoRow`, so it sits in the same rhythm
+ * as the facts around it.
+ */
+export function PickerRow({
+  icon,
+  title,
+  description,
+  value,
+  muted = false,
+  tone,
+  open,
+  onToggle,
+  children,
+}: {
+  icon: IconComponent;
+  title: string;
+  /** The row needs attention while closed: `danger` for an error, `warning` for something required left empty. */
+  tone?: 'warning' | 'danger';
+  /** One line under the title — for a row that is one of a list of things (a language, a reader). */
+  description?: string;
+  value: string;
+  /** The value is a placeholder — nothing set yet. */
+  muted?: boolean;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        <span className="flex shrink-0 items-center gap-3">
+          <RowTile icon={icon} tone={tone} />
+          {description ? (
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-foreground">{title}</span>
+              <span className="block truncate text-xs text-muted-foreground">{description}</span>
+            </span>
+          ) : (
+            <span className="truncate text-sm font-semibold text-foreground">{title}</span>
+          )}
+        </span>
+        <span
+          className={cn(
+            'flex min-w-0 items-center gap-1.5 text-sm',
+            tone === 'danger'
+              ? 'font-medium text-exception'
+              : tone === 'warning'
+                ? 'font-medium text-measured'
+                : muted
+                  ? 'font-normal text-muted-foreground/70'
+                  : 'font-semibold text-foreground',
+          )}
+        >
+          <span className="truncate">{value}</span>
+          <ChevronDown size={14} className={cn('shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden="true" />
+        </span>
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </div>
+  );
+}
+
+export interface RowMenuItem {
+  icon: IconComponent;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  /** Destructive: drawn in red, after the rest. */
+  danger?: boolean;
+}
+
+/**
+ * A row's secondary actions behind a ⋯ button — so a list shows its rows, not
+ * a fence of icon buttons. Picking an item closes the menu, then runs it.
+ */
+export function RowMenu({ label, items, pending = false }: { label: string; items: RowMenuItem[]; pending?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const run = (item: RowMenuItem) => () => {
+    setOpen(false);
+    item.onClick();
+  };
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon-sm" aria-label={label} disabled={pending} className="shrink-0 text-muted-foreground">
+          {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <MoreHorizontal aria-hidden="true" />}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-56 p-2">
+        <div className="flex flex-col gap-0.5">
+          {[...items.filter((item) => !item.danger), ...items.filter((item) => item.danger)].map((item) => (
+            <ActionRow key={item.label} icon={item.icon} label={item.label} danger={item.danger} disabled={item.disabled} onClick={run(item)} />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

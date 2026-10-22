@@ -3,7 +3,7 @@
 import { type UseQueryResult, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { InfoRow, InfoRows } from '@/components/cms/rows';
+import { InfoRow, InfoRows, PickerRow } from '@/components/cms/rows';
 import {
   ArrowLeftRight,
   ChevronDown,
@@ -53,7 +53,6 @@ import { toast } from '@/stores/toastStore';
 import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 
 import { FloorCanvas } from './FloorCanvas';
-import { PickerRow } from './PickerRow';
 
 type Position = Pick<FloorTable, 'x' | 'y' | 'width' | 'height' | 'rotation'>;
 /** What the table panel changes that isn't where the table sits. */

@@ -20,6 +20,7 @@ export function ExpandRow({
   value,
   htmlFor,
   warn = false,
+  defaultOpen = false,
   children,
 }: {
   icon: IconComponent;
@@ -30,9 +31,10 @@ export function ExpandRow({
   htmlFor?: string;
   /** Tint the value: it needs a look (e.g. preview text too long). */
   warn?: boolean;
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(() => !value.trim());
+  const [open, setOpen] = useState(() => defaultOpen || !value.trim());
   const toggle = () => {
     setOpen((current) => !current);
     // After the input has rendered.

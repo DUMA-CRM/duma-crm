@@ -1,90 +1,68 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
-import { ArrowRight, Languages, Loader2, Plus, Trash2 } from '@/components/icons';
+import { ArrowRight, Coins, FileText, Languages, Loader2, Plus, Star, Trash2 } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { Modal } from '@/components/shared/Modal';
+import { Bone } from '@/components/shared/Skeleton';
 import { useWorkspaceCurrency } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { type CmsLocale, createCmsLocale, deleteCmsLocale, getCmsLocales, updateCmsLocale } from '@/lib/modules/cms/client';
-import { fallbackChain, localeDisplayName } from '@/lib/utils/cms';
+import {
+  type CmsLocale,
+  createCmsLocale,
+  deleteCmsLocale,
+  getCmsEntries,
+  getCmsLocales,
+  getCmsOverview,
+  updateCmsLocale,
+} from '@/lib/modules/cms/client';
+import { localeDisplayName, translationCoverage } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
-import { CURRENCIES } from '@/lib/utils/currencies';
+import { CURRENCIES, currencyLabel } from '@/lib/utils/currencies';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { FieldRow, InfoRow, InfoRows, PickerRow, RowMenu } from './rows';
 import { cmsKeys, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
 
 const LOCALE_CODE = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 
+type Patch = { isDefault?: boolean; fallbackCode?: string | null; currency?: string | null };
+
 /**
- * The languages content is written in, laid out like a Settings tab: the
- * list and the add form in the main column, and what a reader actually gets —
- * each language's fallback chain — in the aside.
+ * The languages content is written in, one question per row:
+ *  - Languages: the list, the default, and per-language actions in a ⋯ menu.
+ *  - When a translation is missing: what each language's readers see instead.
+ *  - Prices: the currency each language's readers pay in.
+ * The aside shows the result — each language's full fallback chain. Every
+ * change saves at once; there is no draft.
  */
 export function LocalesPanel() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const reduceMotion = useReducedMotion();
+  const queryClient = useQueryClient();
   const query = useQuery({ queryKey: cmsKeys.locales(tenantId), queryFn: () => getCmsLocales(tenantId ?? undefined), enabled: !!tenantId });
   const { canModel } = useCmsAccess();
-  const locales = query.data ?? [];
-
-  return (
-    <motion.div initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
-      <SettingsTabBody aside={query.isSuccess ? <FallbackSection locales={locales} /> : undefined}>
-        <SettingsSection
-          title="Languages"
-          description="Every entry is written once per language. The default is what a website gets when it asks for no language, or for one you don’t write in."
-          actions={
-            query.isSuccess ? (
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {locales.length} {locales.length === 1 ? 'language' : 'languages'}
-              </span>
-            ) : undefined
-          }
-          footnote="A language with entries can’t be removed — delete or move its entries first."
-        >
-          {query.isPending ? (
-            <TilesSkeleton count={2} label="Loading languages" />
-          ) : query.isError ? (
-            <ErrorState title="Couldn’t load your languages" onRetry={() => void query.refetch()} />
-          ) : (
-            <LocaleList locales={locales} canModel={canModel} />
-          )}
-        </SettingsSection>
-        {canModel && query.isSuccess && <AddLocaleSection locales={locales} />}
-      </SettingsTabBody>
-    </motion.div>
-  );
-}
-
-function LocaleList({ locales, canModel }: { locales: CmsLocale[]; canModel: boolean }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
-  const queryClient = useQueryClient();
-  const reduceMotion = useReducedMotion();
-  const [removing, setRemoving] = useState<CmsLocale | null>(null);
   const base = useWorkspaceCurrency();
-  // The default leads; the rest read alphabetically by name.
-  const sorted = [...locales].sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name));
+  // One row open at a time across the sections; a tap on the open one closes it.
+  const [open, setOpen] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [removing, setRemoving] = useState<CmsLocale | null>(null);
+  const toggle = (row: string) => setOpen((current) => (current === row ? null : row));
 
   const update = useMutation({
-    mutationFn: ({
-      locale,
-      patch,
-    }: {
-      locale: CmsLocale;
-      patch: { isDefault?: boolean; fallbackCode?: string | null; currency?: string | null };
-    }) => updateCmsLocale(locale.code, patch, tenantId),
+    mutationFn: ({ locale, patch }: { locale: CmsLocale; patch: Patch }) => updateCmsLocale(locale.code, patch, tenantId ?? undefined),
     onSuccess: (_, { locale, patch }) => {
       invalidateCms(queryClient);
       if (patch.isDefault) toast('success', `${locale.name} is now the default.`);
@@ -93,10 +71,11 @@ function LocaleList({ locales, canModel }: { locales: CmsLocale[]; canModel: boo
     onError: (error) => toast('error', error.message),
   });
   const remove = useMutation({
-    mutationFn: (locale: CmsLocale) => deleteCmsLocale(locale.code, tenantId),
+    mutationFn: (locale: CmsLocale) => deleteCmsLocale(locale.code, tenantId ?? undefined),
     onSuccess: (_, locale) => {
       invalidateCms(queryClient);
       setRemoving(null);
+      setOpen(null);
       toast('success', `${locale.name} removed.`);
     },
     onError: (error) => {
@@ -105,101 +84,134 @@ function LocaleList({ locales, canModel }: { locales: CmsLocale[]; canModel: boo
     },
   });
 
-  return (
-    <>
-      <ul className="space-y-2">
-        <AnimatePresence initial={false}>
-          {sorted.map((locale, index) => {
-            const pending = update.isPending && update.variables?.locale.code === locale.code;
-            return (
-              <motion.li
-                key={locale.code}
-                layout={!reduceMotion}
-                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0, transition: { delay: reduceMotion ? 0 : index * 0.05 } }}
-                exit={{ opacity: 0, x: 16 }}
-                className={cn(
-                  'flex flex-wrap items-center gap-3 rounded-lg border px-3.5 py-3',
-                  locale.isDefault ? 'border-primary/40 bg-primary/5' : 'border-rule/50 bg-background/60',
-                )}
-              >
-                <span
-                  className={cn(
-                    'flex size-10 shrink-0 items-center justify-center rounded-md font-mono text-xs font-semibold uppercase',
-                    locale.isDefault ? 'bg-primary text-primary-foreground' : 'bg-band text-muted-foreground',
-                  )}
-                  aria-hidden="true"
-                >
-                  {locale.code.split('-')[0]}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
-                    {locale.name}
-                    {locale.isDefault && <Badge variant="success">Default</Badge>}
-                  </p>
-                  <p className="truncate font-mono text-xs text-muted-foreground">{locale.code}</p>
-                </div>
-                {!locale.isDefault && (
-                  <div className="flex w-full items-center gap-1.5 sm:w-auto">
-                    <Select
-                      ariaLabel={`${locale.name} falls back to`}
-                      className="h-8 min-w-0 flex-1 text-xs sm:w-52 sm:flex-none"
-                      disabled={!canModel || pending}
-                      value={locale.fallbackCode ?? ''}
-                      onValueChange={(value) => update.mutate({ locale, patch: { fallbackCode: value || null } })}
-                      options={[
-                        { value: '', label: 'Falls back to the default' },
-                        ...sorted
-                          .filter((other) => other.code !== locale.code)
-                          .map((other) => ({ value: other.code, label: `Falls back to ${other.name}` })),
-                      ]}
-                    />
-                    {/* A shop abroad: Ukrainian readers pay in hryvnia while English stays in pounds. */}
-                    <Select
-                      ariaLabel={`${locale.name} prices in`}
-                      className="h-8 min-w-0 flex-1 text-xs sm:w-36 sm:flex-none"
-                      disabled={!canModel || pending}
-                      value={locale.currency ?? ''}
-                      onValueChange={(value) => update.mutate({ locale, patch: { currency: value || null } })}
-                      options={[
-                        { value: '', label: `Prices in ${base}` },
-                        ...CURRENCIES.filter((entry) => entry.code !== base).map((entry) => ({
-                          value: entry.code,
-                          label: `Prices in ${entry.code}`,
-                        })),
-                      ]}
-                    />
-                    {canModel && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="shrink-0"
-                          disabled={pending}
-                          onClick={() => update.mutate({ locale, patch: { isDefault: true } })}
-                        >
-                          {pending && update.variables?.patch.isDefault ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-                          Make default
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="shrink-0 text-muted-foreground hover:text-exception"
-                          aria-label={`Remove ${locale.name}`}
-                          onClick={() => setRemoving(locale)}
-                        >
-                          <Trash2 aria-hidden="true" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </motion.li>
-            );
-          })}
-        </AnimatePresence>
-      </ul>
+  if (query.isPending) return <Bone className="h-96 w-full rounded-lg" />;
+  if (query.isError) return <ErrorState title="Couldn’t load your languages" onRetry={() => void query.refetch()} />;
 
+  // The default leads; the rest read alphabetically by name.
+  const locales = [...query.data].sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name));
+  const byCode = new Map(locales.map((locale) => [locale.code, locale]));
+  const primary = locales.find((locale) => locale.isDefault);
+  const others = locales.filter((locale) => !locale.isDefault);
+  const nameOf = (code: string) => byCode.get(code)?.name ?? code;
+  const busy = (locale: CmsLocale) => update.isPending && update.variables?.locale.code === locale.code;
+
+  return (
+    // Outside the settings shell, so it brings the shell's stagger with it.
+    <motion.div
+      initial={reduceMotion ? false : 'hidden'}
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+    >
+      <SettingsTabBody narrowAside aside={<TranslationSection locales={locales} />}>
+        <SettingsSection
+          title="Languages"
+          actions={
+            canModel ? (
+              <Button className="h-9 gap-1.5" onClick={() => setAdding(true)}>
+                <Plus aria-hidden="true" />
+                Add language
+              </Button>
+            ) : undefined
+          }
+          footnote="A language with entries can’t be removed — delete or move its entries first."
+        >
+          <InfoRows>
+            {locales.map((locale) => (
+              <InfoRow
+                key={locale.code}
+                icon={Languages}
+                tone={locale.isDefault ? 'success' : 'default'}
+                title={locale.name}
+                description={locale.code}
+              >
+                {locale.isDefault ? (
+                  <Badge variant="success">Default</Badge>
+                ) : canModel ? (
+                  <RowMenu
+                    label={`${locale.name} actions`}
+                    pending={busy(locale)}
+                    items={[
+                      { icon: Star, label: 'Make it the default', onClick: () => update.mutate({ locale, patch: { isDefault: true } }) },
+                      { icon: Trash2, label: `Remove ${locale.name}`, danger: true, onClick: () => setRemoving(locale) },
+                    ]}
+                  />
+                ) : null}
+              </InfoRow>
+            ))}
+          </InfoRows>
+          <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+            {others.length === 0
+              ? 'Add a language and every entry gets a version to translate. Until then, everything is in ' + (primary?.name ?? 'the default') + '.'
+              : `Websites that ask for no language, or one you don’t write in, get ${primary?.name ?? 'the default'}.`}
+          </p>
+        </SettingsSection>
+
+        {others.length > 0 && (
+          <SettingsSection title="When a translation is missing">
+            <fieldset disabled={!canModel} className="space-y-3">
+              {others.map((locale) => (
+                <PickerRow
+                  key={locale.code}
+                  icon={ArrowRight}
+                  title={`${locale.name} readers see`}
+                  value={locale.fallbackCode ? nameOf(locale.fallbackCode) : (primary?.name ?? 'The default')}
+                  open={open === `fallback:${locale.code}`}
+                  onToggle={() => toggle(`fallback:${locale.code}`)}
+                >
+                  <Select
+                    ariaLabel={`When ${locale.name} is missing, show`}
+                    className="w-full"
+                    disabled={busy(locale)}
+                    value={locale.fallbackCode ?? ''}
+                    onValueChange={(value) => update.mutate({ locale, patch: { fallbackCode: value || null } })}
+                    options={[
+                      { value: '', label: `${primary?.name ?? 'The default'} (default)` },
+                      ...others.filter((other) => other.code !== locale.code).map((other) => ({ value: other.code, label: other.name })),
+                    ]}
+                  />
+                  <p className="mt-1.5 text-xs text-muted-foreground">Shown when an entry isn’t translated into {locale.name} yet.</p>
+                </PickerRow>
+              ))}
+            </fieldset>
+          </SettingsSection>
+        )}
+
+        {others.length > 0 && (
+          <SettingsSection title="Prices">
+            <fieldset disabled={!canModel} className="space-y-3">
+              {others.map((locale) => (
+                <PickerRow
+                  key={locale.code}
+                  icon={Coins}
+                  title={`${locale.name} readers pay in`}
+                  value={locale.currency ?? base}
+                  open={open === `currency:${locale.code}`}
+                  onToggle={() => toggle(`currency:${locale.code}`)}
+                >
+                  {/* A shop abroad: Ukrainian readers pay in hryvnia while English stays in pounds. */}
+                  <Select
+                    ariaLabel={`${locale.name} readers pay in`}
+                    className="w-full"
+                    disabled={busy(locale)}
+                    value={locale.currency ?? ''}
+                    onValueChange={(value) => update.mutate({ locale, patch: { currency: value || null } })}
+                    options={[
+                      { value: '', label: `${currencyLabel(base)} — your workspace currency` },
+                      ...CURRENCIES.filter((entry) => entry.code !== base).map((entry) => ({ value: entry.code, label: currencyLabel(entry.code) })),
+                    ]}
+                  />
+                  <p className="mt-1.5 text-xs text-muted-foreground">Prices on your website are shown in this currency to {locale.name} readers.</p>
+                </PickerRow>
+              ))}
+            </fieldset>
+            <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+              {primary?.name ?? 'The default'} always prices in {base}, your workspace currency.
+            </p>
+          </SettingsSection>
+        )}
+      </SettingsTabBody>
+
+      {adding && <AddLocaleDialog locales={locales} onClose={() => setAdding(false)} />}
       {removing && (
         <ConfirmModal
           title={`Remove ${removing.name}?`}
@@ -211,11 +223,12 @@ function LocaleList({ locales, canModel }: { locales: CmsLocale[]; canModel: boo
           onClose={() => setRemoving(null)}
         />
       )}
-    </>
+    </motion.div>
   );
 }
 
-function AddLocaleSection({ locales }: { locales: CmsLocale[] }) {
+/** A new language: its tag, and a name that fills itself in from the tag. */
+function AddLocaleDialog({ locales, onClose }: { locales: CmsLocale[]; onClose: () => void }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
   const queryClient = useQueryClient();
   const [code, setCode] = useState('');
@@ -231,112 +244,142 @@ function AddLocaleSection({ locales }: { locales: CmsLocale[] }) {
         ? 'You already write in this language'
         : undefined;
   const effectiveName = nameTouched ? name : name || localeDisplayName(trimmed);
+  const ready = Boolean(trimmed) && !codeError && Boolean(effectiveName.trim());
 
   const add = useMutation({
     mutationFn: () => createCmsLocale({ code: trimmed, name: effectiveName.trim() }, tenantId),
     onSuccess: (created) => {
       invalidateCms(queryClient);
-      setCode('');
-      setName('');
-      setNameTouched(false);
+      onClose();
       toast('success', `${created.name} added. Open any entry to translate it.`);
     },
     onError: (error) => toast('error', error.message),
   });
 
   return (
-    <SettingsSection title="Add a language" description="Type a language tag such as fr, de or en-GB — the name fills itself in.">
-      <form
-        className="flex flex-col gap-3 sm:flex-row sm:items-start"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!codeError && trimmed && effectiveName.trim()) add.mutate();
-        }}
-      >
-        <div className="sm:w-40">
-          <Input
-            label="Code"
-            placeholder="fr or en-GB"
-            className="font-mono"
-            value={code}
-            error={codeError}
-            onChange={(event) => setCode(event.target.value)}
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <Input
-            label="Name"
-            placeholder="French"
-            value={effectiveName}
-            onChange={(event) => {
-              setNameTouched(true);
-              setName(event.target.value);
-            }}
-          />
-        </div>
-        <Button
-          type="submit"
-          className="gap-1.5 sm:mt-6"
-          disabled={!trimmed || Boolean(codeError) || !effectiveName.trim() || add.isPending}
-        >
-          {add.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
-          Add language
-        </Button>
-      </form>
-    </SettingsSection>
-  );
-}
-
-/** What a reader in each language is actually served, step by step. */
-function FallbackSection({ locales }: { locales: CmsLocale[] }) {
-  const byCode = new Map(locales.map((locale) => [locale.code, locale]));
-  const others = locales.filter((locale) => !locale.isDefault).sort((a, b) => a.name.localeCompare(b.name));
-  return (
-    <SettingsSection
-      title="What readers get"
-      description="When an entry isn’t written in the language a website asks for, the next one along is served instead."
-      footnote={
+    <Modal
+      title="Add a language"
+      description="Every entry gets a version in it to translate."
+      onClose={onClose}
+      size="sm"
+      footer={
         <>
-          Websites can turn this off per request with <span className="font-mono">fallback=false</span>.
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="add-locale" disabled={!ready || add.isPending}>
+            {add.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+            Add language
+          </Button>
         </>
       }
     >
-      {others.length === 0 ? (
-        <div className="flex items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground">
-            <Languages size={18} aria-hidden="true" />
-          </span>
-          <p className="text-sm text-muted-foreground">
-            One language, so there’s nothing to fall back to. Add another to translate entries.
-          </p>
-        </div>
+      <form
+        id="add-locale"
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (ready) add.mutate();
+        }}
+      >
+        <Input
+          label="Language code"
+          placeholder="fr or en-GB"
+          className="font-mono"
+          value={code}
+          error={codeError}
+          hint={codeError ? undefined : 'A tag such as fr, de or en-GB — the name fills itself in.'}
+          onChange={(event) => setCode(event.target.value)}
+        />
+        <Input
+          label="Name"
+          placeholder="French"
+          value={effectiveName}
+          onChange={(event) => {
+            setNameTouched(true);
+            setName(event.target.value);
+          }}
+        />
+      </form>
+    </Modal>
+  );
+}
+
+/**
+ * How far each language has got: its versions out of every entry, and how
+ * many of those are live. Counts come from the entries list's `total` (one
+ * call per language and state) against the overview's entry count — the same
+ * numbers the Entries tab shows, archived left out of both.
+ */
+function TranslationSection({ locales }: { locales: CmsLocale[] }) {
+  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const overview = useQuery({ queryKey: cmsKeys.overview(tenantId), queryFn: () => getCmsOverview(tenantId ?? undefined), enabled: !!tenantId });
+  const counts = useQueries({
+    queries: locales.flatMap((locale) =>
+      (['', 'live'] as const).map((status) => {
+        const filters = { locale: locale.code, status, page: 1 };
+        return {
+          queryKey: cmsKeys.entries(tenantId, filters),
+          queryFn: () => getCmsEntries(filters, tenantId ?? undefined),
+          enabled: !!tenantId,
+          select: (page: { total: number }) => page.total,
+        };
+      }),
+    ),
+  });
+  const total = overview.data?.entries.total ?? 0;
+  const pending = overview.isPending || counts.some((count) => count.isPending);
+  const failed = overview.isError || counts.some((count) => count.isError);
+
+  return (
+    <SettingsSection title="Translation">
+      {pending ? (
+        <Bone className="h-32 w-full rounded-md" />
+      ) : failed ? (
+        <ErrorState
+          title="Couldn’t count your entries"
+          onRetry={() => {
+            void overview.refetch();
+            counts.forEach((count) => void count.refetch());
+          }}
+        />
+      ) : total === 0 ? (
+        <p className="text-sm text-muted-foreground">No entries yet. Write one and each language’s progress shows here.</p>
       ) : (
-        <ol className="space-y-2">
-          {others.map((locale) => {
-            const chain = fallbackChain(locale.code, locales);
-            return (
-              <li key={locale.code} className="rounded-lg border border-rule/50 bg-background/60 px-3.5 py-2.5">
-                <p className="text-label uppercase text-muted-foreground">Asked for {locale.name}</p>
-                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
-                  {chain.map((code, index) => (
-                    <span key={code} className="inline-flex items-center gap-1.5">
-                      {index > 0 && <ArrowRight size={12} className="text-muted-foreground" aria-label="then" />}
-                      <span
-                        className={cn(
-                          'rounded-sm border px-1.5 py-0.5 font-mono text-xs',
-                          byCode.get(code)?.isDefault ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-rule/60 text-foreground',
-                        )}
-                        title={byCode.get(code)?.name}
-                      >
-                        {code}
-                      </span>
-                    </span>
-                  ))}
-                </p>
-              </li>
-            );
-          })}
-        </ol>
+        <>
+          <InfoRows>
+            <InfoRow icon={FileText} title="Entries">
+              <span className="text-sm font-semibold text-foreground">{total}</span>
+            </InfoRow>
+          </InfoRows>
+          <div className="mt-4 space-y-4">
+            {locales.map((locale, index) => {
+              const translated = counts[index * 2]?.data ?? 0;
+              const live = counts[index * 2 + 1]?.data ?? 0;
+              const coverage = translationCoverage(translated, total);
+              const complete = coverage.percent === 100;
+              return (
+                <FieldRow key={locale.code} icon={Languages} title={locale.name} note={`${coverage.label} · ${live} live`}>
+                  <div
+                    role="progressbar"
+                    aria-label={`${locale.name}: ${coverage.label} entries translated`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={coverage.percent}
+                    className="h-1.5 overflow-hidden rounded-full bg-band"
+                  >
+                    <div className={cn('h-full rounded-full', complete ? 'bg-success' : 'bg-primary')} style={{ width: `${coverage.percent}%` }} />
+                  </div>
+                </FieldRow>
+              );
+            })}
+          </div>
+          {locales.length > 1 && (
+            <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+              Until an entry is translated, its readers get the fallback set under “When a translation is missing”.
+            </p>
+          )}
+        </>
       )}
     </SettingsSection>
   );

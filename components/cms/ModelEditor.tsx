@@ -5,15 +5,21 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
+  AlertCircle,
   AlignLeft,
+  ArrowDown,
+  ArrowUp,
   Box,
   ChevronDown,
-  ChevronUp,
+  Copy,
+  EyeOff,
   FileText,
+  Fingerprint,
   Globe,
   Hash,
+  type IconComponent,
   Layers,
-  Pencil,
+  ListOrdered,
   Plus,
   Search,
   ShieldCheck,
@@ -25,7 +31,7 @@ import {
 } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { Switch } from '@/components/settings/controls';
+import { SaveBar, Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Modal } from '@/components/shared/Modal';
@@ -59,11 +65,15 @@ import { getRoles } from '@/lib/modules/identity/client';
 import {
   FIELD_TYPES,
   canHoldList,
+  duplicateField,
   fieldKeyFromLabel,
   fieldListProblems,
+  fieldRules,
   fieldTypeLabel,
   moveItem,
   newField,
+  relabelField,
+  resolvedTitleKey,
   typeKeyFromName,
   uniqueKey,
 } from '@/lib/utils/cms';
@@ -75,9 +85,11 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ModelAssist } from './ModelAssist';
 import { FIELD_ICONS } from './fieldIcons';
-import { ActionRow, ActionRows, FieldRow, InfoRow, InfoRows, SectionInfo } from './rows';
+import { ActionRow, ActionRows, FieldRow, InfoRow, InfoRows, PickerRow, RowMenu, RowTile, SectionInfo } from './rows';
 import { FIELD_LABEL_CLASS, PanelError, TEXTAREA_CLASS, cmsKeys, copyText, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
+
+type DetailRow = 'name' | 'key' | 'kind' | 'description' | 'title' | 'preview';
 
 const TITLE_TYPES = ['text', 'slug', 'email', 'url', 'number', 'date', 'dateTime', 'select'];
 
@@ -149,6 +161,7 @@ function LoadedModelEditor({
   const queryClient = useQueryClient();
   const access = useCmsAccess();
   const editable = access.canModel;
+  const reduceMotion = useReducedMotion();
   const [name, setName] = useState(model?.name ?? '');
   const [key, setKey] = useState(model?.key ?? '');
   const [keyTouched, setKeyTouched] = useState(Boolean(model));
@@ -162,6 +175,9 @@ function LoadedModelEditor({
   const [impact, setImpact] = useState<CmsSchemaImpact | null>(null);
   const [deleting, setDeleting] = useState<null | { force: boolean; message?: string }>(null);
   const [serverIssues, setServerIssues] = useState<string[]>([]);
+  // One detail open at a time; a new model starts with its name open.
+  const [open, setOpen] = useState<DetailRow | null>(model ? null : 'name');
+  const toggle = (row: DetailRow) => setOpen((current) => (current === row ? null : row));
 
   const typesQuery = useQuery({
     queryKey: cmsKeys.contentTypes(tenantId ?? null),
@@ -316,11 +332,7 @@ function LoadedModelEditor({
     return () => window.removeEventListener('keydown', onKey);
   }, [editable, dirty, model, blocked, busy, checkThenSave]);
 
-  const saveButton = (
-    <Button className="h-9" disabled={blocked || busy} onClick={() => checkThenSave.mutate()}>
-      {busy ? 'Saving…' : model ? 'Save model' : 'Create model'}
-    </Button>
-  );
+  const titleLabel = titleCandidates.find((field) => field.key === titleField)?.label ?? 'First text field';
 
   return (
     <EditorShell
@@ -329,55 +341,21 @@ function LoadedModelEditor({
       icon={<KindIcon size={20} aria-hidden="true" />}
       onClose={onClose}
       dirty={dirty && editable}
-      meta={
-        <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          {model && <span className="tabular-nums">schema v{model.schemaVersion}</span>}
-          {(dirty || !model) && editable && (
-            <span className="inline-flex items-center gap-1 font-medium text-measured">
-              <span className="size-1.5 rounded-full bg-measured" aria-hidden="true" />
-              {model ? 'Unsaved changes' : 'Not created yet'}
-            </span>
-          )}
-        </span>
-      }
-      actions={
-        editable && (dirty || !model) ? (
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" className="h-9" disabled={busy} onClick={model ? onDiscard : onClose}>
-              Discard
-            </Button>
-            {blockedReason ? (
-              <Tooltip side="top" align="end" label={blockedReason}>
-                {saveButton}
-              </Tooltip>
-            ) : (
-              <Tooltip side="top" align="end" label={`${model ? 'Save' : 'Create'} (${saveShortcut})`}>
-                {saveButton}
-              </Tooltip>
-            )}
-          </div>
-        ) : undefined
-      }
     >
-      <motion.div initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
+      <motion.div
+        initial={reduceMotion ? false : 'hidden'}
+        animate="shown"
+        variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+      >
         <SettingsTabBody
           narrowAside
           aside={
             <>
-              {editable && (
-                <SettingsSection title="Ask DUMA">
-                  <ModelAssist
-                    isNew={!model}
-                    blank={blank}
-                    name={name}
-                    fields={fields}
-                    models={referenceTypes.map((type) => ({ key: type.key, name: type.name }))}
-                    onApply={applyDraft}
-                  />
-                </SettingsSection>
-              )}
-              {model && (
-                <SettingsSection title="Model">
+              <SettingsSection
+                title="Model"
+                actions={model ? undefined : <Badge variant="muted">Not created yet</Badge>}
+              >
+                {model ? (
                   <InfoRows>
                     <InfoRow icon={Hash} title="API key">
                       <Tooltip side="top" align="end" label="Websites query by this key; it cannot change">
@@ -397,118 +375,142 @@ function LoadedModelEditor({
                     </InfoRow>
                     {typeof model.entryCount === 'number' && (
                       <InfoRow icon={FileText} title="Entries">
-                        <span className="text-sm tabular-nums text-muted-foreground">{model.entryCount}</span>
+                        <span className="text-sm font-semibold tabular-nums text-foreground">{model.entryCount}</span>
                       </InfoRow>
                     )}
+                    <InfoRow icon={Layers} title="Schema version">
+                      <span className="text-sm tabular-nums text-muted-foreground">v{model.schemaVersion}</span>
+                    </InfoRow>
                   </InfoRows>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Name it and add its fields, then create it. Its API key — <span className="font-mono">{key || '…'}</span> — is fixed from then on.
+                  </p>
+                )}
+              </SettingsSection>
+
+              {editable && (
+                <SettingsSection title="Ask DUMA">
+                  <ModelAssist
+                    isNew={!model}
+                    blank={blank}
+                    name={name}
+                    fields={fields}
+                    models={referenceTypes.map((type) => ({ key: type.key, name: type.name }))}
+                    onApply={applyDraft}
+                  />
                 </SettingsSection>
               )}
 
-              <SettingsSection title="Details">
-                <div className="space-y-4">
-                  <FieldRow icon={Type} title="Name" htmlFor="cms-model-name">
-                    <Input
-                      id="cms-model-name"
-                      value={name}
-                      disabled={!editable}
-                      placeholder="Blog post"
-                      autoFocus={!model}
-                      onChange={(event) => {
-                        setName(event.target.value);
-                        if (!keyTouched) setKey(keyFromName(event.target.value));
-                      }}
-                    />
-                  </FieldRow>
-                  {/* Fixed once created — the Model card shows it from then on. */}
-                  {!model && (
-                    <FieldRow icon={Hash} title="API key" htmlFor="cms-model-key" note="Can’t change later">
-                      <Input
-                        id="cms-model-key"
-                        className="font-mono"
-                        value={key}
-                        disabled={!editable}
-                        hint="Used in the delivery URL"
-                        error={keyHolder ? `Already used by “${keyHolder.name}” — try ${uniqueKey(key, takenKeys)}` : undefined}
-                        onChange={(event) => {
-                          setKeyTouched(true);
-                          setKey(event.target.value.toLowerCase());
-                        }}
-                      />
-                    </FieldRow>
-                  )}
-                  <FieldRow icon={KindIcon} title="Kind" note={kind === 'singleton' ? 'Exactly one entry' : 'Many entries'}>
-                    <SegmentedControl<CmsContentTypeKind>
-                      ariaLabel="Kind"
-                      className="w-full [&>button]:flex-1"
-                      value={kind}
-                      onChange={(value) => editable && setKind(value)}
-                      options={[
-                        { value: 'collection', label: 'Collection', icon: Layers },
-                        { value: 'singleton', label: 'Singleton', icon: Box },
-                      ]}
-                    />
-                  </FieldRow>
-                  <FieldRow icon={AlignLeft} title="Description" htmlFor="cms-model-description">
-                    <textarea
-                      id="cms-model-description"
-                      rows={3}
-                      className={TEXTAREA_CLASS}
-                      value={description}
-                      disabled={!editable}
-                      placeholder="What this is for, for the people writing it"
-                      onChange={(event) => setDescription(event.target.value)}
-                    />
-                  </FieldRow>
-                </div>
-              </SettingsSection>
-
-              {model && <TypeRolesSection typeId={model.id} typeName={model.name} editable={editable} />}
-
-              <SettingsSection
-                title="Display"
-                actions={<SectionInfo label="How entries of this model are named in lists, and where their page lives on your site." />}
-              >
-                <InfoRows>
-                  <InfoRow icon={Type} title="Entry title">
-                    <Select
-                      className="w-40"
-                      ariaLabel="Entry title field"
-                      value={titleField}
-                      disabled={!editable}
-                      onValueChange={setTitleField}
-                      options={[
-                        { value: '', label: 'First text field' },
-                        ...titleCandidates.map((field) => ({ value: field.key, label: field.label })),
-                      ]}
-                    />
-                  </InfoRow>
-                  <PreviewUrlRow value={previewUrl} disabled={!editable} onChange={setPreviewUrl} />
-                </InfoRows>
-              </SettingsSection>
-
               {model && (onBrowseEntries || editable) && (
                 <SettingsSection title="Actions">
-                  <ActionRows
-                    danger={
-                      editable ? (
-                        <ActionRow icon={Trash2} label={`Delete ${model.name}`} danger onClick={() => setDeleting({ force: false })} />
-                      ) : undefined
-                    }
-                  >
+                  <ActionRows>
                     {onBrowseEntries && <ActionRow icon={FileText} label="Browse entries" onClick={() => onBrowseEntries(model.id)} />}
+                    {editable && <ActionRow icon={Trash2} label={`Delete ${model.name}`} danger onClick={() => setDeleting({ force: false })} />}
                   </ActionRows>
                 </SettingsSection>
               )}
             </>
           }
         >
+          <SettingsSection title="Details">
+            <fieldset disabled={!editable} className="space-y-3">
+              <PickerRow
+                icon={Type}
+                title="Name"
+                value={name.trim() || 'Not named'}
+                muted={!name.trim()}
+                open={open === 'name'}
+                onToggle={() => toggle('name')}
+              >
+                <Input
+                  id="cms-model-name"
+                  aria-label="Name"
+                  value={name}
+                  placeholder="Blog post"
+                  autoFocus
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    if (!keyTouched) setKey(keyFromName(event.target.value));
+                  }}
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">What editors see in Content — “Blog post”, “Menu special”, “Footer”.</p>
+              </PickerRow>
+              {/* Fixed once created — the Model card shows it from then on. */}
+              {!model && (
+                <PickerRow icon={Hash} title="API key" value={key || 'Not set'} muted={!key} open={open === 'key'} onToggle={() => toggle('key')}>
+                  <Input
+                    id="cms-model-key"
+                    aria-label="API key"
+                    className="font-mono"
+                    value={key}
+                    autoFocus
+                    error={keyHolder ? `Already used by “${keyHolder.name}” — try ${uniqueKey(key, takenKeys)}` : undefined}
+                    onChange={(event) => {
+                      setKeyTouched(true);
+                      setKey(event.target.value.toLowerCase());
+                    }}
+                  />
+                  <p className="mt-1.5 text-xs text-muted-foreground">Used in the delivery URL. Filled in from the name; can’t change once created.</p>
+                </PickerRow>
+              )}
+              <PickerRow
+                icon={KindIcon}
+                title="Kind"
+                value={kind === 'singleton' ? 'Singleton' : 'Collection'}
+                open={open === 'kind'}
+                onToggle={() => toggle('kind')}
+              >
+                <SegmentedControl<CmsContentTypeKind>
+                  ariaLabel="Kind"
+                  className="w-full [&>button]:flex-1"
+                  value={kind}
+                  onChange={(value) => editable && setKind(value)}
+                  options={[
+                    { value: 'collection', label: 'Collection', icon: Layers },
+                    { value: 'singleton', label: 'Singleton', icon: Box },
+                  ]}
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {kind === 'singleton' ? 'Exactly one entry — the site banner, the footer, opening hours.' : 'Many entries of one shape — blog posts, menu sections.'}
+                </p>
+              </PickerRow>
+              <PickerRow
+                icon={AlignLeft}
+                title="Description"
+                value={description.trim() || 'None'}
+                muted={!description.trim()}
+                open={open === 'description'}
+                onToggle={() => toggle('description')}
+              >
+                <textarea
+                  id="cms-model-description"
+                  aria-label="Description"
+                  rows={3}
+                  className={TEXTAREA_CLASS}
+                  value={description}
+                  autoFocus
+                  placeholder="What this is for, for the people writing it"
+                  onChange={(event) => setDescription(event.target.value)}
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">Shown to editors when they create an entry of this model.</p>
+              </PickerRow>
+            </fieldset>
+            {keyHolder && open !== 'key' && (
+              <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
+                <TriangleAlert size={14} className="mt-px shrink-0" aria-hidden="true" />
+                <span>
+                  “{key}” is already used by {keyHolder.name}. Open API key and choose another — {uniqueKey(key, takenKeys)} is free.
+                </span>
+              </p>
+            )}
+          </SettingsSection>
+
           <SettingsSection
             title="Fields"
             actions={
-              <div className="flex items-center gap-1">
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {fields.length} {fields.length === 1 ? 'field' : 'fields'}
-                </span>
+              <div className="flex items-center gap-2">
+                <Badge variant="muted">{fields.length}</Badge>
                 <SectionInfo
                   label={`The shape of every entry, in the order editors see it. Open a field to set its rules.${model ? ' Changing a field live entries use asks first, and shows how many it affects.' : ''}`}
                 />
@@ -516,16 +518,81 @@ function LoadedModelEditor({
             }
           >
             {(problems.length > 0 || serverIssues.length > 0) && (
-              <div role="alert" className="mb-4 rounded-lg border border-exception/50 bg-exception/6 px-3.5 py-2.5 text-sm text-exception">
-                <ul className="list-disc space-y-0.5 pl-4">
+              <div role="alert" className="mb-4 flex items-start gap-2 rounded-md bg-exception/6 px-3 py-2 text-xs font-medium text-exception">
+                <TriangleAlert size={14} className="mt-px shrink-0" aria-hidden="true" />
+                <ul className="space-y-0.5">
                   {[...problems, ...serverIssues].map((problem) => (
                     <li key={problem}>{problem}</li>
                   ))}
                 </ul>
               </div>
             )}
-            <FieldList fields={fields} onChange={setFields} disabled={!editable} depth={0} referenceTypes={referenceTypes} />
+            <FieldList
+              fields={fields}
+              onChange={setFields}
+              disabled={!editable}
+              depth={0}
+              referenceTypes={referenceTypes}
+              saved={model?.fields ?? []}
+              titleKey={resolvedTitleKey(fields, titleField)}
+            />
           </SettingsSection>
+
+          <SettingsSection
+            title="Display"
+            actions={<SectionInfo label="How entries of this model are named in lists, and where their page lives on your site." />}
+          >
+            <fieldset disabled={!editable} className="space-y-3">
+              <PickerRow icon={Type} title="Entry title" value={titleLabel} muted={!titleField} open={open === 'title'} onToggle={() => toggle('title')}>
+                <Select
+                  className="w-full"
+                  ariaLabel="Entry title field"
+                  value={titleField}
+                  onValueChange={setTitleField}
+                  options={[
+                    { value: '', label: 'First text field' },
+                    ...titleCandidates.map((field) => ({ value: field.key, label: field.label })),
+                  ]}
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">Names each entry in lists and search.</p>
+              </PickerRow>
+              <PickerRow
+                icon={Globe}
+                title="Preview URL"
+                value={previewUrl.trim() ? shortUrl(previewUrl.trim()) : 'Not set'}
+                muted={!previewUrl.trim()}
+                open={open === 'preview'}
+                onToggle={() => toggle('preview')}
+              >
+                <Input
+                  aria-label="Preview URL"
+                  value={previewUrl}
+                  autoFocus
+                  placeholder="https://www.example.com/blog/{slug}"
+                  onChange={(event) => setPreviewUrl(event.target.value)}
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">Where an entry’s page lives — {'{slug}'}, {'{id}'} and {'{locale}'} are filled in per entry.</p>
+              </PickerRow>
+            </fieldset>
+          </SettingsSection>
+
+          {model && <TypeRolesSection typeId={model.id} typeName={model.name} editable={editable} />}
+
+          {editable && (
+            <SaveBar
+              dirty={dirty || !model}
+              saving={busy}
+              saveLabel={model ? 'Save model' : 'Create model'}
+              disabled={blocked}
+              message={blockedReason || (model ? `Unsaved changes · ${saveShortcut} saves` : `Not created yet · ${saveShortcut} creates`)}
+              onSave={() => checkThenSave.mutate()}
+              onDiscard={() => {
+                setOpen(null);
+                if (model) onDiscard();
+                else onClose();
+              }}
+            />
+          )}
         </SettingsTabBody>
       </motion.div>
 
@@ -583,125 +650,138 @@ function LoadedModelEditor({
 
 // ─── Field list (recursive, for groups) ──────────────────────────────────────
 
+/**
+ * A model's fields as rows: what each is, its key and rules in words, and the
+ * entry-title marker — tap a row to set it up underneath, one at a time; move,
+ * duplicate and remove live in its ⋯ menu. Groups nest the same list.
+ */
 function FieldList({
   fields,
   onChange,
   disabled,
   depth,
   referenceTypes,
+  saved,
+  titleKey,
 }: {
   fields: CmsFieldDefinition[];
   onChange: (fields: CmsFieldDefinition[]) => void;
   disabled: boolean;
   depth: number;
   referenceTypes: Array<{ key: string; name: string }>;
+  /** The same list as last saved — its keys are ones entries already use. */
+  saved: readonly CmsFieldDefinition[];
+  /** The field entries are named by (top level only). */
+  titleKey?: string | null;
 }) {
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
+  const savedKeys = useMemo(() => new Set(saved.map((field) => field.key)), [saved]);
 
   const update = (index: number, next: CmsFieldDefinition) =>
     onChange(fields.map((field, position) => (position === index ? next : field)));
   const move = (from: number, to: number) => {
     onChange(moveItem(fields, from, to));
     if (open === from) setOpen(to);
-    else if (open === to) setOpen(from);
+    else if (open !== null && open >= Math.min(from, to) && open <= Math.max(from, to)) setOpen(open + (from < to ? -1 : 1));
   };
+  const add = (type: CmsFieldType, label: string) => {
+    onChange([...fields, newField(type, label, fields)]);
+    setAdding(false);
+    setOpen(fields.length);
+  };
+  const noun = depth > 0 ? 'nested field' : 'field';
 
   return (
-    <div className="space-y-2">
+    <div>
       {fields.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-rule px-4 py-6 text-center text-sm text-muted-foreground">
-          No fields yet — add the first one. A title is a good start.
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-rule px-4 py-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            {depth > 0 ? 'No nested fields yet.' : 'No fields yet — every entry is made of them. A title is a good start.'}
+          </p>
+          {!disabled && (
+            <Button size="sm" className="gap-1.5" onClick={() => setAdding(true)}>
+              <Plus aria-hidden="true" /> Add a {noun}
+            </Button>
+          )}
         </div>
       ) : (
-        <ol className="space-y-2">
+        <ol className="-mx-2 space-y-1">
           {fields.map((field, index) => {
             const expanded = open === index;
             const Icon = FIELD_ICONS[field.type];
+            const rules = fieldRules(field);
+            const isTitle = depth === 0 && titleKey === field.key;
+            const label = field.label || 'Untitled field';
             return (
               // Keyed by position, not by key: editing the API key must not remount the row (and drop focus).
               <li
                 key={index}
-                className={cn(
-                  'rounded-lg border bg-control transition-colors',
-                  expanded ? 'border-primary/40' : 'border-rule/60 hover:border-rule',
-                )}
+                className={cn('rounded-lg transition-colors', expanded ? 'bg-band/40 ring-1 ring-rule/70' : 'hover:bg-band/40')}
               >
-                <div className="flex items-center gap-3 py-2.5 pl-3 pr-2">
+                <div className="flex items-center gap-2 px-2 py-1.5">
                   <button
                     type="button"
-                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     aria-expanded={expanded}
                     onClick={() => setOpen(expanded ? null : index)}
                   >
-                    <span
-                      // The outlined tile of the entry page's rows; tinted while open.
-                      className={cn(
-                        'flex size-8 shrink-0 items-center justify-center rounded-md border',
-                        expanded ? 'border-primary/40 bg-primary/10 text-primary' : 'border-rule/55 bg-background text-muted-foreground',
-                      )}
-                    >
-                      <Icon size={16} aria-hidden="true" />
-                    </span>
+                    <RowTile icon={Icon} />
                     <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-foreground">
-                        <span className="truncate">{field.label || 'Untitled field'}</span>
-                        {field.required && <Badge variant="outline">Required</Badge>}
-                        {field.unique && <Badge variant="outline">Unique</Badge>}
-                        {field.private && <Badge variant="warning">Private</Badge>}
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-sm font-semibold text-foreground">{label}</span>
+                        {isTitle && (
+                          <Tooltip side="top" label="Entries are named by this field in lists and search — change it under Display">
+                            <Badge variant="muted">Entry title</Badge>
+                          </Tooltip>
+                        )}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        <span className="font-mono">{field.key}</span> · {fieldTypeLabel(field.type)}
-                        {field.multiple && canHoldList(field.type) ? (field.type === 'group' ? ', repeatable' : ', list') : ''}
-                        {field.type === 'group' ? ` · ${(field.fields ?? []).length} nested` : ''}
+                        {fieldTypeLabel(field.type)}
+                        {field.type === 'group' ? ` of ${(field.fields ?? []).length}` : ''} · <span className="font-mono">{field.key}</span>
+                        {rules.length > 0 && <> · {rules.join(' · ')}</>}
                       </span>
                     </span>
+                    <ChevronDown
+                      size={14}
+                      className={cn('shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-180')}
+                      aria-hidden="true"
+                    />
                   </button>
                   {!disabled && (
-                    <span className="flex shrink-0 items-center">
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="text-muted-foreground"
-                        aria-label={`Move ${field.label} up`}
-                        disabled={index === 0}
-                        onClick={() => move(index, index - 1)}
-                      >
-                        <ChevronUp aria-hidden="true" />
-                      </Button>
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="text-muted-foreground"
-                        aria-label={`Move ${field.label} down`}
-                        disabled={index === fields.length - 1}
-                        onClick={() => move(index, index + 1)}
-                      >
-                        <ChevronDown aria-hidden="true" />
-                      </Button>
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="text-muted-foreground"
-                        aria-label={`Edit ${field.label}`}
-                        onClick={() => setOpen(expanded ? null : index)}
-                      >
-                        <Pencil aria-hidden="true" />
-                      </Button>
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="text-muted-foreground hover:text-exception"
-                        aria-label={`Remove ${field.label}`}
-                        onClick={() => {
-                          onChange(fields.filter((_, position) => position !== index));
-                          setOpen(null);
-                        }}
-                      >
-                        <Trash2 aria-hidden="true" />
-                      </Button>
-                    </span>
+                    <RowMenu
+                      label={`${label} actions`}
+                      items={[
+                        { icon: ArrowUp, label: 'Move up', disabled: index === 0, onClick: () => move(index, index - 1) },
+                        { icon: ArrowDown, label: 'Move down', disabled: index === fields.length - 1, onClick: () => move(index, index + 1) },
+                        {
+                          icon: Copy,
+                          label: 'Duplicate',
+                          onClick: () => {
+                            const next = [...fields];
+                            next.splice(index + 1, 0, duplicateField(field, fields));
+                            onChange(next);
+                            setOpen(index + 1);
+                          },
+                        },
+                        {
+                          icon: Trash2,
+                          label: `Remove ${label}`,
+                          danger: true,
+                          onClick: () => {
+                            onChange(fields.filter((_, position) => position !== index));
+                            setOpen(null);
+                            toast(
+                              'success',
+                              savedKeys.has(field.key)
+                                ? `${label} removed — saving asks first if live entries use it. Discard brings it back.`
+                                : `${label} removed.`,
+                            );
+                          },
+                        },
+                      ]}
+                    />
                   )}
                 </div>
                 <AnimatePresence initial={false}>
@@ -713,13 +793,15 @@ function FieldList({
                       transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
                       className="overflow-hidden"
                     >
-                      <div className="border-t border-rule/40 p-4">
+                      <div className="px-2 pb-3 pt-1 sm:pl-13">
                         <FieldSettings
                           field={field}
                           siblings={fields}
                           disabled={disabled}
                           depth={depth}
                           referenceTypes={referenceTypes}
+                          saved={saved.find((entry) => entry.key === field.key)}
+                          savedKeys={savedKeys}
                           onChange={(next) => update(index, next)}
                         />
                       </div>
@@ -731,18 +813,18 @@ function FieldList({
           })}
         </ol>
       )}
-      {!disabled && (
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1 gap-1.5 border-dashed" onClick={() => setAdding(true)}>
-            <Plus aria-hidden="true" /> Add {depth > 0 ? 'a nested field' : 'a field'}
+      {!disabled && fields.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5 border-dashed" onClick={() => setAdding(true)}>
+            <Plus aria-hidden="true" /> Add a {noun}
           </Button>
           {/* One click for the fields every page needs for search and sharing. */}
           {depth === 0 && !hasSeoBlock(fields) && (
             <Tooltip side="top" label="Focus keyword, meta and social title and description, image, content type, canonical URL, indexing">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="gap-1.5 border-dashed"
+                className="gap-1.5 text-muted-foreground"
                 onClick={() => {
                   onChange([...fields, SEO_FIELD]);
                   setOpen(fields.length);
@@ -760,28 +842,23 @@ function FieldList({
                 .map((field) => field.label.toLowerCase())
                 .join(', ')}`}
             >
-              <Button variant="outline" size="sm" className="gap-1.5 border-dashed" onClick={() => onChange(withFullSeoBlock(fields))}>
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => onChange(withFullSeoBlock(fields))}>
                 <Search aria-hidden="true" /> Update SEO block ({missingSeoFields(fields).length} new)
               </Button>
             </Tooltip>
           )}
         </div>
       )}
-      {adding && (
-        <AddFieldDialog
-          depth={depth}
-          onClose={() => setAdding(false)}
-          onAdd={(type, label) => {
-            onChange([...fields, newField(type, label, fields)]);
-            setAdding(false);
-            setOpen(fields.length);
-          }}
-        />
-      )}
+      {adding && <AddFieldDialog depth={depth} onClose={() => setAdding(false)} onAdd={add} />}
     </div>
   );
 }
 
+/**
+ * Adding a field, type first: find it (search narrows the grouped list), then
+ * name it — or double-click a type to add it under its own name. The API key
+ * is made from the name and shown as it will be.
+ */
 function AddFieldDialog({
   depth,
   onClose,
@@ -793,12 +870,21 @@ function AddFieldDialog({
 }) {
   const [type, setType] = useState<CmsFieldType | null>(null);
   const [label, setLabel] = useState('');
+  const [search, setSearch] = useState('');
   // Slugs live at the top level, and groups nest at most two deep.
   const available = FIELD_TYPES.filter((entry) => !(depth > 0 && entry.type === 'slug') && !(depth >= 1 && entry.type === 'group'));
-  const groups = [...new Set(available.map((entry) => entry.group))];
+  const needle = search.trim().toLowerCase();
+  const matches = needle
+    ? available.filter((entry) => `${entry.label} ${entry.description} ${entry.group}`.toLowerCase().includes(needle))
+    : available;
+  const groups = [...new Set(matches.map((entry) => entry.group))];
+  const chosen = available.find((entry) => entry.type === type);
+  const name = label.trim() || chosen?.label || '';
+
   return (
     <Modal
-      title="Add a field"
+      title={depth > 0 ? 'Add a nested field' : 'Add a field'}
+      description="Pick what it holds, then name it."
       onClose={onClose}
       size="lg"
       footer={
@@ -806,26 +892,34 @@ function AddFieldDialog({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={!type || !label.trim()} onClick={() => type && onAdd(type, label)}>
-            Add field
+          <Button type="submit" form="add-field" disabled={!type}>
+            Add {chosen ? chosen.label.toLowerCase() : 'field'}
           </Button>
         </div>
       }
     >
-      <div className="space-y-4">
+      <form
+        id="add-field"
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (type) onAdd(type, label);
+        }}
+      >
         <Input
-          label="Label"
-          value={label}
-          placeholder="Hero image"
+          aria-label="Find a field type"
+          placeholder="Find a type — text, image, date…"
+          value={search}
           autoFocus
-          onChange={(event) => setLabel(event.target.value)}
-          hint={label ? `API key: ${fieldKeyFromLabel(label) || '—'}` : 'What editors see; the API key is made from it'}
+          leftIcon={<Search size={14} aria-hidden="true" />}
+          onChange={(event) => setSearch(event.target.value)}
         />
+        {groups.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No type matches “{search.trim()}”.</p>}
         {groups.map((group) => (
           <div key={group}>
             <p className="mb-1.5 text-label uppercase text-muted-foreground">{group}</p>
             <div className="grid gap-1.5 sm:grid-cols-2" role="radiogroup" aria-label={group}>
-              {available
+              {matches
                 .filter((entry) => entry.group === group)
                 .map((entry) => {
                   const Icon = FIELD_ICONS[entry.type];
@@ -837,22 +931,16 @@ function AddFieldDialog({
                       role="radio"
                       aria-checked={on}
                       onClick={() => setType(entry.type)}
+                      onDoubleClick={() => onAdd(entry.type, label)}
                       className={cn(
-                        'flex items-center gap-2.5 rounded-md border px-2.5 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                        'flex items-start gap-2.5 rounded-md border px-2.5 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                         on ? 'border-primary bg-primary/6' : 'border-rule/60 hover:bg-band/50',
                       )}
                     >
-                      <span
-                        className={cn(
-                          'flex size-8 shrink-0 items-center justify-center rounded-md',
-                          on ? 'bg-primary text-primary-foreground' : 'bg-band text-muted-foreground',
-                        )}
-                      >
-                        <Icon size={15} aria-hidden="true" />
-                      </span>
+                      <RowTile icon={Icon} tone={on ? 'success' : 'default'} />
                       <span className="min-w-0">
-                        <span className="block text-sm font-medium text-foreground">{entry.label}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{entry.description}</span>
+                        <span className="block text-sm font-semibold text-foreground">{entry.label}</span>
+                        <span className="line-clamp-2 text-xs text-muted-foreground">{entry.description}</span>
                       </span>
                     </button>
                   );
@@ -860,19 +948,37 @@ function AddFieldDialog({
             </div>
           </div>
         ))}
-      </div>
+        {chosen && (
+          <div className="rounded-md bg-band/50 p-3">
+            <Input
+              label="Name"
+              value={label}
+              placeholder={chosen.label}
+              onChange={(event) => setLabel(event.target.value)}
+              hint={`What editors see. API key: ${fieldKeyFromLabel(name) || chosen.type}`}
+            />
+          </div>
+        )}
+      </form>
     </Modal>
   );
 }
 
 const optionalNumber = (raw: string) => (raw.trim() === '' || !Number.isFinite(Number(raw)) ? undefined : Number(raw));
 
+/**
+ * One field's set-up, in the order people decide it: what it's called, what
+ * it must hold (rules), what kind of value it takes (its type's own options),
+ * and who sees it. Switches are rows; ranges are a min–max pair on one row.
+ */
 function FieldSettings({
   field,
   siblings,
   disabled,
   depth,
   referenceTypes,
+  saved,
+  savedKeys,
   onChange,
 }: {
   field: CmsFieldDefinition;
@@ -880,6 +986,9 @@ function FieldSettings({
   disabled: boolean;
   depth: number;
   referenceTypes: Array<{ key: string; name: string }>;
+  /** This field as last saved, if it was. */
+  saved?: CmsFieldDefinition;
+  savedKeys: ReadonlySet<string>;
   onChange: (next: CmsFieldDefinition) => void;
 }) {
   const set = <K extends keyof CmsFieldDefinition>(key: K, value: CmsFieldDefinition[K]) => {
@@ -888,78 +997,109 @@ function FieldSettings({
     onChange(next);
   };
   const textual = ['text', 'longText', 'richText', 'slug', 'email', 'url'].includes(field.type);
-  const toggle = (key: 'required' | 'unique' | 'private' | 'multiple' | 'integer', label: string, hint: string, show = true) =>
-    show && (
-      <div className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-        <span>
-          <span className="block text-sm font-semibold text-foreground">{label}</span>
-          <span className="block text-xs text-muted-foreground">{hint}</span>
-        </span>
-        <Switch checked={Boolean(field[key])} disabled={disabled} label={label} onChange={(checked) => set(key, checked || undefined)} />
-      </div>
-    );
-
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Input label="Label" value={field.label} disabled={disabled} onChange={(event) => set('label', event.target.value)} />
+  const isSaved = savedKeys.has(field.key);
+  const switchRow = (key: 'required' | 'unique' | 'private' | 'multiple' | 'integer', icon: IconComponent, title: string, hint: string) => (
+    <InfoRow icon={icon} title={title} description={hint}>
+      <Switch checked={Boolean(field[key])} disabled={disabled} label={title} onChange={(checked) => set(key, checked || undefined)} />
+    </InfoRow>
+  );
+  const range = (
+    title: string,
+    minKey: 'minLength' | 'min' | 'minItems',
+    maxKey: 'maxLength' | 'max' | 'maxItems',
+    icon: IconComponent,
+    floor?: number,
+  ) => (
+    <FieldRow icon={icon} title={title} note="Leave empty for no limit">
+      <div className="grid grid-cols-2 gap-2">
         <Input
-          label="API key"
-          className="font-mono"
-          value={field.key}
+          aria-label={`${title}: minimum`}
+          type="number"
+          min={floor}
+          placeholder="Min"
+          value={field[minKey] ?? ''}
           disabled={disabled}
-          hint="Renaming loses existing values"
-          onChange={(event) => set('key', event.target.value.replace(/[^A-Za-z0-9_]/g, ''))}
+          onChange={(event) => set(minKey, optionalNumber(event.target.value))}
+        />
+        <Input
+          aria-label={`${title}: maximum`}
+          type="number"
+          min={floor === undefined ? undefined : Math.max(1, floor)}
+          placeholder="Max"
+          value={field[maxKey] ?? ''}
+          disabled={disabled}
+          onChange={(event) => set(maxKey, optionalNumber(event.target.value))}
         />
       </div>
-      <Input
-        label="Help text"
-        value={field.description ?? ''}
-        disabled={disabled}
-        placeholder="Shown under the field in the editor"
-        onChange={(event) => set('description', event.target.value || undefined)}
-      />
+    </FieldRow>
+  );
+  /** A group's title, with what it decides behind the ⓘ — so a long panel reads as four short ones. */
+  const heading = (text: string, hint: string) => (
+    <div className="flex items-center justify-between gap-3">
+      <h4 className="text-sm font-semibold tracking-title text-foreground">{text}</h4>
+      <SectionInfo label={hint} />
+    </div>
+  );
 
-      <div className="divide-y divide-rule/40">
-        {toggle('required', 'Required', 'Must be filled in to publish')}
-        {toggle(
-          'unique',
-          'Unique',
-          'No two entries in a locale share the value',
-          ['text', 'slug', 'email', 'url', 'number'].includes(field.type) && depth === 0,
-        )}
-        {toggle(
-          'multiple',
-          field.type === 'group' ? 'Repeatable' : 'Allow several',
-          'Holds a list instead of one value',
-          canHoldList(field.type),
-        )}
-        {toggle('integer', 'Whole numbers only', 'Rejects decimals', field.type === 'number')}
-        {toggle('private', 'Private', 'Editors see it; the delivery API never sends it')}
-      </div>
+  const typeOptions =
+    field.type === 'slug' ||
+    field.type === 'select' ||
+    field.type === 'media' ||
+    field.type === 'reference' ||
+    field.type === 'group';
 
-      {textual && (
+  return (
+    <div className="divide-y divide-rule/40 [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
+      <div className="space-y-3">
+        {heading('Name', 'What editors see, and the key your website reads')}
         <div className="grid gap-3 sm:grid-cols-2">
           <Input
-            label="Min length"
-            type="number"
-            min={0}
-            value={field.minLength ?? ''}
+            label="Label"
+            value={field.label}
             disabled={disabled}
-            onChange={(event) => set('minLength', optionalNumber(event.target.value))}
+            onChange={(event) => onChange(relabelField(field, event.target.value, siblings, savedKeys))}
           />
           <Input
-            label="Max length"
-            type="number"
-            min={1}
-            value={field.maxLength ?? ''}
+            label="API key"
+            className="font-mono"
+            value={field.key}
             disabled={disabled}
-            onChange={(event) => set('maxLength', optionalNumber(event.target.value))}
+            hint={isSaved ? undefined : 'Follows the label until you change it'}
+            onChange={(event) => set('key', event.target.value.replace(/[^A-Za-z0-9_]/g, ''))}
           />
-          {field.type === 'text' && (
-            <>
+        </div>
+        {saved && saved.key !== field.key && (
+          <p className="flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
+            <TriangleAlert size={14} className="mt-px shrink-0" aria-hidden="true" />
+            <span>Renaming the key loses what entries stored under “{saved.key}”.</span>
+          </p>
+        )}
+        <Input
+          label="Help text"
+          value={field.description ?? ''}
+          disabled={disabled}
+          placeholder="Shown under the field while editing"
+          onChange={(event) => set('description', event.target.value || undefined)}
+        />
+      </div>
+
+      <div className="space-y-3">
+        {heading('Rules', 'What an entry must hold before it can be published')}
+        {switchRow('required', AlertCircle, 'Required', 'Must be filled in to publish')}
+        {['text', 'slug', 'email', 'url', 'number'].includes(field.type) &&
+          depth === 0 &&
+          switchRow('unique', Fingerprint, 'Unique', 'No two entries in a language share the value')}
+        {canHoldList(field.type) &&
+          switchRow('multiple', ListOrdered, field.type === 'group' ? 'Repeatable' : 'Allow several', 'Holds a list instead of one value')}
+        {field.type === 'number' && switchRow('integer', Hash, 'Whole numbers only', 'Rejects decimals')}
+        {textual && range('Length (characters)', 'minLength', 'maxLength', Type, 0)}
+        {field.type === 'number' && range('Value', 'min', 'max', Hash)}
+        {field.multiple && canHoldList(field.type) && range('Items', 'minItems', 'maxItems', ListOrdered, 0)}
+        {field.type === 'text' && (
+          <FieldRow icon={Fingerprint} title="Pattern" note="Optional">
+            <div className="grid gap-2 sm:grid-cols-2">
               <Input
-                label="Pattern (regex)"
+                aria-label="Pattern (regular expression)"
                 className="font-mono"
                 value={field.pattern ?? ''}
                 disabled={disabled}
@@ -967,124 +1107,96 @@ function FieldSettings({
                 onChange={(event) => set('pattern', event.target.value || undefined)}
               />
               <Input
-                label="Pattern message"
+                aria-label="Message when it doesn’t match"
                 value={field.patternMessage ?? ''}
                 disabled={disabled}
+                placeholder="Message when it doesn’t match"
                 onChange={(event) => set('patternMessage', event.target.value || undefined)}
               />
-            </>
+            </div>
+          </FieldRow>
+        )}
+      </div>
+
+      {typeOptions && (
+        <div className="space-y-3">
+          {heading(fieldTypeLabel(field.type), `Settings only a ${fieldTypeLabel(field.type).toLowerCase()} field has`)}
+          {field.type === 'slug' && (
+            <FieldRow icon={Type} title="Made from">
+              <Select
+                className="w-full"
+                ariaLabel="Generate slug from"
+                value={field.slugSource ?? ''}
+                disabled={disabled}
+                onValueChange={(value) => set('slugSource', value || undefined)}
+                options={[
+                  { value: '', label: 'Typed by hand' },
+                  ...siblings
+                    .filter((sibling) => sibling.type === 'text')
+                    .map((sibling) => ({ value: sibling.key, label: sibling.label })),
+                ]}
+              />
+            </FieldRow>
+          )}
+          {field.type === 'select' && (
+            <FieldRow icon={ListOrdered} title="Choices" htmlFor={`options-${field.key}`} note="One per line">
+              <textarea
+                id={`options-${field.key}`}
+                rows={4}
+                className={TEXTAREA_CLASS}
+                disabled={disabled}
+                value={(field.options ?? []).join('\n')}
+                onChange={(event) =>
+                  set(
+                    'options',
+                    event.target.value
+                      .split('\n')
+                      .map((line) => line.trim())
+                      .filter(Boolean),
+                  )
+                }
+              />
+            </FieldRow>
+          )}
+          {field.type === 'media' && (
+            <ChipChoice
+              label="Allowed files"
+              options={(['image', 'video', 'audio', 'document'] as CmsMediaGroup[]).map((group) => ({ value: group, label: group }))}
+              value={field.mediaGroups ?? []}
+              disabled={disabled}
+              emptyHint="Any file"
+              onChange={(next) => set('mediaGroups', next as CmsMediaGroup[])}
+            />
+          )}
+          {field.type === 'reference' && (
+            <ChipChoice
+              label="Can link to"
+              options={referenceTypes.map((type) => ({ value: type.key, label: type.name }))}
+              value={field.referenceTypes ?? []}
+              disabled={disabled}
+              emptyHint="Any content type"
+              onChange={(next) => set('referenceTypes', next)}
+            />
+          )}
+          {field.type === 'group' && (
+            <div className="rounded-lg border border-rule/50 bg-field px-3 py-1.5">
+              <FieldList
+                fields={field.fields ?? []}
+                onChange={(next) => set('fields', next)}
+                disabled={disabled}
+                depth={depth + 1}
+                referenceTypes={referenceTypes}
+                saved={saved?.fields ?? []}
+              />
+            </div>
           )}
         </div>
       )}
-      {field.type === 'number' && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Input
-            label="Minimum"
-            type="number"
-            value={field.min ?? ''}
-            disabled={disabled}
-            onChange={(event) => set('min', optionalNumber(event.target.value))}
-          />
-          <Input
-            label="Maximum"
-            type="number"
-            value={field.max ?? ''}
-            disabled={disabled}
-            onChange={(event) => set('max', optionalNumber(event.target.value))}
-          />
-        </div>
-      )}
-      {field.multiple && canHoldList(field.type) && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Input
-            label="Min items"
-            type="number"
-            min={0}
-            value={field.minItems ?? ''}
-            disabled={disabled}
-            onChange={(event) => set('minItems', optionalNumber(event.target.value))}
-          />
-          <Input
-            label="Max items"
-            type="number"
-            min={1}
-            value={field.maxItems ?? ''}
-            disabled={disabled}
-            onChange={(event) => set('maxItems', optionalNumber(event.target.value))}
-          />
-        </div>
-      )}
-      {field.type === 'slug' && (
-        <Select
-          ariaLabel="Generate slug from"
-          value={field.slugSource ?? ''}
-          disabled={disabled}
-          onValueChange={(value) => set('slugSource', value || undefined)}
-          options={[
-            { value: '', label: 'No source field' },
-            ...siblings
-              .filter((sibling) => sibling.type === 'text')
-              .map((sibling) => ({ value: sibling.key, label: `Generate from ${sibling.label}` })),
-          ]}
-        />
-      )}
-      {field.type === 'select' && (
-        <div>
-          <label htmlFor={`options-${field.key}`} className={FIELD_LABEL_CLASS}>
-            Choices, one per line
-          </label>
-          <textarea
-            id={`options-${field.key}`}
-            rows={4}
-            className={cn(TEXTAREA_CLASS, 'mt-1')}
-            disabled={disabled}
-            value={(field.options ?? []).join('\n')}
-            onChange={(event) =>
-              set(
-                'options',
-                event.target.value
-                  .split('\n')
-                  .map((line) => line.trim())
-                  .filter(Boolean),
-              )
-            }
-          />
-        </div>
-      )}
-      {field.type === 'media' && (
-        <ChipChoice
-          label="Allowed files"
-          options={(['image', 'video', 'audio', 'document'] as CmsMediaGroup[]).map((group) => ({ value: group, label: group }))}
-          value={field.mediaGroups ?? []}
-          disabled={disabled}
-          emptyHint="Any file"
-          onChange={(next) => set('mediaGroups', next as CmsMediaGroup[])}
-        />
-      )}
-      {field.type === 'reference' && (
-        <ChipChoice
-          label="Can link to"
-          options={referenceTypes.map((type) => ({ value: type.key, label: type.name }))}
-          value={field.referenceTypes ?? []}
-          disabled={disabled}
-          emptyHint="Any content type"
-          onChange={(next) => set('referenceTypes', next)}
-        />
-      )}
-      {field.type === 'group' && (
-        <div>
-          <p className={cn(FIELD_LABEL_CLASS, 'mb-1.5')}>Nested fields</p>
-          <div className="rounded-lg border border-rule/50 bg-field p-3">
-            <FieldList
-              fields={field.fields ?? []}
-              onChange={(next) => set('fields', next)}
-              disabled={disabled}
-              depth={depth + 1}
-              referenceTypes={referenceTypes}
-            />
-          </div>
-        </div>
-      )}
+
+      <div className="space-y-3">
+        {heading('Visibility', 'Where its value goes')}
+        {switchRow('private', EyeOff, 'Private', 'Editors see it; your website never receives it')}
+      </div>
     </div>
   );
 }
@@ -1134,46 +1246,6 @@ function ChipChoice({
 
 /** "https://www.example.com/blog/{slug}" → "example.com/blog/{slug}", short enough for a row. */
 const shortUrl = (url: string) => url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
-
-/**
- * The preview URL as a row: the template, shortened, is the button that opens
- * its input underneath — the Schedule card's pattern, so the aside stays quiet.
- */
-function PreviewUrlRow({ value, disabled, onChange }: { value: string; disabled: boolean; onChange: (next: string) => void }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div>
-      <InfoRow icon={Globe} title="Preview URL">
-        <button
-          type="button"
-          aria-expanded={open}
-          disabled={disabled && !value}
-          onClick={() => setOpen((current) => !current)}
-          className={cn(
-            'inline-flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors hover:bg-band/60',
-            value ? 'text-foreground' : 'text-muted-foreground',
-          )}
-        >
-          <span className="max-w-36 truncate font-mono text-xs">{value ? shortUrl(value) : 'Not set'}</span>
-          <ChevronDown size={14} className={cn('shrink-0 transition-transform', open && 'rotate-180')} aria-hidden="true" />
-        </button>
-      </InfoRow>
-      {open && (
-        <div className="mt-3">
-          <Input
-            aria-label="Preview URL"
-            value={value}
-            disabled={disabled}
-            autoFocus
-            placeholder="https://www.example.com/blog/{slug}"
-            hint="{slug}, {id} and {locale} are filled in per entry"
-            onChange={(event) => onChange(event.target.value)}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
 
 /** The roles that can write content, when the full catalogue cannot be read. */
 const FALLBACK_ROLES = [

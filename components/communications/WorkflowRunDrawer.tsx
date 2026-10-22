@@ -22,7 +22,7 @@ export function WorkflowRunDrawer({ runId, onClose }: { runId: string; onClose: 
     isLoading,
     error,
   } = useQuery({
-    queryKey: moduleQueryKeys.communications.key('email-automation-run', runId, tenantId),
+    queryKey: moduleQueryKeys.automation.key('email-automation-run', runId, tenantId),
     queryFn: () => getEmailAutomationRun(runId, tenantId ?? undefined),
     enabled: !!tenantId,
     refetchInterval: (query) => (query.state.data?.status === 'running' ? 5_000 : false),

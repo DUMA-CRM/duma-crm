@@ -32,6 +32,9 @@ interface SelectProps {
   className?: string;
   contentClassName?: string;
   disabled?: boolean;
+  /** Open the list on mount — for a select revealed by a tap that should go straight to the choices. */
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const EMPTY_VALUE = '__duma_select_empty__';
@@ -51,6 +54,8 @@ function Select({
   className,
   contentClassName,
   disabled,
+  defaultOpen,
+  onOpenChange,
 }: SelectProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   // An explicit trigger icon wins; otherwise the chosen option brings its own.
@@ -67,6 +72,8 @@ function Select({
       disabled={disabled}
       name={name}
       required={required}
+      defaultOpen={defaultOpen}
+      onOpenChange={onOpenChange}
     >
       <SelectPrimitive.Trigger
         ref={triggerRef}

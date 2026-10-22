@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { InfoRow } from '@/components/cms/rows';
+import { InfoRow, PickerRow } from '@/components/cms/rows';
 import {
   AlertTriangle,
   CalendarClock,
@@ -40,7 +40,6 @@ import { minutesLabel } from '@/lib/utils/reservations';
 import { toast } from '@/stores/toastStore';
 
 import { GuestEmails } from './GuestEmails';
-import { PickerRow } from './PickerRow';
 
 type Draft = Required<ReservationSettingsInput>;
 type Row = 'onlineMaxPartySize' | 'onlineDurationMinutes' | 'slotIntervalMinutes' | 'minNoticeMinutes' | 'bookingHorizonDays' | 'guestMessage' | 'turnBufferMinutes';

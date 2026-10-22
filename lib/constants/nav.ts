@@ -21,6 +21,7 @@ import {
   Users,
   UsersRound,
   UtensilsCrossed,
+  Zap,
 } from '@/components/icons';
 
 import { type Capability, hasAnyCapability } from '@/lib/auth/capabilities';
@@ -82,6 +83,7 @@ export const mainNavItems: NavItem[] = [
   // `marketing_manager` reaches this — the old rank threshold hid it from
   // the role whose job it is.
   { module: 'customers', label: 'Customers', href: '/customers', icon: Users, capabilities: ['customers:read'] },
+  { module: 'automation', label: 'Automation', href: '/automation', icon: Zap, capabilities: ['email:read'] },
   { module: 'communications', label: 'Communications', href: '/communications', icon: Mail, capabilities: ['email:read'] },
   // Promo codes the till and checkout honour, with their limits and usage.
   { module: 'promotions', label: 'Promotions', href: '/promotions', icon: TicketPercent, capabilities: ['promotions:read'] },

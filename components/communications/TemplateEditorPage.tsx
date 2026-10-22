@@ -172,7 +172,7 @@ export function TemplateEditorPage({
     queryFn: getEmailVariables,
   });
   const { data: automations = [] } = useQuery({
-    queryKey: moduleQueryKeys.communications.key('email-automations', tenantId),
+    queryKey: moduleQueryKeys.automation.key('email-automations', tenantId),
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
     enabled: !!tenantId,
   });

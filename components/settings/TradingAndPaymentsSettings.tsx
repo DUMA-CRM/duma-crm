@@ -1,17 +1,17 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import { useState } from 'react';
 
-import { Calculator, Landmark, Receipt, Tags } from '@/components/icons';
-import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
+import { InfoRow, PickerRow } from '@/components/cms/rows';
+import { Calculator, Coins, Hash, type IconComponent, Landmark, MapPin, StickyNote, Store, Tags } from '@/components/icons';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { SaveBar } from '@/components/settings/controls';
+import { SaveBar, Switch } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ChoiceCards } from '@/components/shared/FormParts';
 import { Bone } from '@/components/shared/Skeleton';
-import { SectionSkeleton } from '@/components/shared/TileSkeleton';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
@@ -48,9 +48,14 @@ const formFrom = (settings: TradingSettings): Form => ({
   pricesIncludeTax: settings.pricesIncludeTax,
 });
 
+type Row = Exclude<keyof Form, 'vatRegistered'>;
+
 const same = (a: Form, b: Form) => (Object.keys(a) as (keyof Form)[]).every((key) => a[key] === b[key]);
 
-/** Trading & tax: what every receipt says, and how prices are taxed. Card readers live under Connectors. */
+/**
+ * Trading & tax: what every receipt says, and how prices are taxed. Card readers live under Connectors.
+ * Laid out like the other rules tabs: each detail a row that opens its field, the live receipt alongside.
+ */
 export function TradingAndPaymentsSettings() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const settings = useQuery({
@@ -72,24 +77,7 @@ export function TradingAndPaymentsSettings() {
 
   if (!tenantId) return <p className="text-sm text-muted-foreground">Choose a workspace first.</p>;
   if (settings.isPending || workspace.isLoading || setup.isPending) {
-    return (
-      // The tab body's shape: the form sections, and the receipt preview beside them.
-      <div
-        role="status"
-        aria-busy="true"
-        aria-label="Loading trading settings"
-        className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]"
-      >
-        <div className="flex min-w-0 flex-col gap-5">
-          <SectionSkeleton fields={4} />
-          <SectionSkeleton fields={3} />
-        </div>
-        <div className="pt-1" aria-hidden="true">
-          <Bone className="mx-auto mb-2 h-2.5 w-24" />
-          <Bone className="mx-auto h-96 max-w-xs" />
-        </div>
-      </div>
-    );
+    return <Bone className="h-96 w-full rounded-lg" />;
   }
   if (settings.isError) return <ErrorState title="Couldn’t load trading settings" onRetry={() => void settings.refetch()} />;
   // Keyed on the saved row, so a successful save re-seeds the form from what the server kept.
@@ -127,6 +115,8 @@ function TradingForm({
   // VAT invoices need an address, so an online-only business still gets the field once VAT registered.
   const showAddress = !onlineOnly || form.vatRegistered || Boolean(saved.tradingAddress);
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((current) => ({ ...current, [key]: value }));
+  // One row open at a time; a tap on the open one closes it.
+  const [open, setOpen] = useState<Row | null>(null);
   const dirty = !same(form, saved);
   const rate = Number(form.defaultVatRate);
   // The rate only matters once VAT registered; a hidden bad value must not block saving.
@@ -160,128 +150,119 @@ function TradingForm({
     onError: (error) => toast('error', error.message || 'Trading settings weren’t saved.'),
   });
 
-  return (
-    <>
-      <SettingsTabBody aside={<ReceiptPreview form={form} />} stickyAside>
-        <SettingsSection title="On your receipts">
-          <div className="grid gap-4">
-            <Input
-              label="Business name"
-              value={form.legalName}
-              onChange={(event) => set('legalName', event.target.value)}
-              placeholder="North Street Coffee Ltd"
-              hint={suggested('legalName') ? 'From your workspace name.' : undefined}
-            />
-            {showAddress && (
-              <Input
-                label="Address"
-                value={form.tradingAddress}
-                onChange={(event) => set('tradingAddress', event.target.value)}
-                placeholder="12 North Street, London"
-                hint={suggested('tradingAddress') ? 'From your location.' : onlineOnly ? 'Needed on VAT invoices.' : undefined}
-              />
-            )}
-            <Input
-              label="Thank-you line"
-              value={form.receiptFooter}
-              onChange={(event) => set('receiptFooter', event.target.value)}
-              placeholder="Thank you — see you soon"
-              maxLength={200}
-            />
-          </div>
-        </SettingsSection>
+  const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
+  /** A short text: what it says on the row, the field (and why it matters) underneath. */
+  const textRow = (row: Row & ('legalName' | 'tradingAddress' | 'receiptFooter' | 'vatNumber'), icon: IconComponent, title: string, empty: string, placeholder: string, hint: string, maxLength?: number) => (
+    <PickerRow icon={icon} title={title} value={form[row].trim() || empty} muted={!form[row].trim()} open={open === row} onToggle={() => toggle(row)}>
+      <Input aria-label={title} value={form[row]} onChange={(event) => set(row, event.target.value)} placeholder={placeholder} maxLength={maxLength} autoFocus />
+      <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
+    </PickerRow>
+  );
 
-        <SettingsSection title="Money and VAT">
-          <div className="max-w-xs">
-            <p className="mb-1.5 text-label uppercase text-muted-foreground">Currency</p>
+  return (
+    <SettingsTabBody narrowAside stickyAside aside={<ReceiptPreview form={form} />}>
+      <SettingsSection title="On your receipts">
+        <div className="space-y-3">
+          {textRow(
+            'legalName',
+            Store,
+            'Business name',
+            'Not set',
+            'North Street Coffee Ltd',
+            suggested('legalName') ? 'From your workspace name.' : 'Printed at the top of every receipt.',
+          )}
+          {showAddress &&
+            textRow(
+              'tradingAddress',
+              MapPin,
+              'Address',
+              'Not set',
+              '12 North Street, London',
+              suggested('tradingAddress') ? 'From your location.' : onlineOnly ? 'Needed on VAT invoices.' : 'Printed under your business name.',
+            )}
+          {textRow('receiptFooter', StickyNote, 'Thank-you line', 'None', 'Thank you — see you soon', 'Printed at the foot of every receipt.', 200)}
+        </div>
+      </SettingsSection>
+
+      <SettingsSection title="Money and VAT">
+        <div className="space-y-3">
+          <PickerRow icon={Coins} title="Currency" value={currencyLabel(form.currency)} open={open === 'currency'} onToggle={() => toggle('currency')}>
+            {/* Straight to the list; choosing or dismissing folds the row back up. */}
             <Select
               value={form.currency}
               onValueChange={(value) => set('currency', value)}
               options={currencyOptions}
               ariaLabel="Currency"
+              className="w-full"
+              defaultOpen
+              onOpenChange={(next) => !next && setOpen(null)}
             />
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              Every price shows in it — products, orders, the till, reports and your website. Prices are not converted.
-            </p>
-          </div>
-
-          <p className="mt-6 mb-2 text-sm font-semibold text-foreground">Are you VAT registered?</p>
-          <ChoiceGrid<'yes' | 'no'>
-            label="VAT registered"
-            shortcuts={false}
-            selected={[form.vatRegistered ? 'yes' : 'no']}
-            onChange={(value) => set('vatRegistered', value === 'yes')}
-            choices={[
-              { value: 'yes', label: 'Yes', detail: 'VAT shows on receipts and comes out of your margins.', icon: Landmark },
-              { value: 'no', label: 'No', detail: 'No VAT is added or shown.', icon: Receipt },
-            ]}
-          />
-
-          <AnimatePresence initial={false}>
-            {form.vatRegistered && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                className="overflow-hidden"
+          </PickerRow>
+          <InfoRow icon={Landmark} title="VAT registered">
+            <Switch checked={form.vatRegistered} onChange={(next) => set('vatRegistered', next)} label="VAT registered" />
+          </InfoRow>
+          {form.vatRegistered && (
+            <>
+              {textRow('vatNumber', Hash, 'VAT number', 'Not set', 'GB123456789', 'Printed on every receipt while you’re registered.')}
+              <PickerRow
+                icon={Calculator}
+                title="VAT rate"
+                value={rateValid ? `${rate}%` : 'Check the rate'}
+                muted={!rateValid}
+                open={open === 'defaultVatRate'}
+                onToggle={() => toggle('defaultVatRate')}
               >
-                <div className="grid gap-4 pt-5 sm:grid-cols-2">
-                  <Input
-                    label="VAT number"
-                    value={form.vatNumber}
-                    onChange={(event) => set('vatNumber', event.target.value)}
-                    placeholder="GB123456789"
-                  />
-                  <Input
-                    label="VAT rate (%)"
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    value={form.defaultVatRate}
-                    onChange={(event) => set('defaultVatRate', event.target.value)}
-                    error={rateValid ? undefined : 'Enter a rate between 0 and 100.'}
-                  />
-                </div>
-
-                <p className="mt-6 mb-2 text-sm font-semibold text-foreground">How are your menu prices shown?</p>
-                <ChoiceGrid<'inc' | 'exc'>
-                  label="Menu prices"
-                  shortcuts={false}
-                  selected={[form.pricesIncludeTax ? 'inc' : 'exc']}
+                <Input
+                  aria-label="VAT rate (%)"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={form.defaultVatRate}
+                  onChange={(event) => set('defaultVatRate', event.target.value)}
+                  error={rateValid ? undefined : 'Enter a rate between 0 and 100.'}
+                  autoFocus
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">Used for anything without its own rate, and taken out of your margins.</p>
+              </PickerRow>
+              <PickerRow
+                icon={Tags}
+                title="Menu prices"
+                value={form.pricesIncludeTax ? 'VAT included' : 'VAT added at the till'}
+                open={open === 'pricesIncludeTax'}
+                onToggle={() => toggle('pricesIncludeTax')}
+              >
+                <ChoiceCards<'inc' | 'exc'>
+                  appearance="settings"
+                  value={form.pricesIncludeTax ? 'inc' : 'exc'}
                   onChange={(value) => set('pricesIncludeTax', value === 'inc')}
-                  choices={[
-                    {
-                      value: 'inc',
-                      label: 'VAT included',
-                      detail: `${money(example)} on the menu — the customer pays ${money(example)}.`,
-                      icon: Tags,
-                    },
-                    {
-                      value: 'exc',
-                      label: 'VAT added at the till',
-                      detail: `${money(example)} on the menu — the customer pays ${money(example * (1 + (rateValid ? rate : 0) / 100))}.`,
-                      icon: Calculator,
-                    },
+                  options={[
+                    { value: 'inc', label: 'VAT included', icon: Tags },
+                    { value: 'exc', label: 'VAT added at the till', icon: Calculator },
                   ]}
                 />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </SettingsSection>
-
-      </SettingsTabBody>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {money(example)} on the menu — the customer pays{' '}
+                  {money(form.pricesIncludeTax ? example : example * (1 + (rateValid ? rate : 0) / 100))}.
+                </p>
+              </PickerRow>
+            </>
+          )}
+        </div>
+      </SettingsSection>
 
       <SaveBar
         dirty={dirty}
         saving={save.isPending}
         disabled={!valid}
-        message={onlyPrefilled ? 'Filled in from your workspace — save to use it' : undefined}
+        message={!valid ? 'Enter a VAT rate between 0 and 100' : onlyPrefilled ? 'Filled in from your workspace — save to use it' : undefined}
         onSave={() => save.mutate()}
-        onDiscard={() => setForm(saved)}
+        onDiscard={() => {
+          setForm(saved);
+          setOpen(null);
+        }}
       />
-    </>
+    </SettingsTabBody>
   );
 }
 

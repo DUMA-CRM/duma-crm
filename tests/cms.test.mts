@@ -269,3 +269,99 @@ test('a clip length reads like a player', async () => {
   assert.equal(isVideo('video/mp4'), true);
   assert.equal(isVideo('image/png'), false);
 });
+
+test('translationCoverage: a language’s versions out of every entry, in words', async () => {
+  const { translationCoverage } = await import('../lib/utils/cms.ts');
+  assert.deepEqual(translationCoverage(0, 0), { percent: 0, label: 'No entries yet' });
+  assert.deepEqual(translationCoverage(20, 20), { percent: 100, label: 'All 20' });
+  assert.deepEqual(translationCoverage(12, 20), { percent: 60, label: '12 of 20' });
+  assert.deepEqual(translationCoverage(0, 20), { percent: 0, label: '0 of 20' });
+  // Nearly done is not done; barely started is not nothing.
+  assert.equal(translationCoverage(999, 1000).percent, 99);
+  assert.equal(translationCoverage(1, 1000).percent, 1);
+});
+
+test('resolvedTitleKey: the chosen title field, else the first short text', async () => {
+  const { resolvedTitleKey } = await import('../lib/utils/cms.ts');
+  const fields = [
+    { key: 'hero', label: 'Hero', type: 'media' },
+    { key: 'headline', label: 'Headline', type: 'text' },
+    { key: 'name', label: 'Name', type: 'text' },
+  ] as const;
+  assert.equal(resolvedTitleKey([...fields], 'name'), 'name');
+  assert.equal(resolvedTitleKey([...fields], ''), 'headline');
+  assert.equal(resolvedTitleKey([...fields], 'gone'), 'headline');
+  assert.equal(resolvedTitleKey([{ key: 'hero', label: 'Hero', type: 'media' }], null), null);
+});
+
+test('fieldRules: a field’s rules in a few words', async () => {
+  const { fieldRules } = await import('../lib/utils/cms.ts');
+  assert.deepEqual(fieldRules({ key: 'title', label: 'Title', type: 'text', required: true, maxLength: 80 }), ['Required', 'Up to 80 characters']);
+  assert.deepEqual(fieldRules({ key: 'n', label: 'N', type: 'number', integer: true, min: 0, max: 10 }), ['Whole numbers', '0–10']);
+  assert.deepEqual(fieldRules({ key: 'g', label: 'G', type: 'media', multiple: true, maxItems: 5, private: true }), ['List', 'Up to 5 items', 'Private']);
+  assert.deepEqual(fieldRules({ key: 'b', label: 'B', type: 'boolean' }), []);
+});
+
+test('duplicateField: a copy beside it with a free key', async () => {
+  const { duplicateField } = await import('../lib/utils/cms.ts');
+  const hero = { key: 'heroImage', label: 'Hero image', type: 'media' as const, required: true };
+  const copy = duplicateField(hero, [hero, { key: 'heroImageCopy', label: 'x', type: 'text' as const }]);
+  assert.equal(copy.label, 'Hero image copy');
+  assert.equal(copy.key, 'heroImageCopy2');
+  assert.equal(copy.required, true);
+});
+
+test('relabelField: the key follows the label only while new and untouched', async () => {
+  const { relabelField } = await import('../lib/utils/cms.ts');
+  const fresh = { key: 'heroImage', label: 'Hero image', type: 'media' as const };
+  assert.equal(relabelField(fresh, 'Cover photo', [fresh], new Set()).key, 'coverPhoto');
+  // Saved: entries already use the key.
+  assert.equal(relabelField(fresh, 'Cover photo', [fresh], new Set(['heroImage'])).key, 'heroImage');
+  // Typed by hand: no longer the label's key.
+  const typed = { key: 'img', label: 'Hero image', type: 'media' as const };
+  assert.equal(relabelField(typed, 'Cover photo', [typed], new Set()).key, 'img');
+  // Stays clear of a sibling's key.
+  const other = { key: 'coverPhoto', label: 'Cover photo', type: 'text' as const };
+  assert.equal(relabelField(fresh, 'Cover photo', [fresh, other], new Set()).key, 'coverPhoto2');
+});
+
+test('requiredMissing: required fields still empty, blanks of every shape', async () => {
+  const { requiredMissing } = await import('../lib/utils/cms.ts');
+  const fields = [
+    { key: 'title', label: 'Title', type: 'text', required: true },
+    { key: 'tags', label: 'Tags', type: 'select', multiple: true, required: true },
+    { key: 'hero', label: 'Hero', type: 'group', required: true, fields: [{ key: 'alt', label: 'Alt', type: 'text' }] },
+    { key: 'live', label: 'Live', type: 'boolean', required: true },
+    { key: 'note', label: 'Note', type: 'text' },
+  ] as const;
+  const keys = (data: Record<string, unknown>) => requiredMissing([...fields] as never, data).map((field) => field.key);
+  assert.deepEqual(keys({ title: '  ', tags: [], hero: { alt: '' } }), ['title', 'tags', 'hero']);
+  assert.deepEqual(keys({ title: 'Hello', tags: ['a'], hero: { alt: 'x' } }), []);
+  // A yes/no is always answered; an optional field never counts.
+  assert.deepEqual(keys({ title: 'Hello', tags: ['a'], hero: { alt: 'x' }, live: false, note: '' }), []);
+});
+
+test('fieldValueInWords: what a row shows for a value', async () => {
+  const { fieldValueInWords } = await import('../lib/utils/cms.ts');
+  assert.equal(fieldValueInWords({ key: 't', label: 'T', type: 'longText' }, '  Two\n lines '), 'Two lines');
+  assert.equal(fieldValueInWords({ key: 't', label: 'T', type: 'text' }, '   '), null);
+  assert.equal(fieldValueInWords({ key: 'i', label: 'I', type: 'media' }, 'asset-1'), 'Added');
+  assert.equal(fieldValueInWords({ key: 'i', label: 'I', type: 'media', multiple: true }, ['a', 'b']), '2 files');
+  assert.equal(fieldValueInWords({ key: 's', label: 'S', type: 'select', multiple: true }, ['Vegan', 'Hot']), 'Vegan, Hot');
+  assert.equal(fieldValueInWords({ key: 'b', label: 'B', type: 'boolean' }, false), 'No');
+  assert.equal(fieldValueInWords({ key: 'n', label: 'N', type: 'number' }, undefined), null);
+});
+
+test('fieldValueInWords: every field type reads in words', async () => {
+  const { fieldValueInWords } = await import('../lib/utils/cms.ts');
+  assert.equal(fieldValueInWords({ key: 'b', label: 'B', type: 'richText' }, '## Hello **there**\n- one'), 'Hello there one');
+  assert.equal(fieldValueInWords({ key: 'd', label: 'D', type: 'date' }, '2026-10-22'), '22 Oct 2026');
+  assert.equal(fieldValueInWords({ key: 'r', label: 'R', type: 'reference' }, 'abc'), 'Linked');
+  assert.equal(fieldValueInWords({ key: 'r', label: 'R', type: 'reference', multiple: true }, ['a', 'b']), '2 links');
+  assert.equal(fieldValueInWords({ key: 'g', label: 'G', type: 'group', multiple: true }, [{}, {}, {}]), '3 items');
+  const group = { key: 'g', label: 'G', type: 'group' as const, fields: [{ key: 'a', label: 'A', type: 'text' as const }, { key: 'b', label: 'B', type: 'text' as const }] };
+  assert.equal(fieldValueInWords(group, { a: 'x', b: '' }), '1 of 2 filled');
+  assert.equal(fieldValueInWords(group, { a: '', b: '' }), null);
+  assert.equal(fieldValueInWords({ key: 'l', label: 'L', type: 'location' }, { lat: 51.5, lng: -0.12 }), '51.5000, -0.1200');
+  assert.equal(fieldValueInWords({ key: 'i', label: 'I', type: 'media', multiple: true }, ['a', 'b']), '2 files');
+});

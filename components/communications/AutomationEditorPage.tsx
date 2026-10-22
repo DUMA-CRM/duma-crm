@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { TriggerPicker } from '@/components/automation/TriggerPicker';
 import { FileText, Loader2, Play, PlugZap, TriangleAlert } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
@@ -68,6 +69,7 @@ export function AutomationEditorPage({
   );
   const [selectedId, setSelectedId] = useState(definition.nodes[0]?.id ?? '');
   const [savedId, setSavedId] = useState(automation?.id ?? null);
+  const [choosingTrigger, setChoosingTrigger] = useState(!automation);
   const [previewing, setPreviewing] = useState(false);
   const [confirmingPublish, setConfirmingPublish] = useState(false);
   const [openedRunId, setOpenedRunId] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export function AutomationEditorPage({
     enabled: !!tenantId,
   });
   const { data: segmentsData } = useQuery({
-    queryKey: moduleQueryKeys.customers.key('customer-segments'),
+    queryKey: moduleQueryKeys.customers.key('customer-segments', tenantId),
     queryFn: getSegments,
     enabled: !!tenantId,
   });
@@ -98,11 +100,12 @@ export function AutomationEditorPage({
     retry: false,
   });
   const { data: runs = [] } = useQuery({
-    queryKey: moduleQueryKeys.communications.key('email-automation-runs', savedId, tenantId),
+    queryKey: moduleQueryKeys.automation.key('email-automation-runs', savedId, tenantId),
     queryFn: () => getEmailAutomationRuns(savedId ?? '', tenantId ?? undefined),
     enabled: !!savedId && !!tenantId,
     refetchInterval: 30_000,
   });
+  const hasEmail = definition.nodes.some((node) => node.type === 'send_email');
   const usableTemplates = templates.filter((template) => template.isActive);
 
   const selected = definition.nodes.find((node) => node.id === selectedId);
@@ -132,7 +135,7 @@ export function AutomationEditorPage({
     setSavedId(saved.id);
     const result = publish ? await publishEmailAutomation(saved.id, tenantId ?? undefined) : saved;
     setInitialSnapshot(snapshot);
-    await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-automations') });
+    await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.automation.key('email-automations') });
     onSaved?.(result);
     return result;
   };
@@ -142,23 +145,7 @@ export function AutomationEditorPage({
     onError: (error) => toast('error', error.message),
   });
 
-  const updateNode = (node: EmailWorkflowNode) =>
-    setDefinition((current) => {
-      const updated = updateWorkflowNode(current, node);
-      if (node.type !== 'trigger') return updated;
-      const staff = node.config.event.startsWith('staff_');
-      return {
-        ...updated,
-        nodes: updated.nodes.map((candidate) =>
-          candidate.type === 'condition' && candidate.config.field.startsWith(staff ? 'customer.' : 'staff.')
-            ? {
-                ...candidate,
-                config: { ...candidate.config, field: staff ? 'staff.employmentType' : 'customer.marketingOptIn' },
-              }
-            : candidate,
-        ),
-      };
-    });
+  const updateNode = (node: EmailWorkflowNode) => setDefinition((current) => updateWorkflowNode(current, node));
 
   /** Insert on the connection leaving `afterNodeId` down `branch`. */
   const addNode = (afterNodeId: string, branch: string, type: InsertType) => {
@@ -208,7 +195,7 @@ export function AutomationEditorPage({
           },
         ]
       : []),
-    ...(connectionStatus === 'missing' || connectionStatus === 'unverified'
+    ...(hasEmail && (connectionStatus === 'missing' || connectionStatus === 'unverified')
       ? [
           {
             key: 'connection',
@@ -223,15 +210,45 @@ export function AutomationEditorPage({
     ...errors.map((error) => ({ key: `error-${error}`, tone: 'measured' as const, icon: TriangleAlert, title: error })),
   ];
 
+  if (choosingTrigger && !readOnly)
+    return (
+      <EditorShell
+        title={automation ? 'Change workflow trigger' : 'New workflow'}
+        onClose={() => (automation ? setChoosingTrigger(false) : onClose())}
+      >
+        <TriggerPicker
+          current={triggerNode?.type === 'trigger' ? triggerNode.config.event : undefined}
+          onChoose={(event) => {
+            if (triggerNode?.type === 'trigger')
+              updateNode({
+                ...triggerNode,
+                config: {
+                  event,
+                  timezone: triggerNode.config.timezone,
+                  offsetDays: event === 'customer_inactive' ? 30 : 0,
+                  ...(event === 'reservation_reminder' ? { offsetHours: 24 } : {}),
+                },
+              });
+            setChoosingTrigger(false);
+            if (triggerNode) setSelectedId(triggerNode.id);
+          }}
+        />
+      </EditorShell>
+    );
+
   return (
     <EditorShell
-      eyebrow="Email workflow"
       title={name || 'New workflow'}
       onClose={onClose}
       dirty={dirty && !save.isPending}
       flush
       actions={
         <>
+          {!readOnly && (
+            <Button variant="outline" className="h-9" onClick={() => setChoosingTrigger(true)}>
+              Change trigger
+            </Button>
+          )}
           {!readOnly && (
             <Button
               variant="outline"
@@ -329,6 +346,7 @@ export function AutomationEditorPage({
           segments={segments}
           staffAudience={staffAudience}
           bookingAudience={bookingAudience}
+          triggerEvent={triggerNode?.type === 'trigger' ? triggerNode.config.event : ''}
           runs={runs.slice(0, 20)}
           now={now}
           readOnly={readOnly}

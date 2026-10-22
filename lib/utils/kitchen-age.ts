@@ -113,3 +113,14 @@ export function joinDuration(amount: string | number, unit: DurationUnit): numbe
   const value = Number(amount);
   return Number.isFinite(value) && value > 0 ? Math.round(value * UNIT_MINS[unit]) : null;
 }
+
+/**
+ * What's wrong with a pair of thresholds, per field — each must be more than 0,
+ * and "nearly late" must come before "late". Empty when the pair can be saved.
+ */
+export function latenessProblems(nearlyMins: number | null, lateMins: number | null): { nearly?: string; late?: string } {
+  return {
+    late: lateMins === null ? 'More than 0.' : undefined,
+    nearly: nearlyMins === null ? 'More than 0.' : lateMins !== null && nearlyMins >= lateMins ? 'Sooner than “late”.' : undefined,
+  };
+}

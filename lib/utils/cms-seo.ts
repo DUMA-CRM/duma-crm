@@ -359,3 +359,50 @@ export function fitDescription(value: string, max = DESCRIPTION_IDEAL_MAX): stri
   const words = fitTitle(text, max - 1).replace(/[,;:\s]+$/, '');
   return `${words}.`;
 }
+
+/** The SEO block's fields in the order a writer decides them, each group with what it controls. */
+export const SEO_FIELD_GROUPS = [
+  {
+    title: 'Search results',
+    hint: 'The blue link and the two lines under it. Left blank, the entry’s title and the start of its text are used.',
+    keys: ['metaTitle', 'metaDescription'],
+  },
+  {
+    title: 'Keywords',
+    hint: 'For writers and the checks beside this page — never published as tags.',
+    keys: ['focusKeyword', 'relatedKeywords'],
+  },
+  {
+    title: 'Social sharing',
+    hint: 'The card a shared link shows. Left blank, the search title and description are used.',
+    keys: ['socialTitle', 'socialDescription', 'ogImage'],
+  },
+  {
+    title: 'Advanced',
+    hint: 'Structured data, the page’s canonical address, and whether search engines index it.',
+    keys: ['schemaType', 'canonicalUrl', 'noIndex', 'noFollow'],
+  },
+] as const;
+
+/**
+ * A model's SEO sub-fields sorted into `SEO_FIELD_GROUPS` — groups with none
+ * of their fields are dropped, and any field the model added itself lands in
+ * a last "Other" group, so nothing it holds is hidden.
+ */
+export function seoFieldGroups(subfields: readonly CmsFieldDefinition[]): Array<{ title: string; hint: string; fields: CmsFieldDefinition[] }> {
+  const placed = new Set<string>(SEO_FIELD_GROUPS.flatMap((group) => [...group.keys]));
+  const groups: Array<{ title: string; hint: string; fields: CmsFieldDefinition[] }> = SEO_FIELD_GROUPS.map((group) => ({
+    title: group.title,
+    hint: group.hint,
+    fields: group.keys.map((key) => subfields.find((field) => field.key === key)).filter((field): field is CmsFieldDefinition => Boolean(field)),
+  }));
+  const other = subfields.filter((field) => !placed.has(field.key));
+  if (other.length > 0) groups.push({ title: 'Other', hint: 'Fields this model added to its SEO block.', fields: other });
+  return groups.filter((group) => group.fields.length > 0);
+}
+
+/** Lengths search results show before cutting — counted against on the fields that feed them. */
+export const SEO_RECOMMENDED_LENGTHS: Readonly<Record<string, number>> = {
+  metaTitle: SERP_TITLE_MAX,
+  metaDescription: SERP_DESCRIPTION_MAX,
+};

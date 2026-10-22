@@ -914,7 +914,7 @@ function QrOrderExperienceInner({
             {data.content.coverImageUrl && (
               // This business-managed URL is not known at build time.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.content.coverImageUrl} alt="" className="h-36 w-full rounded-lg object-cover md:h-44" />
+              <img src={proxiedImage(data.content.coverImageUrl) ?? undefined} alt="" className="h-36 w-full rounded-lg object-cover md:h-44" />
             )}
           </div>
         </div>

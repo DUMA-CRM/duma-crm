@@ -1,17 +1,20 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { ChevronDown, ChevronUp, FileText, ImageIcon, Link2, Plus, Trash2, X } from '@/components/icons';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Copy, FileText, ImageIcon, Link2, Plus, Trash2, X } from '@/components/icons';
 import { Switch } from '@/components/settings/controls';
+import { Tooltip } from '@/components/shared/Tooltip';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
-import { type CmsFieldDefinition, getCmsAssets, getCmsEntries } from '@/lib/modules/cms/client';
+import { type CmsFieldDefinition, getCmsAssets, getCmsEntries, importCmsAsset } from '@/lib/modules/cms/client';
 import { emptyValueFor, isImage, isListField, moveItem, slugify } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
+import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { DateTimeField } from './DateTimeField';
@@ -19,7 +22,9 @@ import { MarkdownEditor } from './MarkdownEditor';
 import { MediaPicker } from './MediaPicker';
 import { ReferencePicker } from './ReferencePicker';
 import { FIELD_ICONS } from './fieldIcons';
-import { EntryStatusBadge, FIELD_LABEL_CLASS, TEXTAREA_CLASS, assetPreviewSrc, cmsKeys } from './shared';
+import { RowMenu, RowTile } from './rows';
+import { createRenditions } from './renditions';
+import { EntryStatusBadge, TEXTAREA_CLASS, assetPreviewSrc, cmsKeys, invalidateCms } from './shared';
 
 type Data = Record<string, unknown>;
 
@@ -35,6 +40,9 @@ export function FieldSet({
   disabled,
   locale,
   headlineKey,
+  placeholders,
+  recommendedLengths,
+  hideLabel = false,
 }: {
   fields: CmsFieldDefinition[];
   value: Data;
@@ -44,6 +52,12 @@ export function FieldSet({
   locale: string;
   /** The entry's title field: drawn as the page's headline and moved to the top. */
   headlineKey?: string | null;
+  /** What a blank field falls back to, by key — shown as its placeholder so blank never reads as nothing. */
+  placeholders?: Readonly<Record<string, string>>;
+  /** A softer length than the field's limit (where search results cut), by key — the counter counts to it. */
+  recommendedLengths?: Readonly<Record<string, number>>;
+  /** The field sits under a row that already names it: keep the label for screen readers only. */
+  hideLabel?: boolean;
 }) {
   const headline = headlineKey ? fields.find((field) => field.key === headlineKey && field.type === 'text') : undefined;
   const ordered = headline ? [headline, ...fields.filter((field) => field !== headline)] : fields;
@@ -60,6 +74,9 @@ export function FieldSet({
           errors={issues?.get(field.key)}
           disabled={disabled}
           locale={locale}
+          placeholder={placeholders?.[field.key] || undefined}
+          recommendedLength={recommendedLengths?.[field.key]}
+          hideLabel={hideLabel}
         />
       ))}
     </div>
@@ -75,8 +92,14 @@ function FieldInput({
   disabled,
   locale,
   headline = false,
+  placeholder,
+  recommendedLength,
+  hideLabel = false,
 }: {
+  hideLabel?: boolean;
   headline?: boolean;
+  placeholder?: string;
+  recommendedLength?: number;
   field: CmsFieldDefinition;
   value: unknown;
   siblings: Data;
@@ -87,26 +110,48 @@ function FieldInput({
 }) {
   const id = `cms-field-${field.key}`;
   const error = errors?.join(' · ');
+  const text = typeof value === 'string' ? value : value === undefined || value === null ? '' : String(value);
+  // A limit is easier kept when you can see it: "42/160" beside the label, red once over.
+  const limit = (field.type === 'text' || field.type === 'longText') && field.maxLength ? field.maxLength : null;
+  // Counted against the softer target where there is one (60 for a meta title); amber past it, red past the hard limit.
+  const target = (field.type === 'text' || field.type === 'longText') && recommendedLength ? recommendedLength : limit;
+  const counterTone =
+    limit && text.length > limit ? 'text-exception' : target && text.length > target ? 'text-measured' : 'text-muted-foreground';
+  // Label first, in sentence case and readable; what the field is for straight under it, before you type —
+  // the error, if any, under the control.
+  // The label above the control; under it, one line: what the field is for (or the error, in red) and the count.
   const label = (
-    <span className="flex items-center gap-1.5">
-      <label htmlFor={id} className={FIELD_LABEL_CLASS}>
-        {field.label}
-        {field.required && (
-          <span className="text-exception" aria-hidden="true">
-            {' '}
-            *
+    <div className={hideLabel ? undefined : 'mb-1.5'}>
+      <span className="flex min-w-0 items-center gap-1.5">
+        <label htmlFor={id} className={hideLabel ? 'sr-only' : 'truncate text-sm font-medium text-foreground'}>
+          {field.label}
+          {field.required && (
+            <span className="text-exception" aria-hidden="true">
+              {' '}
+              *
+            </span>
+          )}
+        </label>
+        {field.private && !hideLabel && (
+          <Tooltip side="top" label="Kept in DUMA — your website never receives it">
+            <Badge variant="muted">Private</Badge>
+          </Tooltip>
+        )}
+      </span>
+    </div>
+  );
+  const note = error ?? field.description;
+  const help =
+    note || target ? (
+      <div className="mt-1.5 flex items-start justify-between gap-3 text-xs" id={`${id}-help`}>
+        <p className={cn('min-w-0', error ? 'text-exception' : 'text-muted-foreground')}>{note}</p>
+        {target && (
+          <span className={cn('shrink-0 tabular-nums', counterTone)}>
+            {text.length}/{target}
           </span>
         )}
-      </label>
-      {field.private && <span className="text-micro font-semibold uppercase text-muted-foreground/80">· not delivered</span>}
-    </span>
-  );
-  const help = (field.description || error) && (
-    <p className={cn('mt-1 text-xs', error ? 'text-exception' : 'text-muted-foreground')} id={`${id}-help`}>
-      {error ?? field.description}
-    </p>
-  );
-  const text = typeof value === 'string' ? value : value === undefined || value === null ? '' : String(value);
+      </div>
+    ) : null;
 
   if (headline) {
     // The title as the page's headline: large, borderless, read before anything else.
@@ -130,7 +175,11 @@ function FieldInput({
             error && 'text-exception',
           )}
         />
-        {help}
+        {(error || field.description) && (
+          <p className={cn('mt-1 text-xs', error ? 'text-exception' : 'text-muted-foreground')} id={`${id}-help`}>
+            {error ?? field.description}
+          </p>
+        )}
       </div>
     );
   }
@@ -144,14 +193,13 @@ function FieldInput({
           {label}
           <Input
             id={id}
-            className="mt-1"
             type={field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : 'text'}
             value={text}
             disabled={disabled}
             maxLength={field.maxLength ?? (field.type === 'url' ? 2000 : 255)}
             aria-invalid={Boolean(error)}
             aria-describedby={`${id}-help`}
-            placeholder={field.type === 'url' ? 'https://' : undefined}
+            placeholder={placeholder ?? (field.type === 'url' ? 'https://' : undefined)}
             onChange={(event) => onChange(event.target.value)}
           />
           {help}
@@ -162,7 +210,7 @@ function FieldInput({
       return (
         <div>
           {label}
-          <div className="mt-1 flex gap-2">
+          <div className="flex gap-2">
             <div className="flex-1">
               <Input
                 id={id}
@@ -191,8 +239,9 @@ function FieldInput({
           <textarea
             id={id}
             rows={5}
-            className={cn(TEXTAREA_CLASS, 'mt-1', error && 'border-exception')}
+            className={cn(TEXTAREA_CLASS, error && 'border-exception')}
             value={text}
+            placeholder={placeholder}
             disabled={disabled}
             aria-invalid={Boolean(error)}
             aria-describedby={`${id}-help`}
@@ -226,7 +275,7 @@ function FieldInput({
           {label}
           <Input
             id={id}
-            className="mt-1 max-w-56"
+            className="max-w-56"
             type="number"
             inputMode={field.integer ? 'numeric' : 'decimal'}
             step={field.integer ? 1 : 'any'}
@@ -243,8 +292,8 @@ function FieldInput({
       );
     case 'boolean':
       return (
-        <div className="flex items-start justify-between gap-4 rounded-lg border border-rule/60 bg-control px-3 py-2.5">
-          <div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
             {label}
             {help}
           </div>
@@ -257,7 +306,7 @@ function FieldInput({
           {label}
           <Input
             id={id}
-            className="mt-1 max-w-64"
+            className="max-w-64"
             type="date"
             value={text}
             disabled={disabled}
@@ -297,7 +346,7 @@ function FieldInput({
       return (
         <div>
           {label}
-          <div className="mt-1 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <input
               type="color"
               aria-label={`${field.label} picker`}
@@ -327,7 +376,7 @@ function FieldInput({
       return (
         <div>
           {label}
-          <div className="mt-1 flex gap-2">
+          <div className="flex gap-2">
             <Input
               aria-label={`${field.label} latitude`}
               type="number"
@@ -356,7 +405,7 @@ function FieldInput({
     case 'select':
       return isListField(field) ? (
         <fieldset>
-          <legend className={FIELD_LABEL_CLASS}>
+          <legend className="text-sm font-medium text-foreground">
             {field.label}
             {field.required && (
               <span className="text-exception" aria-hidden="true">
@@ -393,7 +442,7 @@ function FieldInput({
           {label}
           <Select
             id={id}
-            className="mt-1 max-w-80"
+            className="w-full"
             ariaLabel={field.label}
             value={text}
             disabled={disabled}
@@ -481,8 +530,28 @@ function MediaInput({
   onChange: (next: unknown) => void;
 }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const queryClient = useQueryClient();
   const [picking, setPicking] = useState(false);
+  const [link, setLink] = useState('');
   const multiple = isListField(field);
+  // A link can only bring in a picture; a field for documents or video picks from Media alone.
+  const takesImages = !field.mediaGroups?.length || field.mediaGroups.includes('image');
+  const fromLink = useMutation({
+    mutationFn: (url: string) => importCmsAsset(url, {}, tenantId ?? undefined),
+    onSuccess: async (asset) => {
+      setLink('');
+      onChange(multiple ? [...ids, asset.id] : asset.id);
+      invalidateCms(queryClient);
+      toast('success', `${asset.fileName} added to Media.`);
+      // The smaller copies websites load, as an upload gets them; a failure only costs a larger download.
+      await createRenditions(asset, tenantId ?? undefined).catch(() => 0);
+    },
+    onError: (error) => toast('error', error.message),
+  });
+  const addLink = () => {
+    const url = link.trim();
+    if (url && !fromLink.isPending) fromLink.mutate(url);
+  };
   const ids = (Array.isArray(value) ? value : value ? [value] : []).filter((item): item is string => typeof item === 'string');
   const assetsQuery = useQuery({
     queryKey: cmsKeys.assets(tenantId, { ids: ids.join(',') }),
@@ -494,7 +563,7 @@ function MediaInput({
   return (
     <div>
       {label}
-      <div className="mt-1.5 flex flex-wrap gap-2">
+      <div className={cn('flex flex-wrap gap-2', ids.length === 0 && 'hidden')}>
         {ids.map((id, index) => {
           const asset = byId.get(id);
           return (
@@ -528,17 +597,39 @@ function MediaInput({
             </div>
           );
         })}
-        {!disabled && (multiple || ids.length === 0) && (
-          <button
-            type="button"
-            onClick={() => setPicking(true)}
-            className="flex aspect-4/3 w-32 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-rule bg-control text-xs text-muted-foreground hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            <ImageIcon size={18} aria-hidden="true" />
-            {multiple && ids.length > 0 ? 'Add more' : 'Choose media'}
-          </button>
-        )}
       </div>
+      {/* One line, as for the QR page's cover photo: paste a link, or pick from Media. */}
+      {!disabled && (multiple || ids.length === 0) && (
+        <div className={cn('flex items-start gap-2', ids.length > 0 && 'mt-2')}>
+          {takesImages && (
+            <div className="min-w-0 flex-1">
+              <Input
+                type="url"
+                aria-label={`${field.label}: image link`}
+                value={link}
+                disabled={fromLink.isPending}
+                placeholder={multiple && ids.length > 0 ? 'Paste another image link, or choose from Media' : 'Paste an image link, or choose from Media'}
+                onChange={(event) => setLink(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addLink();
+                  }
+                }}
+              />
+            </div>
+          )}
+          {takesImages && link.trim() && (
+            <Button type="button" className="h-9 shrink-0" disabled={fromLink.isPending} onClick={addLink}>
+              {fromLink.isPending ? 'Adding…' : 'Add'}
+            </Button>
+          )}
+          <Button type="button" variant="outline" className="h-9 shrink-0" onClick={() => setPicking(true)}>
+            <ImageIcon aria-hidden="true" />
+            Media
+          </Button>
+        </div>
+      )}
       {help}
       {picking && (
         <MediaPicker
@@ -697,29 +788,39 @@ function GroupInput({
       <ol className="mt-2 space-y-2">
         {items.map((item, index) => (
           <li key={index} className="rounded-lg border border-rule/60 bg-control">
-            <div className="flex items-center gap-1 border-b border-rule/50 px-3 py-1.5">
-              <span className="flex-1 truncate text-xs font-semibold text-muted-foreground">
-                {index + 1}. {titleOf(item) ?? field.label}
+            <div className="flex items-center gap-2 border-b border-rule/50 py-1 pl-3 pr-1">
+              <span className="flex-1 truncate text-sm font-semibold text-foreground">
+                <span className="tabular-nums text-muted-foreground">{index + 1}.</span> {titleOf(item) ?? field.label}
               </span>
               {!disabled && (
-                <>
-                  <IconButton label="Move up" disabled={index === 0} onClick={() => onChange(moveItem(items, index, index - 1))}>
-                    <ChevronUp size={13} aria-hidden="true" />
-                  </IconButton>
-                  <IconButton
-                    label="Move down"
-                    disabled={index === items.length - 1}
-                    onClick={() => onChange(moveItem(items, index, index + 1))}
-                  >
-                    <ChevronDown size={13} aria-hidden="true" />
-                  </IconButton>
-                  <IconButton
-                    label={`Remove item ${index + 1}`}
-                    onClick={() => onChange(items.filter((_, position) => position !== index))}
-                  >
-                    <Trash2 size={13} aria-hidden="true" />
-                  </IconButton>
-                </>
+                <RowMenu
+                  label={`${titleOf(item) ?? `${field.label} ${index + 1}`} actions`}
+                  items={[
+                    { icon: ArrowUp, label: 'Move up', disabled: index === 0, onClick: () => onChange(moveItem(items, index, index - 1)) },
+                    {
+                      icon: ArrowDown,
+                      label: 'Move down',
+                      disabled: index === items.length - 1,
+                      onClick: () => onChange(moveItem(items, index, index + 1)),
+                    },
+                    {
+                      icon: Copy,
+                      label: 'Duplicate',
+                      disabled: field.maxItems !== undefined && items.length >= field.maxItems,
+                      onClick: () => {
+                        const next = [...items];
+                        next.splice(index + 1, 0, structuredClone(item));
+                        onChange(next);
+                      },
+                    },
+                    {
+                      icon: Trash2,
+                      label: 'Remove',
+                      danger: true,
+                      onClick: () => onChange(items.filter((_, position) => position !== index)),
+                    },
+                  ]}
+                />
               )}
             </div>
             <div className="p-3">
@@ -750,9 +851,7 @@ function GroupHeader({ field, count }: { field: CmsFieldDefinition; count?: stri
   return (
     <span className="flex items-center justify-between gap-3">
       <span className="flex min-w-0 items-center gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
-          <Icon size={16} aria-hidden="true" />
-        </span>
+        <RowTile icon={Icon} />
         <span className="min-w-0 truncate text-sm font-semibold text-foreground">
           {field.label}
           {field.required && (

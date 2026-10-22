@@ -4,15 +4,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, Loader2, ShieldCheck, Sparkles } from '@/components/icons';
+import { InfoRow, InfoRows } from '@/components/cms/rows';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, LayoutGrid, Loader2, ShieldCheck, Sparkles } from '@/components/icons';
 import { FOUNDATION_MODULES, MODULE_COPY, byModuleOrder, moduleCopy } from '@/components/onboarding/modules';
 import { type QuestionContext, questionFor } from '@/components/onboarding/questions';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Switch } from '@/components/settings/controls';
-import { TileSkeleton } from '@/components/shared/TileSkeleton';
 import { ModuleChangeDialog } from '@/components/settings/workspaces/ModuleChangeDialog';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -124,10 +126,12 @@ export function ModulesTab() {
 }
 
 /**
- * Every tool in one grid — on first, then off — so there is one place to see
+ * Every tool in one list — on first, then off — so there is one place to see
  * the workspace and one way to change it. Owners change it through the guided
  * review (the API only lets them add, via the setup rules); platform admins
  * also get a switch per tool, which previews the change before applying it.
+ * Laid out like the other rules tabs: the tools as rows in the main column,
+ * the setup's summary and the review alongside.
  */
 function ModuleOverview({
   modules,
@@ -142,7 +146,6 @@ function ModuleOverview({
   reviewing: boolean;
   onReview: () => void;
 }) {
-  const reduceMotion = useReducedMotion();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const [preview, setPreview] = useState<ModuleChangePreview | null>(null);
   const previewChange = useMutation({
@@ -152,65 +155,81 @@ function ModuleOverview({
     onError: (error) => toast('error', error.message),
   });
 
+  if (modules.isPending) return <Bone className="h-96 w-full rounded-lg" />;
+  if (modules.isError) return <ErrorState title="Couldn’t load this workspace’s modules" onRetry={() => void modules.refetch()} />;
+
   const all = (Object.keys(MODULE_COPY) as WorkspaceModuleId[]).filter((id) => !FOUNDATION_MODULES.has(id)).sort(byModuleOrder);
-  const ordered = [...all.filter((id) => enabled.has(id)), ...all.filter((id) => !enabled.has(id))];
+  const on = all.filter((id) => enabled.has(id));
+  const off = all.filter((id) => !enabled.has(id));
+
+  /** One tool: what it is, and its switch — or, for someone who can't change it, whether it's on. */
+  const moduleRow = (id: WorkspaceModuleId) => {
+    const copy = moduleCopy(id);
+    const isOn = enabled.has(id);
+    const busy = previewChange.isPending && previewChange.variables?.moduleId === id;
+    return (
+      <li key={id}>
+        <InfoRow icon={copy.icon} title={copy.name} description={copy.detail}>
+          {canToggle ? (
+            busy ? (
+              <Loader2 size={16} className="animate-spin text-muted-foreground" aria-label="Checking" />
+            ) : (
+              <Switch
+                label={`${isOn ? 'Turn off' : 'Turn on'} ${copy.name}`}
+                checked={isOn}
+                disabled={previewChange.isPending}
+                onChange={() => previewChange.mutate({ moduleId: id, status: isOn ? 'disabled' : 'enabled' })}
+              />
+            )
+          ) : (
+            <Badge variant={isOn ? 'success' : 'muted'}>{isOn ? 'On' : 'Off'}</Badge>
+          )}
+        </InfoRow>
+      </li>
+    );
+  };
 
   return (
-    <SettingsSection
-      title="Your tools"
-      actions={
-        <Button size="sm" onClick={onReview} disabled={reviewing}>
-          {reviewing ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
-          Review my setup
-        </Button>
+    <SettingsTabBody
+      narrowAside
+      aside={
+        <SettingsSection title="Your setup">
+          <InfoRows>
+            <InfoRow icon={LayoutGrid} title="Tools on">
+              <span className="text-sm font-semibold text-foreground">
+                {on.length} of {all.length}
+              </span>
+            </InfoRow>
+            <InfoRow icon={ShieldCheck} tone="success" title="Sign-in, roles and settings">
+              <Badge variant="success">Always on</Badge>
+            </InfoRow>
+          </InfoRows>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Answer a few questions about your business and DUMA proposes the tools it needs. A review only adds — it never switches a tool off.
+          </p>
+          <Button className="mt-3 h-9 w-full" onClick={onReview} disabled={reviewing}>
+            {reviewing ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
+            Review my setup
+          </Button>
+        </SettingsSection>
       }
     >
-      {modules.isPending ? (
-        <div role="status" aria-busy="true" aria-label="Loading modules">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {Array.from({ length: 6 }, (_, index) => (
-              <TileSkeleton key={index} index={index} trailing="h-5 w-9 rounded-full" />
-            ))}
-          </div>
-        </div>
-      ) : modules.isError ? (
-        <ErrorState title="Couldn’t load this workspace’s modules" onRetry={() => void modules.refetch()} />
-      ) : (
-        <>
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {ordered.map((id, index) => {
-              const on = enabled.has(id);
-              const busy = previewChange.isPending && previewChange.variables?.moduleId === id;
-              return (
-                <ModuleCard key={id} id={id} index={index} state={on ? 'on' : 'off'} reduceMotion={reduceMotion}>
-                  {canToggle ? (
-                    busy ? (
-                      <Loader2 size={16} className="animate-spin text-muted-foreground" aria-label="Checking" />
-                    ) : (
-                      <Switch
-                        label={`${on ? 'Turn off' : 'Turn on'} ${moduleCopy(id).name}`}
-                        checked={on}
-                        disabled={previewChange.isPending}
-                        onChange={() => previewChange.mutate({ moduleId: id, status: on ? 'disabled' : 'enabled' })}
-                      />
-                    )
-                  ) : on ? (
-                    <Check size={16} className="text-success" aria-label="On" />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Off</span>
-                  )}
-                </ModuleCard>
-              );
-            })}
-          </ul>
-          <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-            <ShieldCheck size={14} className="text-success" aria-hidden="true" />
-            Sign-in, roles and workspace settings are always on.
-          </p>
-        </>
+      <SettingsSection title="Switched on" actions={<Badge variant="success">{on.length}</Badge>}>
+        {on.length > 0 ? (
+          <ul className="space-y-3">{on.map(moduleRow)}</ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">Nothing yet — review your setup and the tools your business needs appear here.</p>
+        )}
+      </SettingsSection>
+
+      {off.length > 0 && (
+        <SettingsSection title="Available" actions={<Badge variant="muted">{off.length}</Badge>}>
+          <ul className="space-y-3">{off.map(moduleRow)}</ul>
+        </SettingsSection>
       )}
+
       {preview && <ModuleChangeDialog preview={preview} onClose={() => setPreview(null)} />}
-    </SettingsSection>
+    </SettingsTabBody>
   );
 }
 

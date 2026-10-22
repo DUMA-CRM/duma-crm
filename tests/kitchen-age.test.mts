@@ -77,3 +77,12 @@ test('a threshold reads in its largest whole unit and goes back to minutes', asy
   assert.equal(joinDuration('', 'days'), null);
   assert.equal(joinDuration('0', 'minutes'), null);
 });
+
+test('latenessProblems: both more than 0, and nearly late before late', async () => {
+  const { latenessProblems } = await import('../lib/utils/kitchen-age.ts');
+  assert.deepEqual(latenessProblems(2, 5), { nearly: undefined, late: undefined });
+  assert.deepEqual(latenessProblems(null, 5), { nearly: 'More than 0.', late: undefined });
+  assert.deepEqual(latenessProblems(2, null), { nearly: undefined, late: 'More than 0.' });
+  assert.deepEqual(latenessProblems(5, 5), { nearly: 'Sooner than “late”.', late: undefined });
+  assert.deepEqual(latenessProblems(1440, 720), { nearly: 'Sooner than “late”.', late: undefined });
+});

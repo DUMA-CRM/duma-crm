@@ -1,5 +1,6 @@
 import type { CmsEntryStatus, CmsFieldDefinition, CmsFieldType } from '../api/cms.service.ts';
-import { zonedParts, zonedToInstant } from './workspace-time.ts';
+import { plainText } from './cms-seo.ts';
+import { formatInstant, zonedParts, zonedToInstant } from './workspace-time.ts';
 
 // ---------------------------------------------------------------------------
 // Pure helpers for the Content (CMS) workspace. The API is the authority on
@@ -340,4 +341,127 @@ export function cmsAttention(
   if (overview.entries.draft > 0) items.push({ kind: 'never_published', count: overview.entries.draft, tone: 'measured' });
   if (overview.entries.scheduled > 0) items.push({ kind: 'scheduled', count: overview.entries.scheduled, tone: 'info' });
   return items;
+}
+
+/**
+ * How much of the content exists in one language: its versions out of every
+ * entry, as a whole percentage (never 100 until it is complete, never 0 once
+ * started) and in words. `total` is entries, not versions — one entry in three
+ * languages is one.
+ */
+export function translationCoverage(translated: number, total: number): { percent: number; label: string } {
+  if (total <= 0) return { percent: 0, label: 'No entries yet' };
+  const done = Math.min(translated, total);
+  const raw = (done / total) * 100;
+  const percent = done === total ? 100 : done === 0 ? 0 : Math.min(99, Math.max(1, Math.round(raw)));
+  return { percent, label: done === total ? `All ${total}` : `${done} of ${total}` };
+}
+
+/**
+ * The field entries are named by in lists — the model's title field, else its
+ * first short-text field. The API's `entryTitle` reads it the same way.
+ */
+export function resolvedTitleKey(fields: readonly CmsFieldDefinition[], titleField: string | null | undefined): string | null {
+  if (titleField && fields.some((field) => field.key === titleField)) return titleField;
+  return fields.find((field) => field.type === 'text')?.key ?? null;
+}
+
+/** A field's rules in a few words, for its row: "Required", "2–80 characters", "Up to 5 items", "Private". */
+export function fieldRules(field: CmsFieldDefinition): string[] {
+  const range = (min: number | undefined, max: number | undefined, unit: string) =>
+    min !== undefined && max !== undefined ? `${min}–${max}${unit}` : min !== undefined ? `At least ${min}${unit}` : max !== undefined ? `Up to ${max}${unit}` : null;
+  const rules: Array<string | null | false | undefined> = [
+    field.required && 'Required',
+    field.unique && 'Unique',
+    field.multiple && canHoldList(field.type) && (field.type === 'group' ? 'Repeatable' : 'List'),
+    field.integer && 'Whole numbers',
+    range(field.minLength, field.maxLength, ' characters'),
+    range(field.min, field.max, ''),
+    field.multiple && canHoldList(field.type) && range(field.minItems, field.maxItems, ' items'),
+    field.pattern && 'Pattern',
+    field.private && 'Private',
+  ];
+  return rules.filter((rule): rule is string => Boolean(rule));
+}
+
+/** A copy of a field placed beside it: "Hero image copy", with a key no sibling holds. */
+export function duplicateField(field: CmsFieldDefinition, siblings: readonly CmsFieldDefinition[]): CmsFieldDefinition {
+  const label = `${field.label} copy`;
+  return { ...field, label, key: uniqueKey(fieldKeyFromLabel(label) || field.type, siblings.map((sibling) => sibling.key)) };
+}
+
+/**
+ * A relabelled field, its API key following the label while that is still
+ * safe: the field isn't saved yet (`savedKeys`) and its key is still the one
+ * the old label would have made. A key someone typed, or one entries already
+ * use, never moves on its own.
+ */
+export function relabelField(
+  field: CmsFieldDefinition,
+  label: string,
+  siblings: readonly CmsFieldDefinition[],
+  savedKeys: ReadonlySet<string>,
+): CmsFieldDefinition {
+  const others = siblings.filter((sibling) => sibling !== field).map((sibling) => sibling.key);
+  const derived = (value: string) => uniqueKey(fieldKeyFromLabel(value) || field.type, others);
+  const following = !savedKeys.has(field.key) && field.key === derived(field.label);
+  return { ...field, label, key: following ? derived(label) : field.key };
+}
+
+/** Nothing written yet: empty text, no choice, an empty list or an empty group. */
+function isBlankValue(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.values(value as Record<string, unknown>).every(isBlankValue);
+  return false;
+}
+
+/** The required fields (top level) still empty — what stands between this draft and publishing. */
+export function requiredMissing(fields: readonly CmsFieldDefinition[], data: Record<string, unknown>): CmsFieldDefinition[] {
+  return fields.filter((field) => field.required && field.type !== 'boolean' && isBlankValue(data[field.key]));
+}
+
+/** A field's value in a few words, for a row that shows it — or null when nothing is written. */
+export function fieldValueInWords(field: CmsFieldDefinition, value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return null;
+    if (field.type === 'media') return count(value.length, 'file');
+    if (field.type === 'reference') return count(value.length, 'link');
+    if (field.type === 'group') return count(value.length, 'item');
+    return value.map(String).join(', ');
+  }
+  switch (field.type) {
+    case 'media':
+      return 'Added';
+    case 'reference':
+      return 'Linked';
+    case 'boolean':
+      return value === true ? 'Yes' : 'No';
+    case 'richText':
+      return plainText(String(value)) || null;
+    case 'dateTime': {
+      const at = new Date(String(value));
+      return Number.isNaN(at.getTime()) ? String(value) : formatInstant(at, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    case 'date': {
+      const [year, month, day] = String(value).split('-').map(Number);
+      if (!year || !month || !day) return String(value);
+      return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    }
+    case 'location': {
+      const point = value as { lat?: unknown; lng?: unknown };
+      return typeof point.lat === 'number' && typeof point.lng === 'number' ? `${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}` : null;
+    }
+    case 'json':
+      return 'Set';
+    case 'group': {
+      const filled = (field.fields ?? []).filter((sub) => fieldValueInWords(sub, (value as Record<string, unknown>)[sub.key]) !== null).length;
+      return filled === 0 ? null : `${filled} of ${(field.fields ?? []).length} filled`;
+    }
+  }
+  if (typeof value === 'string') return value.replace(/\s+/g, ' ').trim() || null;
+  return String(value);
 }

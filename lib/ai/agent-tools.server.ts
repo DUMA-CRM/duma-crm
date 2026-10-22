@@ -302,6 +302,7 @@ const MODULE_NAMES: Record<ModuleId, string> = {
   people: 'Staff & HR',
   payroll: 'Payroll',
   communications: 'Customer email',
+  automation: 'Automation',
   compliance: 'Compliance',
   audit: 'Audit log',
   analytics: 'Dashboard & reports',

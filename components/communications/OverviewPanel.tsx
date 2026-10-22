@@ -48,7 +48,7 @@ export function OverviewPanel({
   const tenantId = useWorkspaceStore((state) => state.tenantId);
 
   const automationsQuery = useQuery({
-    queryKey: moduleQueryKeys.communications.key('email-automations', tenantId),
+    queryKey: moduleQueryKeys.automation.key('email-automations', tenantId),
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
     enabled: !!tenantId,
   });

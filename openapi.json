@@ -377,10 +377,10 @@
           "Auth"
         ],
         "summary": "Get current session",
-        "description": "Returns the authenticated user and session details from the session cookie. Returns `null` if not signed in.",
+        "description": "Returns the authenticated user, session and recent-sign-in deadline from the session cookie. Returns `null` if not signed in.",
         "responses": {
           "200": {
-            "description": "`{ session, user }` or `null`"
+            "description": "`{ session, user, security: { sessionFreshUntil } }` or `null`"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -18590,6 +18590,30 @@
           },
           "400": {
             "description": "Unsupported or too large"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/cms/assets/import": {
+      "post": {
+        "operationId": "postV1CmsAssetsImport",
+        "tags": [
+          "CMS"
+        ],
+        "summary": "Import an image from a link",
+        "description": "JSON `{ url, title?, altText?, folder?, tags? }`. The API fetches the image (https, public addresses only, images up to 25 MB) and stores it like an upload, so a media field can be filled from a URL.",
+        "responses": {
+          "201": {
+            "description": "Asset"
+          },
+          "400": {
+            "description": "Unsafe link, not an image, or too large"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"

@@ -49,6 +49,7 @@ export type EmailWorkflowNode =
         segmentId?: string | null;
       };
     }
+  | { id: string; type: 'create_task'; name: string; config: { subject: string; body: string; publisherId?: string } }
   | { id: string; type: 'send_email'; name: string; config: { templateId: string } }
   | { id: string; type: 'delay'; name: string; config: { amount: number; unit: 'minutes' | 'hours' | 'days' } }
   | {
@@ -123,7 +124,7 @@ export type EmailTemplatePayload = Omit<EmailTemplate, 'id' | 'tenantId' | 'crea
 export interface EmailAutomation {
   id: string;
   tenantId: string;
-  templateId: string;
+  templateId: string | null;
   locationId?: string | null;
   name: string;
   trigger: Exclude<EmailTrigger, 'manual'>;
@@ -296,3 +297,11 @@ export const addMarketingSuppression = (data: { tenantId?: string; email: string
   apiFetch<MarketingSuppression>('/email/suppressions', { method: 'POST', body: JSON.stringify(data) });
 export const liftMarketingSuppression = (id: string, tenantId?: string) =>
   apiFetch<MarketingSuppression>(`/email/suppressions/${id}${tenantQuery(tenantId)}`, { method: 'DELETE' });
+
+/** The newest 100 runs across the active workspace, filtered on the server. */
+export const getAutomationRuns = (tenantId?: string, status?: string) => {
+  const query = new URLSearchParams();
+  if (tenantId) query.set('tenantId', tenantId);
+  if (status && status !== 'all') query.set('status', status);
+  return apiFetch<Array<EmailAutomationRun & { automationName: string }>>(`/email/automation-runs?${query}`);
+};

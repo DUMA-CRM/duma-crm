@@ -2,6 +2,8 @@
 
 import { motion } from 'motion/react';
 
+import type { IconComponent } from '@/components/icons';
+
 import { cn } from '@/lib/utils/cn';
 
 /** Shared with the tab body so sections rise in one after another. */
@@ -29,6 +31,7 @@ export function SettingsSection({
   bodyClassName,
   descriptionClassName,
   alignActionsToTitle = false,
+  icon: Icon,
 }: {
   /** Omit for a panel whose content introduces itself (the profile card). */
   title?: string;
@@ -44,13 +47,21 @@ export function SettingsSection({
   descriptionClassName?: string;
   /** Centre the actions on the title line, the description running beneath both — for a control the height of a field (a time picker). */
   alignActionsToTitle?: boolean;
+  /** A small glyph before the title — for a section that folds, so it reads as a thing at a glance. */
+  icon?: IconComponent;
 }) {
+  const heading = title && (
+    <h2 className="flex min-w-0 items-center gap-2 text-base font-semibold tracking-title text-foreground">
+      {Icon && <Icon size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />}
+      <span className="truncate">{title}</span>
+    </h2>
+  );
   return (
     <motion.section variants={SECTION_RISE} className={cn('rounded-lg border border-rule/60 bg-field', className)}>
       {alignActionsToTitle && title ? (
         <header className="px-5 pt-5">
           <div className="flex min-h-9 items-center gap-4">
-            <h2 className="min-w-0 flex-1 text-base font-semibold tracking-title text-foreground">{title}</h2>
+            <div className="min-w-0 flex-1">{heading}</div>
             {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
           </div>
           {description && (
@@ -61,7 +72,7 @@ export function SettingsSection({
         (title || description || actions) && (
           <header className="flex items-start gap-4 px-5 pt-5">
             <div className="min-w-0 flex-1">
-              {title && <h2 className="text-base font-semibold tracking-title text-foreground">{title}</h2>}
+              {heading}
               {description && (
                 <p className={cn('mt-1 max-w-[68ch] text-sm leading-relaxed text-muted-foreground', descriptionClassName)}>{description}</p>
               )}

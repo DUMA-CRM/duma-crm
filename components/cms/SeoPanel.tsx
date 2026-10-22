@@ -3,13 +3,14 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { AlertTriangle, CheckCircle2, ChevronRight, ExternalLink, EyeOff, Info, Search } from '@/components/icons';
+import { AlertTriangle, CheckCircle2, ChevronRight, ExternalLink, EyeOff, Search } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { CopyButton } from '@/components/ui/action-button';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -20,6 +21,7 @@ import { formatInstant } from '@/lib/utils/workspace-time';
 import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { SectionInfo } from './rows';
 import { assetPreviewSrc, cmsKeys, copyText } from './shared';
 
 /** "site.com › blog › autumn-menu", as a result page shows the address. */
@@ -126,30 +128,9 @@ export function SeoPanel({
     <SettingsSection
       title="Search & sharing"
       actions={
-        <div className="flex items-center gap-1">
-          <span
-            className={cn(
-              'rounded-sm px-1.5 py-0.5 text-xs font-semibold tabular-nums',
-              clear ? 'bg-momentum/10 text-momentum' : 'bg-measured/12 text-measured',
-            )}
-          >
-            {clear ? (
-              <CheckCircle2 size={13} className="inline -mt-px" aria-label="All checks pass" />
-            ) : (
-              `${passing.length}/${checks.length}`
-            )}
-          </span>
-          {fallback && (
-            <Tooltip side="top" align="end" wrap label={fallback}>
-              <button
-                type="button"
-                aria-label="Where the preview text comes from"
-                className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
-              >
-                <Info size={15} aria-hidden="true" />
-              </button>
-            </Tooltip>
-          )}
+        <div className="flex items-center gap-2">
+          <Badge variant={clear ? 'success' : 'warning'}>{clear ? 'All checks pass' : `${passing.length}/${checks.length} checks`}</Badge>
+          {fallback && <SectionInfo label={fallback} />}
         </div>
       }
     >
