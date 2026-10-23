@@ -10,9 +10,9 @@ import { ItemOverview } from '@/components/inventory/item/ItemOverview';
 import { LedgerSection } from '@/components/inventory/item/LedgerSection';
 import { LossesSection } from '@/components/inventory/item/LossesSection';
 import { RemoveItemDrawer } from '@/components/inventory/item/RemoveItemDrawer';
+import { StockItemPhotoButton } from '@/components/inventory/item/StockItemPhoto';
 import { EditStockItemDrawer, EditThresholdDrawer, LogLossDrawer, RestockDrawer } from '@/components/inventory/stock/StockDrawers';
 import { getStatus, normaliseArray } from '@/components/inventory/stock/shared';
-import { StockItemPhotoButton } from '@/components/inventory/item/StockItemPhoto';
 import { ItemTransfersSection, TransferStockDrawer } from '@/components/inventory/transfers/TransferStock';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -22,8 +22,8 @@ import { Button } from '@/components/ui/button';
 
 import { serverCache } from '@/lib/api/cache-policy';
 import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
-import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import {
   type InventoryForecast,
   type InventoryOverviewRow,
@@ -37,8 +37,8 @@ import {
   updateLocationStock,
 } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 type ItemSection = 'overview' | 'containers' | 'ledger' | 'losses' | 'transfers';

@@ -9,8 +9,8 @@ import { CopyGlyph } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 
 import { type ApiEndpoint, SCOPES, kindAllows } from '@/lib/developers/api-reference';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 
 // The building blocks of the API reference: code, tables, asides, sections.
 

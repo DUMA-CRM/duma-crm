@@ -47,10 +47,10 @@ import {
   updateEntitlement,
 } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { workingDaysLabel } from '@/lib/utils/employee-record';
 import { formatInstant, workspaceDateKey, zonedParts } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 
 import { ChoiceCards, type Employee, ModalActions, NumberStepper, RecordBlock, RecordList, RecordListRow, monthRange } from './shared';
 

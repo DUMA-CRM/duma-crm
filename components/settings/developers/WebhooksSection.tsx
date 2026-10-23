@@ -35,7 +35,7 @@ import {
   testCmsWebhook,
   updateCmsWebhook,
 } from '@/lib/modules/cms/client';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { DONE_BEAT_MS, RowTile, rowClass } from './rows';

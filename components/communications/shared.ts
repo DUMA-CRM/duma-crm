@@ -12,6 +12,9 @@ type Trigger = EmailAutomation['trigger'];
 
 /** Short label for lists and badges. */
 export const TRIGGER_LABELS: Record<Trigger, string> = {
+  order_refunded: 'Order refunded',
+  reservation_changed: 'Booking changed',
+  stock_low: 'Stock running low',
   order_created: 'Order created',
   order_paid: 'Order paid',
   order_ready: 'Order ready',
@@ -33,6 +36,9 @@ export const TRIGGER_LABELS: Record<Trigger, string> = {
 
 /** Sentence used in the trigger dropdown — reads as "send when…". */
 export const TRIGGER_OPTIONS: { value: Trigger; label: string }[] = [
+  { value: 'order_refunded', label: 'An order is refunded' },
+  { value: 'reservation_changed', label: 'A booking is changed' },
+  { value: 'stock_low', label: 'Stock falls below its threshold' },
   { value: 'order_created', label: 'An order is placed' },
   { value: 'order_paid', label: 'An order is paid' },
   { value: 'order_ready', label: 'An order is ready for collection' },
@@ -54,6 +60,10 @@ export const TRIGGER_OPTIONS: { value: Trigger; label: string }[] = [
 
 /** Plain-language explanation shown under the trigger dropdown. */
 export const TRIGGER_HELP: Record<Trigger, string> = {
+  order_refunded: 'Runs once per successful full or partial refund recorded in DUMA.',
+  reservation_changed: 'Runs when staff save changes to a booking’s details, time or tables. Status changes have their own events.',
+  stock_low:
+    'Runs when a stock movement takes the quantity below its location’s low-stock threshold. It can run again after restocking above the threshold. Use a Create task action.',
   order_created: 'Sent once per order, as soon as the order is created in the POS.',
   order_paid:
     'Sent once per order, when its payment is confirmed — at the till, on cash approval, when an order taken by hand is marked paid, or as an online order comes in paid.',

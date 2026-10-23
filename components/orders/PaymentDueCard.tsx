@@ -9,8 +9,8 @@ import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
 import { type RecordedPaymentMethod, markOrderPaid } from '@/lib/modules/ordering/client';
+import { toast } from '@/lib/toast';
 import { RECORDED_PAYMENT_LABEL } from '@/lib/utils/manual-order';
-import { toast } from '@/stores/toastStore';
 
 import { invalidateOrder } from './StatusMenu';
 
@@ -31,7 +31,7 @@ export function PaymentDueCard({ orderId, amountDue }: { orderId: string; amount
     mutationFn: () => markOrderPaid(orderId, method),
     onSuccess: () => {
       invalidateOrder(qc, orderId);
-      toast('success', `Marked paid by ${RECORDED_PAYMENT_LABEL[method].toLowerCase()}.`);
+      toast('success', `Marked paid by ${RECORDED_PAYMENT_LABEL[method].toLowerCase()}.`, { critical: true });
     },
     onError: (error) => toast('error', error instanceof Error && error.message ? error.message : 'The payment wasn’t recorded. Try again.'),
   });

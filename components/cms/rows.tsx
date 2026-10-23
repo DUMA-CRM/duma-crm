@@ -221,7 +221,8 @@ export function PickerRow({
         </span>
         <span
           className={cn(
-            'flex min-w-0 items-center gap-1.5 text-sm',
+            // Takes what the title leaves and clips: a long value ends in "…" before the chevron, never past the row.
+            'flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-hidden text-sm',
             tone === 'danger'
               ? 'font-medium text-exception'
               : tone === 'warning'
@@ -232,7 +233,11 @@ export function PickerRow({
           )}
         >
           <span className="truncate">{value}</span>
-          <ChevronDown size={14} className={cn('shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden="true" />
+          <ChevronDown
+            size={14}
+            className={cn('shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')}
+            aria-hidden="true"
+          />
         </span>
       </button>
       {open && <div className="mt-3">{children}</div>}
@@ -269,7 +274,14 @@ export function RowMenu({ label, items, pending = false }: { label: string; item
       <PopoverContent align="end" className="w-56 p-2">
         <div className="flex flex-col gap-0.5">
           {[...items.filter((item) => !item.danger), ...items.filter((item) => item.danger)].map((item) => (
-            <ActionRow key={item.label} icon={item.icon} label={item.label} danger={item.danger} disabled={item.disabled} onClick={run(item)} />
+            <ActionRow
+              key={item.label}
+              icon={item.icon}
+              label={item.label}
+              danger={item.danger}
+              disabled={item.disabled}
+              onClick={run(item)}
+            />
           ))}
         </div>
       </PopoverContent>

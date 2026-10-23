@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 
 import { updateCustomer } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import type { Customer } from '@/types/customers';
 
 import { CustomerSection as SettingsSection } from './CustomerSection';

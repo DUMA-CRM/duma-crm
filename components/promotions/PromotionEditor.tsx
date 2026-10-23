@@ -56,6 +56,7 @@ import {
   updatePromotion,
 } from '@/lib/modules/promotions/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import {
   CHANNEL_LABELS,
@@ -74,7 +75,6 @@ import {
   usageLabel,
 } from '@/lib/utils/promotions';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { STANDING_BADGE } from './PromotionsList';

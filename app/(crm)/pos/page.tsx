@@ -29,6 +29,7 @@ import { type PaymentAttempt, type PaymentMethod, confirmPayment, getPaymentMeth
 import { checkPromotionCode } from '@/lib/modules/promotions/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import {
   type OptionGroupRule,
@@ -49,7 +50,6 @@ import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { usePosSettingsStore } from '@/stores/posSettingsStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { Customer } from '@/types/customers';
 import type { AttachedModifier } from '@/types/menu';

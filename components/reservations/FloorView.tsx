@@ -20,6 +20,7 @@ import { TimePicker } from '@/components/ui/time-picker';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type Booking, type BookingSource, type DiningArea, createBooking, setBookingStatus } from '@/lib/modules/reservations/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import {
   type FloorTable,
@@ -33,7 +34,6 @@ import {
   tableStatus,
 } from '@/lib/utils/reservations';
 import { workspaceTimeZone, zonedToInstant } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 
 import { FloorCanvas, TABLE_TONE_LEGEND, ToneSwatch } from './FloorCanvas';
@@ -204,7 +204,11 @@ export function FloorView({
             />
           )}
           {bookings.isError && (
-            <ErrorState title="Couldn’t load the day’s bookings — tables show as free" onRetry={() => void bookings.refetch()} className="py-4" />
+            <ErrorState
+              title="Couldn’t load the day’s bookings — tables show as free"
+              onRetry={() => void bookings.refetch()}
+              className="py-4"
+            />
           )}
           <FloorCanvas
             tables={area.tables}
@@ -281,13 +285,15 @@ function TablePanel({
               <span className="text-sm font-semibold tabular-nums">{seatsLabel(table)}</span>
             </InfoRow>
             <InfoRow icon={UsersRound} title={current?.status === 'seated' ? 'Seated' : current ? 'Due' : 'Now'}>
-              <span className="truncate text-sm font-semibold">
-                {current ? `${current.guestName} · ${current.partySize}` : 'Free'}
-              </span>
+              <span className="truncate text-sm font-semibold">{current ? `${current.guestName} · ${current.partySize}` : 'Free'}</span>
             </InfoRow>
             <InfoRow icon={Clock} title="Next">
               <span className="truncate text-sm font-semibold">
-                {next ? `${slotOf(next.startsAt, timeZone)} · ${next.guestName}` : <span className="font-normal text-muted-foreground">Nothing later</span>}
+                {next ? (
+                  `${slotOf(next.startsAt, timeZone)} · ${next.guestName}`
+                ) : (
+                  <span className="font-normal text-muted-foreground">Nothing later</span>
+                )}
               </span>
             </InfoRow>
           </InfoRows>
@@ -331,7 +337,9 @@ function TablePanel({
                     !isLive(booking.status) && 'opacity-70',
                   )}
                 >
-                  <span className="w-11 shrink-0 text-sm font-semibold tabular-nums text-foreground">{slotOf(booking.startsAt, timeZone)}</span>
+                  <span className="w-11 shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                    {slotOf(booking.startsAt, timeZone)}
+                  </span>
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
                     {booking.guestName}
                     <span className="font-normal text-muted-foreground"> · {booking.partySize}</span>

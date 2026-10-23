@@ -28,11 +28,11 @@ import {
   setCatalogTranslation,
 } from '@/lib/modules/catalog/client';
 import { type CmsLocale, getCmsLocales } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { extraCurrencies, fromPrice, pricedIn, translationProgress } from '@/lib/utils/catalog-i18n';
 import { variantNoun } from '@/lib/utils/catalog-import';
 import { cn } from '@/lib/utils/cn';
 import { CURRENCIES, currencySymbol, formatCurrency } from '@/lib/utils/currencies';
-import { toast } from '@/stores/toastStore';
 import type { ItemCatalog } from '@/types/catalog';
 
 const MONEY = /^\d{1,8}(\.\d{1,2})?$/;

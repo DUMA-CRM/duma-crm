@@ -25,9 +25,9 @@ import {
   setPaymentConnectionActive,
 } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ConnectWizard, ProviderGrid, WizardRail, type WizardStep } from './ConnectWizard';
@@ -164,7 +164,7 @@ function useAddPaymentConnection() {
       void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-methods') });
       void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-connections') });
       setAdded(true);
-      toast('success', `${displayName.trim()} is ready to take payments.`);
+      toast('success', `${displayName.trim()} is ready to take payments.`, { critical: true });
     },
   });
 

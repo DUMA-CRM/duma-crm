@@ -20,9 +20,9 @@ import { dayHeading, localDayKey } from '@/lib/audit/groups';
 import { timeOfDay } from '@/lib/audit/narrative';
 import { type EmailDelivery, getEmailDeliveries, retryEmailDelivery } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { type DeliveryBucket, type HistoryWindow, deliveriesByDay, deliveryTime, filterDeliveries } from '@/lib/utils/communications';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { CommunicationsToolbar } from './CommunicationsToolbar';

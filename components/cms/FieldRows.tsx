@@ -67,7 +67,7 @@ export function FieldRows({
   };
 
   return (
-    <fieldset disabled={disabled} className="space-y-3">
+    <fieldset disabled={disabled} className="min-w-0 space-y-3">
       {fields.map((field) => {
         const icon = FIELD_ICONS[field.type];
         if (field.type === 'boolean') {

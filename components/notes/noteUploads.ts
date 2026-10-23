@@ -9,8 +9,8 @@ import { assetSrc, invalidateCms } from '@/components/cms/shared';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { uploadCmsAsset } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // Where a photo or video put in a note goes. A text note's photos go to

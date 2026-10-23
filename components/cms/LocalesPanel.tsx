@@ -26,10 +26,10 @@ import {
   getCmsOverview,
   updateCmsLocale,
 } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { localeDisplayName, translationCoverage } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
 import { CURRENCIES, currencyLabel } from '@/lib/utils/currencies';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { FieldRow, InfoRow, InfoRows, PickerRow, RowMenu } from './rows';
@@ -141,14 +141,16 @@ export function LocalesPanel() {
           </InfoRows>
           <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
             {others.length === 0
-              ? 'Add a language and every entry gets a version to translate. Until then, everything is in ' + (primary?.name ?? 'the default') + '.'
+              ? 'Add a language and every entry gets a version to translate. Until then, everything is in ' +
+                (primary?.name ?? 'the default') +
+                '.'
               : `Websites that ask for no language, or one you don’t write in, get ${primary?.name ?? 'the default'}.`}
           </p>
         </SettingsSection>
 
         {others.length > 0 && (
           <SettingsSection title="When a translation is missing">
-            <fieldset disabled={!canModel} className="space-y-3">
+            <fieldset disabled={!canModel} className="min-w-0 space-y-3">
               {others.map((locale) => (
                 <PickerRow
                   key={locale.code}
@@ -178,7 +180,7 @@ export function LocalesPanel() {
 
         {others.length > 0 && (
           <SettingsSection title="Prices">
-            <fieldset disabled={!canModel} className="space-y-3">
+            <fieldset disabled={!canModel} className="min-w-0 space-y-3">
               {others.map((locale) => (
                 <PickerRow
                   key={locale.code}
@@ -197,10 +199,15 @@ export function LocalesPanel() {
                     onValueChange={(value) => update.mutate({ locale, patch: { currency: value || null } })}
                     options={[
                       { value: '', label: `${currencyLabel(base)} — your workspace currency` },
-                      ...CURRENCIES.filter((entry) => entry.code !== base).map((entry) => ({ value: entry.code, label: currencyLabel(entry.code) })),
+                      ...CURRENCIES.filter((entry) => entry.code !== base).map((entry) => ({
+                        value: entry.code,
+                        label: currencyLabel(entry.code),
+                      })),
                     ]}
                   />
-                  <p className="mt-1.5 text-xs text-muted-foreground">Prices on your website are shown in this currency to {locale.name} readers.</p>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Prices on your website are shown in this currency to {locale.name} readers.
+                  </p>
                 </PickerRow>
               ))}
             </fieldset>
@@ -313,7 +320,11 @@ function AddLocaleDialog({ locales, onClose }: { locales: CmsLocale[]; onClose: 
  */
 function TranslationSection({ locales }: { locales: CmsLocale[] }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
-  const overview = useQuery({ queryKey: cmsKeys.overview(tenantId), queryFn: () => getCmsOverview(tenantId ?? undefined), enabled: !!tenantId });
+  const overview = useQuery({
+    queryKey: cmsKeys.overview(tenantId),
+    queryFn: () => getCmsOverview(tenantId ?? undefined),
+    enabled: !!tenantId,
+  });
   const counts = useQueries({
     queries: locales.flatMap((locale) =>
       (['', 'live'] as const).map((status) => {
@@ -368,7 +379,10 @@ function TranslationSection({ locales }: { locales: CmsLocale[] }) {
                     aria-valuenow={coverage.percent}
                     className="h-1.5 overflow-hidden rounded-full bg-band"
                   >
-                    <div className={cn('h-full rounded-full', complete ? 'bg-success' : 'bg-primary')} style={{ width: `${coverage.percent}%` }} />
+                    <div
+                      className={cn('h-full rounded-full', complete ? 'bg-success' : 'bg-primary')}
+                      style={{ width: `${coverage.percent}%` }}
+                    />
                   </div>
                 </FieldRow>
               );

@@ -17,6 +17,7 @@ import { FieldLabel } from '@/components/ui/label';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { type UpdateEmployeePayload, setEmployeeBank, updateEmployee } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { statutoryIdLabel } from '@/lib/utils/employee-record';
 import {
   formatNiNumber,
@@ -29,7 +30,6 @@ import {
   normaliseSortCode,
 } from '@/lib/utils/my-hr';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 import { ChoiceCards, type Employee } from './shared';
 

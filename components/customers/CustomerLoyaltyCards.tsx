@@ -17,11 +17,11 @@ import { type CustomerLoyaltyProgram, adjustCustomerLoyaltyBalance, grantCustome
 import { getMenuCategories, getMenuItems, getModifierGroups } from '@/lib/api/menu.service';
 import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { rewardsCompleted } from '@/lib/utils/balance-adjust';
 import { cn } from '@/lib/utils/cn';
 import { describeRewardScope, getLoyaltyCardProgress, stampColumns } from '@/lib/utils/loyalty-card';
 import { formatInstant } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const STAMP_PRESETS = [1, 2, 3, 5] as const;

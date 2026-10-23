@@ -32,12 +32,12 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { type LeaveRequest, getEntitlements, getManagedLeaveRequests, reviewLeaveRequest } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { getScheduledShifts } from '@/lib/modules/workforce/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { type LeaveContext, leaveContext } from '@/lib/utils/leave-review';
 import { daysBetween } from '@/lib/utils/staff-overview';
 import { zonedToInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 const STATUSES = ['pending', 'approved', 'declined', 'cancelled'] as const;
 const STATUS_LABEL: Record<(typeof STATUSES)[number], string> = {

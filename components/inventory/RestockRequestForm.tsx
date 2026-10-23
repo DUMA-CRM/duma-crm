@@ -19,8 +19,8 @@ import { type LocationStock, getLocationStock } from '@/lib/modules/inventory/cl
 import { type RestockPriority, createRestockRequest, encodeNotes, getRestockRequests } from '@/lib/modules/inventory/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const selectClass = cn(

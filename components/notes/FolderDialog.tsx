@@ -14,7 +14,7 @@ import { getRoles } from '@/lib/api/roles.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { type NoteFolder, createNoteFolder, renameNoteFolder, shareNoteFolder } from '@/lib/modules/notes/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /** The built-in roles, for when the workspace's own role list isn't readable to this person. */

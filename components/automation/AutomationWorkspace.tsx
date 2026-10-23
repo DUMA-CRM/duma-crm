@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AutomationEditorPage } from '@/components/communications/AutomationEditorPage';
 import { AutomationsPanel } from '@/components/communications/AutomationsPanel';
 import { useEmailAccess } from '@/components/communications/useEmailAccess';
-import { Activity, CalendarDays, Plus, Zap } from '@/components/icons';
+import { Activity, Plus, Zap } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -31,7 +31,8 @@ function Workspace({ tenantId }: { tenantId: string | null }) {
   const params = useSearchParams();
   const access = useEmailAccess();
   const automationId = params.get('automation');
-  const tab = params.get('tab') === 'runs' ? 'runs' : params.get('tab') === 'scheduled' ? 'scheduled' : 'workflows';
+  // The old Scheduled jobs tab (`?tab=scheduled`) is now a card on Workflows, so it lands there.
+  const tab = params.get('tab') === 'runs' ? 'runs' : 'workflows';
   const query = useQuery({
     queryKey: moduleQueryKeys.automation.key('email-automations', tenantId),
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
@@ -104,16 +105,18 @@ function Workspace({ tenantId }: { tenantId: string | null }) {
           tabs={[
             { value: 'workflows', label: 'Workflows', icon: Zap },
             { value: 'runs', label: 'Runs', icon: Activity },
-            { value: 'scheduled', label: 'Scheduled jobs', icon: CalendarDays },
           ]}
         />
       }
     >
       {tab === 'workflows' && (
-        <AutomationsPanel onEdit={({ automation }) => navigate({ automation: automation?.id ?? 'new' })} onOpenTemplates={templates} />
+        <AutomationsPanel
+          onEdit={({ automation }) => navigate({ automation: automation?.id ?? 'new' })}
+          onOpenTemplates={templates}
+          asideExtra={<ScheduledAutomations />}
+        />
       )}
       {tab === 'runs' && <AutomationRuns tenantId={tenantId} onOpenWorkflow={(id) => navigate({ automation: id })} />}
-      {tab === 'scheduled' && <ScheduledAutomations />}
     </EditorShell>
   );
 }

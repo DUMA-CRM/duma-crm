@@ -15,10 +15,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { type CmsFieldDefinition, createCmsPreviewLink, getCmsAssets } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { SERP_DESCRIPTION_MAX, SERP_TITLE_MAX, hasSeoBlock, seoChecklist, seoSnapshot, truncate } from '@/lib/utils/cms-seo';
 import { cn } from '@/lib/utils/cn';
 import { formatInstant } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { SectionInfo } from './rows';
@@ -65,6 +65,24 @@ export function goToField(key: string) {
  * one-click fix for each failing check — Fill SEO for wording, the field
  * itself for what only the editor can decide.
  */
+/**
+ * The entry's search checks, worked out once for everyone who shows them —
+ * this panel and the SEO & sharing card's badge — so the two always agree.
+ * The image's alt text comes from Media, and a focus keyword (once chosen)
+ * adds its own checks.
+ */
+export function useSeoChecks(fields: CmsFieldDefinition[], titleField: string | null, data: Record<string, unknown>, keyword?: string) {
+  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const snapshot = seoSnapshot(fields, titleField, data);
+  const imageQuery = useQuery({
+    queryKey: cmsKeys.assets(tenantId, { ids: snapshot.imageId }),
+    queryFn: () => getCmsAssets({ ids: snapshot.imageId! }, tenantId ?? undefined),
+    enabled: !!tenantId && !!snapshot.imageId,
+  });
+  const image = imageQuery.data?.data[0];
+  return { snapshot, image, checks: seoChecklist(snapshot, { keyword, imageAlt: image?.altText }) };
+}
+
 export function SeoPanel({
   fields,
   titleField,
@@ -92,17 +110,9 @@ export function SeoPanel({
   /** Run Fill SEO (in the Ask DUMA card, so the mascot shows it working). */
   onFillSeo: () => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
-  const snapshot = seoSnapshot(fields, titleField, data);
+  const { snapshot, image, checks } = useSeoChecks(fields, titleField, data, keyword);
   const crumb = breadcrumb(snapshot.canonicalUrl ?? pageUrl);
-  const imageQuery = useQuery({
-    queryKey: cmsKeys.assets(tenantId, { ids: snapshot.imageId }),
-    queryFn: () => getCmsAssets({ ids: snapshot.imageId! }, tenantId ?? undefined),
-    enabled: !!tenantId && !!snapshot.imageId,
-  });
-  const image = imageQuery.data?.data[0];
   const block = hasSeoBlock(fields);
-  const checks = seoChecklist(snapshot, { keyword, imageAlt: image?.altText });
   const failing = checks.filter((check) => !check.ok);
   const passing = checks.filter((check) => check.ok);
   const clear = failing.length === 0;

@@ -31,9 +31,9 @@ import {
   updateMenuItem,
 } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { groupByCategory, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
-import { toast } from '@/stores/toastStore';
 import type { MenuItem } from '@/types/menu';
 
 const adjust = (raw: string | undefined, symbol: string) => {

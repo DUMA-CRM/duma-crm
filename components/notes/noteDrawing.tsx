@@ -7,8 +7,8 @@ import { useState } from 'react';
 import { Loader2, PenLine, Trash2 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
+import { toast } from '@/lib/toast';
 import { serializeDrawing } from '@/lib/utils/note-drawing';
-import { toast } from '@/stores/toastStore';
 
 // ---------------------------------------------------------------------------
 // A drawing inside a text note, made in Excalidraw — how drawings were made

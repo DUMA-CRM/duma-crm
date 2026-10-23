@@ -11,9 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { type CmsAsset, bulkCmsAssets, getCmsAssetFile, replaceCmsAssetFile } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
 import { DEFAULT_IMAGE_OPTIONS, isConvertibleImage } from '@/lib/utils/media-storage';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { encodeImage } from './imageEncode';

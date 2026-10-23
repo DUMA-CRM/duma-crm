@@ -12,9 +12,9 @@ import { Select } from '@/components/ui/select';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { importCatalog } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { rowsFromCsv } from '@/lib/utils/catalog-import';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import type { CatalogImportReport } from '@/types/catalog';
 
 const TEMPLATE = [

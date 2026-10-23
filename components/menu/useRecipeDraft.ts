@@ -8,7 +8,7 @@ import { computeCosting } from '@/lib/menu/costing';
 import { NUTRITION_FIELDS, type NutritionFacts, type StockItem, getStockItems } from '@/lib/modules/inventory/client';
 import type { RecipeLine, RecipeLineInput } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
 
 export const DEFAULT_COL = '';
 
@@ -180,7 +180,10 @@ export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePri
     return Number(raw) || 0;
   };
 
-  const columns: SizeColumn[] = [{ id: DEFAULT_COL, label: sizes.length > 0 ? (defaultIsSize ? 'All sizes' : 'Default') : 'Qty' }, ...sizes];
+  const columns: SizeColumn[] = [
+    { id: DEFAULT_COL, label: sizes.length > 0 ? (defaultIsSize ? 'All sizes' : 'Default') : 'Qty' },
+    ...sizes,
+  ];
 
   // Per-column totals via the shared resolver (default vs size override).
   const draftLines = rows.flatMap((row) =>
@@ -188,27 +191,29 @@ export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePri
       .filter(([, v]) => v?.trim())
       .map(([col, v]) => ({ stockItemId: row.stockItemId, sizeModifierId: col === DEFAULT_COL ? null : col, quantity: v })),
   );
-  const summary = columns.filter((col) => !(defaultIsSize && sizes.length > 0 && col.id === DEFAULT_COL)).map((col) => {
-    const t = computeRecipeTotals(draftLines, col.id === DEFAULT_COL ? new Set<string>() : new Set([col.id]), itemMap);
-    const price = basePrice !== undefined ? basePrice + Number(col.priceAdjust ?? 0) : undefined;
-    // Margin is computed here, once, so no consumer is tempted to write
-    // `price - cogs` again — that formula ignores VAT and overstates margin on
-    // a VAT-registered tenant.
-    const costing = price !== undefined ? computeCosting({ price, cogs: t.cost, itemVatRate: vatRate, ctx: vat }) : undefined;
-    // `cogs`/`kcal`/`missingKcal` kept as aliases so existing consumers work.
-    return {
-      col,
-      cogs: t.cost,
-      kcal: t.nutrition.kcal ?? 0,
-      nutrition: t.nutrition,
-      missingCost: t.missingCost,
-      missingKcal: t.missingNutrition,
-      missingNutrition: t.missingNutrition,
-      allergens: t.allergens,
-      price,
-      costing,
-    };
-  });
+  const summary = columns
+    .filter((col) => !(defaultIsSize && sizes.length > 0 && col.id === DEFAULT_COL))
+    .map((col) => {
+      const t = computeRecipeTotals(draftLines, col.id === DEFAULT_COL ? new Set<string>() : new Set([col.id]), itemMap);
+      const price = basePrice !== undefined ? basePrice + Number(col.priceAdjust ?? 0) : undefined;
+      // Margin is computed here, once, so no consumer is tempted to write
+      // `price - cogs` again — that formula ignores VAT and overstates margin on
+      // a VAT-registered tenant.
+      const costing = price !== undefined ? computeCosting({ price, cogs: t.cost, itemVatRate: vatRate, ctx: vat }) : undefined;
+      // `cogs`/`kcal`/`missingKcal` kept as aliases so existing consumers work.
+      return {
+        col,
+        cogs: t.cost,
+        kcal: t.nutrition.kcal ?? 0,
+        nutrition: t.nutrition,
+        missingCost: t.missingCost,
+        missingKcal: t.missingNutrition,
+        missingNutrition: t.missingNutrition,
+        allergens: t.allergens,
+        price,
+        costing,
+      };
+    });
 
   const allAllergens = [...new Set(summary.flatMap((s) => s.allergens))].sort();
   const hasIngredients = rows.some((r) => r.stockItemId);

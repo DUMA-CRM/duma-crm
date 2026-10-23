@@ -18,10 +18,10 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { liftMarketingSuppression } from '@/lib/modules/communications/client';
 import { type MarketingPreferenceStatus, getMarketingPreferences, updateMarketingPreferences } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { CustomerDisclosure } from './CustomerSection';

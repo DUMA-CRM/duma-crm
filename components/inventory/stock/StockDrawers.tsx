@@ -52,10 +52,10 @@ import { type CreateLossPayload, type LossCreateReason, createLossEntry } from '
 import { type CreateRestockRequestPayload, createRestockRequest } from '@/lib/modules/inventory/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { type CatalogVocabulary, stockCategoriesFor, stockUnitPlaceholder } from '@/lib/utils/catalog-vocabulary';
 import { cn } from '@/lib/utils/cn';
 import { unitCostFromPrice } from '@/lib/utils/stock-cost';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ParMeter, STATUS_LABEL, STATUS_TONE, type StockStatus, categoryMeta, fmtQty, getStatus, selectClass, statusGlyph } from './shared';

@@ -18,10 +18,10 @@ import { Select } from '@/components/ui/select';
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
 import { type TradingSettings, getTradingSettings, getWorkspaceSetup, saveTradingSettings } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { CURRENCIES, currencyLabel, formatCurrency } from '@/lib/utils/currencies';
 import { type ReceiptLine, linePence, receiptTotals } from '@/lib/utils/receipt-preview';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const CURRENCY_OPTIONS = CURRENCIES.map((entry) => ({ value: entry.code, label: currencyLabel(entry.code) }));
@@ -152,9 +152,31 @@ function TradingForm({
 
   const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
   /** A short text: what it says on the row, the field (and why it matters) underneath. */
-  const textRow = (row: Row & ('legalName' | 'tradingAddress' | 'receiptFooter' | 'vatNumber'), icon: IconComponent, title: string, empty: string, placeholder: string, hint: string, maxLength?: number) => (
-    <PickerRow icon={icon} title={title} value={form[row].trim() || empty} muted={!form[row].trim()} open={open === row} onToggle={() => toggle(row)}>
-      <Input aria-label={title} value={form[row]} onChange={(event) => set(row, event.target.value)} placeholder={placeholder} maxLength={maxLength} autoFocus />
+  const textRow = (
+    row: Row & ('legalName' | 'tradingAddress' | 'receiptFooter' | 'vatNumber'),
+    icon: IconComponent,
+    title: string,
+    empty: string,
+    placeholder: string,
+    hint: string,
+    maxLength?: number,
+  ) => (
+    <PickerRow
+      icon={icon}
+      title={title}
+      value={form[row].trim() || empty}
+      muted={!form[row].trim()}
+      open={open === row}
+      onToggle={() => toggle(row)}
+    >
+      <Input
+        aria-label={title}
+        value={form[row]}
+        onChange={(event) => set(row, event.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        autoFocus
+      />
       <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
     </PickerRow>
   );
@@ -178,15 +200,33 @@ function TradingForm({
               'Address',
               'Not set',
               '12 North Street, London',
-              suggested('tradingAddress') ? 'From your location.' : onlineOnly ? 'Needed on VAT invoices.' : 'Printed under your business name.',
+              suggested('tradingAddress')
+                ? 'From your location.'
+                : onlineOnly
+                  ? 'Needed on VAT invoices.'
+                  : 'Printed under your business name.',
             )}
-          {textRow('receiptFooter', StickyNote, 'Thank-you line', 'None', 'Thank you — see you soon', 'Printed at the foot of every receipt.', 200)}
+          {textRow(
+            'receiptFooter',
+            StickyNote,
+            'Thank-you line',
+            'None',
+            'Thank you — see you soon',
+            'Printed at the foot of every receipt.',
+            200,
+          )}
         </div>
       </SettingsSection>
 
       <SettingsSection title="Money and VAT">
         <div className="space-y-3">
-          <PickerRow icon={Coins} title="Currency" value={currencyLabel(form.currency)} open={open === 'currency'} onToggle={() => toggle('currency')}>
+          <PickerRow
+            icon={Coins}
+            title="Currency"
+            value={currencyLabel(form.currency)}
+            open={open === 'currency'}
+            onToggle={() => toggle('currency')}
+          >
             {/* Straight to the list; choosing or dismissing folds the row back up. */}
             <Select
               value={form.currency}
@@ -223,7 +263,9 @@ function TradingForm({
                   error={rateValid ? undefined : 'Enter a rate between 0 and 100.'}
                   autoFocus
                 />
-                <p className="mt-1.5 text-xs text-muted-foreground">Used for anything without its own rate, and taken out of your margins.</p>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Used for anything without its own rate, and taken out of your margins.
+                </p>
               </PickerRow>
               <PickerRow
                 icon={Tags}
@@ -255,7 +297,9 @@ function TradingForm({
         dirty={dirty}
         saving={save.isPending}
         disabled={!valid}
-        message={!valid ? 'Enter a VAT rate between 0 and 100' : onlyPrefilled ? 'Filled in from your workspace — save to use it' : undefined}
+        message={
+          !valid ? 'Enter a VAT rate between 0 and 100' : onlyPrefilled ? 'Filled in from your workspace — save to use it' : undefined
+        }
         onSave={() => save.mutate()}
         onDiscard={() => {
           setForm(saved);

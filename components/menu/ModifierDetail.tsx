@@ -25,8 +25,8 @@ import { Input } from '@/components/ui/input';
 import { createModifier, deleteModifier, getModifierGroups, getModifiers, updateModifier } from '@/lib/modules/catalog/client';
 import { getModifierRecipe, setModifierRecipe } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const FORM_ID = 'modifier-detail-form';

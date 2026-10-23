@@ -40,6 +40,7 @@ import {
   UploadCloud,
 } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
+import { MenuOption } from '@/components/shared/MenuOption';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,7 +52,6 @@ import { cn } from '@/lib/utils/cn';
 import { NOTE_COLOURS, type NoteColour, normaliseNoteLink, noteColourOf, noteColourValue, noteMediaKind } from '@/lib/utils/note-editor';
 import { useAuthStore } from '@/stores/authStore';
 
-import { MenuOption } from './MenuOption';
 import { insertMediaFiles } from './RichNoteEditor';
 
 // ---------------------------------------------------------------------------

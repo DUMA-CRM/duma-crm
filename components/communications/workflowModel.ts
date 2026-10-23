@@ -61,42 +61,62 @@ export function workflowForAutomation(automation?: EmailAutomation): EmailWorkfl
   );
 }
 
-export function workflowErrors(definition: EmailWorkflowDefinition) {
-  const errors: string[] = [];
+/** One problem with a workflow — and, when it is about one step, which. */
+export interface WorkflowIssue {
+  message: string;
+  nodeId?: string;
+}
+
+/**
+ * Everything that stops a workflow being published, each tied to its step
+ * where there is one — so the editor can outline that step and jump to it.
+ */
+export function workflowIssues(definition: EmailWorkflowDefinition): WorkflowIssue[] {
+  const issues: WorkflowIssue[] = [];
+  const add = (message: string, nodeId?: string) => {
+    if (!issues.some((issue) => issue.message === message && issue.nodeId === nodeId)) issues.push({ message, nodeId });
+  };
   const nodes = new Map(definition.nodes.map((node) => [node.id, node]));
   const trigger = definition.nodes.filter((node) => node.type === 'trigger');
-  if (trigger.length !== 1) errors.push('Use exactly one trigger.');
-  if (!definition.nodes.some((node) => node.type === 'send_email' || node.type === 'create_task')) errors.push('Add at least one action.');
-  if (!definition.nodes.some((node) => node.type === 'end')) errors.push('Add an end step.');
+  if (trigger.length !== 1) add('Use exactly one trigger.');
+  if (!definition.nodes.some((node) => node.type === 'send_email' || node.type === 'create_task')) add('Add at least one action.');
+  if (!definition.nodes.some((node) => node.type === 'end')) add('Add an end step.');
   // A segment trigger with no segment publishes happily and then never fires.
   // The API refuses it too; catching it here is what lets the editor say so.
   const first = trigger[0];
+  if (first?.type === 'trigger' && first.config.event === 'stock_low' && definition.nodes.some((node) => node.type === 'send_email'))
+    add('Stock workflows have no email recipient. Use a Create task action.', first.id);
   if (first?.type === 'trigger' && first.config.event === 'segment_entered' && !first.config.segmentId) {
-    errors.push('Choose the segment this automation watches.');
+    add('Choose the segment this automation watches.', first.id);
   }
   for (const node of definition.nodes) {
-    if (node.type === 'condition' && first?.type === 'trigger' && !workflowFieldAvailable(first.config.event, node.config.field))
-      errors.push(
-        `“${node.name}” uses ${node.config.field}, which is unavailable for this trigger. Choose a compatible field or remove the condition.`,
+    if (
+      node.type === 'condition' &&
+      first?.type === 'trigger' &&
+      [node.config, ...(node.config.rules ?? [])].some((rule) => !workflowFieldAvailable(first.config.event, rule.field))
+    )
+      add(
+        `“${node.name}” uses ${[node.config, ...(node.config.rules ?? [])].find((rule) => !workflowFieldAvailable(first.config.event, rule.field))?.field}, which is unavailable for this trigger. Choose a compatible field or remove the condition.`,
+        node.id,
       );
     if (node.type === 'create_task' && (node.config.subject.trim().length < 3 || !node.config.body.trim()))
-      errors.push(`Add a subject and description for “${node.name}”.`);
-    if (node.type === 'send_email' && !node.config.templateId) errors.push(`Choose a template for “${node.name}”.`);
+      add(`Add a subject and description for “${node.name}”.`, node.id);
+    if (node.type === 'send_email' && !node.config.templateId) add(`Choose a template for “${node.name}”.`, node.id);
     const outgoing = definition.edges.filter((edge) => edge.source === node.id);
     if (node.type === 'condition') {
       if (!outgoing.some((edge) => edge.branch === 'yes') || !outgoing.some((edge) => edge.branch === 'no'))
-        errors.push(`Connect both branches from “${node.name}”.`);
-    } else if (node.type !== 'end' && outgoing.length !== 1) errors.push(`Connect “${node.name}” to one next step.`);
-    if (node.type === 'end' && outgoing.length) errors.push('End nodes cannot continue.');
+        add(`Connect both branches from “${node.name}”.`, node.id);
+    } else if (node.type !== 'end' && outgoing.length !== 1) add(`Connect “${node.name}” to one next step.`, node.id);
+    if (node.type === 'end' && outgoing.length) add('End nodes cannot continue.', node.id);
   }
   for (const edge of definition.edges)
-    if (!nodes.has(edge.source) || !nodes.has(edge.target)) errors.push('A connection points to a missing step.');
+    if (!nodes.has(edge.source) || !nodes.has(edge.target)) add('A connection points to a missing step.');
   if (trigger[0]) {
     const visited = new Set<string>();
     const active = new Set<string>();
     const visit = (nodeId: string) => {
       if (active.has(nodeId)) {
-        errors.push('Workflow connections cannot contain a loop.');
+        add('Workflow connections cannot contain a loop.');
         return;
       }
       if (visited.has(nodeId)) return;
@@ -106,9 +126,14 @@ export function workflowErrors(definition: EmailWorkflowDefinition) {
       active.delete(nodeId);
     };
     visit(trigger[0].id);
-    if (definition.nodes.some((node) => !visited.has(node.id))) errors.push('Every step must connect back to the trigger.');
+    if (definition.nodes.some((node) => !visited.has(node.id))) add('Every step must connect back to the trigger.');
   }
-  return [...new Set(errors)];
+  return issues;
+}
+
+/** The same problems as sentences — what publishing and the "needs you" card read. */
+export function workflowErrors(definition: EmailWorkflowDefinition): string[] {
+  return [...new Set(workflowIssues(definition).map((issue) => issue.message))];
 }
 
 export function insertWorkflowNode(
@@ -123,13 +148,26 @@ export function insertWorkflowNode(
   if (type === 'send_email') node = { id: id('email'), type, name: 'Send email', config: { templateId } };
   else if (type === 'create_task') node = { id: id('task'), type, name: 'Create task', config: { subject: '', body: '' } };
   else if (type === 'delay') node = { id: id('delay'), type, name: 'Wait', config: { amount: 1, unit: 'days' } };
-  else
+  else {
+    const event = definition.nodes.find((n) => n.type === 'trigger')?.config.event ?? 'order_created';
+    const field = event.startsWith('staff_')
+      ? 'staff.employmentType'
+      : event.startsWith('reservation_')
+        ? 'booking.partySize'
+        : event === 'stock_low'
+          ? 'stock.quantity'
+          : 'customer.marketingOptIn';
     node = {
       id: id('condition'),
       type,
       name: 'Check a condition',
-      config: { field: 'customer.marketingOptIn', operator: 'equals', value: true },
+      config: {
+        field,
+        operator: 'equals',
+        value: field === 'staff.employmentType' ? 'full_time' : field === 'customer.marketingOptIn' ? true : 0,
+      },
     };
+  }
 
   const first: EmailWorkflowEdge = { id: id('edge'), source: edge.source, target: node.id, branch: edge.branch ?? 'next' };
   const next: EmailWorkflowEdge = { id: id('edge'), source: node.id, target: edge.target, branch: type === 'condition' ? 'yes' : 'next' };
@@ -310,6 +348,14 @@ export function workflowSummary(definition: EmailWorkflowDefinition, templateNam
     delay: definition.nodes.filter((node) => node.type === 'delay').length,
     condition: definition.nodes.filter((node) => node.type === 'condition').length,
   };
+  const tasks = definition.nodes.filter((node) => node.type === 'create_task').length;
+  const parts = [
+    ...(tasks ? [`${tasks} task${tasks === 1 ? '' : 's'}`] : []),
+    ...(counts.email ? [`${counts.email} email${counts.email === 1 ? '' : 's'}`] : []),
+    ...(counts.delay ? [`${counts.delay} wait${counts.delay === 1 ? '' : 's'}`] : []),
+    ...(counts.condition ? [`${counts.condition} condition${counts.condition === 1 ? '' : 's'}`] : []),
+  ];
   const firstEmail = orderedWorkflowNodes(definition).find((node) => node.type === 'send_email');
-  return `${definition.nodes.filter((node) => node.type === 'create_task').length ? `${definition.nodes.filter((node) => node.type === 'create_task').length} tasks · ` : ''}${counts.email} email${counts.email === 1 ? '' : 's'}${counts.delay ? ` · ${counts.delay} wait${counts.delay === 1 ? '' : 's'}` : ''}${counts.condition ? ` · ${counts.condition} condition${counts.condition === 1 ? '' : 's'}` : ''}${firstEmail?.type === 'send_email' ? ` · starts with “${templateName(firstEmail.config.templateId)}”` : ''}`;
+  if (firstEmail?.type === 'send_email') parts.push(`starts with “${templateName(firstEmail.config.templateId)}”`);
+  return parts.join(' · ') || 'No actions yet';
 }

@@ -2,118 +2,189 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { CheckCircle2, ClipboardList, Clock, TriangleAlert } from '@/components/icons';
+import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile } from '@/components/cms/rows';
+import {
+  CalendarCheck,
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  Hash,
+  type IconComponent,
+  Play,
+  ShoppingBag,
+  Timer,
+  TriangleAlert,
+  UserRound,
+  Zap,
+} from '@/components/icons';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Drawer } from '@/components/shared/Drawer';
-import { LoadingState } from '@/components/shared/Skeleton';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 
 import { getEmailAutomationRun } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import {
+  RUN_STATUS_LABELS,
+  type RunStatus,
+  type StepState,
+  durationInWords,
+  runTrigger,
+  stepState,
+  stepStatusLabel,
+} from '@/lib/utils/communications';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+
+import { TRIGGER_LABELS } from './shared';
+
+// A run's status reads the same on the Runs list, its summary and here.
+export const RUN_STATUS_ICON: Record<RunStatus, IconComponent> = { running: Clock, completed: CheckCircle2, failed: TriangleAlert };
+export const RUN_STATUS_TONE = { running: 'default', completed: 'success', failed: 'danger' } as const;
+export const RUN_STATUS_BADGE = { running: 'muted', completed: 'success', failed: 'destructive' } as const;
+export const triggerLabel = (trigger: string) => (TRIGGER_LABELS as Record<string, string>)[trigger] ?? trigger.replaceAll('_', ' ');
+
+const STEP_ICON: Record<StepState, IconComponent> = {
+  done: CheckCircle2,
+  pending: Clock,
+  retrying: TriangleAlert,
+  failed: TriangleAlert,
+  other: Clock,
+};
+const STEP_TONE = { done: 'success', pending: 'default', retrying: 'warning', failed: 'danger', other: 'default' } as const;
+const STEP_BADGE = { done: 'success', pending: 'muted', retrying: 'warning', failed: 'destructive', other: 'muted' } as const;
 
 const formatDate = (value?: string | null) =>
   formatInstant(value, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-export function WorkflowRunDrawer({ runId, onClose }: { runId: string; onClose: () => void }) {
+/**
+ * One workflow run: what started it and how long it took, then each step with
+ * its outcome, error and output. Polls while the run is still going.
+ */
+export function WorkflowRunDrawer({
+  runId,
+  onClose,
+  onOpenWorkflow,
+}: {
+  runId: string;
+  onClose: () => void;
+  onOpenWorkflow?: (id: string) => void;
+}) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
-  const {
-    data: run,
-    isLoading,
-    error,
-  } = useQuery({
+  const query = useQuery({
     queryKey: moduleQueryKeys.automation.key('email-automation-run', runId, tenantId),
     queryFn: () => getEmailAutomationRun(runId, tenantId ?? undefined),
     enabled: !!tenantId,
     refetchInterval: (query) => (query.state.data?.status === 'running' ? 5_000 : false),
   });
+  const run = query.data;
+  const took = run ? durationInWords(run.startedAt, run.completedAt) : null;
+  const record = run?.customerId ?? run?.orderId ?? run?.staffUserId ?? null;
 
   return (
     <Drawer
       icon={ClipboardList}
       title="Workflow run"
-      description={run ? `${run.eventKey} · version ${run.version}` : 'Execution details'}
+      description={run ? `${triggerLabel(runTrigger(run.eventKey))} · version ${run.version}` : 'Execution details'}
       onClose={onClose}
     >
-      {isLoading ? (
-        <LoadingState label="Loading the run" />
-      ) : error || !run ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/6 p-4 text-sm text-destructive">
-          This workflow run could not be loaded.
-        </div>
+      {query.isLoading ? (
+        <Bone className="h-96 w-full rounded-lg" />
+      ) : query.isError || !run ? (
+        <ErrorState title="Couldn’t load this run" onRetry={() => void query.refetch()} />
       ) : (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 rounded-md border border-rule bg-band p-4 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground">Status</p>
-              <Badge
-                className="mt-1 capitalize"
-                variant={run.status === 'completed' ? 'success' : run.status === 'failed' ? 'destructive' : 'primary'}
+        <div className="space-y-5">
+          <SettingsSection title="This run" actions={<Badge variant={RUN_STATUS_BADGE[run.status]}>{RUN_STATUS_LABELS[run.status]}</Badge>}>
+            <InfoRows>
+              <InfoRow icon={Zap} title="Started by">
+                <span className="truncate text-sm font-semibold text-foreground">{triggerLabel(runTrigger(run.eventKey))}</span>
+              </InfoRow>
+              <InfoRow icon={Hash} title="Workflow version">
+                <span className="text-sm font-semibold text-foreground">Version {run.version}</span>
+              </InfoRow>
+              <InfoRow icon={Play} title="Started">
+                <span className="text-sm font-semibold tabular-nums text-foreground">{formatDate(run.startedAt)}</span>
+              </InfoRow>
+              <InfoRow icon={CalendarCheck} title="Finished">
+                {run.completedAt ? (
+                  <span className="text-sm font-semibold tabular-nums text-foreground">{formatDate(run.completedAt)}</span>
+                ) : (
+                  <span className="text-sm text-muted-foreground/70">{run.status === 'running' ? 'Still running' : 'Not finished'}</span>
+                )}
+              </InfoRow>
+              {took && (
+                <InfoRow icon={Timer} title="Took">
+                  <span className="text-sm font-semibold text-foreground">{took}</span>
+                </InfoRow>
+              )}
+              <InfoRow
+                icon={run.orderId && !run.customerId ? ShoppingBag : UserRound}
+                title={run.audience === 'staff' ? 'Employee record' : 'Recipient record'}
               >
-                {run.status}
-              </Badge>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Started</p>
-              <p className="mt-1 font-medium">{formatDate(run.startedAt)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Completed</p>
-              <p className="mt-1 font-medium">{formatDate(run.completedAt)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Recipient record</p>
-              <p className="mt-1 break-all font-mono text-xs">{run.customerId ?? run.orderId ?? 'No record'}</p>
-            </div>
-          </div>
+                {record ? (
+                  <span title={record} className="max-w-[11rem] truncate font-mono text-xs text-foreground">
+                    {record}
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground/70">None</span>
+                )}
+              </InfoRow>
+            </InfoRows>
+            {onOpenWorkflow && (
+              <div className="mt-4">
+                <ActionRows>
+                  <ActionRow icon={Zap} label="Open workflow" onClick={() => onOpenWorkflow(run.automationId)} />
+                </ActionRows>
+              </div>
+            )}
+          </SettingsSection>
 
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Step timeline</p>
-            <div className="mt-3 space-y-3">
-              {run.steps.map((step, index) => {
-                const node = run.definition.nodes.find((candidate) => candidate.id === step.nodeId);
-                const failed = step.status === 'failed' || step.status === 'failed_permanently';
-                const pending = step.status === 'queued' || step.status === 'running';
-                const Icon = failed ? TriangleAlert : pending ? Clock : CheckCircle2;
-                return (
-                  <div key={step.id} className="relative flex gap-3 rounded-md border border-rule p-4">
-                    <span
-                      className={`flex size-8 shrink-0 items-center justify-center rounded-full ${
-                        failed ? 'bg-destructive/6 text-destructive' : pending ? 'bg-band text-primary' : 'bg-success/6 text-success'
-                      }`}
-                    >
-                      <Icon size={15} className={step.status === 'running' ? 'animate-pulse' : undefined} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-semibold">
-                          {index + 1}. {node?.name ?? step.nodeType.replaceAll('_', ' ')}
-                        </p>
-                        <Badge variant={failed ? 'destructive' : pending ? 'primary' : 'success'} className="capitalize">
-                          {step.status.replaceAll('_', ' ')}
-                        </Badge>
+          <SettingsSection title="Steps">
+            {!run.steps.length ? (
+              <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">No steps have started yet.</p>
+            ) : (
+              <ol className="space-y-3">
+                {run.steps.map((step, index) => {
+                  const node = run.definition.nodes.find((candidate) => candidate.id === step.nodeId);
+                  const state = stepState(step.status);
+                  const kind = step.nodeType.replaceAll('_', ' ');
+                  return (
+                    <li key={step.id}>
+                      <div className="flex items-center gap-3">
+                        <RowTile icon={STEP_ICON[state]} tone={STEP_TONE[state]} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {index + 1}. {node?.name ?? kind}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            <span className="capitalize">{kind}</span> · scheduled {formatDate(step.scheduledAt)}
+                            {step.attemptCount > 1 && ` · attempt ${step.attemptCount}`}
+                          </p>
+                        </div>
+                        <Badge variant={STEP_BADGE[state]}>{stepStatusLabel(step.status)}</Badge>
                       </div>
-                      <p className="mt-1 text-xs capitalize text-muted-foreground">
-                        {step.nodeType.replaceAll('_', ' ')} · scheduled {formatDate(step.scheduledAt)} · attempt {step.attemptCount}
-                      </p>
-                      {step.lastError && <p className="mt-2 rounded-md bg-destructive/6 p-2 text-xs text-destructive">{step.lastError}</p>}
+                      {step.lastError && (
+                        <p className="mt-2 ml-11 rounded-md bg-exception/6 px-3 py-2 text-xs font-medium break-words text-exception">
+                          {step.lastError}
+                        </p>
+                      )}
                       {step.output && Object.keys(step.output).length > 0 && (
-                        <details className="mt-2 rounded-md border border-rule/60 bg-field">
-                          <summary className="cursor-pointer px-3 py-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-ring">
-                            Step output
+                        <details className="mt-2 ml-11 rounded-md bg-band/60">
+                          <summary className="cursor-pointer rounded-md px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+                            What it did
                           </summary>
-                          <pre className="max-h-64 overflow-auto border-t border-rule/60 p-3 text-label text-muted-foreground">
+                          <pre className="max-h-64 overflow-auto border-t border-rule/40 p-3 text-label text-muted-foreground">
                             {JSON.stringify(step.output, null, 2)}
                           </pre>
                         </details>
                       )}
-                    </div>
-                  </div>
-                );
-              })}
-              {!run.steps.length && <p className="rounded-md bg-muted p-4 text-sm text-muted-foreground">No steps have started yet.</p>}
-            </div>
-          </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </SettingsSection>
         </div>
       )}
     </Drawer>

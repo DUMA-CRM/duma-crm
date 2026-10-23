@@ -23,9 +23,9 @@ import {
   setCmsActiveStorage,
   verifyCmsStorageConnection,
 } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { EditStorageDialog } from './EditStorageDialog';

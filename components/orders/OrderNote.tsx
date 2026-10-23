@@ -7,7 +7,7 @@ import { FileText, Loader2, Pencil, Plus } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
 import { updateOrderNotes } from '@/lib/modules/ordering/client';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
 
 import { invalidateOrder } from './StatusMenu';
 

@@ -12,9 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { type StockItem, type StockUnit, setStockUnitCost } from '@/lib/modules/inventory/client';
+import { toast } from '@/lib/toast';
 import { formatCurrency } from '@/lib/utils/currencies';
 import { containerPrice, unitCostFromPrice } from '@/lib/utils/stock-cost';
-import { toast } from '@/stores/toastStore';
 
 /**
  * Cost per unit of measure in the workspace currency. A per-ml cost is a

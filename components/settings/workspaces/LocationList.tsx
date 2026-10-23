@@ -8,20 +8,19 @@ import { Check, ChefHat, Clock, Globe, MapPin, Pencil, Plus, Power, Store, Targe
 import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { ChoiceCards } from '@/components/shared/FormParts';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ChoiceCards } from '@/components/shared/FormParts';
 import { Modal } from '@/components/shared/Modal';
 import { StatusDot } from '@/components/shared/StatusDot';
+import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
-import { TimePicker } from '@/components/ui/time-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimePicker } from '@/components/ui/time-picker';
 
 import { hasCapability } from '@/lib/auth/capabilities';
-import { ALWAYS_OPEN_HOURS, isAlwaysOpen } from '@/lib/utils/trading-day';
 import {
   type Location,
   type LocationPayload,
@@ -37,9 +36,10 @@ import {
   updateLocation,
 } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
+import { ALWAYS_OPEN_HOURS, isAlwaysOpen } from '@/lib/utils/trading-day';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const WORKFLOWS = [
@@ -198,9 +198,7 @@ export function LocationList({ tenant }: { tenant?: Tenant }) {
                 className={cn(
                   'relative flex items-center gap-3 rounded-lg border px-3.5 py-3 transition-[border-color,background-color,box-shadow] duration-150',
                   row.isActive && !selected && 'hover:border-rule hover:bg-band/45',
-                  selected
-                    ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
-                    : 'border-rule/70 bg-background/60',
+                  selected ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-rule/70 bg-background/60',
                 )}
               >
                 <button
@@ -524,46 +522,56 @@ function LocationForm({
             hours.
           </p>
         ) : (
-        <div className="divide-y divide-rule/40 rounded-lg border border-rule/60">
-          {WEEKDAYS.map(({ key, label }) => {
-            const day = hours[key];
-            return (
-              <div key={key} className="flex h-12 items-center gap-3 px-3">
-                <Switch label={`Open on ${label}`} checked={day !== null} onChange={(open) => setDay(key, open)} />
-                <span className="w-24 text-sm font-medium text-foreground">{label}</span>
-                <AnimatePresence mode="wait" initial={false}>
-                  {day ? (
-                    <motion.div
-                      key="open"
-                      initial={{ opacity: 0, x: -6 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="flex items-center gap-1.5"
-                    >
-                      <div className="w-28">
-                        <TimePicker value={day.open} onValueChange={(value) => setTime(key, 'open', value)} required aria-label={`${label} opening time`} />
-                      </div>
-                      <span className="text-xs text-muted-foreground">to</span>
-                      <div className="w-28">
-                        <TimePicker value={day.close} onValueChange={(value) => setTime(key, 'close', value)} required aria-label={`${label} closing time`} />
-                      </div>
-                    </motion.div>
-                  ) : (
-                    <motion.span
-                      key="closed"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="text-sm text-muted-foreground"
-                    >
-                      Closed
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
-        </div>
+          <div className="divide-y divide-rule/40 rounded-lg border border-rule/60">
+            {WEEKDAYS.map(({ key, label }) => {
+              const day = hours[key];
+              return (
+                <div key={key} className="flex h-12 items-center gap-3 px-3">
+                  <Switch label={`Open on ${label}`} checked={day !== null} onChange={(open) => setDay(key, open)} />
+                  <span className="w-24 text-sm font-medium text-foreground">{label}</span>
+                  <AnimatePresence mode="wait" initial={false}>
+                    {day ? (
+                      <motion.div
+                        key="open"
+                        initial={{ opacity: 0, x: -6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center gap-1.5"
+                      >
+                        <div className="w-28">
+                          <TimePicker
+                            value={day.open}
+                            onValueChange={(value) => setTime(key, 'open', value)}
+                            required
+                            aria-label={`${label} opening time`}
+                          />
+                        </div>
+                        <span className="text-xs text-muted-foreground">to</span>
+                        <div className="w-28">
+                          <TimePicker
+                            value={day.close}
+                            onValueChange={(value) => setTime(key, 'close', value)}
+                            required
+                            aria-label={`${label} closing time`}
+                          />
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <motion.span
+                        key="closed"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="text-sm text-muted-foreground"
+                      >
+                        Closed
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
         )}
       </fieldset>
 

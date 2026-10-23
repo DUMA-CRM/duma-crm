@@ -3,21 +3,58 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { AlertTriangle, BarChart3, CheckCircle2, Plug, RefreshCw, Trash2 } from '@/components/icons';
+import { DumaSays } from '@/components/cms/DumaSays';
+import {
+  AlertTriangle,
+  BarChart3,
+  CheckCircle2,
+  ChevronRight,
+  Cloud,
+  ExternalLink,
+  KeyRound,
+  LineChart,
+  LogIn,
+  Plug,
+  RefreshCw,
+  Server,
+  Trash2,
+} from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { MiniBar } from '@/components/shared/MiniBar';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+
 import {
+  type ExternalAnalyticsData,
+  type ExternalAnalyticsProvider,
   deleteAnalyticsConnection,
   getAnalyticsConnection,
   getExternalAnalyticsData,
   saveAnalyticsConnection,
-  type ExternalAnalyticsData,
-  type ExternalAnalyticsProvider,
 } from '@/lib/modules/analytics/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
+import {
+  type AnalyticsForm,
+  EMPTY_ANALYTICS_FORM,
+  type FieldHelp,
+  HOSTING_CHOICES,
+  POSTHOG_US_API,
+  PROVIDER_CHOICES,
+  SIGN_IN_CHOICES,
+  type UmamiHosting,
+  type UmamiSignIn,
+  analyticsConnectionInput,
+  analyticsFormReady,
+  analyticsHelp,
+  apiUrlProblem,
+  formatRate,
+  formatVisitDuration,
+  setupFrom,
+  setupLabel,
+  setupOf,
+} from '@/lib/utils/analytics-connector';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ConnectWizard, ProviderGrid, WizardRail, type WizardStep } from './ConnectWizard';
@@ -25,106 +62,178 @@ import { CONNECTORS_BY_ID } from './registry';
 import { panelClass } from './shared';
 
 const DEFINITION = CONNECTORS_BY_ID.analytics;
-const PROVIDERS = [
-  { value: 'umami', label: 'Umami', hint: 'Umami Cloud or a self-hosted instance.', apiUrl: 'https://api.umami.is/v1' },
-  { value: 'posthog', label: 'PostHog', hint: 'US Cloud, EU Cloud or self-hosted.', apiUrl: 'https://us.posthog.com' },
-] as const;
+const ICONS = { umami: BarChart3, posthog: LineChart, cloud: Cloud, self: Server, apiKey: KeyRound, login: LogIn } as const;
 
 const connectionKey = (tenantId?: string | null) => moduleQueryKeys.analytics.key('external-connection', tenantId);
 
+/**
+ * The onboarding shape, one question per screen: Umami or PostHog, then for
+ * Umami where it runs, then for a self-hosted one how DUMA signs in — and
+ * only then the fields, each with where to find it.
+ */
 export function AnalyticsConnectWizard({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
   const queryClient = useQueryClient();
   const [provider, setProvider] = useState<ExternalAnalyticsProvider | null>(null);
-  const [form, setForm] = useState({ displayName: '', siteId: '', apiUrl: '', apiKey: '' });
+  const [hosting, setHosting] = useState<UmamiHosting | null>(null);
+  const [signIn, setSignIn] = useState<UmamiSignIn | null>(null);
+  const [form, setForm] = useState<AnalyticsForm>(EMPTY_ANALYTICS_FORM);
+  const [addressTouched, setAddressTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const selected = PROVIDERS.find((item) => item.value === provider);
-  const ready = Boolean(provider && form.displayName.trim() && form.siteId.trim() && form.apiKey.trim());
+  const setup = setupFrom(provider, hosting);
+  const method = signIn ?? 'apiKey';
   const save = useMutation({
-    mutationFn: () =>
-      saveAnalyticsConnection(
-        {
-          provider: provider!,
-          displayName: form.displayName.trim(),
-          siteId: form.siteId.trim(),
-          apiUrl: form.apiUrl.trim() || selected?.apiUrl,
-          apiKey: form.apiKey.trim(),
-        },
-        tenantId,
-      ),
+    mutationFn: () => saveAnalyticsConnection(analyticsConnectionInput(setup!, method, form), tenantId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: connectionKey(tenantId) });
       toast('success', 'Analytics connected and checked.');
     },
   });
-  const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const update = (key: keyof AnalyticsForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const choices = <T extends keyof typeof ICONS>(options: readonly { value: T; label: string; hint: string }[]) =>
+    options.map(({ value, label, hint }) => ({ value, label, hint, icon: ICONS[value] }));
+
   const steps: WizardStep[] = [
     {
       key: 'provider',
-      title: 'Which analytics service do you use?',
-      description: 'Choose the provider that collects your website or product usage data.',
+      title: 'Which analytics do you use?',
       ready: provider !== null,
       content: (
         <ProviderGrid
           ariaLabel="Analytics provider"
-          options={PROVIDERS.map(({ value, label, hint }) => ({ value, label, icon: BarChart3, hint }))}
+          options={choices(PROVIDER_CHOICES)}
           value={provider}
           onChange={(value) => {
             setProvider(value);
-            const item = PROVIDERS.find((option) => option.value === value);
-            setForm((current) => ({ ...current, displayName: item?.label ?? '', apiUrl: item?.apiUrl ?? '' }));
+            setHosting(null);
+            setSignIn(null);
+            setError(null);
+            setForm({
+              ...EMPTY_ANALYTICS_FORM,
+              displayName: setupLabel(value === 'posthog' ? 'posthog' : 'umami-cloud'),
+              apiUrl: value === 'posthog' ? POSTHOG_US_API : '',
+            });
           }}
         />
       ),
     },
-    {
-      key: 'details',
-      title: 'Connect your analytics project',
-      description:
-        provider === 'umami'
-          ? 'Create a read-only API key in Umami, then copy the website ID from its settings.'
-          : 'Create a personal API key in PostHog and copy the project ID from Project settings.',
-      ready,
-      continueLabel: save.isPending ? 'Checking…' : 'Connect and test',
-      onContinue: async () => {
-        setError(null);
-        try {
-          await save.mutateAsync();
-          return true;
-        } catch (failure) {
-          setError(failure instanceof Error ? failure.message : 'Could not connect analytics.');
-          return false;
-        }
-      },
+  ];
+  if (provider === 'umami') {
+    steps.push({
+      key: 'hosting',
+      title: 'Where does your Umami run?',
+      description: 'If you sign in at cloud.umami.is, it’s Umami Cloud.',
+      ready: hosting !== null,
       content: (
-        <div className="space-y-4">
-          <Input label="Connection name" autoFocus value={form.displayName} onChange={(event) => update('displayName', event.target.value)} />
+        <ProviderGrid
+          ariaLabel="Where Umami runs"
+          options={choices(HOSTING_CHOICES)}
+          value={hosting}
+          onChange={(value) => {
+            setHosting(value);
+            setSignIn(value === 'cloud' ? 'apiKey' : null);
+            setForm((current) => ({ ...current, displayName: setupLabel(value === 'cloud' ? 'umami-cloud' : 'umami-self') }));
+          }}
+        />
+      ),
+    });
+  }
+  if (provider === 'umami' && hosting === 'self') {
+    steps.push({
+      key: 'sign-in',
+      title: 'How should DUMA sign in?',
+      description: 'No “API keys” page under Settings in your Umami? Choose username and password.',
+      ready: signIn !== null,
+      content: <ProviderGrid ariaLabel="How DUMA signs in" options={choices(SIGN_IN_CHOICES)} value={signIn} onChange={setSignIn} />,
+    });
+  }
+  const help = setup ? analyticsHelp(setup, method) : null;
+  const addressProblem = setup ? apiUrlProblem(setup, form.apiUrl) : null;
+  const providerName = provider === 'posthog' ? 'PostHog' : 'Umami';
+  steps.push({
+    key: 'details',
+    title: provider === 'posthog' ? 'Connect your PostHog project' : 'Connect your Umami website',
+    ready: analyticsFormReady(setup, method, form),
+    continueLabel: save.isPending ? 'Checking…' : 'Connect and test',
+    onContinue: async () => {
+      setError(null);
+      try {
+        await save.mutateAsync();
+        return true;
+      } catch (failure) {
+        setError(failure instanceof Error ? failure.message : 'Could not connect analytics.');
+        return false;
+      }
+    },
+    content: help && (
+      <div className="space-y-5">
+        <DumaSays
+          line={save.isPending ? `Checking with ${providerName}…` : (error ?? help.intro)}
+          busy={save.isPending}
+          tone={error && !save.isPending ? 'error' : 'idle'}
+          cheer={0}
+        />
+        {help.link && (
+          <a
+            href={help.link.href}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {help.link.label} <ExternalLink size={13} aria-hidden="true" />
+          </a>
+        )}
+        {help.address && (
+          <Field help={help.address}>
+            <Input
+              label={setup === 'umami-self' ? 'Umami address' : 'API address'}
+              inputMode="url"
+              placeholder={setup === 'umami-self' ? 'https://stats.yourcafe.com' : POSTHOG_US_API}
+              value={form.apiUrl}
+              onChange={(event) => update('apiUrl', event.target.value)}
+              onBlur={() => setAddressTouched(true)}
+              error={addressTouched && addressProblem ? addressProblem : undefined}
+            />
+          </Field>
+        )}
+        <Field help={help.siteId}>
           <Input
-            label={provider === 'umami' ? 'Website ID' : 'Project ID'}
+            label={provider === 'posthog' ? 'Project ID' : 'Website ID'}
             value={form.siteId}
             onChange={(event) => update('siteId', event.target.value)}
-            hint={provider === 'umami' ? 'Found in the website settings in Umami.' : 'Found in PostHog under Project settings.'}
           />
-          <Input
-            label="API address"
-            value={form.apiUrl}
-            placeholder={selected?.apiUrl}
-            onChange={(event) => update('apiUrl', event.target.value)}
-            hint="Use the default for cloud accounts, or enter your self-hosted instance address."
-          />
-          <Input
-            label="Read-only API key"
-            type="password"
-            autoComplete="new-password"
-            value={form.apiKey}
-            onChange={(event) => update('apiKey', event.target.value)}
-            hint="Encrypted when saved. DUMA checks the key and does not show it again."
-          />
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        </div>
-      ),
-    },
-  ];
+        </Field>
+        <Field help={help.credential}>
+          {method === 'login' ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="Username"
+                autoComplete="off"
+                value={form.username}
+                onChange={(event) => update('username', event.target.value)}
+              />
+              <Input
+                label="Password"
+                type="password"
+                autoComplete="new-password"
+                value={form.password}
+                onChange={(event) => update('password', event.target.value)}
+              />
+            </div>
+          ) : (
+            <Input
+              label="API key"
+              type="password"
+              autoComplete="new-password"
+              value={form.apiKey}
+              onChange={(event) => update('apiKey', event.target.value)}
+            />
+          )}
+        </Field>
+        <Input label="Connection name" value={form.displayName} onChange={(event) => update('displayName', event.target.value)} />
+      </div>
+    ),
+  });
 
   return (
     <ConnectWizard
@@ -135,8 +244,30 @@ export function AnalyticsConnectWizard({ onClose, onDone }: { onClose: () => voi
       steps={steps}
       onClose={onClose}
       onFinish={onDone}
-      dirty={Boolean(form.apiKey)}
+      dirty={Boolean(form.apiKey || form.password)}
     />
+  );
+}
+
+/** A field with where to find its value underneath: the menu path, then one line. */
+function Field({ help, children }: { help: FieldHelp; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      {children}
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+        {help.path && (
+          <span className="flex items-center gap-1" aria-label={`Find it in ${help.path.join(', then ')}`}>
+            {help.path.map((part, index) => (
+              <span key={part} className="flex items-center gap-1">
+                {index > 0 && <ChevronRight size={11} aria-hidden="true" />}
+                <span className="rounded border border-rule/60 bg-band/60 px-1.5 py-px font-medium text-foreground">{part}</span>
+              </span>
+            ))}
+          </span>
+        )}
+        <span>{help.text}</span>
+      </div>
+    </div>
   );
 }
 
@@ -189,20 +320,27 @@ export function AnalyticsConnectorPage({ onClose, onConnect }: { onClose: () => 
       ) : connection.isError ? (
         <div className={panelClass}>
           <p className="text-sm">The analytics connection couldn’t be loaded.</p>
-          <Button size="sm" variant="outline" className="mt-3" onClick={() => void connection.refetch()}>Try again</Button>
+          <Button size="sm" variant="outline" className="mt-3" onClick={() => void connection.refetch()}>
+            Try again
+          </Button>
         </div>
       ) : connection.data ? (
         <div className="space-y-5">
           <section className={panelClass}>
             <div className="flex items-start gap-3">
-              <span className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary"><BarChart3 size={18} aria-hidden="true" /></span>
+              <span className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <BarChart3 size={18} aria-hidden="true" />
+              </span>
               <div className="min-w-0 flex-1">
                 <h2 className="text-sm font-semibold">{connection.data.displayName}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {connection.data.provider === 'umami' ? 'Umami' : 'PostHog'} · Project {connection.data.siteId}
+                  {setupLabel(setupOf(connection.data))} · {connection.data.provider === 'posthog' ? 'Project' : 'Website'}{' '}
+                  <span className="font-mono text-xs">{connection.data.siteId}</span>
                 </p>
                 {connection.data.lastTestedAt && (
-                  <p className="mt-1 text-xs text-muted-foreground">Last checked {new Date(connection.data.lastTestedAt).toLocaleString()}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Last checked {new Date(connection.data.lastTestedAt).toLocaleString()}
+                  </p>
                 )}
               </div>
               <CheckCircle2 className="text-success" size={18} aria-label="Connected" />
@@ -229,8 +367,12 @@ export function AnalyticsConnectorPage({ onClose, onConnect }: { onClose: () => 
         </div>
       ) : (
         <div className={panelClass}>
-          <p className="text-sm text-muted-foreground">Connect Umami or PostHog to test the credentials and fetch a seven-day sample.</p>
-          <Button className="mt-4 gap-1.5" onClick={onConnect}><Plug size={15} aria-hidden="true" /> Connect analytics</Button>
+          <p className="text-sm text-muted-foreground">
+            Connect Umami Cloud, a self-hosted Umami or PostHog. DUMA walks you through finding each value and tests them before saving.
+          </p>
+          <Button className="mt-4 gap-1.5" onClick={onConnect}>
+            <Plug size={15} aria-hidden="true" /> Connect analytics
+          </Button>
         </div>
       )}
     </EditorShell>
@@ -238,17 +380,71 @@ export function AnalyticsConnectorPage({ onClose, onConnect }: { onClose: () => 
 }
 
 function AnalyticsDataPreview({ data }: { data: ExternalAnalyticsData }) {
-  const lines = Object.entries(data)
-    .filter(([key]) => key !== 'provider' && key !== 'columns')
-    .map(([key, value]) => [key, JSON.stringify(value)] as const);
+  const { summary, daily, website } = data;
+  const busiest = Math.max(1, ...daily.map((day) => day.pageviews));
+  const tiles = [
+    { label: 'Pageviews', value: summary.pageviews?.toLocaleString() ?? '—' },
+    { label: 'Visitors', value: summary.visitors?.toLocaleString() ?? '—' },
+    { label: 'Bounce rate', value: formatRate(summary.bounceRate) },
+    { label: 'Avg. visit', value: formatVisitDuration(summary.avgVisitSeconds) },
+  ].filter((tile) => data.provider === 'umami' || tile.value !== '—');
   return (
-    <div className="mt-5 space-y-2 border-t border-rule/60 pt-4">
-      {lines.map(([key, value]) => (
-        <div key={key} className="grid gap-1 sm:grid-cols-[8rem_1fr]">
-          <span className="text-xs font-medium capitalize text-muted-foreground">{key}</span>
-          <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-band/60 p-2 text-xs">{value}</pre>
-        </div>
-      ))}
+    <div className="mt-5 space-y-4 border-t border-rule/60 pt-4">
+      {website?.name && (
+        <p className="text-sm">
+          <span className="font-medium">{website.name}</span>
+          {website.domain && <span className="text-muted-foreground"> · {website.domain}</span>}
+        </p>
+      )}
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {tiles.map((tile) => (
+          <div key={tile.label} className="rounded-lg border border-rule/60 px-3 py-2.5">
+            <dt className="text-xs text-muted-foreground">{tile.label}</dt>
+            <dd className="mt-1 text-lg font-semibold tabular-nums">{tile.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {daily.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No visits recorded in the last seven days. Is the tracking snippet on your website?</p>
+      ) : (
+        <table className="w-full text-sm">
+          <caption className="sr-only">Pageviews and visitors per day</caption>
+          <thead>
+            <tr className="text-left text-xs text-muted-foreground">
+              <th scope="col" className="pb-1.5 font-medium">
+                Day
+              </th>
+              <th scope="col" className="w-1/2 pb-1.5 font-medium">
+                Pageviews
+              </th>
+              <th scope="col" className="pb-1.5 text-right font-medium">
+                Visitors
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {daily.map((day) => (
+              <tr key={day.date} className="border-t border-rule/40">
+                <td className="py-1.5 tabular-nums">
+                  {new Date(`${day.date}T00:00:00Z`).toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    timeZone: 'UTC',
+                  })}
+                </td>
+                <td className="py-1.5">
+                  <div className="flex items-center gap-2">
+                    <MiniBar value={day.pageviews} max={busiest} label={`${day.pageviews} pageviews`} className="flex-1" />
+                    <span className="w-10 text-right tabular-nums">{day.pageviews.toLocaleString()}</span>
+                  </div>
+                </td>
+                <td className="py-1.5 text-right tabular-nums">{day.visitors.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       <p className="text-xs text-muted-foreground">Data stays in your analytics provider; DUMA fetches it when requested.</p>
     </div>
   );

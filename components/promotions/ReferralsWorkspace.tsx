@@ -34,6 +34,7 @@ import {
   getReferrals,
   saveReferralProgram,
 } from '@/lib/modules/referrals/client';
+import { toast } from '@/lib/toast';
 import {
   REFERRAL_STATUS_BADGE,
   REFERRAL_STATUS_LABELS,
@@ -45,7 +46,6 @@ import {
   sampleReferralCode,
 } from '@/lib/utils/referrals';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { PromotionsTabs } from './PromotionsTabs';

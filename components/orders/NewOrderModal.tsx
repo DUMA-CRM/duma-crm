@@ -40,6 +40,7 @@ import { getItemCatalog, getMenuItemModifierGroups, getMenuItemModifiers, getMen
 import { type Order, type RecordedPaymentMethod, createOrder } from '@/lib/modules/ordering/client';
 import { checkPromotionCode } from '@/lib/modules/promotions/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import {
   type BasketLine,
   RECORDED_PAYMENT_LABEL,
@@ -53,7 +54,6 @@ import {
   setLineQuantity,
 } from '@/lib/utils/manual-order';
 import { type OptionGroupRule, buildOptionGroups } from '@/lib/utils/pos';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { CatalogVariant } from '@/types/catalog';
 import type { Customer } from '@/types/customers';

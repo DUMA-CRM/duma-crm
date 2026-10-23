@@ -38,10 +38,10 @@ import {
   revokeSession,
 } from '@/lib/modules/identity/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { canReadSessionList } from '@/lib/utils/session-freshness';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

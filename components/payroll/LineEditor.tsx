@@ -12,9 +12,9 @@ import { Select } from '@/components/ui/select';
 import { type PayItem, type PayItemKind, type PayrollRunLine, setPayrollLineDeductions } from '@/lib/modules/payroll/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { presetLinesFor } from '@/lib/payroll/countries';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { expectedNet, itemTotals, netMismatch } from '@/lib/utils/payroll-totals';
-import { toast } from '@/stores/toastStore';
 
 import { useMoney } from './usePayroll';
 

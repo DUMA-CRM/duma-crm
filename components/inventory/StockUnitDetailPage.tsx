@@ -51,6 +51,7 @@ import {
   wasteStockUnit,
 } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { type ContainerStatus, isActive } from '@/lib/utils/containers';
 import { groupByDay } from '@/lib/utils/ledger';
@@ -58,7 +59,6 @@ import { containerPrice } from '@/lib/utils/stock-cost';
 import { daysUntil, expiryLabel } from '@/lib/utils/stock-item';
 import { formatCalendarDate, formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 /*
  * One physical container, laid out as the item page is: a profile panel with

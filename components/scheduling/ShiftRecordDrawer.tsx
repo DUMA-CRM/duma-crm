@@ -60,10 +60,10 @@ import {
   updateScheduledShift,
 } from '@/lib/modules/workforce/client';
 import { type Shift, adjustShift, createManualShift, deleteShift } from '@/lib/modules/workforce/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { workspaceDateKey, zonedToInstant } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 
 // ── Pay helpers ───────────────────────────────────────────────────────────────
 

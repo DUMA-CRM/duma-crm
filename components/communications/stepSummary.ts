@@ -1,28 +1,8 @@
 import type { EmailWorkflowNode } from '@/lib/modules/communications/client';
 
+import { conditionSentence } from '../../lib/utils/workflow-conditions.ts';
+
 import { TRIGGER_OPTIONS } from './shared.ts';
-
-const OPERATOR_WORDS: Record<string, string> = {
-  equals: 'is',
-  not_equals: 'isn’t',
-  greater_than: 'is more than',
-  greater_than_or_equal: 'is at least',
-  less_than: 'is less than',
-  less_than_or_equal: 'is at most',
-  contains: 'contains',
-};
-
-const FIELD_WORDS: Record<string, string> = {
-  'customer.marketingOptIn': 'the customer’s marketing opt-in',
-  'customer.tier': 'the customer’s loyalty tier',
-  'customer.pointsBalance': 'the customer’s points balance',
-  'order.status': 'the order status',
-  'order.totalAmount': 'the order total',
-  'order.paymentMethod': 'the payment method',
-  'staff.employmentType': 'the employee’s employment type',
-  'staff.locationId': 'the employee’s location',
-  'staff.role': 'the employee’s role',
-};
 
 /**
  * One sentence saying what a step does, for the top of the step panel — the
@@ -63,8 +43,7 @@ export function describeStep(
     case 'delay':
       return `Waits ${node.config.amount} ${node.config.amount === 1 ? node.config.unit.replace(/s$/, '') : node.config.unit} before the next step.`;
     case 'condition': {
-      const field = FIELD_WORDS[node.config.field] ?? node.config.field;
-      return `If ${field} ${OPERATOR_WORDS[node.config.operator] ?? node.config.operator} “${String(node.config.value)}”, it follows Yes; otherwise No.`;
+      return `If ${conditionSentence(node.config)}, it follows Yes; otherwise No.`;
     }
     default:
       return 'This branch finishes here.';

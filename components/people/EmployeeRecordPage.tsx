@@ -17,8 +17,8 @@ import { type Capability, hasCapability } from '@/lib/auth/capabilities';
 import { type StaffProfile, updateStaff } from '@/lib/modules/identity/client';
 import { getEmployee, getEmployeeHours, offboardEmployee } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 import { EmployeeAttendanceCard } from './record/AttendanceCard';
 import { EditDetailsDrawer } from './record/EditDetailsDrawer';

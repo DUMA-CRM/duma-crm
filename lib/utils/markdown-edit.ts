@@ -183,3 +183,60 @@ export function videoEmbed(url: string): { provider: 'youtube' | 'vimeo'; id: st
   }
   return null;
 }
+
+/** The block styles the editor offers, named as Notes names them: Text, Title, Heading, Subheading, Quote. */
+export type BlockKind = 'text' | 'h1' | 'h2' | 'h3' | 'quote';
+const BLOCK_PREFIXES: Record<BlockKind, string> = { text: '', h1: '# ', h2: '## ', h3: '### ', quote: '> ' };
+const ANY_BLOCK_PREFIX = /^(?:#{1,6}[ \t]+|>[ \t]?)/;
+
+/** The block style of the line the caret is on — `####` and deeper read as Subheading. */
+export function blockKindAt(text: string, caret: number): BlockKind {
+  const lineStart = text.lastIndexOf('\n', caret - 1) + 1;
+  const line = text.slice(lineStart, text.indexOf('\n', lineStart) === -1 ? text.length : text.indexOf('\n', lineStart));
+  const heading = /^(#{1,6})[ \t]/.exec(line);
+  if (heading) return heading[1]!.length === 1 ? 'h1' : heading[1]!.length === 2 ? 'h2' : 'h3';
+  return line.startsWith('>') ? 'quote' : 'text';
+}
+
+/** Give the selected lines one block style, replacing any heading or quote marker they had. */
+export function setBlockKind(text: string, start: number, end: number, kind: BlockKind): TextEdit {
+  const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+  const nextBreak = text.indexOf('\n', end > start && text[end - 1] === '\n' ? end - 1 : end);
+  const lineEnd = nextBreak === -1 ? text.length : nextBreak;
+  const insert = text
+    .slice(lineStart, lineEnd)
+    .split('\n')
+    .map((line) => `${BLOCK_PREFIXES[kind]}${line.replace(ANY_BLOCK_PREFIX, '')}`)
+    .join('\n');
+  const caret = lineStart + insert.length;
+  return { from: lineStart, to: lineEnd, insert, selectFrom: start === end ? caret : lineStart, selectTo: caret };
+}
+
+/**
+ * Fence the selected lines as a code block — or, when they already sit inside
+ * a ``` fence, take the fence away. With nothing selected, a fenced placeholder
+ * is inserted on lines of its own and selected, ready to type over.
+ */
+export function toggleCodeBlock(text: string, start: number, end: number): TextEdit {
+  const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+  const nextBreak = text.indexOf('\n', end > start && text[end - 1] === '\n' ? end - 1 : end);
+  const lineEnd = nextBreak === -1 ? text.length : nextBreak;
+  // Already fenced: the line above opens with ``` and the line below closes it.
+  const aboveStart = lineStart > 0 ? text.lastIndexOf('\n', lineStart - 2) + 1 : -1;
+  const above = aboveStart >= 0 ? text.slice(aboveStart, lineStart - 1) : null;
+  const belowEnd = lineEnd < text.length ? (text.indexOf('\n', lineEnd + 1) === -1 ? text.length : text.indexOf('\n', lineEnd + 1)) : -1;
+  const below = belowEnd >= 0 ? text.slice(lineEnd + 1, belowEnd) : null;
+  if (above !== null && below !== null && /^```/.test(above.trim()) && below.trim() === '```') {
+    const inner = text.slice(lineStart, lineEnd);
+    return { from: aboveStart, to: belowEnd, insert: inner, selectFrom: aboveStart, selectTo: aboveStart + inner.length };
+  }
+  if (start === end && text.slice(lineStart, lineEnd).trim() === '') {
+    const placeholder = 'code';
+    const edit = insertBlock(text, start, end, `\`\`\`\n${placeholder}\n\`\`\``);
+    const at = edit.from + edit.insert.indexOf(`\n${placeholder}\n`) + 1;
+    return { ...edit, selectFrom: at, selectTo: at + placeholder.length };
+  }
+  const body = text.slice(lineStart, lineEnd);
+  const insert = `\`\`\`\n${body}\n\`\`\``;
+  return { from: lineStart, to: lineEnd, insert, selectFrom: lineStart + 4, selectTo: lineStart + 4 + body.length };
+}

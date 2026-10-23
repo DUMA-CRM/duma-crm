@@ -68,6 +68,7 @@ import {
   updateCmsAsset,
   uploadCmsAsset,
 } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { formatBytes, isImage, isVideo } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
 import {
@@ -89,7 +90,6 @@ import {
   pendingFolders,
 } from '@/lib/utils/media-folders';
 import { isConvertibleImage, isConvertibleVideo, renditionWidths } from '@/lib/utils/media-storage';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { assist } from './AssistSection';

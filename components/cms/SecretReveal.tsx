@@ -9,8 +9,8 @@ import { CopyButton, DrawnCheck } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { toast } from '@/lib/toast';
 import { scrambleFrame } from '@/lib/utils/motion-feedback';
-import { toast } from '@/stores/toastStore';
 
 import { copyText } from './shared';
 

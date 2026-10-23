@@ -15,10 +15,10 @@ import { useHomeCountries } from '@/lib/hooks/useHomeCountries';
 import { type CustomerAddress, getCustomer, getCustomerAddresses } from '@/lib/modules/customers/client';
 import { type OrderDetail, type OrderShippingAddress, updateOrderDetails } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { addressErrors, cleanAddress, emptyAddress, sameAddress } from '@/lib/utils/delivery-address';
 import { shippingAddressLines } from '@/lib/utils/orders-list';
-import { toast } from '@/stores/toastStore';
 import type { Customer } from '@/types/customers';
 
 import { invalidateOrder } from './StatusMenu';

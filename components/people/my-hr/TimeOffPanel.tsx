@@ -13,8 +13,8 @@ import { Button } from '@/components/ui/button';
 
 import { type LeaveEntitlement, type LeaveRequest, cancelLeaveRequest } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { splitLeaveRequests } from '@/lib/utils/my-hr';
-import { toast } from '@/stores/toastStore';
 
 import { fmt } from './shared';
 

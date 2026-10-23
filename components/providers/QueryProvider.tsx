@@ -6,11 +6,10 @@ import { useState } from 'react';
 import { OfflineOrderSync } from '@/components/providers/OfflineOrderSync';
 import { OfflineStatus } from '@/components/providers/OfflineStatus';
 import { ServiceWorkerRegistrar } from '@/components/providers/ServiceWorkerRegistrar';
-import { LoadingToast } from '@/components/shared/LoadingToast';
-import { GlobalToaster } from '@/components/shared/Toast';
+import { AppToaster } from '@/components/shared/AppToaster';
 
 import { ApiError } from '@/lib/modules/core/client';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
 
 function queryErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -35,7 +34,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       new QueryClient({
         // Failed background reads used to be completely silent — pages rendered
         // empty states indistinguishable from "no data". Surface every query
-        // failure as one toast (the store dedupes identical messages).
+        // failure as one toast (identical messages share one sileo id, so they dedupe).
         queryCache: new QueryCache({
           onError: (error, query) => {
             if (query.meta?.silentError) return;
@@ -62,8 +61,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      <LoadingToast />
-      <GlobalToaster />
+      <AppToaster />
       <OfflineOrderSync />
       <OfflineStatus />
       <ServiceWorkerRegistrar />

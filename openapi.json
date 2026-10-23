@@ -14339,6 +14339,81 @@
         }
       }
     },
+    "/v1/analytics-connections/report": {
+      "get": {
+        "operationId": "getV1AnalyticsConnectionsReport",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Website analytics for the reports dashboard",
+        "description": "Reads the connected provider for `from`–`to`. `sections` (comma list) picks what to fetch: summary, daily, active, weekly, pages, entries, referrers, channels, campaigns, countries, devices, browsers, os, events. A section the provider cannot answer is `null`.",
+        "responses": {
+          "200": {
+            "description": "The requested sections"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No analytics connected (`code: not_connected`)"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/analytics-connections/funnel": {
+      "get": {
+        "operationId": "getV1AnalyticsConnectionsFunnel",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "A funnel through pages and events (Umami)",
+        "description": "`steps` is a JSON list of 2–6 `{ type: \"page\" | \"event\", value }`. `window` is the minutes a visitor has to finish (default 60).",
+        "responses": {
+          "200": {
+            "description": "Visitors reaching each step"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No analytics connected"
+          },
+          "422": {
+            "description": "Provider has no funnels"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/analytics-connections/favicon": {
+      "get": {
+        "operationId": "getV1AnalyticsConnectionsFavicon",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "A site’s icon, for the website analytics report",
+        "description": "Fetched server-side from Google’s favicon service and cached, so browsers never call a third party. `domain` is a public hostname.",
+        "responses": {
+          "200": {
+            "description": "The icon image"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No icon for that domain"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/audit-logs": {
       "get": {
         "operationId": "getV1AuditLogs",
@@ -16445,6 +16520,27 @@
         "responses": {
           "200": {
             "description": "Test result"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/email/automation-runs": {
+      "get": {
+        "operationId": "getV1EmailAutomationRuns",
+        "tags": [
+          "Automation"
+        ],
+        "summary": "List recent workflow runs",
+        "description": "Newest 100 workflow runs for the active tenant. Optional status filter: running, completed or failed.",
+        "responses": {
+          "200": {
+            "description": "Workflow runs"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"

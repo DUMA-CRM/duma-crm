@@ -53,9 +53,9 @@ import {
   updateModifierGroup,
 } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { MenuCategoryRecord, ModifierGroup } from '@/types/menu';
 

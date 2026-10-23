@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type Booking, setBookingStatus } from '@/lib/modules/reservations/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import {
   STATUS_BADGE,
@@ -27,7 +28,6 @@ import {
   summariseDay,
 } from '@/lib/utils/reservations';
 import { workspaceTimeZone } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 
 import { useMinuteClock } from './useMinuteClock';
 

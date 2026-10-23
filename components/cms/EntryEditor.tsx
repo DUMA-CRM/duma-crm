@@ -1,11 +1,12 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
   AlertCircle,
+  AlertTriangle,
   Archive,
   CheckCircle2,
   ChevronDown,
@@ -67,12 +68,21 @@ import {
   scheduleCmsEntry,
   unpublishCmsEntry,
 } from '@/lib/modules/cms/client';
-import { cleanEntryData, entryStatusMeta, issuesByField, previewUrlFor, requiredMissing, sameEntryData } from '@/lib/utils/cms';
+import { toast } from '@/lib/toast';
+import {
+  cleanEntryData,
+  entryStatusMeta,
+  issuesByField,
+  lastTextChange,
+  previewUrlFor,
+  requiredMissing,
+  sameEntryData,
+  translationDrift,
+} from '@/lib/utils/cms';
 import { draftStorageKey, parseStoredDraft, recoveryFor } from '@/lib/utils/cms-draft';
-import { SEO_FIELD_KEY, seoChecklist, seoSnapshot } from '@/lib/utils/cms-seo';
+import { SEO_FIELD_KEY } from '@/lib/utils/cms-seo';
 import { cn } from '@/lib/utils/cn';
 import { formatInstant, resolvedTimeZone, workspaceDateKey } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { AssistSection } from './AssistSection';
@@ -80,7 +90,7 @@ import { DateTimeField } from './DateTimeField';
 import { FieldSet } from './FieldInput';
 import { FieldRows } from './FieldRows';
 import { SeoFieldRows } from './SeoFieldRows';
-import { SeoPanel, SharePreviewDialog, goToField } from './SeoPanel';
+import { SeoPanel, SharePreviewDialog, goToField, useSeoChecks } from './SeoPanel';
 import { ActionRow, ActionRows, InfoRow, InfoRows, RowMenu, type RowMenuItem, RowTile, SectionInfo } from './rows';
 import { EntryStatusBadge, PanelError, TEXTAREA_CLASS, cmsKeys, copyText, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
@@ -188,33 +198,33 @@ function LoadedEntryEditor({
   const seoData = (
     data[SEO_FIELD_KEY] && typeof data[SEO_FIELD_KEY] === 'object' && !Array.isArray(data[SEO_FIELD_KEY]) ? data[SEO_FIELD_KEY] : {}
   ) as Record<string, unknown>;
-  const seoSummary = useMemo(() => {
+  // The same checks the Search & sharing panel shows — one calculation, so the badge and the panel agree.
+  const { checks: seoChecks, snapshot: seoView } = useSeoChecks(fields, type.titleField, data, focusKeyword);
+  const seoSummary = (() => {
     if (!seoField) return null;
-    const checks = seoChecklist(seoSnapshot(fields, type.titleField, data));
     const seo = (data[SEO_FIELD_KEY] && typeof data[SEO_FIELD_KEY] === 'object' ? data[SEO_FIELD_KEY] : {}) as Record<string, unknown>;
     const empty = (seoField.fields ?? []).filter(
       (sub) => sub.type !== 'boolean' && (seo[sub.key] === undefined || seo[sub.key] === null || seo[sub.key] === ''),
     ).length;
-    const passed = checks.filter((check) => check.ok).length;
-    return { passed, total: checks.length, empty };
-  }, [seoField, fields, type.titleField, data]);
+    return { passed: seoChecks.filter((check) => check.ok).length, total: seoChecks.length, empty };
+  })();
   // What each blank SEO field falls back to — the same reading the checks and the previews use.
-  const seoPlaceholders = useMemo(() => {
-    if (!seoField) return undefined;
-    const snapshot = seoSnapshot(fields, type.titleField, data);
-    return {
-      metaTitle: snapshot.title,
-      metaDescription: snapshot.description,
-      socialTitle: snapshot.title,
-      socialDescription: snapshot.description,
-    };
-  }, [seoField, fields, type.titleField, data]);
+  const seoPlaceholders = seoField
+    ? {
+        metaTitle: seoView.title,
+        metaDescription: seoView.description,
+        socialTitle: seoView.title,
+        socialDescription: seoView.description,
+      }
+    : undefined;
   // What still stands between this draft and publishing, counted as you type.
   const missing = requiredMissing(contentFields, data);
   const requiredCount = contentFields.filter((field) => field.required && field.type !== 'boolean').length;
   const dirty = !sameEntryData(fields, data, entry.draftData);
   const draftKey = draftStorageKey(entry.id);
   const [reviewDialog, setReviewDialog] = useState<null | 'submit' | 'changes'>(null);
+  // A language version opened from the Status card while edits are unsaved — waiting for the confirm.
+  const [leavingFor, setLeavingFor] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState('');
 
   // Unsaved edits kept on this device come straight back on reload — they show
@@ -295,7 +305,7 @@ function LoadedEntryEditor({
       forgetDraft();
       setIssues([]);
       invalidateCms(queryClient);
-      toast('success', `Published${otherLanguages > 0 ? ` in ${entry.locale}` : ''}. It is live on the delivery API.`);
+      toast('success', `Published${otherLanguages > 0 ? ` in ${entry.locale}` : ''}. It is live on the delivery API.`, { critical: true });
     },
     onError: (error) => {
       // A failed publish after a successful save still changed the draft.
@@ -465,7 +475,12 @@ function LoadedEntryEditor({
           narrowAside
           aside={
             <>
-              <StatusSection entry={entry} onHistory={() => setHistoryOpen(true)} />
+              <StatusSection
+                entry={entry}
+                onHistory={() => setHistoryOpen(true)}
+                // Another language: through the same "Leave without saving?" as the language switcher.
+                onOpenVersion={(id) => (dirty ? setLeavingFor(id) : onOpenEntry(id))}
+              />
               {(entry.reviewRequestedAt || entry.reviewNote) && (
                 <SettingsSection title="Review">
                   <ReviewState entry={entry} />
@@ -727,6 +742,21 @@ function LoadedEntryEditor({
           />
         </Modal>
       )}
+      {leavingFor && (
+        <ConfirmModal
+          title="Leave without saving?"
+          message={`Your changes to the ${entry.locale} version have not been saved. Opening another language discards them.`}
+          confirmLabel="Discard and open"
+          pendingLabel="Opening…"
+          onConfirm={() => {
+            const id = leavingFor;
+            setLeavingFor(null);
+            forgetDraft();
+            onOpenEntry(id);
+          }}
+          onClose={() => setLeavingFor(null)}
+        />
+      )}
       {confirm?.kind === 'unpublish' && (
         <ConfirmModal
           title={`Unpublish the ${entry.locale} version?`}
@@ -863,7 +893,15 @@ function LanguageSwitcher({ entry, dirty, onOpenEntry }: { entry: CmsEntry; dirt
 
 // ─── Aside ───────────────────────────────────────────────────────────────────
 
-function StatusSection({ entry, onHistory }: { entry: CmsEntry; onHistory: () => void }) {
+function StatusSection({
+  entry,
+  onHistory,
+  onOpenVersion,
+}: {
+  entry: CmsEntry;
+  onHistory: () => void;
+  onOpenVersion: (id: string) => void;
+}) {
   const meta = entryStatusMeta(entry.status);
   return (
     <SettingsSection title="Status" actions={<EntryStatusBadge status={entry.status} />}>
@@ -907,12 +945,74 @@ function StatusSection({ entry, onHistory }: { entry: CmsEntry; onHistory: () =>
           />
         </InfoRow>
       </InfoRows>
+      <TranslationNotice entry={entry} onOpenVersion={onOpenVersion} />
       <div className="mt-3">
         <ActionRows>
           <ActionRow icon={History} label="Version history" onClick={onHistory} />
         </ActionRows>
       </div>
     </SettingsSection>
+  );
+}
+
+/**
+ * A small warning when this entry's languages have drifted apart: on the
+ * default language, the translations whose text is older; on a translation,
+ * when the default language changed after it. "Changed" is the last save or
+ * restore in each version's history — publishing alone doesn't count.
+ */
+function TranslationNotice({ entry, onOpenVersion }: { entry: CmsEntry; onOpenVersion: (id: string) => void }) {
+  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const versions = entry.localizations ?? [];
+  const several = versions.length > 1;
+  const locales = useQuery({
+    queryKey: cmsKeys.locales(tenantId),
+    queryFn: () => getCmsLocales(tenantId ?? undefined),
+    enabled: !!tenantId && several,
+  });
+  const histories = useQueries({
+    queries: versions.map((version) => ({
+      queryKey: cmsKeys.versions(version.id),
+      queryFn: () => getCmsEntryVersions(version.id, tenantId ?? undefined),
+      enabled: !!tenantId && several,
+      select: lastTextChange,
+    })),
+  });
+  if (!several) return null;
+  const nameOf = (code: string) => locales.data?.find((locale) => locale.code === code)?.name ?? code;
+  const defaultLocale = locales.data?.find((locale) => locale.isDefault)?.code ?? null;
+  const drift = translationDrift(
+    entry.id,
+    versions.map((version, index) => ({ ...version, changedAt: histories[index]?.data ?? null })),
+    defaultLocale,
+  );
+  if (!drift) return null;
+
+  const link = (id: string, locale: string) => (
+    <button key={id} type="button" className="underline underline-offset-2 hover:no-underline" onClick={() => onOpenVersion(id)}>
+      Open {nameOf(locale)}
+    </button>
+  );
+  return (
+    <div className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured" role="status">
+      <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
+      <div className="min-w-0 space-y-1">
+        {drift.kind === 'source-newer' ? (
+          <>
+            <p>{nameOf(drift.source.locale)} changed after this version was last edited — check this one is still current.</p>
+            <p>{link(drift.source.id, drift.source.locale)}</p>
+          </>
+        ) : (
+          <>
+            <p>
+              {drift.behind.map((version) => nameOf(version.locale)).join(', ')} {drift.behind.length === 1 ? 'was' : 'were'} last edited
+              before this {nameOf(entry.locale)} version — {drift.behind.length === 1 ? 'it' : 'they'} may be out of date.
+            </p>
+            <p className="flex flex-wrap gap-x-3">{drift.behind.map((version) => link(version.id, version.locale))}</p>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

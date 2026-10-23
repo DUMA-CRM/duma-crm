@@ -63,6 +63,7 @@ import {
   ClipboardCheckIcon,
   ClipboardListIcon,
   ClockIcon,
+  CloudIcon,
   CloudOffIcon,
   CloudUploadIcon,
   CodeIcon,
@@ -81,14 +82,15 @@ import {
   Delete02Icon,
   DeleteColumnIcon,
   DeleteRowIcon,
-  DrawingModeIcon,
   DownloadIcon,
+  DrawingModeIcon,
   DropletIcon,
   DropletsIcon,
   Edit03Icon,
   EggIcon,
   EqualSignIcon,
   ExternalLinkIcon,
+  FilterIcon,
   EyeIcon,
   EyeOffIcon,
   File01Icon,
@@ -315,6 +317,7 @@ export const ClipboardCheck = /*#__PURE__*/ glyph(ClipboardCheckIcon, 'Clipboard
 export const ClipboardList = /*#__PURE__*/ glyph(ClipboardListIcon, 'ClipboardList');
 export const Clock = /*#__PURE__*/ glyph(ClockIcon, 'Clock');
 export const Clock3 = /*#__PURE__*/ glyph(ClockIcon, 'Clock3');
+export const Cloud = /*#__PURE__*/ glyph(CloudIcon, 'Cloud');
 export const CloudOff = /*#__PURE__*/ glyph(CloudOffIcon, 'CloudOff');
 export const CloudUpload = /*#__PURE__*/ glyph(CloudUploadIcon, 'CloudUpload');
 export const Beer = /*#__PURE__*/ glyph(BeerIcon, 'Beer');
@@ -361,6 +364,7 @@ export const Droplets = /*#__PURE__*/ glyph(DropletsIcon, 'Droplets');
 export const Egg = /*#__PURE__*/ glyph(EggIcon, 'Egg');
 export const Equal = /*#__PURE__*/ glyph(EqualSignIcon, 'Equal');
 export const ExternalLink = /*#__PURE__*/ glyph(ExternalLinkIcon, 'ExternalLink');
+export const Funnel = /*#__PURE__*/ glyph(FilterIcon, 'Funnel');
 export const Eye = /*#__PURE__*/ glyph(EyeIcon, 'Eye');
 export const EyeOff = /*#__PURE__*/ glyph(EyeOffIcon, 'EyeOff');
 export const FileEdit = /*#__PURE__*/ glyph(FileEditIcon, 'FileEdit');

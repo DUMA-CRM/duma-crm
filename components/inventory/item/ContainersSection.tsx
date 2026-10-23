@@ -35,6 +35,7 @@ import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { type StockItem, type StockUnit, combineStockUnits, receiveStockUnits, splitStockUnit } from '@/lib/modules/inventory/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import {
   type ContainerStatus,
@@ -49,7 +50,6 @@ import {
 import { containerPrice, unitCostFromPrice } from '@/lib/utils/stock-cost';
 import { daysUntil, expiryLabel } from '@/lib/utils/stock-item';
 import { workspaceDateKey } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 
 /*
  * An item's physical containers in the audit-log vocabulary: a view selector,

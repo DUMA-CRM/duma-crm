@@ -36,8 +36,8 @@ import { SaveBar, Switch } from '@/components/settings/controls';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { NumberStepper } from '@/components/shared/FormParts';
-import { Bone } from '@/components/shared/Skeleton';
 import { PublicQrCodeCard } from '@/components/shared/PublicQrCodeCard';
+import { Bone } from '@/components/shared/Skeleton';
 import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
@@ -58,11 +58,11 @@ import {
   saveQrOrderingConfig,
 } from '@/lib/modules/qr-ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { mediaImagePath } from '@/lib/utils/image-src';
 import { minutesLabel } from '@/lib/utils/reservations';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const EMPTY_CONTENT: QrOrderingContent = {
@@ -182,7 +182,7 @@ export function QrOrderingSettings() {
     },
     onSuccess: (published) => {
       qc.setQueryData(moduleQueryKeys.qrOrdering.key('configuration', locationId), published);
-      toast('success', 'QR menu published.');
+      toast('success', 'QR menu published.', { critical: true });
     },
     onError: (error) => toast('error', error.message || 'The QR menu was not published.'),
   });
@@ -216,7 +216,12 @@ export function QrOrderingSettings() {
   const minimum = Number(draft.minimumOrderAmount);
 
   const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
-  const switchRow = (key: 'isEnabled' | 'isPaused' | 'cardEnabled' | 'cashEnabled', icon: IconComponent, title: string, disabled = false) => (
+  const switchRow = (
+    key: 'isEnabled' | 'isPaused' | 'cardEnabled' | 'cashEnabled',
+    icon: IconComponent,
+    title: string,
+    disabled = false,
+  ) => (
     <InfoRow icon={icon} title={title}>
       <Switch checked={draft[key]} onChange={(next) => patch({ [key]: next })} label={title} disabled={!canEdit || disabled} />
     </InfoRow>
@@ -235,7 +240,15 @@ export function QrOrderingSettings() {
     unit: string,
   ) => (
     <PickerRow icon={icon} title={title} value={shown} open={open === row} onToggle={() => toggle(row)}>
-      <NumberStepper label={title} value={Number(draft[key])} min={min} max={max} step={step} unit={unit} onChange={(next) => patch({ [key]: String(next) })} />
+      <NumberStepper
+        label={title}
+        value={Number(draft[key])}
+        min={min}
+        max={max}
+        step={step}
+        unit={unit}
+        onChange={(next) => patch({ [key]: String(next) })}
+      />
       <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
     </PickerRow>
   );
@@ -275,7 +288,9 @@ export function QrOrderingSettings() {
                 <span className="truncate text-sm font-semibold text-foreground">{location?.name ?? 'This location'}</span>
               </InfoRow>
               <InfoRow icon={CheckCircle2} title="Menu published">
-                <span className={cn('text-sm', published ? 'font-semibold text-foreground' : 'text-muted-foreground/70')}>{published ?? 'Not yet'}</span>
+                <span className={cn('text-sm', published ? 'font-semibold text-foreground' : 'text-muted-foreground/70')}>
+                  {published ?? 'Not yet'}
+                </span>
               </InfoRow>
               {/* Folded away until needed, so the preview below gets the room. */}
               {publicUrl ? (
@@ -306,7 +321,7 @@ export function QrOrderingSettings() {
       }
     >
       <Section title="Ordering">
-        <fieldset disabled={!canEdit} className="space-y-3">
+        <fieldset disabled={!canEdit} className="min-w-0 space-y-3">
           {switchRow('isEnabled', QrCode, 'Take orders')}
           {switchRow('isPaused', Pause, 'Pause new orders', !draft.isEnabled)}
           {switchRow('cardEnabled', CreditCard, 'Card payments')}
@@ -334,18 +349,44 @@ export function QrOrderingSettings() {
           </PickerRow>
         </fieldset>
         {draft.isEnabled && draft.isPaused && (
-          <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">Paused — guests can browse, but checkout is closed.</p>
+          <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+            Paused — guests can browse, but checkout is closed.
+          </p>
         )}
         {!paymentsValid && <Warning>Guests can’t check out with no way to pay — turn on card payments or cash.</Warning>}
         {draft.cashEnabled && (
-          <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">Cash is paid on collection, so it’s offered on ASAP orders only.</p>
+          <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+            Cash is paid on collection, so it’s offered on ASAP orders only.
+          </p>
         )}
       </Section>
 
       <Section title="Pickup times">
-        <fieldset disabled={!canEdit} className="space-y-3">
-          {numberRow('readyIn', 'minimumNoticeMinutes', Timer, 'Ready in', minutesLabel(Number(draft.minimumNoticeMinutes), 'Straight away'), 'How long you need to make an order.', 0, 1440, 5, 'min')}
-          {numberRow('interval', 'slotIntervalMinutes', Clock, 'A pickup every', minutesLabel(Number(draft.slotIntervalMinutes)), 'How far apart pickup times are.', 5, 120, 5, 'min')}
+        <fieldset disabled={!canEdit} className="min-w-0 space-y-3">
+          {numberRow(
+            'readyIn',
+            'minimumNoticeMinutes',
+            Timer,
+            'Ready in',
+            minutesLabel(Number(draft.minimumNoticeMinutes), 'Straight away'),
+            'How long you need to make an order.',
+            0,
+            1440,
+            5,
+            'min',
+          )}
+          {numberRow(
+            'interval',
+            'slotIntervalMinutes',
+            Clock,
+            'A pickup every',
+            minutesLabel(Number(draft.slotIntervalMinutes)),
+            'How far apart pickup times are.',
+            5,
+            120,
+            5,
+            'min',
+          )}
           {numberRow(
             'perSlot',
             'maxOrdersPerSlot',
@@ -374,7 +415,7 @@ export function QrOrderingSettings() {
       </Section>
 
       <Section title="Welcome page">
-        <fieldset disabled={!canEdit} className="space-y-3">
+        <fieldset disabled={!canEdit} className="min-w-0 space-y-3">
           <PickerRow
             icon={ImagePlus}
             title="Cover photo"
@@ -470,13 +511,25 @@ export function QrOrderingSettings() {
 
       <Section title="Menu">
         {items.isPending ? (
-          <TilesSkeleton count={4} label="Loading menu" className="grid gap-2" tile="size-12" trailing="h-4 w-12" tileClassName="p-2 pr-3.5" />
+          <TilesSkeleton
+            count={4}
+            label="Loading menu"
+            className="grid gap-2"
+            tile="size-12"
+            trailing="h-4 w-12"
+            tileClassName="p-2 pr-3.5"
+          />
         ) : items.isError ? (
           <ErrorState title="Couldn’t load the menu" onRetry={() => void items.refetch()} />
         ) : allItems.length === 0 ? (
-          <EmptyState icon={Store} title="Nothing on the menu yet" description="Add products first — they appear here to show or hide." compact />
+          <EmptyState
+            icon={Store}
+            title="Nothing on the menu yet"
+            description="Add products first — they appear here to show or hide."
+            compact
+          />
         ) : (
-          <fieldset disabled={!canEdit}>
+          <fieldset disabled={!canEdit} className="min-w-0">
             <QrMenuList
               items={allItems}
               categories={categories.data ?? []}

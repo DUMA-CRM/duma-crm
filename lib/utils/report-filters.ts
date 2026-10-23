@@ -149,21 +149,42 @@ export function comparisonRange(range: DateRange, mode: CompareMode): DateRange 
   return { from: addDays(range.from, -days), to: range.from };
 }
 
-/** "1 Sep – 30 Sep 2026", "Today", or a single day — how the filter bar names the range. */
-export function rangeLabel(filters: Pick<ReportFilters, 'preset' | 'from' | 'to'>, range: DateRange): string {
-  const preset = PRESETS.find((option) => option.value === filters.preset);
-  if (preset) return preset.label;
+/**
+ * The days a range covers, as briefly as stays clear: "17 Oct 2026" for one
+ * day, "17–18 Oct 2026" inside a month, "28 Sep – 4 Oct 2026" inside a year,
+ * and both years when it crosses one. `year: false` drops the year where
+ * nothing crosses one — for a label beside another that already says it.
+ */
+function datesText(range: DateRange, { year = true }: { year?: boolean } = {}): string {
   const last = addDays(range.to, -1);
-  const sameYear = range.from.getFullYear() === last.getFullYear();
-  const day = (date: Date, withYear: boolean) =>
-    date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) });
-  if (toDateKey(range.from) === toDateKey(last)) return day(last, true);
-  return `${day(range.from, !sameYear)} – ${day(last, true)}`;
+  const dayMonth = (date: Date) => date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const tail = year ? ` ${last.getFullYear()}` : '';
+  if (toDateKey(range.from) === toDateKey(last)) return `${dayMonth(last)}${tail}`;
+  if (range.from.getFullYear() !== last.getFullYear()) {
+    return `${dayMonth(range.from)} ${range.from.getFullYear()} – ${dayMonth(last)} ${last.getFullYear()}`;
+  }
+  if (range.from.getMonth() === last.getMonth()) {
+    return `${range.from.getDate()}–${last.getDate()} ${last.toLocaleDateString('en-GB', { month: 'short' })}${tail}`;
+  }
+  return `${dayMonth(range.from)} – ${dayMonth(last)}${tail}`;
 }
 
-/** The days a range covers, as `1 Sep – 30 Sep 2026` regardless of preset — for subtitles and exports. */
+/** "Last 30 days", "Today", or the dates of a custom range — how the filter bar names the range. */
+export function rangeLabel(filters: Pick<ReportFilters, 'preset' | 'from' | 'to'>, range: DateRange): string {
+  const preset = PRESETS.find((option) => option.value === filters.preset);
+  return preset ? preset.label : datesText(range);
+}
+
+/** The days a range covers, regardless of preset — for subtitles and exports. */
 export function rangeDates(range: DateRange): string {
-  return rangeLabel({ preset: 'custom' }, range);
+  return datesText(range);
+}
+
+/** What the comparison is against, by its dates: "vs 15–16 Oct". The year only when it differs from the range's. */
+export function comparisonDates(range: DateRange, mode: CompareMode): string | null {
+  const other = comparisonRange(range, mode);
+  if (!other) return null;
+  return `vs ${datesText(other, { year: addDays(other.to, -1).getFullYear() !== addDays(range.to, -1).getFullYear() })}`;
 }
 
 /**

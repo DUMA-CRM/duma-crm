@@ -34,11 +34,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ApiError } from '@/lib/api/client';
 import { type Note, type NoteFolder, deleteNote, getNote, purgeNote, restoreNote, saveNote } from '@/lib/modules/notes/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { isDrawingNote } from '@/lib/utils/note-drawing';
 import { type NoteLength, noteLength } from '@/lib/utils/note-editor';
 import { noteTitleFrom, tagsInText } from '@/lib/utils/notes';
-import { toast } from '@/stores/toastStore';
 
 import { MoveToPage } from './MoveToPage';
 import { DriveSyncBar, useNoteDriveSync } from './NoteDriveSync';

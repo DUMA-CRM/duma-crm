@@ -14,11 +14,27 @@ export interface AnalyticsConnectionInput {
   displayName: string;
   siteId: string;
   apiUrl?: string;
+  /** API key — or, with `username`, the password of a self-hosted Umami user (before Umami 3.4). */
   apiKey: string;
+  username?: string;
 }
-export type ExternalAnalyticsData = Record<string, unknown> & { provider: ExternalAnalyticsProvider };
+export interface ExternalAnalyticsData {
+  provider: ExternalAnalyticsProvider;
+  /** Umami only: the website the ID points at. */
+  website?: { name: string | null; domain: string | null };
+  summary: {
+    pageviews: number | null;
+    visitors: number | null;
+    visits: number | null;
+    /** 0–1. */
+    bounceRate: number | null;
+    avgVisitSeconds: number | null;
+  };
+  daily: { date: string; pageviews: number; visitors: number }[];
+}
 const tenantQuery = (tenantId?: string) => (tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '');
-export const getAnalyticsConnection = (tenantId?: string) => apiFetch<AnalyticsConnection | null>(`/analytics-connections${tenantQuery(tenantId)}`);
+export const getAnalyticsConnection = (tenantId?: string) =>
+  apiFetch<AnalyticsConnection | null>(`/analytics-connections${tenantQuery(tenantId)}`);
 export const saveAnalyticsConnection = (input: AnalyticsConnectionInput, tenantId?: string) =>
   apiFetch<AnalyticsConnection>(`/analytics-connections${tenantQuery(tenantId)}`, {
     method: 'PUT',
@@ -28,6 +44,62 @@ export const deleteAnalyticsConnection = (tenantId?: string) =>
   apiFetch<void>(`/analytics-connections${tenantQuery(tenantId)}`, { method: 'DELETE' });
 export const getExternalAnalyticsData = (tenantId?: string) =>
   apiFetch<ExternalAnalyticsData>(`/analytics-connections/data${tenantQuery(tenantId)}`);
+
+// ── Website analytics report (2026-10-23) ───────────────────────────────────
+
+export type BreakdownKey =
+  | 'pages'
+  | 'entries'
+  | 'referrers'
+  | 'channels'
+  | 'campaigns'
+  | 'countries'
+  | 'devices'
+  | 'browsers'
+  | 'os'
+  | 'events';
+export type ReportSection = 'summary' | 'daily' | 'hourly' | 'active' | 'weekly' | 'eventsDaily' | 'eventsHourly' | BreakdownKey;
+export interface BreakdownRow {
+  key: string;
+  value: number;
+}
+/** Only the sections asked for are present; a section the provider can't answer is `null`. */
+export interface WebAnalyticsReport {
+  provider: ExternalAnalyticsProvider;
+  summary?: ExternalAnalyticsData['summary'];
+  daily?: ExternalAnalyticsData['daily'];
+  /** Short ranges: hour by hour, keyed `YYYY-MM-DD HH` in the requested timezone. */
+  hourly?: { hour: string; pageviews: number; visitors: number }[];
+  /** Custom events over time, one row per bucket (`YYYY-MM-DD` or `YYYY-MM-DD HH`) and event. */
+  eventSeries?: { bucket: string; event: string; count: number }[];
+  /** Visitors in the last five minutes. */
+  active?: number | null;
+  /** 7 rows, Monday first, of 24 hours. */
+  weekly?: number[][] | null;
+  breakdowns: Partial<Record<BreakdownKey, BreakdownRow[] | null>>;
+}
+export interface FunnelStep {
+  type: 'page' | 'event';
+  value: string;
+}
+export interface FunnelStepResult extends FunnelStep {
+  visitors: number;
+}
+
+export const getWebAnalyticsReport = (params: { from: string; to: string; timezone: string; sections: ReportSection[] }) =>
+  apiFetch<WebAnalyticsReport>(
+    `/analytics-connections/report?${new URLSearchParams({ from: params.from, to: params.to, timezone: params.timezone, sections: params.sections.join(',') })}`,
+  );
+
+export const getWebAnalyticsFunnel = (params: { from: string; to: string; steps: FunnelStep[]; window?: number }) =>
+  apiFetch<FunnelStepResult[]>(
+    `/analytics-connections/funnel?${new URLSearchParams({
+      from: params.from,
+      to: params.to,
+      steps: JSON.stringify(params.steps),
+      window: String(params.window ?? 60),
+    })}`,
+  );
 
 export interface AnalyticsRangeParams {
   from: string;

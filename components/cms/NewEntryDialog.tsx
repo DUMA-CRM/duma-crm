@@ -12,8 +12,8 @@ import { Select } from '@/components/ui/select';
 
 import { ApiError } from '@/lib/api/client';
 import { createCmsEntry, getCmsContentTypes, getCmsLocales } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { cmsKeys, invalidateCms } from './shared';

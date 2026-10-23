@@ -3,8 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { TriggerPicker } from '@/components/automation/TriggerPicker';
-import { FileText, Loader2, Play, PlugZap, TriangleAlert } from '@/components/icons';
+import { FileText, Loader2, PlugZap, TriangleAlert } from '@/components/icons';
+import { SaveBar } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,6 @@ import {
   type EmailWorkflowDefinition,
   type EmailWorkflowNode,
   createEmailAutomation,
-  getEmailAutomationRuns,
   getEmailConnection,
   getEmailTemplates,
   publishEmailAutomation,
@@ -23,15 +22,14 @@ import {
 import { getSegments } from '@/lib/modules/customers/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { cn } from '@/lib/utils/cn';
+import { toast } from '@/lib/toast';
 import { connectionState, hasUnpublishedChanges } from '@/lib/utils/communications';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { AutomationSidebar } from './AutomationSidebar';
 import { EmailPreviewDrawer } from './EmailPreviewDrawer';
+import { PanCanvas } from './PanCanvas';
 import { PublishDialog } from './PublishDialog';
-import { WorkflowRunDrawer } from './WorkflowRunDrawer';
 import { type InsertType, WorkflowTree } from './WorkflowTree';
 import { useEmailAccess } from './useEmailAccess';
 import {
@@ -43,9 +41,8 @@ import {
   updateWorkflowNode,
   workflowErrors,
   workflowForAutomation,
-  workflowSummary,
+  workflowIssues,
 } from './workflowModel';
-import { DOT_GRID_STYLE } from './workflowNodes';
 
 export function AutomationEditorPage({
   automation,
@@ -69,10 +66,10 @@ export function AutomationEditorPage({
   );
   const [selectedId, setSelectedId] = useState(definition.nodes[0]?.id ?? '');
   const [savedId, setSavedId] = useState(automation?.id ?? null);
-  const [choosingTrigger, setChoosingTrigger] = useState(!automation);
+  // A new workflow opens on its trigger step, the event list open in the rail — one page, no pre-screens.
+  const [hasChosenTrigger, setHasChosenTrigger] = useState(!!automation);
   const [previewing, setPreviewing] = useState(false);
   const [confirmingPublish, setConfirmingPublish] = useState(false);
-  const [openedRunId, setOpenedRunId] = useState<string | null>(null);
   const snapshot = JSON.stringify({ name, definition });
   const [initialSnapshot, setInitialSnapshot] = useState(snapshot);
 
@@ -99,20 +96,19 @@ export function AutomationEditorPage({
     enabled: !!tenantId && access.canReadConnection,
     retry: false,
   });
-  const { data: runs = [] } = useQuery({
-    queryKey: moduleQueryKeys.automation.key('email-automation-runs', savedId, tenantId),
-    queryFn: () => getEmailAutomationRuns(savedId ?? '', tenantId ?? undefined),
-    enabled: !!savedId && !!tenantId,
-    refetchInterval: 30_000,
-  });
   const hasEmail = definition.nodes.some((node) => node.type === 'send_email');
   const usableTemplates = templates.filter((template) => template.isActive);
 
   const selected = definition.nodes.find((node) => node.id === selectedId);
+  // Checked on every change — no Check button: problems show in the "needs you" card and on their steps.
+  const issues = workflowIssues(definition);
   const errors = workflowErrors(definition);
+  const stepIssues = new Map<string, string[]>();
+  for (const issue of issues) if (issue.nodeId) stepIssues.set(issue.nodeId, [...(stepIssues.get(issue.nodeId) ?? []), issue.message]);
+  if (definition.nodes.some((node) => node.type === 'create_task') && !access.canManageTasks)
+    errors.push('Creating task workflows requires helpdesk management permission.');
   const selectedTemplate =
     selected?.type === 'send_email' ? templates.find((template) => template.id === selected.config.templateId) : undefined;
-  const summary = workflowSummary(definition, (id) => templates.find((template) => template.id === id)?.name ?? 'an email');
   const dirty = snapshot !== initialSnapshot;
   const connectionStatus = connectionState(connection, access.canReadConnection);
   // Only warn about what we know is wrong.
@@ -141,7 +137,8 @@ export function AutomationEditorPage({
   };
   const save = useMutation({
     mutationFn: (publish: boolean) => persist(publish),
-    onSuccess: (saved, published) => toast('success', published ? `“${saved.name}” is live.` : 'Workflow draft saved.'),
+    onSuccess: (saved, published) =>
+      toast('success', published ? `“${saved.name}” is live.` : 'Workflow draft saved.', { critical: published }),
     onError: (error) => toast('error', error.message),
   });
 
@@ -183,7 +180,19 @@ export function AutomationEditorPage({
 
   // What stands between this workflow and publishing, in the shared card.
   const attention: NeedsAttentionItem[] = [
-    ...(!usableTemplates.length && !templatesLoading
+    ...(!hasChosenTrigger && triggerNode
+      ? [
+          {
+            key: 'trigger',
+            tone: 'measured' as const,
+            icon: TriangleAlert,
+            title: 'Choose what starts this workflow',
+            detail: 'Pick an event in the panel on the right.',
+            fix: { label: 'Choose', run: () => setSelectedId(triggerNode.id) },
+          },
+        ]
+      : []),
+    ...(hasEmail && !usableTemplates.length && !templatesLoading
       ? [
           {
             key: 'no-template',
@@ -207,34 +216,31 @@ export function AutomationEditorPage({
           },
         ]
       : []),
-    ...errors.map((error) => ({ key: `error-${error}`, tone: 'measured' as const, icon: TriangleAlert, title: error })),
+    // Each problem, with a Show that selects the step it's about.
+    ...issues.map((issue) => ({
+      key: `error-${issue.nodeId ?? ''}-${issue.message}`,
+      tone: 'measured' as const,
+      icon: TriangleAlert,
+      title: issue.message,
+      fix: issue.nodeId ? { label: 'Show', run: () => setSelectedId(issue.nodeId!) } : undefined,
+    })),
+    ...(definition.nodes.some((node) => node.type === 'create_task') && !access.canManageTasks
+      ? [
+          {
+            key: 'task-permission',
+            tone: 'measured' as const,
+            icon: TriangleAlert,
+            title: 'Creating task workflows requires helpdesk management permission.',
+          },
+        ]
+      : []),
   ];
 
-  if (choosingTrigger && !readOnly)
-    return (
-      <EditorShell
-        title={automation ? 'Change workflow trigger' : 'New workflow'}
-        onClose={() => (automation ? setChoosingTrigger(false) : onClose())}
-      >
-        <TriggerPicker
-          current={triggerNode?.type === 'trigger' ? triggerNode.config.event : undefined}
-          onChoose={(event) => {
-            if (triggerNode?.type === 'trigger')
-              updateNode({
-                ...triggerNode,
-                config: {
-                  event,
-                  timezone: triggerNode.config.timezone,
-                  offsetDays: event === 'customer_inactive' ? 30 : 0,
-                  ...(event === 'reservation_reminder' ? { offsetHours: 24 } : {}),
-                },
-              });
-            setChoosingTrigger(false);
-            if (triggerNode) setSelectedId(triggerNode.id);
-          }}
-        />
-      </EditorShell>
-    );
+  const discard = () => {
+    if (!automation) return onClose();
+    setName(automation.name);
+    setDefinition(workflowForAutomation(automation));
+  };
 
   return (
     <EditorShell
@@ -244,32 +250,12 @@ export function AutomationEditorPage({
       flush
       actions={
         <>
-          {!readOnly && (
-            <Button variant="outline" className="h-9" onClick={() => setChoosingTrigger(true)}>
-              Change trigger
-            </Button>
-          )}
-          {!readOnly && (
-            <Button
-              variant="outline"
-              className="h-9 gap-2"
-              onClick={() => (errors.length ? toast('error', errors[0]) : toast('success', 'Workflow is valid and ready to publish.'))}
-            >
-              <Play size={15} />
-              <span className="hidden sm:inline">Check</span>
-            </Button>
-          )}
-          {access.canWrite && (
-            <Button variant="outline" className="h-9" disabled={!name.trim() || save.isPending} onClick={() => save.mutate(false)}>
-              Save draft
-            </Button>
-          )}
           {/* Publishing goes through the blast-radius dialog rather than firing
               straight from the button — see PublishDialog. */}
           {/* Publishing saves first, so it needs both. */}
           {access.canWrite && access.canPublish && (
             <Button
-              className="h-9 gap-2 px-5"
+              className="h-9 gap-2 px-3 sm:px-5"
               disabled={!name.trim() || !!errors.length || save.isPending}
               onClick={() => setConfirmingPublish(true)}
             >
@@ -280,39 +266,10 @@ export function AutomationEditorPage({
       }
     >
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(36rem,1fr)_22rem]">
-        <main className="min-h-0 overflow-auto bg-band p-4 md:p-6">
-          <div className="mx-auto max-w-5xl">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">{summary}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {readOnly
-                    ? 'You can read this workflow but not change it. Select a step to see its settings.'
-                    : 'Select a step to change it. Drag a step by its handle to reorder, or use + on a line to insert one.'}
-                </p>
-              </div>
-              <span className="flex shrink-0 items-center gap-1.5">
-                {unpublished && (
-                  <span className="rounded-sm bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured">
-                    Unpublished changes
-                  </span>
-                )}
-                <span
-                  className={cn(
-                    'rounded-sm px-1.5 py-0.5 text-micro font-semibold',
-                    automation?.isEnabled ? 'bg-momentum/10 text-momentum' : 'bg-band text-muted-foreground',
-                  )}
-                >
-                  {automation?.isEnabled
-                    ? `Live · v${automation.publishedVersion}`
-                    : automation?.publishedVersion
-                      ? `Off · v${automation.publishedVersion}`
-                      : savedId
-                        ? 'Draft'
-                        : 'New'}
-                </span>
-              </span>
-            </div>
+        {/* The canvas takes the whole main area; the "needs you" card above it, the SaveBar below. */}
+        <main className="relative flex min-h-0 flex-col bg-band p-4 md:p-6">
+          <div className="flex min-h-0 flex-1 flex-col">
+            {/* What stands between this workflow and publishing — the shared "needs you" card, each item with its fix. */}
             {!readOnly && (
               <NeedsAttention
                 items={attention}
@@ -320,19 +277,45 @@ export function AutomationEditorPage({
                 className="mb-4"
               />
             )}
-            <div className="min-h-150 overflow-auto rounded-lg border border-rule/60 bg-card p-5" style={DOT_GRID_STYLE}>
-              <WorkflowTree
-                definition={definition}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                onInsert={addNode}
-                onMove={moveNode}
-                onDuplicate={duplicateNode}
-                onRemove={removeNode}
-                templateName={templateNameFor}
-                readOnly={readOnly}
-              />
-            </div>
+            <PanCanvas>
+              <div className="p-5">
+                <WorkflowTree
+                  definition={definition}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  onInsert={addNode}
+                  onMove={moveNode}
+                  onDuplicate={duplicateNode}
+                  onRemove={removeNode}
+                  templateName={templateNameFor}
+                  triggerNames={{
+                    location: (id) => locations.find((location) => location.id === id)?.name,
+                    segment: (id) => segments.find((segment) => segment.id === id)?.name,
+                  }}
+                  triggerPending={!hasChosenTrigger}
+                  issues={readOnly ? undefined : stepIssues}
+                  readOnly={readOnly}
+                />
+              </div>
+            </PanCanvas>
+            {/* Floats over the foot of the canvas, clear of the zoom controls — the canvas keeps its full height. */}
+            {access.canWrite && (
+              <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-center md:inset-x-6 md:bottom-6">
+                <div className="pointer-events-auto w-full max-w-xl sm:mr-40">
+                  <SaveBar
+                    dirty={dirty || !savedId}
+                    saving={save.isPending}
+                    saveLabel="Save draft"
+                    disabled={!name.trim()}
+                    message={
+                      !name.trim() ? 'Give the workflow a name' : savedId ? 'Unsaved changes — not live until you publish' : 'Not saved yet'
+                    }
+                    onSave={() => save.mutate(false)}
+                    onDiscard={discard}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </main>
 
@@ -347,7 +330,6 @@ export function AutomationEditorPage({
           staffAudience={staffAudience}
           bookingAudience={bookingAudience}
           triggerEvent={triggerNode?.type === 'trigger' ? triggerNode.config.event : ''}
-          runs={runs.slice(0, 20)}
           now={now}
           readOnly={readOnly}
           templateName={templateNameFor}
@@ -355,7 +337,16 @@ export function AutomationEditorPage({
           onDuplicate={duplicateNode}
           onRemove={removeNode}
           onPreview={() => setPreviewing(true)}
-          onOpenRun={setOpenedRunId}
+          unpublished={unpublished}
+          stepIssues={selected && !readOnly ? stepIssues.get(selected.id) : undefined}
+          chooseTrigger={!hasChosenTrigger}
+          onTriggerChosen={() => {
+            if (hasChosenTrigger) return;
+            setHasChosenTrigger(true);
+            // As the old flow did, go on to the first action: what should happen.
+            const firstAction = definition.nodes.find((node) => node.type === 'send_email' || node.type === 'create_task');
+            if (firstAction) setSelectedId(firstAction.id);
+          }}
         />
       </div>
       {previewing && selectedTemplate && (
@@ -386,7 +377,6 @@ export function AutomationEditorPage({
           onClose={() => setConfirmingPublish(false)}
         />
       )}
-      {openedRunId && <WorkflowRunDrawer runId={openedRunId} onClose={() => setOpenedRunId(null)} />}
     </EditorShell>
   );
 }

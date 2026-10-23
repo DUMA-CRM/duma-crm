@@ -11,9 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { type CmsAsset, type CmsMediaGroup, getCmsAssets, uploadCmsAsset } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { isImage } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { createRenditions } from './renditions';

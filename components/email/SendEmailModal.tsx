@@ -14,8 +14,8 @@ import { Select } from '@/components/ui/select';
 import { getEmailTemplates, sendEmail } from '@/lib/modules/communications/client';
 import { getMarketingPreferences } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 interface SendEmailModalProps {

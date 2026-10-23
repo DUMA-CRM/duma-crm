@@ -20,7 +20,7 @@ import { type WorkspaceApiKey, getWorkspaceApiKeys, revokeWorkspaceApiKey } from
 import { type CmsApiKey, getCmsApiKeys, revokeCmsApiKey } from '@/lib/api/cms.service';
 import { getLocations } from '@/lib/api/workspace.service';
 import { SCOPES, apisOf, canManageKey, grantableScopes, isContentApi, keyNeedsLocation } from '@/lib/developers/api-reference';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { NewApiKeyDialog } from './NewApiKeyDialog';

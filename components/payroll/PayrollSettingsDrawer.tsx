@@ -14,8 +14,8 @@ import { Select } from '@/components/ui/select';
 import { PAYROLL_PERIODS, type PayrollPeriod, type PayrollSchedule, savePayrollSchedule } from '@/lib/modules/payroll/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { GENERIC_LINES, PAYROLL_COUNTRIES, countryByCode } from '@/lib/payroll/countries';
+import { toast } from '@/lib/toast';
 import { PERIOD_LABEL } from '@/lib/utils/payroll-periods';
-import { toast } from '@/stores/toastStore';
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 

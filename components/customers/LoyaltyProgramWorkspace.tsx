@@ -27,8 +27,8 @@ import {
 import { getMenuCategories, getMenuItems, getModifierGroups } from '@/lib/api/menu.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 type Draft = LoyaltyProgramInput & { id?: string };

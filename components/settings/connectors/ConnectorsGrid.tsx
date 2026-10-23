@@ -25,10 +25,10 @@ import { disconnectGoogleDrive, getGoogleDriveStatus, startGoogleDriveConnect } 
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { getPaymentConnections } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { type ConnectorAccount, type ConnectorAction, ConnectorRow } from './ConnectorRow';
@@ -98,7 +98,12 @@ export function ConnectorsGrid() {
   const googleKey = moduleQueryKeys.notes.key('google-status');
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const driveVisible = visible(CONNECTORS.find((definition) => definition.id === 'google-drive')!);
-  const { data: google, isLoading: googleLoading } = useQuery({ queryKey: googleKey, queryFn: getGoogleDriveStatus, enabled: driveVisible, retry: false });
+  const { data: google, isLoading: googleLoading } = useQuery({
+    queryKey: googleKey,
+    queryFn: getGoogleDriveStatus,
+    enabled: driveVisible,
+    retry: false,
+  });
   const connectGoogle = useMutation({
     mutationFn: startGoogleDriveConnect,
     onSuccess: ({ url }) => window.location.assign(url),
@@ -132,115 +137,123 @@ export function ConnectorsGrid() {
   const cards = CONNECTORS.filter(visible)
     .filter((definition) => definition.id !== 'google-drive' || google?.configured === true)
     .map((definition) => {
-    if (definition.id === 'email') {
-      const checked = relativeTime(emailConnection?.lastTestedAt);
-      const accounts: ConnectorAccount[] = emailConnection
-        ? [
-            {
-              label: emailConnection.fromEmail || emailConnection.username,
-              meta: emailState === 'paused' ? 'Sending is paused' : checked ? `Checked ${checked}` : 'Not checked yet',
-            },
-          ]
-        : [];
-      const action: ConnectorAction = emailConnection
-        ? emailState === 'attention'
-          ? { label: 'Re-connect', onClick: () => open('email', 'connect') }
-          : { label: 'Manage', onClick: () => open('email') }
-        : { label: 'Choose a provider', onClick: () => open('email', 'connect') };
-      return {
-        definition,
-        state: emailState,
-        accounts,
-        action,
-        alert:
-          emailState === 'attention'
-            ? {
-                title: 'The last check failed',
-                detail: emailConnection?.lastTestError ?? 'Re-enter the mailbox password to restore sending.',
-              }
-            : undefined,
-      };
-    }
+      if (definition.id === 'email') {
+        const checked = relativeTime(emailConnection?.lastTestedAt);
+        const accounts: ConnectorAccount[] = emailConnection
+          ? [
+              {
+                label: emailConnection.fromEmail || emailConnection.username,
+                meta: emailState === 'paused' ? 'Sending is paused' : checked ? `Checked ${checked}` : 'Not checked yet',
+              },
+            ]
+          : [];
+        const action: ConnectorAction = emailConnection
+          ? emailState === 'attention'
+            ? { label: 'Re-connect', onClick: () => open('email', 'connect') }
+            : { label: 'Manage', onClick: () => open('email') }
+          : { label: 'Choose a provider', onClick: () => open('email', 'connect') };
+        return {
+          definition,
+          state: emailState,
+          accounts,
+          action,
+          alert:
+            emailState === 'attention'
+              ? {
+                  title: 'The last check failed',
+                  detail: emailConnection?.lastTestError ?? 'Re-enter the mailbox password to restore sending.',
+                }
+              : undefined,
+        };
+      }
 
-    if (definition.id === 'card-payments') {
-      const all = paymentMethods ?? [];
-      // Name an active reader first, so a paused backup doesn't headline the card.
-      const [first, ...rest] = [...all.filter((reader) => reader.isActive !== false), ...all.filter((reader) => reader.isActive === false)];
-      const accounts: ConnectorAccount[] = first ? [{ label: first.displayName, meta: PROVIDER_LABELS[first.provider] }] : [];
-      const action: ConnectorAction = first
-        ? { label: 'Manage', onClick: () => open('card-payments') }
-        : { label: 'Choose a provider', onClick: () => open('card-payments', 'connect'), disabled: !locationId };
-      return { definition, state: paymentsState, accounts, extraAccountCount: rest.length, action };
-    }
+      if (definition.id === 'card-payments') {
+        const all = paymentMethods ?? [];
+        // Name an active reader first, so a paused backup doesn't headline the card.
+        const [first, ...rest] = [
+          ...all.filter((reader) => reader.isActive !== false),
+          ...all.filter((reader) => reader.isActive === false),
+        ];
+        const accounts: ConnectorAccount[] = first ? [{ label: first.displayName, meta: PROVIDER_LABELS[first.provider] }] : [];
+        const action: ConnectorAction = first
+          ? { label: 'Manage', onClick: () => open('card-payments') }
+          : { label: 'Choose a provider', onClick: () => open('card-payments', 'connect'), disabled: !locationId };
+        return { definition, state: paymentsState, accounts, extraAccountCount: rest.length, action };
+      }
 
-    if (definition.id === 'media-storage') {
-      const state = storageConnectorState(storage);
-      const active = storage?.connections.find((connection) => connection.isActive);
-      const accounts: ConnectorAccount[] = !storage
-        ? []
-        : active
-          ? [{ label: active.displayName, meta: storageProviderLabel(active) }]
-          : [{ label: 'DUMA storage', meta: `${formatBytes(storage.builtIn.usedBytes)} of ${formatBytes(storage.builtIn.quotaBytes)} free tier used` }];
-      const action: ConnectorAction =
-        state === 'attention'
-          ? { label: 'Fix', onClick: () => open('media-storage') }
-          : (storage?.connections.length ?? 0) > 0
-            ? { label: 'Manage', onClick: () => open('media-storage') }
-            : { label: 'Choose a provider', onClick: () => open('media-storage', 'connect') };
-      return {
-        definition,
-        state,
-        accounts,
-        extraAccountCount: Math.max(0, (storage?.connections.length ?? 0) - 1),
-        action,
-        alert: state === 'attention' ? { title: 'The last check failed', detail: active?.lastError ?? undefined } : undefined,
-      };
-    }
-
-    if (definition.id === 'google-drive') {
-      const canSync = google?.canSync === true;
-      // Connected before sync existed (read-only access), or Google stopped accepting it: reconnect.
-      const state: ConnectorState = !google?.status || google.status === 'revoked' ? 'disconnected' : canSync ? 'connected' : 'attention';
-      const accounts: ConnectorAccount[] = google?.email && state !== 'disconnected' ? [{ label: google.email, meta: 'Only you' }] : [];
-      const action: ConnectorAction =
-        state === 'connected'
-          ? { label: 'Disconnect', onClick: () => setConfirmDisconnect(true) }
-          : {
-              label: state === 'attention' ? 'Re-connect' : 'Connect',
-              onClick: () => connectGoogle.mutate(),
-              disabled: connectGoogle.isPending,
-            };
-      return {
-        definition,
-        state,
-        accounts,
-        action,
-        alert:
+      if (definition.id === 'media-storage') {
+        const state = storageConnectorState(storage);
+        const active = storage?.connections.find((connection) => connection.isActive);
+        const accounts: ConnectorAccount[] = !storage
+          ? []
+          : active
+            ? [{ label: active.displayName, meta: storageProviderLabel(active) }]
+            : [
+                {
+                  label: 'DUMA storage',
+                  meta: `${formatBytes(storage.builtIn.usedBytes)} of ${formatBytes(storage.builtIn.quotaBytes)} free tier used`,
+                },
+              ];
+        const action: ConnectorAction =
           state === 'attention'
-            ? {
-                title: google?.status === 'error' ? 'Google stopped accepting the connection' : 'DUMA needs permission to save Docs',
-                detail: google?.lastError ?? 'Connect again and allow DUMA to create files in your Drive.',
-              }
-            : undefined,
-      };
-    }
+            ? { label: 'Fix', onClick: () => open('media-storage') }
+            : (storage?.connections.length ?? 0) > 0
+              ? { label: 'Manage', onClick: () => open('media-storage') }
+              : { label: 'Choose a provider', onClick: () => open('media-storage', 'connect') };
+        return {
+          definition,
+          state,
+          accounts,
+          extraAccountCount: Math.max(0, (storage?.connections.length ?? 0) - 1),
+          action,
+          alert: state === 'attention' ? { title: 'The last check failed', detail: active?.lastError ?? undefined } : undefined,
+        };
+      }
 
-    if (definition.id === 'analytics') {
-      const connected = Boolean(analyticsConnection);
-      return {
-        definition,
-        state: connected ? ('connected' as ConnectorState) : ('disconnected' as ConnectorState),
-        accounts: connected
-          ? [{ label: analyticsConnection!.displayName, meta: analyticsConnection!.provider === 'umami' ? 'Umami' : 'PostHog' }]
-          : [],
-        action: connected
-          ? { label: 'Manage', onClick: () => open('analytics') }
-          : { label: 'Choose a provider', onClick: () => open('analytics', 'connect') },
-      };
-    }
+      if (definition.id === 'google-drive') {
+        const canSync = google?.canSync === true;
+        // Connected before sync existed (read-only access), or Google stopped accepting it: reconnect.
+        const state: ConnectorState = !google?.status || google.status === 'revoked' ? 'disconnected' : canSync ? 'connected' : 'attention';
+        const accounts: ConnectorAccount[] = google?.email && state !== 'disconnected' ? [{ label: google.email, meta: 'Only you' }] : [];
+        const action: ConnectorAction =
+          state === 'connected'
+            ? { label: 'Disconnect', onClick: () => setConfirmDisconnect(true) }
+            : {
+                label: state === 'attention' ? 'Re-connect' : 'Connect',
+                onClick: () => connectGoogle.mutate(),
+                disabled: connectGoogle.isPending,
+              };
+        return {
+          definition,
+          state,
+          accounts,
+          action,
+          alert:
+            state === 'attention'
+              ? {
+                  title: google?.status === 'error' ? 'Google stopped accepting the connection' : 'DUMA needs permission to save Docs',
+                  detail: google?.lastError ?? 'Connect again and allow DUMA to create files in your Drive.',
+                }
+              : undefined,
+        };
+      }
 
-    return { definition, state: 'unavailable' as ConnectorState, accounts: [] };
-  });
+      if (definition.id === 'analytics') {
+        const connected = Boolean(analyticsConnection);
+        return {
+          definition,
+          state: connected ? ('connected' as ConnectorState) : ('disconnected' as ConnectorState),
+          accounts: connected
+            ? [{ label: analyticsConnection!.displayName, meta: analyticsConnection!.provider === 'umami' ? 'Umami' : 'PostHog' }]
+            : [],
+          action: connected
+            ? { label: 'Manage', onClick: () => open('analytics') }
+            : { label: 'Choose a provider', onClick: () => open('analytics', 'connect') },
+        };
+      }
+
+      return { definition, state: 'unavailable' as ConnectorState, accounts: [] };
+    });
 
   if (modules.isPending || emailLoading || paymentsLoading || storageLoading || analyticsLoading || googleLoading) {
     return <Bone className="h-96 w-full rounded-lg" />;
@@ -277,7 +290,9 @@ export function ConnectorsGrid() {
                 </InfoRow>
                 <InfoRow icon={CreditCard} title="Card readers">
                   <span className={cn('text-sm', readers.length ? 'font-semibold text-foreground' : 'text-muted-foreground/70')}>
-                    {readers.length === 0 ? 'None' : [`${activeReaders} active`, pausedReaders > 0 && `${pausedReaders} paused`].filter(Boolean).join(' · ')}
+                    {readers.length === 0
+                      ? 'None'
+                      : [`${activeReaders} active`, pausedReaders > 0 && `${pausedReaders} paused`].filter(Boolean).join(' · ')}
                   </span>
                 </InfoRow>
               </>
@@ -285,7 +300,9 @@ export function ConnectorsGrid() {
             {storageVisible && storage && (
               <InfoRow icon={Database} title="Media storage">
                 <span className="truncate text-sm font-semibold text-foreground">
-                  {activeBucket ? activeBucket.displayName : `${formatBytes(storage.builtIn.usedBytes)} of ${formatBytes(storage.builtIn.quotaBytes)}`}
+                  {activeBucket
+                    ? activeBucket.displayName
+                    : `${formatBytes(storage.builtIn.usedBytes)} of ${formatBytes(storage.builtIn.quotaBytes)}`}
                 </span>
               </InfoRow>
             )}
@@ -308,13 +325,20 @@ export function ConnectorsGrid() {
           )}
           {canUseApi && (
             <div className="-mx-2 mt-4 flex flex-col gap-0.5">
-              <Link href="/settings/developers" className="group flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-band/50">
+              <Link
+                href="/settings/developers"
+                className="group flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-band/50"
+              >
                 <RowTile icon={Code} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-foreground">Build your own</span>
                   <span className="block truncate text-xs text-muted-foreground">API keys, webhooks and MCP</span>
                 </span>
-                <ChevronRight size={14} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                <ChevronRight
+                  size={14}
+                  className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                  aria-hidden="true"
+                />
               </Link>
             </div>
           )}

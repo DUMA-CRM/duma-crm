@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { type CmsStorageConnection, updateCmsStorageConnection } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { QUOTA_UNITS, type QuotaUnit, bytesToQuota, quotaToBytes } from '@/lib/utils/media-storage';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /**

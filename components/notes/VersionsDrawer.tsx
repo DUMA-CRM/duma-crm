@@ -14,10 +14,10 @@ import { Button } from '@/components/ui/button';
 
 import { type NoteVersion, getNoteVersions, restoreNoteVersion } from '@/lib/modules/notes/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { groupNotesByDate } from '@/lib/utils/notes';
 import { formatInstant } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 
 const time = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 const day = (iso: string) => formatInstant(iso, { weekday: 'short', day: 'numeric', month: 'short' });

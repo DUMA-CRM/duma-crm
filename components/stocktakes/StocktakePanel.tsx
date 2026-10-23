@@ -52,6 +52,7 @@ import {
   startStocktake,
 } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import {
   type CountLine,
@@ -67,7 +68,6 @@ import {
 } from '@/lib/utils/stocktake';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 /*
  * Stocktakes in the settings vocabulary. With no count running: a history of

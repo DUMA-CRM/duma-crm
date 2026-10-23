@@ -11,7 +11,17 @@ import type { Capability } from '@/lib/auth/capabilities';
  * only shows to someone who can open it.
  */
 
-export type ReportCategory = 'sales' | 'profit' | 'payments' | 'menu' | 'exceptions' | 'labour' | 'customers' | 'inventory' | 'cash';
+export type ReportCategory =
+  | 'sales'
+  | 'profit'
+  | 'payments'
+  | 'menu'
+  | 'exceptions'
+  | 'labour'
+  | 'customers'
+  | 'website'
+  | 'inventory'
+  | 'cash';
 
 export type ReportId =
   | 'sales-summary'
@@ -31,7 +41,8 @@ export type ReportId =
   | 'waste'
   | 'purchasing'
   | 'end-of-day'
-  | 'prime-cost';
+  | 'prime-cost'
+  | 'web-analytics';
 
 export interface ReportDefinition {
   id: ReportId;
@@ -57,6 +68,7 @@ export const REPORT_CATEGORIES: { id: ReportCategory; label: string; description
   { id: 'exceptions', label: 'Refunds & exceptions', description: 'Money given back, discounted or voided.' },
   { id: 'labour', label: 'Labour', description: 'What your team cost against what they sold.' },
   { id: 'customers', label: 'Customers', description: 'Who came back.' },
+  { id: 'website', label: 'Website', description: 'Who visits your website, from your analytics.' },
   { id: 'inventory', label: 'Inventory', description: 'Stock used, wasted and bought.' },
   { id: 'cash', label: 'Cash & end of day', description: 'Each day’s close, and whether the till balanced.' },
 ];
@@ -176,6 +188,16 @@ export const REPORTS: ReportDefinition[] = [
     description: 'New and returning customers, and the repeat rate.',
     anyOf: ['analytics:read'],
     keywords: ['repeat', 'loyalty', 'returning', 'new customers'],
+  },
+  {
+    id: 'web-analytics',
+    category: 'website',
+    title: 'Website analytics',
+    description: 'Visitors, pages, sources and funnels from Umami or PostHog.',
+    anyOf: ['analytics:read'],
+    // A website has no location; its sales row reads every site.
+    allLocationsOnly: true,
+    keywords: ['umami', 'posthog', 'traffic', 'visitors', 'pageviews', 'web', 'seo', 'referrers', 'funnel', 'conversion', 'bounce'],
   },
   {
     id: 'stock-usage',

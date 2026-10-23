@@ -365,3 +365,29 @@ test('fieldValueInWords: every field type reads in words', async () => {
   assert.equal(fieldValueInWords({ key: 'l', label: 'L', type: 'location' }, { lat: 51.5, lng: -0.12 }), '51.5000, -0.1200');
   assert.equal(fieldValueInWords({ key: 'i', label: 'I', type: 'media', multiple: true }, ['a', 'b']), '2 files');
 });
+
+test('lastTextChange: the latest save or restore — not a publish', async () => {
+  const { lastTextChange } = await import('../lib/utils/cms.ts');
+  assert.equal(
+    lastTextChange([
+      { action: 'saved', createdAt: '2026-10-01T09:00:00Z' },
+      { action: 'published', createdAt: '2026-10-05T09:00:00Z' },
+      { action: 'restored', createdAt: '2026-10-03T09:00:00Z' },
+    ]),
+    '2026-10-03T09:00:00Z',
+  );
+  assert.equal(lastTextChange([{ action: 'published', createdAt: '2026-10-05T09:00:00Z' }]), null);
+});
+
+test('translationDrift: which language versions have fallen behind', async () => {
+  const { translationDrift } = await import('../lib/utils/cms.ts');
+  const en = { id: 'en', locale: 'en', status: 'changed' as const, changedAt: '2026-10-20T10:00:00Z' };
+  const fr = { id: 'fr', locale: 'fr', status: 'published' as const, changedAt: '2026-10-10T10:00:00Z' };
+  const uk = { id: 'uk', locale: 'uk', status: 'draft' as const, changedAt: '2026-10-21T10:00:00Z' };
+  const de = { id: 'de', locale: 'de', status: 'archived' as const, changedAt: '2026-01-01T10:00:00Z' };
+  assert.deepEqual(translationDrift('en', [en, fr, uk, de], 'en'), { kind: 'translations-older', behind: [fr] });
+  assert.deepEqual(translationDrift('fr', [en, fr, uk], 'en'), { kind: 'source-newer', source: en });
+  assert.equal(translationDrift('uk', [en, fr, uk], 'en'), null);
+  assert.equal(translationDrift('en', [en, { ...fr, changedAt: null }], 'en'), null);
+  assert.equal(translationDrift('en', [en], 'en'), null);
+});

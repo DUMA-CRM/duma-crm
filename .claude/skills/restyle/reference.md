@@ -20,7 +20,7 @@ import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
 
 type Draft = Required<ThingInput>;
 type Row = 'maxGuests' | 'holdMinutes';
@@ -72,7 +72,7 @@ export function ThingRules({ ownerId, canEdit }: { ownerId: string; canEdit: boo
       }
     >
       <SettingsSection title="<Group>">
-        <fieldset disabled={!canEdit} className="space-y-3">
+        <fieldset disabled={!canEdit} className="min-w-0 space-y-3">
           <InfoRow icon={Globe} title="<Turn it on>">
             <Switch checked={value.enabled} onChange={(next) => set('enabled', next)} label="<Turn it on>" disabled={!canEdit} />
           </InfoRow>

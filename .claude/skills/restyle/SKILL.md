@@ -57,7 +57,8 @@ candidates and ask which one. Don't guess.
    locations drops it. `dirty` is computed by comparing the draft against the
    saved state. Saving is one mutation, and the `SaveBar` rises only while the
    draft is dirty. Read-only users get a
-   `<fieldset disabled={!canEdit} className="space-y-3">` around the rows, no
+   `<fieldset disabled={!canEdit} className="min-w-0 space-y-3">` around the rows (`min-w-0`: a fieldset
+   otherwise grows to its content, so a long value runs past the row instead of truncating), no
    SaveBar, and no destructive buttons.
 5. **Problems are inline.** When something stops a setting from working, show a
    `Warning` paragraph at the foot of its section

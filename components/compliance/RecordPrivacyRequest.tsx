@@ -17,9 +17,9 @@ import { type PrivacyRequestType, createPrivacyRequest } from '@/lib/modules/com
 import { getCustomers } from '@/lib/modules/customers/client';
 import { getStaff } from '@/lib/modules/identity/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
-import { toast } from '@/stores/toastStore';
 
 import { CHANNELS, REQUEST_TYPES, TYPE_ORDER } from './privacyCopy';
 

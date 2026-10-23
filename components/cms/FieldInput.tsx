@@ -12,9 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { type CmsFieldDefinition, getCmsAssets, getCmsEntries, importCmsAsset } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { emptyValueFor, isImage, isListField, moveItem, slugify } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { DateTimeField } from './DateTimeField';
@@ -22,8 +22,8 @@ import { MarkdownEditor } from './MarkdownEditor';
 import { MediaPicker } from './MediaPicker';
 import { ReferencePicker } from './ReferencePicker';
 import { FIELD_ICONS } from './fieldIcons';
-import { RowMenu, RowTile } from './rows';
 import { createRenditions } from './renditions';
+import { RowMenu, RowTile } from './rows';
 import { EntryStatusBadge, TEXTAREA_CLASS, assetPreviewSrc, cmsKeys, invalidateCms } from './shared';
 
 type Data = Record<string, unknown>;
@@ -608,7 +608,11 @@ function MediaInput({
                 aria-label={`${field.label}: image link`}
                 value={link}
                 disabled={fromLink.isPending}
-                placeholder={multiple && ids.length > 0 ? 'Paste another image link, or choose from Media' : 'Paste an image link, or choose from Media'}
+                placeholder={
+                  multiple && ids.length > 0
+                    ? 'Paste another image link, or choose from Media'
+                    : 'Paste an image link, or choose from Media'
+                }
                 onChange={(event) => setLink(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {

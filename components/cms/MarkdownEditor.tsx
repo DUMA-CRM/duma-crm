@@ -1,15 +1,20 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { useLayoutEffect, useRef, useState } from 'react';
+import type { Editor } from '@tiptap/react';
+import dynamic from 'next/dynamic';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import {
   Bold,
+  ChevronDown,
   Code,
-  Columns2,
+  CodeBlock,
   Eye,
   FileText,
-  Heading,
+  Heading1,
+  Heading2,
+  Heading3,
   ImagePlus,
   Info,
   Italic,
@@ -19,10 +24,15 @@ import {
   ListOrdered,
   Paperclip,
   Pencil,
+  Pilcrow,
   Play,
+  Plus,
   Quote,
+  Redo,
+  Undo,
 } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
+import { MenuOption } from '@/components/shared/MenuOption';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl, type SegmentedOption } from '@/components/shared/SegmentedControl';
 import { Tooltip } from '@/components/shared/Tooltip';
@@ -31,50 +41,92 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { getCmsContentTypes, getCmsEntries, uploadCmsAsset } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { previewUrlFor } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
 import {
+  type BlockKind,
   CALLOUT_KINDS,
   type CalloutKind,
   type TextEdit,
   applyEdit,
+  blockKindAt,
   continueList,
   imageMarkdown,
   insertBlock,
   insertCallout,
   insertLink,
   insertNamedLink,
+  setBlockKind,
+  toggleCodeBlock,
   toggleLinePrefix,
   toggleWrap,
   uploadPlaceholder,
   videoEmbed,
 } from '@/lib/utils/markdown-edit';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { MediaPicker } from './MediaPicker';
 import { ReferencePicker } from './ReferencePicker';
 import { RichTextPreview } from './RichTextPreview';
+import { ActionRow } from './rows';
 import { invalidateCms } from './shared';
 
-type Mode = 'write' | 'preview' | 'split';
+type Mode = 'live' | 'write' | 'preview';
 type Command = (text: string, start: number, end: number) => TextEdit;
 
 const VIEW_OPTIONS: SegmentedOption<Mode>[] = [
-  { value: 'write', label: 'Write', icon: Pencil },
+  { value: 'live', label: 'Live', icon: Pencil },
+  { value: 'write', label: 'Markdown', icon: Code },
   { value: 'preview', label: 'Preview', icon: Eye },
-  { value: 'split', label: 'Split', icon: Columns2 },
 ];
+
+// The live editor (TipTap) loads only when a rich-text field opens — UI-ADR-031 keeps it out of every other bundle.
+const LiveMarkdownEditor = dynamic(() => import('./LiveMarkdownEditor'), {
+  ssr: false,
+  loading: () => <div className="min-h-72" aria-busy="true" />,
+});
+
+/** The toolbar's formatting, as live-editor commands — the same buttons as for Markdown. */
+/** The block styles, named and drawn as on the Notes toolbar. */
+const BLOCKS: ReadonlyArray<{ key: BlockKind; label: string; icon: IconComponent }> = [
+  { key: 'text', label: 'Text', icon: Pilcrow },
+  { key: 'h1', label: 'Title', icon: Heading1 },
+  { key: 'h2', label: 'Heading', icon: Heading2 },
+  { key: 'h3', label: 'Subheading', icon: Heading3 },
+  { key: 'quote', label: 'Quote', icon: Quote },
+];
+
+/** The live editor's block at the caret, in the same names. */
+const liveBlock = (editor: Editor): BlockKind =>
+  editor.isActive('heading', { level: 1 })
+    ? 'h1'
+    : editor.isActive('heading', { level: 2 })
+      ? 'h2'
+      : editor.isActive('heading')
+        ? 'h3'
+        : editor.isActive('blockquote')
+          ? 'quote'
+          : 'text';
+
+const LIVE_RUN: Record<string, (editor: Editor) => void> = {
+  Bold: (editor) => editor.chain().focus().toggleBold().run(),
+  Italic: (editor) => editor.chain().focus().toggleItalic().run(),
+  Code: (editor) => editor.chain().focus().toggleCode().run(),
+  'Code block': (editor) => editor.chain().focus().toggleCodeBlock().run(),
+  'Bulleted list': (editor) => editor.chain().focus().toggleBulletList().run(),
+  'Numbered list': (editor) => editor.chain().focus().toggleOrderedList().run(),
+  'Task list': (editor) => editor.chain().focus().toggleTaskList().run(),
+};
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = isMac ? '⌘' : 'Ctrl';
 
 const TOOLS: Array<{ label: string; icon: IconComponent; shortcut?: string; run: Command } | 'gap'> = [
-  { label: 'Heading', icon: Heading, run: (t, s, e) => toggleLinePrefix(t, s, e, 'heading') },
   { label: 'Bold', icon: Bold, shortcut: 'B', run: (t, s, e) => toggleWrap(t, s, e, '**', 'bold text') },
   { label: 'Italic', icon: Italic, shortcut: 'I', run: (t, s, e) => toggleWrap(t, s, e, '_', 'italic text') },
-  { label: 'Quote', icon: Quote, run: (t, s, e) => toggleLinePrefix(t, s, e, 'quote') },
   { label: 'Code', icon: Code, shortcut: 'E', run: (t, s, e) => toggleWrap(t, s, e, '`', 'code') },
+  { label: 'Code block', icon: CodeBlock, run: toggleCodeBlock },
   { label: 'Link', icon: Link2, shortcut: 'K', run: insertLink },
   'gap',
   { label: 'Bulleted list', icon: ListBullet, run: (t, s, e) => toggleLinePrefix(t, s, e, 'bullet') },
@@ -129,11 +181,70 @@ export function MarkdownEditor({
   const fileInput = useRef<HTMLInputElement>(null);
   // The caret when the picker opened — the dialog takes focus, the image still goes here.
   const savedSelection = useRef<{ start: number; end: number } | null>(null);
-  const [mode, setMode] = useState<Mode>('write');
+  // Live, as in a note — unless this text uses Markdown the live editor can't keep exactly; then Markdown.
+  const [mode, setMode] = useState<Mode>('live');
+  const [liveEditor, setLiveEditor] = useState<Editor | null>(null);
+  // The text that failed the live check: retried only once it has changed.
+  const [blockedFor, setBlockedFor] = useState<string | null>(null);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const live = mode === 'live' && liveEditor !== null;
+  // Whether the live editor has anything to undo or redo — refreshed on every change it makes.
+  const [history, setHistory] = useState({ undo: false, redo: false });
+  // The block style under the caret, for the selector: from the live editor, or from the Markdown line.
+  const [block, setBlock] = useState<BlockKind>('text');
+  const [blockOpen, setBlockOpen] = useState(false);
+  useEffect(() => {
+    if (!liveEditor) return;
+    const refresh = () => {
+      setHistory({ undo: liveEditor.can().undo(), redo: liveEditor.can().redo() });
+      setBlock(liveBlock(liveEditor));
+    };
+    refresh();
+    liveEditor.on('transaction', refresh);
+    return () => {
+      liveEditor.off('transaction', refresh);
+    };
+  }, [liveEditor]);
+  const chooseBlock = (kind: BlockKind) => {
+    setBlockOpen(false);
+    if (mode === 'live') {
+      if (!liveEditor) return;
+      const chain = liveEditor.chain().focus();
+      if (kind === 'text') chain.clearNodes().setParagraph().run();
+      else if (kind === 'quote') chain.toggleBlockquote().run();
+      else chain.setHeading({ level: kind === 'h1' ? 1 : kind === 'h2' ? 2 : 3 }).run();
+      return;
+    }
+    const element = textarea.current;
+    if (!element || disabled) return;
+    apply(setBlockKind(latest.current, element.selectionStart, element.selectionEnd, kind));
+    setBlock(kind);
+  };
+
+  /** Undo or redo in whichever view is open: the editor's history, or the text box's own (toolbar edits go through it too). */
+  const step = (direction: 'undo' | 'redo') => {
+    if (mode === 'live') {
+      if (!liveEditor) return;
+      if (direction === 'undo') liveEditor.chain().focus().undo().run();
+      else liveEditor.chain().focus().redo().run();
+      return;
+    }
+    textarea.current?.focus();
+    document.execCommand(direction);
+  };
+  const chooseMode = (next: Mode) => {
+    if (next === 'live' && blockedFor !== null && blockedFor === latest.current) {
+      toast('info', 'This text uses Markdown the live editor can’t keep exactly — keep editing it as Markdown.');
+      return;
+    }
+    if (next !== 'live') setLiveEditor(null);
+    setMode(next);
+  };
+  const [insertOpen, setInsertOpen] = useState(false);
   const [picking, setPicking] = useState(false);
   const [linking, setLinking] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [calloutOpen, setCalloutOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(0);
 
@@ -143,6 +254,13 @@ export function MarkdownEditor({
   useLayoutEffect(() => {
     latest.current = value;
   }, [value]);
+  // The text box grows with the text, as a note does — no inner scrollbar, no drag handle.
+  useLayoutEffect(() => {
+    const element = textarea.current;
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+  }, [value, mode]);
   const commit = (next: string) => {
     latest.current = next;
     onChange(next);
@@ -164,10 +282,25 @@ export function MarkdownEditor({
     }
   }
 
-  const run = (command: Command) => {
+  const run = (command: Command, label?: string) => {
+    if (disabled) return;
+    if (mode === 'live') {
+      if (liveEditor && label && LIVE_RUN[label]) LIVE_RUN[label](liveEditor);
+      return;
+    }
     const element = textarea.current;
-    if (!element || disabled) return;
+    if (!element) return;
     apply(command(latest.current, element.selectionStart, element.selectionEnd));
+  };
+
+  /** Images into the live editor at the caret, uploaded first when they come from this device. */
+  const insertLiveImages = (images: Array<{ src: string; alt: string }>) => {
+    if (!liveEditor || images.length === 0) return;
+    liveEditor
+      .chain()
+      .focus()
+      .insertContent(images.map((image) => ({ type: 'image', attrs: image })))
+      .run();
   };
 
   /** Swap one upload's placeholder for its result, wherever the text has moved it to. */
@@ -187,6 +320,23 @@ export function MarkdownEditor({
     const images = files.filter((file) => file.type.startsWith('image/'));
     if (images.length === 0) {
       if (files.length > 0) toast('error', 'Only images can be added to the text. Add other files in Media.');
+      return;
+    }
+    if (mode === 'live') {
+      setUploading((count) => count + images.length);
+      await Promise.all(
+        images.map(async (file) => {
+          try {
+            const asset = await uploadCmsAsset(file, {}, tenantId);
+            insertLiveImages([{ src: asset.url, alt: asset.altText ?? asset.title ?? baseName(file.name) }]);
+          } catch (failure) {
+            toast('error', `${file.name}: ${failure instanceof Error ? failure.message : 'upload failed'}`);
+          } finally {
+            setUploading((count) => count - 1);
+          }
+        }),
+      );
+      invalidateCms(queryClient);
       return;
     }
     const element = textarea.current;
@@ -216,10 +366,6 @@ export function MarkdownEditor({
     const element = textarea.current;
     savedSelection.current = element ? { start: element.selectionStart, end: element.selectionEnd } : null;
   };
-  const openPicker = () => {
-    rememberSelection();
-    setPicking(true);
-  };
   /** Apply a command at the remembered caret, after the dialog that took focus has gone. */
   const atSaved = (command: Command) =>
     requestAnimationFrame(() => {
@@ -236,6 +382,14 @@ export function MarkdownEditor({
     const url = previewUrlFor(type?.previewUrl ?? null, entry) ?? (entry.slug ? `/${entry.slug}` : null);
     if (!url) {
       toast('error', 'That entry has no slug or page URL yet — give it a slug, or set a preview URL on its model.');
+      return;
+    }
+    if (mode === 'live' && liveEditor) {
+      liveEditor
+        .chain()
+        .focus()
+        .insertContent({ type: 'text', text: entry.title ?? 'Untitled', marks: [{ type: 'link', attrs: { href: url } }] })
+        .run();
       return;
     }
     atSaved((text, start, end) => insertNamedLink(text, start, end, url, entry.title ?? 'Untitled'));
@@ -270,14 +424,27 @@ export function MarkdownEditor({
     <textarea
       ref={textarea}
       id={id}
-      rows={14}
+      rows={10}
       spellCheck
-      className="block min-h-72 w-full flex-1 resize-y bg-transparent px-4 py-3 font-mono text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
+      className="block min-h-72 w-full flex-1 resize-none overflow-hidden bg-transparent px-5 py-4 text-[0.9375rem] leading-7 text-foreground outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
       value={value}
       disabled={disabled}
       placeholder={'## A heading\n\nWrite in Markdown. Paste or drop an image to put it right here.'}
-      onChange={(event) => onChange(event.target.value)}
+      onChange={(event) => {
+        const element = event.target;
+        const caret = element.selectionStart;
+        // `[[` links another entry, as in Notes: the brackets go, the picker opens at that spot.
+        if (element.selectionEnd === caret && caret >= 2 && element.value.slice(caret - 2, caret) === '[[') {
+          const next = element.value.slice(0, caret - 2) + element.value.slice(caret);
+          commit(next);
+          savedSelection.current = { start: caret - 2, end: caret - 2 };
+          setLinking(true);
+          return;
+        }
+        onChange(element.value);
+      }}
       onKeyDown={onKeyDown}
+      onSelect={(event) => setBlock(blockKindAt(event.currentTarget.value, event.currentTarget.selectionStart))}
       onPaste={(event) => {
         const files = [...event.clipboardData.files];
         if (!editable || files.length === 0) return;
@@ -296,103 +463,16 @@ export function MarkdownEditor({
   return (
     <div>
       {label}
-      {/* The view and the tools sit above the paper, not on it — the card is only the text. */}
-      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-        <SegmentedControl<Mode> ariaLabel="Editor view" value={mode} onChange={setMode} options={VIEW_OPTIONS} />
-        {mode !== 'preview' && editable && (
-          <div className="flex flex-wrap items-center gap-0.5" role="toolbar" aria-label="Formatting">
-            {TOOLS.map((tool, index) =>
-              tool === 'gap' ? (
-                <span key={`gap-${index}`} className="mx-1 h-4 w-px bg-rule/60" aria-hidden="true" />
-              ) : (
-                <Tooltip side="top" key={tool.label} label={tool.shortcut ? `${tool.label} (${MOD}${tool.shortcut})` : tool.label}>
-                  <button
-                    type="button"
-                    aria-label={tool.shortcut ? `${tool.label} (${MOD}${tool.shortcut})` : tool.label}
-                    // Keep the textarea's selection: a mousedown on the button would otherwise blur it first.
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => run(tool.run)}
-                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground"
-                  >
-                    <tool.icon size={16} aria-hidden="true" />
-                  </button>
-                </Tooltip>
-              ),
-            )}
-            <span className="mx-1 h-4 w-px bg-rule/60" aria-hidden="true" />
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={openPicker}
-              className="flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-foreground transition-colors hover:bg-band"
-            >
-              <ImagePlus size={16} aria-hidden="true" /> Image
-            </button>
-            <Tooltip side="top" label="Link to another entry">
-              <button
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  rememberSelection();
-                  setLinking(true);
-                }}
-                className="flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-foreground transition-colors hover:bg-band"
-              >
-                <FileText size={16} aria-hidden="true" /> Entry
-              </button>
-            </Tooltip>
-            <Popover open={calloutOpen} onOpenChange={setCalloutOpen}>
-              <PopoverTrigger
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  rememberSelection();
-                }}
-                className="flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-foreground transition-colors hover:bg-band"
-              >
-                <Info size={16} aria-hidden="true" /> Callout
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-40 p-1">
-                {CALLOUT_KINDS.map((kind) => (
-                  <button
-                    key={kind}
-                    type="button"
-                    className="block w-full rounded-sm px-2.5 py-1.5 text-left text-sm capitalize hover:bg-band"
-                    onClick={() => {
-                      setCalloutOpen(false);
-                      atSaved((text, start, end) => insertCallout(text, start, end, kind as CalloutKind));
-                    }}
-                  >
-                    {kind.toLowerCase()}
-                  </button>
-                ))}
-              </PopoverContent>
-            </Popover>
-            <Tooltip side="top" label="Embed a YouTube or Vimeo video">
-              <button
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  rememberSelection();
-                  setVideoUrl('');
-                }}
-                className="flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-foreground transition-colors hover:bg-band"
-              >
-                <Play size={16} aria-hidden="true" /> Video
-              </button>
-            </Tooltip>
-          </div>
-        )}
-      </div>
       {/* The paper: the text (or preview) and the upload strip at its foot. */}
       <div
         className={cn(
-          'mt-2 overflow-hidden rounded-lg border transition-colors focus-within:border-primary/60',
+          'overflow-hidden rounded-lg border transition-colors focus-within:border-primary/60',
           paper,
           error ? 'border-exception' : 'border-rule',
           dragging && 'border-primary ring-2 ring-primary/15',
         )}
         onDragOver={(event) => {
-          if (!editable || mode === 'preview' || !event.dataTransfer.types.includes('Files')) return;
+          if (!editable || mode !== 'write' || !event.dataTransfer.types.includes('Files')) return;
           event.preventDefault();
           setDragging(true);
         }}
@@ -400,7 +480,7 @@ export function MarkdownEditor({
           if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
         }}
         onDrop={(event) => {
-          if (!editable || mode === 'preview' || event.dataTransfer.files.length === 0) return;
+          if (!editable || mode !== 'write' || event.dataTransfer.files.length === 0) return;
           event.preventDefault();
           setDragging(false);
           // Drop where the pointer is, not where the caret was.
@@ -411,17 +491,234 @@ export function MarkdownEditor({
           void uploadFiles([...event.dataTransfer.files]);
         }}
       >
+        {/* One bar on the paper, as in a note: formatting, then Insert, and the view on the right. */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule/50 px-2 py-1.5">
+          {mode !== 'preview' && editable ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-0.5" role="toolbar" aria-label="Formatting">
+              {/* The Notes text-style selector: Text, Title, Heading, Subheading, Quote. */}
+              <Popover open={blockOpen} onOpenChange={setBlockOpen}>
+                <Tooltip side="top" label="Text style">
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      className="flex h-8 w-28 items-center justify-between gap-1 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:bg-band"
+                    >
+                      <span className="truncate">{(BLOCKS.find((entry) => entry.key === block) ?? BLOCKS[0]!).label}</span>
+                      <ChevronDown size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                    </button>
+                  </PopoverTrigger>
+                </Tooltip>
+                <PopoverContent
+                  align="start"
+                  className="w-48 p-1"
+                  onOpenAutoFocus={(event) => event.preventDefault()}
+                  onCloseAutoFocus={(event) => event.preventDefault()}
+                >
+                  {BLOCKS.map((entry) => (
+                    <MenuOption
+                      key={entry.key}
+                      icon={entry.icon}
+                      label={entry.label}
+                      selected={entry.key === block}
+                      onSelect={() => chooseBlock(entry.key)}
+                      className={cn(
+                        entry.key === 'h1' && 'text-base font-bold',
+                        (entry.key === 'h2' || entry.key === 'h3') && 'font-semibold',
+                      )}
+                    />
+                  ))}
+                </PopoverContent>
+              </Popover>
+              <span className="mx-1 h-5 w-px bg-rule/60" aria-hidden="true" />
+              {TOOLS.map((tool, index) =>
+                tool === 'gap' ? (
+                  <span key={`gap-${index}`} className="mx-1 h-5 w-px bg-rule/60" aria-hidden="true" />
+                ) : (
+                  <Tooltip side="top" key={tool.label} label={tool.shortcut ? `${tool.label} (${MOD}${tool.shortcut})` : tool.label}>
+                    <button
+                      type="button"
+                      aria-label={tool.shortcut ? `${tool.label} (${MOD}${tool.shortcut})` : tool.label}
+                      // Keep the textarea's selection: a mousedown on the button would otherwise blur it first.
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        if (mode === 'live' && tool.label === 'Link') {
+                          setLinkUrl((liveEditor?.getAttributes('link').href as string | undefined) ?? '');
+                          setLinkOpen(true);
+                          return;
+                        }
+                        run(tool.run, tool.label);
+                      }}
+                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      <tool.icon size={16} aria-hidden="true" />
+                    </button>
+                  </Tooltip>
+                ),
+              )}
+              <span className="mx-1 h-5 w-px bg-rule/60" aria-hidden="true" />
+              <Popover open={insertOpen} onOpenChange={setInsertOpen}>
+                <PopoverTrigger
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    rememberSelection();
+                  }}
+                  className="flex h-8 items-center gap-1 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:bg-band"
+                >
+                  <Plus size={15} aria-hidden="true" /> Insert
+                  <ChevronDown size={13} className="text-muted-foreground" aria-hidden="true" />
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-60 p-2">
+                  <div className="flex flex-col gap-0.5">
+                    <ActionRow
+                      icon={ImagePlus}
+                      label="Image from Media"
+                      onClick={() => {
+                        setInsertOpen(false);
+                        setPicking(true);
+                      }}
+                    />
+                    <ActionRow
+                      icon={Paperclip}
+                      label="Image from this device"
+                      onClick={() => {
+                        setInsertOpen(false);
+                        fileInput.current?.click();
+                      }}
+                    />
+                    <ActionRow
+                      icon={FileText}
+                      label="Link to an entry"
+                      onClick={() => {
+                        setInsertOpen(false);
+                        setLinking(true);
+                      }}
+                    />
+                    <ActionRow
+                      icon={Play}
+                      label="YouTube or Vimeo video"
+                      onClick={() => {
+                        setInsertOpen(false);
+                        setVideoUrl('');
+                      }}
+                    />
+                  </div>
+                  <p className="mb-1 mt-2 px-2 text-label uppercase text-muted-foreground">Callout</p>
+                  <div className="flex flex-col gap-0.5">
+                    {CALLOUT_KINDS.map((kind) => (
+                      <ActionRow
+                        key={kind}
+                        icon={Info}
+                        label={kind.charAt(0) + kind.slice(1).toLowerCase()}
+                        onClick={() => {
+                          setInsertOpen(false);
+                          if (mode === 'live' && liveEditor)
+                            liveEditor
+                              .chain()
+                              .focus()
+                              .insertCallout(kind as CalloutKind)
+                              .run();
+                          else atSaved((text, start, end) => insertCallout(text, start, end, kind as CalloutKind));
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <p className="mt-2 px-2 text-xs text-muted-foreground">Tip: type [[ to link another entry.</p>
+                </PopoverContent>
+              </Popover>
+              <span className="mx-1 h-5 w-px bg-rule/60" aria-hidden="true" />
+              {(
+                [
+                  { direction: 'undo', label: `Undo (${MOD}Z)`, icon: Undo, disabled: mode === 'live' && !history.undo },
+                  { direction: 'redo', label: `Redo (${MOD}⇧Z)`, icon: Redo, disabled: mode === 'live' && !history.redo },
+                ] as const
+              ).map((tool) => (
+                <Tooltip side="top" key={tool.direction} label={tool.label}>
+                  <button
+                    type="button"
+                    aria-label={tool.label}
+                    disabled={tool.disabled}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => step(tool.direction)}
+                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-35"
+                  >
+                    <tool.icon size={16} aria-hidden="true" />
+                  </button>
+                </Tooltip>
+              ))}
+            </div>
+          ) : (
+            <span className="px-2 text-xs text-muted-foreground">{editable ? 'Preview — as your website shows it' : 'Read only'}</span>
+          )}
+          <SegmentedControl<Mode> ariaLabel="Editor view" value={mode} onChange={chooseMode} options={VIEW_OPTIONS} />
+        </div>
+        {blockedFor !== null && mode === 'write' && (
+          <p className="border-b border-rule/50 bg-band/60 px-5 py-2 text-xs text-muted-foreground">
+            This text uses Markdown the live editor can’t keep exactly, so it opens here, as Markdown. Preview shows it as your website
+            will.
+          </p>
+        )}
+        {linkOpen && live && (
+          <form
+            className="flex items-center gap-2 border-b border-rule/50 px-3 py-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const href = linkUrl.trim();
+              const chain = liveEditor!.chain().focus().extendMarkRange('link');
+              if (!href) chain.unsetLink().run();
+              else if (liveEditor!.state.selection.empty && !liveEditor!.isActive('link'))
+                liveEditor!
+                  .chain()
+                  .focus()
+                  .insertContent({ type: 'text', text: href, marks: [{ type: 'link', attrs: { href } }] })
+                  .run();
+              else chain.setLink({ href }).run();
+              setLinkOpen(false);
+            }}
+          >
+            <div className="min-w-0 flex-1">
+              <Input
+                aria-label="Link address"
+                autoFocus
+                placeholder="https://…"
+                value={linkUrl}
+                onChange={(event) => setLinkUrl(event.target.value)}
+              />
+            </div>
+            <Button type="submit" className="h-9">
+              {linkUrl.trim() ? 'Apply' : 'Remove link'}
+            </Button>
+            <Button type="button" variant="ghost" className="h-9" onClick={() => setLinkOpen(false)}>
+              Cancel
+            </Button>
+          </form>
+        )}
+        {mode === 'live' && (
+          <LiveMarkdownEditor
+            id={id}
+            label={typeof label === 'string' ? label : 'Rich text'}
+            value={value}
+            editable={editable}
+            onChange={(next) => {
+              latest.current = next;
+              onChange(next);
+            }}
+            onCheck={(safe) => {
+              if (safe) return;
+              setBlockedFor(latest.current);
+              setLiveEditor(null);
+              setMode('write');
+            }}
+            onReady={setLiveEditor}
+            onFiles={(files) => void uploadFiles(files)}
+            onEntryLink={() => setLinking(true)}
+          />
+        )}
         {mode === 'write' && textArea}
         {mode === 'preview' && preview}
-        {mode === 'split' && (
-          <div className="grid lg:grid-cols-2">
-            <div className="flex flex-col">{textArea}</div>
-            <div className="border-t border-rule/50 lg:border-l lg:border-t-0">{preview}</div>
-          </div>
-        )}
 
         {editable && mode !== 'preview' && (
-          <div className="flex items-center justify-between gap-3 border-t border-dashed border-rule/60 px-4 py-2 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between gap-3 border-t border-rule/50 px-5 py-2 text-xs text-muted-foreground">
             <button
               type="button"
               className="inline-flex items-center gap-1.5 hover:text-foreground"
@@ -430,7 +727,7 @@ export function MarkdownEditor({
               <Paperclip size={13} aria-hidden="true" />
               {uploading > 0 ? `Uploading ${uploading} ${uploading === 1 ? 'image' : 'images'}…` : 'Paste, drop or click to add images'}
             </button>
-            <span className="hidden sm:inline">Markdown supported</span>
+            <span className="hidden sm:inline">{mode === 'live' ? 'Saved as Markdown' : 'Markdown supported'}</span>
           </div>
         )}
       </div>
@@ -479,7 +776,8 @@ export function MarkdownEditor({
                 onClick={() => {
                   const url = videoUrl.trim();
                   setVideoUrl(null);
-                  atSaved((text, start, end) => insertBlock(text, start, end, url));
+                  if (mode === 'live' && liveEditor) liveEditor.chain().focus().insertVideo(url).run();
+                  else atSaved((text, start, end) => insertBlock(text, start, end, url));
                 }}
               >
                 Insert video
@@ -505,6 +803,10 @@ export function MarkdownEditor({
           onPick={(_, assets) => {
             setPicking(false);
             if (assets.length === 0) return;
+            if (mode === 'live') {
+              insertLiveImages(assets.map((asset) => ({ src: asset.url, alt: asset.altText ?? asset.title ?? baseName(asset.fileName) })));
+              return;
+            }
             const block = assets
               .map((asset) => imageMarkdown(asset.altText ?? asset.title ?? baseName(asset.fileName), asset.url))
               .join('\n\n');

@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 
 import { createModifier } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
 import type { ModifierGroup } from '@/types/menu';
 
 const FORM_ID = 'new-modifier-form';

@@ -87,3 +87,40 @@ test('YouTube and Vimeo URLs are recognised as videos; other links are not', () 
   assert.equal(videoEmbed('https://vimeo.com/123456789')?.provider, 'vimeo');
   assert.equal(videoEmbed('https://example.com/watch?v=x'), null);
 });
+
+test('blockKindAt: the caret line’s style', async () => {
+  const { blockKindAt } = await import('../lib/utils/markdown-edit.ts');
+  const text = '# Menu\n## Drinks\n#### Small print\n> Said a regular\nPlain words';
+  assert.equal(blockKindAt(text, 2), 'h1');
+  assert.equal(blockKindAt(text, 10), 'h2');
+  assert.equal(blockKindAt(text, 20), 'h3');
+  assert.equal(blockKindAt(text, 40), 'quote');
+  assert.equal(blockKindAt(text, text.length), 'text');
+  assert.equal(blockKindAt('#hashtag', 3), 'text');
+});
+
+test('setBlockKind: one style for the selected lines, old markers replaced', async () => {
+  const { applyEdit, setBlockKind } = await import('../lib/utils/markdown-edit.ts');
+  assert.equal(applyEdit('### Drinks', setBlockKind('### Drinks', 4, 4, 'h1')), '# Drinks');
+  assert.equal(applyEdit('# Drinks', setBlockKind('# Drinks', 3, 3, 'text')), 'Drinks');
+  assert.equal(applyEdit('one\n> two', setBlockKind('one\n> two', 0, 9, 'h2')), '## one\n## two');
+  const edit = setBlockKind('Intro\nLatte', 8, 8, 'quote');
+  assert.equal(applyEdit('Intro\nLatte', edit), 'Intro\n> Latte');
+  assert.equal(edit.selectFrom, 'Intro\n> Latte'.length);
+});
+
+test('toggleCodeBlock: fence the lines, or take the fence away', async () => {
+  const { applyEdit, toggleCodeBlock } = await import('../lib/utils/markdown-edit.ts');
+  const text = 'Run this:\nnpm start\nThen open it.';
+  const on = toggleCodeBlock(text, 10, 19);
+  const fenced = applyEdit(text, on);
+  assert.equal(fenced, 'Run this:\n```\nnpm start\n```\nThen open it.');
+  assert.equal(fenced.slice(on.selectFrom, on.selectTo), 'npm start');
+  // Caret inside the fence: off again.
+  assert.equal(applyEdit(fenced, toggleCodeBlock(fenced, 16, 16)), text);
+  // On an empty line: a placeholder block, selected.
+  const empty = toggleCodeBlock('Intro\n', 6, 6);
+  const out = applyEdit('Intro\n', empty);
+  assert.match(out, /```\ncode\n```/);
+  assert.equal(out.slice(empty.selectFrom, empty.selectTo), 'code');
+});

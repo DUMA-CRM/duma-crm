@@ -20,6 +20,7 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import {
   type DurationUnit,
   FOOD_LATENESS,
@@ -30,7 +31,6 @@ import {
   latenessProblems,
   splitDuration,
 } from '@/lib/utils/kitchen-age';
-import { toast } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -154,7 +154,14 @@ function OrdersForm({
     const value = draft[row];
     const mins = row === 'nearly' ? nearlyMins : lateMins;
     return (
-      <PickerRow icon={icon} title={title} value={mins === null ? 'Not set' : durationLabel(mins)} muted={mins === null} open={open === row} onToggle={() => toggle(row)}>
+      <PickerRow
+        icon={icon}
+        title={title}
+        value={mins === null ? 'Not set' : durationLabel(mins)}
+        muted={mins === null}
+        open={open === row}
+        onToggle={() => toggle(row)}
+      >
         <div className="grid grid-cols-[minmax(0,1fr)_8rem] items-start gap-2">
           <Input
             aria-label={title}
@@ -206,7 +213,8 @@ function OrdersForm({
                 </InfoRow>
               </InfoRows>
               <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-                Counted in each stage — how long an order has been new, preparing or ready — not since it was placed. Late orders also show on the dashboard.
+                Counted in each stage — how long an order has been new, preparing or ready — not since it was placed. Late orders also show
+                on the dashboard.
               </p>
             </>
           ) : (
@@ -215,8 +223,11 @@ function OrdersForm({
         </SettingsSection>
       }
     >
-      <SettingsSection title="Late orders" footnote={canChange ? undefined : 'Only someone who can change workspace settings can change this.'}>
-        <fieldset disabled={!canChange} className="space-y-3">
+      <SettingsSection
+        title="Late orders"
+        footnote={canChange ? undefined : 'Only someone who can change workspace settings can change this.'}
+      >
+        <fieldset disabled={!canChange} className="min-w-0 space-y-3">
           <InfoRow icon={Bell} title="Flag late orders">
             <Switch checked={draft.on} onChange={(on) => set({ on })} label="Flag late orders" disabled={!canChange} />
           </InfoRow>

@@ -148,7 +148,13 @@ export const AUTOMATION_GROUPS: { value: AutomationGroup; label: string }[] = [
 
 /** Which list heading an automation sits under — by what starts it. */
 export const automationGroup = (trigger: string): AutomationGroup =>
-  trigger.startsWith('order_') ? 'orders' : trigger.startsWith('reservation_') ? 'bookings' : trigger.startsWith('staff_') ? 'staff' : 'customers';
+  trigger.startsWith('order_')
+    ? 'orders'
+    : trigger.startsWith('reservation_')
+      ? 'bookings'
+      : trigger.startsWith('staff_')
+        ? 'staff'
+        : 'customers';
 
 /** Grouped Orders → Customers → Staff, sending first, then by name; empty groups dropped. */
 export function groupAutomations<T extends { name: string; trigger: string; isEnabled: boolean }>(
@@ -330,3 +336,90 @@ export function groupSuppressions<T extends SuppressionLike>(
       items: [...items].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)),
     }));
 }
+
+/**
+ * A trigger's options in a few words, for its step on the canvas — only what
+ * narrows or times it: "24 h before", "at North Street", "3 days before",
+ * "after 30 days away", "Regulars". Nothing for an option left at its default.
+ */
+export function triggerOptionsInWords(
+  config: { event: string; locationId?: string | null; segmentId?: string | null; offsetHours?: number; offsetDays?: number },
+  names: { location?: string | null; segment?: string | null } = {},
+): string[] {
+  const parts: string[] = [];
+  const { event } = config;
+  if (event === 'segment_entered') parts.push(names.segment ?? 'no segment yet');
+  if (event === 'reservation_reminder') parts.push(`${config.offsetHours ?? 24} h before`);
+  if (event === 'customer_birthday') {
+    const days = Math.abs(config.offsetDays ?? 0);
+    parts.push(days === 0 ? 'on the day' : `${days} ${days === 1 ? 'day' : 'days'} before`);
+  }
+  if (event === 'customer_inactive') {
+    const days = Math.max(1, config.offsetDays ?? 30);
+    parts.push(`after ${days} ${days === 1 ? 'day' : 'days'} away`);
+  }
+  if ((event.startsWith('order_') || event.startsWith('reservation_')) && config.locationId)
+    parts.push(`at ${names.location ?? 'one location'}`);
+  return parts;
+}
+
+// ---------------------------------------------------------------------------
+// Workflow runs — the Automation → Runs list, its summary rail and the run drawer.
+// ---------------------------------------------------------------------------
+
+export type RunStatus = 'running' | 'completed' | 'failed';
+
+export const RUN_STATUS_LABELS: Record<RunStatus, string> = { running: 'Running', completed: 'Completed', failed: 'Failed' };
+
+/** How many of the given runs are in each state. */
+export function countRuns(runs: readonly { status: RunStatus }[]): Record<RunStatus, number> {
+  const counts: Record<RunStatus, number> = { running: 0, completed: 0, failed: 0 };
+  for (const run of runs) counts[run.status] += 1;
+  return counts;
+}
+
+/** "No steps" · "1 step" · "4 steps · 1 failed". */
+export function runStepsInWords(stepCount: number, failedStepCount = 0): string {
+  const steps = stepCount === 0 ? 'No steps' : `${stepCount} ${stepCount === 1 ? 'step' : 'steps'}`;
+  return failedStepCount > 0 ? `${steps} · ${failedStepCount} failed` : steps;
+}
+
+/** The trigger a run's event key starts with — "order_paid:ord_1" → "order_paid". */
+export const runTrigger = (eventKey: string) => eventKey.split(':')[0];
+
+/** How long a run took: "Under a second" · "42 s" · "3 min" · "2 h 10 min" · "3 days 4 h". Null while it runs or for a bad date. */
+export function durationInWords(startedAt: string, completedAt?: string | null): string | null {
+  if (!completedAt) return null;
+  const span = Date.parse(completedAt) - Date.parse(startedAt);
+  if (Number.isNaN(span) || span < 0) return null;
+  const seconds = Math.round(span / 1_000);
+  if (seconds < 1) return 'Under a second';
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
+  const days = Math.floor(hours / 24);
+  const dayWord = `${days} ${days === 1 ? 'day' : 'days'}`;
+  return hours % 24 ? `${dayWord} ${hours % 24} h` : dayWord;
+}
+
+/** A step's state, for its tile and badge. A plain `failed` step is retried; `failed_permanently` has given up. */
+export type StepState = 'done' | 'pending' | 'retrying' | 'failed' | 'other';
+
+export function stepState(status: string): StepState {
+  if (status === 'completed') return 'done';
+  if (status === 'queued' || status === 'running') return 'pending';
+  if (status === 'failed') return 'retrying';
+  if (status === 'failed_permanently') return 'failed';
+  return 'other';
+}
+
+const STEP_STATUS_LABELS: Record<string, string> = {
+  queued: 'Queued',
+  running: 'Running',
+  completed: 'Done',
+  failed: 'Retrying',
+  failed_permanently: 'Failed',
+};
+export const stepStatusLabel = (status: string) => STEP_STATUS_LABELS[status] ?? humanise(status);

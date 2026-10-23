@@ -171,3 +171,39 @@ test('the preview element holds just the words — no spacer entities — and ol
     '<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">New line</div><p>Hi</p>',
   );
 });
+
+test('a task-only workflow can be saved without an email template', () => {
+  const graph = defaultWorkflow({ trigger: 'staff_onboarded' });
+  const email = graph.nodes.find(node => node.type === 'send_email')!;
+  graph.nodes = graph.nodes.map(node => node.id === email.id ? { id: node.id, type: 'create_task' as const, name: 'Onboarding task', config: { subject: 'Prepare uniform', body: 'Arrange the new starter’s uniform.' } } : node);
+  assert.deepEqual(workflowErrors(graph), []);
+});
+
+test('trigger changes retain incompatible conditions and explain what must be fixed', () => {
+  let graph = defaultWorkflow({ trigger: 'order_created', templateId: 'template' });
+  graph = insertWorkflowNode(graph, graph.edges[0].id, 'condition');
+  const condition = graph.nodes.find(node => node.type === 'condition')!;
+  if (condition.type !== 'condition') throw new Error('Missing condition');
+  condition.config.field = 'order.totalAmount';
+  condition.config.value = 50;
+  const trigger = graph.nodes.find(node => node.type === 'trigger')!;
+  if (trigger.type !== 'trigger') throw new Error('Missing trigger');
+  trigger.config.event = 'customer_created';
+  assert.ok(workflowErrors(graph).some(error => error.includes('unavailable')));
+  assert.equal(condition.config.field, 'order.totalAmount');
+  trigger.config.event = 'order_paid';
+  assert.deepEqual(workflowErrors(graph), []);
+});
+
+test('triggerOptionsInWords: what narrows or times a trigger, for its canvas step', async () => {
+  const { triggerOptionsInWords } = await import('../lib/utils/communications.ts');
+  assert.deepEqual(triggerOptionsInWords({ event: 'reservation_reminder', offsetHours: 24, locationId: 'l1' }, { location: 'North Street' }), [
+    '24 h before',
+    'at North Street',
+  ]);
+  assert.deepEqual(triggerOptionsInWords({ event: 'customer_birthday', offsetDays: -3 }), ['3 days before']);
+  assert.deepEqual(triggerOptionsInWords({ event: 'customer_birthday', offsetDays: 0 }), ['on the day']);
+  assert.deepEqual(triggerOptionsInWords({ event: 'customer_inactive', offsetDays: 30 }), ['after 30 days away']);
+  assert.deepEqual(triggerOptionsInWords({ event: 'segment_entered', segmentId: 's1' }, { segment: 'Regulars' }), ['Regulars']);
+  assert.deepEqual(triggerOptionsInWords({ event: 'order_placed', locationId: null }), []);
+});

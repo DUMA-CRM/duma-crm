@@ -43,6 +43,7 @@ import {
   seatWaitlistEntry,
   setWaitlistStatus,
 } from '@/lib/modules/reservations/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import {
   type FloorTable,
@@ -53,7 +54,6 @@ import {
   seatsAtMost,
   waitTone,
 } from '@/lib/utils/reservations';
-import { toast } from '@/stores/toastStore';
 import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 
 import { FloorCanvas, type TableTone, ToneSwatch } from './FloorCanvas';
@@ -133,10 +133,7 @@ export function WaitlistPanel({
             {entry.notes && ` · ${entry.notes}`}
           </span>
         </span>
-        <Badge
-          variant={entry.status === 'notified' ? 'reference' : 'outline'}
-          className="hidden shrink-0 sm:inline-flex"
-        >
+        <Badge variant={entry.status === 'notified' ? 'reference' : 'outline'} className="hidden shrink-0 sm:inline-flex">
           {entry.status === 'notified' ? 'Told it’s ready' : 'Waiting'}
         </Badge>
         {canWrite && (
@@ -334,7 +331,13 @@ function AddToWaitlist({ locationId, onAdded }: { locationId: string; onAdded: (
           open={open === 'name'}
           onToggle={() => toggle('name')}
         >
-          <Input aria-label="Name" autoFocus={engaged} value={name} placeholder="To call them by" onChange={(event) => setName(event.target.value)} />
+          <Input
+            aria-label="Name"
+            autoFocus={engaged}
+            value={name}
+            placeholder="To call them by"
+            onChange={(event) => setName(event.target.value)}
+          />
         </PickerRow>
         <PickerRow
           icon={Phone}
@@ -344,7 +347,14 @@ function AddToWaitlist({ locationId, onAdded }: { locationId: string; onAdded: (
           open={open === 'phone'}
           onToggle={() => toggle('phone')}
         >
-          <Input aria-label="Phone" autoFocus={engaged} type="tel" value={phone} placeholder="Optional" onChange={(event) => setPhone(event.target.value)} />
+          <Input
+            aria-label="Phone"
+            autoFocus={engaged}
+            type="tel"
+            value={phone}
+            placeholder="Optional"
+            onChange={(event) => setPhone(event.target.value)}
+          />
         </PickerRow>
         <PickerRow
           icon={Users}
@@ -353,7 +363,14 @@ function AddToWaitlist({ locationId, onAdded }: { locationId: string; onAdded: (
           open={open === 'party'}
           onToggle={() => toggle('party')}
         >
-          <NumberStepper label="Guests" value={partySize} min={1} max={200} unit={partySize === 1 ? 'guest' : 'guests'} onChange={setPartySize} />
+          <NumberStepper
+            label="Guests"
+            value={partySize}
+            min={1}
+            max={200}
+            unit={partySize === 1 ? 'guest' : 'guests'}
+            onChange={setPartySize}
+          />
         </PickerRow>
         <PickerRow
           icon={Clock}
@@ -429,7 +446,10 @@ function SeatModal({
   });
 
   const areas = floor.filter((area) => area.tables.length > 0);
-  const area = areas.find((candidate) => candidate.id === areaId) ?? areas.find((candidate) => candidate.tables.some((table) => chosen.includes(table.id))) ?? areas[0];
+  const area =
+    areas.find((candidate) => candidate.id === areaId) ??
+    areas.find((candidate) => candidate.tables.some((table) => chosen.includes(table.id))) ??
+    areas[0];
   const tables = floor.flatMap((candidate) => candidate.tables);
   const chosenTables = tables.filter((table) => chosen.includes(table.id));
   const seats = seatsAtMost(chosenTables);
@@ -534,7 +554,9 @@ function SeatModal({
               </span>
             </InfoRow>
             <InfoRow icon={Users} title="Seats">
-              <span className={cn('text-sm font-semibold tabular-nums', chosenTables.length > 0 && seats < entry.partySize && 'text-measured')}>
+              <span
+                className={cn('text-sm font-semibold tabular-nums', chosenTables.length > 0 && seats < entry.partySize && 'text-measured')}
+              >
                 {chosenTables.length ? `${seats} for ${entry.partySize}` : '—'}
               </span>
             </InfoRow>

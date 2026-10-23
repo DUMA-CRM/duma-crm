@@ -6,8 +6,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Mascot } from '@/components/ai/Mascot';
 import { MediaPicker } from '@/components/cms/MediaPicker';
 import { createRenditions } from '@/components/cms/renditions';
-import { invalidateCms } from '@/components/cms/shared';
 import { RowTile } from '@/components/cms/rows';
+import { invalidateCms } from '@/components/cms/shared';
 import {
   ArrowDown,
   Code,
@@ -50,11 +50,11 @@ import {
   updateEmailTemplate,
 } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { connectionState } from '@/lib/utils/communications';
 import { previewEmailHtml } from '@/lib/utils/email-images';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { EmailPreviewDrawer } from './EmailPreviewDrawer';

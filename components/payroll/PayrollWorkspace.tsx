@@ -25,7 +25,6 @@ import { LineEditor } from '@/components/payroll/LineEditor';
 import { PayLineDrawer } from '@/components/payroll/PayLineDrawer';
 import { PayrollSettingsDrawer } from '@/components/payroll/PayrollSettingsDrawer';
 import { Fact } from '@/components/settings/controls';
-import { TileSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Avatar } from '@/components/shared/Avatar';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -34,6 +33,7 @@ import { MiniBar } from '@/components/shared/MiniBar';
 import { Pill } from '@/components/shared/Pill';
 import { RelativeTime } from '@/components/shared/RelativeTime';
 import { Bone, LoadingState } from '@/components/shared/Skeleton';
+import { TileSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -54,12 +54,12 @@ import {
 } from '@/lib/modules/payroll/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { countryByCode } from '@/lib/payroll/countries';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { type PeriodGroup, combineBlockedReason, groupByPeriod, hasDuplicates, suggestSurvivor } from '@/lib/utils/payroll-duplicates';
 import { PERIOD_LABEL, periodContaining, rangeLabel, recentPeriods } from '@/lib/utils/payroll-periods';
 import { itemTotals, runTotals } from '@/lib/utils/payroll-totals';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 import { csvCell, formatDate, hours, missingRate } from './shared';
 import { useMoney, usePayrollSettings } from './usePayroll';
@@ -450,7 +450,7 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.payroll.key('payslips-me') });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.payroll.key('employee-payslips') });
       setConfirming(false);
-      toast('success', 'Payslips issued. Everyone can see theirs in My HR.');
+      toast('success', 'Payslips issued. Everyone can see theirs in My HR.', { critical: true });
     },
     onError: (error) => toast('error', (error as Error).message || 'The run wasn’t issued. Try again.'),
   });

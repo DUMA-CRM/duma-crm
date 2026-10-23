@@ -1,4 +1,5 @@
 import type { CmsEntryStatus, CmsFieldDefinition, CmsFieldType } from '../api/cms.service.ts';
+
 import { plainText } from './cms-seo.ts';
 import { formatInstant, zonedParts, zonedToInstant } from './workspace-time.ts';
 
@@ -51,7 +52,9 @@ export function fieldKeyFromLabel(label: string): string {
     .split(/\s+/)
     .filter(Boolean);
   if (words.length === 0) return '';
-  const key = words.map((word, index) => (index === 0 ? word.toLowerCase() : word[0]!.toUpperCase() + word.slice(1).toLowerCase())).join('');
+  const key = words
+    .map((word, index) => (index === 0 ? word.toLowerCase() : word[0]!.toUpperCase() + word.slice(1).toLowerCase()))
+    .join('');
   return /^[A-Za-z]/.test(key) ? key.slice(0, 64) : `field${key}`.slice(0, 64);
 }
 
@@ -82,7 +85,10 @@ export function uniqueKey(base: string, taken: readonly string[]): string {
 }
 
 export function newField(type: CmsFieldType, label: string, siblings: readonly CmsFieldDefinition[]): CmsFieldDefinition {
-  const key = uniqueKey(fieldKeyFromLabel(label) || type, siblings.map((field) => field.key));
+  const key = uniqueKey(
+    fieldKeyFromLabel(label) || type,
+    siblings.map((field) => field.key),
+  );
   const field: CmsFieldDefinition = { key, label: label.trim() || fieldTypeLabel(type), type };
   if (type === 'select') field.options = ['Option 1'];
   if (type === 'group') field.fields = [{ key: 'title', label: 'Title', type: 'text' }];
@@ -112,8 +118,10 @@ export function fieldListProblems(fields: readonly CmsFieldDefinition[]): string
     if (!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(field.key)) problems.push(`“${field.label}” needs an API key of letters, numbers and _`);
     if (keys.has(field.key)) problems.push(`Two fields share the key “${field.key}”`);
     keys.add(field.key);
-    if (field.type === 'select' && !(field.options && field.options.length > 0)) problems.push(`“${field.label}” needs at least one choice`);
-    if (field.type === 'group' && !(field.fields && field.fields.length > 0)) problems.push(`“${field.label}” needs at least one nested field`);
+    if (field.type === 'select' && !(field.options && field.options.length > 0))
+      problems.push(`“${field.label}” needs at least one choice`);
+    if (field.type === 'group' && !(field.fields && field.fields.length > 0))
+      problems.push(`“${field.label}” needs at least one nested field`);
     if (field.type === 'group') problems.push(...fieldListProblems(field.fields ?? []).map((problem) => `${field.label} → ${problem}`));
   }
   if (fields.filter((field) => field.type === 'slug').length > 1) problems.push('Only one slug field per content type');
@@ -160,7 +168,8 @@ export function cleanEntryData(fields: readonly CmsFieldDefinition[], data: Reco
     if (value === undefined || value === null || value === '') continue;
     if (Array.isArray(value) && value.length === 0) continue;
     if (field.type === 'group') {
-      const clean = (item: unknown) => (item && typeof item === 'object' ? cleanEntryData(field.fields ?? [], item as Record<string, unknown>) : item);
+      const clean = (item: unknown) =>
+        item && typeof item === 'object' ? cleanEntryData(field.fields ?? [], item as Record<string, unknown>) : item;
       if (Array.isArray(value)) output[field.key] = value.map(clean);
       else {
         const cleaned = clean(value) as Record<string, unknown>;
@@ -186,7 +195,10 @@ export function sameEntryData(fields: readonly CmsFieldDefinition[], a: Record<s
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
   if (value && typeof value === 'object') {
-    return `{${Object.keys(value as Record<string, unknown>).sort().map((key) => `${JSON.stringify(key)}:${stableStringify((value as Record<string, unknown>)[key])}`).join(',')}}`;
+    return `{${Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify((value as Record<string, unknown>)[key])}`)
+      .join(',')}}`;
   }
   return JSON.stringify(value);
 }
@@ -195,9 +207,18 @@ function stableStringify(value: unknown): string {
  * Expand a content type's preview URL template for one entry:
  * `https://site.example/blog/{slug}?locale={locale}`.
  */
-export function previewUrlFor(template: string | null, entry: { slug: string | null; documentId: string; locale: string; id: string }): string | null {
+export function previewUrlFor(
+  template: string | null,
+  entry: { slug: string | null; documentId: string; locale: string; id: string },
+): string | null {
   if (!template) return null;
-  const values: Record<string, string> = { slug: entry.slug ?? '', id: entry.documentId, documentId: entry.documentId, locale: entry.locale, entryId: entry.id };
+  const values: Record<string, string> = {
+    slug: entry.slug ?? '',
+    id: entry.documentId,
+    documentId: entry.documentId,
+    locale: entry.locale,
+    entryId: entry.id,
+  };
   if (/\{slug\}/.test(template) && !entry.slug) return null;
   return template.replace(/\{(slug|id|documentId|locale|entryId)\}/g, (_, key: string) => encodeURIComponent(values[key] ?? ''));
 }
@@ -207,7 +228,10 @@ export function issuesByField(issues: ReadonlyArray<{ field: string; message: st
   const map = new Map<string, string[]>();
   for (const issue of issues) {
     const top = issue.field.split(/[.[]/)[0] || '';
-    const detail = issue.field.includes('.') || issue.field.includes('[') ? `${issue.field.slice(top.length).replace(/^\./, '')}: ${issue.message}` : issue.message;
+    const detail =
+      issue.field.includes('.') || issue.field.includes('[')
+        ? `${issue.field.slice(top.length).replace(/^\./, '')}: ${issue.message}`
+        : issue.message;
     map.set(top, [...(map.get(top) ?? []), detail]);
   }
   return map;
@@ -243,7 +267,10 @@ export function formatClipLength(seconds: number): string {
  * then the default. Mirrors the API's `localeChain`, and is cycle-safe for the
  * same reason — fallbacks are tenant data.
  */
-export function fallbackChain(code: string, locales: ReadonlyArray<{ code: string; isDefault: boolean; fallbackCode: string | null }>): string[] {
+export function fallbackChain(
+  code: string,
+  locales: ReadonlyArray<{ code: string; isDefault: boolean; fallbackCode: string | null }>,
+): string[] {
   const byCode = new Map(locales.map((locale) => [locale.code, locale]));
   const defaultCode = locales.find((locale) => locale.isDefault)?.code;
   const chain: string[] = [];
@@ -334,9 +361,11 @@ export function cmsAttention(
   options: { canManageKeys: boolean; canPublish?: boolean },
 ): CmsAttention[] {
   const items: CmsAttention[] = [];
-  if (options.canManageKeys && overview.entries.live > 0 && overview.activeApiKeys === 0) items.push({ kind: 'no_api_key', count: 1, tone: 'exception' });
+  if (options.canManageKeys && overview.entries.live > 0 && overview.activeApiKeys === 0)
+    items.push({ kind: 'no_api_key', count: 1, tone: 'exception' });
   // Someone is waiting on a publisher — and only a publisher can act on it.
-  if (options.canPublish && (overview.entries.review ?? 0) > 0) items.push({ kind: 'awaiting_review', count: overview.entries.review!, tone: 'measured' });
+  if (options.canPublish && (overview.entries.review ?? 0) > 0)
+    items.push({ kind: 'awaiting_review', count: overview.entries.review!, tone: 'measured' });
   if (overview.entries.changed > 0) items.push({ kind: 'unpublished_changes', count: overview.entries.changed, tone: 'measured' });
   if (overview.entries.draft > 0) items.push({ kind: 'never_published', count: overview.entries.draft, tone: 'measured' });
   if (overview.entries.scheduled > 0) items.push({ kind: 'scheduled', count: overview.entries.scheduled, tone: 'info' });
@@ -369,7 +398,13 @@ export function resolvedTitleKey(fields: readonly CmsFieldDefinition[], titleFie
 /** A field's rules in a few words, for its row: "Required", "2–80 characters", "Up to 5 items", "Private". */
 export function fieldRules(field: CmsFieldDefinition): string[] {
   const range = (min: number | undefined, max: number | undefined, unit: string) =>
-    min !== undefined && max !== undefined ? `${min}–${max}${unit}` : min !== undefined ? `At least ${min}${unit}` : max !== undefined ? `Up to ${max}${unit}` : null;
+    min !== undefined && max !== undefined
+      ? `${min}–${max}${unit}`
+      : min !== undefined
+        ? `At least ${min}${unit}`
+        : max !== undefined
+          ? `Up to ${max}${unit}`
+          : null;
   const rules: Array<string | null | false | undefined> = [
     field.required && 'Required',
     field.unique && 'Unique',
@@ -387,7 +422,14 @@ export function fieldRules(field: CmsFieldDefinition): string[] {
 /** A copy of a field placed beside it: "Hero image copy", with a key no sibling holds. */
 export function duplicateField(field: CmsFieldDefinition, siblings: readonly CmsFieldDefinition[]): CmsFieldDefinition {
   const label = `${field.label} copy`;
-  return { ...field, label, key: uniqueKey(fieldKeyFromLabel(label) || field.type, siblings.map((sibling) => sibling.key)) };
+  return {
+    ...field,
+    label,
+    key: uniqueKey(
+      fieldKeyFromLabel(label) || field.type,
+      siblings.map((sibling) => sibling.key),
+    ),
+  };
 }
 
 /**
@@ -444,12 +486,19 @@ export function fieldValueInWords(field: CmsFieldDefinition, value: unknown): st
       return plainText(String(value)) || null;
     case 'dateTime': {
       const at = new Date(String(value));
-      return Number.isNaN(at.getTime()) ? String(value) : formatInstant(at, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      return Number.isNaN(at.getTime())
+        ? String(value)
+        : formatInstant(at, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
     case 'date': {
       const [year, month, day] = String(value).split('-').map(Number);
       if (!year || !month || !day) return String(value);
-      return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+      return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
     }
     case 'location': {
       const point = value as { lat?: unknown; lng?: unknown };
@@ -458,10 +507,54 @@ export function fieldValueInWords(field: CmsFieldDefinition, value: unknown): st
     case 'json':
       return 'Set';
     case 'group': {
-      const filled = (field.fields ?? []).filter((sub) => fieldValueInWords(sub, (value as Record<string, unknown>)[sub.key]) !== null).length;
+      const filled = (field.fields ?? []).filter(
+        (sub) => fieldValueInWords(sub, (value as Record<string, unknown>)[sub.key]) !== null,
+      ).length;
       return filled === 0 ? null : `${filled} of ${(field.fields ?? []).length} filled`;
     }
   }
   if (typeof value === 'string') return value.replace(/\s+/g, ' ').trim() || null;
   return String(value);
+}
+
+/** When a language version's text last changed: its latest save or restore — publishing and archiving don't count. */
+export function lastTextChange(history: ReadonlyArray<{ action: string; createdAt: string }>): string | null {
+  let latest: string | null = null;
+  for (const entry of history) {
+    if (entry.action !== 'saved' && entry.action !== 'restored') continue;
+    if (latest === null || Date.parse(entry.createdAt) > Date.parse(latest)) latest = entry.createdAt;
+  }
+  return latest;
+}
+
+export interface LanguageVersion {
+  id: string;
+  locale: string;
+  status: CmsEntryStatus;
+  /** From `lastTextChange`; null when unknown. */
+  changedAt: string | null;
+}
+
+export type TranslationDrift =
+  | { kind: 'source-newer'; source: LanguageVersion }
+  | { kind: 'translations-older'; behind: LanguageVersion[] }
+  | null;
+
+/**
+ * Whether one language version of an entry has moved on without the others:
+ * on the default language, the translations whose text is older than it; on a
+ * translation, whether the default language changed after it did. Archived
+ * versions, and versions whose history is unknown, are left out.
+ */
+export function translationDrift(currentId: string, versions: readonly LanguageVersion[], defaultLocale: string | null): TranslationDrift {
+  const current = versions.find((version) => version.id === currentId);
+  if (!current?.changedAt || !defaultLocale) return null;
+  const at = (version: LanguageVersion) => Date.parse(version.changedAt!);
+  const others = versions.filter((version) => version.id !== currentId && version.status !== 'archived' && version.changedAt);
+  if (current.locale === defaultLocale) {
+    const behind = others.filter((version) => at(version) < at(current));
+    return behind.length > 0 ? { kind: 'translations-older', behind } : null;
+  }
+  const source = others.find((version) => version.locale === defaultLocale);
+  return source && at(source) > at(current) ? { kind: 'source-newer', source } : null;
 }

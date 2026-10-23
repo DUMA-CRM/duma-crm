@@ -25,11 +25,11 @@ import { getCustomerTimeline } from '@/lib/modules/customers/client';
 import { getStaff } from '@/lib/modules/identity/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { countTimelineKinds, groupTimelineByDay, timelineRowText } from '@/lib/utils/customer-timeline';
 import { formatDateTime } from '@/lib/utils/date';
 import { formatInstant } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { TimelineEntry, TimelineKind } from '@/types/customers';
 

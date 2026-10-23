@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { getCustomerReferrals, issueCustomerReferralCode } from '@/lib/modules/referrals/client';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
 
 /**
  * Refer a friend, in the customer's profile column on every tab: their own

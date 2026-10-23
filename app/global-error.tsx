@@ -18,7 +18,7 @@ const INK_2 = '#5c6c63';
 const PRIMARY = '#235347';
 const PRIMARY_FG = '#fffaf4';
 
-export default function GlobalError({ error, unstable_retry }: { error: Error & { digest?: string }; unstable_retry: () => void }) {
+export default function GlobalError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -40,12 +40,12 @@ export default function GlobalError({ error, unstable_retry }: { error: Error & 
         <div style={{ textAlign: 'center', padding: '1.5rem' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.015em', marginBottom: '0.5rem' }}>DUMA couldn’t load</h1>
           <p style={{ color: INK_2, fontSize: '1rem', lineHeight: 1.5, maxWidth: '60ch', margin: '0 auto 1rem' }}>
-            The app itself failed to start, so nothing on this screen loaded — this isn’t something you did. Reloading usually fixes it. If it doesn’t, send
-            support the reference below and it points them at the exact failure.
+            The app itself failed to start, so nothing on this screen loaded — this isn’t something you did. Reloading usually fixes it. If
+            it doesn’t, send support the reference below and it points them at the exact failure.
           </p>
           <button
             type="button"
-            onClick={unstable_retry}
+            onClick={retry}
             style={{
               padding: '0 0.75rem',
               minHeight: '2.75rem',

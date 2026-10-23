@@ -62,6 +62,7 @@ import {
   updateCmsContentType,
 } from '@/lib/modules/cms/client';
 import { getRoles } from '@/lib/modules/identity/client';
+import { toast } from '@/lib/toast';
 import {
   FIELD_TYPES,
   canHoldList,
@@ -80,7 +81,6 @@ import {
 import { type ModelDraft, mergeDraftFields, uniqueModelName } from '@/lib/utils/cms-model-draft';
 import { SEO_FIELD, hasSeoBlock, missingSeoFields, withFullSeoBlock } from '@/lib/utils/cms-seo';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ModelAssist } from './ModelAssist';
@@ -351,10 +351,7 @@ function LoadedModelEditor({
           narrowAside
           aside={
             <>
-              <SettingsSection
-                title="Model"
-                actions={model ? undefined : <Badge variant="muted">Not created yet</Badge>}
-              >
+              <SettingsSection title="Model" actions={model ? undefined : <Badge variant="muted">Not created yet</Badge>}>
                 {model ? (
                   <InfoRows>
                     <InfoRow icon={Hash} title="API key">
@@ -384,7 +381,8 @@ function LoadedModelEditor({
                   </InfoRows>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Name it and add its fields, then create it. Its API key — <span className="font-mono">{key || '…'}</span> — is fixed from then on.
+                    Name it and add its fields, then create it. Its API key — <span className="font-mono">{key || '…'}</span> — is fixed
+                    from then on.
                   </p>
                 )}
               </SettingsSection>
@@ -406,7 +404,9 @@ function LoadedModelEditor({
                 <SettingsSection title="Actions">
                   <ActionRows>
                     {onBrowseEntries && <ActionRow icon={FileText} label="Browse entries" onClick={() => onBrowseEntries(model.id)} />}
-                    {editable && <ActionRow icon={Trash2} label={`Delete ${model.name}`} danger onClick={() => setDeleting({ force: false })} />}
+                    {editable && (
+                      <ActionRow icon={Trash2} label={`Delete ${model.name}`} danger onClick={() => setDeleting({ force: false })} />
+                    )}
                   </ActionRows>
                 </SettingsSection>
               )}
@@ -414,7 +414,7 @@ function LoadedModelEditor({
           }
         >
           <SettingsSection title="Details">
-            <fieldset disabled={!editable} className="space-y-3">
+            <fieldset disabled={!editable} className="min-w-0 space-y-3">
               <PickerRow
                 icon={Type}
                 title="Name"
@@ -438,7 +438,14 @@ function LoadedModelEditor({
               </PickerRow>
               {/* Fixed once created — the Model card shows it from then on. */}
               {!model && (
-                <PickerRow icon={Hash} title="API key" value={key || 'Not set'} muted={!key} open={open === 'key'} onToggle={() => toggle('key')}>
+                <PickerRow
+                  icon={Hash}
+                  title="API key"
+                  value={key || 'Not set'}
+                  muted={!key}
+                  open={open === 'key'}
+                  onToggle={() => toggle('key')}
+                >
                   <Input
                     id="cms-model-key"
                     aria-label="API key"
@@ -451,7 +458,9 @@ function LoadedModelEditor({
                       setKey(event.target.value.toLowerCase());
                     }}
                   />
-                  <p className="mt-1.5 text-xs text-muted-foreground">Used in the delivery URL. Filled in from the name; can’t change once created.</p>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Used in the delivery URL. Filled in from the name; can’t change once created.
+                  </p>
                 </PickerRow>
               )}
               <PickerRow
@@ -472,7 +481,9 @@ function LoadedModelEditor({
                   ]}
                 />
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  {kind === 'singleton' ? 'Exactly one entry — the site banner, the footer, opening hours.' : 'Many entries of one shape — blog posts, menu sections.'}
+                  {kind === 'singleton'
+                    ? 'Exactly one entry — the site banner, the footer, opening hours.'
+                    : 'Many entries of one shape — blog posts, menu sections.'}
                 </p>
               </PickerRow>
               <PickerRow
@@ -518,7 +529,10 @@ function LoadedModelEditor({
             }
           >
             {(problems.length > 0 || serverIssues.length > 0) && (
-              <div role="alert" className="mb-4 flex items-start gap-2 rounded-md bg-exception/6 px-3 py-2 text-xs font-medium text-exception">
+              <div
+                role="alert"
+                className="mb-4 flex items-start gap-2 rounded-md bg-exception/6 px-3 py-2 text-xs font-medium text-exception"
+              >
                 <TriangleAlert size={14} className="mt-px shrink-0" aria-hidden="true" />
                 <ul className="space-y-0.5">
                   {[...problems, ...serverIssues].map((problem) => (
@@ -542,8 +556,15 @@ function LoadedModelEditor({
             title="Display"
             actions={<SectionInfo label="How entries of this model are named in lists, and where their page lives on your site." />}
           >
-            <fieldset disabled={!editable} className="space-y-3">
-              <PickerRow icon={Type} title="Entry title" value={titleLabel} muted={!titleField} open={open === 'title'} onToggle={() => toggle('title')}>
+            <fieldset disabled={!editable} className="min-w-0 space-y-3">
+              <PickerRow
+                icon={Type}
+                title="Entry title"
+                value={titleLabel}
+                muted={!titleField}
+                open={open === 'title'}
+                onToggle={() => toggle('title')}
+              >
                 <Select
                   className="w-full"
                   ariaLabel="Entry title field"
@@ -571,7 +592,9 @@ function LoadedModelEditor({
                   placeholder="https://www.example.com/blog/{slug}"
                   onChange={(event) => setPreviewUrl(event.target.value)}
                 />
-                <p className="mt-1.5 text-xs text-muted-foreground">Where an entry’s page lives — {'{slug}'}, {'{id}'} and {'{locale}'} are filled in per entry.</p>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Where an entry’s page lives — {'{slug}'}, {'{id}'} and {'{locale}'} are filled in per entry.
+                </p>
               </PickerRow>
             </fieldset>
           </SettingsSection>
@@ -739,7 +762,8 @@ function FieldList({
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
                         {fieldTypeLabel(field.type)}
-                        {field.type === 'group' ? ` of ${(field.fields ?? []).length}` : ''} · <span className="font-mono">{field.key}</span>
+                        {field.type === 'group' ? ` of ${(field.fields ?? []).length}` : ''} ·{' '}
+                        <span className="font-mono">{field.key}</span>
                         {rules.length > 0 && <> · {rules.join(' · ')}</>}
                       </span>
                     </span>
@@ -754,7 +778,12 @@ function FieldList({
                       label={`${label} actions`}
                       items={[
                         { icon: ArrowUp, label: 'Move up', disabled: index === 0, onClick: () => move(index, index - 1) },
-                        { icon: ArrowDown, label: 'Move down', disabled: index === fields.length - 1, onClick: () => move(index, index + 1) },
+                        {
+                          icon: ArrowDown,
+                          label: 'Move down',
+                          disabled: index === fields.length - 1,
+                          onClick: () => move(index, index + 1),
+                        },
                         {
                           icon: Copy,
                           label: 'Duplicate',
@@ -842,7 +871,12 @@ function FieldList({
                 .map((field) => field.label.toLowerCase())
                 .join(', ')}`}
             >
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => onChange(withFullSeoBlock(fields))}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-muted-foreground"
+                onClick={() => onChange(withFullSeoBlock(fields))}
+              >
                 <Search aria-hidden="true" /> Update SEO block ({missingSeoFields(fields).length} new)
               </Button>
             </Tooltip>
@@ -1042,11 +1076,7 @@ function FieldSettings({
   );
 
   const typeOptions =
-    field.type === 'slug' ||
-    field.type === 'select' ||
-    field.type === 'media' ||
-    field.type === 'reference' ||
-    field.type === 'group';
+    field.type === 'slug' || field.type === 'select' || field.type === 'media' || field.type === 'reference' || field.type === 'group';
 
   return (
     <div className="divide-y divide-rule/40 [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
@@ -1131,9 +1161,7 @@ function FieldSettings({
                 onValueChange={(value) => set('slugSource', value || undefined)}
                 options={[
                   { value: '', label: 'Typed by hand' },
-                  ...siblings
-                    .filter((sibling) => sibling.type === 'text')
-                    .map((sibling) => ({ value: sibling.key, label: sibling.label })),
+                  ...siblings.filter((sibling) => sibling.type === 'text').map((sibling) => ({ value: sibling.key, label: sibling.label })),
                 ]}
               />
             </FieldRow>

@@ -27,8 +27,8 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { NumberStepper } from '@/components/shared/FormParts';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Modal } from '@/components/shared/Modal';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,8 +48,8 @@ import {
   updateArea,
   updateTable,
 } from '@/lib/modules/reservations/client';
+import { toast } from '@/lib/toast';
 import { type FloorTable, SHAPE_SIZE, freeSpot, movedTables, nextTableLabel, placeOnCanvas } from '@/lib/utils/reservations';
-import { toast } from '@/stores/toastStore';
 import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 
 import { FloorCanvas } from './FloorCanvas';
@@ -217,7 +217,13 @@ export function FloorPlanEditor({ locationId, floor }: { locationId: string; flo
     selected && savedSelected && (Object.keys(edits[selected.id] ?? {}).length > 0 || movedTables([savedSelected], [selected]).length > 0),
   );
 
-  const positionOf = (table: FloorTable): Position => ({ x: table.x, y: table.y, width: table.width, height: table.height, rotation: table.rotation });
+  const positionOf = (table: FloorTable): Position => ({
+    x: table.x,
+    y: table.y,
+    width: table.width,
+    height: table.height,
+    rotation: table.rotation,
+  });
   const move = (id: string, x: number, y: number) => {
     const table = current.find((candidate) => candidate.id === id);
     if (!table) return;
@@ -260,9 +266,7 @@ export function FloorPlanEditor({ locationId, floor }: { locationId: string; flo
       }}
     />
   ) : (
-    <SettingsSection
-      title="Floor plan"
-    >
+    <SettingsSection title="Floor plan">
       <InfoRows>
         <InfoRow icon={Layers} title="Areas">
           <span className="text-sm font-semibold tabular-nums">{floor.data.length}</span>
@@ -305,10 +309,24 @@ export function FloorPlanEditor({ locationId, floor }: { locationId: string; flo
                 <Plus size={14} aria-hidden="true" />
                 Area
               </Button>
-              <Button variant="outline" size="icon" className="size-9" aria-label={`Rename ${area.name}`} title="Rename area" onClick={() => setAreaDialog('rename')}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-9"
+                aria-label={`Rename ${area.name}`}
+                title="Rename area"
+                onClick={() => setAreaDialog('rename')}
+              >
                 <Pencil size={15} aria-hidden="true" />
               </Button>
-              <Button variant="outline" size="icon" className="size-9" aria-label={`Delete ${area.name}`} title="Delete area" onClick={() => setConfirmDeleteArea(true)}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-9"
+                aria-label={`Delete ${area.name}`}
+                title="Delete area"
+                onClick={() => setConfirmDeleteArea(true)}
+              >
                 <Trash2 size={15} aria-hidden="true" />
               </Button>
             </div>
@@ -413,7 +431,14 @@ function AreaDialog({
           if (ready) onSave(name.trim());
         }}
       >
-        <Input label="Name" value={name} maxLength={80} placeholder="Main room, Terrace, Bar…" autoFocus onChange={(event) => setName(event.target.value)} />
+        <Input
+          label="Name"
+          value={name}
+          maxLength={80}
+          placeholder="Main room, Terrace, Bar…"
+          autoFocus
+          onChange={(event) => setName(event.target.value)}
+        />
       </form>
     </Modal>
   );
@@ -538,8 +563,21 @@ function TableInspector({
           save.mutate();
         }}
       >
-        <PickerRow icon={Tag} title="Name" value={table.label.trim() || 'Needs a name'} muted={!table.label.trim()} open={open === 'name'} onToggle={() => toggle('name')}>
-          <Input aria-label="Name" autoFocus value={table.label} maxLength={20} onChange={(event) => onChange({ label: event.target.value })} />
+        <PickerRow
+          icon={Tag}
+          title="Name"
+          value={table.label.trim() || 'Needs a name'}
+          muted={!table.label.trim()}
+          open={open === 'name'}
+          onToggle={() => toggle('name')}
+        >
+          <Input
+            aria-label="Name"
+            autoFocus
+            value={table.label}
+            maxLength={20}
+            onChange={(event) => onChange({ label: event.target.value })}
+          />
         </PickerRow>
         <PickerRow
           icon={Users}
@@ -590,15 +628,35 @@ function TableInspector({
             className="w-full [&>button]:flex-1"
           />
         </PickerRow>
-        <PickerRow icon={ArrowLeftRight} title="Size" value={`${table.width} × ${table.height}`} open={open === 'size'} onToggle={() => toggle('size')}>
+        <PickerRow
+          icon={ArrowLeftRight}
+          title="Size"
+          value={`${table.width} × ${table.height}`}
+          open={open === 'size'}
+          onToggle={() => toggle('size')}
+        >
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <span className="text-xs font-medium text-muted-foreground">Width</span>
-              <NumberStepper label="Width" value={table.width} min={20} max={600} step={10} onChange={(value) => onChange({ width: value })} />
+              <NumberStepper
+                label="Width"
+                value={table.width}
+                min={20}
+                max={600}
+                step={10}
+                onChange={(value) => onChange({ width: value })}
+              />
             </div>
             <div className="space-y-1.5">
               <span className="text-xs font-medium text-muted-foreground">Depth</span>
-              <NumberStepper label="Depth" value={table.height} min={20} max={600} step={10} onChange={(value) => onChange({ height: value })} />
+              <NumberStepper
+                label="Depth"
+                value={table.height}
+                min={20}
+                max={600}
+                step={10}
+                onChange={(value) => onChange({ height: value })}
+              />
             </div>
           </div>
         </PickerRow>
@@ -636,7 +694,12 @@ function TableInspector({
           </PickerRow>
         )}
         <div className="!mt-4 flex items-center justify-between gap-2 border-t border-rule/40 pt-4">
-          <Button type="button" variant="ghost" className="gap-1.5 text-exception hover:text-exception" onClick={() => setConfirmRemove(true)}>
+          <Button
+            type="button"
+            variant="ghost"
+            className="gap-1.5 text-exception hover:text-exception"
+            onClick={() => setConfirmRemove(true)}
+          >
             <Trash2 size={14} aria-hidden="true" />
             Remove
           </Button>

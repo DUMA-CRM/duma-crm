@@ -49,7 +49,7 @@ const subscribeToConnection = (onChange: () => void) => {
   };
 };
 
-export default function ErrorPage({ error, unstable_retry }: { error: Error & { digest?: string }; unstable_retry: () => void }) {
+export default function ErrorPage({ error, retry: retrySegment }: { error: Error & { digest?: string }; retry: () => void }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const online = useSyncExternalStore(
     subscribeToConnection,
@@ -91,7 +91,7 @@ export default function ErrorPage({ error, unstable_retry }: { error: Error & { 
     setSpin({ start: retryStartedAt, delay: 0 });
     // The page is about to unload; the spin runs until it does.
     if (description.action === 'reload') window.location.reload();
-    else startTransition(() => unstable_retry());
+    else startTransition(() => retrySegment());
   };
 
   return (

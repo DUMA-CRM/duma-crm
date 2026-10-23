@@ -45,6 +45,7 @@ import {
   setBookingStatus,
   updateBooking,
 } from '@/lib/modules/reservations/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import {
   type BookingDraft,
@@ -61,7 +62,6 @@ import {
   slotOf,
 } from '@/lib/utils/reservations';
 import { formatCalendarDate, workspaceDateKey, workspaceTimeZone } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 import type { Customer } from '@/types/customers';
 
 import { BookingAssist } from './BookingAssist';

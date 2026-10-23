@@ -36,6 +36,7 @@ import { Select } from '@/components/ui/select';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { type Supplier, type SupplierPayload, createSupplier, deactivateSupplier, updateSupplier } from '@/lib/modules/purchasing/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import {
   type SupplierForm,
@@ -49,7 +50,6 @@ import {
 } from '@/lib/utils/suppliers';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 /*
  * Suppliers as business cards, three to a row like the card readers in

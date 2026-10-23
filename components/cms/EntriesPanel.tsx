@@ -54,10 +54,10 @@ import {
   getCmsLocales,
   restoreCmsEntry,
 } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { clickSelection } from '@/lib/utils/media-folders';
 import { formatInstant } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { FolderTile } from './MediaFolders';

@@ -26,9 +26,9 @@ import { Button } from '@/components/ui/button';
 
 import { type OrderDetail, type RefundReason, createRefund, getRefundOptions } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { type RefundSelection, refundAmount, refundLines, selectEverything } from '@/lib/utils/orders-list';
-import { toast } from '@/stores/toastStore';
 
 import { invalidateOrder } from './StatusMenu';
 
@@ -64,7 +64,7 @@ export function useRefundDraft(order: OrderDetail, refundable: number, active: b
       invalidateOrder(qc, order.id);
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('refund-options', order.id) });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-visits') });
-      toast('success', `${Math.abs(amount - refundable) < 0.001 ? 'Full' : 'Partial'} refund recorded.`);
+      toast('success', `${Math.abs(amount - refundable) < 0.001 ? 'Full' : 'Partial'} refund recorded.`, { critical: true });
       setSelection(null);
       setRestock(new Set());
       setReason(null);

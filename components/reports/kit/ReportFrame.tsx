@@ -12,6 +12,7 @@ import {
   Clock,
   Download,
   Gauge,
+  Globe,
   type IconComponent,
   LineChart,
   Package,
@@ -57,6 +58,7 @@ export const REPORT_ICON: Record<ReportId, IconComponent> = {
   purchasing: Truck,
   'end-of-day': Banknote,
   'prime-cost': Gauge,
+  'web-analytics': Globe,
 };
 
 /** Fallback for anything without its own glyph. */
@@ -115,6 +117,7 @@ export function ReportFrame({
   report,
   filters,
   onExport,
+  action,
   canPrint = true,
   children,
 }: {
@@ -122,6 +125,8 @@ export function ReportFrame({
   filters: ReportFilterState;
   /** Builds and downloads the CSV; omitted while there is nothing to export. */
   onExport?: () => void;
+  /** Replaces Export CSV with the report's own primary action (Website analytics copies JSON). */
+  action?: React.ReactNode;
   canPrint?: boolean;
   children: React.ReactNode;
 }) {
@@ -167,10 +172,12 @@ export function ReportFrame({
               <Printer size={15} aria-hidden="true" />
             </Button>
           )}
-          <Button className="h-9 gap-1.5" onClick={onExport} disabled={!onExport} aria-label="Export as CSV" title="Export as CSV">
-            <Download size={15} aria-hidden="true" />
-            <span className="hidden 2xl:inline">Export CSV</span>
-          </Button>
+          {action ?? (
+            <Button className="h-9 gap-1.5" onClick={onExport} disabled={!onExport} aria-label="Export as CSV" title="Export as CSV">
+              <Download size={15} aria-hidden="true" />
+              <span className="hidden 2xl:inline">Export CSV</span>
+            </Button>
+          )}
         </>
       }
       subheader={

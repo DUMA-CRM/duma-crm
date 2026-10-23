@@ -58,6 +58,7 @@ import {
   getLocationStock,
 } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import {
@@ -68,15 +69,14 @@ import {
   filterStock,
   groupByCategory,
   isExpired,
+  lineValue,
   sortStock,
   stockCounts,
   stockHealth,
-  lineValue,
   stockValue,
   suggestedOrder,
 } from '@/lib/utils/stock-list';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 /*
  * The stock tab, after the tools operators already use (MarketMan, Odoo's
@@ -188,7 +188,11 @@ export function StockOverview({
         unitCost: row.stockItem?.costPerUnit != null ? Number(row.stockItem.costPerUnit) : null,
         // Container by container, from the overview; stock with no cost at all leaves it unknown.
         onHandValue:
-          projected?.stockValue === undefined ? undefined : Number(projected.unvaluedQuantity ?? 0) > 0 ? null : Number(projected.stockValue),
+          projected?.stockValue === undefined
+            ? undefined
+            : Number(projected.unvaluedQuantity ?? 0) > 0
+              ? null
+              : Number(projected.stockValue),
         coverDays: forecast?.daysOfStockRemaining ?? null,
         earliestExpiry: projected?.earliestExpiryDate ?? null,
         recommendedQty: forecast?.recommendedReorderQuantity ?? 0,

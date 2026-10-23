@@ -7,8 +7,8 @@ import { Check, Copy } from '@/components/icons';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Tooltip } from '@/components/shared/Tooltip';
 
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 
 /** The variable groups the API returns, short enough to sit side by side. */
 const GROUP_LABELS: Record<string, string> = {

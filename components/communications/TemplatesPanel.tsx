@@ -21,9 +21,9 @@ import {
   getEmailTemplates,
 } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { groupTemplates, templateUsage } from '@/lib/utils/communications';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { CommunicationsToolbar } from './CommunicationsToolbar';

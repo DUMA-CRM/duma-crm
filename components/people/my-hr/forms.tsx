@@ -34,6 +34,7 @@ import {
   submitLeaveRequest,
 } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import {
   formatNiNumber,
@@ -46,7 +47,6 @@ import {
   normaliseSortCode,
 } from '@/lib/utils/my-hr';
 import { workspaceDateKey } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 
 // ── Shared form furniture ─────────────────────────────────────────────────────
 

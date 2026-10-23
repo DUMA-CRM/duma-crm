@@ -32,9 +32,9 @@ import {
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { draftFromAnswers, selectedModulesFor, toOnboardingAnswers } from '@/lib/onboarding/answers';
 import { EMPTY_DRAFT, type OnboardingDraft, type StepId, isStepComplete, visibleSteps } from '@/lib/onboarding/flow';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -205,7 +205,8 @@ function ModuleOverview({
             </InfoRow>
           </InfoRows>
           <p className="mt-4 text-xs text-muted-foreground">
-            Answer a few questions about your business and DUMA proposes the tools it needs. A review only adds — it never switches a tool off.
+            Answer a few questions about your business and DUMA proposes the tools it needs. A review only adds — it never switches a tool
+            off.
           </p>
           <Button className="mt-3 h-9 w-full" onClick={onReview} disabled={reviewing}>
             {reviewing ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}

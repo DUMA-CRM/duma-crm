@@ -32,10 +32,10 @@ import { type MenuItemCost, useMenuItemCosts } from '@/lib/hooks/useMenuItemCost
 import { getMenuCategories, getMenuItems, updateMenuItem } from '@/lib/modules/catalog/client';
 import { getRecipeGaps } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { filterMenuItems, groupByCategory, setupGaps } from '@/lib/utils/menu-list';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { MenuCategory, MenuItem } from '@/types/menu';
 

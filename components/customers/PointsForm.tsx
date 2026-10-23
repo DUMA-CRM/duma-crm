@@ -8,8 +8,8 @@ import { Star, TrendingDown, TrendingUp } from '@/components/icons';
 
 import { adjustPoints } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { tierLadder } from '@/lib/utils/loyalty-tiers';
-import { toast } from '@/stores/toastStore';
 import type { Customer } from '@/types/customers';
 
 /**

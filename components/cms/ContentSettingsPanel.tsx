@@ -14,13 +14,13 @@ import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 
 import { exportCmsContent, getCmsSettings, getCmsStorage, updateCmsSettings } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { uploadTarget } from './StorageUsage';
 import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile } from './rows';
 import { cmsKeys, invalidateCms } from './shared';
-import { uploadTarget } from './StorageUsage';
 
 /**
  * Content's own settings: file privacy and a full export. Keys and webhooks
@@ -91,7 +91,9 @@ function FilePrivacySection() {
           {on && (
             <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
               <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
-              <span>Files linked from outside the CMS — a logo in your site’s code — stop loading until an entry using them is published.</span>
+              <span>
+                Files linked from outside the CMS — a logo in your site’s code — stop loading until an entry using them is published.
+              </span>
             </p>
           )}
         </>
@@ -125,10 +127,16 @@ function BackupSection() {
   return (
     <SettingsSection title="Backup">
       <ActionRows>
-        <ActionRow icon={busy ? FileText : Download} label={busy ? 'Exporting…' : 'Export all content'} disabled={busy} onClick={() => void download()} />
+        <ActionRow
+          icon={busy ? FileText : Download}
+          label={busy ? 'Exporting…' : 'Export all content'}
+          disabled={busy}
+          onClick={() => void download()}
+        />
       </ActionRows>
       <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-        One JSON file: every model, language and entry (drafts and live), and each media file’s details and link. The files themselves stay where they are.
+        One JSON file: every model, language and entry (drafts and live), and each media file’s details and link. The files themselves stay
+        where they are.
       </p>
     </SettingsSection>
   );
@@ -162,13 +170,16 @@ function StorageSection() {
             </InfoRow>
             <InfoRow icon={FileText} title="Used">
               <span className="text-sm font-semibold text-foreground">
-                {target.quotaBytes === null ? `${formatBytes(target.usedBytes)}, no limit` : `${formatBytes(target.usedBytes)} of ${formatBytes(target.quotaBytes)}`}
+                {target.quotaBytes === null
+                  ? `${formatBytes(target.usedBytes)}, no limit`
+                  : `${formatBytes(target.usedBytes)} of ${formatBytes(target.quotaBytes)}`}
               </span>
             </InfoRow>
           </InfoRows>
           {connection?.configuration.publicBaseUrl && (
             <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-              Files served from {connection.displayName}’s own public link are as public as that bucket — the privacy switch covers DUMA’s file links only.
+              Files served from {connection.displayName}’s own public link are as public as that bucket — the privacy switch covers DUMA’s
+              file links only.
             </p>
           )}
           <div className="-mx-2 mt-4 flex flex-col gap-0.5">
@@ -181,7 +192,11 @@ function StorageSection() {
                 <span className="block truncate text-sm font-semibold text-foreground">Manage storage</span>
                 <span className="block truncate text-xs text-muted-foreground">Settings → Connections → Media storage</span>
               </span>
-              <ChevronRight size={14} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              <ChevronRight
+                size={14}
+                className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
             </Link>
           </div>
         </>

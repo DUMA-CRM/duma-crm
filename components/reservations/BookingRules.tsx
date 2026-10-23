@@ -36,13 +36,20 @@ import {
   replaceBookingLink,
   saveReservationSettings,
 } from '@/lib/modules/reservations/client';
+import { toast } from '@/lib/toast';
 import { minutesLabel } from '@/lib/utils/reservations';
-import { toast } from '@/stores/toastStore';
 
 import { GuestEmails } from './GuestEmails';
 
 type Draft = Required<ReservationSettingsInput>;
-type Row = 'onlineMaxPartySize' | 'onlineDurationMinutes' | 'slotIntervalMinutes' | 'minNoticeMinutes' | 'bookingHorizonDays' | 'guestMessage' | 'turnBufferMinutes';
+type Row =
+  | 'onlineMaxPartySize'
+  | 'onlineDurationMinutes'
+  | 'slotIntervalMinutes'
+  | 'minNoticeMinutes'
+  | 'bookingHorizonDays'
+  | 'guestMessage'
+  | 'turnBufferMinutes';
 
 const draftOf = (settings: ReservationSettings): Draft => ({
   onlineEnabled: settings.onlineEnabled,
@@ -107,9 +114,27 @@ export function BookingRules({ locationId, canEdit }: { locationId: string; canE
 
   const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
   /** A number rule: its value on the row, the stepper (and why it matters) underneath. */
-  const numberRow = (row: Row & keyof Draft, icon: IconComponent, title: string, shown: string, hint: string, min: number, max: number, step: number, unit: string) => (
+  const numberRow = (
+    row: Row & keyof Draft,
+    icon: IconComponent,
+    title: string,
+    shown: string,
+    hint: string,
+    min: number,
+    max: number,
+    step: number,
+    unit: string,
+  ) => (
     <PickerRow icon={icon} title={title} value={shown} open={open === row} onToggle={() => toggle(row)}>
-      <NumberStepper label={title} value={value[row] as number} min={min} max={max} step={step} unit={unit} onChange={(next) => set(row, next as never)} />
+      <NumberStepper
+        label={title}
+        value={value[row] as number}
+        min={min}
+        max={max}
+        step={step}
+        unit={unit}
+        onChange={(next) => set(row, next as never)}
+      />
       <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
     </PickerRow>
   );
@@ -131,7 +156,9 @@ export function BookingRules({ locationId, canEdit }: { locationId: string; canE
             <div className="space-y-3">
               <PublicQrCodeCard url={settings.publicUrl} locationName="your location" purpose="booking page" downloadPrefix="booking" />
               {!settings.onlineEnabled && (
-                <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">The page answers only while online booking is on.</p>
+                <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+                  The page answers only while online booking is on.
+                </p>
               )}
               {canEdit && (
                 <Button variant="outline" className="h-9 w-full" onClick={() => setConfirmNewLink(true)}>
@@ -149,7 +176,7 @@ export function BookingRules({ locationId, canEdit }: { locationId: string; canE
       }
     >
       <SettingsSection title="Online booking">
-        <fieldset disabled={!canEdit} className="space-y-3">
+        <fieldset disabled={!canEdit} className="min-w-0 space-y-3">
           {switchRow('onlineEnabled', Globe, 'Take bookings online')}
           {numberRow(
             'onlineMaxPartySize',
@@ -162,9 +189,39 @@ export function BookingRules({ locationId, canEdit }: { locationId: string; canE
             1,
             'guests',
           )}
-          {numberRow('onlineDurationMinutes', Clock, 'Table held for', minutesLabel(value.onlineDurationMinutes), 'How long an online booking keeps its table.', 15, 720, 15, 'min')}
-          {numberRow('slotIntervalMinutes', CalendarClock, 'Times offered every', minutesLabel(value.slotIntervalMinutes), 'Start times run from opening at this step.', 5, 120, 5, 'min')}
-          {numberRow('minNoticeMinutes', Timer, 'Soonest booking', minutesLabel(value.minNoticeMinutes, 'Any time'), 'How far ahead of now a guest must book.', 0, 10080, 15, 'min')}
+          {numberRow(
+            'onlineDurationMinutes',
+            Clock,
+            'Table held for',
+            minutesLabel(value.onlineDurationMinutes),
+            'How long an online booking keeps its table.',
+            15,
+            720,
+            15,
+            'min',
+          )}
+          {numberRow(
+            'slotIntervalMinutes',
+            CalendarClock,
+            'Times offered every',
+            minutesLabel(value.slotIntervalMinutes),
+            'Start times run from opening at this step.',
+            5,
+            120,
+            5,
+            'min',
+          )}
+          {numberRow(
+            'minNoticeMinutes',
+            Timer,
+            'Soonest booking',
+            minutesLabel(value.minNoticeMinutes, 'Any time'),
+            'How far ahead of now a guest must book.',
+            0,
+            10080,
+            15,
+            'min',
+          )}
           {numberRow(
             'bookingHorizonDays',
             CalendarDays,
@@ -209,7 +266,7 @@ export function BookingRules({ locationId, canEdit }: { locationId: string; canE
       </SettingsSection>
 
       <SettingsSection title="Between bookings">
-        <fieldset disabled={!canEdit} className="space-y-3">
+        <fieldset disabled={!canEdit} className="min-w-0 space-y-3">
           {numberRow(
             'turnBufferMinutes',
             Timer,

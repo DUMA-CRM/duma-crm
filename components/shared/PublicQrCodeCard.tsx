@@ -4,11 +4,12 @@ import { useRef, useState } from 'react';
 import QRCode from 'react-qr-code';
 
 import { ActionRow, ActionRows } from '@/components/cms/rows';
+import { copyText } from '@/components/cms/shared';
 import { Check, Copy, Download, ExternalLink } from '@/components/icons';
 import { CopyGlyph } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
-import { copyText } from '@/components/cms/shared';
-import { toast } from '@/stores/toastStore';
+
+import { toast } from '@/lib/toast';
 
 export function PublicQrCodeCard({
   url,
@@ -59,7 +60,11 @@ export function PublicQrCodeCard({
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.drawImage(image, margin, margin, exportSize, exportSize);
       const link = document.createElement('a');
-      const safeLocationName = locationName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'location';
+      const safeLocationName =
+        locationName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '') || 'location';
       link.download = `${downloadPrefix}-${safeLocationName}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
@@ -88,7 +93,13 @@ export function PublicQrCodeCard({
         <QRCode value={url} size={size} aria-label={`${purpose} QR code for ${locationName}`} />
       </div>
       <div className="flex w-[4.5rem] flex-col gap-2 [&>*]:h-auto [&>*]:flex-1 [&_svg]:size-5">
-        <Button type="button" variant="outline" onClick={() => void copy()} aria-label={copied ? 'Link copied' : 'Copy link'} title="Copy link">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void copy()}
+          aria-label={copied ? 'Link copied' : 'Copy link'}
+          title="Copy link"
+        >
           <CopyGlyph copied={copied} size={16} className="text-primary" />
         </Button>
         <Button type="button" variant="outline" onClick={download} aria-label="Download QR code" title="Download to print">

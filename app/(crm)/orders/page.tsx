@@ -58,12 +58,12 @@ import { getStaff } from '@/lib/modules/identity/client';
 import { type Order, type OrderSource, type OrderStatus, approveCashOrder, getOrders } from '@/lib/modules/ordering/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { paymentClears } from '@/lib/utils/order-workflow';
 import { groupOrdersByDay, itemCount, itemPreview, orderCode, paymentSummary, shiftDay, todayKey } from '@/lib/utils/orders-list';
 import { workspaceFormatter } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /*
@@ -403,7 +403,7 @@ function OrdersPageContent() {
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders') });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders-all') });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('kds-orders') });
-      toast('success', `Cash received. Order ${orderCode(order.id)} is in ${words.queue}.`);
+      toast('success', `Cash received. Order ${orderCode(order.id)} is in ${words.queue}.`, { critical: true });
     },
     onError: (error) => toast('error', error instanceof Error ? error.message : 'The cash order couldn’t be approved.'),
   });

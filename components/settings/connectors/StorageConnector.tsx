@@ -12,9 +12,9 @@ import { Select } from '@/components/ui/select';
 
 import { ApiError } from '@/lib/api/client';
 import { type CmsStorage, type CmsStorageConnection, createCmsStorageConnection } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
 import { QUOTA_UNITS, type QuotaUnit, parseBucketUrl, quotaToBytes } from '@/lib/utils/media-storage';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ConnectWizard, ProviderGrid, WizardRail, type WizardStep } from './ConnectWizard';

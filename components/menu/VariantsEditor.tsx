@@ -28,9 +28,9 @@ import {
   updateCatalogVariant,
 } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { type GridOption, OPTION_PRESETS, gridSize, missingCombinations, optionPlaceholder, variantNoun } from '@/lib/utils/catalog-import';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import type { CatalogOption, CatalogVariant } from '@/types/catalog';
 
 const MONEY = /^\d{1,8}(\.\d{1,2})?$/;

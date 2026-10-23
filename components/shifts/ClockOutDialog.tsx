@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { clockOut } from '@/lib/modules/workforce/client';
+import { toast } from '@/lib/toast';
 import { uiSound } from '@/lib/utils/chime';
-import { toast } from '@/stores/toastStore';
 
 interface ClockOutDialogProps {
   locationId: string;

@@ -14,9 +14,9 @@ import { Select } from '@/components/ui/select';
 
 import { createCustomer, updateCustomer } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { customerFormSnapshot } from '@/lib/utils/customer-form';
-import { toast } from '@/stores/toastStore';
 import { DIETARY_PREFERENCES, FSA_ALLERGENS } from '@/types/customers';
 import type { AlertSeverity, Allergen, Customer, CustomerAlert, DietaryPreference } from '@/types/customers';
 

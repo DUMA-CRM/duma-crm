@@ -24,9 +24,9 @@ import {
   replyTicket,
   updateTicket,
 } from '@/lib/modules/support/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { type BoardColumn, buildBoard, ticketAge } from '@/lib/utils/helpdesk-board';
-import { toast } from '@/stores/toastStore';
 
 import {
   AuthorAvatar,

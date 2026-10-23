@@ -157,3 +157,19 @@ test('old-API lines get their UK columns back as named lines, as the 0081 backfi
   const current = { items: [], netPay: null } as never;
   assert.equal(withItems(current), current);
 });
+
+test('the automatic pay day reads the way the API schedules it', async () => {
+  const { payDayInWords } = await import('../lib/utils/payroll-periods.ts');
+  const at = (payrollPeriod: 'weekly' | 'fortnightly' | 'semi_monthly' | 'monthly', payrollPayDayOfMonth = 25, payrollPayWeekday = 5) =>
+    payDayInWords({ payrollPeriod, payrollPayDayOfMonth, payrollPayWeekday });
+  assert.equal(at('weekly'), 'Every Friday');
+  assert.equal(at('fortnightly', 1, 1), 'Every other Monday');
+  // Fixed days, whatever weekday is stored.
+  assert.equal(at('semi_monthly', 25, 3), 'On the 1st and 16th');
+  assert.equal(at('monthly'), 'On the 25th');
+  assert.equal(at('monthly', 1), 'On the 1st');
+  assert.equal(at('monthly', 22), 'On the 22nd');
+  assert.equal(at('monthly', 13), 'On the 13th');
+  assert.equal(at('monthly', 31), 'On the 31st');
+  assert.equal(at('weekly', 1, 9), 'Every Sunday');
+});

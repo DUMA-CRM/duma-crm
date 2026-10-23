@@ -54,13 +54,13 @@ import {
   updatePurchaseOrder,
 } from '@/lib/modules/purchasing/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { dueLabel, invoiceDifference, isOverdue, orderTotal, receivedShare, summaryReceivedShare } from '@/lib/utils/purchase-orders';
 import { dayLabel } from '@/lib/utils/restock-queue';
 import { workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 /*
  * Purchase orders, in the restock tab's vocabulary: a summary across the top,

@@ -9,6 +9,7 @@ import { PaymentMethodsReport, VatReport } from './catalogue/PaymentReports';
 import { CustomerRetentionReport, LabourVsSalesReport, StaffHoursReport } from './catalogue/PeopleReports';
 import { PrimeCostReport } from './catalogue/ProfitReports';
 import { SalesByChannelReport, SalesByHourReport, SalesByLocationReport, SalesSummaryReport } from './catalogue/SalesReports';
+import { WebAnalyticsReport } from './catalogue/WebsiteReports';
 import { type ReportFilterState, useReportFilters } from './kit/useReportFilters';
 
 const VIEWS: Record<ReportId, (props: { filters: ReportFilterState }) => React.ReactNode> = {
@@ -30,6 +31,7 @@ const VIEWS: Record<ReportId, (props: { filters: ReportFilterState }) => React.R
   purchasing: PurchasingReport,
   'end-of-day': EndOfDayReport,
   'prime-cost': PrimeCostReport,
+  'web-analytics': WebAnalyticsReport,
 };
 
 /** One report by id, with the shared filters read from the URL. */

@@ -17,8 +17,8 @@ import { Button } from '@/components/ui/button';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type BookingEmailAutomation, type BookingEmailTrigger, getGuestEmails, setUpGuestEmails } from '@/lib/modules/reservations/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import { useAuthStore } from '@/stores/authStore';
 
 const MOMENTS: { trigger: BookingEmailTrigger; title: string; icon: IconComponent }[] = [
@@ -107,7 +107,13 @@ export function GuestEmails({ locationId, canEdit }: { locationId: string; canEd
                     </span>
                   </span>
                   {state && <Badge variant={state.variant}>{state.label}</Badge>}
-                  {automation && <ChevronRight size={14} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />}
+                  {automation && (
+                    <ChevronRight
+                      size={14}
+                      className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                      aria-hidden="true"
+                    />
+                  )}
                 </>
               );
               return automation ? (

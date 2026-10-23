@@ -4,6 +4,8 @@ import { CheckCircle2, Clock, GitCompareArrows, type IconComponent, Send, Zap } 
 
 import type { EmailWorkflowNode } from '@/lib/modules/communications/client';
 import { cn } from '@/lib/utils/cn';
+import { triggerOptionsInWords } from '@/lib/utils/communications';
+import { conditionSentence } from '@/lib/utils/workflow-conditions';
 
 import { TRIGGER_LABELS } from './shared';
 
@@ -37,25 +39,35 @@ export const DOT_GRID_STYLE: React.CSSProperties = {
   backgroundSize: '16px 16px',
 };
 
+/** Looks up the names a trigger's options point at. */
+export interface TriggerNames {
+  location?: (id: string) => string | undefined;
+  segment?: (id: string) => string | undefined;
+}
+
 /** Second line of a step card: what this particular step is set to do. */
-export function nodeDetail(node: EmailWorkflowNode, templateName?: (id: string) => string): string {
+export function nodeDetail(node: EmailWorkflowNode, templateName?: (id: string) => string, triggerNames?: TriggerNames): string {
   switch (node.type) {
     case 'trigger':
-      return TRIGGER_LABELS[node.config.event];
+      // The event, then what narrows or times it — read here, set in the panel.
+      return [
+        TRIGGER_LABELS[node.config.event],
+        ...triggerOptionsInWords(node.config, {
+          location: node.config.locationId ? triggerNames?.location?.(node.config.locationId) : null,
+          segment: node.config.segmentId ? triggerNames?.segment?.(node.config.segmentId) : null,
+        }),
+      ].join(' · ');
     case 'create_task':
       return node.config.subject || 'Helpdesk task';
     case 'send_email':
       return templateName?.(node.config.templateId) ?? 'Email template';
     case 'delay':
       return `${node.config.amount} ${node.config.unit}`;
-    case 'condition':
-      return (
-        node.config.field
-          .split('.')
-          .at(-1)
-          ?.replaceAll(/([A-Z])/g, ' $1')
-          .toLowerCase() ?? 'Condition'
-      );
+    case 'condition': {
+      // The check as a sentence, as the panel words it — "Loyalty tier is Gold".
+      const sentence = conditionSentence(node.config, { locationName: (id) => triggerNames?.location?.(id) });
+      return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+    }
     default:
       return 'Finish';
   }

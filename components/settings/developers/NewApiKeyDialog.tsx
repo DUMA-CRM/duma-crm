@@ -16,8 +16,8 @@ import { Select } from '@/components/ui/select';
 import { type ApiKeyKind, type ApiKeyScope, type WorkspaceApiKey, createWorkspaceApiKey } from '@/lib/api/api-keys.service';
 import { PUBLIC_APIS, SCOPES, grantableScopes, isContentApi, kindAllows } from '@/lib/developers/api-reference';
 import { getCmsContentTypes } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { DONE_BEAT_MS } from './rows';

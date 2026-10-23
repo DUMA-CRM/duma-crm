@@ -59,13 +59,13 @@ import {
 } from '@/lib/modules/inventory/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { timeAgo } from '@/lib/utils/format';
 import { type RestockJourneyStage, restockJourney } from '@/lib/utils/restock-journey';
 import { type StockContext, dayLabel, orderRequests, requestContext } from '@/lib/utils/restock-queue';
 import { formatInstant, workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /*

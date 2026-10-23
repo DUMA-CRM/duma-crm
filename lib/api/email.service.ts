@@ -3,6 +3,9 @@ import { apiFetch } from './client';
 export type EmailSecurity = 'tls' | 'starttls' | 'none';
 export type EmailTrigger =
   | 'manual'
+  | 'order_refunded'
+  | 'reservation_changed'
+  | 'stock_low'
   | 'order_created'
   | 'order_paid'
   | 'order_ready'
@@ -24,6 +27,28 @@ export type EmailDeliveryStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'ca
 /** A delivery's trigger — booking emails included, now that automations send them too. */
 export type EmailDeliveryTrigger = EmailTrigger;
 export type EmailWorkflowConditionField =
+  | 'customer.email'
+  | 'customer.totalSpent'
+  | 'customer.totalVisits'
+  | 'customer.daysSinceLastVisit'
+  | 'order.paymentStatus'
+  | 'order.source'
+  | 'order.fulfilmentType'
+  | 'order.locationId'
+  | 'order.discountAmount'
+  | 'promotion.code'
+  | 'staff.department'
+  | 'staff.jobTitle'
+  | 'booking.partySize'
+  | 'booking.status'
+  | 'booking.source'
+  | 'booking.locationId'
+  | 'booking.guestEmail'
+  | 'booking.hoursUntilStart'
+  | 'stock.name'
+  | 'stock.quantity'
+  | 'stock.threshold'
+  | 'stock.locationId'
   | 'customer.marketingOptIn'
   | 'customer.tier'
   | 'customer.pointsBalance'
@@ -33,6 +58,21 @@ export type EmailWorkflowConditionField =
   | 'order.status'
   | 'order.totalAmount'
   | 'order.paymentMethod';
+export type EmailWorkflowRule = {
+  field: EmailWorkflowConditionField;
+  operator:
+    | 'equals'
+    | 'not_equals'
+    | 'greater_than'
+    | 'greater_than_or_equal'
+    | 'less_than'
+    | 'less_than_or_equal'
+    | 'contains'
+    | 'is_empty'
+    | 'is_not_empty';
+  value: string | number | boolean;
+};
+
 export type EmailWorkflowNode =
   | {
       id: string;
@@ -56,11 +96,7 @@ export type EmailWorkflowNode =
       id: string;
       type: 'condition';
       name: string;
-      config: {
-        field: EmailWorkflowConditionField;
-        operator: 'equals' | 'not_equals' | 'greater_than' | 'greater_than_or_equal' | 'less_than' | 'less_than_or_equal' | 'contains';
-        value: string | number | boolean;
-      };
+      config: EmailWorkflowRule & { match?: 'all' | 'any'; rules?: EmailWorkflowRule[] };
     }
   | { id: string; type: 'end'; name: string; config: Record<string, never> };
 export interface EmailWorkflowEdge {

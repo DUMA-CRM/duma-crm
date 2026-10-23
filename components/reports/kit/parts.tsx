@@ -131,7 +131,13 @@ export function ReportBlock({
       <div className="mb-2 flex min-h-8 flex-wrap items-end gap-x-3 gap-y-1 px-1">
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-          {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+          {/* Text goes in a <p>; anything richer (a chart legend is its own <p>) in a <div>, so they never nest. */}
+          {description &&
+            (typeof description === 'string' ? (
+              <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+            ) : (
+              <div className="mt-0.5 text-xs text-muted-foreground">{description}</div>
+            ))}
         </div>
         {actions}
       </div>
@@ -620,7 +626,16 @@ export function BarList({
   rows,
   format,
 }: {
-  rows: { key: string; label: string; value: number; detail?: string; previous?: number | null; icon?: IconComponent }[];
+  rows: {
+    key: string;
+    label: string;
+    value: number;
+    detail?: string;
+    previous?: number | null;
+    icon?: IconComponent;
+    /** Drawn where `icon` would be, for marks that aren't glyphs — a site's favicon. */
+    leading?: React.ReactNode;
+  }[];
   format: (value: number) => string;
 }) {
   const total = rows.reduce((sum, row) => sum + Math.max(0, row.value), 0);
@@ -634,7 +649,7 @@ export function BarList({
           <li key={row.key}>
             <div className="flex items-baseline justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
-                {Icon && <Icon size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />}
+                {row.leading ?? (Icon && <Icon size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />)}
                 <span className="truncate">{row.label}</span>
                 {row.detail && <span className="truncate text-xs font-normal text-muted-foreground">{row.detail}</span>}
               </span>

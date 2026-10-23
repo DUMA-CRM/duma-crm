@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 
-import { Copy, Menu, Plus, Trash2 } from '@/components/icons';
+import { Copy, Menu, Plus, Trash2, TriangleAlert } from '@/components/icons';
+import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
 
 import type { EmailWorkflowDefinition, EmailWorkflowNode } from '@/lib/modules/communications/client';
 import { cn } from '@/lib/utils/cn';
 
 import { isMovableNode } from './workflowModel';
-import { NODE_META, nodeDetail } from './workflowNodes';
+import { NODE_META, type TriggerNames, nodeDetail } from './workflowNodes';
 
 /**
  * The workflow, drawn as the tree it actually is.
@@ -46,6 +47,12 @@ interface Props {
   onRemove: (nodeId: string) => void;
   /** Resolves a template id to its name for the step's second line. */
   templateName?: (id: string) => string;
+  /** Names for a trigger's location and segment, so its step reads "Order placed · at North Street". */
+  triggerNames?: TriggerNames;
+  /** A new workflow whose event isn't chosen yet: its trigger step says so instead of the placeholder event. */
+  triggerPending?: boolean;
+  /** What's wrong with each step, by id — outlined on its card, the reason on hover. */
+  issues?: ReadonlyMap<string, string[]>;
   /** View only: steps can be selected to read, but not added, moved, copied or removed. */
   readOnly?: boolean;
 }
@@ -62,6 +69,9 @@ export function WorkflowTree({
   onDuplicate,
   onRemove,
   templateName,
+  triggerNames,
+  triggerPending = false,
+  issues,
   readOnly = false,
 }: Props) {
   const [dragging, setDragging] = useState<string | null>(null);
@@ -102,6 +112,9 @@ export function WorkflowTree({
         <StepCard
           node={node}
           templateName={templateName}
+          triggerNames={triggerNames}
+          triggerPending={triggerPending}
+          issues={issues?.get(node.id)}
           selected={node.id === selectedId}
           dragging={dragging === node.id}
           readOnly={readOnly}
@@ -276,6 +289,9 @@ function BranchConnector() {
 function StepCard({
   node,
   templateName,
+  triggerNames,
+  triggerPending,
+  issues,
   selected,
   dragging,
   readOnly,
@@ -287,6 +303,9 @@ function StepCard({
 }: {
   node: EmailWorkflowNode;
   templateName?: (id: string) => string;
+  triggerNames?: TriggerNames;
+  triggerPending?: boolean;
+  issues?: string[];
   selected: boolean;
   dragging: boolean;
   readOnly: boolean;
@@ -316,7 +335,11 @@ function StepCard({
       className={cn(
         'group/step relative flex w-64 items-center gap-2 rounded-lg border bg-card p-3 text-left',
         'transition-[border-color,box-shadow,opacity] duration-150',
-        selected ? 'border-primary ring-2 ring-primary/15' : 'border-rule/60 hover:border-primary/40',
+        issues?.length
+          ? cn('border-exception/70', selected && 'ring-2 ring-exception/15')
+          : selected
+            ? 'border-primary ring-2 ring-primary/15'
+            : 'border-rule/60 hover:border-primary/40',
         dragging && 'opacity-40',
       )}
     >
@@ -336,8 +359,19 @@ function StepCard({
           <Icon size={17} aria-hidden="true" />
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold text-foreground">{node.name}</span>
-          <span className="block truncate text-label text-muted-foreground">{nodeDetail(node, templateName)}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-sm font-semibold text-foreground">{node.name}</span>
+            {issues?.length ? (
+              <Tooltip side="top" wrap label={issues.join(' ')}>
+                <span className="shrink-0 text-exception" aria-label={`Needs attention: ${issues.join(' ')}`}>
+                  <TriangleAlert size={13} />
+                </span>
+              </Tooltip>
+            ) : null}
+          </span>
+          <span className="block truncate text-label text-muted-foreground">
+            {node.type === 'trigger' && triggerPending ? 'Choose an event' : nodeDetail(node, templateName, triggerNames)}
+          </span>
         </span>
       </button>
 

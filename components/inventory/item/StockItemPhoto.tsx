@@ -11,10 +11,10 @@ import { proxiedImage } from '@/lib/api/client';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { updateStockItem } from '@/lib/modules/inventory/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { mediaImagePath } from '@/lib/utils/image-src';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 /**
  * An inventory item's photo, or the package glyph when it has none — or when
@@ -73,8 +73,8 @@ export function StockItemPhotoField({ value, onChange }: { value: string | null;
           </div>
         ) : (
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Photos come from the media library, which needs <span className="font-semibold text-foreground">Website content</span>.
-            Switch it on in Settings → Modules.
+            Photos come from the media library, which needs <span className="font-semibold text-foreground">Website content</span>. Switch
+            it on in Settings → Modules.
           </p>
         )}
         {contentEnabled && <p className="mt-1.5 text-xs text-muted-foreground">Helps staff spot it on a shelf or in a delivery.</p>}

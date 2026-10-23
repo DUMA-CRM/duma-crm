@@ -28,10 +28,10 @@ import {
 } from '@/lib/modules/customers/client';
 import type { OrderShippingAddress } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { addressErrors, cleanAddress, emptyAddress } from '@/lib/utils/delivery-address';
 import { shippingAddressLines } from '@/lib/utils/orders-list';
-import { toast } from '@/stores/toastStore';
 import type { Customer } from '@/types/customers';
 
 const asAddress = (row: CustomerAddress): OrderShippingAddress => ({

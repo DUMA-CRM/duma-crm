@@ -29,10 +29,10 @@ import {
   updateCatalogImage,
 } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
 import { isConvertibleImage } from '@/lib/utils/media-storage';
-import { toast } from '@/stores/toastStore';
 import type { CatalogImage, CatalogOption } from '@/types/catalog';
 
 import { catalogKey } from './VariantsEditor';

@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { type Note, deleteNote, purgeNote, restoreNote, saveNote } from '@/lib/modules/notes/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
 
 /**
  * What the sidebar can do to a note without opening it — the right-click menu

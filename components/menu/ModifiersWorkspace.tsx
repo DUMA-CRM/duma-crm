@@ -23,11 +23,11 @@ import { Select } from '@/components/ui/select';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { getModifierGroups, getModifiers, updateModifier } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { groupModifiers } from '@/lib/utils/modifier-list';
 import { modifierLabel } from '@/lib/utils/modifiers';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { Modifier } from '@/types/menu';
 

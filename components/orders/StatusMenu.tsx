@@ -13,10 +13,10 @@ import { Button } from '@/components/ui/button';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { type Order, type OrderStatus, type VoidReason, updateOrderStatus } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { paymentClears } from '@/lib/utils/order-workflow';
 import { orderCode } from '@/lib/utils/orders-list';
-import { toast } from '@/stores/toastStore';
 
 import { NEXT_STATUSES, STATUS_META, VOID_REASON_OPTIONS } from './orderMeta';
 
@@ -72,11 +72,7 @@ export function StatusMenu({ order }: { order: Order }) {
   // "cancel" because its payment no longer read as paid. Otherwise an unpaid
   // order can only be cancelled.
   const nexts =
-    NEXT_STATUSES[order.status].length === 0
-      ? []
-      : !paymentClears(order)
-        ? (['cancelled'] as OrderStatus[])
-        : NEXT_STATUSES[order.status];
+    NEXT_STATUSES[order.status].length === 0 ? [] : !paymentClears(order) ? (['cancelled'] as OrderStatus[]) : NEXT_STATUSES[order.status];
 
   if (nexts.length === 0) return <StatusPill status={order.status} />;
 

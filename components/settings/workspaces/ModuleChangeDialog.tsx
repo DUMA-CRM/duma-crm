@@ -25,9 +25,9 @@ import { DASHBOARD_WIDGETS } from '@/lib/dashboard/widget-registry';
 import { CRM_MODULE_MANIFESTS, type ModuleId } from '@/lib/modules/manifest';
 import { type ModuleChangePreview, changeTenantModule } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { type ImpactGroup, describeModuleImpact, listSentence } from '@/lib/utils/module-impact';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const EASE = [0.16, 1, 0.3, 1] as const;

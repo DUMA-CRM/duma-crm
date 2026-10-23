@@ -5,6 +5,7 @@
  * covers the same dates the automatic job would. Local dates, `YYYY-MM-DD`.
  */
 import type { PayrollPeriod } from '../api/payroll.service.ts';
+
 import { zonedParts } from './workspace-time.ts';
 
 export const PERIODS_PER_YEAR: Record<PayrollPeriod, number> = { weekly: 52, fortnightly: 26, semi_monthly: 24, monthly: 12 };
@@ -89,4 +90,22 @@ export function rangeLabel(from: string, to: string): string {
   const end = new Date(ty, tm - 1, td);
   if (fd === 1 && end.getDate() === new Date(ty, tm, 0).getDate() && fm === tm && fy === ty) return MONTH.format(start);
   return `${DAY.format(start)} – ${DAY.format(end)} ${ty}`;
+}
+
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const ordinal = (day: number) => {
+  const teen = day % 100 >= 11 && day % 100 <= 13;
+  return `${day}${teen ? 'th' : (({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[day % 10] ?? 'th')}`;
+};
+
+/**
+ * When the automatic finalisation runs, the way duma-api's `payroll-schedule.ts`
+ * decides it: "Every Friday" · "Every other Friday" · "On the 1st and 16th" ·
+ * "On the 25th" (a short month runs on its last day).
+ */
+export function payDayInWords(schedule: { payrollPeriod: PayrollPeriod; payrollPayDayOfMonth: number; payrollPayWeekday: number }): string {
+  if (schedule.payrollPeriod === 'monthly') return `On the ${ordinal(Math.min(Math.max(1, schedule.payrollPayDayOfMonth), 31))}`;
+  if (schedule.payrollPeriod === 'semi_monthly') return 'On the 1st and 16th';
+  const weekday = WEEKDAYS[Math.min(Math.max(1, schedule.payrollPayWeekday), 7) - 1];
+  return schedule.payrollPeriod === 'fortnightly' ? `Every other ${weekday}` : `Every ${weekday}`;
 }

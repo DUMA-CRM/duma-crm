@@ -44,11 +44,11 @@ import {
 } from '@/lib/modules/inventory/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { groupByDay } from '@/lib/utils/ledger';
 import { direction, itemLine, otherSide, quantityError, signedChange } from '@/lib/utils/transfers';
 import { formatInstant } from '@/lib/utils/workspace-time';
-import { toast } from '@/stores/toastStore';
 
 const STATUS: Record<StockTransferStatus, { label: string; pill: string }> = {
   pending: { label: 'Waiting', pill: 'bg-measured/10 text-measured' },

@@ -18,8 +18,8 @@ import {
   stopNoteDriveSync,
 } from '@/lib/modules/notes/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { driveSyncPollMs, driveSyncSummary } from '@/lib/utils/note-drive-sync';
-import { toast } from '@/stores/toastStore';
 
 export interface DriveMenuItem {
   key: string;

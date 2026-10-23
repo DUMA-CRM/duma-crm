@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/authStore';
 export function useEmailAccess() {
   const capabilities = useAuthStore((state) => state.capabilities);
   return {
+    canManageTasks: hasCapability(capabilities, 'helpdesk:manage'),
     /** Create, edit, pause and delete templates and automations. */
     canWrite: hasCapability(capabilities, 'email:write'),
     /** Put a workflow live (first switch-on included). */

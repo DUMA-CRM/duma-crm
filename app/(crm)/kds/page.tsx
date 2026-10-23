@@ -26,12 +26,12 @@ import { Button } from '@/components/ui/button';
 import { useWakeLock } from '@/lib/hooks/useWakeLock';
 import { type Order, type OrderItem, type OrderStatus, getOrder, getOrders, updateOrderStatus } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { chime, unlockAudio } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
 import { KDS_LANES, type KdsLane, NEXT_STATUS, PREVIOUS_STATUS, allDay, arrivals, isOnScreen, ticketName } from '@/lib/utils/kds';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { type KdsTextSize, useKdsStore } from '@/stores/kdsStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const POLL_INTERVAL_MS = 10_000;
@@ -53,9 +53,7 @@ async function getLaneOrders(locationId: string, status: KdsLane): Promise<Order
   const rest =
     first.pages > 1
       ? await Promise.all(
-          Array.from({ length: first.pages - 1 }, (_, index) =>
-            getOrders({ page: index + 2, limit: 100, locationId, status }),
-          ),
+          Array.from({ length: first.pages - 1 }, (_, index) => getOrders({ page: index + 2, limit: 100, locationId, status })),
         )
       : [];
   const now = Date.now();

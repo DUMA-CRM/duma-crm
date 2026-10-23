@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 
 import { deleteMenuItem } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { toast } from '@/stores/toastStore';
+import { toast } from '@/lib/toast';
 import type { MenuItem } from '@/types/menu';
 
 export function DeleteMenuItemButton({ item, onDeleted }: { item: MenuItem; onDeleted: () => void }) {

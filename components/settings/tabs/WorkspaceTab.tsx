@@ -31,6 +31,7 @@ import {
   updateTenant,
 } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { BRANDS, parseBrand } from '@/lib/utils/brand';
 import {
   formatInstant,
@@ -41,7 +42,6 @@ import {
   workspaceTimeZone,
 } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -190,7 +190,9 @@ function BusinessSection() {
               </motion.div>
             )}
           </AnimatePresence>
-          <div className="mt-2"><BrandControl /></div>
+          <div className="mt-2">
+            <BrandControl />
+          </div>
         </div>
         {canRename && !editing && (
           <Button
@@ -304,10 +306,7 @@ function TimezoneDialog({ current, onClose }: { current: string; onClose: () => 
   const valid = isValidTimeZone(zone);
 
   return (
-    <Modal
-      title="Workspace timezone"
-      onClose={() => !save.isPending && onClose()}
-    >
+    <Modal title="Workspace timezone" onClose={() => !save.isPending && onClose()}>
       <div className="space-y-4">
         <fieldset disabled={save.isPending} className="disabled:opacity-60">
           <legend className="sr-only">Timezone</legend>
@@ -316,10 +315,13 @@ function TimezoneDialog({ current, onClose }: { current: string; onClose: () => 
             onChange={(next) => {
               if (save.isPending || next === current || !isValidTimeZone(next)) return;
               setZone(next);
-              save.mutate({ timezone: next }, {
-                onSuccess: () => onClose(),
-                onError: () => setZone(current),
-              });
+              save.mutate(
+                { timezone: next },
+                {
+                  onSuccess: () => onClose(),
+                  onError: () => setZone(current),
+                },
+              );
             }}
             required
           />
@@ -345,7 +347,6 @@ function TimezoneDialog({ current, onClose }: { current: string; onClose: () => 
             </span>
           </div>
         )}
-
       </div>
     </Modal>
   );
@@ -368,7 +369,9 @@ function BrandControl() {
         className="inline-flex min-h-9 items-center gap-2 rounded-md border border-rule/60 bg-field px-2.5 text-sm text-muted-foreground transition-colors hover:border-rule hover:bg-band/45 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default"
       >
         <span data-brand={brand} className="size-3.5 shrink-0 rounded-[3px] border border-rule/30 bg-(--brand)" aria-hidden="true" />
-        <span>Brand colour: <span className="font-medium text-foreground">{label}</span></span>
+        <span>
+          Brand colour: <span className="font-medium text-foreground">{label}</span>
+        </span>
         {canEdit && <Pencil size={13} aria-hidden="true" />}
       </button>
       {editing && (

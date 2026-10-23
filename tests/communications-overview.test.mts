@@ -272,7 +272,7 @@ test('describeStep says what each step does in plain words', async () => {
       { id: 'e', type: 'condition', name: 'C', config: { field: 'order.totalAmount', operator: 'greater_than', value: 20 } },
       opts,
     ),
-    'If the order total is more than “20”, it follows Yes; otherwise No.',
+    'If order total is more than 20, it follows Yes; otherwise No.',
   );
 });
 
@@ -298,4 +298,45 @@ test('templateChecks flags what would break or weaken a send', async () => {
   assert.deepEqual(templateChecks(design, 'Hello', ['customer.firstName']), []);
   // The preview line is rendered hidden, ahead of the content.
   assert.match(renderTemplateDesign(design), /display:none[^>]*>Your treat is waiting/);
+});
+
+test('workflow runs are counted and described in words', async () => {
+  const { countRuns, runStepsInWords, runTrigger } = await import('../lib/utils/communications.ts');
+  assert.deepEqual(countRuns([{ status: 'failed' }, { status: 'completed' }, { status: 'completed' }]), { running: 0, completed: 2, failed: 1 });
+  assert.deepEqual(countRuns([]), { running: 0, completed: 0, failed: 0 });
+  assert.equal(runStepsInWords(0), 'No steps');
+  assert.equal(runStepsInWords(1), '1 step');
+  assert.equal(runStepsInWords(4, 1), '4 steps · 1 failed');
+  assert.equal(runTrigger('order_paid:ord_1'), 'order_paid');
+  assert.equal(runTrigger('reservation_reminder:res_1:2'), 'reservation_reminder');
+  assert.equal(runTrigger('segment_entered'), 'segment_entered');
+});
+
+test('a run’s duration reads in the largest sensible units', async () => {
+  const { durationInWords } = await import('../lib/utils/communications.ts');
+  const start = '2026-10-01T10:00:00.000Z';
+  const after = (ms: number) => new Date(Date.parse(start) + ms).toISOString();
+  assert.equal(durationInWords(start, null), null);
+  assert.equal(durationInWords(start, 'not a date'), null);
+  assert.equal(durationInWords(start, after(-1_000)), null);
+  assert.equal(durationInWords(start, after(300)), 'Under a second');
+  assert.equal(durationInWords(start, after(42_000)), '42 s');
+  assert.equal(durationInWords(start, after(3 * 60_000)), '3 min');
+  assert.equal(durationInWords(start, after(130 * 60_000)), '2 h 10 min');
+  assert.equal(durationInWords(start, after(2 * 3_600_000)), '2 h');
+  assert.equal(durationInWords(start, after(76 * 3_600_000)), '3 days 4 h');
+  assert.equal(durationInWords(start, after(24 * 3_600_000)), '1 day');
+});
+
+test('step statuses separate a retry from giving up', async () => {
+  const { stepState, stepStatusLabel } = await import('../lib/utils/communications.ts');
+  assert.equal(stepState('completed'), 'done');
+  assert.equal(stepState('queued'), 'pending');
+  assert.equal(stepState('running'), 'pending');
+  assert.equal(stepState('failed'), 'retrying');
+  assert.equal(stepState('failed_permanently'), 'failed');
+  assert.equal(stepState('skipped'), 'other');
+  assert.equal(stepStatusLabel('failed'), 'Retrying');
+  assert.equal(stepStatusLabel('failed_permanently'), 'Failed');
+  assert.equal(stepStatusLabel('waiting_on_event'), 'Waiting on event');
 });

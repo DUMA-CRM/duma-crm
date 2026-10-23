@@ -41,6 +41,7 @@ import { FieldLabel } from '@/components/ui/label';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { type CashUp, closeCashUp, getCashUpExpectation, getCashUps, openCashUp } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import {
   type Counts,
   EXPLAIN_FROM_MINOR,
@@ -54,7 +55,6 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 /*
  * Cashing up, at the till — where Toast, Lightspeed and Square all keep it:
@@ -421,7 +421,7 @@ function OpenFlow({
     mutationFn: () => openCashUp({ locationId, tradingDate: today, openingFloat: value! / 100 }),
     onSuccess: () => {
       invalidateCashUps(qc);
-      toast('success', 'The day is open. Good trading.');
+      toast('success', 'The day is open. Good trading.', { critical: true });
       onClose();
     },
     onError: (error) => toast('error', error instanceof Error ? error.message : 'The day wasn’t opened. Try again.'),

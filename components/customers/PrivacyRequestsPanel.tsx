@@ -47,11 +47,11 @@ import {
   updatePrivacyRequest,
 } from '@/lib/modules/compliance/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { type DeadlineTone, isClosedRequest, requestDeadline, sortQueue, summariseQueue } from '@/lib/utils/privacy-deadline';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 /**
  * Privacy requests: recording them, working them, and closing them.

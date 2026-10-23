@@ -9,6 +9,8 @@ import {
   formatDelta,
   ordersHref,
   rangeDays,
+  comparisonDates,
+  rangeDates,
   rangeLabel,
   readFilters,
   resolveRange,
@@ -58,10 +60,25 @@ test('filters round-trip through the URL, writing only what differs from the def
 test('a range names itself by preset, or by its days', () => {
   assert.equal(rangeLabel({ preset: 'last-7' }, resolveRange({ preset: 'last-7' }, NOW)), 'Last 7 days');
   const range = resolveRange({ preset: 'custom', from: '2026-09-01', to: '2026-09-30' }, NOW);
-  assert.equal(
-    rangeLabel({ preset: 'custom' }, range),
-    '1 Sept – 30 Sept 2026'.replaceAll('Sept', range.from.toLocaleDateString('en-GB', { month: 'short' })),
-  );
+  const sep = range.from.toLocaleDateString('en-GB', { month: 'short' });
+  assert.equal(rangeLabel({ preset: 'custom' }, range), `1–30 ${sep} 2026`);
+});
+
+test('dates read as briefly as stays clear', () => {
+  const at = (from: string, to: string) => resolveRange({ preset: 'custom', from, to }, NOW);
+  const month = (key: string) => new Date(`${key}T12:00:00`).toLocaleDateString('en-GB', { month: 'short' });
+  assert.equal(rangeDates(at('2026-10-17', '2026-10-17')), `17 ${month('2026-10-17')} 2026`);
+  assert.equal(rangeDates(at('2026-10-17', '2026-10-18')), `17–18 ${month('2026-10-17')} 2026`);
+  assert.equal(rangeDates(at('2026-09-28', '2026-10-04')), `28 ${month('2026-09-28')} – 4 ${month('2026-10-04')} 2026`);
+  assert.equal(rangeDates(at('2025-12-30', '2026-01-02')), `30 ${month('2025-12-30')} 2025 – 2 ${month('2026-01-02')} 2026`);
+});
+
+test('the comparison names its own dates', () => {
+  const range = resolveRange({ preset: 'custom', from: '2026-10-17', to: '2026-10-18' }, NOW);
+  const oct = range.from.toLocaleDateString('en-GB', { month: 'short' });
+  assert.equal(comparisonDates(range, 'previous'), `vs 15–16 ${oct}`);
+  assert.equal(comparisonDates(range, 'year'), `vs 18–19 ${oct} 2025`, '52 weeks back, weekday for weekday');
+  assert.equal(comparisonDates(range, 'none'), null);
 });
 
 test('change reads as a percentage, "New" from zero, and nothing without a comparison', () => {

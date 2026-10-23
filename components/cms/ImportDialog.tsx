@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
 import { getCmsContentTypes, getCmsLocales, importCmsEntries } from '@/lib/modules/cms/client';
+import { toast } from '@/lib/toast';
 import {
   type HtmlNode,
   WORDPRESS_COLUMNS,
@@ -21,7 +22,6 @@ import {
   wordPressRow,
 } from '@/lib/utils/cms-import';
 import { cn } from '@/lib/utils/cn';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { cmsKeys, invalidateCms } from './shared';

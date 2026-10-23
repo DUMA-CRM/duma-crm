@@ -6,10 +6,10 @@ import { useEffect, useRef } from 'react';
 import { createOrder } from '@/lib/modules/ordering/client';
 import { confirmPayment, startPayment } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { classifyOfflineOrderFailure } from '@/lib/utils/offline-order-sync';
 import { useAuthStore } from '@/stores/authStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /**
@@ -74,7 +74,7 @@ export function OfflineOrderSync() {
           }
         }
         if (synced > 0) {
-          toast('success', `${synced} queued ${synced === 1 ? 'order' : 'orders'} synced.`);
+          toast('success', `${synced} queued ${synced === 1 ? 'order' : 'orders'} synced.`, { critical: true });
           const affectedQueries = [
             moduleQueryKeys.ordering.key('orders'),
             moduleQueryKeys.ordering.key('orders-all'),

@@ -53,6 +53,7 @@ import { getPrivacyRequests } from '@/lib/modules/compliance/client';
 import { getCustomer, getCustomerLedger, getCustomerLoyaltyWallet, unmergeCustomer } from '@/lib/modules/customers/client';
 import { getOrders } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { customerDisplayName } from '@/lib/utils/customer-card';
 import { formatDate } from '@/lib/utils/date';
@@ -60,7 +61,6 @@ import { startOrderHref } from '@/lib/utils/start-order';
 import { type VisitSummary, summariseVisits } from '@/lib/utils/visit-pattern';
 import { formatInstant, workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 import type { Customer } from '@/types/customers';
 
 type Section = 'guest' | 'timeline' | 'compliance';

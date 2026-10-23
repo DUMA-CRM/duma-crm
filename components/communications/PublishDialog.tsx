@@ -59,6 +59,7 @@ export function PublishDialog({
   });
 
   const emails = orderedWorkflowNodes(definition).filter((node) => node.type === 'send_email');
+  const tasks = orderedWorkflowNodes(definition).filter((node) => node.type === 'create_task');
   const waits = definition.nodes.filter((node) => node.type === 'delay');
   const event = trigger?.type === 'trigger' ? trigger.config.event : undefined;
   const staffAudience = event ? isStaffTrigger(event) : false;
@@ -117,10 +118,12 @@ export function PublishDialog({
             <p className="text-sm text-foreground">
               {staffAudience
                 ? 'The employee the event belongs to, provided their staff account has an email address.'
-                : 'The customer the event belongs to, provided they hold any required marketing consent and have an email address.'}
+                : event?.startsWith('reservation_')
+                  ? 'The guest on the booking.'
+                  : 'The customer or order the event belongs to.'}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Volume depends on trading, so there is no honest number to show before it runs. The first sends will appear in this
+              Volume depends on trading, so there is no honest number to show before it runs. The first runs will appear in this
               automation&rsquo;s run history.
             </p>
           </Row>
@@ -129,7 +132,7 @@ export function PublishDialog({
         {/* ── What they get ────────────────────────────────────────────── */}
         <Row icon={Send} label={`Sends ${emails.length} email${emails.length === 1 ? '' : 's'}`}>
           {emails.length === 0 ? (
-            <p className="text-sm text-exception">This workflow sends nothing.</p>
+            <p className="text-sm text-muted-foreground">No email action. An email connection is not required.</p>
           ) : (
             <ol className="space-y-1">
               {emails.map((node, index) => (
@@ -148,8 +151,21 @@ export function PublishDialog({
           )}
         </Row>
 
+        {tasks.length > 0 && (
+          <Row icon={CheckCircle2} label={`Creates ${tasks.length} helpdesk task${tasks.length === 1 ? '' : 's'}`}>
+            <ul className="space-y-1 text-sm">
+              {tasks.map((node) => (
+                <li key={node.id}>{node.config.subject}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Tasks are created under your account. Each run checks that you still have helpdesk management permission.
+            </p>
+          </Row>
+        )}
+
         {/* ── What could still be wrong ────────────────────────────────── */}
-        {!emailReady && (
+        {emails.length > 0 && !emailReady && (
           <p className="flex items-start gap-2 rounded-sm border border-warning/30 bg-warning/6 px-3 py-2.5 text-sm text-warning">
             <TriangleAlert size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
             <span>

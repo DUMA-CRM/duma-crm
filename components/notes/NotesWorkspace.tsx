@@ -9,6 +9,7 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { MenuOption } from '@/components/shared/MenuOption';
 import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
@@ -17,14 +18,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { hasCapability } from '@/lib/auth/capabilities';
 import { type NoteFolder, createNote, deleteNoteFolder, getNoteFolders } from '@/lib/modules/notes/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { drawingNoteSnapshot, emptyDrawing } from '@/lib/utils/note-drawing';
 import type { NoteLength } from '@/lib/utils/note-editor';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 import { FolderDialog, type FolderDialogMode } from './FolderDialog';
-import { MenuOption } from './MenuOption';
 import { NoteEditor } from './NoteEditor';
 import { NotesSidebar } from './NotesSidebar';
 

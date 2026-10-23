@@ -8,7 +8,6 @@ import { ArrowUpRight, CalendarClock, ChevronDown, Clock, LogOut, Send } from '@
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ListRow } from '@/components/shared/ListRow';
 import { StatusDot } from '@/components/shared/StatusDot';
-import { Toast, type ToastMessage } from '@/components/shared/Toast';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { TONE_TINT } from '@/components/shared/tone';
 import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
@@ -21,6 +20,7 @@ import { TimePicker } from '@/components/ui/time-picker';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { createScheduledShift, getMyScheduledShifts } from '@/lib/modules/workforce/client';
 import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { relativeTime } from '@/lib/utils/relative-time';
@@ -99,10 +99,6 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
     return () => clearInterval(t);
   }, []);
 
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const addToast = (type: ToastMessage['type'], message: string) => setToasts((p) => [...p, { id: Date.now(), type, message }]);
-  const dismissToast = (id: number) => setToasts((p) => p.filter((t) => t.id !== id));
-
   // My shifts → the active one (not clocked out).
   const { data: myShifts = [] } = useQuery({ queryKey: moduleQueryKeys.workforce.key('shifts-my'), queryFn: getMyShifts });
   const active = myShifts.find((s) => !s.clockedOut);
@@ -127,7 +123,7 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
   const clockInM = useMutation({
     mutationFn: () => clockIn({ locationId: locationId! }),
     onSuccess: invalidateShifts,
-    onError: (e) => addToast('error', (e as Error).message || 'You weren’t clocked in. Check the location and try again.'),
+    onError: (e) => toast('error', (e as Error).message || 'You weren’t clocked in. Check the location and try again.'),
   });
   // Order completion already consumed recipe inventory; clock-out only ends the shift.
   const [clockOutOpen, setClockOutOpen] = useState(false);
@@ -278,7 +274,7 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
           </section>
 
           {/* Suggest a shift */}
-          <SuggestShiftCard locationId={locationId} onDone={(msg) => addToast('success', msg)} onError={(msg) => addToast('error', msg)} />
+          <SuggestShiftCard locationId={locationId} onDone={(msg) => toast('success', msg)} onError={(msg) => toast('error', msg)} />
         </div>
         {supplemental}
       </div>
@@ -290,7 +286,6 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
           onClockedOut={invalidateShifts}
         />
       )}
-      <Toast toasts={toasts} onDismiss={dismissToast} />
     </>
   );
 }

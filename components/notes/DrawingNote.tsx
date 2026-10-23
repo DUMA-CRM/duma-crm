@@ -9,12 +9,14 @@ import { createPortal } from 'react-dom';
 import { MediaPicker } from '@/components/cms/MediaPicker';
 import { assetSrc } from '@/components/cms/shared';
 import { ImageIcon, ImagePlus, UploadCloud } from '@/components/icons';
+import { MenuOption } from '@/components/shared/MenuOption';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
+import { toast } from '@/lib/toast';
 import {
   APP_BACKGROUND,
   type DrawingFile,
@@ -25,9 +27,7 @@ import {
 } from '@/lib/utils/note-drawing';
 import { noteMediaKind } from '@/lib/utils/note-editor';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
-import { MenuOption } from './MenuOption';
 import type { EditorSnapshot } from './RichNoteEditor';
 import './excalidrawAssets';
 

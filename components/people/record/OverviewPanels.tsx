@@ -38,11 +38,11 @@ import {
 } from '@/lib/modules/identity/client';
 import { getWorkPattern } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { ageOn } from '@/lib/utils/employee-compliance';
 import { statutoryIdLabel, workingDaysLabel } from '@/lib/utils/employee-record';
 import { formatMoney } from '@/lib/utils/payroll-totals';
-import { toast } from '@/stores/toastStore';
 
 import { CopyButton, type Employee, RecordBlock, RecordList, RecordListRow } from './shared';
 

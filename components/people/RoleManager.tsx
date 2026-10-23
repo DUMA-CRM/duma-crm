@@ -29,9 +29,9 @@ import { Input } from '@/components/ui/input';
 
 import { type AccessRole, createRole, deleteRole, getRoles, updateRole } from '@/lib/modules/identity/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { capabilityName } from '@/lib/utils/module-impact';
-import { toast } from '@/stores/toastStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 type Draft = { id: string | null; name: string; description: string; capabilities: string[] };
