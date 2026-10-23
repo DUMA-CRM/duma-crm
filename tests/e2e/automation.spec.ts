@@ -32,6 +32,8 @@ test('a single booking rule saves and reloads, and new triggers are selectable',
   await expect(page).toHaveURL(/\/automation$/);
   await page.goto(`/automation?automation=${id}`);
   await page.getByRole('button', { name: /Check booking.*party size/i }).click();
+  // A condition with a value opens folded to its sentence; open the If row to reach its controls.
+  await page.getByRole('button', { name: /^If\b/ }).click();
   await expect(page.getByLabel('What to check')).toContainText('Party size');
   await expect(page.getByRole('button', { name: 'Add rule', exact: true })).toHaveCount(0);
   await page.getByLabel('Value', { exact: true }).fill('12');
@@ -43,6 +45,8 @@ test('a single booking rule saves and reloads, and new triggers are selectable',
   expect(saved.definition.nodes.find(node => node.type === 'condition')!.config).toMatchObject({ field: 'booking.partySize', value: 12 });
   await page.reload();
   await page.getByRole('button', { name: /Check booking.*party size/i }).click();
+  // A condition with a value opens folded to its sentence; open the If row to reach its controls.
+  await page.getByRole('button', { name: /^If\b/ }).click();
   await expect(page.getByLabel('Value', { exact: true })).toHaveValue('12');
   await expect(page.getByLabel('What to check')).toHaveCount(1);
   await page.setViewportSize({ width: 1280, height: 900 });
