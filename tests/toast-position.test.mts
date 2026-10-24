@@ -14,8 +14,8 @@ test('data-heavy screens and their sub-routes use bottom-right', () => {
   }
 });
 
-test('everything else uses top-right', () => {
+test('everything else uses top-center', () => {
   for (const path of ['/dashboard', '/customers', '/settings/connectors', '/ordersheet', '/', null, undefined]) {
-    assert.equal(toastPositionFor(path), 'top-right', String(path));
+    assert.equal(toastPositionFor(path), 'top-center', String(path));
   }
 });
