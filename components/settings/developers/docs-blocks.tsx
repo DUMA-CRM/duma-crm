@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 
 import { copyText } from '@/components/cms/shared';
-import { Info, Link2, Lock } from '@/components/icons';
+import { Info, Lock } from '@/components/icons';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { CopyGlyph } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
@@ -152,6 +153,7 @@ export function Note({ children, tone = 'info' }: { children: React.ReactNode; t
   );
 }
 
+/** One part of the reference, in the same porcelain section as the rest of Settings, with an anchor the contents rail scrolls to. */
 export function DocSection({
   id,
   title,
@@ -163,33 +165,10 @@ export function DocSection({
   lead?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const [copied, setCopied] = useState(false);
   return (
-    <section id={anchor(id)} aria-labelledby={`${anchor(id)}-title`} className="scroll-mt-6 space-y-4">
-      <div>
-        <h2 id={`${anchor(id)}-title`} className="group flex items-center gap-2 text-lg font-semibold tracking-title text-foreground">
-          {title}
-          {/* A link straight to this section, for a colleague or an issue. */}
-          <button
-            type="button"
-            aria-label={`Copy a link to ${title}`}
-            className="flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
-            onClick={async () => {
-              const url = new URL(window.location.href);
-              url.hash = anchor(id);
-              if (await copyText(url.toString())) {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1400);
-              }
-            }}
-          >
-            {copied ? <CopyGlyph copied className="size-3.5" /> : <Link2 size={14} aria-hidden="true" />}
-          </button>
-        </h2>
-        {lead && <p className="mt-1 max-w-[72ch] text-sm leading-relaxed text-muted-foreground">{lead}</p>}
-      </div>
-      {children}
-    </section>
+    <SettingsSection id={anchor(id)} title={title} description={lead} descriptionClassName="max-w-[72ch]">
+      <div className="space-y-4">{children}</div>
+    </SettingsSection>
   );
 }
 

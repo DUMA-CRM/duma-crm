@@ -98,6 +98,39 @@ export const MANAGEMENT_REFERENCE = {
       "writes": true
     },
     {
+      "name": "content_manage_list_locales",
+      "title": "content manage list locales",
+      "domain": "cms",
+      "method": "GET",
+      "path": "/locales",
+      "scope": "content:manage",
+      "description": " Scope content:manage. GET /v1/manage/cms/locales. Uses the key creator's current permissions within this workspace.",
+      "destructive": false,
+      "writes": false
+    },
+    {
+      "name": "content_get_settings",
+      "title": "content get settings",
+      "domain": "cms",
+      "method": "GET",
+      "path": "/settings",
+      "scope": "content:manage",
+      "description": " Scope content:manage. GET /v1/manage/cms/settings. Uses the key creator's current permissions within this workspace.",
+      "destructive": false,
+      "writes": false
+    },
+    {
+      "name": "content_update_settings",
+      "title": "content update settings",
+      "domain": "cms",
+      "method": "PUT",
+      "path": "/settings",
+      "scope": "content:configure",
+      "description": "Control whether draft-only media can be served without a key. Scope content:configure. PUT /v1/manage/cms/settings. Uses the key creator's current permissions within this workspace.",
+      "destructive": true,
+      "writes": true
+    },
+    {
       "name": "content_manage_list_types",
       "title": "content manage list types",
       "domain": "cms",
@@ -410,6 +443,17 @@ export const MANAGEMENT_REFERENCE = {
       "writes": true
     },
     {
+      "name": "notes_update_folder_sharing",
+      "title": "notes update folder sharing",
+      "domain": "notes",
+      "method": "PUT",
+      "path": "/folders/:id/sharing",
+      "scope": "notes:manage",
+      "description": "Change shared-folder permissions; null or empty allows everyone. Scope notes:manage. PUT /v1/manage/notes/folders/:id/sharing. Uses the key creator's current permissions within this workspace.",
+      "destructive": true,
+      "writes": true
+    },
+    {
       "name": "notes_rename_folder",
       "title": "notes rename folder",
       "domain": "notes",
@@ -546,6 +590,17 @@ export const MANAGEMENT_REFERENCE = {
       "description": " Scope workspace:write. PATCH /v1/manage/workspace/current. Uses the key creator's current permissions within this workspace.",
       "destructive": false,
       "writes": true
+    },
+    {
+      "name": "workspace_setup_preview",
+      "title": "workspace setup preview",
+      "domain": "setup",
+      "method": "POST",
+      "path": "/preview",
+      "scope": "workspace:read",
+      "description": "Preview a proposal for a new workspace without saving or activating it. Scope workspace:read. POST /v1/manage/setup/preview. Uses the key creator's current permissions within this workspace.",
+      "destructive": false,
+      "writes": false
     },
     {
       "name": "workspace_setup_status",

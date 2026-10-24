@@ -36,7 +36,9 @@ test('a publishable key is offered only what is safe in a browser', () => {
   const everything = ['settings:write', 'cms.keys:write'];
   assert.deepEqual(grantableScopes('publishable', everything), ['content:read', 'catalog:read']);
   assert.deepEqual(grantableScopes('publishable', [...everything, 'cms:write', 'cms.schema:write']), ['content:read', 'catalog:read']);
-  assert.deepEqual(grantableScopes('secret', [...new Set(Object.values(SCOPES).flatMap((scope) => [...scope.capabilities]))]), [...API_KEY_SCOPES]);
+  assert.deepEqual(grantableScopes('secret', [...new Set(Object.values(SCOPES).flatMap((scope) => [...scope.capabilities]))]), [
+    ...API_KEY_SCOPES,
+  ]);
   assert.deepEqual(scopesForKind('publishable', ['content:preview', 'content:read', 'orders:write']), ['content:read']);
 });
 
@@ -109,7 +111,7 @@ test('client set-ups point at the MCP URL and carry no key', () => {
   }
 });
 
- test('management scopes require explicit opt-in and separate publishing/deletion grants', () => {
+test('management scopes require explicit opt-in and separate publishing/deletion grants', () => {
   for (const scope of API_KEY_SCOPES.filter((scope) => SCOPES[scope].api === 'management')) {
     assert.equal(SCOPES[scope].publishable, false);
     assert.equal(SCOPES[scope].optIn, true);

@@ -23,6 +23,145 @@
         "scheme": "bearer",
         "description": "Workspace API key (`dk_pub_…` / `dk_sec_…`, created in Settings → Developers) with the `content:read` scope; a secret key with `content:preview` also reads drafts. Legacy `dcms_live_…` (published only) and `dcms_prev_…` (adds drafts) content keys still work. Also accepted as `X-Api-Key`."
       }
+    },
+    "schemas": {
+      "__schema0": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,63}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "longText",
+              "richText",
+              "number",
+              "boolean",
+              "date",
+              "dateTime",
+              "select",
+              "slug",
+              "email",
+              "url",
+              "color",
+              "location",
+              "json",
+              "media",
+              "reference",
+              "group"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "unique": {
+            "type": "boolean"
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "multiple": {
+            "type": "boolean"
+          },
+          "minLength": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "maxLength": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "integer": {
+            "type": "boolean"
+          },
+          "pattern": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "patternMessage": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "minItems": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "maxItems": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "options": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          },
+          "referenceTypes": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          "mediaGroups": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "image",
+                "video",
+                "audio",
+                "document"
+              ]
+            }
+          },
+          "slugSource": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "fields": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/__schema0"
+            }
+          },
+          "defaultValue": {}
+        },
+        "required": [
+          "key",
+          "label",
+          "type"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "security": [
@@ -8961,6 +9100,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -8987,13 +9127,10 @@
                   },
                   "fields": {
                     "description": "fields for content manage create type.",
+                    "maxItems": 100,
                     "type": "array",
                     "items": {
-                      "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {}
+                      "$ref": "#/components/schemas/__schema0"
                     }
                   },
                   "titleField": {
@@ -9086,6 +9223,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Management result"
@@ -9124,6 +9262,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -9210,6 +9349,56 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "contentTypeId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Management result"
@@ -9235,871 +9424,44 @@
         }
       }
     },
-    "/v1/manage/cms/content-types/{id}": {
-      "get": {
-        "operationId": "getV1ManageCmsContentTypesById",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content manage get type",
-        "description": " Scope content:manage. GET /v1/manage/cms/content-types/:id. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      },
-      "patch": {
-        "operationId": "patchV1ManageCmsContentTypesById",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content update type",
-        "description": "Update a model with a version check. Scope content:configure. PATCH /v1/manage/cms/content-types/:id. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
-                  "name": {
-                    "description": "name for content update type.",
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 200
-                  },
-                  "description": {
-                    "description": "description for content update type.",
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "fields": {
-                    "description": "fields for content update type.",
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {}
-                    }
-                  },
-                  "titleField": {
-                    "description": "titleField for content update type.",
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "previewUrl": {
-                    "description": "previewUrl for content update type.",
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "expectedSchemaVersion": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "maximum": 9007199254740991,
-                    "description": "expectedSchemaVersion for content update type."
-                  },
-                  "idempotencyKey": {
-                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 128
-                  }
-                },
-                "required": [
-                  "id",
-                  "expectedSchemaVersion"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "400": {
-            "description": "Validation failed — invalid request body"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      },
-      "delete": {
-        "operationId": "deleteV1ManageCmsContentTypesById",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content delete type",
-        "description": "Delete an empty model. No forced cascading deletion. Scope content:configure. DELETE /v1/manage/cms/content-types/:id. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/manage/cms/content-types/{id}/impact": {
-      "post": {
-        "operationId": "postV1ManageCmsContentTypesByIdImpact",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content type impact",
-        "description": "Preview field-change impact. Scope content:configure. POST /v1/manage/cms/content-types/:id/impact. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
-                  "fields": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {}
-                    },
-                    "description": "CMS field definitions; read content_manage_get_type for the current schema. All definitions are validated by the CMS."
-                  }
-                },
-                "required": [
-                  "id",
-                  "fields"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "400": {
-            "description": "Validation failed — invalid request body"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/manage/cms/entries/{id}": {
-      "get": {
-        "operationId": "getV1ManageCmsEntriesById",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content manage get entry",
-        "description": "Read a draft and its version. Scope content:manage. GET /v1/manage/cms/entries/:id. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      },
-      "patch": {
-        "operationId": "patchV1ManageCmsEntriesById",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content update entry",
-        "description": "Save a draft without changing published content. Scope content:manage. PATCH /v1/manage/cms/entries/:id. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
-                  "data": {
-                    "type": "object",
-                    "propertyNames": {
-                      "type": "string"
-                    },
-                    "additionalProperties": {},
-                    "description": "Complete draft field object; read and merge changes first."
-                  },
-                  "expectedVersion": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "maximum": 9007199254740991,
-                    "description": "expectedVersion for content update entry."
-                  },
-                  "idempotencyKey": {
-                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 128
-                  }
-                },
-                "required": [
-                  "id",
-                  "data",
-                  "expectedVersion"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "400": {
-            "description": "Validation failed — invalid request body"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      },
-      "delete": {
-        "operationId": "deleteV1ManageCmsEntriesById",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content delete entry",
-        "description": "Permanently delete one locale entry. Reference protection applies; no force option. Scope content:delete. DELETE /v1/manage/cms/entries/:id. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/manage/cms/entries/{id}/publish": {
-      "post": {
-        "operationId": "postV1ManageCmsEntriesByIdPublish",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content publish entry",
-        "description": "publish an entry. Publishing makes it live. Scope content:publish. POST /v1/manage/cms/entries/:id/publish. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
-                  "idempotencyKey": {
-                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 128
-                  }
-                },
-                "required": [
-                  "id"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "400": {
-            "description": "Validation failed — invalid request body"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/manage/cms/entries/{id}/unpublish": {
-      "post": {
-        "operationId": "postV1ManageCmsEntriesByIdUnpublish",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content unpublish entry",
-        "description": "unpublish an entry. Publishing makes it live. Scope content:publish. POST /v1/manage/cms/entries/:id/unpublish. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
-                  "idempotencyKey": {
-                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 128
-                  }
-                },
-                "required": [
-                  "id"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "400": {
-            "description": "Validation failed — invalid request body"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/manage/cms/entries/{id}/archive": {
-      "post": {
-        "operationId": "postV1ManageCmsEntriesByIdArchive",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content archive entry",
-        "description": "archive an entry. Publishing makes it live. Scope content:publish. POST /v1/manage/cms/entries/:id/archive. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
-                  "idempotencyKey": {
-                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 128
-                  }
-                },
-                "required": [
-                  "id"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "400": {
-            "description": "Validation failed — invalid request body"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/manage/cms/entries/{id}/restore": {
-      "post": {
-        "operationId": "postV1ManageCmsEntriesByIdRestore",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content restore entry",
-        "description": " Scope content:manage. POST /v1/manage/cms/entries/:id/restore. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
-                  "idempotencyKey": {
-                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
-                    "type": "string",
-                    "minLength": 8,
-                    "maxLength": 128
-                  }
-                },
-                "required": [
-                  "id"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "400": {
-            "description": "Validation failed — invalid request body"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/manage/cms/entries/{id}/versions": {
-      "get": {
-        "operationId": "getV1ManageCmsEntriesByIdVersions",
-        "tags": [
-          "MCP"
-        ],
-        "summary": "content entry versions",
-        "description": " Scope content:manage. GET /v1/manage/cms/entries/:id/versions. Uses the key creator's current permissions within this workspace.",
-        "security": [
-          {
-            "cmsApiKey": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Management result"
-          },
-          "201": {
-            "description": "Created"
-          },
-          "204": {
-            "description": "Deleted"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Scope, owner access, or module denied"
-          },
-          "409": {
-            "description": "Version, reference or retry conflict"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
     "/v1/manage/cms/locales": {
+      "get": {
+        "operationId": "getV1ManageCmsLocales",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content manage list locales",
+        "description": " Scope content:manage. GET /v1/manage/cms/locales. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
       "post": {
         "operationId": "postV1ManageCmsLocales",
         "tags": [
@@ -10112,6 +9474,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -10201,6 +9564,924 @@
         }
       }
     },
+    "/v1/manage/cms/settings": {
+      "get": {
+        "operationId": "getV1ManageCmsSettings",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content get settings",
+        "description": " Scope content:manage. GET /v1/manage/cms/settings. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1ManageCmsSettings",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content update settings",
+        "description": "Control whether draft-only media can be served without a key. Scope content:configure. PUT /v1/manage/cms/settings. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "privateUnpublishedAssets": {
+                    "type": "boolean",
+                    "description": "privateUnpublishedAssets for content update settings."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "privateUnpublishedAssets"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/content-types/{id}": {
+      "get": {
+        "operationId": "getV1ManageCmsContentTypesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content manage get type",
+        "description": " Scope content:manage. GET /v1/manage/cms/content-types/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchV1ManageCmsContentTypesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content update type",
+        "description": "Update a model with a version check. Scope content:configure. PATCH /v1/manage/cms/content-types/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "description": "name for content update type.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "description": "description for content update type.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fields": {
+                    "description": "fields for content update type.",
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/__schema0"
+                    }
+                  },
+                  "titleField": {
+                    "description": "titleField for content update type.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "previewUrl": {
+                    "description": "previewUrl for content update type.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "expectedSchemaVersion": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "expectedSchemaVersion for content update type."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "expectedSchemaVersion"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteV1ManageCmsContentTypesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content delete type",
+        "description": "Delete an empty model. No forced cascading deletion. Scope content:configure. DELETE /v1/manage/cms/content-types/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/content-types/{id}/impact": {
+      "post": {
+        "operationId": "postV1ManageCmsContentTypesByIdImpact",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content type impact",
+        "description": "Preview field-change impact. Scope content:configure. POST /v1/manage/cms/content-types/:id/impact. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fields": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/__schema0"
+                    },
+                    "description": "CMS field definitions; read content_manage_get_type for the current schema."
+                  }
+                },
+                "required": [
+                  "fields"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/entries/{id}": {
+      "get": {
+        "operationId": "getV1ManageCmsEntriesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content manage get entry",
+        "description": "Read a draft and its version. Scope content:manage. GET /v1/manage/cms/entries/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchV1ManageCmsEntriesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content update entry",
+        "description": "Save a draft without changing published content. Scope content:manage. PATCH /v1/manage/cms/entries/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {},
+                    "description": "Complete draft field object; read and merge changes first."
+                  },
+                  "expectedVersion": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "expectedVersion for content update entry."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "data",
+                  "expectedVersion"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteV1ManageCmsEntriesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content delete entry",
+        "description": "Permanently delete one locale entry. Reference protection applies; no force option. Scope content:delete. DELETE /v1/manage/cms/entries/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/entries/{id}/publish": {
+      "post": {
+        "operationId": "postV1ManageCmsEntriesByIdPublish",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content publish entry",
+        "description": "publish an entry. Publishing makes it live. Scope content:publish. POST /v1/manage/cms/entries/:id/publish. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/entries/{id}/unpublish": {
+      "post": {
+        "operationId": "postV1ManageCmsEntriesByIdUnpublish",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content unpublish entry",
+        "description": "unpublish an entry. Publishing makes it live. Scope content:publish. POST /v1/manage/cms/entries/:id/unpublish. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/entries/{id}/archive": {
+      "post": {
+        "operationId": "postV1ManageCmsEntriesByIdArchive",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content archive entry",
+        "description": "archive an entry. Publishing makes it live. Scope content:publish. POST /v1/manage/cms/entries/:id/archive. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/entries/{id}/restore": {
+      "post": {
+        "operationId": "postV1ManageCmsEntriesByIdRestore",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content restore entry",
+        "description": " Scope content:manage. POST /v1/manage/cms/entries/:id/restore. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/entries/{id}/versions": {
+      "get": {
+        "operationId": "getV1ManageCmsEntriesByIdVersions",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content entry versions",
+        "description": " Scope content:manage. GET /v1/manage/cms/entries/:id/versions. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/manage/cms/locales/{code}": {
       "patch": {
         "operationId": "patchV1ManageCmsLocalesByCode",
@@ -10214,6 +10495,16 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10221,11 +10512,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "code": {
-                    "type": "string",
-                    "maxLength": 16,
-                    "description": "code for content update locale."
-                  },
                   "name": {
                     "description": "name for content update locale.",
                     "type": "string",
@@ -10266,9 +10552,6 @@
                     "maxLength": 128
                   }
                 },
-                "required": [
-                  "code"
-                ],
                 "additionalProperties": false
               }
             }
@@ -10299,17 +10582,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "code",
-            "required": true
-          }
-        ]
+        }
       },
       "delete": {
         "operationId": "deleteV1ManageCmsLocalesByCode",
@@ -10321,6 +10594,16 @@
         "security": [
           {
             "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -10345,17 +10628,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "code",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/cms/assets/upload": {
@@ -10371,6 +10644,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -10455,6 +10729,38 @@
                 ],
                 "additionalProperties": false
               }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "altText": {
+                    "type": "string"
+                  },
+                  "folder": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "string",
+                    "description": "Comma-separated tags"
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                }
+              }
             }
           }
         },
@@ -10499,6 +10805,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10506,12 +10823,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "fileName": {
                     "type": "string",
                     "minLength": 1,
@@ -10583,12 +10894,43 @@
                   }
                 },
                 "required": [
-                  "id",
                   "fileName",
                   "mimeType",
                   "fileBase64"
                 ],
                 "additionalProperties": false
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "altText": {
+                    "type": "string"
+                  },
+                  "folder": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "string",
+                    "description": "Comma-separated tags"
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                }
               }
             }
           }
@@ -10618,17 +10960,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/cms/assets": {
@@ -10642,6 +10974,48 @@
         "security": [
           {
             "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "folder",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -10682,6 +11056,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -10795,6 +11170,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10802,12 +11188,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "title": {
                     "description": "title for media update.",
                     "anyOf": [
@@ -10866,9 +11246,6 @@
                     "maxLength": 128
                   }
                 },
-                "required": [
-                  "id"
-                ],
                 "additionalProperties": false
               }
             }
@@ -10899,17 +11276,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       },
       "delete": {
         "operationId": "deleteV1ManageCmsAssetsById",
@@ -10921,6 +11288,17 @@
         "security": [
           {
             "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -10945,17 +11323,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/cms/assets/folders/move": {
@@ -10971,6 +11339,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -11054,6 +11423,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Management result"
@@ -11090,6 +11460,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -11173,6 +11544,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -11278,6 +11650,126 @@
         }
       }
     },
+    "/v1/manage/notes/folders/{id}/sharing": {
+      "put": {
+        "operationId": "putV1ManageNotesFoldersByIdSharing",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes update folder sharing",
+        "description": "Change shared-folder permissions; null or empty allows everyone. Scope notes:manage. PUT /v1/manage/notes/folders/:id/sharing. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "readerRoles": {
+                    "description": "readerRoles for notes update folder sharing.",
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "readerLocationIds": {
+                    "description": "readerLocationIds for notes update folder sharing.",
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "description": "Resource row UUID returned by a management read/create call, not documentId."
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "editorRoles": {
+                    "description": "editorRoles for notes update folder sharing.",
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/manage/notes/folders/{id}": {
       "patch": {
         "operationId": "patchV1ManageNotesFoldersById",
@@ -11291,6 +11783,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11298,12 +11801,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "name": {
                     "type": "string",
                     "minLength": 1,
@@ -11318,7 +11815,6 @@
                   }
                 },
                 "required": [
-                  "id",
                   "name"
                 ],
                 "additionalProperties": false
@@ -11351,17 +11847,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       },
       "delete": {
         "operationId": "deleteV1ManageNotesFoldersById",
@@ -11373,6 +11859,17 @@
         "security": [
           {
             "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -11397,17 +11894,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/notes/": {
@@ -11421,6 +11908,40 @@
         "security": [
           {
             "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "folderId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -11459,6 +11980,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -11557,6 +12079,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Management result"
@@ -11579,17 +12112,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       },
       "patch": {
         "operationId": "patchV1ManageNotesById",
@@ -11603,6 +12126,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11610,12 +12144,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "title": {
                     "description": "title for notes update.",
                     "type": "string",
@@ -11667,7 +12195,6 @@
                   }
                 },
                 "required": [
-                  "id",
                   "version"
                 ],
                 "additionalProperties": false
@@ -11700,17 +12227,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       },
       "delete": {
         "operationId": "deleteV1ManageNotesById",
@@ -11722,6 +12239,17 @@
         "security": [
           {
             "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -11746,17 +12274,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/notes/{id}/restore": {
@@ -11772,6 +12290,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11779,12 +12308,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "idempotencyKey": {
                     "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
                     "type": "string",
@@ -11792,9 +12315,6 @@
                     "maxLength": 128
                   }
                 },
-                "required": [
-                  "id"
-                ],
                 "additionalProperties": false
               }
             }
@@ -11825,17 +12345,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/notes/{id}/versions": {
@@ -11851,6 +12361,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Management result"
@@ -11873,17 +12394,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/notes/{id}/versions/{versionId}/restore": {
@@ -11899,6 +12410,26 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11906,18 +12437,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
-                  "versionId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "idempotencyKey": {
                     "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
                     "type": "string",
@@ -11925,10 +12444,6 @@
                     "maxLength": 128
                   }
                 },
-                "required": [
-                  "id",
-                  "versionId"
-                ],
                 "additionalProperties": false
               }
             }
@@ -11959,25 +12474,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "versionId",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/workspace/current": {
@@ -11993,6 +12490,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Management result"
@@ -12029,6 +12527,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -12086,6 +12585,255 @@
         }
       }
     },
+    "/v1/manage/setup/preview": {
+      "post": {
+        "operationId": "postV1ManageSetupPreview",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "workspace setup preview",
+        "description": "Preview a proposal for a new workspace without saving or activating it. Scope workspace:read. POST /v1/manage/setup/preview. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "answers": {
+                    "type": "object",
+                    "properties": {
+                      "businessType": {
+                        "type": "string",
+                        "enum": [
+                          "cafe",
+                          "restaurant",
+                          "bar",
+                          "bakery",
+                          "food_truck",
+                          "retail",
+                          "online_retail",
+                          "services",
+                          "people_management",
+                          "other"
+                        ]
+                      },
+                      "sells": {
+                        "type": "string",
+                        "enum": [
+                          "food",
+                          "products",
+                          "both"
+                        ]
+                      },
+                      "locationCount": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10000
+                      },
+                      "salesChannels": {
+                        "default": [],
+                        "maxItems": 5,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "counter",
+                            "online",
+                            "qr",
+                            "phone",
+                            "marketplace"
+                          ]
+                        }
+                      },
+                      "paymentMethods": {
+                        "default": [],
+                        "maxItems": 4,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "cash",
+                            "card",
+                            "invoice",
+                            "external"
+                          ]
+                        }
+                      },
+                      "fulfilment": {
+                        "default": [],
+                        "maxItems": 5,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "prepare",
+                            "pick_pack",
+                            "delivery",
+                            "collection",
+                            "table_service"
+                          ]
+                        }
+                      },
+                      "liveFulfilmentQueue": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "stockTracking": {
+                        "default": "none",
+                        "type": "string",
+                        "enum": [
+                          "none",
+                          "simple",
+                          "batch_expiry",
+                          "serial",
+                          "container"
+                        ]
+                      },
+                      "automaticConsumption": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "purchasing": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "peopleRecords": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "scheduling": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "attendance": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "leave": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "payroll": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "customers": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "loyalty": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "communications": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "compliance": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "analytics": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "support": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "agent": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "cms": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "declinedModules": {
+                        "default": [],
+                        "maxItems": 27,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "core",
+                            "identity",
+                            "organization",
+                            "customers",
+                            "catalog",
+                            "ordering",
+                            "pos",
+                            "qr-ordering",
+                            "payments",
+                            "inventory",
+                            "purchasing",
+                            "workforce",
+                            "people",
+                            "payroll",
+                            "communications",
+                            "automation",
+                            "compliance",
+                            "audit",
+                            "analytics",
+                            "agent",
+                            "support",
+                            "cms",
+                            "kds",
+                            "promotions",
+                            "referrals",
+                            "notes",
+                            "reservations"
+                          ]
+                        }
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "answers for workspace setup preview."
+                  }
+                },
+                "required": [
+                  "answers"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/manage/setup/{tenantId}": {
       "get": {
         "operationId": "getV1ManageSetupByTenantId",
@@ -12097,6 +12845,17 @@
         "security": [
           {
             "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -12121,17 +12880,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "tenantId",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/setup/{tenantId}/start": {
@@ -12147,6 +12896,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12191,17 +12951,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "tenantId",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/setup/{tenantId}/complete": {
@@ -12217,6 +12967,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12261,17 +13022,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "tenantId",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/setup/{tenantId}/recommendation": {
@@ -12287,6 +13038,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12296,11 +13058,194 @@
                 "properties": {
                   "answers": {
                     "type": "object",
-                    "propertyNames": {
-                      "type": "string"
+                    "properties": {
+                      "businessType": {
+                        "type": "string",
+                        "enum": [
+                          "cafe",
+                          "restaurant",
+                          "bar",
+                          "bakery",
+                          "food_truck",
+                          "retail",
+                          "online_retail",
+                          "services",
+                          "people_management",
+                          "other"
+                        ]
+                      },
+                      "sells": {
+                        "type": "string",
+                        "enum": [
+                          "food",
+                          "products",
+                          "both"
+                        ]
+                      },
+                      "locationCount": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10000
+                      },
+                      "salesChannels": {
+                        "default": [],
+                        "maxItems": 5,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "counter",
+                            "online",
+                            "qr",
+                            "phone",
+                            "marketplace"
+                          ]
+                        }
+                      },
+                      "paymentMethods": {
+                        "default": [],
+                        "maxItems": 4,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "cash",
+                            "card",
+                            "invoice",
+                            "external"
+                          ]
+                        }
+                      },
+                      "fulfilment": {
+                        "default": [],
+                        "maxItems": 5,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "prepare",
+                            "pick_pack",
+                            "delivery",
+                            "collection",
+                            "table_service"
+                          ]
+                        }
+                      },
+                      "liveFulfilmentQueue": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "stockTracking": {
+                        "default": "none",
+                        "type": "string",
+                        "enum": [
+                          "none",
+                          "simple",
+                          "batch_expiry",
+                          "serial",
+                          "container"
+                        ]
+                      },
+                      "automaticConsumption": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "purchasing": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "peopleRecords": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "scheduling": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "attendance": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "leave": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "payroll": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "customers": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "loyalty": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "communications": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "compliance": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "analytics": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "support": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "agent": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "cms": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "declinedModules": {
+                        "default": [],
+                        "maxItems": 27,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "core",
+                            "identity",
+                            "organization",
+                            "customers",
+                            "catalog",
+                            "ordering",
+                            "pos",
+                            "qr-ordering",
+                            "payments",
+                            "inventory",
+                            "purchasing",
+                            "workforce",
+                            "people",
+                            "payroll",
+                            "communications",
+                            "automation",
+                            "compliance",
+                            "audit",
+                            "analytics",
+                            "agent",
+                            "support",
+                            "cms",
+                            "kds",
+                            "promotions",
+                            "referrals",
+                            "notes",
+                            "reservations"
+                          ]
+                        }
+                      }
                     },
-                    "additionalProperties": {},
-                    "description": "Onboarding answers validated by the workspace schema."
+                    "additionalProperties": false,
+                    "description": "Business setup answers. Preview the resulting recommendation before applying it."
                   },
                   "expectedRecommendationRevision": {
                     "type": "integer",
@@ -12355,17 +13300,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "tenantId",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/setup/{tenantId}/apply": {
@@ -12379,6 +13314,17 @@
         "security": [
           {
             "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "requestBody": {
@@ -12399,8 +13345,35 @@
                     "type": "array",
                     "items": {
                       "type": "string",
-                      "minLength": 1,
-                      "maxLength": 200
+                      "enum": [
+                        "core",
+                        "identity",
+                        "organization",
+                        "customers",
+                        "catalog",
+                        "ordering",
+                        "pos",
+                        "qr-ordering",
+                        "payments",
+                        "inventory",
+                        "purchasing",
+                        "workforce",
+                        "people",
+                        "payroll",
+                        "communications",
+                        "automation",
+                        "compliance",
+                        "audit",
+                        "analytics",
+                        "agent",
+                        "support",
+                        "cms",
+                        "kds",
+                        "promotions",
+                        "referrals",
+                        "notes",
+                        "reservations"
+                      ]
                     },
                     "description": "selectedModules for workspace setup apply."
                   },
@@ -12452,17 +13425,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "tenantId",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/locations/": {
@@ -12478,6 +13441,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Management result"
@@ -12514,6 +13478,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -12552,10 +13517,185 @@
                   "openingHours": {
                     "description": "openingHours for locations create.",
                     "type": "object",
-                    "propertyNames": {
-                      "type": "string"
+                    "properties": {
+                      "mon": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tue": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "wed": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "thu": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fri": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sat": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sun": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
                     },
-                    "additionalProperties": {}
+                    "required": [
+                      "mon",
+                      "tue",
+                      "wed",
+                      "thu",
+                      "fri",
+                      "sat",
+                      "sun"
+                    ]
                   },
                   "orderFulfilmentMode": {
                     "description": "orderFulfilmentMode for locations create.",
@@ -12638,6 +13778,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12645,12 +13796,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "name": {
                     "description": "name for locations update.",
                     "type": "string",
@@ -12682,10 +13827,185 @@
                   "openingHours": {
                     "description": "openingHours for locations update.",
                     "type": "object",
-                    "propertyNames": {
-                      "type": "string"
+                    "properties": {
+                      "mon": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tue": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "wed": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "thu": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fri": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sat": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sun": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "open": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              },
+                              "close": {
+                                "type": "string",
+                                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                              }
+                            },
+                            "required": [
+                              "open",
+                              "close"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
                     },
-                    "additionalProperties": {}
+                    "required": [
+                      "mon",
+                      "tue",
+                      "wed",
+                      "thu",
+                      "fri",
+                      "sat",
+                      "sun"
+                    ]
                   },
                   "orderFulfilmentMode": {
                     "description": "orderFulfilmentMode for locations update.",
@@ -12718,9 +14038,6 @@
                     "maxLength": 128
                   }
                 },
-                "required": [
-                  "id"
-                ],
                 "additionalProperties": false
               }
             }
@@ -12751,17 +14068,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/trading/": {
@@ -12777,6 +14084,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Management result"
@@ -12813,6 +14121,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -12980,6 +14289,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Management result"
@@ -13016,6 +14326,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -13123,6 +14434,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13130,12 +14452,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "name": {
                     "description": "name for catalog update category.",
                     "type": "string",
@@ -13187,9 +14503,6 @@
                     "maxLength": 128
                   }
                 },
-                "required": [
-                  "id"
-                ],
                 "additionalProperties": false
               }
             }
@@ -13220,17 +14533,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       },
       "delete": {
         "operationId": "deleteV1ManageCategoriesById",
@@ -13242,6 +14545,17 @@
         "security": [
           {
             "cmsApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -13266,17 +14580,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/products/": {
@@ -13292,6 +14596,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Management result"
@@ -13328,6 +14633,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -13445,6 +14751,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13452,12 +14769,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "name": {
                     "description": "name for catalog update product.",
                     "type": "string",
@@ -13517,9 +14828,6 @@
                     "maxLength": 128
                   }
                 },
-                "required": [
-                  "id"
-                ],
                 "additionalProperties": false
               }
             }
@@ -13550,17 +14858,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       },
       "delete": {
         "operationId": "deleteV1ManageProductsById",
@@ -13574,6 +14872,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Management result"
@@ -13596,17 +14905,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       },
       "get": {
         "operationId": "getV1ManageProductsById",
@@ -13620,6 +14919,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Management result"
@@ -13642,17 +14952,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/catalog/items/{menuItemId}": {
@@ -13668,6 +14968,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "menuItemId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Management result"
@@ -13690,17 +15001,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "menuItemId",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/catalog/variants": {
@@ -13716,6 +15017,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -13861,6 +15163,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13868,12 +15181,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "menuItemId": {
                     "description": "menuItemId for catalog update variant.",
                     "type": "string",
@@ -13961,9 +15268,6 @@
                     "maxLength": 128
                   }
                 },
-                "required": [
-                  "id"
-                ],
                 "additionalProperties": false
               }
             }
@@ -13994,17 +15298,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/catalog/variants/{id}/locations/{locationId}": {
@@ -14020,6 +15314,26 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "locationId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -14027,18 +15341,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
-                  "locationId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "price": {
                     "description": "price for catalog set variant location.",
                     "anyOf": [
@@ -14077,8 +15379,6 @@
                   }
                 },
                 "required": [
-                  "id",
-                  "locationId",
                   "isAvailable"
                 ],
                 "additionalProperties": false
@@ -14111,25 +15411,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "locationId",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/manage/catalog/options": {
@@ -14145,6 +15427,7 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -14227,6 +15510,17 @@
             "cmsApiKey": []
           }
         ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -14234,12 +15528,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "description": "Resource row UUID returned by a management read/create call, not documentId."
-                  },
                   "label": {
                     "type": "string",
                     "minLength": 1,
@@ -14260,7 +15548,6 @@
                   }
                 },
                 "required": [
-                  "id",
                   "label"
                 ],
                 "additionalProperties": false
@@ -14293,17 +15580,7 @@
           "429": {
             "description": "Too many requests — rate limited"
           }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
+        }
       }
     },
     "/v1/orders/bulk-status": {

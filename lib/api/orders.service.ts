@@ -305,10 +305,15 @@ export const approveCashOrder = (id: string) => apiFetch<Order>(`/orders/${id}/a
 /**
  * Who an order taken by hand is for, and how it reaches them. `customerId: null`
  * takes the customer off; a delivery address is also saved to the customer.
+ * A website order can only correct its address: send the fulfilment type it
+ * already has (`delivery` or `shipping`), and nothing is saved to the customer.
  */
 export const updateOrderDetails = (
   id: string,
-  data: { customerId?: string | null; fulfilment?: { type: 'collection' | 'delivery'; address?: OrderShippingAddress | null } },
+  data: {
+    customerId?: string | null;
+    fulfilment?: { type: 'collection' | 'delivery' | 'shipping'; address?: OrderShippingAddress | null };
+  },
 ) => apiFetch<Order>(`/orders/${id}/details`, { method: 'POST', body: JSON.stringify(data) });
 
 /** Add, change or clear an order's note — any order, any status. An empty note clears it. */

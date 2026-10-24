@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const { groupOrdersByDay, itemCount, itemPreview, nextStep, orderCode, paymentSummary, shiftDay } =
+const { canRecordPayment, deliveryEditMode, groupOrdersByDay, itemCount, itemPreview, nextStep, orderCode, paymentSummary, shiftDay } =
   await import('../lib/utils/orders-list.ts');
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).toISOString();
@@ -184,6 +184,40 @@ test('a website payment names its provider and a short reference', async () => {
 });
 
 test('an unpaid order with no method reads as one phrase', () => {
-  assert.deepEqual(paymentSummary({ paymentMethod: null, paymentStatus: 'unpaid' }), { method: 'Not paid yet', state: null, tone: 'warning' });
+  assert.deepEqual(paymentSummary({ paymentMethod: null, paymentStatus: 'unpaid' }), {
+    method: 'Not paid yet',
+    state: null,
+    tone: 'warning',
+  });
   assert.equal(paymentSummary({ paymentMethod: 'card', paymentStatus: 'unpaid' }).state, 'Unpaid');
+});
+
+test('payment can be recorded for an unpaid manual order or a website order awaiting payment, never a cancelled one', () => {
+  const o = (source: string, paymentStatus: string, status = 'pending') => ({ source, paymentStatus, status }) as never;
+  assert.equal(canRecordPayment(o('manual', 'unpaid')), true);
+  assert.equal(canRecordPayment(o('manual', 'unpaid', 'done')), true);
+  assert.equal(canRecordPayment(o('web', 'awaiting_payment')), true);
+  assert.equal(canRecordPayment(o('web', 'processing')), true);
+  assert.equal(canRecordPayment(o('web', 'unpaid')), false);
+  assert.equal(canRecordPayment(o('web', 'expired')), false);
+  assert.equal(canRecordPayment(o('web', 'awaiting_payment', 'cancelled')), false);
+  assert.equal(canRecordPayment(o('manual', 'unpaid', 'cancelled')), false);
+  assert.equal(canRecordPayment(o('manual', 'paid')), false);
+  assert.equal(canRecordPayment(o('pos', 'unpaid')), false);
+  assert.equal(canRecordPayment(o('qr', 'awaiting_cash_approval')), false);
+});
+
+test('an open manual order edits customer and delivery; an open website order only its address', () => {
+  const o = (source: string, fulfilmentType: string | null, status = 'pending') => ({ source, fulfilmentType, status }) as never;
+  assert.equal(deliveryEditMode(o('manual', null)), 'full');
+  assert.equal(deliveryEditMode(o('manual', 'delivery', 'ready')), 'full');
+  assert.equal(deliveryEditMode(o('web', 'shipping')), 'address');
+  assert.equal(deliveryEditMode(o('web', 'delivery')), 'address');
+  assert.equal(deliveryEditMode(o('web', 'collection')), null);
+  assert.equal(deliveryEditMode(o('web', null)), null);
+  assert.equal(deliveryEditMode(o('pos', null)), null);
+  for (const status of ['done', 'cancelled', 'expired']) {
+    assert.equal(deliveryEditMode(o('manual', 'delivery', status)), null);
+    assert.equal(deliveryEditMode(o('web', 'shipping', status)), null);
+  }
 });

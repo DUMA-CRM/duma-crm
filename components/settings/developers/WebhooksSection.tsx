@@ -1,12 +1,13 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
 import { SecretReveal } from '@/components/cms/SecretReveal';
-import { FIELD_LABEL_CLASS, cmsKeys, invalidateCms } from '@/components/cms/shared';
-import { Loader2, Plus, RotateCcw, Send, Trash2, Webhook } from '@/components/icons';
+import { InfoRow, PickerRow, RowMenu } from '@/components/cms/rows';
+import { cmsKeys, invalidateCms } from '@/components/cms/shared';
+import { History, Plus, RotateCcw, Send, Trash2, Webhook } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -15,8 +16,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Modal } from '@/components/shared/Modal';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { LoadingState } from '@/components/shared/Skeleton';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { Bone, LoadingState } from '@/components/shared/Skeleton';
 import { ActionButton } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,9 +36,10 @@ import {
   updateCmsWebhook,
 } from '@/lib/modules/cms/client';
 import { toast } from '@/lib/toast';
+import { webhookHealth } from '@/lib/utils/developers';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { DONE_BEAT_MS, RowTile, rowClass } from './rows';
+import { DONE_BEAT_MS, Facts } from './rows';
 
 const EVENT_LABELS: Record<CmsWebhookEvent, string> = {
   'entry.published': 'Entry published',
@@ -51,12 +52,12 @@ const EVENT_LABELS: Record<CmsWebhookEvent, string> = {
 export function WebhooksSection() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
-  const reduceMotion = useReducedMotion();
   const [creating, setCreating] = useState(false);
   const [revealed, setRevealed] = useState<{ id: string; name: string; secret: string } | null>(null);
-  const [arrivedId, setArrivedId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<CmsWebhook | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  // One webhook open at a time; a tap on the open one closes it.
+  const [openRow, setOpenRow] = useState<string | null>(null);
   const query = useQuery({
     queryKey: cmsKeys.webhooks(tenantId),
     queryFn: () => getCmsWebhooks(tenantId ?? undefined),
@@ -93,20 +94,25 @@ export function WebhooksSection() {
   });
 
   const hooks = query.data ?? [];
+  const failing = hooks.filter((hook) => webhookHealth(hook.isActive, hook.lastDelivery).tone === 'danger').length;
 
   return (
     <SettingsSection
       title="Webhooks"
-      description="Call your website’s rebuild or cache-purge URL whenever content is published, unpublished or deleted, so edits go live without a redeploy."
+      description="Tell your website when content changes, so it rebuilds or clears its cache without a redeploy."
       actions={
-        <Button size="sm" className="gap-1.5" onClick={() => setCreating(true)}>
-          <Plus aria-hidden="true" /> New webhook
-        </Button>
+        <>
+          {failing > 0 && <Badge variant="warning">{failing} failing</Badge>}
+          <Button variant="outline" className="h-9" onClick={() => setCreating(true)}>
+            <Plus aria-hidden="true" /> New webhook
+          </Button>
+        </>
       }
-      footnote="Failed deliveries retry with backoff, up to 8 attempts. Open Deliveries to see each attempt and send one again."
     >
       {query.isPending ? (
-        <TilesSkeleton count={2} label="Loading webhooks" />
+        <div className="space-y-3" role="status" aria-label="Loading webhooks">
+          <Bone className="h-8 w-full rounded-md" />
+        </div>
       ) : query.isError ? (
         <ErrorState title="Couldn’t load your webhooks" onRetry={() => void query.refetch()} />
       ) : hooks.length === 0 ? (
@@ -114,88 +120,68 @@ export function WebhooksSection() {
           compact
           icon={Webhook}
           title="No webhooks yet"
-          description="Add one to rebuild your site when you publish."
-          action={{ label: 'Add a webhook', onClick: () => setCreating(true), icon: Plus }}
+          description="Add your site’s deploy hook and it rebuilds whenever you publish."
+          action={{ label: 'New webhook', onClick: () => setCreating(true), icon: Plus }}
         />
       ) : (
-        <ul className="space-y-2">
-          <AnimatePresence initial={false}>
-            {hooks.map((hook, index) => {
-              const last = hook.lastDelivery;
-              return (
-                <motion.li
-                  key={hook.id}
-                  layout={!reduceMotion}
-                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0, transition: { delay: reduceMotion ? 0 : index * 0.04 } }}
-                  exit={{ opacity: 0, x: 16 }}
-                  className={rowClass(!hook.isActive, hook.id === arrivedId)}
-                >
-                  <RowTile icon={Webhook} active={hook.isActive} tone={last?.status === 'failed' ? 'warning' : 'primary'} />
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
-                      <span className="truncate">{hook.name}</span>
-                      {last && (
-                        <Badge variant={last.status === 'succeeded' ? 'success' : last.status === 'failed' ? 'destructive' : 'muted'}>
-                          {last.status === 'succeeded' ? 'Delivering' : last.status === 'failed' ? 'Failing' : 'Retrying'}
-                        </Badge>
-                      )}
-                    </p>
-                    <p className="truncate font-mono text-xs text-muted-foreground">{hook.url}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {hook.events.map((event) => EVENT_LABELS[event]).join(' · ')}
-                      {last ? (
-                        <>
-                          {' · '}last sent <RelativeTime iso={last.at} />
-                        </>
-                      ) : null}
-                    </p>
-                  </div>
-                  <div className="flex w-full items-center justify-end gap-0.5 sm:w-auto">
+        <div className="space-y-3">
+          {hooks.map((hook) => {
+            const health = webhookHealth(hook.isActive, hook.lastDelivery);
+            const busy = (mutation: { isPending: boolean; variables?: CmsWebhook }) =>
+              mutation.isPending && mutation.variables?.id === hook.id;
+            return (
+              <PickerRow
+                key={hook.id}
+                icon={Webhook}
+                tone={health.tone}
+                title={hook.name}
+                description={hook.url.replace(/^https:\/\//, '')}
+                value={health.label}
+                muted={health.muted}
+                open={openRow === hook.id}
+                onToggle={() => setOpenRow((current) => (current === hook.id ? null : hook.id))}
+                trailing={
+                  <>
                     <Switch
                       checked={hook.isActive}
-                      label={`${hook.name} active`}
+                      label={`${hook.name} on`}
                       disabled={toggle.isPending}
                       onChange={() => toggle.mutate(hook)}
                     />
-                    <Button variant="ghost" size="sm" className="ml-1.5 gap-1" disabled={test.isPending} onClick={() => test.mutate(hook)}>
-                      {test.isPending && test.variables?.id === hook.id ? (
-                        <Loader2 className="animate-spin" aria-hidden="true" />
-                      ) : (
-                        <Send aria-hidden="true" />
-                      )}
-                      Test
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setOpenId(hook.id)}>
-                      Deliveries
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-muted-foreground"
-                      aria-label={`Rotate ${hook.name} signing secret`}
-                      title="Rotate signing secret"
-                      disabled={rotate.isPending}
-                      onClick={() => rotate.mutate(hook)}
-                    >
-                      <RotateCcw aria-hidden="true" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-muted-foreground hover:text-exception"
-                      aria-label={`Delete ${hook.name}`}
-                      onClick={() => setDeleting(hook)}
-                    >
-                      <Trash2 aria-hidden="true" />
-                    </Button>
-                  </div>
-                </motion.li>
-              );
-            })}
-          </AnimatePresence>
-        </ul>
+                    <RowMenu
+                      label={`${hook.name} actions`}
+                      pending={busy(test) || busy(rotate)}
+                      items={[
+                        { icon: Send, label: 'Send a test', onClick: () => test.mutate(hook) },
+                        { icon: History, label: 'Deliveries', onClick: () => setOpenId(hook.id) },
+                        { icon: RotateCcw, label: 'New signing secret', onClick: () => rotate.mutate(hook) },
+                        { icon: Trash2, label: 'Delete', onClick: () => setDeleting(hook), danger: true },
+                      ]}
+                    />
+                  </>
+                }
+              >
+                <Facts
+                  rows={[
+                    [
+                      'Address',
+                      <span key="u" className="font-mono">
+                        {hook.url}
+                      </span>,
+                    ],
+                    ['Sends on', hook.events.map((event) => EVENT_LABELS[event]).join(' · ')],
+                    hook.lastDelivery && ['Last sent', <RelativeTime key="t" iso={hook.lastDelivery.at} />],
+                  ]}
+                />
+              </PickerRow>
+            );
+          })}
+        </div>
       )}
+
+      <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+        Each request is signed, so your site can check it came from DUMA. Failed deliveries retry up to 8 times.
+      </p>
 
       {creating && (
         <CreateWebhookDialog
@@ -212,9 +198,9 @@ export function WebhooksSection() {
           label="Signing secret"
           icon={Webhook}
           secret={revealed.secret}
-          warning="Store this in your receiver to verify signatures. It is encrypted at rest and cannot be shown again — rotate it if lost."
+          warning="Store this where your site receives the webhook, to check each request’s signature. It can’t be shown again — make a new one if it’s lost."
           onClose={() => {
-            setArrivedId(revealed.id);
+            setOpenRow(revealed.id);
             setRevealed(null);
           }}
         />
@@ -308,21 +294,18 @@ function CreateWebhookDialog({
             setUrlError(undefined);
           }}
         />
-        <fieldset>
-          <legend className={FIELD_LABEL_CLASS}>Send on</legend>
-          <div className="mt-1.5 space-y-1.5">
-            {CMS_WEBHOOK_EVENTS.map((event) => (
-              <label key={event} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={events.includes(event)}
-                  onChange={() => setEvents(events.includes(event) ? events.filter((item) => item !== event) : [...events, event])}
-                />
-                {EVENT_LABELS[event]} <span className="font-mono text-xs text-muted-foreground">{event}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">Send when</h3>
+          {CMS_WEBHOOK_EVENTS.map((event) => (
+            <InfoRow key={event} icon={Webhook} title={EVENT_LABELS[event]}>
+              <Switch
+                checked={events.includes(event)}
+                label={EVENT_LABELS[event]}
+                onChange={() => setEvents(events.includes(event) ? events.filter((item) => item !== event) : [...events, event])}
+              />
+            </InfoRow>
+          ))}
+        </section>
       </div>
     </Modal>
   );

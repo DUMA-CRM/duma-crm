@@ -283,3 +283,61 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
     </Modal>
   );
 }
+
+/* A website order's address, corrected after checkout — a wrong branch, a typo.
+ * The customer and the carrier stay as the shopper chose; the correction stays
+ * on this order and isn't saved to the customer. */
+export function OrderAddressEditor({ order, onClose }: { order: OrderDetail; onClose: () => void }) {
+  const qc = useQueryClient();
+  const home = useHomeCountries()[0]!;
+  const [address, setAddress] = useState<OrderShippingAddress>(
+    () => order.shippingAddress ?? emptyAddress({ name: order.customerName ?? '', phone: null, country: home }),
+  );
+  const [submitted, setSubmitted] = useState(false);
+  const errors = addressErrors(address);
+  const fulfilmentType = order.fulfilmentType === 'shipping' ? 'shipping' : 'delivery';
+
+  const save = useMutation({
+    mutationFn: () => updateOrderDetails(order.id, { fulfilment: { type: fulfilmentType, address: cleanAddress(address) } }),
+    onSuccess: () => {
+      invalidateOrder(qc, order.id);
+      toast('success', 'Address saved.');
+      onClose();
+    },
+    onError: (error) => toast('error', error instanceof Error && error.message ? error.message : 'The address wasn’t saved. Try again.'),
+  });
+
+  return (
+    <Modal
+      title="Delivery address"
+      description="Where this website order is sent. The delivery the shopper chose stays the same."
+      onClose={onClose}
+      size="xl"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={save.isPending}>
+            Cancel
+          </Button>
+          <Button
+            disabled={save.isPending}
+            onClick={() => {
+              setSubmitted(true);
+              if (Object.keys(errors).length === 0) save.mutate();
+            }}
+          >
+            {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+            Save
+          </Button>
+        </div>
+      }
+    >
+      <FormSection title="Send to" note="Only this order changes — the customer's saved addresses don't.">
+        <DeliveryAddressFields
+          value={address}
+          onChange={(patch) => setAddress((current) => ({ ...current, ...patch }))}
+          errors={submitted ? errors : undefined}
+        />
+      </FormSection>
+    </Modal>
+  );
+}

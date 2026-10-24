@@ -6,6 +6,7 @@
 // decide the same way.
 // ---------------------------------------------------------------------------
 import type { Order, OrderItem, OrderStatus } from '@/lib/modules/ordering/client';
+
 import { paymentClears } from './order-workflow.ts';
 import { formatInstant, workspaceDateKey, zonedParts } from './workspace-time.ts';
 
@@ -84,11 +85,39 @@ export const itemCount = (items: Pick<OrderItem, 'quantity'>[] | undefined): num
  * Nothing moves until it's paid — an unpaid order can only be cancelled, and
  * that is not a "next step". Except an order taken by hand, which is paid later.
  */
-export function nextStep(order: Pick<Order, 'status' | 'paymentStatus'> & { source?: Order['source'] }): { status: OrderStatus; label: string } | null {
+export function nextStep(
+  order: Pick<Order, 'status' | 'paymentStatus'> & { source?: Order['source'] },
+): { status: OrderStatus; label: string } | null {
   if (!paymentClears(order)) return null;
   if (order.status === 'pending') return { status: 'preparing', label: 'Start preparing' };
   if (order.status === 'preparing') return { status: 'ready', label: 'Mark ready' };
   if (order.status === 'ready') return { status: 'done', label: 'Complete' };
+  return null;
+}
+
+/**
+ * True when staff can record a payment taken outside DUMA — mirrors the API's
+ * `POST /orders/:id/mark-paid`: an unpaid order taken by hand, or a website
+ * order still awaiting payment (a transfer or jar staff have checked). Never a
+ * cancelled one — its stock has gone back.
+ */
+export function canRecordPayment(order: Pick<Order, 'source' | 'status' | 'paymentStatus'>): boolean {
+  if (order.status === 'cancelled' || order.status === 'expired') return false;
+  if (order.source === 'manual') return order.paymentStatus === 'unpaid';
+  if (order.source === 'web') return order.paymentStatus === 'awaiting_payment' || order.paymentStatus === 'processing';
+  return false;
+}
+
+/**
+ * What staff can change about who an order is for and where it goes — mirrors
+ * the API's `POST /orders/:id/details`. An open order taken by hand: everything
+ * (`'full'`). An open website order sent somewhere: only its address, since the
+ * shopper chose the customer and the carrier (`'address'`). Otherwise nothing.
+ */
+export function deliveryEditMode(order: Pick<Order, 'source' | 'status' | 'fulfilmentType'>): 'full' | 'address' | null {
+  if (['done', 'cancelled', 'expired'].includes(order.status)) return null;
+  if (order.source === 'manual') return 'full';
+  if (order.source === 'web' && (order.fulfilmentType === 'delivery' || order.fulfilmentType === 'shipping')) return 'address';
   return null;
 }
 

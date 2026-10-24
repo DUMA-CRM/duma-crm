@@ -24,6 +24,7 @@ export interface WorkspaceApiKey {
   lastUsedAt: string | null;
   revokedAt: string | null;
   createdAt: string;
+  createdBy?: string | null;
   state: 'active' | 'revoked' | 'expired';
 }
 

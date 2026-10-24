@@ -1,4 +1,5 @@
 import { MANAGEMENT_REFERENCE } from './management-reference.ts';
+
 // ---------------------------------------------------------------------------
 // The public APIs a workspace's own website or app calls, in one registry.
 //
@@ -32,6 +33,25 @@ export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
 export type PublicApiId = 'content' | 'manage' | 'store' | 'management';
 
+/** What each management scope lets a key do, in words — the generated reference carries only the scope names. */
+const MANAGEMENT_SCOPE_COPY: Partial<Record<(typeof MANAGEMENT_SCOPE_NAMES)[number], { label: string; detail: string }>> = {
+  'content:manage': { label: 'Edit content', detail: 'Read and update entries, and create drafts' },
+  'content:publish': { label: 'Publish content', detail: 'Publish, unpublish and archive entries' },
+  'content:delete': { label: 'Delete content', detail: 'Delete entries' },
+  'content:configure': { label: 'Configure content', detail: 'Models, fields, languages and content settings' },
+  'media:read': { label: 'Read media', detail: 'Browse the media library' },
+  'media:write': { label: 'Upload media', detail: 'Upload, replace, import and move files' },
+  'media:delete': { label: 'Delete media', detail: 'Remove files from the library' },
+  'notes:read': { label: 'Read notes', detail: 'Notes, folders and their history' },
+  'notes:write': { label: 'Write notes', detail: 'Create and edit notes and folders' },
+  'notes:delete': { label: 'Delete notes', detail: 'Delete notes and folders' },
+  'notes:manage': { label: 'Share note folders', detail: 'Create shared folders and choose who sees them' },
+  'workspace:read': { label: 'Read workspace', detail: 'Business details, trading settings and setup progress' },
+  'workspace:write': { label: 'Change workspace', detail: 'Business details, trading settings and guided setup' },
+  'locations:manage': { label: 'Manage locations', detail: 'List, add and edit locations' },
+  'catalog:manage': { label: 'Manage catalogue', detail: 'Products, sizes, options and categories' },
+};
+
 type GrantCapability = string;
 
 /**
@@ -50,7 +70,22 @@ export const SCOPES: Record<
     optIn?: boolean;
   }
 > = {
-  ...Object.fromEntries(MANAGEMENT_SCOPE_NAMES.map((scope) => [scope, { api: 'management' as const, label: scope.replace(':', ' · '), detail: `Delegated ${scope} access, limited by the key creator’s current permissions`, capabilities: MANAGEMENT_REFERENCE.scopes[scope], publishable: false, optIn: true }])) as unknown as Record<(typeof MANAGEMENT_SCOPE_NAMES)[number], { api: 'management'; label: string; detail: string; capabilities: readonly string[]; publishable: boolean; optIn: boolean }>,
+  ...(Object.fromEntries(
+    MANAGEMENT_SCOPE_NAMES.map((scope) => [
+      scope,
+      {
+        api: 'management' as const,
+        label: MANAGEMENT_SCOPE_COPY[scope]?.label ?? scope,
+        detail: MANAGEMENT_SCOPE_COPY[scope]?.detail ?? `Delegated ${scope} access`,
+        capabilities: MANAGEMENT_REFERENCE.scopes[scope],
+        publishable: false,
+        optIn: true,
+      },
+    ]),
+  ) as unknown as Record<
+    (typeof MANAGEMENT_SCOPE_NAMES)[number],
+    { api: 'management'; label: string; detail: string; capabilities: readonly string[]; publishable: boolean; optIn: boolean }
+  >),
   'content:read': {
     api: 'content',
     label: 'Read content',
@@ -132,7 +167,19 @@ export interface PublicApi {
 }
 
 export const PUBLIC_APIS: readonly PublicApi[] = [
-  { id: 'management', name: 'Workspace Management API', basePath: '/v1/manage', summary: 'Configure CMS, media, Notes, workspace and catalogue with an owner-bound secret key.', moduleId: 'organization', endpoints: MANAGEMENT_REFERENCE.operations.map((op) => ({ method: op.method, path: `/${op.domain}${op.path}`.replace(/:([A-Za-z]+)/g, "{$1}"), summary: op.title, scope: op.scope })) },
+  {
+    id: 'management',
+    name: 'Workspace Management API',
+    basePath: '/v1/manage',
+    summary: 'Configure CMS, media, Notes, workspace and catalogue with an owner-bound secret key.',
+    moduleId: 'organization',
+    endpoints: MANAGEMENT_REFERENCE.operations.map((op) => ({
+      method: op.method,
+      path: `/${op.domain}${op.path}`.replace(/:([A-Za-z]+)/g, '{$1}'),
+      summary: op.title,
+      scope: op.scope,
+    })),
+  },
   {
     id: 'content',
     name: 'Content API',

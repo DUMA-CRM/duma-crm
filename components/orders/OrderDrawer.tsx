@@ -41,6 +41,8 @@ import { formatDateTime } from '@/lib/utils/date';
 import {
   type ActivityEvent,
   STATUS_EVENT,
+  canRecordPayment,
+  deliveryEditMode,
   formatGap,
   itemCount,
   nextStep,
@@ -54,7 +56,7 @@ import {
 import { workspaceDateKey, workspaceFormatter } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 
-import { OrderDeliveryEditor } from './OrderDeliveryEditor';
+import { OrderAddressEditor, OrderDeliveryEditor } from './OrderDeliveryEditor';
 import { OrderNote } from './OrderNote';
 import { PaymentDueCard } from './PaymentDueCard';
 import { RefundBody, RefundFooter, useRefundDraft } from './RefundPanel';
@@ -186,6 +188,8 @@ export function OrderDrawer({
   // Refund mode: the same drawer, its body and footer swapped for the refund.
   const refunding = canRefund && showRefund && data.status === 'done' && refundable > 0;
   const discount = Number(data.discountAmount ?? 0);
+  const deliveryMode = deliveryEditMode(data);
+  const sendsOut = data.fulfilmentType === 'delivery' || data.fulfilmentType === 'shipping';
   const listOrder = {
     ...data,
     totalAmount: Number(data.totalAmount),
@@ -365,8 +369,9 @@ export function OrderDrawer({
             </div>
           </section>
 
-          {/* An order taken by hand: who it's for and how it reaches them, filled in now or later. */}
-          {data.source === 'manual' && !['done', 'cancelled', 'expired'].includes(data.status) && canTakeOrders && (
+          {/* An order taken by hand: who it's for and how it reaches them, filled in now or later.
+              A website order: only where it's sent, corrected if the shopper got it wrong. */}
+          {deliveryMode && canTakeOrders && (
             <section aria-labelledby="order-delivery" className="rounded-lg border border-rule/60 bg-control px-3.5 py-3">
               <div className="flex items-center gap-3">
                 <span
@@ -376,16 +381,16 @@ export function OrderDrawer({
                   )}
                   aria-hidden="true"
                 >
-                  {data.fulfilmentType === 'delivery' ? <Truck size={15} /> : <User size={15} />}
+                  {sendsOut ? <Truck size={15} /> : <User size={15} />}
                 </span>
                 <div className="min-w-0 flex-1">
                   <h3 id="order-delivery" className="truncate text-sm font-semibold text-foreground">
                     {data.customerId ? data.customerName || linkedCustomerName || 'Customer' : 'No customer yet'}
                   </h3>
                   <p className="truncate text-xs text-muted-foreground">
-                    {data.fulfilmentType === 'delivery'
+                    {sendsOut
                       ? data.shippingAddress
-                        ? `Delivery to ${shippingAddressLines(data.shippingAddress).slice(1).join(', ')}`
+                        ? `${data.fulfilmentType === 'shipping' ? 'Shipping' : 'Delivery'} to ${shippingAddressLines(data.shippingAddress).slice(1).join(', ')}`
                         : 'Delivery — no address yet'
                       : data.customerId
                         ? 'They collect it'
@@ -393,17 +398,16 @@ export function OrderDrawer({
                   </p>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => setEditingDelivery(true)}>
-                  {data.customerId ? 'Edit' : 'Add'}
+                  {data.customerId || deliveryMode === 'address' ? 'Edit' : 'Add'}
                 </Button>
               </div>
             </section>
           )}
 
-          {/* Taken by hand and still to be paid — gone once it is. */}
-          {data.source === 'manual' &&
-            data.paymentStatus === 'unpaid' &&
-            !['cancelled', 'expired'].includes(data.status) &&
-            canTakeOrders && <PaymentDueCard orderId={data.id} amountDue={Number(data.totalAmount)} />}
+          {/* Taken by hand, or a website order awaiting a transfer, and still to be paid — gone once it is. */}
+          {canRecordPayment(data) && canTakeOrders && (
+            <PaymentDueCard orderId={data.id} amountDue={Number(data.totalAmount)} defaultMethod={data.paymentMethod} />
+          )}
 
           {/* The order's note: added or changed whenever there's something worth keeping. */}
           <OrderNote key={data.notes ?? ''} orderId={data.id} notes={data.notes} canEdit={canNote} />
@@ -484,7 +488,12 @@ export function OrderDrawer({
       )}
 
       {showReceipt && <ReceiptModal orderId={data.id} onClose={() => setShowReceipt(false)} />}
-      {editingDelivery && <OrderDeliveryEditor order={data} onClose={() => setEditingDelivery(false)} />}
+      {editingDelivery &&
+        (deliveryMode === 'address' ? (
+          <OrderAddressEditor order={data} onClose={() => setEditingDelivery(false)} />
+        ) : (
+          <OrderDeliveryEditor order={data} onClose={() => setEditingDelivery(false)} />
+        ))}
       {showEmail && data.customerId && (
         <SendEmailModal
           customerId={data.customerId}

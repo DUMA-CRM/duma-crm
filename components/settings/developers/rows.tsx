@@ -1,35 +1,34 @@
-import { KeyRound } from '@/components/icons';
+import { DocCopyButton } from './docs-blocks';
 
-import { cn } from '@/lib/utils/cn';
-
-/** The tile every row on the keys page opens with — the same shape as Settings → Devices. */
-export function RowTile({
-  icon: Icon,
-  active,
-  tone = 'primary',
-}: {
-  icon: typeof KeyRound;
-  active: boolean;
-  tone?: 'primary' | 'warning';
-}) {
+/** A value someone pastes elsewhere — a base URL, a server address: its name over it, and a copy button. */
+export function CopyRow({ label, value }: { label: string; value: string }) {
   return (
-    <span
-      className={cn(
-        'flex size-10 shrink-0 items-center justify-center rounded-md',
-        !active ? 'bg-band text-muted-foreground' : tone === 'warning' ? 'bg-measured/12 text-measured' : 'bg-primary/10 text-primary',
-      )}
-    >
-      <Icon size={18} aria-hidden="true" />
-    </span>
+    <div className="min-w-0">
+      <p className="text-xs font-semibold text-foreground">{label}</p>
+      <div className="mt-1 flex items-center gap-2 rounded-md border border-rule/55 bg-background py-1 pl-3 pr-1">
+        <code className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{value}</code>
+        <DocCopyButton text={value} label={label} />
+      </div>
+    </div>
   );
 }
 
-export const rowClass = (muted: boolean, arrived = false) =>
-  cn(
-    'flex flex-wrap items-center gap-3 rounded-lg border px-3.5 py-3',
-    muted ? 'border-rule/40 bg-background/30 opacity-70' : 'border-rule/50 bg-background/60',
-    arrived && 'row-arrive',
+/** An opened row's details: short labels against their values, on the quiet band. */
+export function Facts({ rows }: { rows: Array<[string, React.ReactNode] | null | undefined | false | ''> }) {
+  return (
+    <dl className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-x-3 gap-y-1.5 rounded-md bg-band/60 px-3 py-2.5 text-xs">
+      {rows.filter(Boolean).map((row) => {
+        const [term, value] = row as [string, React.ReactNode];
+        return (
+          <div key={term} className="contents">
+            <dt className="text-muted-foreground">{term}</dt>
+            <dd className="min-w-0 wrap-break-word text-foreground">{value}</dd>
+          </div>
+        );
+      })}
+    </dl>
   );
+}
 
 /** How long a create button shows its "done" tick before the secret takes over. */
 export const DONE_BEAT_MS = 650;

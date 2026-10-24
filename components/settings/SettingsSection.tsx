@@ -32,7 +32,10 @@ export function SettingsSection({
   descriptionClassName,
   alignActionsToTitle = false,
   icon: Icon,
+  id,
 }: {
+  /** An anchor, so a link can land on this section. */
+  id?: string;
   /** Omit for a panel whose content introduces itself (the profile card). */
   title?: string;
   /** Why the controls exist / what they affect. */
@@ -57,7 +60,11 @@ export function SettingsSection({
     </h2>
   );
   return (
-    <motion.section variants={SECTION_RISE} className={cn('rounded-lg border border-rule/60 bg-field', className)}>
+    <motion.section
+      id={id}
+      variants={SECTION_RISE}
+      className={cn('rounded-lg border border-rule/60 bg-field', id && 'scroll-mt-6', className)}
+    >
       {alignActionsToTitle && title ? (
         <header className="px-5 pt-5">
           <div className="flex min-h-9 items-center gap-4">

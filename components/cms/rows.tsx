@@ -185,10 +185,13 @@ export function PickerRow({
   tone,
   open,
   onToggle,
+  trailing,
   children,
 }: {
   icon: IconComponent;
   title: string;
+  /** Controls beside the row, outside its toggle — a switch, a ⋯ menu. */
+  trailing?: React.ReactNode;
   /** The row needs attention while closed: `danger` for an error, `warning` for something required left empty. */
   tone?: 'warning' | 'danger';
   /** One line under the title — for a row that is one of a list of things (a language, a reader). */
@@ -200,46 +203,57 @@ export function PickerRow({
   onToggle: () => void;
   children: React.ReactNode;
 }) {
+  const toggle = (
+    <button
+      type="button"
+      aria-expanded={open}
+      onClick={onToggle}
+      className="flex w-full min-w-0 items-center justify-between gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
+      {/* A two-line title may shrink (to leave the value room); a one-line one keeps its width. */}
+      <span className={cn('flex items-center gap-3', description ? 'min-w-0 max-w-[70%]' : 'shrink-0')}>
+        <RowTile icon={icon} tone={tone} />
+        {description ? (
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-foreground">{title}</span>
+            <span className="block truncate text-xs text-muted-foreground">{description}</span>
+          </span>
+        ) : (
+          <span className="truncate text-sm font-semibold text-foreground">{title}</span>
+        )}
+      </span>
+      <span
+        className={cn(
+          // Takes what the title leaves and clips: a long value ends in "…" before the chevron, never past the row.
+          'flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-hidden text-sm',
+          tone === 'danger'
+            ? 'font-medium text-exception'
+            : tone === 'warning'
+              ? 'font-medium text-measured'
+              : muted
+                ? 'font-normal text-muted-foreground/70'
+                : 'font-semibold text-foreground',
+        )}
+      >
+        <span className="truncate">{value}</span>
+        <ChevronDown
+          size={14}
+          className={cn('shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')}
+          aria-hidden="true"
+        />
+      </span>
+    </button>
+  );
   return (
     <div>
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-      >
-        <span className="flex shrink-0 items-center gap-3">
-          <RowTile icon={icon} tone={tone} />
-          {description ? (
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold text-foreground">{title}</span>
-              <span className="block truncate text-xs text-muted-foreground">{description}</span>
-            </span>
-          ) : (
-            <span className="truncate text-sm font-semibold text-foreground">{title}</span>
-          )}
-        </span>
-        <span
-          className={cn(
-            // Takes what the title leaves and clips: a long value ends in "…" before the chevron, never past the row.
-            'flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-hidden text-sm',
-            tone === 'danger'
-              ? 'font-medium text-exception'
-              : tone === 'warning'
-                ? 'font-medium text-measured'
-                : muted
-                  ? 'font-normal text-muted-foreground/70'
-                  : 'font-semibold text-foreground',
-          )}
-        >
-          <span className="truncate">{value}</span>
-          <ChevronDown
-            size={14}
-            className={cn('shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')}
-            aria-hidden="true"
-          />
-        </span>
-      </button>
+      {trailing ? (
+        <div className="flex items-center gap-1.5">
+          {toggle}
+          <div className="flex shrink-0 items-center gap-1">{trailing}</div>
+        </div>
+      ) : (
+        toggle
+      )}
       {open && <div className="mt-3">{children}</div>}
     </div>
   );

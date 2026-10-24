@@ -18,15 +18,26 @@ const METHODS: RecordedPaymentMethod[] = ['card', 'cash', 'bank_transfer', 'cust
 const ICON: Record<RecordedPaymentMethod, IconComponent> = { card: CreditCard, cash: Banknote, bank_transfer: Landmark, custom: Wallet };
 
 /**
- * An order taken by hand that hasn't been paid yet: what's due, and — when the
- * money comes in — how it was paid. Nothing is charged; it records a payment
+ * An order taken by hand, or a website order awaiting a transfer, that hasn't
+ * been paid yet: what's due, and — when the money comes in — how it was paid. Nothing is charged; it records a payment
  * made outside DUMA. Once recorded the order is paid and this card is gone.
  */
-export function PaymentDueCard({ orderId, amountDue }: { orderId: string; amountDue: number }) {
+export function PaymentDueCard({
+  orderId,
+  amountDue,
+  defaultMethod,
+}: {
+  orderId: string;
+  amountDue: number;
+  /** The method the order already names, when it is one we can record. */
+  defaultMethod?: string | null;
+}) {
   const qc = useQueryClient();
   const money = useWorkspaceMoney();
   const [choosing, setChoosing] = useState(false);
-  const [method, setMethod] = useState<RecordedPaymentMethod>('card');
+  const [method, setMethod] = useState<RecordedPaymentMethod>(
+    METHODS.includes(defaultMethod as RecordedPaymentMethod) ? (defaultMethod as RecordedPaymentMethod) : 'card',
+  );
   const mark = useMutation({
     mutationFn: () => markOrderPaid(orderId, method),
     onSuccess: () => {
